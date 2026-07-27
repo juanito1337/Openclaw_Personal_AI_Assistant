@@ -1,0 +1,40 @@
+[runtime]
+database = "personal_assistant/data/assistant.sqlite3"
+log_file = "personal_assistant/data/assistant.log"
+resources_file = "personal_assistant/resources.toml"
+policies_file = "personal_assistant/policies.toml"
+secrets_file = "~/.config/personal-assistant/secrets.env"
+command_timeout_seconds = 120
+
+[search]
+enabled = true
+chunk_chars = 3000
+chunk_overlap_chars = 300
+max_file_bytes = 25000000
+max_text_chars = 500000
+default_limit = 20
+nextcloud_max_depth = 6
+nextcloud_max_items = 2000
+mail_snapshot_dir = "mail_agent/data/search_documents"
+# Optional extension point. No embedding model is forced in 3.4.0.
+semantic_provider = "disabled"
+
+[nextcloud]
+enabled = false
+resource_id = "nextcloud-main"
+base_url_env = "NEXTCLOUD_URL"
+username_env = "NEXTCLOUD_USER"
+token_env = "NEXTCLOUD_TOKEN"
+request_timeout_seconds = 45
+allowed_file_roots = ["Assistent"]
+calendar_horizon_days_back = 365
+calendar_horizon_days_forward = 730
+
+[self_management]
+enabled = true
+allow_safe_setting_changes = true
+allow_resource_discovery = true
+allow_secret_changes = false
+allow_plugin_install = false
+allow_code_changes = false
+allow_permission_expansion = false

@@ -1,0 +1,11 @@
+[Unit]
+Description=Check for new mail 20 minutes after the previous run ends
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=20min
+AccuracySec=1s
+Unit=mail-agent.service
+
+[Install]
+WantedBy=timers.target

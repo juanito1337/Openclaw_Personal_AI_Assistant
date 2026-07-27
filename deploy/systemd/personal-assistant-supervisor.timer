@@ -1,0 +1,11 @@
+[Unit]
+Description=Check Personal Assistant jobs and record state changes
+
+[Timer]
+OnBootSec=3min
+OnUnitInactiveSec=5min
+AccuracySec=30s
+Unit=personal-assistant-supervisor.service
+
+[Install]
+WantedBy=timers.target

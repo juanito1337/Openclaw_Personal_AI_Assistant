@@ -1,0 +1,330 @@
+{
+  "schema_version": 1,
+  "product": "OpenClaw Local Personal Assistant",
+  "version": "3.4.0-r26.4",
+  "release": "r26.4",
+  "title": "Korrekte Agenten-Exposition fuer Kalender, Aufgaben und Kontakte",
+  "released_at": "2026-07-27",
+  "installed_at": "2026-07-27T18:57:28+00:00",
+  "previous_version": "3.4.0-r26.1",
+  "installation_id": "20260727T185725Z",
+  "changes": [
+    "Der agentenseitig geladene personal-assistant-Skill beschreibt Kalender, Aufgaben und Kontakte jetzt auf demselben Funktionsstand wie Backend, CLI und Tool-Registry; veraltete create-only-Aussagen wurden entfernt.",
+    "Bei Fragen nach anstehenden Terminen oder offenen Aufgaben muss der Agent die registrierten Status- und Listenwerkzeuge verwenden, bevor er eine Funktion als nicht verfuegbar bezeichnet.",
+    "Widerspruechliche Betriebsanweisungen in AGENTS.md wurden bereinigt; Kalender- und Aufgabenupdates bleiben exakt UID-basiert, freigabepflichtig und ETag/If-Match-geschuetzt.",
+    "Die Konfigurationswerkzeuge fuer Kalender und Aufgaben weisen konsistent auf --allow-update --yes hin; Schreibrechte werden weiterhin nur nach expliziter Nutzerwahl und live bestaetigten Serverrechten aktiviert.",
+    "CLI-Hilfetexte unterscheiden das sichere Neuanlegen klar vom kontrollierten Aktualisieren bestehender VEVENT- und VTODO-Objekte.",
+    "Neue Regressionstests pruefen Skill-Version, List-/Search-/Update-Exposition und verhindern erneute create-only-Falschbehauptungen.",
+    "Nach Installation ist ein Gateway-Neustart oder eine neue Agentensitzung erforderlich, damit der aktualisierte Skillkontext geladen wird; alle R26.3- und frueheren Funktionen bleiben kumulativ enthalten."
+  ],
+  "history": [
+    {
+      "version": "3.4.0-r26.4",
+      "released_at": "2026-07-27",
+      "title": "Korrekte Agenten-Exposition fuer Kalender, Aufgaben und Kontakte",
+      "changes": [
+        "Der agentenseitig geladene personal-assistant-Skill beschreibt Kalender, Aufgaben und Kontakte jetzt auf demselben Funktionsstand wie Backend, CLI und Tool-Registry; veraltete create-only-Aussagen wurden entfernt.",
+        "Bei Fragen nach anstehenden Terminen oder offenen Aufgaben muss der Agent die registrierten Status- und Listenwerkzeuge verwenden, bevor er eine Funktion als nicht verfuegbar bezeichnet.",
+        "Widerspruechliche Betriebsanweisungen in AGENTS.md wurden bereinigt; Kalender- und Aufgabenupdates bleiben exakt UID-basiert, freigabepflichtig und ETag/If-Match-geschuetzt.",
+        "Die Konfigurationswerkzeuge fuer Kalender und Aufgaben weisen konsistent auf --allow-update --yes hin; Schreibrechte werden weiterhin nur nach expliziter Nutzerwahl und live bestaetigten Serverrechten aktiviert.",
+        "CLI-Hilfetexte unterscheiden das sichere Neuanlegen klar vom kontrollierten Aktualisieren bestehender VEVENT- und VTODO-Objekte.",
+        "Neue Regressionstests pruefen Skill-Version, List-/Search-/Update-Exposition und verhindern erneute create-only-Falschbehauptungen.",
+        "Nach Installation ist ein Gateway-Neustart oder eine neue Agentensitzung erforderlich, damit der aktualisierte Skillkontext geladen wird; alle R26.3- und frueheren Funktionen bleiben kumulativ enthalten."
+      ]
+    },
+    {
+      "version": "3.4.0-r26.3",
+      "released_at": "2026-07-27",
+      "title": "ETag-geschuetztes Bearbeiten von Kalenderterminen und Aufgaben",
+      "changes": [
+        "Bestehende Kalendertermine koennen nach aktueller Liste oder Suche anhand ihrer exakten iCalendar-UID kontrolliert aktualisiert werden; eine unscharfe Titelauswahl ist fuer Schreibzugriffe nicht zulaessig.",
+        "Bestehende VTODO-Aufgaben koennen einzeln bearbeitet, abgeschlossen oder bewusst wieder geoeffnet werden; nicht genannte Felder bleiben unveraendert.",
+        "Kalender- und Aufgabenupdates verwenden die unmittelbar zuvor gelesene ETag mit If-Match und brechen bei zwischenzeitlichen Aenderungen ab, statt parallele Bearbeitungen still zu ueberschreiben.",
+        "Teilaktualisierungen erhalten Teilnehmer, Alarme, Zeitzonen, Wiederholungsregeln, Ausnahmen und unbekannte iCalendar-Eigenschaften; Serienupdates benoetigen eine gesonderte ausdrueckliche Freigabe.",
+        "Update-Werkzeuge werden nur nach expliziter allow_update-Freigabe und live bestaetigten CalDAV-Schreibrechten registriert; jeder Schreibzugriff laeuft als auditierter ActionPlan mit exakter UID und optionalen Erwartungswerten.",
+        "Loeschen, Massenbearbeitung, automatisches Zusammenfuehren sowie das Verschieben von Terminen oder Aufgaben zwischen Sammlungen bleiben gesperrt; alle R26.2-, R26.1- und R26-Funktionen bleiben kumulativ enthalten."
+      ]
+    },
+    {
+      "version": "3.4.0-r26.2",
+      "released_at": "2026-07-27",
+      "title": "ETag-geschuetztes Bearbeiten von CardDAV-Kontakten",
+      "changes": [
+        "Bestehende Kontakte koennen nach ausdruecklichem Nutzerauftrag ueber ihre exakte CardDAV-UID aktualisiert werden; eine unscharfe Namensauswahl ist fuer Schreibzugriffe nicht zulaessig.",
+        "Kontakt-Aktualisierungen verwenden die beim Lesen ermittelte ETag mit If-Match und brechen bei zwischenzeitlichen Aenderungen ab, statt fremde oder parallele Bearbeitungen still zu ueberschreiben.",
+        "Teilaktualisierungen erhalten UID, Adresse, Geburtstag, Foto und unbekannte vCard-Erweiterungen; nur explizit angegebene Felder wie Name, E-Mail, Telefon, Organisation oder Notiz werden ersetzt oder geleert.",
+        "E-Mail-Dubletten und unbeabsichtigte Namenskollisionen werden vor dem Schreibzugriff blockiert; erwarteter Name oder erwartete E-Mail koennen als zusaetzliche Auswahlwache angegeben werden.",
+        "Jede Aktualisierung laeuft als auditierter ActionPlan mit ausdruecklicher Freigabe; Loeschen, Zusammenfuehren und automatisches Massenbearbeiten von Kontakten bleiben verboten.",
+        "Das Aktualisierungswerkzeug wird nur fuer ein ausgewaehltes Adressbuch mit bestaetigten CardDAV-Schreibrechten und explizit aktivierter allow_update-Berechtigung registriert."
+      ]
+    },
+    {
+      "version": "3.4.0-r26.1",
+      "released_at": "2026-07-26",
+      "title": "Robuste Ollama-JSON-Antworten und konservative Batch-Laufzeiten",
+      "changes": [
+        "Nachweislich am num_predict-Limit abgeschnittene Einzel-JSON-Antworten werden nicht mehr mit demselben Limit wiederholt, sondern genau einmal als JSON-Schema mit 1024 Ausgabetokens neu angefordert.",
+        "Am Tokenlimit abgeschnittene Batch-Antworten werden als eigener Fehler erkannt und in kleinere Gruppen geteilt, statt eine zweite gleich grosse format=json-Ausgabe zu starten.",
+        "Die Standard-Batchgroesse sinkt von fuenf auf drei Mails; Wiederholungen erhalten 300 Sekunden und duerfen bis zu Einzelanfragen aufgeteilt werden.",
+        "Der automatische Mail-Agent startet nur noch eine Modellgruppe gleichzeitig und nutzt keinen zweiten Hintergrund-Burst-Slot; interaktive Agentenanfragen koennen den freien Prioritaetsslot weiterhin verwenden.",
+        "Kuerzere Begruendungen und Zusammenfassungen reduzieren die JSON-Ausgabe, ohne Rechnungs-, Termin- oder Bestelldaten aus dem Schema zu entfernen.",
+        "Eine atomare R26.1-Konfigurationsmigration aendert nur bekannte R25/R26-Standardwerte und bewahrt bewusst gesetzte individuelle Tuningwerte."
+      ]
+    },
+    {
+      "version": "3.4.0-r26",
+      "released_at": "2026-07-26",
+      "title": "Zuverlaessige Rechnungsablage und Nextcloud-Jahresregister",
+      "changes": [
+        "Native PDF-Textschichten haben Vorrang; OCR wird nur noch als Fallback bei unbrauchbarem Text oder unsicherem Rechnungsdatum ausgefuehrt.",
+        "Ein sicher erkanntes Rechnungsdatum bestimmt die Nextcloud-Ablage unter Jahr und Monat unabhaengig davon, ob Betrag, Rechnungsnummer, Firma oder Kategorie vollstaendig erkannt wurden.",
+        "Nur ein unsicheres Rechnungsdatum fuehrt zur Ablage unter Pruefen; unvollstaendige Zusatzdaten werden als Pruefstatus im Jahresregister dokumentiert, ohne die Routine-Mail umzuleiten.",
+        "Das Rechnungsregister wird ausschliesslich als feste Datei Rechnungen_YYYY.csv im jeweiligen Nextcloud-Jahresordner gefuehrt; eine dauerhafte lokale CSV-Kopie wird nicht mehr angelegt.",
+        "Neue, korrigierte und bereits archivierte Rechnungen synchronisieren das Jahresregister zwingend; CSV-Fehler werden sichtbar als Verarbeitungsfehler behandelt und koennen ueber einen Dublettenlauf repariert werden.",
+        "Die einzige erlaubte Dateiersetzung ist das verwaltete Jahresregister mit Pfad-, Schema-, SHA-256- und ETag-Pruefung; parallele Aenderungen werden ohne stilles Ueberschreiben abgebrochen.",
+        "Die atomare R26-Konfigurationsmigration aktiviert Metadaten und Jahresregister, erzwingt Semikolon und entfernt den veralteten lokalen register_dir-Eintrag."
+      ]
+    },
+    {
+      "version": "3.4.0-r25",
+      "released_at": "2026-07-26",
+      "title": "Prioritaetsgesteuerter Zwei-Slot-Betrieb fuer Gemma",
+      "changes": [
+        "Der lokale Ollama-Prioritaetsproxy stellt zwei gleichzeitig nutzbare Modellslots bereit und bleibt mit OLLAMA_NUM_PARALLEL=2 des entfernten Servers kompatibel.",
+        "Automatische Mailverarbeitung belegt im Normalbetrieb hoechstens einen Hintergrundslot; ein zweiter Hintergrundslot wird nur im Aufholbetrieb ohne aktive oder wartende Vordergrundanfrage freigegeben.",
+        "Interaktive und normale Agentenanfragen erhalten Vorrang vor neu beginnender Hintergrundarbeit; laufende Modellantworten werden nicht hart abgebrochen.",
+        "Der Mail-Klassifizierer verarbeitet unabhaengige Modellgruppen mit bis zu zwei Worker-Threads und behaelt die urspruengliche Ergebnisreihenfolge bei.",
+        "Mailanfragen verwenden standardmaessig 16384 Kontexttoken und eine Stunde keep_alive statt den globalen 131072-Kontext fuer jede kurze Mail zu uebernehmen.",
+        "Konfigurationen aus R24 werden atomar und idempotent migriert; benutzerdefinierte Werte bleiben erhalten und Rollback stellt die vorherige Konfiguration wieder her.",
+        "Proxy- und Mail-Telemetrie weisen aktive Slots, maximale Parallelitaet und beobachtete Gleichzeitigkeit aus."
+      ]
+    },
+    {
+      "version": "3.4.0-r24",
+      "released_at": "2026-07-26",
+      "title": "Begrenzte Ollama-Laufzeiten und belastbare Mail-Telemetrie",
+      "changes": [
+        "Queue-Wartezeit und eigentliche Ollama-Modelllaufzeit besitzen getrennte, pro Anfrage begrenzte Zeitlimits.",
+        "Ein Modell- oder Batch-Timeout darf nur einen begrenzten Split-Versuch ausloesen; endlose Einzel- und Wiederholungsfolgen sind ausgeschlossen.",
+        "Der Mail-Drain beendet sich vor dem systemd-Timeout kontrolliert, speichert Fortschritt und setzt beim naechsten Timerlauf fort.",
+        "Performance-Telemetrie speichert laufende Ollama-Versuche vor dem HTTP-Aufruf und unterscheidet Queue-, Upstream- und Laufzeitbudget-Abbrueche.",
+        "Lebende Inflight-Laeufe werden weder ueberschrieben noch als unterbrochen markiert; wiederholte run_id-Datensaetze werden bei Auswertungen dedupliziert.",
+        "Der Ollama-Prioritaetsproxy begrenzt Upstream-Laufzeiten, liefert maschinenlesbare Fehlertypen und zaehlt Upstream-Timeouts sowie Clientabbrueche separat."
+      ]
+    },
+    {
+      "version": "3.4.0-r23.4",
+      "released_at": "2026-07-25",
+      "title": "CardDAV-Kontakte lesen und create-only aus Mails anlegen",
+      "changes": [
+        "CardDAV-Adressbuecher koennen read-only entdeckt und nach ausdruecklicher Nutzerwahl als Kontaktquelle konfiguriert werden.",
+        "Der Agent kann Kontakte live auflisten und nach Name, E-Mail, Telefon oder Organisation durchsuchen, ohne rohe vCards auszugeben.",
+        "Neue Kontakte werden ausschliesslich create-only nach ausdruecklichem Nutzerauftrag angelegt; Update und Loeschen bleiben verboten.",
+        "Kontakte aus Mails werden aus einer eindeutig ausgewaehlten Mail vorgeschlagen, virengeprueft und vor der Anlage auf E-Mail- und Namensdubletten kontrolliert.",
+        "No-reply- und automatische Absender werden beim Mail-Import blockiert; unsichere Namen muessen explizit ergaenzt werden."
+      ]
+    },
+    {
+      "version": "3.4.0-r23.3",
+      "released_at": "2026-07-25",
+      "title": "Garantierte plausible Deck-Faelligkeitsdaten",
+      "changes": [
+        "Jede aus einer Mail erzeugte agentenverwaltete Deck-Karte erhaelt immer ein nichtleeres dueDate.",
+        "Die Datumsauswahl priorisiert Retourenfrist, erwartete Lieferung und Bestelldatum; danach folgt das serverseitige Mail-Eingangsdatum als sicherer Fallback.",
+        "Falls selbst kein Mail-Eingangsdatum vorliegt, wird ein klar gekennzeichnetes Verarbeitungsdatum als letzter sicherer Fallback verwendet statt dueDate leer zu lassen.",
+        "Vorhandene plausible Deck-Faelligkeitsdaten werden bei spaeteren Mailereignissen nicht ueberschrieben.",
+        "Datumsquelle und Konfidenz werden lokal gespeichert; fehlende dueDate-Werte bestehender agentenverwalteter Karten koennen erst als Vorschau und danach kontrolliert nachgetragen werden."
+      ]
+    },
+    {
+      "version": "3.4.0-r23.2",
+      "released_at": "2026-07-25",
+      "title": "Deck-Datum aus dem echten Mail-Eingang",
+      "changes": [
+        "Routine-Mail-Karten im Bestell-Deck verwenden als Deck-Datum immer den Eingangszeitpunkt der ersten Quellmail.",
+        "Absenderseitiges Date-Header-Datum und serverseitiger Mail-Eingangszeitpunkt werden getrennt gespeichert.",
+        "Spaetere Versand- oder Statusmails veraendern das urspruengliche Deck-Datum einer Routine-Karte nicht.",
+        "Erwartete Lieferdaten bleiben fuer Karten erhalten, die nicht aus einer Routine-Mail angelegt wurden.",
+        "Bestehende Bestelldatenbanken werden additiv und verlustfrei um Eingangszeit- und Herkunftsfelder erweitert."
+      ]
+    },
+    {
+      "version": "3.4.0-r23.1",
+      "released_at": "2026-07-25",
+      "title": "Produktionsinstaller ohne pytest-Abhaengigkeit",
+      "changes": [
+        "Der produktive Installer benoetigt kein pytest und keine Python-Entwicklungsabhaengigkeiten mehr.",
+        "Verbindliche Staging-Pruefungen verwenden nur Standardbibliothek und installierte Laufzeitmodule.",
+        "Die vollstaendige pytest-Suite bleibt optional fuer Entwickler ueber OPENCLAW_INSTALL_RUN_TESTS=1 verfuegbar.",
+        "Das Paket ist kumulativ und kann direkt von 3.4.0-r22.4 oder 3.4.0-r23 installiert werden.",
+        "Alle Rechnungs-OCR-, Pruef-, Backfill- und Jahresregisterfunktionen aus R23 bleiben unveraendert."
+      ]
+    },
+    {
+      "version": "3.4.0-r23",
+      "released_at": "2026-07-25",
+      "title": "Sichere Rechnungs-OCR und fortlaufendes Jahresregister",
+      "changes": [
+        "Rechnungsdatum, Rechnungsnummer, Rechnungssteller und Betraege werden primaer aus der PDF-Textschicht gelesen und bei Unsicherheit per Tesseract-OCR gegengeprueft.",
+        "Leistungs-, Liefer-, Bestell- und Faelligkeitsdaten werden nicht mehr als bestaetigtes Rechnungsdatum verwendet; unklare oder widerspruechliche Werte landen in Pruefen.",
+        "Nach jeder archivierten Rechnung wird ein semikolongetrenntes UTF-8-Jahresregister mit Rechnungsnummer, Rechnungssteller, Kategorie, Netto, USt und Brutto atomar aktualisiert.",
+        "Bereits archivierte Rechnungen koennen read-only aus dem freigegebenen Nextcloud-Rechnungsordner nachtraeglich ausgewertet und in das Jahresregister aufgenommen werden.",
+        "Der Agent besitzt registrierte Befehle fuer OCR-Status, Prueffaelle, manuelle Korrektur, Jahres-CSV, create-only Nextcloud-Export und kontrollierten Backfill.",
+        "Rechnungssteller werden nur aus einem expliziten Feld oder einem plausiblen Firmenkopf uebernommen; Begriffe wie Lieferant in einem Firmennamen werden nicht als Feldbezeichner missverstanden."
+      ]
+    },
+    {
+      "version": "3.4.0-r22.4",
+      "released_at": "2026-07-25",
+      "title": "CalDAV-Discovery fuer Kalender und Aufgabenlisten",
+      "changes": [
+        "Kalender-Discovery listet erreichbare VEVENT-Sammlungen read-only mit stabiler resource_id und Serverrechten.",
+        "Aufgabenlisten-Discovery listet erreichbare VTODO-Sammlungen read-only und unterscheidet reine Aufgabenlisten von Termin-Kalendern.",
+        "Eine CalDAV-Sammlung kann VEVENT, VTODO oder beide Komponenten anbieten; diese Faehigkeiten werden maschinenlesbar gespeichert.",
+        "Kalender oder Aufgabenlisten werden nur nach ausdruecklicher Nutzerwahl ueber --yes konfiguriert und vorher live auf Lese-/Anlegerechte geprueft.",
+        "Der Agent kennt Discovery und Konfiguration fuer Kalender und Aufgabenlisten als registrierte assistant.sh-Werkzeuge."
+      ]
+    },
+    {
+      "version": "3.4.0-r22.3",
+      "released_at": "2026-07-24",
+      "title": "Robustes Nicht-Spam-Gegenlernen und Herkunftsnachweis",
+      "changes": [
+        "INBOX-Restore wird als expliziter Nicht-Spam-Gegenbeleg mit Herkunft und vorherigem Status gespeichert.",
+        "Nicht-Spam blockiert Spam nur fuer dasselbe Absender-/Betreffmuster und nicht pauschal fuer alle Mails eines Absenders.",
+        "Widerspruechliche Spamkorrekturen werden durch einen spaeteren Nicht-Spam-Gegenbeleg sicher auf Pruefen statt erneut auf Spam gesetzt.",
+        "Bestehende Routine- und Wichtig-Muster werden durch Nicht-Spam nicht inhaltlich ueberschrieben.",
+        "Neues read-only Agentenwerkzeug zeigt Nicht-Spam-Ursprung und Feedback-ID ohne Mailinhalte, Betreffe oder Absender."
+      ]
+    },
+    {
+      "version": "3.4.0-r22.2",
+      "released_at": "2026-07-24",
+      "title": "Sichere Musterentscheidungen und belastbare Originalklassifikation",
+      "changes": [
+        "Routine und Spam werden aus Feedbackmustern erst nach zwei aelteren konsistenten Korrekturen automatisch erzwungen.",
+        "Eine eindeutige relevante Musterkorrektur kann weiterhin sofort vor Spam- oder Routine-Herabstufung schuetzen.",
+        "Die urspruengliche automatische Entscheidung wird vor einer Nutzerkorrektur unveraenderlich gespeichert und bei spaeteren Korrekturwechseln erhalten.",
+        "Historische Zeilen ohne beweisbaren Original-Snapshot werden in der Modellbewertung als nicht messbar behandelt statt als 100-Prozent-Treffer.",
+        "Evaluationen enthalten Konfusionsmatrix, Kategorienmetriken, Originalquellen und stabile Konflikt-IDs mit betroffenen Feedback-IDs."
+      ]
+    },
+    {
+      "version": "3.4.0-r22.1",
+      "released_at": "2026-07-24",
+      "title": "Robuste Migration bestehender Lernhistorie",
+      "changes": [
+        "Migrationsreihenfolge fuer bestehende feedback-Tabellen korrigiert.",
+        "Vorherige Korrekturdaten werden erhalten und neue Felder kontrolliert rueckbefuellt.",
+        "Produktive SQLite-Datenbank wird vorab gesichert und auf einer Kopie migriert.",
+        "Health- und Lernbefehle werden erst nach erfolgreicher Schema- und Integritaetspruefung wieder freigegeben."
+      ]
+    },
+    {
+      "version": "3.4.0-r22",
+      "released_at": "2026-07-24",
+      "title": "Lernqualitaet, Konfliktanalyse und pseudonymisierte Evaluation",
+      "changes": [
+        "Chronologischer Basis-vs.-Mustervergleich ohne Self-Test-Leakage.",
+        "Separate Sicherheitsmetriken fuer verpasste relevante Mails und moegliche Spam-Weiterleitung.",
+        "Aggregierte Datenqualitaets- und Konfliktanalyse ohne Mailtexte.",
+        "Pseudonymisierter lokaler Evaluationsdatensatz mit Modus 0600."
+      ]
+    },
+    {
+      "version": "3.4.0-r21",
+      "released_at": "2026-07-24",
+      "title": "Musterbasiertes Mail-Lernen und dynamische Korrekturordner",
+      "changes": [
+        "Musterlernen kombiniert Absender, normalisiertes Betreffmuster und technische Mailmerkmale.",
+        "Gemischte Absender und widerspruechliche Muster fuehren zum Abstimmen statt zu pauschalen Entscheidungen.",
+        "Dynamische Korrektur-Unterordner speichern zusaetzliche Mailtyp-Labels.",
+        "Agentenbefehle fuer Lernstatus, Feedback, Konflikte und kontrollierte Ordnerverwaltung."
+      ]
+    },
+    {
+      "version": "3.4.0-r20.2",
+      "released_at": "2026-07-24",
+      "title": "Verbindliche Versions- und Updatekenntnis",
+      "changes": [
+        "Zentrale RELEASE.json mit Installationsmetadaten und Releasehistorie.",
+        "Neue Agentenbefehle version --verify, --history und --since.",
+        "Release-Identitaet in status, doctor, Tool-Registry, AGENTS und Heartbeat.",
+        "Installationsereignis informiert OpenClaw ueber Version und Aenderungen."
+      ]
+    },
+    {
+      "version": "3.4.0-r20.1",
+      "released_at": "2026-07-23",
+      "title": "Stabiler Wiederanlauf und vollstaendige Agentensteuerung",
+      "changes": [
+        "Mail-Timer und Mail-Interface werden vor automatischem Dry-Run geordnet gestoppt.",
+        "Echte Prozesssperre wird geprueft; temporaere Lock-Konflikte erzeugen keinen langen Cooldown.",
+        "Ollama- und Performancebefehle wurden als stabile assistant.sh-Werkzeuge registriert.",
+        "Installer startet Supervisor und Mail-Interface nicht mehr gleichzeitig."
+      ]
+    },
+    {
+      "version": "3.4.0-r20",
+      "released_at": "2026-07-23",
+      "title": "Zentrale Ollama-Priorisierung",
+      "changes": [
+        "Loopback-Ollama-Prioritaetskoordinator fuer alle Agentenfunktionen.",
+        "Interaktive Anfragen werden vor neuen Hintergrundklassifizierungen eingeplant.",
+        "Single-Flight, Starvation-Schutz, Queue-Limits und Streaming-Durchleitung.",
+        "Supervisor ueberwacht Proxy und Ollama-Upstream."
+      ]
+    },
+    {
+      "version": "3.4.0-r19.1",
+      "released_at": "2026-07-23",
+      "title": "Nicht blockierender Installer",
+      "changes": [
+        "Betroffene Timer und Dienste werden vor Updates mit festen Zeitgrenzen gestoppt.",
+        "Vorheriger ON/OFF-Zustand wird nach der Installation wiederhergestellt.",
+        "Keine synchrone lange Mail- oder Ollama-Verarbeitung innerhalb des Installers."
+      ]
+    },
+    {
+      "version": "3.4.0-r19",
+      "released_at": "2026-07-23",
+      "title": "Adaptives Mail-Batching",
+      "changes": [
+        "Batchgroesse wird konservativ an Mailkomplexitaet und Promptumfang angepasst.",
+        "Kalendereinladungen und sehr komplexe Mails werden isoliert verarbeitet.",
+        "Bestehende Regeln, Kategorien, Modellparameter und Sicherheitsgrenzen bleiben unveraendert."
+      ]
+    },
+    {
+      "version": "3.4.0-r18",
+      "released_at": "2026-07-23",
+      "title": "Privacy-sichere Performance-Telemetrie",
+      "changes": [
+        "Laufzeiten der Mail-Pipeline und externer Prozesse werden lokal gemessen.",
+        "Ollama-Servermetriken und Queue-Wartezeiten werden erfasst.",
+        "Abgebrochene Laeufe werden ueber einen Inflight-Checkpoint erkannt.",
+        "Telemetrie ist fail-open und speichert keine Mailinhalte oder Identifikatoren."
+      ]
+    },
+    {
+      "version": "3.4.0-r17",
+      "released_at": "2026-07-23",
+      "title": "Automatische sichere Mail-Freigabe",
+      "changes": [
+        "Maschinenlesbarer Production-Check fuer die Mail-Sicherheitsfreigabe.",
+        "Begrenzter automatischer Dry-Run bei veraltetem Fingerprint.",
+        "Kein --force und erneute Validierung vor dem normalen Dienststart."
+      ]
+    },
+    {
+      "version": "3.4.0-r16",
+      "released_at": "2026-07-23",
+      "title": "Job-Supervisor und ON/OFF-Steuerung",
+      "changes": [
+        "Persistenter Sollzustand fuer Supervisor, Mail und Sync.",
+        "Fehlererkennung, Alerts und sichere Standard-Start-/Restart-Befehle.",
+        "Eng begrenzte Selbstheilung fehlender Mailordner."
+      ]
+    }
+  ]
+}

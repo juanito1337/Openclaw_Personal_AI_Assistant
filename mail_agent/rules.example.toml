@@ -1,0 +1,16 @@
+# Copy to mail_agent/rules.toml. Keep hard rules narrow and explicit.
+# Prefer exact addresses/domains over broad sender-name matches.
+
+[spam]
+addresses = []
+domains = []
+sender_names = []
+subject_phrases = []
+
+[important]
+addresses = []
+domains = []
+
+[routine]
+addresses = []
+domains = []

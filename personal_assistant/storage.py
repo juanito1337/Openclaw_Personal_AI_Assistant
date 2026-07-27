@@ -1,0 +1,331 @@
+from __future__ import annotations
+
+import json
+import sqlite3
+import uuid
+from pathlib import Path
+from typing import Any
+
+from .models import ActionPlan, SearchResult
+from mail_agent.utils import now_utc_iso
+
+
+SCHEMA_VERSION = 1
+
+
+class AssistantStorage:
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.connection = sqlite3.connect(path)
+        self.connection.row_factory = sqlite3.Row
+        self.connection.execute("PRAGMA journal_mode=WAL")
+        self.connection.execute("PRAGMA foreign_keys=ON")
+        self.connection.execute("PRAGMA busy_timeout=5000")
+        self.fts_enabled = False
+        self._migrate()
+
+    def close(self) -> None:
+        self.connection.close()
+
+    def _migrate(self) -> None:
+        current = int(self.connection.execute("PRAGMA user_version").fetchone()[0])
+        if current > SCHEMA_VERSION:
+            raise RuntimeError(f"Assistant-Datenbankschema {current} ist neuer als {SCHEMA_VERSION}")
+        self.connection.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS resources (
+                resource_id TEXT PRIMARY KEY,
+                kind TEXT NOT NULL,
+                connector TEXT NOT NULL,
+                enabled INTEGER NOT NULL,
+                remote_id TEXT,
+                permissions_json TEXT NOT NULL,
+                metadata_json TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS sync_state (
+                resource_id TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                cursor TEXT,
+                etag TEXT,
+                synced_at TEXT,
+                status TEXT NOT NULL,
+                detail TEXT,
+                PRIMARY KEY(resource_id, scope)
+            );
+            CREATE TABLE IF NOT EXISTS documents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_type TEXT NOT NULL,
+                resource_id TEXT NOT NULL,
+                source_id TEXT NOT NULL,
+                uri TEXT NOT NULL,
+                title TEXT NOT NULL,
+                mime_type TEXT,
+                modified_at TEXT,
+                etag TEXT,
+                sha256 TEXT,
+                metadata_json TEXT NOT NULL,
+                indexed_at TEXT NOT NULL,
+                UNIQUE(resource_id, source_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_documents_type ON documents(source_type);
+            CREATE INDEX IF NOT EXISTS idx_documents_resource ON documents(resource_id);
+            CREATE INDEX IF NOT EXISTS idx_documents_modified ON documents(modified_at);
+            CREATE TABLE IF NOT EXISTS chunks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+                chunk_index INTEGER NOT NULL,
+                text TEXT NOT NULL,
+                UNIQUE(document_id, chunk_index)
+            );
+            CREATE TABLE IF NOT EXISTS action_plans (
+                id TEXT PRIMARY KEY,
+                idempotency_key TEXT NOT NULL UNIQUE,
+                action_type TEXT NOT NULL,
+                resource_id TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                status TEXT NOT NULL,
+                requires_approval INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                error TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_action_status ON action_plans(status);
+            CREATE TABLE IF NOT EXISTS audit_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                actor TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                resource_id TEXT,
+                detail_json TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS settings_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                setting_key TEXT NOT NULL,
+                old_value TEXT,
+                new_value TEXT,
+                actor TEXT NOT NULL,
+                approved INTEGER NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            """
+        )
+        try:
+            self.connection.execute(
+                "CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_fts USING fts5(title, text, source_type, resource_id, tokenize='unicode61 remove_diacritics 2')"
+            )
+            self.fts_enabled = True
+        except sqlite3.OperationalError:
+            self.fts_enabled = False
+        self.connection.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
+        self.connection.commit()
+
+    def integrity(self) -> str:
+        return str(self.connection.execute("PRAGMA integrity_check").fetchone()[0])
+
+    def audit(self, event_type: str, detail: dict[str, Any], *, resource_id: str = "", actor: str = "assistant") -> None:
+        self.connection.execute(
+            "INSERT INTO audit_log(actor,event_type,resource_id,detail_json,created_at) VALUES(?,?,?,?,?)",
+            (actor, event_type, resource_id, json.dumps(detail, ensure_ascii=False), now_utc_iso()),
+        )
+        self.connection.commit()
+
+    def set_sync_state(self, resource_id: str, scope: str, *, cursor: str = "", etag: str = "", status: str, detail: str = "") -> None:
+        self.connection.execute(
+            """
+            INSERT INTO sync_state(resource_id,scope,cursor,etag,synced_at,status,detail)
+            VALUES(?,?,?,?,?,?,?)
+            ON CONFLICT(resource_id,scope) DO UPDATE SET
+              cursor=excluded.cursor,etag=excluded.etag,synced_at=excluded.synced_at,
+              status=excluded.status,detail=excluded.detail
+            """,
+            (resource_id, scope, cursor, etag, now_utc_iso(), status, detail),
+        )
+        self.connection.commit()
+
+    def get_document(self, resource_id: str, source_id: str) -> sqlite3.Row | None:
+        return self.connection.execute(
+            "SELECT * FROM documents WHERE resource_id=? AND source_id=?", (resource_id, source_id)
+        ).fetchone()
+
+    def index_document(
+        self,
+        *,
+        source_type: str,
+        resource_id: str,
+        source_id: str,
+        uri: str,
+        title: str,
+        mime_type: str = "",
+        modified_at: str = "",
+        etag: str = "",
+        sha256: str = "",
+        metadata: dict[str, Any] | None = None,
+        chunks: list[str],
+    ) -> int:
+        timestamp = now_utc_iso()
+        metadata_json = json.dumps(metadata or {}, ensure_ascii=False)
+        self.connection.execute(
+            """
+            INSERT INTO documents(source_type,resource_id,source_id,uri,title,mime_type,modified_at,etag,sha256,metadata_json,indexed_at)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?)
+            ON CONFLICT(resource_id,source_id) DO UPDATE SET
+              source_type=excluded.source_type,uri=excluded.uri,title=excluded.title,
+              mime_type=excluded.mime_type,modified_at=excluded.modified_at,etag=excluded.etag,
+              sha256=excluded.sha256,metadata_json=excluded.metadata_json,indexed_at=excluded.indexed_at
+            """,
+            (source_type, resource_id, source_id, uri, title, mime_type, modified_at, etag, sha256, metadata_json, timestamp),
+        )
+        row = self.get_document(resource_id, source_id)
+        assert row is not None
+        document_id = int(row["id"])
+        old_rows = self.connection.execute("SELECT id FROM chunks WHERE document_id=?", (document_id,)).fetchall()
+        if self.fts_enabled:
+            for old in old_rows:
+                self.connection.execute("DELETE FROM knowledge_fts WHERE rowid=?", (int(old["id"]),))
+        self.connection.execute("DELETE FROM chunks WHERE document_id=?", (document_id,))
+        for index, text in enumerate(chunks):
+            cursor = self.connection.execute(
+                "INSERT INTO chunks(document_id,chunk_index,text) VALUES(?,?,?)",
+                (document_id, index, text),
+            )
+            chunk_id = int(cursor.lastrowid)
+            if self.fts_enabled:
+                self.connection.execute(
+                    "INSERT INTO knowledge_fts(rowid,title,text,source_type,resource_id) VALUES(?,?,?,?,?)",
+                    (chunk_id, title, text, source_type, resource_id),
+                )
+        self.connection.commit()
+        return document_id
+
+    def search(
+        self,
+        query: str,
+        *,
+        limit: int = 20,
+        source_type: str = "",
+        resource_id: str = "",
+    ) -> list[SearchResult]:
+        params: list[Any] = []
+        filters = []
+        if source_type:
+            filters.append("d.source_type=?")
+            params.append(source_type)
+        if resource_id:
+            filters.append("d.resource_id=?")
+            params.append(resource_id)
+        where_extra = (" AND " + " AND ".join(filters)) if filters else ""
+        if self.fts_enabled and query.strip():
+            sql = f"""
+                SELECT d.*, c.text, bm25(knowledge_fts) AS rank
+                FROM knowledge_fts
+                JOIN chunks c ON c.id=knowledge_fts.rowid
+                JOIN documents d ON d.id=c.document_id
+                WHERE knowledge_fts MATCH ? {where_extra}
+                ORDER BY rank ASC
+                LIMIT ?
+            """
+            values = [query, *params, limit]
+            try:
+                rows = self.connection.execute(sql, values).fetchall()
+            except sqlite3.OperationalError:
+                rows = self._search_like(query, params, where_extra, limit)
+        else:
+            rows = self._search_like(query, params, where_extra, limit)
+        results: list[SearchResult] = []
+        for row in rows:
+            text = str(row["text"] or "")
+            snippet = text[:500].replace("\n", " ")
+            try:
+                metadata = json.loads(str(row["metadata_json"] or "{}"))
+            except json.JSONDecodeError:
+                metadata = {}
+            results.append(SearchResult(
+                document_id=int(row["id"]),
+                source_type=str(row["source_type"]),
+                resource_id=str(row["resource_id"]),
+                source_id=str(row["source_id"]),
+                title=str(row["title"]),
+                uri=str(row["uri"]),
+                snippet=snippet,
+                score=float(-row["rank"] if row["rank"] is not None else 0.0),
+                metadata=metadata,
+            ))
+        return results
+
+
+    def _search_like(self, query: str, params: list[Any], where_extra: str, limit: int) -> list[sqlite3.Row]:
+        pattern = f"%{query}%"
+        sql = f"""
+            SELECT d.*, c.text, 0.0 AS rank
+            FROM chunks c JOIN documents d ON d.id=c.document_id
+            WHERE (c.text LIKE ? OR d.title LIKE ?) {where_extra}
+            ORDER BY d.modified_at DESC, d.id DESC LIMIT ?
+        """
+        return self.connection.execute(sql, [pattern, pattern, *params, limit]).fetchall()
+
+    def create_action(
+        self,
+        *,
+        idempotency_key: str,
+        action_type: str,
+        resource_id: str,
+        payload: dict[str, Any],
+        requires_approval: bool,
+    ) -> ActionPlan:
+        existing = self.connection.execute(
+            "SELECT * FROM action_plans WHERE idempotency_key=?", (idempotency_key,)
+        ).fetchone()
+        if existing:
+            return self._row_action(existing)
+        action_id = str(uuid.uuid4())
+        timestamp = now_utc_iso()
+        status = "proposed" if requires_approval else "approved"
+        self.connection.execute(
+            "INSERT INTO action_plans(id,idempotency_key,action_type,resource_id,payload_json,status,requires_approval,created_at,updated_at,error) VALUES(?,?,?,?,?,?,?,?,?,?)",
+            (action_id, idempotency_key, action_type, resource_id, json.dumps(payload, ensure_ascii=False), status, int(requires_approval), timestamp, timestamp, ""),
+        )
+        self.connection.commit()
+        return self.get_action(action_id)
+
+    def get_action(self, action_id: str) -> ActionPlan:
+        row = self.connection.execute("SELECT * FROM action_plans WHERE id=?", (action_id,)).fetchone()
+        if not row:
+            raise KeyError(f"Unbekannter ActionPlan: {action_id}")
+        return self._row_action(row)
+
+    def list_actions(self, status: str = "", limit: int = 100) -> list[ActionPlan]:
+        if status:
+            rows = self.connection.execute(
+                "SELECT * FROM action_plans WHERE status=? ORDER BY created_at DESC LIMIT ?",
+                (status, limit),
+            ).fetchall()
+        else:
+            rows = self.connection.execute(
+                "SELECT * FROM action_plans ORDER BY created_at DESC LIMIT ?", (limit,)
+            ).fetchall()
+        return [self._row_action(row) for row in rows]
+
+    def update_action(self, action_id: str, status: str, error: str = "") -> ActionPlan:
+        self.connection.execute(
+            "UPDATE action_plans SET status=?,error=?,updated_at=? WHERE id=?",
+            (status, error, now_utc_iso(), action_id),
+        )
+        self.connection.commit()
+        return self.get_action(action_id)
+
+    @staticmethod
+    def _row_action(row: sqlite3.Row) -> ActionPlan:
+        return ActionPlan(
+            id=str(row["id"]),
+            idempotency_key=str(row["idempotency_key"]),
+            action_type=str(row["action_type"]),
+            resource_id=str(row["resource_id"]),
+            payload=json.loads(str(row["payload_json"])),
+            status=str(row["status"]),
+            requires_approval=bool(row["requires_approval"]),
+            created_at=str(row["created_at"]),
+            updated_at=str(row["updated_at"]),
+            error=str(row["error"] or ""),
+        )

@@ -1,0 +1,88 @@
+# Central tool configuration. Secrets are never stored here.
+
+[mail]
+enabled = true
+
+[mail.invoices]
+enabled = true
+resource_id = "nextcloud-files-main"
+folder = "Assistent/Rechnungen"
+organize_by_year_month = true
+
+[mail.calendar_mail]
+enabled = false
+subject_prefix = "[ASSISTENT TERMIN]"
+sender_addresses = []
+calendar_resource_id = ""
+
+[mail.move]
+enabled = false
+resource_id = "mail-agent"
+max_batch = 1
+denied_destinations = ["trash", "papierkorb", "deleted", "deleted messages", "gelöscht", "junk", "spam", "spamverdacht", "agent/virusverdacht"]
+
+[nextcloud.workspace]
+enabled = true
+resource_id = "nextcloud-files-main"
+root = "Assistent"
+outbox = "personal_assistant/data/workspace_outbox"
+allow_mkdir = true
+allow_upload = true
+allow_write_text = true
+allow_move = true
+
+[security.antivirus]
+enabled = true
+binary = "clamdscan"
+fallback_binary = "clamscan"
+allow_standalone_fallback = true
+daemon_service = "clamav-daemon.service"
+freshclam_service = "clamav-freshclam.service"
+fail_closed = true
+scan_raw_mail = true
+scan_attachments = true
+cache_hours = 24
+max_scan_bytes = 100000000
+timeout_seconds = 120
+temp_dir = "personal_assistant/data/antivirus_tmp"
+
+[nextcloud.calendar]
+enabled = true
+resource_id = "nextcloud-calendar-example"
+allow_create = true
+allow_list = true
+allow_update = false
+timezone = "Europe/Berlin"
+default_duration_minutes = 60
+max_duration_hours = 168
+max_future_days = 730
+
+[nextcloud.tasks]
+enabled = true
+resource_id = "nextcloud-calendar-example"
+allow_create = true
+allow_list = true
+allow_update = false
+timezone = "Europe/Berlin"
+max_future_days = 3650
+
+[nextcloud.contacts]
+enabled = false
+resource_id = ""
+allow_list = true
+allow_create = true
+allow_update = false
+max_results = 500
+
+[nextcloud.deck_orders]
+enabled = false
+resource_id = "nextcloud-deck-orders"
+board_id = 0
+board_title = "Bestellungen"
+allow_read = true
+allow_create = true
+allow_update = true
+allow_move = true
+auto_process_mail = true
+min_confidence = 0.82
+database = "personal_assistant/data/orders.sqlite3"

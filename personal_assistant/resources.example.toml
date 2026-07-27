@@ -1,0 +1,18 @@
+# Dynamic resources. Additional mail accounts, calendars, address books and task
+# lists are registered here without changing Python code.
+
+[[resources]]
+id = "mail-agent"
+kind = "email-service"
+connector = "mail-agent"
+enabled = true
+remote_id = "primary"
+permissions = ["read", "classify", "move", "forward"]
+
+[[resources]]
+id = "nextcloud-main"
+kind = "nextcloud-instance"
+connector = "nextcloud"
+enabled = false
+remote_id = ""
+permissions = ["read"]

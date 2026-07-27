@@ -1,0 +1,152 @@
+# Copy this file to mail_agent/config.toml and adapt the local values.
+# Never commit the real config.toml after adding personal addresses or LAN URLs.
+
+[mailbox]
+himalaya_binary = "himalaya"
+account = ""
+source_folder = "INBOX"
+quarantine_folders = ["Spam"]
+quarantine_max_per_run = 10
+quarantine_rescue_only = true
+from_header = "Mail Agent <mail-agent@example.invalid>"
+forward_to = "important@example.invalid"
+page_size = 100
+
+[folders]
+spam = "Agent/Spam"
+routine = "Agent/Routine"
+forwarded = "Agent/Weitergeleitet"
+review = "Agent/Pruefen"
+feedback_not_spam = "Agent/Korrektur-Kein-Spam"
+feedback_unimportant = "Agent/Korrektur-Unwichtig"
+feedback_important = "Agent/Korrektur-Wichtig"
+feedback_spam = "Agent/Korrektur-Spam"
+appointment_review = "Agent/Termin-Pruefen"
+error = "Agent/Fehler"
+malware = "Agent/Virusverdacht"
+
+[ollama]
+base_url = "http://127.0.0.1:11434"
+model = "gemma4:31b"
+timeout_seconds = 600
+queue_timeout_seconds = 600
+request_timeout_margin_seconds = 30
+max_body_chars = 6000
+temperature = 0.1
+batch_enabled = true
+batch_size = 3
+batch_prefetch = 9
+batch_timeout_seconds = 300
+batch_retry_timeout_seconds = 300
+batch_timeout_split_once = true
+batch_max_split_depth = 2
+batch_max_body_chars = 4000
+batch_max_total_chars = 18000
+batch_fallback_to_smaller_groups = true
+batch_adaptive_enabled = true
+batch_adaptive_target_chars = 14000
+batch_adaptive_heavy_body_chars = 3500
+batch_adaptive_max_attachments = 2
+parallel_requests = 1
+background_burst = false
+num_ctx = 16384
+num_predict = 512
+# Nur wenn eine Einzelantwort exakt am Tokenlimit abgeschnitten wurde.
+single_retry_num_predict = 1024
+batch_num_predict = 2048
+keep_alive = "1h"
+think = false
+
+[thresholds]
+spam = 0.95
+relevant = 0.90
+routine = 0.90
+calendar = 0.95
+min_forward_importance = 7
+
+[forwarding]
+enabled = true
+attach_original_eml = true
+# Backward-compatible setting; 3.4.0 sends original messages as ZIP immediately.
+retry_as_zip_on_rejection = true
+subject_prefix = "[WICHTIG {importance}/10]"
+payload_dir = "mail_agent/data/forward_payloads"
+
+[calendar]
+enabled = true
+auto_create = true
+require_trusted_sender = true
+trust_feedback_count = 2
+backend = "queue"
+timezone = "Europe/Berlin"
+command = ""
+pending_dir = "mail_agent/data/calendar_pending"
+created_dir = "mail_agent/data/calendar_created"
+caldav_url_env = "MAIL_AGENT_CALDAV_URL"
+caldav_username_env = "MAIL_AGENT_CALDAV_USERNAME"
+caldav_password_env = "MAIL_AGENT_CALDAV_PASSWORD"
+approval_required = true
+approval_recipient = ""
+approval_reply_from = ""
+approval_expiry_days = 14
+approval_subject_prefix = "[MAIL-AGENT TERMIN]"
+require_future = true
+send_result_mail = true
+
+[nextcloud]
+enabled = false
+skill_package = "@keithvassallomt/openclaw-nextcloud"
+skill_dir = "skills/openclaw-nextcloud"
+base_url_env = "NEXTCLOUD_URL"
+username_env = "NEXTCLOUD_USER"
+token_env = "NEXTCLOUD_TOKEN"
+calendar = ""
+addressbook = ""
+contacts_enabled = true
+contacts_prevent_spam = true
+trust_contacts_for_calendar = false
+contact_importance_boost = 1
+contact_cache_ttl_seconds = 3600
+contact_cache_file = "mail_agent/data/nextcloud_contacts_cache.json"
+
+[invoices]
+enabled = false
+require_routine = true
+min_confidence = 0.90
+nextcloud_folder = "Mail-Agent/Rechnungen"
+organize_by_year_month = true
+max_pdf_bytes = 25000000
+upload_timeout_seconds = 120
+metadata_enabled = true
+metadata_min_confidence = 0.82
+text_timeout_seconds = 45
+min_text_quality = 0.35
+ocr_enabled = true
+ocr_languages = "deu+eng"
+ocr_max_pages = 2
+ocr_dpi = 300
+ocr_page_segmentation = 6
+ocr_timeout_seconds = 180
+review_subfolder = "Pruefen"
+register_enabled = true
+# register_dir aus aelteren Versionen wird nur noch kompatibel eingelesen; R26 fuehrt keine lokale CSV.
+register_delimiter = ";"
+
+[digest]
+enabled = false
+hour_local = 18
+min_items = 1
+subject = "Mail-Tagesuebersicht {date}"
+
+[notifications]
+signal_enabled = false
+signal_script = "scripts/signal-send.sh"
+signal_recipient = ""
+
+[runtime]
+database = "mail_agent/data/mail_agent.sqlite3"
+rules_file = "mail_agent/rules.toml"
+learning_folders_file = "mail_agent/learning_folders.json"
+log_file = "mail_agent/data/mail_agent.log"
+lock_file = "mail_agent/data/mail_agent.lock"
+command_timeout_seconds = 90
