@@ -71,6 +71,7 @@ if errors:
 PY
 
 bash -n scripts/*.sh
+find docker -type f -name "*.sh" -print0 | xargs -0 -r -n1 bash -n
 if command -v systemd-analyze >/dev/null 2>&1; then
   UNIT_TMP=$(mktemp -d)
   trap 'rm -rf "$UNIT_TMP"' EXIT
@@ -87,9 +88,14 @@ if command -v systemd-analyze >/dev/null 2>&1; then
     "$UNIT_TMP/personal-assistant-supervisor.service" "$UNIT_TMP/personal-assistant-supervisor.timer"
 fi
 
+
+if command -v ruby >/dev/null 2>&1; then
+  ruby -e 'require "yaml"; YAML.safe_load_file("compose.yaml", aliases: true); YAML.safe_load_file("compose.build.yaml", aliases: true)'
+fi
+
 PYTHONDONTWRITEBYTECODE=1 python3 - <<'PY'
 from pathlib import Path
-for folder in (Path("mail_agent"), Path("personal_assistant"), Path("tests")):
+for folder in (Path("mail_agent"), Path("personal_assistant"), Path("tests"), Path("docker")):
     for path in folder.rglob("*.py"):
         compile(path.read_text(encoding="utf-8"), str(path), "exec")
 PY
