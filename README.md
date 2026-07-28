@@ -1,13 +1,13 @@
-# OpenClaw 3.4.0-r27.0
+# OpenClaw 3.4.0-r27.0.1
 
-R27.0 is the cumulative container release. Program code and dependencies live in an immutable image, while productive state, configuration and secrets remain under `/srv/openclaw`. Every deployment stops the writers, creates and verifies a restore point, runs a bounded product smoke test and automatically returns to the previous image and data on failure. Remote IMAP and Nextcloud changes are covered through required administrator-supplied backup and restore hooks. See `docs/DOCKER_DEPLOYMENT.md`.
+R27.0.1 is the cumulative container release with migration and runtime fixes. Program code and dependencies live in an immutable image, while productive state, configuration and secrets remain under `/srv/openclaw`. Every deployment stops the writers, creates and verifies a local restore point, runs a bounded product smoke test and automatically returns to the previous image and local data on failure. Optional administrator hooks can additionally snapshot remote IMAP and Nextcloud data. See `docs/DOCKER_DEPLOYMENT.md`.
 
 Quick start after Docker is installed:
 
 ```bash
 sudo ./docker/scripts/setup-host.sh
 /srv/openclaw/deployment/scripts/migrate-live.sh --execute
-/srv/openclaw/deployment/scripts/deploy.sh r27.0
+/srv/openclaw/deployment/scripts/deploy.sh r27.0.1
 ```
 
 ## R22.1 robust migration for existing learning history
@@ -71,7 +71,7 @@ The agent now has registered Ollama and performance commands, and automatic mail
 recovery stops the timer/service and waits for the real process lock before its
 safety dry-run. See `docs/JOB_CONTROL.md` and `docs/OLLAMA_PRIORITY.md`.
 
-# Local Personal Assistant 3.4.0-r27.0
+# Local Personal Assistant 3.4.0-r27.0.1
 
 ## R26.4 agent capability exposure fix
 

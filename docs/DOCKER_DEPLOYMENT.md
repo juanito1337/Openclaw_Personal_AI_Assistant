@@ -1,7 +1,9 @@
-# Docker deployment and rollback (R27.0)
+# Docker deployment and rollback (R27.0.1)
 
-R27.0 separates the immutable program image from productive state. The image is
-replaced during updates; `/srv/openclaw` remains on the host.
+R27.0.1 separates the immutable program image from productive state. The image is
+replaced during updates; `/srv/openclaw` remains on the host. The release also
+fixes native-to-container workspace migration, Himalaya keyring migration,
+private CA handling and the ClamAV updater healthcheck.
 
 ## Host layout
 
@@ -9,11 +11,12 @@ replaced during updates; `/srv/openclaw` remains on the host.
 /srv/openclaw/
 ├── state/                    # mounted as /home/node/.openclaw
 ├── config/
+│   ├── ca/                   # public local CA certificates (*.crt)
 │   ├── himalaya/
 │   ├── mail-agent.env
 │   ├── personal-assistant.env
 │   └── ollama-priority.env
-├── secrets/                  # *.env, never committed
+├── secrets/                  # *.env and password files, never committed
 ├── backups/
 │   ├── migration/
 │   └── releases/
@@ -33,10 +36,10 @@ Only one set of writer containers may run at a time.
 Local build:
 
 ```bash
-./docker/scripts/build-local.sh openclaw-agent:r27.0-local
+./docker/scripts/build-local.sh openclaw-agent:r27.0.1-local
 ```
 
-For the normal GitHub flow, push a release tag such as `r27.0`. The
+For the normal GitHub flow, push a release tag such as `r27.0.1`. The
 `container.yml` workflow tests the repository and publishes the image to GHCR.
 The production host logs into the private registry once:
 
@@ -53,24 +56,22 @@ sudo ./docker/scripts/setup-host.sh
 nano /srv/openclaw/deployment/.env
 ```
 
-Copy and implement the external backup hooks:
+The local release backup of state, configuration, secrets and SQLite databases
+is mandatory before a write-enabled smoke test. External hooks are optional for
+this installation because the agent uses a restricted Nextcloud account and
+critical data is backed up separately:
 
-```bash
-cp /srv/openclaw/deployment/hooks/pre-deploy.example.sh \
-   /srv/openclaw/deployment/hooks/pre-deploy.sh
-cp /srv/openclaw/deployment/hooks/restore.example.sh \
-   /srv/openclaw/deployment/hooks/restore.sh
-chmod 700 /srv/openclaw/deployment/hooks/pre-deploy.sh \
-          /srv/openclaw/deployment/hooks/restore.sh
+```dotenv
+REQUIRE_EXTERNAL_BACKUP_FOR_WRITE_TEST=false
+OPENCLAW_EXTERNAL_BACKUP_HOOK=
+OPENCLAW_EXTERNAL_RESTORE_HOOK=
 ```
 
-The hooks are mandatory by default for a write-enabled product smoke test.
-They must snapshot and restore the remote systems that are not part of the local
-Docker volume: IMAP, Nextcloud files, CardDAV contacts, CalDAV calendars and
-VTODO tasks. A local volume backup alone cannot undo a remote mail move or a
-successful CalDAV PUT.
+Enable the requirement and provide both executable hooks when a deployment must
+also be able to roll back remote IMAP moves, Nextcloud files, CardDAV contacts,
+CalDAV events or VTODO tasks automatically.
 
-## 3. Migrate the current live installation once
+## 3. Migrate a native installation once
 
 ```bash
 /srv/openclaw/deployment/scripts/migrate-live.sh --execute
@@ -81,24 +82,38 @@ The migration:
 1. disables the old user-level systemd writers,
 2. creates an untouched migration archive,
 3. copies `~/.openclaw` to `/srv/openclaw/state`,
-4. copies Himalaya and environment configuration,
-5. leaves the original live directory in place.
+4. rewrites active workspace paths to `/home/node/.openclaw/workspace`,
+5. migrates Himalaya `secret-tool` commands to protected files in `/srv/openclaw/secrets`,
+6. adds the mail-agent Nextcloud section only when all three Nextcloud credentials exist and the section was missing,
+7. leaves the original live directory in place until the Docker deployment is verified.
 
-Review `/srv/openclaw/deployment/.env`, especially `OPENCLAW_IMAGE`, the Ollama
-upstream and both external hooks.
+Historical sessions and trajectories are not rewritten; only active configuration
+files are changed.
 
-## 4. First deployment and later updates
+## 4. Private Nextcloud CA
+
+Place only public CA certificates in:
+
+```text
+/srv/openclaw/config/ca/*.crt
+```
+
+At container startup, the entrypoint combines the system trust store with these
+certificates and exports the resulting runtime bundle for Python/OpenSSL,
+`requests` and Node.js. Never place a private key in this directory.
+
+## 5. First deployment
 
 ```bash
 cd /srv/openclaw/deployment
-./scripts/deploy.sh r27.0
+./scripts/deploy.sh r27.0.1
 ```
 
 The deployment sequence is deliberately strict:
 
 1. pull the target image and pin its immutable registry digest,
 2. stop every writer,
-3. create the external snapshot,
+3. create an optional external snapshot when a hook is configured,
 4. run SQLite quick checks,
 5. archive state/config/secrets,
 6. verify SHA-256 and extract the archive into a temporary restore test,
@@ -109,7 +124,23 @@ The deployment sequence is deliberately strict:
 
 Any failing command triggers `rollback.sh` automatically.
 
-## 5. Manual rollback
+## 6. Later updates from Git
+
+The host deployment scripts and `compose.yaml` are outside the image. Refresh
+them from the checked-out Git revision before running the release deployment:
+
+```bash
+git switch main
+git pull --ff-only
+./docker/scripts/refresh-deployment.sh
+cd /srv/openclaw/deployment
+./scripts/deploy.sh r27.0.1
+```
+
+`refresh-deployment.sh` updates `compose.yaml`, `.env.example` and deployment
+scripts. It does not overwrite the productive `.env` or active local hooks.
+
+## 7. Manual rollback
 
 List release backups:
 
@@ -121,12 +152,12 @@ Restore one backup:
 
 ```bash
 /srv/openclaw/deployment/scripts/rollback.sh \
-  20260728T120000Z_r26.4-to-r27.0
+  20260728T120000Z_r27.0-to-r27.0.1
 ```
 
-The current failed state is saved for analysis, the remote restore hook is
-called with the recorded snapshot reference, the local archive is restored and
-the previous image is started.
+The current failed state is saved for analysis, the optional remote restore hook
+is called when a snapshot reference exists, the local archive is restored and
+the previous Docker image is started.
 
 ## Operations
 
@@ -148,13 +179,6 @@ workers observe it without requiring systemd inside the containers.
 ## Backup boundaries
 
 The release backup includes local state, configuration and secrets. It does not
-itself contain the full remote mailbox or Nextcloud server. Keep the external
-hook requirement enabled unless the write smoke test is disabled:
-
-```dotenv
-OPENCLAW_WRITE_TEST_ENABLED=false
-REQUIRE_EXTERNAL_BACKUP_FOR_WRITE_TEST=true
-```
-
-Disabling the requirement while allowing writes makes a complete automatic
-rollback impossible and is therefore not the recommended production setting.
+contain the full remote mailbox or Nextcloud server. With external hooks disabled,
+a rollback restores the local agent state and previous image but cannot undo an
+already successful remote mail move or CalDAV/CardDAV/Nextcloud write.

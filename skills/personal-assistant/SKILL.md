@@ -1,6 +1,6 @@
 ---
 name: personal-assistant
-version: 3.4.0-r27.0
+version: 3.4.0-r27.0.1
 description: Operate the local Personal Assistant and its registered tools. Use for status and diagnostics, cross-source search, mail triage, invoice archiving, Nextcloud files, CardDAV contacts, CalDAV calendars and VTODO tasks. The assistant can list and search contacts, calendar events and tasks; it can create new objects and, when allow_update is explicitly enabled for the selected collection, update exactly one existing object by UID with ETag/If-Match protection.
 ---
 
@@ -39,6 +39,7 @@ Rules:
   `calendar status` and then `calendar list`; do not answer from memory.
 - If no calendar is configured, use read-only `calendar discover` and ask Jan to
   select the exact `resource_id`.
+- `calendar create` accepts no `--yes` option. Never append `--yes` to this subcommand; use `--yes` only for `calendar configure` and `calendar update`.
 - Configure read/create access with:
 
 ```bash

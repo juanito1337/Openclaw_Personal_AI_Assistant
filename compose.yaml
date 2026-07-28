@@ -131,6 +131,17 @@ services:
       - clamav-db:/var/lib/clamav
     security_opt:
       - no-new-privileges:true
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          (test -s /var/lib/clamav/main.cvd || test -s /var/lib/clamav/main.cld) &&
+          (test -s /var/lib/clamav/daily.cvd || test -s /var/lib/clamav/daily.cld) &&
+          (test -s /var/lib/clamav/bytecode.cvd || test -s /var/lib/clamav/bytecode.cld)
+      interval: 1m
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
 volumes:
   clamav-db:

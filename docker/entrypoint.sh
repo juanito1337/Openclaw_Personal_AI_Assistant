@@ -24,6 +24,36 @@ load_env_dir() {
 load_env_dir "$CONFIG_ROOT"
 load_env_dir "$SECRET_ROOT"
 
+configure_custom_ca() {
+  local ca_dir="$CONFIG_ROOT/ca"
+  [[ -d "$ca_dir" ]] || return 0
+
+  local -a certificates=()
+  while IFS= read -r -d '' certificate; do
+    certificates+=("$certificate")
+  done < <(find "$ca_dir" -maxdepth 1 -type f -name '*.crt' -size +0c -print0 | sort -z)
+  (( ${#certificates[@]} > 0 )) || return 0
+
+  local runtime_dir="$STATE_ROOT/.container-runtime"
+  local bundle="$runtime_dir/ca-certificates.crt"
+  local temporary="$bundle.tmp"
+  mkdir -p "$runtime_dir"
+  cat /etc/ssl/certs/ca-certificates.crt > "$temporary"
+  local certificate
+  for certificate in "${certificates[@]}"; do
+    printf '\n' >> "$temporary"
+    cat "$certificate" >> "$temporary"
+  done
+  chmod 600 "$temporary"
+  mv "$temporary" "$bundle"
+
+  export SSL_CERT_FILE=${SSL_CERT_FILE:-$bundle}
+  export REQUESTS_CA_BUNDLE=${REQUESTS_CA_BUNDLE:-$bundle}
+  export NODE_EXTRA_CA_CERTS=${NODE_EXTRA_CA_CERTS:-$bundle}
+}
+
+configure_custom_ca
+
 mkdir -p \
   "$WORKSPACE/mail_agent/data" \
   "$WORKSPACE/personal_assistant/data/container_jobs" \

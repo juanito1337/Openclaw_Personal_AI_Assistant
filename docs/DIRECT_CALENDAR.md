@@ -51,7 +51,7 @@ List und Search liefern die exakte iCalendar-UID. Diese UID ist fuer jeden Schre
   --location "Kiel"
 ```
 
-Neue Objekte werden mit `If-None-Match: *` create-only angelegt.
+Neue Objekte werden mit `If-None-Match: *` create-only angelegt. `calendar create` besitzt bewusst keinen `--yes`-Schalter; `--yes` ist nur fuer `calendar configure` und `calendar update` zulaessig.
 
 ## Termin bearbeiten
 
