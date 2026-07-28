@@ -1,24 +1,39 @@
 {
   "schema_version": 1,
   "product": "OpenClaw Local Personal Assistant",
-  "version": "3.4.0-r27.0",
-  "release": "r27.0",
-  "title": "Containerbetrieb mit verifiziertem Backup, Produkttest und Rollback",
+  "version": "3.4.0-r27.0.1",
+  "release": "r27.0.1",
+  "title": "Container-Migrations- und Betriebsfixes",
   "released_at": "2026-07-28",
   "installed_at": null,
-  "previous_version": "3.4.0-r26.4",
+  "previous_version": "3.4.0-r27.0",
   "installation_id": null,
   "changes": [
-    "Der komplette Agent laeuft aus einem unveraenderlichen Docker-Image auf Basis des offiziellen OpenClaw-Images; Code und Abhaengigkeiten werden von Konfiguration, Geheimnissen und persistenten Laufzeitdaten getrennt.",
-    "Der bestehende Live-Zustand kann einmalig nach /srv/openclaw migriert werden; alte systemd-Writer werden dabei gestoppt, waehrend der urspruengliche Live-Ordner als zusaetzliche Rueckfallebene erhalten bleibt.",
-    "Vor jedem Imagewechsel werden alle Writer gestoppt, SQLite-Datenbanken geprueft, State, Konfiguration und Secrets archiviert, die Pruefsumme validiert und eine testweise Wiederherstellung ausgefuehrt.",
-    "Eine neue Version startet zuerst nur Gateway und Ollama-Prioritaetsproxy, fuehrt danach einen begrenzten Dry-Run und optional einen schreibenden Produktivlauf aus und aktiviert die Hintergrundworker erst nach erfolgreichem Smoke-Test.",
-    "Bei einem Fehler stellt rollback.sh den vorherigen lokalen Datenstand und das vorherige Image automatisch wieder her; fuer externe IMAP-, Nextcloud-, CardDAV- und CalDAV-Aenderungen sind verpflichtende Backup- und Restore-Hooks vorgesehen.",
-    "Mail-, Sync- und Supervisor-Zeitplaene laufen ohne systemd als getrennte Container-Worker und respektieren weiterhin den im Agenten gespeicherten ON/OFF-Sollzustand.",
-    "OPENCLAW_WORKSPACE wird nun in allen relevanten Pfaden respektiert, damit der persistente Workspace ausserhalb des Images liegt und derselbe Quellstand lokal, in Tests und im Container reproduzierbar verwendet wird.",
-    "Eine GitHub-Actions-Pipeline testet den Quellstand und veroeffentlicht getaggte Images mit Commit- und Release-Tag in die private GitHub Container Registry."
+    "Die Container-Migration schreibt aktive absolute Workspace-Pfade in openclaw.json sowie den produktiven TOML-Konfigurationen sicher von der nativen Home-Struktur auf /home/node/.openclaw/workspace um.",
+    "Himalaya-Zugangsdaten werden bei einer Live-Migration aus secret-tool in geschuetzte Dateien unter /srv/openclaw/secrets uebernommen; der Container liest sie anschliessend ohne Desktop-Keyring.",
+    "Oeffentliche lokale CA-Zertifikate unter /srv/openclaw/config/ca werden beim Containerstart automatisch mit dem System-Truststore zu einem Laufzeit-Bundle fuer Python, Requests und Node.js kombiniert.",
+    "Der ClamAV-Updater besitzt einen eigenen Healthcheck fuer main-, daily- und bytecode-Signaturen und erbt nicht mehr versehentlich den Gateway-Port-Check.",
+    "Eine fehlende Mail-Agent-Nextcloud-Sektion wird nur bei vollstaendig vorhandenen Nextcloud-Zugangsdaten automatisch und idempotent ergaenzt.",
+    "calendar create wird in Tool-Registry, Skill und Dokumentation ausdruecklich ohne --yes beschrieben; ein Regressionstest verhindert die erneute Erzeugung des ungueltigen Schalters.",
+    "refresh-deployment.sh aktualisiert Compose- und Deployment-Skripte aus einem Git-Checkout, ohne die produktive .env oder aktive lokale Hooks zu ueberschreiben.",
+    "Die GHCR-Standardreferenz, Docker-only-Ausgangswerte und die fuer diese eingeschraenkte Nextcloud-Installation optionale externe Hook-Pflicht wurden an den produktiven Betrieb angepasst."
   ],
   "history": [
+    {
+      "version": "3.4.0-r27.0.1",
+      "released_at": "2026-07-28",
+      "title": "Container-Migrations- und Betriebsfixes",
+      "changes": [
+        "Die Container-Migration schreibt aktive absolute Workspace-Pfade in openclaw.json sowie den produktiven TOML-Konfigurationen sicher von der nativen Home-Struktur auf /home/node/.openclaw/workspace um.",
+        "Himalaya-Zugangsdaten werden bei einer Live-Migration aus secret-tool in geschuetzte Dateien unter /srv/openclaw/secrets uebernommen; der Container liest sie anschliessend ohne Desktop-Keyring.",
+        "Oeffentliche lokale CA-Zertifikate unter /srv/openclaw/config/ca werden beim Containerstart automatisch mit dem System-Truststore zu einem Laufzeit-Bundle fuer Python, Requests und Node.js kombiniert.",
+        "Der ClamAV-Updater besitzt einen eigenen Healthcheck fuer main-, daily- und bytecode-Signaturen und erbt nicht mehr versehentlich den Gateway-Port-Check.",
+        "Eine fehlende Mail-Agent-Nextcloud-Sektion wird nur bei vollstaendig vorhandenen Nextcloud-Zugangsdaten automatisch und idempotent ergaenzt.",
+        "calendar create wird in Tool-Registry, Skill und Dokumentation ausdruecklich ohne --yes beschrieben; ein Regressionstest verhindert die erneute Erzeugung des ungueltigen Schalters.",
+        "refresh-deployment.sh aktualisiert Compose- und Deployment-Skripte aus einem Git-Checkout, ohne die produktive .env oder aktive lokale Hooks zu ueberschreiben.",
+        "Die GHCR-Standardreferenz, Docker-only-Ausgangswerte und die fuer diese eingeschraenkte Nextcloud-Installation optionale externe Hook-Pflicht wurden an den produktiven Betrieb angepasst."
+      ]
+    },
     {
       "version": "3.4.0-r27.0",
       "released_at": "2026-07-28",

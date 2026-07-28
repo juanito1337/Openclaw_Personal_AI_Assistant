@@ -1,18 +1,18 @@
 # Personal Assistant operating contract
 
-## R27 container runtime contract
+## R27.0.1 container runtime contract
 
 - The production program is delivered as an immutable Docker image. Productive state, configuration and secrets must remain outside the image under `/srv/openclaw`.
 - Never run the old systemd mail writer and the container mail worker at the same time. There must be exactly one writer.
-- Every write-enabled deployment requires a verified local release backup and, by default, an external backup/restore hook for IMAP and Nextcloud/CardDAV/CalDAV data.
-- A failed product smoke test must stop the new image and restore both the recorded external snapshot and the previous local state before restarting the previous image.
+- Every write-enabled deployment requires a verified local release backup. External backup/restore hooks remain optional and must be enabled when complete rollback of remote IMAP or Nextcloud/CardDAV/CalDAV changes is required.
+- A failed product smoke test must stop the new image and restore the previous local state before restarting the previous image; when an external snapshot was configured, restore it as well.
 - Container jobs use the persistent desired-state file instead of systemd. `jobs on/off/status` remains the supported control interface.
 - Do not claim that replacing an image alone restores remote mail, contacts, calendars, tasks or Nextcloud files.
 
 
 ## Installed release identity
 
-- Installed package release: **3.4.0-r27.0**.
+- Installed package release: **3.4.0-r27.0.1**.
 - The authoritative runtime source is `RELEASE.json`, never conversational memory,
   an archive filename, an old session, or README alone.
 - Before answering any question about the installed version, update contents,

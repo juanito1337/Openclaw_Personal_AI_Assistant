@@ -73,6 +73,22 @@ class ContainerWorkspaceTests(unittest.TestCase):
                 self.assertTrue(stopped["ok"])
                 self.assertEqual(stopped["status"]["jobs"][1]["desired"], "off")
 
+    def test_clamav_updater_has_its_own_database_healthcheck(self) -> None:
+        compose = (Path(__file__).resolve().parents[1] / "compose.yaml").read_text(encoding="utf-8")
+        clamav = compose.split("  clamav-update:\n", 1)[1].split("\nvolumes:\n", 1)[0]
+        self.assertIn("/var/lib/clamav/main.cvd", clamav)
+        self.assertIn("/var/lib/clamav/daily.cvd", clamav)
+        self.assertIn("/var/lib/clamav/bytecode.cvd", clamav)
+        self.assertNotIn("127.0.0.1:18789", clamav)
+
+    def test_entrypoint_builds_runtime_ca_bundle_from_public_crt_files(self) -> None:
+        entrypoint = (Path(__file__).resolve().parents[1] / "docker/entrypoint.sh").read_text(encoding="utf-8")
+        self.assertIn("configure_custom_ca", entrypoint)
+        self.assertIn("SSL_CERT_FILE", entrypoint)
+        self.assertIn("REQUESTS_CA_BUNDLE", entrypoint)
+        self.assertIn("NODE_EXTRA_CA_CERTS", entrypoint)
+        self.assertIn("-name '*.crt'", entrypoint)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -20,7 +20,7 @@ class AgentCapabilityExposureTests(unittest.TestCase):
         skill = (root / "skills/personal-assistant/SKILL.md").read_text(encoding="utf-8")
         agents = (root / "AGENTS.md").read_text(encoding="utf-8")
 
-        self.assertIn("version: 3.4.0-r27.0", skill)
+        self.assertIn("version: 3.4.0-r27.0.1", skill)
         for command in (
             "calendar list --limit 100",
             "calendar search --query",
@@ -84,6 +84,9 @@ class AgentCapabilityExposureTests(unittest.TestCase):
         self.assertTrue(expected.issubset(tools), expected - set(tools))
         self.assertIn("--allow-update", tools["nextcloud.calendar.configure"].command)
         self.assertIn("--allow-update", tools["nextcloud.tasks.configure"].command)
+        calendar_create = tools["nextcloud.calendar.create"]
+        self.assertNotIn("--yes", calendar_create.command)
+        self.assertIn("kein --yes", calendar_create.description.lower())
 
 
 if __name__ == "__main__":

@@ -467,7 +467,7 @@ def build_tool_registry(settings: ToolSettings) -> list[AgentTool]:
             tools.append(
                 AgentTool(
                     "nextcloud.calendar.create",
-                    "Neuen Termin direkt in den freigegebenen Nextcloud-Kalender eintragen",
+                    "Neuen Termin direkt in den freigegebenen Nextcloud-Kalender eintragen; calendar create akzeptiert kein --yes",
                     (
                         './scripts/assistant.sh calendar create --title "<Titel>" '
                         '--start "<ISO-8601>" --end "<ISO-8601>" '

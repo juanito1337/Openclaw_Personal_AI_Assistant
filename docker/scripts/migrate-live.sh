@@ -20,6 +20,7 @@ SOURCE_HOME=${OPENCLAW_LIVE_HOME:-$HOME/.openclaw}
 [[ -d "$SOURCE_HOME" ]] || { echo "Live-Zustand fehlt: $SOURCE_HOME" >&2; exit 2; }
 require_command rsync
 require_command tar
+require_command python3
 
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 migration_backup="$OPENCLAW_ROOT/backups/migration/live-before-container-$stamp.tar.gz"
@@ -29,6 +30,7 @@ units=(
   mail-agent.timer mail-agent.service
   personal-assistant-sync.timer personal-assistant-sync.service
   personal-assistant-supervisor.timer personal-assistant-supervisor.service
+  personal-assistant-monitor.timer personal-assistant-monitor.service
   ollama-priority-proxy.service openclaw-gateway.service
 )
 mkdir -p "$OPENCLAW_CONFIG_DIR"
@@ -84,6 +86,14 @@ fi
 chmod -R go-rwx "$OPENCLAW_CONFIG_DIR" "$OPENCLAW_SECRETS_DIR" "$HIMALAYA_CONFIG_DIR" || true
 chown -R 1000:1000 "$OPENCLAW_STATE_DIR" "$HIMALAYA_CONFIG_DIR" 2>/dev/null || \
   sudo chown -R 1000:1000 "$OPENCLAW_STATE_DIR" "$HIMALAYA_CONFIG_DIR"
+
+python3 "$SCRIPT_DIR/migrate-container-state.py" \
+  --state-dir "$OPENCLAW_STATE_DIR" \
+  --config-dir "$OPENCLAW_CONFIG_DIR" \
+  --secrets-dir "$OPENCLAW_SECRETS_DIR" \
+  --source-workspace "$SOURCE_HOME/workspace" \
+  --target-workspace "/home/node/.openclaw/workspace" \
+  --enable-nextcloud-if-configured
 
 update_env_value OPENCLAW_CURRENT_RUNTIME legacy-systemd
 update_env_value OPENCLAW_LEGACY_HOME "$SOURCE_HOME"

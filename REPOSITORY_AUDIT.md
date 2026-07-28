@@ -1,69 +1,54 @@
-# Repository-Audit R27.0
+# Repository-Audit R27.0.1
 
-Ausgangsbasis ist der am 27.07.2026 bereitgestellte produktive OpenClaw-
-Workspace `3.4.0-r26.4`. R27.0 ist kumulativ und enthaelt weiterhin die
-Rechnungs-, Ollama-Zuverlaessigkeits-, Kontakt-, Kalender-, Task- und
-Capability-Korrekturen aus R26 bis R26.4.
+Ausgangsbasis ist R27.0. R27.0.1 uebernimmt die waehrend der produktiven
+Container-Migration beobachteten Korrekturen in den Git-Quellstand, ohne
+produktive Zugangsdaten, Zertifikate oder Laufzeitdaten einzuchecken.
 
-## Neu in R27.0
+## Uebernommene Korrekturen
 
-- unveraenderliches Docker-Image auf Basis des offiziellen OpenClaw-Images
-- Programmcode und Abhaengigkeiten im Image; produktiver Zustand ausserhalb
-- persistenter OpenClaw-Zustand unter `/srv/openclaw/state`
-- getrennte Hostverzeichnisse fuer Konfiguration, Secrets und Backups
-- getrennte Container fuer Gateway, Ollama-Prioritaetsproxy, Mail-Worker,
-  Index-Synchronisation und Supervisor
-- einmalige Migration des bisherigen `~/.openclaw`-Live-Zustands
-- verifiziertes Pre-Update-Backup mit SHA-256, Manifest, SQLite-Quick-Check
-  und testweisem Restore in ein temporaeres Verzeichnis
-- begrenzter schreibender Produkttest nach dem Containerwechsel
-- automatischer Rollback auf Image und lokalen Datenstand
-- verpflichtende externe Backup- und Restore-Hooks, wenn der Produkttest
-  IMAP, Nextcloud, CardDAV oder CalDAV veraendern darf
-- GitHub-Actions-Workflow fuer Tests und das private GHCR-Image
-- Aufloesung eines Release-Tags auf einen unveraenderlichen Registry-Digest
+- aktive absolute Workspace-Pfade werden bei der Migration in `openclaw.json`
+  und den bekannten produktiven TOML-Dateien auf den Container-Workspace
+  umgeschrieben
+- Himalaya-`secret-tool`-Befehle werden kontrolliert in lokale Secret-Dateien
+  migriert und in der Containerkonfiguration auf `/run/openclaw-secrets`
+  umgestellt
+- eine fehlende `[nextcloud]`-Sektion wird nur bei vollstaendigen
+  Nextcloud-Zugangsdaten hinzugefuegt; eine bestehende ausdrueckliche
+  Konfiguration wird nicht ueberschrieben
+- lokale oeffentliche CA-Zertifikate aus `/srv/openclaw/config/ca/*.crt` werden
+  beim Containerstart mit dem System-Truststore kombiniert
+- der ClamAV-Updater prueft seine Signaturdatenbanken statt des Gateway-Ports
+- `calendar create` wird ohne den ungueltigen Schalter `--yes` exponiert
+- `refresh-deployment.sh` aktualisiert Host-Compose und Deploymentskripte aus
+  Git, erhaelt aber `.env` und aktive lokale Hooks
+- die GHCR-Standardreferenz stimmt mit dem produktiven Repository ueberein
 
-## Persistenz- und Sicherheitsgrenzen
+## Sicherheitsgrenzen
 
-Nicht im Image gespeichert werden produktive Konfigurationen, Passwoerter,
-Tokens, Datenbanken, Sitzungen, E-Mails, Rechnungen, Logs, Lockdateien oder
-persoenliche Agentendaten. Diese Daten werden als Host-Mounts bereitgestellt.
+Nicht im Repository enthalten sind produktive Passwoerter, App-Tokens, private
+Schluessel, CA-Private-Keys, persoenliche Konfigurationen, Datenbanken, Mails,
+Rechnungen, Logs, Sitzungen oder Backups. Die Migrationshilfe fuehrt vorhandene
+lokale Secret-Befehle nur auf dem Zielhost aus und schreibt die Ergebnisse mit
+Dateimodus `0600` ausserhalb des Repositorys.
 
-Das lokale Release-Backup umfasst `state`, `config` und `secrets`. Aenderungen
-an externen Systemen lassen sich dadurch allein nicht rueckgaengig machen.
-Deshalb verweigert `deploy.sh` den schreibenden Produkttest standardmaessig,
-wenn kein ausfuehrbarer externer Backup- und Restore-Hook konfiguriert ist.
-
-Es darf niemals gleichzeitig ein alter systemd-Writer und ein Docker-Writer
-auf denselben Produktivdaten arbeiten. Das Migrations- und Deployment-Skript
-stoppt die bekannten alten Writer vor dem Backup und Containerstart.
-
-## Nicht in diesen Quellstand uebernommen
-
-- produktive SQLite-Datenbanken, WAL/SHM-Dateien, Logs und Lockdateien
-- E-Mail-Inhalte, Anhaenge, Rechnungen, Suchindizes und Lernexporte
-- produktive Nextcloud-, CardDAV- und CalDAV-Ressourcenkennungen
-- produktive Mail- und Personal-Assistant-Konfigurationen
-- Passwoerter, App-Tokens, private Schluessel und Geraeteidentitaeten
-- lokale Backups, Caches, Sitzungen, Agententrajektorien und Fremd-Skills
-- persoenliche Runtime-/Persona-Dateien wie `USER.md`, `IDENTITY.md`,
-  `SOUL.md`, `TOOLS.md` und `MEMORY.md`
+Das lokale Release-Backup bleibt vor einem schreibenden Produkttest verpflichtend.
+Externe Backup-Hooks sind in dieser Installation optional, weil der Agent einen
+eigenen eingeschraenkten Nextcloud-Benutzer verwendet und kritische Daten separat
+gesichert werden. Ohne externe Hooks kann der automatische Rollback bereits
+erfolgreiche Remote-Aenderungen nicht rueckgaengig machen.
 
 ## Verifikation
 
-- 272 automatisierte Unit- und Regressionstests bestanden
-- neue Container-Workspace- und Worker-Heartbeat-Tests bestanden
-- Shell-Syntax aller Deployment-, Backup- und Rollback-Skripte geprueft
-- Compose-Dateien erfolgreich als YAML mit Alias-Unterstuetzung geparst
-- Python-Quellen ohne Bytecode-Erzeugung kompiliert
-- Backup, SHA-256-Pruefung, Manifest und temporaerer Restore mit einer echten
-  SQLite-Testdatenbank erfolgreich durchlaufen
-- Entrypoint-Synchronisation gegen einen temporaeren persistenten Workspace
-  geprueft; produktive Konfigurationen und Fremd-Skills blieben erhalten
-- Repository-Hygiene- und Geheimnisscan ohne produktive Zugangsdaten
+- neue Migrationstests pruefen Pfadumschreibung, Secret-Uebernahme,
+  Nextcloud-Aktivierung und Idempotenz
+- neue Regressionstests pruefen den ClamAV-Healthcheck, die CA-Bundle-Logik und
+  den `calendar create`-Befehl ohne `--yes`
+- die gezielten R27.0.1-Tests sowie alle am Ende des vollstaendigen Laufs noch
+  offenen Registry- und Storage-Migrationstests bestanden
+- Shell-Syntax und Python-Kompilierung der geaenderten Dateien wurden geprueft
+- `SOURCE_MANIFEST.sha256` wurde aus den verfolgten Quelldateien neu erzeugt
 
-Ein Docker- oder Podman-Daemon ist in der Erstellungsumgebung nicht vorhanden.
-Das OCI-Image selbst konnte deshalb hier nicht gebaut oder gestartet werden.
-Der Dockerfile-, Compose- und Skriptstand wird durch GitHub Actions oder auf
-dem Zielserver gebaut und muss dort vor der Migration einmal erfolgreich
-gebaut beziehungsweise aus GHCR gezogen werden.
+Der vollstaendige Repository-Testlauf erreichte in der Erstellungsumgebung das
+Zeitlimit erst in den letzten Testmodulen; bis dahin trat kein Fehler auf. Die
+verbleibenden vier Tests wurden anschliessend separat erfolgreich ausgefuehrt.
+GitHub Actions ist die abschliessende verbindliche CI-Pruefung vor dem Tag.

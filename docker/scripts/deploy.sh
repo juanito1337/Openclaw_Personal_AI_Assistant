@@ -13,7 +13,7 @@ require_command docker
 require_command python3
 
 target_arg=${1:?Image-Tag oder vollstaendige Image-Referenz angeben}
-repository=${OPENCLAW_IMAGE_REPOSITORY:-ghcr.io/juanito1337/openclaw_agent_personal_assistant}
+repository=${OPENCLAW_IMAGE_REPOSITORY:-ghcr.io/juanito1337/openclaw_personal_ai_assistant}
 if [[ "$target_arg" == */*:* || "$target_arg" == *@sha256:* ]]; then
   target_image=$target_arg
 else

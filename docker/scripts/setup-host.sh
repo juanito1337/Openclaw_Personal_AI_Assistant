@@ -33,12 +33,13 @@ sudo -u "$OWNER" -H docker info >/dev/null 2>&1 || {
   exit 2
 }
 
-sudo install -d -m 700 "$TARGET_ROOT/state" "$TARGET_ROOT/config/himalaya" \
+sudo install -d -m 700 "$TARGET_ROOT/state" "$TARGET_ROOT/config/himalaya" "$TARGET_ROOT/config/ca" \
   "$TARGET_ROOT/secrets" "$TARGET_ROOT/backups/releases" "$TARGET_ROOT/backups/migration" \
   "$DEPLOYMENT/scripts" "$DEPLOYMENT/hooks"
 sudo cp "$SOURCE_ROOT/compose.yaml" "$DEPLOYMENT/compose.yaml"
 sudo cp "$SOURCE_ROOT/docker/deployment.env.example" "$DEPLOYMENT/.env.example"
 sudo cp "$SOURCE_ROOT/docker/scripts/"*.sh "$DEPLOYMENT/scripts/"
+sudo cp "$SOURCE_ROOT/docker/scripts/"*.py "$DEPLOYMENT/scripts/"
 sudo cp "$SOURCE_ROOT/docker/hooks/"*.sh "$DEPLOYMENT/hooks/"
 if [[ ! -f "$DEPLOYMENT/.env" ]]; then
   sudo cp "$DEPLOYMENT/.env.example" "$DEPLOYMENT/.env"
@@ -52,7 +53,7 @@ fi
 if [[ ! -f "$TARGET_ROOT/config/personal-assistant.env" ]]; then
   sudo cp "$SOURCE_ROOT/docker/config/personal-assistant.env.example" "$TARGET_ROOT/config/personal-assistant.env"
 fi
-sudo chmod 700 "$DEPLOYMENT/scripts/"*.sh "$DEPLOYMENT/hooks/"*.sh
+sudo chmod 700 "$DEPLOYMENT/scripts/"*.sh "$DEPLOYMENT/scripts/"*.py "$DEPLOYMENT/hooks/"*.sh
 sudo chown -R "$OWNER":"$OWNER" "$DEPLOYMENT" "$TARGET_ROOT/config" "$TARGET_ROOT/secrets" "$TARGET_ROOT/backups"
 sudo chown -R 1000:1000 "$TARGET_ROOT/state" "$TARGET_ROOT/config/himalaya"
 
