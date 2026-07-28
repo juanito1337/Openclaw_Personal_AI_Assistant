@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 
-WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
+WORKSPACE_ROOT = Path(os.environ.get("OPENCLAW_WORKSPACE") or Path(__file__).resolve().parents[1]).expanduser().resolve()
 DEFAULT_CONFIG = WORKSPACE_ROOT / "personal_assistant/config.toml"
 DEFAULT_RESOURCES = WORKSPACE_ROOT / "personal_assistant/resources.toml"
 DEFAULT_POLICIES = WORKSPACE_ROOT / "personal_assistant/policies.toml"

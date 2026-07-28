@@ -9,8 +9,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
+from .config import WORKSPACE_ROOT
 
-DEFAULT_MAIL_CONFIG = Path(__file__).resolve().parents[1] / "mail_agent/config.toml"
+
+DEFAULT_MAIL_CONFIG = WORKSPACE_ROOT / "mail_agent/config.toml"
 _KEY_RE = re.compile(r"^\s*(source_folder|quarantine_folders|quarantine_max_per_run|quarantine_rescue_only)\s*=")
 _SECTION_RE = re.compile(r"^\s*\[([^]]+)\]\s*(?:#.*)?$")
 

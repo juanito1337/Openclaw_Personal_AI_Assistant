@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from .config import Config, load_config
+from .config import Config, WORKSPACE_ROOT, load_config
 
 
 RECOMMENDED_VALUES: dict[tuple[str, str], object] = {
@@ -48,7 +48,7 @@ def configuration_fingerprint(config: Config) -> str:
 
     digest = hashlib.sha256()
     source_dir = Path(__file__).resolve().parent
-    workspace_root = source_dir.parent
+    workspace_root = WORKSPACE_ROOT
     paths = [config.path, config.runtime.rules_file, config.runtime.learning_folders_file, *sorted(source_dir.glob("*.py"))]
     for path in paths:
         digest.update(str(path).encode("utf-8"))

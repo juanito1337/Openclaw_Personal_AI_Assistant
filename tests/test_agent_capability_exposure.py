@@ -20,7 +20,7 @@ class AgentCapabilityExposureTests(unittest.TestCase):
         skill = (root / "skills/personal-assistant/SKILL.md").read_text(encoding="utf-8")
         agents = (root / "AGENTS.md").read_text(encoding="utf-8")
 
-        self.assertIn("version: 3.4.0-r26.4", skill)
+        self.assertIn("version: 3.4.0-r27.0", skill)
         for command in (
             "calendar list --limit 100",
             "calendar search --query",

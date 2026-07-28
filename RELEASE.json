@@ -1,23 +1,39 @@
 {
   "schema_version": 1,
   "product": "OpenClaw Local Personal Assistant",
-  "version": "3.4.0-r26.4",
-  "release": "r26.4",
-  "title": "Korrekte Agenten-Exposition fuer Kalender, Aufgaben und Kontakte",
-  "released_at": "2026-07-27",
-  "installed_at": "2026-07-27T18:57:28+00:00",
-  "previous_version": "3.4.0-r26.1",
-  "installation_id": "20260727T185725Z",
+  "version": "3.4.0-r27.0",
+  "release": "r27.0",
+  "title": "Containerbetrieb mit verifiziertem Backup, Produkttest und Rollback",
+  "released_at": "2026-07-28",
+  "installed_at": null,
+  "previous_version": "3.4.0-r26.4",
+  "installation_id": null,
   "changes": [
-    "Der agentenseitig geladene personal-assistant-Skill beschreibt Kalender, Aufgaben und Kontakte jetzt auf demselben Funktionsstand wie Backend, CLI und Tool-Registry; veraltete create-only-Aussagen wurden entfernt.",
-    "Bei Fragen nach anstehenden Terminen oder offenen Aufgaben muss der Agent die registrierten Status- und Listenwerkzeuge verwenden, bevor er eine Funktion als nicht verfuegbar bezeichnet.",
-    "Widerspruechliche Betriebsanweisungen in AGENTS.md wurden bereinigt; Kalender- und Aufgabenupdates bleiben exakt UID-basiert, freigabepflichtig und ETag/If-Match-geschuetzt.",
-    "Die Konfigurationswerkzeuge fuer Kalender und Aufgaben weisen konsistent auf --allow-update --yes hin; Schreibrechte werden weiterhin nur nach expliziter Nutzerwahl und live bestaetigten Serverrechten aktiviert.",
-    "CLI-Hilfetexte unterscheiden das sichere Neuanlegen klar vom kontrollierten Aktualisieren bestehender VEVENT- und VTODO-Objekte.",
-    "Neue Regressionstests pruefen Skill-Version, List-/Search-/Update-Exposition und verhindern erneute create-only-Falschbehauptungen.",
-    "Nach Installation ist ein Gateway-Neustart oder eine neue Agentensitzung erforderlich, damit der aktualisierte Skillkontext geladen wird; alle R26.3- und frueheren Funktionen bleiben kumulativ enthalten."
+    "Der komplette Agent laeuft aus einem unveraenderlichen Docker-Image auf Basis des offiziellen OpenClaw-Images; Code und Abhaengigkeiten werden von Konfiguration, Geheimnissen und persistenten Laufzeitdaten getrennt.",
+    "Der bestehende Live-Zustand kann einmalig nach /srv/openclaw migriert werden; alte systemd-Writer werden dabei gestoppt, waehrend der urspruengliche Live-Ordner als zusaetzliche Rueckfallebene erhalten bleibt.",
+    "Vor jedem Imagewechsel werden alle Writer gestoppt, SQLite-Datenbanken geprueft, State, Konfiguration und Secrets archiviert, die Pruefsumme validiert und eine testweise Wiederherstellung ausgefuehrt.",
+    "Eine neue Version startet zuerst nur Gateway und Ollama-Prioritaetsproxy, fuehrt danach einen begrenzten Dry-Run und optional einen schreibenden Produktivlauf aus und aktiviert die Hintergrundworker erst nach erfolgreichem Smoke-Test.",
+    "Bei einem Fehler stellt rollback.sh den vorherigen lokalen Datenstand und das vorherige Image automatisch wieder her; fuer externe IMAP-, Nextcloud-, CardDAV- und CalDAV-Aenderungen sind verpflichtende Backup- und Restore-Hooks vorgesehen.",
+    "Mail-, Sync- und Supervisor-Zeitplaene laufen ohne systemd als getrennte Container-Worker und respektieren weiterhin den im Agenten gespeicherten ON/OFF-Sollzustand.",
+    "OPENCLAW_WORKSPACE wird nun in allen relevanten Pfaden respektiert, damit der persistente Workspace ausserhalb des Images liegt und derselbe Quellstand lokal, in Tests und im Container reproduzierbar verwendet wird.",
+    "Eine GitHub-Actions-Pipeline testet den Quellstand und veroeffentlicht getaggte Images mit Commit- und Release-Tag in die private GitHub Container Registry."
   ],
   "history": [
+    {
+      "version": "3.4.0-r27.0",
+      "released_at": "2026-07-28",
+      "title": "Containerbetrieb mit verifiziertem Backup, Produkttest und Rollback",
+      "changes": [
+        "Der komplette Agent laeuft aus einem unveraenderlichen Docker-Image auf Basis des offiziellen OpenClaw-Images; Code und Abhaengigkeiten werden von Konfiguration, Geheimnissen und persistenten Laufzeitdaten getrennt.",
+        "Der bestehende Live-Zustand kann einmalig nach /srv/openclaw migriert werden; alte systemd-Writer werden dabei gestoppt, waehrend der urspruengliche Live-Ordner als zusaetzliche Rueckfallebene erhalten bleibt.",
+        "Vor jedem Imagewechsel werden alle Writer gestoppt, SQLite-Datenbanken geprueft, State, Konfiguration und Secrets archiviert, die Pruefsumme validiert und eine testweise Wiederherstellung ausgefuehrt.",
+        "Eine neue Version startet zuerst nur Gateway und Ollama-Prioritaetsproxy, fuehrt danach einen begrenzten Dry-Run und optional einen schreibenden Produktivlauf aus und aktiviert die Hintergrundworker erst nach erfolgreichem Smoke-Test.",
+        "Bei einem Fehler stellt rollback.sh den vorherigen lokalen Datenstand und das vorherige Image automatisch wieder her; fuer externe IMAP-, Nextcloud-, CardDAV- und CalDAV-Aenderungen sind verpflichtende Backup- und Restore-Hooks vorgesehen.",
+        "Mail-, Sync- und Supervisor-Zeitplaene laufen ohne systemd als getrennte Container-Worker und respektieren weiterhin den im Agenten gespeicherten ON/OFF-Sollzustand.",
+        "OPENCLAW_WORKSPACE wird nun in allen relevanten Pfaden respektiert, damit der persistente Workspace ausserhalb des Images liegt und derselbe Quellstand lokal, in Tests und im Container reproduzierbar verwendet wird.",
+        "Eine GitHub-Actions-Pipeline testet den Quellstand und veroeffentlicht getaggte Images mit Commit- und Release-Tag in die private GitHub Container Registry."
+      ]
+    },
     {
       "version": "3.4.0-r26.4",
       "released_at": "2026-07-27",

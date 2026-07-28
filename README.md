@@ -1,6 +1,14 @@
-# OpenClaw 3.4.0-r26.4
+# OpenClaw 3.4.0-r27.0
 
-R26.4 is cumulative and fixes the agent-facing capability exposure for Nextcloud calendar events, tasks and contacts. The stable backend tools from R26.3 were present, but the loaded `personal-assistant` skill and a later operating-contract section still described the calendar as create-only. R26.4 synchronizes the skill, tool registry, CLI help and operating contract so the agent lists/searches current objects before claiming they are unavailable.
+R27.0 is the cumulative container release. Program code and dependencies live in an immutable image, while productive state, configuration and secrets remain under `/srv/openclaw`. Every deployment stops the writers, creates and verifies a restore point, runs a bounded product smoke test and automatically returns to the previous image and data on failure. Remote IMAP and Nextcloud changes are covered through required administrator-supplied backup and restore hooks. See `docs/DOCKER_DEPLOYMENT.md`.
+
+Quick start after Docker is installed:
+
+```bash
+sudo ./docker/scripts/setup-host.sh
+/srv/openclaw/deployment/scripts/migrate-live.sh --execute
+/srv/openclaw/deployment/scripts/deploy.sh r27.0
+```
 
 ## R22.1 robust migration for existing learning history
 
@@ -63,7 +71,7 @@ The agent now has registered Ollama and performance commands, and automatic mail
 recovery stops the timer/service and waits for the real process lock before its
 safety dry-run. See `docs/JOB_CONTROL.md` and `docs/OLLAMA_PRIORITY.md`.
 
-# Local Personal Assistant 3.4.0-r26.4
+# Local Personal Assistant 3.4.0-r27.0
 
 ## R26.4 agent capability exposure fix
 

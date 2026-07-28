@@ -10,8 +10,8 @@ from urllib.parse import urlparse
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
-WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_CONFIG_PATH = Path(__file__).with_name("config.toml")
+WORKSPACE_ROOT = Path(os.environ.get("OPENCLAW_WORKSPACE") or Path(__file__).resolve().parents[1]).expanduser().resolve()
+DEFAULT_CONFIG_PATH = WORKSPACE_ROOT / "mail_agent/config.toml"
 
 
 def _section(data: dict[str, Any], name: str) -> dict[str, Any]:

@@ -1,0 +1,37 @@
+services:
+  gateway:
+    build:
+      context: .
+      args:
+        OPENCLAW_BASE_IMAGE: ${OPENCLAW_BASE_IMAGE:-ghcr.io/openclaw/openclaw:2026.6.11}
+        HIMALAYA_VERSION: ${HIMALAYA_VERSION:-1.2.0}
+  ollama-proxy:
+    build:
+      context: .
+      args:
+        OPENCLAW_BASE_IMAGE: ${OPENCLAW_BASE_IMAGE:-ghcr.io/openclaw/openclaw:2026.6.11}
+        HIMALAYA_VERSION: ${HIMALAYA_VERSION:-1.2.0}
+  mail-worker:
+    build:
+      context: .
+      args:
+        OPENCLAW_BASE_IMAGE: ${OPENCLAW_BASE_IMAGE:-ghcr.io/openclaw/openclaw:2026.6.11}
+        HIMALAYA_VERSION: ${HIMALAYA_VERSION:-1.2.0}
+  sync-worker:
+    build:
+      context: .
+      args:
+        OPENCLAW_BASE_IMAGE: ${OPENCLAW_BASE_IMAGE:-ghcr.io/openclaw/openclaw:2026.6.11}
+        HIMALAYA_VERSION: ${HIMALAYA_VERSION:-1.2.0}
+  supervisor-worker:
+    build:
+      context: .
+      args:
+        OPENCLAW_BASE_IMAGE: ${OPENCLAW_BASE_IMAGE:-ghcr.io/openclaw/openclaw:2026.6.11}
+        HIMALAYA_VERSION: ${HIMALAYA_VERSION:-1.2.0}
+  agent-cli:
+    build:
+      context: .
+      args:
+        OPENCLAW_BASE_IMAGE: ${OPENCLAW_BASE_IMAGE:-ghcr.io/openclaw/openclaw:2026.6.11}
+        HIMALAYA_VERSION: ${HIMALAYA_VERSION:-1.2.0}

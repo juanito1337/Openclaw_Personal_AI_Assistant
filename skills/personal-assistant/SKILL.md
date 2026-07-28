@@ -1,6 +1,6 @@
 ---
 name: personal-assistant
-version: 3.4.0-r26.4
+version: 3.4.0-r27.0
 description: Operate the local Personal Assistant and its registered tools. Use for status and diagnostics, cross-source search, mail triage, invoice archiving, Nextcloud files, CardDAV contacts, CalDAV calendars and VTODO tasks. The assistant can list and search contacts, calendar events and tasks; it can create new objects and, when allow_update is explicitly enabled for the selected collection, update exactly one existing object by UID with ETag/If-Match protection.
 ---
 

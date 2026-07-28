@@ -130,6 +130,11 @@ class JobController:
         self.runner = runner or _default_runner
         self.sleeper = sleeper or time.sleep
         self.specs = {item.name: item for item in (specs or default_job_specs())}
+        self.container_mode = os.environ.get("OPENCLAW_RUNTIME", "").strip().lower() == "container"
+        self.container_status_dir = Path(
+            os.environ.get("OPENCLAW_JOB_STATUS_DIR")
+            or (self.workspace_root / "personal_assistant/data/container_jobs")
+        ).expanduser().resolve()
         self.state = self._load_state()
 
     def _load_state(self) -> dict[str, Any]:
@@ -201,7 +206,66 @@ class JobController:
             properties[key.strip()] = value.strip()
         return properties
 
+    def _container_spec_for_unit(self, unit: str) -> JobSpec | None:
+        for spec in self.specs.values():
+            if unit in {spec.timer_unit, spec.service_unit}:
+                return spec
+        return None
+
+    def _container_runtime_status(self, unit: str) -> dict[str, Any]:
+        spec = self._container_spec_for_unit(unit)
+        if spec is None:
+            return {
+                "unit": unit,
+                "available": False,
+                "returncode": 4,
+                "error": "Unbekannter Container-Job",
+                "LoadState": "not-found",
+                "ActiveState": "inactive",
+                "SubState": "dead",
+                "UnitFileState": "disabled",
+                "Result": "success",
+            }
+        desired = bool(self.state.get("desired", {}).get(spec.name, spec.default_on))
+        heartbeat_path = self.container_status_dir / f"{spec.name}.json"
+        heartbeat: dict[str, Any] = {}
+        try:
+            value = json.loads(heartbeat_path.read_text(encoding="utf-8"))
+            heartbeat = value if isinstance(value, dict) else {}
+        except (FileNotFoundError, OSError, json.JSONDecodeError):
+            heartbeat = {}
+        updated = str(heartbeat.get("updated_at") or "")
+        fresh = False
+        if updated:
+            try:
+                parsed = datetime.fromisoformat(updated.replace("Z", "+00:00"))
+                if parsed.tzinfo is None:
+                    parsed = parsed.replace(tzinfo=timezone.utc)
+                fresh = datetime.now(timezone.utc) - parsed.astimezone(timezone.utc) < timedelta(minutes=5)
+            except ValueError:
+                fresh = False
+        active = desired and fresh
+        is_timer = unit == spec.timer_unit
+        return {
+            "unit": unit,
+            "available": True,
+            "returncode": 0,
+            "error": "" if fresh or not desired else "Container-Worker hat keinen aktuellen Heartbeat",
+            "LoadState": "loaded",
+            "ActiveState": "active" if active else "inactive",
+            "SubState": ("waiting" if is_timer else str(heartbeat.get("state") or "running")) if active else "dead",
+            "UnitFileState": "enabled" if desired else "disabled",
+            "Result": str(heartbeat.get("result") or "success"),
+            "ExecMainStatus": str(heartbeat.get("last_exit_code") or 0),
+            "ExecMainStartTimestamp": str(heartbeat.get("last_started_at") or ""),
+            "ExecMainExitTimestamp": str(heartbeat.get("last_finished_at") or ""),
+            "container": True,
+            "heartbeat": str(heartbeat_path),
+        }
+
     def _unit_status(self, unit: str) -> dict[str, Any]:
+        if self.container_mode:
+            return self._container_runtime_status(unit)
         command = [
             "systemctl", "--user", "show", unit, "--no-pager",
             "--property=LoadState,ActiveState,SubState,UnitFileState,Result,ExecMainStatus,ExecMainStartTimestamp,ExecMainExitTimestamp",
@@ -394,6 +458,17 @@ class JobController:
         }
 
     def _quiesce_mail_for_recovery(self, spec: JobSpec) -> dict[str, Any]:
+        if self.container_mode:
+            self.state["desired"][spec.name] = False
+            self._save_state()
+            idle = self._wait_for_mail_idle(spec, attempts=60, interval_seconds=2.0)
+            return {
+                "ok": bool(idle.get("ok")),
+                "commands": [{"command": "container desired mail=off", "returncode": 0, "detail": ""}],
+                "idle": idle,
+                "transient": bool(idle.get("transient")),
+                "container": True,
+            }
         commands: list[dict[str, Any]] = []
         for unit in (spec.timer_unit, spec.service_unit):
             result = self._run(["systemctl", "--user", "stop", unit], timeout=60)
@@ -411,6 +486,18 @@ class JobController:
         }
 
     def _restore_mail_timer(self, spec: JobSpec) -> dict[str, Any]:
+        if self.container_mode:
+            self.state["desired"][spec.name] = True
+            self._save_state()
+            self.container_status_dir.mkdir(parents=True, exist_ok=True)
+            (self.container_status_dir / f"{spec.name}.wake").touch()
+            return {
+                "attempted": True,
+                "ok": True,
+                "command": "container desired mail=on",
+                "returncode": 0,
+                "detail": "Container-Mailworker wird aufgeweckt",
+            }
         result = self._run(["systemctl", "--user", "enable", "--now", spec.timer_unit], timeout=60)
         return {
             "attempted": True,
@@ -586,6 +673,9 @@ class JobController:
         }
 
     def _restart_mail_after_recovery(self, spec: JobSpec) -> dict[str, Any]:
+        if self.container_mode:
+            restored = self._restore_mail_timer(spec)
+            return {"ok": bool(restored.get("ok")), "commands": [restored], "container": True}
         commands: list[dict[str, Any]] = []
         for unit in (spec.service_unit, spec.timer_unit):
             result = self._run(["systemctl", "--user", "reset-failed", unit], timeout=30)
@@ -620,6 +710,16 @@ class JobController:
         return response
 
     def _journal(self, spec: JobSpec) -> str:
+        if self.container_mode:
+            log_root = Path(
+                os.environ.get("OPENCLAW_LOG_DIR")
+                or (self.workspace_root / "personal_assistant/data/container_logs")
+            ).expanduser().resolve()
+            path = log_root / f"{spec.name}.log"
+            try:
+                return path.read_text(encoding="utf-8", errors="replace")[-8000:]
+            except OSError as exc:
+                return str(exc)
         result = self._run(
             ["journalctl", "--user", "-u", spec.service_unit, "-n", "30", "--no-pager"],
             timeout=20,
@@ -839,7 +939,24 @@ class JobController:
             "after": after,
         }
 
+    def _container_activate(self, spec: JobSpec, *, restart: bool, run_now: bool) -> dict[str, Any]:
+        self.container_status_dir.mkdir(parents=True, exist_ok=True)
+        wake = self.container_status_dir / f"{spec.name}.wake"
+        if run_now or restart:
+            wake.touch()
+        return {
+            "name": spec.name,
+            "ok": True,
+            "container": True,
+            "restart_requested": bool(restart),
+            "run_now_requested": bool(run_now),
+            "wake_file": str(wake),
+            "detail": "Container-Worker uebernimmt den geaenderten Sollzustand",
+        }
+
     def _activate(self, spec: JobSpec, *, restart: bool, run_now: bool) -> dict[str, Any]:
+        if self.container_mode:
+            return self._container_activate(spec, restart=restart, run_now=run_now)
         install = self._install_units(spec)
         if not all(item["ok"] for item in install):
             return {"name": spec.name, "ok": False, "install": install, "detail": "Systemd-Unit fehlt im Paket"}
@@ -976,6 +1093,20 @@ class JobController:
         actions: list[dict[str, Any]] = []
         for spec in selected:
             self.state["desired"][spec.name] = False
+            if self.container_mode:
+                self.container_status_dir.mkdir(parents=True, exist_ok=True)
+                wake = self.container_status_dir / f"{spec.name}.wake"
+                try:
+                    wake.unlink()
+                except FileNotFoundError:
+                    pass
+                actions.append({
+                    "name": spec.name,
+                    "ok": True,
+                    "container": True,
+                    "detail": "Container-Worker stoppt nach dem aktuellen begrenzten Lauf",
+                })
+                continue
             stop = self._run(["systemctl", "--user", "stop", spec.service_unit], timeout=60)
             disable = self._run(["systemctl", "--user", "disable", "--now", spec.timer_unit], timeout=60)
             actions.append({

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -11,7 +12,7 @@ SCHEMA_VERSION = 1
 def workspace_root(root: Path | str | None = None) -> Path:
     if root is not None:
         return Path(root).expanduser().resolve()
-    return Path(__file__).resolve().parents[1]
+    return Path(os.environ.get("OPENCLAW_WORKSPACE") or Path(__file__).resolve().parents[1]).expanduser().resolve()
 
 
 def release_path(root: Path | str | None = None) -> Path:

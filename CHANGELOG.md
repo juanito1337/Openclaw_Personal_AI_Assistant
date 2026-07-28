@@ -1,5 +1,16 @@
 # Changelog
 
+## 3.4.0-r27.0 – Containerbetrieb mit verifiziertem Backup, Produkttest und Rollback
+
+- Der komplette Agent laeuft aus einem unveraenderlichen Docker-Image auf Basis des offiziellen OpenClaw-Images; Code und Abhaengigkeiten werden von Konfiguration, Geheimnissen und persistenten Laufzeitdaten getrennt.
+- Der bestehende Live-Zustand kann einmalig nach /srv/openclaw migriert werden; alte systemd-Writer werden dabei gestoppt, waehrend der urspruengliche Live-Ordner als zusaetzliche Rueckfallebene erhalten bleibt.
+- Vor jedem Imagewechsel werden alle Writer gestoppt, SQLite-Datenbanken geprueft, State, Konfiguration und Secrets archiviert, die Pruefsumme validiert und eine testweise Wiederherstellung ausgefuehrt.
+- Eine neue Version startet zuerst nur Gateway und Ollama-Prioritaetsproxy, fuehrt danach einen begrenzten Dry-Run und optional einen schreibenden Produktivlauf aus und aktiviert die Hintergrundworker erst nach erfolgreichem Smoke-Test.
+- Bei einem Fehler stellt rollback.sh den vorherigen lokalen Datenstand und das vorherige Image automatisch wieder her; fuer externe IMAP-, Nextcloud-, CardDAV- und CalDAV-Aenderungen sind verpflichtende Backup- und Restore-Hooks vorgesehen.
+- Mail-, Sync- und Supervisor-Zeitplaene laufen ohne systemd als getrennte Container-Worker und respektieren weiterhin den im Agenten gespeicherten ON/OFF-Sollzustand.
+- OPENCLAW_WORKSPACE wird nun in allen relevanten Pfaden respektiert, damit der persistente Workspace ausserhalb des Images liegt und derselbe Quellstand lokal, in Tests und im Container reproduzierbar verwendet wird.
+- Eine GitHub-Actions-Pipeline testet den Quellstand und veroeffentlicht getaggte Images mit Commit- und Release-Tag in die private GitHub Container Registry.
+
 ## 3.4.0-r26.4 – Agent erkennt Kalender-, Aufgaben- und Kontaktwerkzeuge korrekt
 
 - Der installierte `personal-assistant`-Skill wurde auf den aktuellen Funktionsstand gebracht und beschreibt Kalender, Aufgaben und Kontakte nicht mehr faelschlich als ausschliesslich create-only.

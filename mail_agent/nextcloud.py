@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from .command import CommandResult, CommandRunner
-from .config import Config
+from .config import Config, WORKSPACE_ROOT
 from .models import OperationResult
 from .utils import atomic_write_bytes, extract_json_object, normalize_address
 
@@ -45,7 +45,7 @@ class NextcloudSkillClient:
         # Use the workspace containing this package, not the location of an
         # optional alternate config file. This prevents a test/custom config in
         # /tmp from making OpenClaw install or discover skills in the wrong tree.
-        return Path(__file__).resolve().parents[1]
+        return WORKSPACE_ROOT
 
     @property
     def script_path(self) -> Path:
