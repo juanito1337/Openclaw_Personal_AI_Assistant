@@ -156,6 +156,12 @@ class PersonalAssistant:
     def mail_send_reply(self, draft_id: str, *, approved: bool = False) -> dict[str, Any]:
         return self.mail_move_service.send_reply(draft_id, approved=approved)
 
+    def mail_draft_message(self, recipient: str, subject: str, body: str) -> dict[str, Any]:
+        return self.mail_move_service.draft_message(recipient, subject, body)
+
+    def mail_send_message(self, draft_id: str, *, approved: bool = False) -> dict[str, Any]:
+        return self.mail_move_service.send_message(draft_id, approved=approved)
+
     def mail_move_message(self, *, source: str, destination: str, message_id: str, expected_subject: str = "", dry_run: bool = False) -> dict[str, Any]:
         return self.mail_move_service.move(
             source=source, destination=destination, message_id=message_id,

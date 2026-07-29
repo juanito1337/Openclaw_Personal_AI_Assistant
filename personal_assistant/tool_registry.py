@@ -340,6 +340,22 @@ def build_tool_registry(settings: ToolSettings) -> list[AgentTool]:
                 "explicit-user-approved-presented-draft",
             ),
             AgentTool(
+                "mail.compose-draft",
+                "Vollstaendigen Entwurf fuer eine neue Mail anlegen und ohne Versand anzeigen",
+                './scripts/assistant.sh mail compose-draft --to "<Empfaenger>" --subject "<Betreff>" --body "<Entwurf>"',
+                "local-write",
+                False,
+                "draft-only-no-send",
+            ),
+            AgentTool(
+                "mail.compose-send",
+                "Nur einen zuvor angezeigten neuen Mailentwurf nach ausdruecklicher Nutzerfreigabe versenden",
+                './scripts/assistant.sh mail compose-send --draft-id "<Entwurfs-ID>" --yes',
+                "write",
+                True,
+                "explicit-user-approved-presented-draft",
+            ),
+            AgentTool(
                 "mail.move",
                 "Eine eindeutig per Mail-ID ausgewaehlte Mail zwischen vorhandenen, nicht-destruktiven Ordnern verschieben",
                 './scripts/assistant.sh mail move --source "<Quelle>" --destination "<Ziel>" --message-id "<ID>" --expected-subject "<Betreff>"',

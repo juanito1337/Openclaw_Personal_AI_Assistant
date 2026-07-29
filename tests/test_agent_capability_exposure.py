@@ -28,6 +28,8 @@ class AgentCapabilityExposureTests(unittest.TestCase):
             "tasks list --include-completed",
             "tasks update --uid",
             "contacts update --uid",
+            "mail compose-draft --to",
+            "mail compose-send --draft-id",
         ):
             self.assertIn(command, skill)
 

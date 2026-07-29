@@ -1,0 +1,34 @@
+# Release-owned safety policy. Local policies.toml can add restrictions and
+# approval requirements, but cannot remove these baseline rules.
+
+[deny]
+actions = [
+  "files.delete",
+  "files.overwrite",
+  "files.share",
+  "contacts.write",
+  "contacts.delete",
+  "calendar.delete",
+  "tasks.delete",
+  "deck.card.delete",
+  "deck.board.delete",
+  "deck.stack.delete",
+  "deck.share",
+  "mail.delete",
+  "mail.expunge",
+  "mail.folder.delete",
+  "plugins.install",
+  "code.modify",
+  "security.disable",
+  "audit.disable",
+]
+
+[approval]
+actions = [
+  "calendar.create",
+  "calendar.update",
+  "tasks.create",
+  "tasks.update",
+  "contacts.update",
+  "mail.send",
+]

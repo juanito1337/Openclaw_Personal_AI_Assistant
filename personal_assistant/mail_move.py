@@ -55,6 +55,7 @@ class MailMoveService:
             "resource_permissions": list(resource.permissions), "folders": folders, "folder_error": error,
             "max_batch": self.settings.max_batch, "denied_destinations": list(self.settings.denied_destinations),
             "denied_sources": list(self.settings.denied_sources),
+            "compose_allowed": self.settings.enabled and "forward" in resource.permissions,
             "delete_allowed": False, "expunge_allowed": False, "folder_changes_allowed": False,
         }
 
@@ -121,6 +122,8 @@ class MailMoveService:
         expected_subject: str = "",
     ) -> ParsedMessage:
         """Read exactly one selected mail without exposing its body in the CLI output."""
+        if not self.settings.enabled:
+            raise PermissionError("Direktes Mail-Lesewerkzeug ist deaktiviert")
         decision = self.policy.decide(
             self.settings.resource_id,
             "mail.read",
@@ -184,7 +187,7 @@ class MailMoveService:
         recipient = parseaddr(message.sender_addr)[1].strip().casefold()
         if not recipient or "@" not in recipient or any(char in recipient for char in "\r\n"):
             raise ValueError("Absenderadresse der ausgewaehlten Mail ist nicht versandfaehig")
-        reply_body = str(body or "").strip()
+        reply_body = str(body or "").strip().replace("<#", "< #")
         if not reply_body:
             raise ValueError("Antwortentwurf darf nicht leer sein")
         subject = message.subject.strip()
@@ -192,6 +195,7 @@ class MailMoveService:
             subject = f"Re: {subject}"
         subject = clean_single_line(subject, 900)
         payload = {
+            "draft_kind": "reply",
             "folder": message.source_folder,
             "mailbox_id": message.mailbox_id,
             "source_message_id": message.message_id,
@@ -224,23 +228,97 @@ class MailMoveService:
             "requires_explicit_approval": True,
         }
 
+    @staticmethod
+    def _recipient(value: str) -> str:
+        raw = str(value or "").strip()
+        parsed = parseaddr(raw)[1].strip().casefold()
+        if (
+            not parsed
+            or "@" not in parsed
+            or any(char in raw for char in "\r\n")
+            or any(char in parsed for char in "\r\n")
+        ):
+            raise ValueError("Empfaengeradresse ist nicht versandfaehig")
+        return parsed
+
+    def draft_message(self, recipient: str, subject: str, body: str) -> dict[str, Any]:
+        """Store a complete new-message draft without sending anything."""
+        if not self.settings.enabled:
+            raise PermissionError("Direktes Mail-Werkzeug ist deaktiviert")
+        normalized_recipient = self._recipient(recipient)
+        normalized_subject = clean_single_line(str(subject or "").strip(), 900)
+        message_body = str(body or "").strip().replace("<#", "< #")
+        if not normalized_subject:
+            raise ValueError("Betreff des Mailentwurfs darf nicht leer sein")
+        if not message_body:
+            raise ValueError("Mailentwurf darf nicht leer sein")
+        payload = {
+            "draft_kind": "compose",
+            "recipient": normalized_recipient,
+            "subject": normalized_subject,
+            "body": message_body,
+        }
+        decision = self.policy.decide(self.settings.resource_id, "mail.send", payload)
+        if not decision.allowed:
+            raise PermissionError(decision.reason)
+        material = "\0".join((normalized_recipient, normalized_subject, message_body))
+        plan = self.storage.create_action(
+            idempotency_key="mail-compose:" + hashlib.sha256(material.encode("utf-8")).hexdigest(),
+            action_type="mail.send",
+            resource_id=self.settings.resource_id,
+            payload=payload,
+            requires_approval=True,
+        )
+        self.storage.audit(
+            "mail.compose.drafted",
+            {"id": plan.id, "recipient": normalized_recipient, "subject": normalized_subject},
+            resource_id=plan.resource_id,
+        )
+        return {
+            "ok": True,
+            "draft_id": plan.id,
+            "status": plan.status,
+            "to": normalized_recipient,
+            "subject": normalized_subject,
+            "body": message_body,
+            "requires_explicit_approval": True,
+        }
+
     def send_reply(self, draft_id: str, *, approved: bool = False) -> dict[str, Any]:
+        return self._send_draft(draft_id, approved=approved, expected_kind="reply")
+
+    def send_message(self, draft_id: str, *, approved: bool = False) -> dict[str, Any]:
+        return self._send_draft(draft_id, approved=approved, expected_kind="compose")
+
+    def _send_draft(
+        self,
+        draft_id: str,
+        *,
+        approved: bool,
+        expected_kind: str,
+    ) -> dict[str, Any]:
         if not approved:
             raise PermissionError("Versand erfordert die ausdrueckliche Freigabe --yes")
         plan = self.storage.get_action(str(draft_id))
         if plan.action_type != "mail.send" or plan.resource_id != self.settings.resource_id:
-            raise PermissionError("ActionPlan ist kein Mail-Antwortentwurf")
+            raise PermissionError("ActionPlan ist kein freigabefaehiger Mailentwurf")
+        payload = plan.payload
+        actual_kind = str(payload.get("draft_kind") or (
+            "reply" if payload.get("source_message_id") or payload.get("mailbox_id") else "compose"
+        ))
+        if actual_kind != expected_kind:
+            raise PermissionError(f"Mailentwurf hat den falschen Typ: {actual_kind}")
         if plan.status == "completed":
             return {"ok": True, "duplicate": True, "draft_id": plan.id, "status": plan.status}
         if plan.status != "proposed" or not plan.requires_approval:
-            raise PermissionError(f"Mail-Antwortentwurf ist nicht freigabefaehig: {plan.status}")
-        payload = plan.payload
+            raise PermissionError(f"Mailentwurf ist nicht freigabefaehig: {plan.status}")
         decision = self.policy.decide(self.settings.resource_id, "mail.send", payload)
         if not decision.allowed:
             raise PermissionError(decision.reason)
         approved_plan = self.storage.update_action(plan.id, "approved")
+        event_prefix = "mail.reply" if actual_kind == "reply" else "mail.compose"
         self.storage.audit(
-            "mail.reply.approved", {"id": plan.id}, resource_id=plan.resource_id, actor="user"
+            f"{event_prefix}.approved", {"id": plan.id}, resource_id=plan.resource_id, actor="user"
         )
         client = self._client()
         config = getattr(client, "config", None) or load_mail_config()
@@ -252,21 +330,22 @@ class MailMoveService:
         source_message_id = clean_single_line(str(payload.get("source_message_id") or ""), 500)
         if source_message_id:
             headers.extend([f"In-Reply-To: {source_message_id}", f"References: {source_message_id}"])
-        template = "\n".join(headers) + "\n\n" + str(payload["body"]).replace("<#", "< #") + "\n"
+        template = "\n".join(headers) + "\n\n" + str(payload["body"]) + "\n"
         result = client.send_template(template)
         if not result.ok:
             failed = self.storage.update_action(approved_plan.id, "failed", result.detail)
             self.storage.audit(
-                "mail.reply.failed", {"id": plan.id, "status": result.status, "detail": result.detail},
+                f"{event_prefix}.failed",
+                {"id": plan.id, "status": result.status, "detail": result.detail},
                 resource_id=plan.resource_id,
             )
             return {"ok": False, "draft_id": plan.id, "status": failed.status, "detail": result.detail}
         completed = self.storage.update_action(approved_plan.id, "completed")
         self.storage.audit(
-            "mail.reply.sent",
+            f"{event_prefix}.sent",
             {"id": plan.id, "recipient": payload["recipient"], "subject": payload["subject"]},
             resource_id=plan.resource_id,
-            actor="user-approved-mail-reply",
+            actor=f"user-approved-mail-{actual_kind}",
         )
         return {"ok": True, "duplicate": False, "draft_id": plan.id, "status": completed.status}
 

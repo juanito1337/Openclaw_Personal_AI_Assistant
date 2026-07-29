@@ -1,5 +1,20 @@
 # Changelog
 
+## Test-Branch – Image-verwaltete Tool-Standards und neue Mailentwuerfe
+
+- Neue Mails koennen mit `mail compose-draft` vollstaendig vorbereitet und erst
+  nach separater ausdruecklicher Freigabe mit `mail compose-send --yes`
+  versendet werden.
+- Direkte Mail-Suche, Lesen, Antwortentwuerfe und Versand werden nun korrekt an
+  den Personal-Assistant-Core statt an das alte Mail-CLI geroutet.
+- Releaseeigene Tool- und Policy-Standards liegen im unveraenderlichen Image.
+  Lokale TOML-Dateien bleiben installationsbezogene Overrides; Sicherheits- und
+  Genehmigungsregeln werden additiv zusammengefuehrt.
+- Die direkte Mail-Einrichtung erteilt `read`, `move` und `forward` nur nach
+  ausdruecklicher `--approve-permissions`-Freigabe.
+- Container-Smoke-Tests pruefen die registrierten Faehigkeiten und den
+  Compose-CLI-Einstieg, ohne eine Mail zu versenden.
+
 ## 3.4.0-r27.0.1 – Container-Migrations- und Betriebsfixes
 
 - Die Container-Migration schreibt aktive absolute Workspace-Pfade in openclaw.json sowie den produktiven TOML-Konfigurationen sicher von der nativen Home-Struktur auf /home/node/.openclaw/workspace um.

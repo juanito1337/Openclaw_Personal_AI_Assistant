@@ -80,6 +80,32 @@ def main():
             pass
         sent = service.send_reply(draft['draft_id'], approved=True)
         assert sent['ok'] and 'In-Reply-To: <treffen-ta@example.de>' in service._client_override.templates[0]
+        composed = service.draft_message(
+            'Jonas <jonas@example.de>', 'Vorstellung', 'Hallo Jonas,\n\nich bin Jan.'
+        )
+        assert composed['status'] == 'proposed'
+        assert composed['to'] == 'jonas@example.de'
+        assert len(service._client_override.templates) == 1
+        try:
+            service.send_message(composed['draft_id'])
+            raise AssertionError('Unapproved new message must not be sent')
+        except PermissionError:
+            pass
+        try:
+            service.send_reply(composed['draft_id'], approved=True)
+            raise AssertionError('A compose draft must not be accepted by reply-send')
+        except PermissionError:
+            pass
+        compose_sent = service.send_message(composed['draft_id'], approved=True)
+        assert compose_sent['ok']
+        assert 'To: jonas@example.de' in service._client_override.templates[1]
+        assert 'Subject: Vorstellung' in service._client_override.templates[1]
+        assert 'In-Reply-To:' not in service._client_override.templates[1]
+        try:
+            service.draft_message('jonas@example.de\nBcc: victim@example.de', 'Test', 'Text')
+            raise AssertionError('Header injection must be denied')
+        except ValueError:
+            pass
         try:
             service.move(source='Agent/Pruefen', destination='INBOX', message_id='77')
             raise AssertionError('Review mail must not be moved')
@@ -102,7 +128,8 @@ def main():
         ids={x.id for x in build_tool_registry(ts)}
         assert {
             'mail.move-status','mail.list','mail.search','mail.read',
-            'mail.reply-draft','mail.reply-send','mail.move',
+            'mail.reply-draft','mail.reply-send',
+            'mail.compose-draft','mail.compose-send','mail.move',
         } <= ids
         assert any(x.action_type=='mail.move' and x.status=='completed' for x in storage.list_actions(limit=20))
         storage2.close()

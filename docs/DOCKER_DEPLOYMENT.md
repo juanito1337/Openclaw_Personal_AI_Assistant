@@ -179,6 +179,20 @@ cd /srv/openclaw/deployment
 `refresh-deployment.sh` updates `compose.yaml`, `.env.example` and deployment
 scripts. It does not overwrite the productive `.env` or active local hooks.
 
+Tool code plus release-owned defaults and baseline policies are read from the
+new image on every update. Persistent `tools.toml` and `policies.toml` files are
+instance overrides; account/resource selections and explicit permission grants
+remain outside the image. New write permissions are never granted by an image
+update. For the direct mail tools, approve the required `read`, `move` and
+`forward` permissions once with:
+
+```bash
+cd /srv/openclaw/deployment
+docker compose --env-file .env --profile tools run --rm agent-cli \
+  /home/node/.openclaw/workspace/scripts/assistant.sh \
+  setup mail-move --approve-permissions
+```
+
 ## 7. Manual rollback
 
 List release backups:

@@ -74,6 +74,7 @@ def _write_tools(path: Path, settings: ToolSettings) -> Path | None:
         f"resource_id = {_toml_string(mail_move.resource_id)}",
         f"max_batch = {mail_move.max_batch}",
         "denied_destinations = [" + ", ".join(_toml_string(v) for v in mail_move.denied_destinations) + "]",
+        "denied_sources = [" + ", ".join(_toml_string(v) for v in mail_move.denied_sources) + "]",
         "",
         "[nextcloud.workspace]",
         f"enabled = {'true' if workspace.enabled else 'false'}",
@@ -328,11 +329,11 @@ def configure_mail_move_tools(
         raise ValueError("Mail-Ressource ist nicht fuer das lokale Mail-Werkzeug vorgesehen")
     required = {"read"}
     if enable:
-        required.add("move")
+        required.update({"forward", "move"})
     missing = required - set(resource.permissions)
     if missing and not approve_permissions:
         raise PermissionError(
-            "Mail-Verschieberechte muessen explizit freigegeben werden: " + ", ".join(sorted(missing))
+            "Direkte Mail-Rechte muessen explizit freigegeben werden: " + ", ".join(sorted(missing))
         )
     updated = Resource(
         id=resource.id, kind=resource.kind, connector=resource.connector, enabled=resource.enabled,
@@ -344,6 +345,7 @@ def configure_mail_move_tools(
     move = MailMoveToolSettings(
         enabled=bool(enable), resource_id=resource_id, max_batch=max(1, min(int(max_batch), 20)),
         denied_destinations=existing.mail.move.denied_destinations,
+        denied_sources=existing.mail.move.denied_sources,
     )
     mail = MailToolSettings(
         enabled=existing.mail.enabled, invoices=existing.mail.invoices,

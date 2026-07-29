@@ -163,6 +163,13 @@ stored draft ID and requires Jan's explicit approval:
 ./scripts/assistant.sh mail reply-send --draft-id "<Entwurfs-ID>" --yes
 ```
 
+New messages use the same mandatory two-step approval flow:
+
+```bash
+./scripts/assistant.sh mail compose-draft --to "jonas@example.de" --subject "Vorstellung" --body "<Entwurf>"
+./scripts/assistant.sh mail compose-send --draft-id "<Entwurfs-ID>" --yes
+```
+
 The direct move tool cannot move mail out of `Agent/Pruefen`,
 `Agent/Termin-Pruefen` or `Agent/Virusverdacht`.
 

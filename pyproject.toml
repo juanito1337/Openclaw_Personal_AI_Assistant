@@ -18,6 +18,7 @@ include = ["mail_agent*", "personal_assistant*"]
 
 [tool.setuptools.package-data]
 mail_agent = ["*.example.toml"]
+personal_assistant = ["tool_defaults.toml", "policy_defaults.toml"]
 
 [tool.ruff]
 line-length = 110

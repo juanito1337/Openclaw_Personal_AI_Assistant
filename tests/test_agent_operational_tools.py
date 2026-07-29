@@ -20,6 +20,16 @@ class AgentOperationalToolTests(unittest.TestCase):
         args = parser().parse_args(["performance", "mail", "--limit", "7"])
         self.assertEqual(args.performance_command, "mail")
         self.assertEqual(args.limit, 7)
+        compose = parser().parse_args([
+            "mail", "compose-draft",
+            "--to", "jonas@example.de",
+            "--subject", "Vorstellung",
+            "--body", "Hallo Jonas",
+        ])
+        self.assertEqual(compose.mail_command, "compose-draft")
+        self.assertEqual(compose.to, "jonas@example.de")
+        send = parser().parse_args(["mail", "compose-send", "--draft-id", "draft-1", "--yes"])
+        self.assertTrue(send.yes)
 
     @patch("personal_assistant.cli.subprocess.run")
     def test_ollama_restart_restarts_and_verifies(self, run) -> None:

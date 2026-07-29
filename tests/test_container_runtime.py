@@ -132,6 +132,15 @@ class ContainerWorkspaceTests(unittest.TestCase):
         self.assertLess(workers_started, supervisor_healthy)
         self.assertLess(supervisor_healthy, jobs_checked)
 
+    def test_smoke_test_checks_compose_cli_without_sending(self) -> None:
+        smoke = (
+            Path(__file__).resolve().parents[1] / "docker/scripts/smoke-test.sh"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("assistant.sh capabilities", smoke)
+        self.assertIn("assistant.sh mail compose-draft --help", smoke)
+        self.assertNotIn("assistant.sh mail compose-send", smoke)
+
     def test_rollback_restores_contents_without_removing_protected_roots(self) -> None:
         rollback = (
             Path(__file__).resolve().parents[1] / "docker/scripts/rollback.sh"
