@@ -82,10 +82,16 @@ if command -v systemd-analyze >/dev/null 2>&1; then
   cp deploy/systemd/personal-assistant-sync.timer "$UNIT_TMP/personal-assistant-sync.timer"
   sed "s|%h/.openclaw/workspace|$ROOT|g" deploy/systemd/personal-assistant-supervisor.service > "$UNIT_TMP/personal-assistant-supervisor.service"
   cp deploy/systemd/personal-assistant-supervisor.timer "$UNIT_TMP/personal-assistant-supervisor.timer"
+  sed "s|%h/.openclaw/workspace|$ROOT|g" deploy/systemd/personal-assistant-portfolio.service > "$UNIT_TMP/personal-assistant-portfolio.service"
+  cp deploy/systemd/personal-assistant-portfolio.timer "$UNIT_TMP/personal-assistant-portfolio.timer"
+  sed "s|%h/.openclaw/workspace|$ROOT|g" deploy/systemd/personal-assistant-monitor.service > "$UNIT_TMP/personal-assistant-monitor.service"
+  cp deploy/systemd/personal-assistant-monitor.timer "$UNIT_TMP/personal-assistant-monitor.timer"
   systemd-analyze verify \
     "$UNIT_TMP/mail-agent.service" "$UNIT_TMP/mail-agent.timer" \
     "$UNIT_TMP/personal-assistant-sync.service" "$UNIT_TMP/personal-assistant-sync.timer" \
-    "$UNIT_TMP/personal-assistant-supervisor.service" "$UNIT_TMP/personal-assistant-supervisor.timer"
+    "$UNIT_TMP/personal-assistant-supervisor.service" "$UNIT_TMP/personal-assistant-supervisor.timer" \
+    "$UNIT_TMP/personal-assistant-portfolio.service" "$UNIT_TMP/personal-assistant-portfolio.timer" \
+    "$UNIT_TMP/personal-assistant-monitor.service" "$UNIT_TMP/personal-assistant-monitor.timer"
 fi
 
 

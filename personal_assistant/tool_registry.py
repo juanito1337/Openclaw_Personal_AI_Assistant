@@ -64,6 +64,32 @@ def build_tool_registry(settings: ToolSettings) -> list[AgentTool]:
             "read",
         ),
         AgentTool(
+            "assistant.scheduler.status",
+            "Adaptive Aufgaben-Queue, aktive Leases, Wartezeiten und letzte Laeufe anzeigen",
+            './scripts/assistant.sh scheduler status',
+            "read",
+        ),
+        AgentTool(
+            "assistant.scheduler.doctor",
+            "Scheduler-Datenbank, Fristverletzungen und abgelaufene Leases pruefen",
+            './scripts/assistant.sh scheduler doctor',
+            "read",
+        ),
+        AgentTool(
+            "assistant.scheduler.activity",
+            "Aktive zeitlich begrenzte Themenprioritaeten anzeigen",
+            './scripts/assistant.sh scheduler activity',
+            "read",
+        ),
+        AgentTool(
+            "assistant.scheduler.focus",
+            "Ein explizites aktuelles Nutzerthema lokal und zeitlich begrenzt priorisieren",
+            './scripts/assistant.sh scheduler focus --topic "<mail|portfolio|knowledge|planning|operations>" --minutes 30',
+            "local-write",
+            False,
+            "adaptive-local-focus-only",
+        ),
+        AgentTool(
             "assistant.jobs.check",
             "Hintergrundjobs pruefen, Alerts aktualisieren und die eng begrenzte Mail-Dry-Run-Sperre automatisch beheben",
             './scripts/assistant.sh jobs check --target all --deep',

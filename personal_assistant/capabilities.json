@@ -34,7 +34,11 @@
     "portfolio.quotes.read",
     "portfolio.analysis.deterministic",
     "portfolio.alerts.read",
-    "portfolio.performance.read"
+    "portfolio.performance.read",
+    "scheduler.status",
+    "scheduler.doctor",
+    "scheduler.activity.read",
+    "scheduler.focus.expiring_local"
   ],
   "approval_required": [
     "calendar.create",
@@ -103,7 +107,10 @@
     "A reply or new message is sent only from an immutable stored draft after that complete draft was presented and explicitly approved.",
     "Portfolio imports are ClamAV-scanned, append-only local snapshots from the controlled import root.",
     "A held-position quote gap blocks fresh trend analysis and is integrated into job alerts and the technical monitor.",
-    "Trading-signal performance is separate from technical health; no order execution or DKB credential access exists."
+    "Trading-signal performance is separate from technical health; no order execution or DKB credential access exists.",
+    "The persistent scheduler coordinates only allowlisted background jobs; it cannot execute arbitrary commands.",
+    "A scheduler focus is an expiring local preference signal and never changes permissions or authorizes external writes.",
+    "The supervisor stays outside the adaptive queue and reports stale leases or missed deadlines."
   ],
   "revision": "r15"
 }

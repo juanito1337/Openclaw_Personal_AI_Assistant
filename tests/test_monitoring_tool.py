@@ -97,6 +97,15 @@ class MonitoringToolTests(unittest.TestCase):
                 "required": 2,
                 "fresh": 1,
             },
+            scheduler_health=lambda: {
+                "enabled": True,
+                "ok": True,
+                "state": "healthy",
+                "active": 0,
+                "pending": 1,
+                "deadline_misses": 0,
+                "seven_day": {"average_wait_ms": 125.0},
+            },
         )
 
     def tearDown(self) -> None:
@@ -114,7 +123,8 @@ class MonitoringToolTests(unittest.TestCase):
         self.assertIn("beweist nicht", report["interpretation"])
         self.assertTrue(report["metrics"]["nextcloud_live"]["ok"])
         self.assertEqual(report["metrics"]["mail"]["recent_messages"], 1)
-        self.assertEqual(report["score_schema"], 2)
+        self.assertEqual(report["score_schema"], 3)
+        self.assertEqual(report["metrics"]["scheduler"]["state"], "healthy")
         self.assertEqual(report["metrics"]["portfolio"]["state"], "degraded")
         component = next(
             item for item in report["components"] if item["id"] == "portfolio_market_data"
@@ -129,6 +139,20 @@ class MonitoringToolTests(unittest.TestCase):
         history = self.monitor.history(days=30)
         self.assertEqual(len(history["snapshots"]), 2)
         self.assertIn(history["trend"], {"stable", "improving", "declining"})
+
+    def test_scheduler_failure_is_visible_in_runtime_evidence(self) -> None:
+        self.monitor.scheduler_health = lambda: {
+            "enabled": True,
+            "ok": False,
+            "state": "degraded",
+            "deadline_misses": 1,
+        }
+        report = self.monitor.report(days=7, live=False)
+        runtime = next(item for item in report["components"] if item["id"] == "runtime")
+        self.assertEqual(runtime["evidence"]["scheduler"]["state"], "degraded")
+        self.assertTrue(
+            any("scheduler doctor" in item for item in report["recommendations"])
+        )
 
     def test_tool_registry_exposes_monitoring(self) -> None:
         ids = {item.id for item in build_tool_registry(ToolSettings(path=Path("tools.toml")))}

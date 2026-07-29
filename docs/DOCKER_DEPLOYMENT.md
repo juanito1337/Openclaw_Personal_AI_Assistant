@@ -226,8 +226,15 @@ docker compose --env-file .env --profile tools run --rm agent-cli \
 ```
 
 The agent's `jobs on/off/status` commands remain available. In container mode
-they change a persistent desired-state file; the mail, sync and supervisor
-workers observe it without requiring systemd inside the containers.
+they change a persistent desired-state file; the mail, sync, portfolio, monitor
+and supervisor workers observe it without requiring systemd inside the
+containers. Mail, sync, portfolio and monitor runs enter the shared adaptive
+scheduler; the supervisor remains outside it.
+
+```bash
+docker compose --env-file .env --profile tools run --rm agent-cli \
+  /home/node/.openclaw/workspace/scripts/assistant.sh scheduler status
+```
 
 ## Backup boundaries
 

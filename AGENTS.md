@@ -221,6 +221,44 @@ Operational rules:
 - If the proxy is unavailable, run `ollama status`, then `ollama check`, then the
   service journal. Do not silently bypass the coordinator or rewrite model URLs.
 
+## Adaptive work scheduler
+
+Complete container background jobs must enter the registered persistent scheduler.
+The Ollama proxy remains the separate coordinator for individual model requests.
+
+```bash
+./scripts/assistant.sh scheduler status
+./scripts/assistant.sh scheduler doctor
+./scripts/assistant.sh scheduler activity
+./scripts/assistant.sh scheduler focus --topic "<mail|portfolio|knowledge|planning|operations>" --minutes 30
+```
+
+Operational rules:
+
+- Mail, portfolio, knowledge sync and technical monitoring are fixed allowlisted
+  jobs. Never use the scheduler to execute an arbitrary command.
+- The supervisor and Docker healthchecks remain outside the queue so they can
+  detect a blocked scheduler.
+- A recent explicit user topic may receive a bounded, expiring priority boost.
+  The boost does not enable jobs, grant permissions, approve ActionPlans or
+  authorize external writes.
+- Background workers must identify themselves with
+  `OPENCLAW_SCHEDULER_SOURCE=background-worker` and must not reinforce their own
+  topic priority.
+- Running work is non-preemptive. Never terminate a healthy in-flight task merely
+  because the current chat topic changed.
+- Deadline urgency, wait-time aging and starvation protection must eventually
+  override a temporary topic boost.
+- A worker must hold and renew its scheduler lease. Repeated lease-renewal failure
+  is fail-closed: stop the child safely and report the exact scheduler failure.
+- Queue wait is not itself a tool failure. Report position, effective priority and
+  wait duration when relevant.
+- Scheduler telemetry is local-only and may contain technical timestamps, result
+  codes, durations and bounded error detail, never content or credentials.
+- Diagnose missed deadlines or stale leases with `scheduler doctor`, followed by
+  `jobs check --target all --deep`. Do not delete the scheduler database as a
+  repair.
+
 ## Mail learning contract
 
 Use only the registered learning commands:

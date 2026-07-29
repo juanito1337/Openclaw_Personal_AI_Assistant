@@ -30,6 +30,7 @@ units=(
   mail-agent.timer mail-agent.service
   personal-assistant-sync.timer personal-assistant-sync.service
   personal-assistant-supervisor.timer personal-assistant-supervisor.service
+  personal-assistant-portfolio.timer personal-assistant-portfolio.service
   personal-assistant-monitor.timer personal-assistant-monitor.service
   ollama-priority-proxy.service openclaw-gateway.service
 )

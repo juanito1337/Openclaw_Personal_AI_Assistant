@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import sqlite3
 import subprocess
 import time
 from dataclasses import dataclass
@@ -11,6 +12,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Sequence
 
 from .config import WORKSPACE_ROOT
+from .work_scheduler import AdaptiveWorkScheduler
 
 
 STATE_VERSION = 2
@@ -92,6 +94,14 @@ def default_job_specs() -> tuple[JobSpec, ...]:
             automatic_recovery_command=(
                 "scripts/mail-agent.sh", "run", "--dry-run", "--no-digest", "--limit", "5",
             ),
+        ),
+        JobSpec(
+            name="monitor",
+            description="Erfasst technische Performance, Datenfrische und Scheduler-Zustand.",
+            timer_unit="personal-assistant-monitor.timer",
+            service_unit="personal-assistant-monitor.service",
+            default_on=True,
+            standard=True,
         ),
         JobSpec(
             name="sync",
@@ -776,6 +786,32 @@ class JobController:
                     "code": "heartbeat-delivery-disabled",
                     "detail": "OpenClaw-Heartbeat kann Ausfaelle nicht zustellen; Ziel ist 'none' oder nicht lesbar",
                 })
+            scheduler_path = self.workspace_root / "personal_assistant/data/work_scheduler.sqlite3"
+            if scheduler_path.exists():
+                try:
+                    scheduler = AdaptiveWorkScheduler(scheduler_path)
+                    try:
+                        scheduler_health = scheduler.health()
+                    finally:
+                        scheduler.close()
+                except (OSError, sqlite3.Error) as exc:
+                    scheduler_health = {
+                        "enabled": True,
+                        "ok": False,
+                        "state": "failed",
+                        "error": str(exc)[:500],
+                    }
+                reporting["scheduler"] = scheduler_health
+                if desired_on and not scheduler_health.get("ok"):
+                    issues.append({
+                        "code": "scheduler-health-failed",
+                        "detail": (
+                            "Adaptive Aufgabensteuerung meldet "
+                            f"{scheduler_health.get('state', 'unknown')}; "
+                            f"Fristverletzungen={scheduler_health.get('deadline_misses', 0)}, "
+                            f"stale Leases={scheduler_health.get('stale_leases', 0)}"
+                        ),
+                    })
 
         health: dict[str, Any] = {"checked": False, "ok": True}
         if spec.always_health or deep or any(

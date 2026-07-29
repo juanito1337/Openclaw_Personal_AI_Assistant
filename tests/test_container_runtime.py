@@ -158,7 +158,7 @@ class ContainerWorkspaceTests(unittest.TestCase):
 
         self.assertNotIn(jobs_command, smoke)
         workers_started = deploy.index(
-            "compose up -d mail-worker sync-worker supervisor-worker"
+            "compose up -d mail-worker sync-worker supervisor-worker portfolio-worker monitor-worker"
         )
         supervisor_healthy = deploy.index(
             "wait_for_healthy supervisor-worker 180", workers_started
@@ -166,10 +166,37 @@ class ContainerWorkspaceTests(unittest.TestCase):
         portfolio_healthy = deploy.index(
             "wait_for_healthy portfolio-worker 180", supervisor_healthy
         )
-        jobs_checked = deploy.index(jobs_command, portfolio_healthy)
+        monitor_healthy = deploy.index(
+            "wait_for_healthy monitor-worker 180", portfolio_healthy
+        )
+        jobs_checked = deploy.index(jobs_command, monitor_healthy)
         self.assertLess(workers_started, supervisor_healthy)
         self.assertLess(supervisor_healthy, portfolio_healthy)
-        self.assertLess(portfolio_healthy, jobs_checked)
+        self.assertLess(portfolio_healthy, monitor_healthy)
+        self.assertLess(monitor_healthy, jobs_checked)
+
+    def test_business_workers_use_scheduler_but_supervisor_stays_independent(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        compose = (root / "compose.yaml").read_text(encoding="utf-8")
+        loop = (root / "docker/job_loop.py").read_text(encoding="utf-8")
+        self.assertIn("monitor-worker:", compose)
+        self.assertIn('job == "monitor"', loop)
+        self.assertIn(
+            'scheduler = None if args.job == "supervisor"',
+            loop,
+        )
+        self.assertIn("scheduler.enqueue(", loop)
+        self.assertIn("scheduler.renew(", loop)
+        self.assertIn("OPENCLAW_SCHEDULER_SOURCE", loop)
+
+    def test_packaged_hourly_monitor_units_exist(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        service = root / "deploy/systemd/personal-assistant-monitor.service"
+        timer = root / "deploy/systemd/personal-assistant-monitor.timer"
+        self.assertTrue(service.is_file())
+        self.assertTrue(timer.is_file())
+        self.assertIn("monitor record --days 7 --live", service.read_text(encoding="utf-8"))
+        self.assertIn("OnUnitInactiveSec=1h", timer.read_text(encoding="utf-8"))
 
     def test_smoke_test_checks_compose_cli_without_sending(self) -> None:
         smoke = (

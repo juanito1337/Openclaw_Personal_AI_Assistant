@@ -164,6 +164,22 @@ On a failed tool call, preserve the exact error, run the relevant status/doctor
 command and report evidence. Do not convert a temporary configuration or network
 failure into a claim that the capability does not exist.
 
+## Adaptive background work
+
+```bash
+./scripts/assistant.sh scheduler status
+./scripts/assistant.sh scheduler doctor
+./scripts/assistant.sh scheduler activity
+./scripts/assistant.sh scheduler focus --topic "<mail|portfolio|knowledge|planning|operations>" --minutes 30
+```
+
+Use `scheduler focus` only for an explicit current user topic. It is a local,
+expiring preference signal, not an approval or permission change. Never queue an
+arbitrary command, never put the supervisor into the business-job queue and never
+interrupt healthy in-flight work merely to change topic priority. When a queue
+deadline or lease fails, run `scheduler doctor` and
+`jobs check --target all --deep`.
+
 ## Portfolio monitor
 
 ```bash

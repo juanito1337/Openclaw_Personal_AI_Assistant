@@ -45,11 +45,11 @@ fi
 
 echo "Stoppe alle schreibenden Laufzeiten."
 if [[ "$previous_runtime" == "legacy-systemd" ]]; then
-  for unit in mail-agent.timer mail-agent.service personal-assistant-sync.timer personal-assistant-sync.service personal-assistant-supervisor.timer personal-assistant-supervisor.service ollama-priority-proxy.service openclaw-gateway.service; do
+  for unit in mail-agent.timer mail-agent.service personal-assistant-sync.timer personal-assistant-sync.service personal-assistant-supervisor.timer personal-assistant-supervisor.service personal-assistant-portfolio.timer personal-assistant-portfolio.service personal-assistant-monitor.timer personal-assistant-monitor.service ollama-priority-proxy.service openclaw-gateway.service; do
     systemctl --user stop "$unit" >/dev/null 2>&1 || true
   done
 else
-  compose stop mail-worker sync-worker supervisor-worker gateway ollama-proxy >/dev/null 2>&1 || true
+  compose stop mail-worker sync-worker supervisor-worker portfolio-worker monitor-worker gateway ollama-proxy >/dev/null 2>&1 || true
 fi
 
 restart_previous_on_prebackup_failure() {
@@ -99,11 +99,12 @@ wait_for_healthy ollama-proxy 180
 wait_for_healthy gateway 300
 "$SCRIPT_DIR/smoke-test.sh" "$write_test"
 compose --profile maintenance up -d clamav-update
-compose up -d mail-worker sync-worker supervisor-worker portfolio-worker
+compose up -d mail-worker sync-worker supervisor-worker portfolio-worker monitor-worker
 wait_for_healthy mail-worker 180
 wait_for_healthy sync-worker 180
 wait_for_healthy supervisor-worker 180
 wait_for_healthy portfolio-worker 180
+wait_for_healthy monitor-worker 180
 compose --profile tools run --rm --no-deps agent-cli \
   /home/node/.openclaw/workspace/scripts/assistant.sh jobs status --target all
 update_env_value OPENCLAW_CURRENT_RUNTIME docker

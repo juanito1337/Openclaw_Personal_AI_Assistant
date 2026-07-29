@@ -225,6 +225,36 @@ class JobControlTests(unittest.TestCase):
         codes = {item["code"] for item in report["jobs"][0]["issues"]}
         self.assertIn("health-check-failed", codes)
 
+    def test_supervisor_reports_scheduler_database_failure(self) -> None:
+        spec = JobSpec(
+            name="supervisor",
+            description="Supervisor",
+            timer_unit="personal-assistant-supervisor.timer",
+            service_unit="personal-assistant-supervisor.service",
+            default_on=True,
+            standard=True,
+        )
+        self.system.add_unit(spec.timer_unit, active="active", enabled="enabled")
+        self.system.add_unit(spec.service_unit, active="inactive", enabled="static")
+        self.system.openclaw_config["agents.defaults.heartbeat.target"] = "last"
+        scheduler_path = self.workspace / "personal_assistant/data/work_scheduler.sqlite3"
+        scheduler_path.parent.mkdir(parents=True)
+        scheduler_path.write_bytes(b"not a sqlite database")
+        controller = JobController(
+            state_path=self.root / "supervisor-scheduler-control.json",
+            workspace_root=self.workspace,
+            unit_dir=self.unit_dir,
+            runner=self.system,
+            specs=(spec,),
+            sleeper=lambda _seconds: None,
+        )
+
+        report = controller.status(target="supervisor")
+
+        self.assertFalse(report["ok"])
+        issues = report["jobs"][0]["issues"]
+        self.assertIn("scheduler-health-failed", {item["code"] for item in issues})
+
     def test_check_records_unexpected_off_state(self) -> None:
         report = self.controller.status(target="all", record=True)
         self.assertFalse(report["ok"])

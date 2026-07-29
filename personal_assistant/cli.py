@@ -6,6 +6,7 @@ import logging
 from dataclasses import asdict
 from logging.handlers import RotatingFileHandler
 import os
+import sqlite3
 import subprocess
 import sys
 from decimal import Decimal
@@ -21,6 +22,7 @@ from .job_control import JobController
 from .service import PersonalAssistant
 from .setup import configure_nextcloud, initialize_local_files
 from .tool_setup import configure_calendar_tools, configure_deck_orders_tools, configure_mail_move_tools, configure_mail_tools, configure_portfolio_tools, configure_tasks_tools, configure_workspace_tools
+from .work_scheduler import AdaptiveWorkScheduler, VALID_TOPICS
 
 
 def _logging(path: Path, verbose: bool) -> None:
@@ -134,13 +136,26 @@ def parser() -> argparse.ArgumentParser:
     monitor_history.add_argument("--days", type=int, default=30)
     monitor_history.add_argument("--limit", type=int, default=100)
 
+    scheduler = sub.add_parser("scheduler", help="Adaptive Hintergrund-Queue und Themenfokus verwalten")
+    scheduler_sub = scheduler.add_subparsers(dest="scheduler_command", required=True)
+    scheduler_status = scheduler_sub.add_parser("status", help="Aktive, wartende und letzte Aufgaben anzeigen")
+    scheduler_status.add_argument("--limit", type=int, default=20)
+    scheduler_sub.add_parser("doctor", help="Scheduler-Datenbank, Leases und Fristen pruefen")
+    scheduler_sub.add_parser("activity", help="Aktuelle zeitlich begrenzte Themenprioritaeten anzeigen")
+    scheduler_focus = scheduler_sub.add_parser(
+        "focus", help="Aktuelles Nutzerthema lokal und zeitlich begrenzt priorisieren"
+    )
+    scheduler_focus.add_argument("--topic", required=True, choices=VALID_TOPICS)
+    scheduler_focus.add_argument("--minutes", type=int, default=30)
+    scheduler_focus.add_argument("--source", default="agent-chat")
+
     jobs = sub.add_parser("jobs", help="Hintergrundjobs ueberwachen und kontrolliert ein-/ausschalten")
     jobs_sub = jobs.add_subparsers(dest="jobs_command", required=True)
     jobs_status = jobs_sub.add_parser("status", help="Soll- und Ist-Zustand aller freigegebenen Jobs anzeigen")
-    jobs_status.add_argument("--target", choices=("standard", "all", "supervisor", "mail", "sync", "portfolio"), default="all")
+    jobs_status.add_argument("--target", choices=("standard", "all", "supervisor", "mail", "sync", "portfolio", "monitor"), default="all")
     jobs_status.add_argument("--deep", action="store_true", help="Zusaetzliche Tool-Health-Checks ausfuehren")
     jobs_check = jobs_sub.add_parser("check", help="Jobs pruefen und Zustandswechsel als lokale Alerts speichern")
-    jobs_check.add_argument("--target", choices=("standard", "all", "supervisor", "mail", "sync", "portfolio"), default="all")
+    jobs_check.add_argument("--target", choices=("standard", "all", "supervisor", "mail", "sync", "portfolio", "monitor"), default="all")
     jobs_check.add_argument("--deep", action="store_true", help="Zusaetzliche Tool-Health-Checks ausfuehren")
     jobs_sub.add_parser("alerts", help="Aktive Job-Alerts und letzten beobachteten Zustand anzeigen")
     for command_name, help_text in (
@@ -149,7 +164,7 @@ def parser() -> argparse.ArgumentParser:
         ("off", "Produktive Jobs bewusst ausschalten"),
     ):
         job_action = jobs_sub.add_parser(command_name, help=help_text)
-        job_action.add_argument("target", nargs="?", choices=("standard", "all", "supervisor", "mail", "sync", "portfolio"), default="standard")
+        job_action.add_argument("target", nargs="?", choices=("standard", "all", "supervisor", "mail", "sync", "portfolio", "monitor"), default="standard")
         if command_name in {"on", "restart"}:
             job_action.add_argument("--no-run-now", action="store_true", help="Timer aktivieren, aber keinen sofortigen Joblauf starten")
 
@@ -819,6 +834,69 @@ def _handle_jobs(args: argparse.Namespace) -> int:
         return 1
 
 
+def _handle_scheduler(args: argparse.Namespace) -> int:
+    scheduler = AdaptiveWorkScheduler()
+    try:
+        if args.scheduler_command == "status":
+            result = scheduler.snapshot(recent_limit=max(1, min(int(args.limit), 500)))
+        elif args.scheduler_command == "doctor":
+            result = scheduler.doctor()
+        elif args.scheduler_command == "activity":
+            snapshot = scheduler.snapshot(recent_limit=1)
+            result = {
+                "ok": True,
+                "generated_at": snapshot["generated_at"],
+                "activity": snapshot["activity"],
+            }
+        elif args.scheduler_command == "focus":
+            result = scheduler.record_activity(
+                args.topic,
+                source=args.source,
+                boost_minutes=args.minutes,
+            )
+        else:
+            raise ValueError(f"Unbekannter Scheduler-Befehl: {args.scheduler_command}")
+        _print(result)
+        return 0 if result.get("ok") else 1
+    except (OSError, sqlite3.Error, ValueError) as exc:
+        _print({"ok": False, "error": str(exc)})
+        return 1
+    finally:
+        scheduler.close()
+
+
+def _interactive_topic(args: argparse.Namespace) -> str:
+    mapping = {
+        "mail": "mail",
+        "invoices": "mail",
+        "orders": "mail",
+        "portfolio": "portfolio",
+        "nextcloud": "knowledge",
+        "search": "knowledge",
+        "index": "knowledge",
+        "calendar": "planning",
+        "tasks": "planning",
+        "contacts": "planning",
+    }
+    return mapping.get(str(args.command or ""), "")
+
+
+def _record_interactive_activity(args: argparse.Namespace) -> None:
+    if os.environ.get("OPENCLAW_SCHEDULER_SOURCE", "").strip().casefold() in {
+        "background-worker",
+        "supervisor",
+    }:
+        return
+    topic = _interactive_topic(args)
+    if not topic:
+        return
+    scheduler = AdaptiveWorkScheduler()
+    try:
+        scheduler.record_activity(topic, source="interactive-cli", boost_minutes=30)
+    finally:
+        scheduler.close()
+
+
 def main(argv: list[str] | None = None) -> int:
     os.umask(0o077)
     args = parser().parse_args(argv)
@@ -831,6 +909,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "jobs":
         return _handle_jobs(args)
+
+    if args.command == "scheduler":
+        return _handle_scheduler(args)
 
     if args.command == "ollama":
         return _handle_ollama(args)
@@ -852,6 +933,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Konfigurationsfehler: {exc}", file=sys.stderr)
         return 2
     _logging(config.runtime.log_file, args.verbose)
+
+    try:
+        _record_interactive_activity(args)
+    except (OSError, sqlite3.Error, ValueError) as exc:
+        print(f"Scheduler-Warnung: Aktivitaet konnte nicht gespeichert werden: {exc}", file=sys.stderr)
 
     if args.command == "invoices":
         return _run_invoice_tool(args)
@@ -1055,7 +1141,12 @@ def main(argv: list[str] | None = None) -> int:
             result = assistant.doctor(live=True)
             result["release"] = release_report(verify=True)
             _print(result)
-            return 0 if result["database"]["ok"] and result["resources"]["ok"] and result["release"].get("ok") else 1
+            return 0 if (
+                result["database"]["ok"]
+                and result["resources"]["ok"]
+                and result["scheduler"]["ok"]
+                and result["release"].get("ok")
+            ) else 1
         if args.command == "status":
             _print({
                 "release": release_report(verify=True),

@@ -23,6 +23,11 @@ knowledge sync is selected explicitly with `sync` or together with `all`. The
 optional portfolio quote worker is selected explicitly with `portfolio` or
 together with `all`; it defaults to OFF.
 
+The technical monitor is a standard job and records a live performance snapshot
+every hour. In the container runtime, mail, sync, portfolio and monitor workers
+enter the persistent adaptive scheduler before starting. The supervisor never
+enters that queue.
+
 The supervisor remains active when productive jobs are deliberately switched off.
 This is intentional: without an independent monitor, an inactive job cannot report
 that it is inactive.
@@ -65,6 +70,15 @@ alert is not queued repeatedly. Local state is stored at:
 personal_assistant/data/job_control.json
 ```
 
+It also checks `personal_assistant/data/work_scheduler.sqlite3` when present.
+Expired leases or missed scheduler deadlines use the same deduplicated alert
+path. Queue state is available through:
+
+```bash
+./scripts/assistant.sh scheduler status
+./scripts/assistant.sh scheduler doctor
+```
+
 ## Tool failure procedure
 
 When a tool command fails, the agent must:
@@ -86,6 +100,9 @@ The portfolio worker checks every 15 minutes and honours the configured 15- or
 30-minute due interval. Its health check fails closed when a held-position quote
 is unavailable or critically stale. This produces the same deduplicated job
 alert and OpenClaw system-event path as other service failures.
+
+Adaptive priority never overrides portfolio freshness indefinitely. Deadline
+urgency and starvation aging eventually outrank a temporary chat-topic boost.
 
 
 ## R20.1 mail recovery ordering

@@ -178,6 +178,8 @@ class PerformanceMonitor:
         antivirus_health: Callable[..., dict[str, Any]] | None = None,
         antivirus_summary: Callable[..., dict[str, Any]] | None = None,
         portfolio_health: Callable[[], dict[str, Any]] | None = None,
+        scheduler_health: Callable[[], dict[str, Any]] | None = None,
+        jobs_health: Callable[[], dict[str, Any]] | None = None,
     ) -> None:
         self.config = config
         self.storage = storage
@@ -188,6 +190,8 @@ class PerformanceMonitor:
         self.antivirus_health = antivirus_health
         self.antivirus_summary = antivirus_summary
         self.portfolio_health = portfolio_health
+        self.scheduler_health = scheduler_health
+        self.jobs_health = jobs_health
         self._store: MonitoringStore | None = None
 
     def _monitor_store(self) -> MonitoringStore:
@@ -439,6 +443,28 @@ class PerformanceMonitor:
                 "error": str(exc)[:500],
             }
 
+    def _scheduler_metrics(self) -> dict[str, Any]:
+        if self.scheduler_health is None:
+            return {"enabled": False, "ok": True, "state": "unavailable"}
+        try:
+            return self.scheduler_health()
+        except Exception as exc:
+            return {
+                "enabled": True,
+                "ok": False,
+                "state": "failed",
+                "error": str(exc)[:500],
+            }
+
+    def _jobs_metrics(self) -> dict[str, Any]:
+        if self.jobs_health is None:
+            return {"checked": False, "ok": None, "jobs": []}
+        try:
+            result = self.jobs_health()
+            return {"checked": True, **result}
+        except Exception as exc:
+            return {"checked": True, "ok": False, "jobs": [], "error": str(exc)[:500]}
+
     @staticmethod
     def _status(percent: float) -> str:
         if percent >= 90:
@@ -474,6 +500,8 @@ class PerformanceMonitor:
         nextcloud_live = self._live_nextcloud() if live else {"checked": False, "ok": None, "latency_ms": None}
         antivirus = self._antivirus_metrics(live=live, days=days)
         portfolio = self._portfolio_metrics()
+        scheduler = self._scheduler_metrics()
+        jobs = self._jobs_metrics()
         services = {
             unit: self._systemd_unit(unit)
             for unit in (
@@ -653,13 +681,26 @@ class PerformanceMonitor:
         runtime += 4.0 if free_percent >= 15 else (2.0 if free_percent >= 8 else 0.0)
         memory_percent = host.get("memory_available_percent")
         runtime += 2.0 if memory_percent is None or float(memory_percent) >= 15 else (1.0 if float(memory_percent) >= 8 else 0.0)
+        desired_jobs = [
+            value for value in jobs.get("jobs", [])
+            if value.get("desired") == "on"
+        ]
+        healthy_jobs = [value for value in desired_jobs if value.get("ok")]
         loaded_units = [value for value in services.values() if value.get("available")]
         active_units = [value for value in loaded_units if value.get("ActiveState") == "active"]
-        if loaded_units:
+        if jobs.get("checked") and desired_jobs:
+            coverage += 1
+            runtime += 4.0 * len(healthy_jobs) / len(desired_jobs)
+        elif loaded_units:
             coverage += 1
             runtime += 4.0 * len(active_units) / len(loaded_units)
         else:
             runtime += 2.0
+        if scheduler.get("enabled") and not scheduler.get("ok"):
+            runtime = max(0.0, runtime - 2.0)
+            recommendations.append(
+                "Adaptive Aufgabensteuerung ist eingeschraenkt; scheduler doctor und jobs alerts pruefen."
+            )
         if live and antivirus.get("checked") and not antivirus.get("ok"):
             runtime = max(0.0, runtime - 4.0)
             recommendations.append("Host-Virenscanner ist nicht einsatzbereit; ClamAV-Dienst und Signaturupdate pruefen. Mail-Anhaenge bleiben fail-closed gesperrt.")
@@ -668,6 +709,8 @@ class PerformanceMonitor:
             "disk_free_percent": free_percent,
             "memory_available_percent": memory_percent,
             "services": services,
+            "jobs": jobs,
+            "scheduler": scheduler,
             "antivirus": antivirus,
             "load_average": host["load_average"],
         }))
@@ -711,7 +754,7 @@ class PerformanceMonitor:
             confidence = "niedrig"
 
         return {
-            "score_schema": 2,
+            "score_schema": 3,
             "generated_at": now_utc_iso(),
             "window": {"days": days, "since": since, "until": now.isoformat()},
             "overall_score": score,
@@ -728,6 +771,8 @@ class PerformanceMonitor:
                 "mail": mail,
                 "host": host,
                 "services": services,
+                "jobs": jobs,
+                "scheduler": scheduler,
                 "nextcloud_live": nextcloud_live,
                 "antivirus": antivirus,
                 "portfolio": portfolio,

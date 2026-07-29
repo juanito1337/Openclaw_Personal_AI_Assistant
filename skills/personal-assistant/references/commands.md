@@ -21,6 +21,15 @@ Central setup:
 ./scripts/assistant.sh setup nextcloud
 ```
 
+Adaptive background scheduler:
+
+```bash
+./scripts/assistant.sh scheduler status
+./scripts/assistant.sh scheduler doctor
+./scripts/assistant.sh scheduler activity
+./scripts/assistant.sh scheduler focus --topic portfolio --minutes 30
+```
+
 ActionPlan example:
 
 ```bash
