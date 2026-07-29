@@ -7,6 +7,7 @@ ARG HIMALAYA_VERSION
 RUN cargo install himalaya --version "${HIMALAYA_VERSION}" --locked
 
 FROM ${OPENCLAW_BASE_IMAGE}
+ARG OPENCLAW_SOURCE_REVISION=local
 
 USER root
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -25,7 +26,9 @@ RUN apt-get update \
 COPY --from=himalaya-builder /usr/local/cargo/bin/himalaya /usr/local/bin/himalaya
 COPY . /opt/openclaw-agent
 WORKDIR /opt/openclaw-agent
-RUN python3 -m pip install --break-system-packages --no-cache-dir . \
+RUN printf '%s\n' "${OPENCLAW_SOURCE_REVISION}" > /opt/openclaw-agent/SOURCE_REVISION \
+    && chmod 0444 /opt/openclaw-agent/SOURCE_REVISION \
+    && python3 -m pip install --break-system-packages --no-cache-dir . \
     && chmod +x /opt/openclaw-agent/scripts/*.sh \
        /opt/openclaw-agent/docker/*.sh \
        /opt/openclaw-agent/docker/scripts/*.sh \
@@ -38,6 +41,8 @@ ENV HOME=/home/node \
     MAIL_AGENT_CONFIG=/home/node/.openclaw/workspace/mail_agent/config.toml \
     PERSONAL_ASSISTANT_CONFIG=/home/node/.openclaw/workspace/personal_assistant/config.toml \
     OPENCLAW_TOOLS_CONFIG=/home/node/.openclaw/workspace/personal_assistant/tools.toml \
+    OPENCLAW_TOOL_DEFAULTS_CONFIG=/opt/openclaw-agent/personal_assistant/tool_defaults.toml \
+    OPENCLAW_POLICY_DEFAULTS_CONFIG=/opt/openclaw-agent/personal_assistant/policy_defaults.toml \
     OPENCLAW_LOG_DIR=/home/node/.openclaw/workspace/personal_assistant/data/container_logs \
     OPENCLAW_JOB_STATUS_DIR=/home/node/.openclaw/workspace/personal_assistant/data/container_jobs \
     OLLAMA_PRIORITY_ENV_FILE=/etc/openclaw-agent/ollama-priority.env \

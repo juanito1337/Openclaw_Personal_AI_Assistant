@@ -49,6 +49,39 @@ echo "$GITHUB_TOKEN" | docker login ghcr.io -u juanito1337 --password-stdin
 
 Use a fine-grained token with read access to packages. Do not store it in Git.
 
+### Fast live-test loop
+
+Branches below `test/**` publish a container automatically after the repository
+check. Each image receives a readable branch tag and an immutable
+`sha-<12 Zeichen>` tag. Newer pushes to the same test branch cancel an older
+in-progress build.
+
+The image stores the complete Git commit as its source revision. The container
+workspace marker combines release version and source revision, so a test image
+refreshes the packaged source even when `VERSION` is intentionally unchanged.
+
+Development machine:
+
+```bash
+git switch -c test/mail-review-replies
+git push -u origin test/mail-review-replies
+```
+
+After the `Container image` action is green, use the same clean, pushed commit
+on the Docker host:
+
+```bash
+git switch test/mail-review-replies
+git pull --ff-only
+./docker/scripts/live-test-branch.sh
+```
+
+The helper deploys the immutable SHA image through the normal deployment path.
+It does not start a second stack: existing writers are stopped first, the local
+release backup is created and verified, and a failed smoke test rolls back.
+Remote IMAP, SMTP or Nextcloud effects still cannot be undone by restoring only
+the local backup.
+
 ## 2. Prepare the host
 
 ```bash
@@ -120,9 +153,15 @@ The deployment sequence is deliberately strict:
 7. start only Ollama proxy and gateway,
 8. run version/doctor/dry-run checks,
 9. process at most `OPENCLAW_WRITE_TEST_LIMIT` real messages when enabled,
-10. start mail, sync and supervisor workers only after success.
+10. start mail, sync and supervisor workers only after success,
+11. verify worker health and the current job heartbeat after the workers have
+    actually started.
 
 Any failing command triggers `rollback.sh` automatically.
+
+Rollback restores the contents of the existing protected `state`, `config` and
+`secrets` roots in place. It does not require permission to delete the
+root-owned `/srv/openclaw` child directories themselves.
 
 ## 6. Later updates from Git
 
@@ -139,6 +178,20 @@ cd /srv/openclaw/deployment
 
 `refresh-deployment.sh` updates `compose.yaml`, `.env.example` and deployment
 scripts. It does not overwrite the productive `.env` or active local hooks.
+
+Tool code plus release-owned defaults and baseline policies are read from the
+new image on every update. Persistent `tools.toml` and `policies.toml` files are
+instance overrides; account/resource selections and explicit permission grants
+remain outside the image. New write permissions are never granted by an image
+update. For the direct mail tools, approve the required `read`, `move` and
+`forward` permissions once with:
+
+```bash
+cd /srv/openclaw/deployment
+docker compose --env-file .env --profile tools run --rm agent-cli \
+  /home/node/.openclaw/workspace/scripts/assistant.sh \
+  setup mail-move --approve-permissions
+```
 
 ## 7. Manual rollback
 

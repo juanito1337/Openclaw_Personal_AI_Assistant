@@ -1,10 +1,11 @@
-# Central tool configuration. Secrets are never stored here.
+# Release-owned defaults. This file is delivered by the immutable image.
+# Instance-specific selections and grants belong in tools.toml.
 
 [mail]
 enabled = true
 
 [mail.invoices]
-enabled = true
+enabled = false
 resource_id = "nextcloud-files-main"
 folder = "Assistent/Rechnungen"
 organize_by_year_month = true
@@ -48,8 +49,8 @@ timeout_seconds = 120
 temp_dir = "personal_assistant/data/antivirus_tmp"
 
 [nextcloud.calendar]
-enabled = true
-resource_id = "nextcloud-calendar-example"
+enabled = false
+resource_id = ""
 allow_create = true
 allow_list = true
 allow_update = false
@@ -59,8 +60,8 @@ max_duration_hours = 168
 max_future_days = 730
 
 [nextcloud.tasks]
-enabled = true
-resource_id = "nextcloud-calendar-example"
+enabled = false
+resource_id = ""
 allow_create = true
 allow_list = true
 allow_update = false
@@ -71,7 +72,7 @@ max_future_days = 3650
 enabled = false
 resource_id = ""
 allow_list = true
-allow_create = true
+allow_create = false
 allow_update = false
 max_results = 500
 

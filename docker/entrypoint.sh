@@ -61,10 +61,19 @@ mkdir -p \
   "$WORKSPACE/skills"
 
 sync_workspace() {
-  local version marker lock waited=0
+  local version source_revision source_id marker lock waited=0
   version=$(tr -d '\r\n' < "$IMAGE_ROOT/VERSION")
+  source_revision=""
+  if [[ -s "$IMAGE_ROOT/SOURCE_REVISION" ]]; then
+    source_revision=$(tr -d '\r\n' < "$IMAGE_ROOT/SOURCE_REVISION")
+  fi
+  if [[ -n "$source_revision" && "$source_revision" != "local" ]]; then
+    source_id="$version@$source_revision"
+  else
+    source_id="$version"
+  fi
   marker="$STATE_ROOT/.container-source-version"
-  [[ -f "$marker" ]] && [[ "$(cat "$marker")" == "$version" ]] && return 0
+  [[ -f "$marker" ]] && [[ "$(cat "$marker")" == "$source_id" ]] && return 0
 
   lock="$STATE_ROOT/.workspace-sync.lock"
   until mkdir "$lock" 2>/dev/null; do
@@ -108,7 +117,7 @@ sync_workspace() {
     fi
   done
 
-  printf '%s\n' "$version" > "$marker"
+  printf '%s\n' "$source_id" > "$marker"
   chmod 600 "$marker"
   rmdir "$lock"
   trap - RETURN

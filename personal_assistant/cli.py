@@ -59,7 +59,10 @@ def parser() -> argparse.ArgumentParser:
     tools_setup.add_argument("--disable-invoices", action="store_true")
     tools_setup.add_argument("--disable-calendar-mail", action="store_true")
     tools_setup.add_argument("--approve-permissions", action="store_true")
-    move_setup = setup_sub.add_parser("mail-move", help="Kontrolliertes Verschieben einzelner Mails freigeben")
+    move_setup = setup_sub.add_parser(
+        "mail-move",
+        help="Direktes Lesen, Antworten, Verfassen und Verschieben einzelner Mails freigeben",
+    )
     move_setup.add_argument("--max-batch", type=int, default=1)
     move_setup.add_argument("--disable", action="store_true")
     move_setup.add_argument("--approve-permissions", action="store_true")
@@ -222,6 +225,28 @@ def parser() -> argparse.ArgumentParser:
     mail_list = mail_sub.add_parser("list", help="Mail-Metadaten eines vorhandenen Ordners auflisten")
     mail_list.add_argument("--folder", required=True)
     mail_list.add_argument("--limit", type=int, default=50)
+    mail_search = mail_sub.add_parser("search", help="Mail-Metadaten ordneruebergreifend durchsuchen")
+    mail_search.add_argument("--query", required=True)
+    mail_search.add_argument("--limit", type=int, default=50)
+    mail_read = mail_sub.add_parser("read", help="Eine eindeutig identifizierte Mail read-only lesen")
+    mail_read.add_argument("--folder", required=True)
+    mail_read.add_argument("--message-id", required=True)
+    mail_read.add_argument("--expected-subject", default="")
+    mail_draft_reply = mail_sub.add_parser("reply-draft", help="Antwortentwurf fuer eine ausgewaehlte Mail anlegen")
+    mail_draft_reply.add_argument("--folder", required=True)
+    mail_draft_reply.add_argument("--message-id", required=True)
+    mail_draft_reply.add_argument("--expected-subject", default="")
+    mail_draft_reply.add_argument("--body", required=True)
+    mail_send_reply = mail_sub.add_parser("reply-send", help="Einen zuvor angezeigten Antwortentwurf versenden")
+    mail_send_reply.add_argument("--draft-id", required=True)
+    mail_send_reply.add_argument("--yes", action="store_true")
+    mail_compose_draft = mail_sub.add_parser("compose-draft", help="Entwurf fuer eine neue Mail anlegen")
+    mail_compose_draft.add_argument("--to", required=True)
+    mail_compose_draft.add_argument("--subject", required=True)
+    mail_compose_draft.add_argument("--body", required=True)
+    mail_compose_send = mail_sub.add_parser("compose-send", help="Einen zuvor angezeigten neuen Mailentwurf versenden")
+    mail_compose_send.add_argument("--draft-id", required=True)
+    mail_compose_send.add_argument("--yes", action="store_true")
     mail_move = mail_sub.add_parser("move", help="Eine eindeutig identifizierte Mail kontrolliert verschieben")
     mail_move.add_argument("--source", required=True)
     mail_move.add_argument("--destination", required=True)
@@ -788,7 +813,7 @@ def main(argv: list[str] | None = None) -> int:
             _print(result)
             return 0
         except Exception as exc:
-            print(f"Mail-Verschiebe-Setup fehlgeschlagen: {exc}", file=sys.stderr)
+            print(f"Direktes Mail-Setup fehlgeschlagen: {exc}", file=sys.stderr)
             return 1
 
     if args.command == "setup" and args.setup_command == "mail-sources":
@@ -858,7 +883,11 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Aufgaben-Setup fehlgeschlagen: {exc}", file=sys.stderr)
             return 1
 
-    if args.command == "mail" and args.mail_command not in {"move-status", "list", "move"}:
+    direct_mail_commands = {
+        "move-status", "list", "search", "read", "reply-draft", "reply-send",
+        "compose-draft", "compose-send", "move",
+    }
+    if args.command == "mail" and args.mail_command not in direct_mail_commands:
         return _run_mail_tool(args)
 
     if args.command == "setup" and args.setup_command == "nextcloud":
@@ -885,6 +914,34 @@ def main(argv: list[str] | None = None) -> int:
             return 0 if result.get("ok") else 1
         if args.command == "mail" and args.mail_command == "list":
             result = assistant.mail_list_messages(args.folder, limit=args.limit)
+            _print(result)
+            return 0 if result.get("ok") else 1
+        if args.command == "mail" and args.mail_command == "search":
+            result = assistant.mail_search_messages(args.query, limit=args.limit)
+            _print(result)
+            return 0 if result.get("ok") else 1
+        if args.command == "mail" and args.mail_command == "read":
+            result = assistant.mail_read_message(
+                args.folder, args.message_id, expected_subject=args.expected_subject,
+            )
+            _print(result)
+            return 0 if result.get("ok") else 1
+        if args.command == "mail" and args.mail_command == "reply-draft":
+            result = assistant.mail_draft_reply(
+                args.folder, args.message_id, args.body, expected_subject=args.expected_subject,
+            )
+            _print(result)
+            return 0 if result.get("ok") else 1
+        if args.command == "mail" and args.mail_command == "reply-send":
+            result = assistant.mail_send_reply(args.draft_id, approved=args.yes)
+            _print(result)
+            return 0 if result.get("ok") else 1
+        if args.command == "mail" and args.mail_command == "compose-draft":
+            result = assistant.mail_draft_message(args.to, args.subject, args.body)
+            _print(result)
+            return 0 if result.get("ok") else 1
+        if args.command == "mail" and args.mail_command == "compose-send":
+            result = assistant.mail_send_message(args.draft_id, approved=args.yes)
             _print(result)
             return 0 if result.get("ok") else 1
         if args.command == "mail" and args.mail_command == "move":

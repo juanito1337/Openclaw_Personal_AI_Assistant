@@ -133,6 +133,12 @@ replaced. Deletion and public sharing are not registered.
 ./scripts/assistant.sh mail doctor
 ./scripts/assistant.sh mail dry-run --limit 20
 ./scripts/assistant.sh mail run --limit 20
+./scripts/assistant.sh mail search --query "<Suchbegriff>" --limit 50
+./scripts/assistant.sh mail read --folder "<Ordner>" --message-id "<ID>" --expected-subject "<Betreff>"
+./scripts/assistant.sh mail reply-draft --folder "<Ordner>" --message-id "<ID>" --expected-subject "<Betreff>" --body "<Entwurf>"
+./scripts/assistant.sh mail reply-send --draft-id "<Entwurfs-ID>" --yes
+./scripts/assistant.sh mail compose-draft --to "<Adresse>" --subject "<Betreff>" --body "<Entwurf>"
+./scripts/assistant.sh mail compose-send --draft-id "<Entwurfs-ID>" --yes
 ./scripts/assistant.sh invoices status
 ./scripts/assistant.sh invoices list --year <YYYY> --limit 100
 ./scripts/assistant.sh invoices review --limit 100
@@ -142,6 +148,11 @@ Invoice PDFs use native text first and OCR only as fallback. A reliable invoice
 date determines the year/month folder independently of optional metadata. The
 only productive register is the managed Nextcloud file
 `<invoice-root>/<YYYY>/Rechnungen_<YYYY>.csv`; no durable local register is kept.
+
+Reply and compose drafts never send mail. Present the complete recipient,
+subject and body to Jan, then use the matching `*-send` command only after his
+explicit approval. Never retry a failed or delivery-uncertain send
+automatically.
 
 ## Tool completeness and failure handling
 

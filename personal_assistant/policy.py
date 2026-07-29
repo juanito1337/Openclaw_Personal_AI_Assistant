@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import tomllib
+import os
 import re
+import tomllib
 from pathlib import Path
 from typing import Any
 
@@ -29,17 +30,36 @@ DEFAULT_DENIED_ACTIONS = {
     "security.disable",
     "audit.disable",
 }
+DEFAULT_RELEASE_POLICY = Path(__file__).with_name("policy_defaults.toml")
 
 
 class PolicyEngine:
     _MANAGED_INVOICE_REGISTER = re.compile(r"(?:^|/)(20\d{2}|21\d{2})/Rechnungen_\1\.csv$")
-    def __init__(self, path: Path, registry: ResourceRegistry) -> None:
+    def __init__(
+        self,
+        path: Path,
+        registry: ResourceRegistry,
+        *,
+        defaults_path: Path | None = None,
+    ) -> None:
         self.path = path
         self.registry = registry
+        configured_defaults = defaults_path
+        if configured_defaults is None:
+            configured_defaults = Path(
+                os.environ.get("OPENCLAW_POLICY_DEFAULTS_CONFIG", DEFAULT_RELEASE_POLICY)
+            ).expanduser()
+        self.defaults_path = Path(configured_defaults).resolve()
+        self.defaults: dict[str, Any] = {}
         self.data: dict[str, Any] = {}
         self.load()
 
     def load(self) -> None:
+        if self.defaults_path.exists():
+            with self.defaults_path.open("rb") as handle:
+                self.defaults = tomllib.load(handle)
+        else:
+            self.defaults = {}
         if not self.path.exists():
             self.data = {}
             return
@@ -55,7 +75,11 @@ class PolicyEngine:
         resource = self.registry.get(resource_id)
         if not resource.enabled:
             return PolicyDecision(False, False, "Ressource ist deaktiviert")
-        denied = set(str(v) for v in self.data.get("deny", {}).get("actions", [])) | DEFAULT_DENIED_ACTIONS
+        denied = (
+            set(str(v) for v in self.defaults.get("deny", {}).get("actions", []))
+            | set(str(v) for v in self.data.get("deny", {}).get("actions", []))
+            | DEFAULT_DENIED_ACTIONS
+        )
         if action in denied:
             return PolicyDecision(False, False, f"Aktion {action} ist durch die Sicherheitsrichtlinie verboten")
         permission = self._permission_for_action(action)
@@ -96,12 +120,17 @@ class PolicyEngine:
 
         if action.startswith("deck.card.") and not bool(payload.get("managed")):
             return PolicyDecision(False, False, "Nur vom Personal Assistant verwaltete Bestellkarten duerfen geaendert werden")
-        approval_actions = set(str(v) for v in self.data.get("approval", {}).get("actions", []))
+        approval_actions = (
+            set(str(v) for v in self.defaults.get("approval", {}).get("actions", []))
+            | set(str(v) for v in self.data.get("approval", {}).get("actions", []))
+        )
         # Existing contact changes are destructive in the sense that they
         # replace selected fields. They always require the narrow explicit
         # approval path, even when an older policies.toml has not yet listed
         # contacts.update.
-        requires = action in approval_actions or action in {"contacts.update", "calendar.update", "tasks.update"}
+        requires = action in approval_actions or action in {
+            "contacts.update", "calendar.update", "tasks.update", "mail.send",
+        }
         return PolicyDecision(True, requires, "Aktion ist innerhalb der konfigurierten Rechte erlaubt")
 
     @staticmethod
@@ -126,6 +155,7 @@ class PolicyEngine:
             "deck.card.move": "move",
             "mail.read": "read",
             "mail.move": "move",
+            "mail.send": "forward",
             "settings.safe_update": "configure",
         }
         return mapping.get(action, "")

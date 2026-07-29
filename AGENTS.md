@@ -544,6 +544,17 @@ Rules:
 ## 3.4.0-r15 – Kontrolliertes Mail-Verschieben
 Der Agent darf nach expliziter Einrichtung einzelne, eindeutig per Mail-ID ausgewaehlte Nachrichten zwischen vorhandenen Ordnern verschieben. Papierkorb, Spam/Junk, Virusverdacht, Loeschen, EXPUNGE und Ordneraenderungen bleiben gesperrt.
 
+## Read-only Review-Mail und genehmigter Antwortversand
+
+- Fuer eine ordneruebergreifende Suche einschliesslich `Agent/Pruefen` und `Agent/Termin-Pruefen` `mail search` verwenden.
+- Eine Mail erst mit Ordner, aktueller Mail-ID und nach Moeglichkeit `--expected-subject` eindeutig auswaehlen; den Inhalt danach mit `mail read` read-only lesen.
+- Mails aus Review-, Termin-Review- und Virusverdacht-Ordnern duerfen durch das direkte Agentenwerkzeug nicht verschoben werden.
+- Antworten immer zuerst mit `mail reply-draft` als vollstaendigen Entwurf praesentieren. Das Anlegen eines Entwurfs versendet nichts.
+- `mail reply-send` nur fuer die zur Entwurfs-ID gehoerende, unveraenderte Empfaenger-/Betreff-/Text-Kombination und erst nach Jans ausdruecklicher Genehmigung mit `--yes` ausfuehren.
+- Neue Mails immer zuerst mit `mail compose-draft --to "<Adresse>" --subject "<Betreff>" --body "<Text>"` als vollstaendigen Entwurf praesentieren.
+- `mail compose-send` nur fuer die unveraenderte Entwurfs-ID und erst nach Jans ausdruecklicher Genehmigung mit `--yes` ausfuehren.
+- Eine fehlgeschlagene oder als `delivery-uncertain` gemeldete Sendung nie automatisch wiederholen.
+
 ## R22.2 learning safety contract
 
 - Never force `routine` or `spam` from only one prior pattern correction. Two older consistent corrections are required.

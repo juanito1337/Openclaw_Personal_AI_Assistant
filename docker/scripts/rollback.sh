@@ -9,6 +9,8 @@ if [[ ${EUID:-$(id -u)} -eq 0 ]]; then
   echo "Bitte als normaler Benutzer mit Docker-Rechten ausfuehren, nicht mit sudo/root." >&2
   exit 2
 fi
+require_command rsync
+require_command tar
 backup_id=${1:?Backup-ID angeben}
 automatic=${2:-}
 backup="$OPENCLAW_BACKUP_DIR/$backup_id"
@@ -48,9 +50,24 @@ if [[ -n "$external_reference" ]]; then
 fi
 
 echo "Stelle lokalen Zustand aus $backup_id wieder her."
-rm -rf "$OPENCLAW_STATE_DIR" "$OPENCLAW_CONFIG_DIR" "$OPENCLAW_SECRETS_DIR"
-mkdir -p "$OPENCLAW_ROOT"
-tar -xzf "$backup/payload.tar.gz" -C "$OPENCLAW_ROOT"
+restore_root=$(mktemp -d)
+cleanup_restore() {
+  rm -rf "$restore_root"
+}
+trap cleanup_restore EXIT
+tar -xzf "$backup/payload.tar.gz" -C "$restore_root"
+for name in state config secrets; do
+  source="$restore_root/$name"
+  target="$OPENCLAW_ROOT/$name"
+  [[ -d "$source" ]] || { echo "Restore-Quelle fehlt im Backup: $name" >&2; exit 1; }
+  [[ -d "$target" ]] || {
+    echo "Restore-Ziel fehlt; setup-host.sh muss die geschuetzte Hoststruktur anlegen: $target" >&2
+    exit 1
+  }
+  rsync -a --delete "$source/" "$target/"
+done
+cleanup_restore
+trap - EXIT
 chown -R 1000:1000 "$OPENCLAW_STATE_DIR" "$HIMALAYA_CONFIG_DIR" 2>/dev/null || \
   sudo chown -R 1000:1000 "$OPENCLAW_STATE_DIR" "$HIMALAYA_CONFIG_DIR"
 
@@ -79,6 +96,7 @@ else
   compose --profile maintenance up -d clamav-update
   compose up -d mail-worker sync-worker supervisor-worker
   wait_for_healthy mail-worker 180
+  wait_for_healthy sync-worker 180
   wait_for_healthy supervisor-worker 180
   echo "Rollback erfolgreich: $previous_image"
 fi

@@ -10,6 +10,7 @@ from .config import WORKSPACE_ROOT
 
 
 DEFAULT_TOOL_SETTINGS = WORKSPACE_ROOT / "personal_assistant/tools.toml"
+DEFAULT_RELEASE_TOOL_SETTINGS = Path(__file__).with_name("tool_defaults.toml")
 DEFAULT_WORKSPACE_OUTBOX = WORKSPACE_ROOT / "personal_assistant/data/workspace_outbox"
 DEFAULT_ANTIVIRUS_TEMP = WORKSPACE_ROOT / "personal_assistant/data/antivirus_tmp"
 DEFAULT_ORDERS_DB = WORKSPACE_ROOT / "personal_assistant/data/orders.sqlite3"
@@ -39,6 +40,9 @@ class MailMoveToolSettings:
     denied_destinations: tuple[str, ...] = (
         "trash", "papierkorb", "deleted", "deleted messages", "gelöscht",
         "junk", "spam", "spamverdacht", "agent/virusverdacht",
+    )
+    denied_sources: tuple[str, ...] = (
+        "agent/pruefen", "agent/termin-pruefen", "agent/virusverdacht",
     )
 
 
@@ -155,6 +159,25 @@ def _section(data: dict[str, Any], name: str) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
+def _read_toml(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    with path.open("rb") as handle:
+        data = tomllib.load(handle)
+    return data if isinstance(data, dict) else {}
+
+
+def _merge_settings(defaults: dict[str, Any], overrides: dict[str, Any]) -> dict[str, Any]:
+    merged: dict[str, Any] = dict(defaults)
+    for key, value in overrides.items():
+        existing = merged.get(key)
+        if isinstance(existing, dict) and isinstance(value, dict):
+            merged[key] = _merge_settings(existing, value)
+        else:
+            merged[key] = value
+    return merged
+
+
 def clean_remote_path(value: str, *, field_name: str = "remote path") -> str:
     value = str(value or "").replace("\\", "/").strip().strip("/")
     if not value or value == ".." or value.startswith("../") or "/../" in f"/{value}/":
@@ -172,18 +195,29 @@ def _clean_outbox(value: str | Path) -> Path:
     return path
 
 
-def load_tool_settings(path: str | Path | None = None) -> ToolSettings:
+def load_tool_settings(
+    path: str | Path | None = None,
+    *,
+    defaults_path: str | Path | None = None,
+) -> ToolSettings:
     configured = path or os.environ.get("OPENCLAW_TOOLS_CONFIG") or DEFAULT_TOOL_SETTINGS
     config_path = Path(configured).expanduser().resolve()
-    if not config_path.exists():
-        return ToolSettings(path=config_path)
-    with config_path.open("rb") as handle:
-        data = tomllib.load(handle)
+    configured_defaults = (
+        defaults_path
+        or os.environ.get("OPENCLAW_TOOL_DEFAULTS_CONFIG")
+        or DEFAULT_RELEASE_TOOL_SETTINGS
+    )
+    release_path = Path(configured_defaults).expanduser().resolve()
+    release_data = _read_toml(release_path)
+    override_data = _read_toml(config_path)
+    data = _merge_settings(release_data, override_data)
 
     mail_data = _section(data, "mail")
     invoice_data = _section(mail_data, "invoices")
     calendar_data = _section(mail_data, "calendar_mail")
     move_data = _section(mail_data, "move")
+    release_move_data = _section(_section(release_data, "mail"), "move")
+    override_move_data = _section(_section(override_data, "mail"), "move")
     nextcloud_data = _section(data, "nextcloud")
     workspace_data = _section(nextcloud_data, "workspace")
     direct_calendar_data = _section(nextcloud_data, "calendar")
@@ -213,16 +247,38 @@ def load_tool_settings(path: str | Path | None = None) -> ToolSettings:
         sender_addresses=senders,
         calendar_resource_id=str(calendar_data.get("calendar_resource_id") or "").strip(),
     )
-    denied_destinations = tuple(
+    release_denied_destinations = tuple(
         str(value).strip().casefold()
-        for value in move_data.get("denied_destinations", MailMoveToolSettings().denied_destinations)
+        for value in release_move_data.get(
+            "denied_destinations", MailMoveToolSettings().denied_destinations
+        )
         if str(value).strip()
     )
+    override_denied_destinations = tuple(
+        str(value).strip().casefold()
+        for value in override_move_data.get("denied_destinations", [])
+        if str(value).strip()
+    )
+    denied_destinations = tuple(dict.fromkeys(
+        (*release_denied_destinations, *override_denied_destinations)
+    ))
+    release_denied_sources = tuple(
+        str(value).strip().casefold()
+        for value in release_move_data.get("denied_sources", MailMoveToolSettings().denied_sources)
+        if str(value).strip()
+    )
+    override_denied_sources = tuple(
+        str(value).strip().casefold()
+        for value in override_move_data.get("denied_sources", [])
+        if str(value).strip()
+    )
+    denied_sources = tuple(dict.fromkeys((*release_denied_sources, *override_denied_sources)))
     mail_move = MailMoveToolSettings(
         enabled=bool(move_data.get("enabled", False)),
         resource_id=str(move_data.get("resource_id") or "mail-agent").strip(),
         max_batch=max(1, min(int(move_data.get("max_batch", 1)), 20)),
         denied_destinations=denied_destinations or MailMoveToolSettings().denied_destinations,
+        denied_sources=denied_sources or MailMoveToolSettings().denied_sources,
     )
     direct_calendar = DirectCalendarToolSettings(
         enabled=bool(direct_calendar_data.get("enabled", False)),

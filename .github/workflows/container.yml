@@ -3,12 +3,21 @@ name: Container image
 on:
   workflow_dispatch:
   push:
+    branches:
+      - "test/**"
     tags:
       - "r*"
 
 permissions:
   contents: read
   packages: write
+
+concurrency:
+  group: container-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOCKER_METADATA_SHORT_SHA_LENGTH: 12
 
 jobs:
   test:
@@ -37,6 +46,7 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
+            type=ref,event=branch
             type=ref,event=tag
             type=sha,prefix=sha-
       - uses: docker/build-push-action@v6
@@ -50,3 +60,10 @@ jobs:
           build-args: |
             OPENCLAW_BASE_IMAGE=ghcr.io/openclaw/openclaw:2026.6.11
             HIMALAYA_VERSION=1.2.0
+            OPENCLAW_SOURCE_REVISION=${{ github.sha }}
+      - name: Show live-test image
+        if: startsWith(github.ref, 'refs/heads/test/')
+        run: |
+          echo "Live-Test-Image: ghcr.io/${GITHUB_REPOSITORY,,}:sha-${GITHUB_SHA:0:12}"
+          echo "Auf dem Host aus dem gleichen Commit:"
+          echo "./docker/scripts/live-test-branch.sh"

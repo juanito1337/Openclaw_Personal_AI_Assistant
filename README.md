@@ -2,6 +2,11 @@
 
 R27.0.1 is the cumulative container release with migration and runtime fixes. Program code and dependencies live in an immutable image, while productive state, configuration and secrets remain under `/srv/openclaw`. Every deployment stops the writers, creates and verifies a local restore point, runs a bounded product smoke test and automatically returns to the previous image and local data on failure. Optional administrator hooks can additionally snapshot remote IMAP and Nextcloud data. See `docs/DOCKER_DEPLOYMENT.md`.
 
+For rapid live iteration, every pushed `test/**` branch builds a commit-addressed
+GHCR image. On the Docker host, `./docker/scripts/live-test-branch.sh` deploys
+that exact pushed commit through the same single-writer backup, smoke-test and
+rollback path.
+
 Quick start after Docker is installed:
 
 ```bash
@@ -140,6 +145,33 @@ Creating a contact directly or from a selected mail remains create-only:
 ./scripts/assistant.sh contacts from-mail --folder "INBOX" --message-id "<Mail-ID>" --expected-subject "<Betreff>" --dry-run
 ./scripts/assistant.sh contacts from-mail --folder "INBOX" --message-id "<Mail-ID>" --expected-subject "<Betreff>" --yes
 ```
+
+Mail can be searched across all IMAP folders, including the read-only review
+folders, and then read by exact folder and mailbox ID:
+
+```bash
+./scripts/assistant.sh mail search --query "dj@ib-jaetzel.de" --limit 50
+./scripts/assistant.sh mail read --folder "Agent/Pruefen" --message-id "<Mail-ID>" --expected-subject "Treffen TA"
+```
+
+Replies use a mandatory two-step approval flow. `reply-draft` only stores and
+prints the complete recipient, subject and body. `reply-send` accepts only that
+stored draft ID and requires Jan's explicit approval:
+
+```bash
+./scripts/assistant.sh mail reply-draft --folder "Agent/Pruefen" --message-id "<Mail-ID>" --expected-subject "Treffen TA" --body "<Entwurf>"
+./scripts/assistant.sh mail reply-send --draft-id "<Entwurfs-ID>" --yes
+```
+
+New messages use the same mandatory two-step approval flow:
+
+```bash
+./scripts/assistant.sh mail compose-draft --to "jonas@example.de" --subject "Vorstellung" --body "<Entwurf>"
+./scripts/assistant.sh mail compose-send --draft-id "<Entwurfs-ID>" --yes
+```
+
+The direct move tool cannot move mail out of `Agent/Pruefen`,
+`Agent/Termin-Pruefen` or `Agent/Virusverdacht`.
 
 Details and safety boundaries: `docs/CARDDAV_CONTACTS.md`.
 
