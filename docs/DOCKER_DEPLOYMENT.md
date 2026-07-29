@@ -49,6 +49,39 @@ echo "$GITHUB_TOKEN" | docker login ghcr.io -u juanito1337 --password-stdin
 
 Use a fine-grained token with read access to packages. Do not store it in Git.
 
+### Fast live-test loop
+
+Branches below `test/**` publish a container automatically after the repository
+check. Each image receives a readable branch tag and an immutable
+`sha-<12 Zeichen>` tag. Newer pushes to the same test branch cancel an older
+in-progress build.
+
+The image stores the complete Git commit as its source revision. The container
+workspace marker combines release version and source revision, so a test image
+refreshes the packaged source even when `VERSION` is intentionally unchanged.
+
+Development machine:
+
+```bash
+git switch -c test/mail-review-replies
+git push -u origin test/mail-review-replies
+```
+
+After the `Container image` action is green, use the same clean, pushed commit
+on the Docker host:
+
+```bash
+git switch test/mail-review-replies
+git pull --ff-only
+./docker/scripts/live-test-branch.sh
+```
+
+The helper deploys the immutable SHA image through the normal deployment path.
+It does not start a second stack: existing writers are stopped first, the local
+release backup is created and verified, and a failed smoke test rolls back.
+Remote IMAP, SMTP or Nextcloud effects still cannot be undone by restoring only
+the local backup.
+
 ## 2. Prepare the host
 
 ```bash

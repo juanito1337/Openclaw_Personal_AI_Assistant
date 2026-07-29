@@ -40,6 +40,9 @@ class MailMoveToolSettings:
         "trash", "papierkorb", "deleted", "deleted messages", "gelöscht",
         "junk", "spam", "spamverdacht", "agent/virusverdacht",
     )
+    denied_sources: tuple[str, ...] = (
+        "agent/pruefen", "agent/termin-pruefen", "agent/virusverdacht",
+    )
 
 
 @dataclass(slots=True)
@@ -218,11 +221,17 @@ def load_tool_settings(path: str | Path | None = None) -> ToolSettings:
         for value in move_data.get("denied_destinations", MailMoveToolSettings().denied_destinations)
         if str(value).strip()
     )
+    denied_sources = tuple(
+        str(value).strip().casefold()
+        for value in move_data.get("denied_sources", MailMoveToolSettings().denied_sources)
+        if str(value).strip()
+    )
     mail_move = MailMoveToolSettings(
         enabled=bool(move_data.get("enabled", False)),
         resource_id=str(move_data.get("resource_id") or "mail-agent").strip(),
         max_batch=max(1, min(int(move_data.get("max_batch", 1)), 20)),
         denied_destinations=denied_destinations or MailMoveToolSettings().denied_destinations,
+        denied_sources=denied_sources or MailMoveToolSettings().denied_sources,
     )
     direct_calendar = DirectCalendarToolSettings(
         enabled=bool(direct_calendar_data.get("enabled", False)),

@@ -7,6 +7,7 @@ ARG HIMALAYA_VERSION
 RUN cargo install himalaya --version "${HIMALAYA_VERSION}" --locked
 
 FROM ${OPENCLAW_BASE_IMAGE}
+ARG OPENCLAW_SOURCE_REVISION=local
 
 USER root
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -25,7 +26,9 @@ RUN apt-get update \
 COPY --from=himalaya-builder /usr/local/cargo/bin/himalaya /usr/local/bin/himalaya
 COPY . /opt/openclaw-agent
 WORKDIR /opt/openclaw-agent
-RUN python3 -m pip install --break-system-packages --no-cache-dir . \
+RUN printf '%s\n' "${OPENCLAW_SOURCE_REVISION}" > /opt/openclaw-agent/SOURCE_REVISION \
+    && chmod 0444 /opt/openclaw-agent/SOURCE_REVISION \
+    && python3 -m pip install --break-system-packages --no-cache-dir . \
     && chmod +x /opt/openclaw-agent/scripts/*.sh \
        /opt/openclaw-agent/docker/*.sh \
        /opt/openclaw-agent/docker/scripts/*.sh \

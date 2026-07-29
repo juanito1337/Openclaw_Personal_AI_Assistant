@@ -5,33 +5,39 @@ services:
       args:
         OPENCLAW_BASE_IMAGE: ${OPENCLAW_BASE_IMAGE:-ghcr.io/openclaw/openclaw:2026.6.11}
         HIMALAYA_VERSION: ${HIMALAYA_VERSION:-1.2.0}
+        OPENCLAW_SOURCE_REVISION: ${OPENCLAW_SOURCE_REVISION:-local}
   ollama-proxy:
     build:
       context: .
       args:
         OPENCLAW_BASE_IMAGE: ${OPENCLAW_BASE_IMAGE:-ghcr.io/openclaw/openclaw:2026.6.11}
         HIMALAYA_VERSION: ${HIMALAYA_VERSION:-1.2.0}
+        OPENCLAW_SOURCE_REVISION: ${OPENCLAW_SOURCE_REVISION:-local}
   mail-worker:
     build:
       context: .
       args:
         OPENCLAW_BASE_IMAGE: ${OPENCLAW_BASE_IMAGE:-ghcr.io/openclaw/openclaw:2026.6.11}
         HIMALAYA_VERSION: ${HIMALAYA_VERSION:-1.2.0}
+        OPENCLAW_SOURCE_REVISION: ${OPENCLAW_SOURCE_REVISION:-local}
   sync-worker:
     build:
       context: .
       args:
         OPENCLAW_BASE_IMAGE: ${OPENCLAW_BASE_IMAGE:-ghcr.io/openclaw/openclaw:2026.6.11}
         HIMALAYA_VERSION: ${HIMALAYA_VERSION:-1.2.0}
+        OPENCLAW_SOURCE_REVISION: ${OPENCLAW_SOURCE_REVISION:-local}
   supervisor-worker:
     build:
       context: .
       args:
         OPENCLAW_BASE_IMAGE: ${OPENCLAW_BASE_IMAGE:-ghcr.io/openclaw/openclaw:2026.6.11}
         HIMALAYA_VERSION: ${HIMALAYA_VERSION:-1.2.0}
+        OPENCLAW_SOURCE_REVISION: ${OPENCLAW_SOURCE_REVISION:-local}
   agent-cli:
     build:
       context: .
       args:
         OPENCLAW_BASE_IMAGE: ${OPENCLAW_BASE_IMAGE:-ghcr.io/openclaw/openclaw:2026.6.11}
         HIMALAYA_VERSION: ${HIMALAYA_VERSION:-1.2.0}
+        OPENCLAW_SOURCE_REVISION: ${OPENCLAW_SOURCE_REVISION:-local}

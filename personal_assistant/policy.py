@@ -126,6 +126,7 @@ class PolicyEngine:
             "deck.card.move": "move",
             "mail.read": "read",
             "mail.move": "move",
+            "mail.send": "forward",
             "settings.safe_update": "configure",
         }
         return mapping.get(action, "")

@@ -222,6 +222,21 @@ def parser() -> argparse.ArgumentParser:
     mail_list = mail_sub.add_parser("list", help="Mail-Metadaten eines vorhandenen Ordners auflisten")
     mail_list.add_argument("--folder", required=True)
     mail_list.add_argument("--limit", type=int, default=50)
+    mail_search = mail_sub.add_parser("search", help="Mail-Metadaten ordneruebergreifend durchsuchen")
+    mail_search.add_argument("--query", required=True)
+    mail_search.add_argument("--limit", type=int, default=50)
+    mail_read = mail_sub.add_parser("read", help="Eine eindeutig identifizierte Mail read-only lesen")
+    mail_read.add_argument("--folder", required=True)
+    mail_read.add_argument("--message-id", required=True)
+    mail_read.add_argument("--expected-subject", default="")
+    mail_draft_reply = mail_sub.add_parser("reply-draft", help="Antwortentwurf fuer eine ausgewaehlte Mail anlegen")
+    mail_draft_reply.add_argument("--folder", required=True)
+    mail_draft_reply.add_argument("--message-id", required=True)
+    mail_draft_reply.add_argument("--expected-subject", default="")
+    mail_draft_reply.add_argument("--body", required=True)
+    mail_send_reply = mail_sub.add_parser("reply-send", help="Einen zuvor angezeigten Antwortentwurf versenden")
+    mail_send_reply.add_argument("--draft-id", required=True)
+    mail_send_reply.add_argument("--yes", action="store_true")
     mail_move = mail_sub.add_parser("move", help="Eine eindeutig identifizierte Mail kontrolliert verschieben")
     mail_move.add_argument("--source", required=True)
     mail_move.add_argument("--destination", required=True)
@@ -885,6 +900,26 @@ def main(argv: list[str] | None = None) -> int:
             return 0 if result.get("ok") else 1
         if args.command == "mail" and args.mail_command == "list":
             result = assistant.mail_list_messages(args.folder, limit=args.limit)
+            _print(result)
+            return 0 if result.get("ok") else 1
+        if args.command == "mail" and args.mail_command == "search":
+            result = assistant.mail_search_messages(args.query, limit=args.limit)
+            _print(result)
+            return 0 if result.get("ok") else 1
+        if args.command == "mail" and args.mail_command == "read":
+            result = assistant.mail_read_message(
+                args.folder, args.message_id, expected_subject=args.expected_subject,
+            )
+            _print(result)
+            return 0 if result.get("ok") else 1
+        if args.command == "mail" and args.mail_command == "reply-draft":
+            result = assistant.mail_draft_reply(
+                args.folder, args.message_id, args.body, expected_subject=args.expected_subject,
+            )
+            _print(result)
+            return 0 if result.get("ok") else 1
+        if args.command == "mail" and args.mail_command == "reply-send":
+            result = assistant.mail_send_reply(args.draft_id, approved=args.yes)
             _print(result)
             return 0 if result.get("ok") else 1
         if args.command == "mail" and args.mail_command == "move":

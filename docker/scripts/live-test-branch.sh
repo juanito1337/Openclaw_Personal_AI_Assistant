@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 077
+
+SOURCE_ROOT=$(CDPATH= cd "$(dirname "$0")/../.." && pwd)
+cd "$SOURCE_ROOT"
+
+if [[ ${EUID:-$(id -u)} -eq 0 ]]; then
+  echo "Bitte als normaler Benutzer mit Docker-Rechten ausfuehren, nicht mit sudo/root." >&2
+  exit 2
+fi
+
+branch=$(git branch --show-current)
+[[ "$branch" == test/* ]] || {
+  echo "Live-Test-Deployments sind nur aus einem test/**-Branch erlaubt: $branch" >&2
+  exit 2
+}
+[[ -z "$(git status --porcelain)" ]] || {
+  echo "Der Arbeitsbaum enthaelt nicht gepushte Aenderungen. Zuerst committen und pushen." >&2
+  exit 2
+}
+
+upstream=$(git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null || true)
+[[ -n "$upstream" ]] || {
+  echo "Der Test-Branch besitzt noch keinen Upstream. Zuerst: git push -u origin $branch" >&2
+  exit 2
+}
+local_revision=$(git rev-parse HEAD)
+remote_revision=$(git rev-parse "$upstream")
+[[ "$local_revision" == "$remote_revision" ]] || {
+  echo "Lokaler Branch und $upstream zeigen nicht auf denselben Commit." >&2
+  echo "Zuerst pushen beziehungsweise pullen." >&2
+  exit 2
+}
+
+short_revision=$(git rev-parse --short=12 HEAD)
+image_tag="sha-$short_revision"
+
+echo "Aktualisiere das Deployment-Bundle; .env und aktive Hooks bleiben erhalten."
+"$SOURCE_ROOT/docker/scripts/refresh-deployment.sh"
+
+echo "Deploye das unveraenderliche Test-Image: $image_tag"
+echo "Das normale Deployment stoppt den bisherigen Writer und erstellt vor Schreibtests ein verifiziertes lokales Backup."
+exec /srv/openclaw/deployment/scripts/deploy.sh "$image_tag"

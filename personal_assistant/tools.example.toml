@@ -20,6 +20,7 @@ enabled = false
 resource_id = "mail-agent"
 max_batch = 1
 denied_destinations = ["trash", "papierkorb", "deleted", "deleted messages", "gelöscht", "junk", "spam", "spamverdacht", "agent/virusverdacht"]
+denied_sources = ["agent/pruefen", "agent/termin-pruefen", "agent/virusverdacht"]
 
 [nextcloud.workspace]
 enabled = true

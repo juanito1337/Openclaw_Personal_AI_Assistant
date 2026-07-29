@@ -15,4 +15,4 @@ actions = [
 [approval]
 # Calendar, task and contact writes require approval. New files are allowed only in
 # resource-specific allowlisted roots and are always create-only.
-actions = ["calendar.create", "calendar.update", "tasks.create", "tasks.update", "contacts.update"]
+actions = ["calendar.create", "calendar.update", "tasks.create", "tasks.update", "contacts.update", "mail.send"]

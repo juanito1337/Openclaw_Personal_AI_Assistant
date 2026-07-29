@@ -89,6 +89,29 @@ class ContainerWorkspaceTests(unittest.TestCase):
         self.assertIn("NODE_EXTRA_CA_CERTS", entrypoint)
         self.assertIn("-name '*.crt'", entrypoint)
 
+    def test_branch_image_revision_invalidates_workspace_source_marker(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        dockerfile = (root / "Dockerfile").read_text(encoding="utf-8")
+        entrypoint = (root / "docker/entrypoint.sh").read_text(encoding="utf-8")
+        workflow = (root / ".github/workflows/container.yml").read_text(encoding="utf-8")
+        local_build = (root / "docker/scripts/build-local.sh").read_text(encoding="utf-8")
+
+        self.assertIn("ARG OPENCLAW_SOURCE_REVISION=local", dockerfile)
+        self.assertIn("/opt/openclaw-agent/SOURCE_REVISION", dockerfile)
+        self.assertIn('source_id="$version@$source_revision"', entrypoint)
+        self.assertIn('OPENCLAW_SOURCE_REVISION=${{ github.sha }}', workflow)
+        self.assertIn('--build-arg OPENCLAW_SOURCE_REVISION="$revision"', local_build)
+
+    def test_test_branch_push_builds_sha_tagged_container(self) -> None:
+        workflow = (
+            Path(__file__).resolve().parents[1] / ".github/workflows/container.yml"
+        ).read_text(encoding="utf-8")
+        self.assertIn('- "test/**"', workflow)
+        self.assertIn("type=ref,event=branch", workflow)
+        self.assertIn("type=sha,prefix=sha-", workflow)
+        self.assertIn("DOCKER_METADATA_SHORT_SHA_LENGTH: 12", workflow)
+        self.assertIn("cancel-in-progress: true", workflow)
+
 
 if __name__ == "__main__":
     unittest.main()
