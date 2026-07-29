@@ -153,9 +153,15 @@ The deployment sequence is deliberately strict:
 7. start only Ollama proxy and gateway,
 8. run version/doctor/dry-run checks,
 9. process at most `OPENCLAW_WRITE_TEST_LIMIT` real messages when enabled,
-10. start mail, sync and supervisor workers only after success.
+10. start mail, sync and supervisor workers only after success,
+11. verify worker health and the current job heartbeat after the workers have
+    actually started.
 
 Any failing command triggers `rollback.sh` automatically.
+
+Rollback restores the contents of the existing protected `state`, `config` and
+`secrets` roots in place. It does not require permission to delete the
+root-owned `/srv/openclaw` child directories themselves.
 
 ## 6. Later updates from Git
 

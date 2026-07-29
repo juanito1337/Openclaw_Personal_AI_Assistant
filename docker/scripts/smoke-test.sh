@@ -26,6 +26,4 @@ else
   run_cli /home/node/.openclaw/workspace/scripts/mail-agent.sh production-check || true
 fi
 
-run_cli /home/node/.openclaw/workspace/scripts/assistant.sh jobs status --target all
-
 echo "Smoke-Test erfolgreich. Log: $log"

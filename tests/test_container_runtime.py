@@ -112,6 +112,41 @@ class ContainerWorkspaceTests(unittest.TestCase):
         self.assertIn("DOCKER_METADATA_SHORT_SHA_LENGTH: 12", workflow)
         self.assertIn("cancel-in-progress: true", workflow)
 
+    def test_deployment_checks_job_status_only_after_workers_are_healthy(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        smoke = (root / "docker/scripts/smoke-test.sh").read_text(encoding="utf-8")
+        deploy = (root / "docker/scripts/deploy.sh").read_text(encoding="utf-8")
+        jobs_command = (
+            "/home/node/.openclaw/workspace/scripts/assistant.sh "
+            "jobs status --target all"
+        )
+
+        self.assertNotIn(jobs_command, smoke)
+        workers_started = deploy.index(
+            "compose up -d mail-worker sync-worker supervisor-worker"
+        )
+        supervisor_healthy = deploy.index(
+            "wait_for_healthy supervisor-worker 180", workers_started
+        )
+        jobs_checked = deploy.index(jobs_command, supervisor_healthy)
+        self.assertLess(workers_started, supervisor_healthy)
+        self.assertLess(supervisor_healthy, jobs_checked)
+
+    def test_rollback_restores_contents_without_removing_protected_roots(self) -> None:
+        rollback = (
+            Path(__file__).resolve().parents[1] / "docker/scripts/rollback.sh"
+        ).read_text(encoding="utf-8")
+
+        self.assertNotIn(
+            'rm -rf "$OPENCLAW_STATE_DIR" "$OPENCLAW_CONFIG_DIR" "$OPENCLAW_SECRETS_DIR"',
+            rollback,
+        )
+        self.assertIn('tar -xzf "$backup/payload.tar.gz" -C "$restore_root"', rollback)
+        self.assertIn('rsync -a --delete "$source/" "$target/"', rollback)
+        self.assertIn(
+            "setup-host.sh muss die geschuetzte Hoststruktur anlegen", rollback
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
