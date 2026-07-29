@@ -46,3 +46,25 @@ Controlled mail movement:
 ./scripts/assistant.sh mail move --source "Archiv" --destination "INBOX" --message-id "<ID>" --expected-subject "<Betreff>" --dry-run
 ./scripts/assistant.sh mail move --source "Archiv" --destination "INBOX" --message-id "<ID>" --expected-subject "<Betreff>"
 ```
+
+Portfolio monitor:
+
+```bash
+./scripts/assistant.sh portfolio status
+./scripts/assistant.sh setup portfolio --provider twelve-data --interval-minutes 30 --approve-permissions
+./scripts/assistant.sh portfolio doctor
+./scripts/assistant.sh portfolio import-pp --file "depot.xml" --dry-run
+./scripts/assistant.sh portfolio import-pp --file "depot.xml" --yes
+./scripts/assistant.sh portfolio holdings
+./scripts/assistant.sh portfolio watchlist list
+./scripts/assistant.sh portfolio watchlist add --isin "<ISIN>" --name "<Name>" --symbol "<Symbol>" --mic "<MIC>" --currency EUR --yes
+./scripts/assistant.sh portfolio quotes status
+./scripts/assistant.sh portfolio quotes refresh
+./scripts/assistant.sh portfolio analyze --isin "<ISIN>"
+./scripts/assistant.sh portfolio alerts list
+./scripts/assistant.sh portfolio alerts add --isin "<ISIN>" --direction above --threshold "<Kurs>" --currency EUR --yes
+./scripts/assistant.sh portfolio performance
+./scripts/assistant.sh jobs on portfolio
+```
+
+No broker login or order operation is registered.

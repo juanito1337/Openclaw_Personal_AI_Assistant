@@ -32,6 +32,8 @@ x-openclaw-common: &openclaw-common
     SYNC_INITIAL_DELAY_SECONDS: ${SYNC_INITIAL_DELAY_SECONDS:-300}
     SUPERVISOR_INTERVAL_SECONDS: ${SUPERVISOR_INTERVAL_SECONDS:-300}
     SUPERVISOR_INITIAL_DELAY_SECONDS: ${SUPERVISOR_INITIAL_DELAY_SECONDS:-180}
+    PORTFOLIO_INTERVAL_SECONDS: ${PORTFOLIO_INTERVAL_SECONDS:-900}
+    PORTFOLIO_INITIAL_DELAY_SECONDS: ${PORTFOLIO_INITIAL_DELAY_SECONDS:-240}
   volumes:
     - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}:/home/node/.openclaw
     - ${HIMALAYA_CONFIG_DIR:-/srv/openclaw/config/himalaya}:/home/node/.config/himalaya:ro
@@ -103,6 +105,17 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "/opt/openclaw-agent/docker/healthcheck.sh", "worker", "supervisor"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  portfolio-worker:
+    <<: *openclaw-common
+    container_name: openclaw-portfolio-worker
+    command: ["python3", "/opt/openclaw-agent/docker/job_loop.py", "portfolio"]
+    healthcheck:
+      test: ["CMD", "/opt/openclaw-agent/docker/healthcheck.sh", "worker", "portfolio"]
       interval: 30s
       timeout: 10s
       retries: 5

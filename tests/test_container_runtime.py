@@ -73,6 +73,41 @@ class ContainerWorkspaceTests(unittest.TestCase):
                 self.assertTrue(stopped["ok"])
                 self.assertEqual(stopped["status"]["jobs"][1]["desired"], "off")
 
+    def test_portfolio_warning_heartbeat_is_degraded_not_failed(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            status_dir = root / "personal_assistant/data/container_jobs"
+            status_dir.mkdir(parents=True)
+            (status_dir / "portfolio.json").write_text(
+                json.dumps(
+                    {
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                        "state": "waiting",
+                        "result": "degraded",
+                        "last_exit_code": 1,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with patch.dict(
+                os.environ,
+                {
+                    "OPENCLAW_RUNTIME": "container",
+                    "OPENCLAW_JOB_STATUS_DIR": str(status_dir),
+                },
+            ):
+                controller = JobController(
+                    workspace_root=root,
+                    state_path=root / "personal_assistant/data/job_control.json",
+                )
+                controller.state["desired"]["portfolio"] = True
+                report = controller.status(target="portfolio")
+            self.assertFalse(report["ok"])
+            self.assertEqual(report["jobs"][0]["state"], "degraded")
+            self.assertEqual(
+                report["jobs"][0]["issues"][0]["code"], "service-degraded"
+            )
+
     def test_clamav_updater_has_its_own_database_healthcheck(self) -> None:
         compose = (Path(__file__).resolve().parents[1] / "compose.yaml").read_text(encoding="utf-8")
         clamav = compose.split("  clamav-update:\n", 1)[1].split("\nvolumes:\n", 1)[0]
@@ -128,9 +163,13 @@ class ContainerWorkspaceTests(unittest.TestCase):
         supervisor_healthy = deploy.index(
             "wait_for_healthy supervisor-worker 180", workers_started
         )
-        jobs_checked = deploy.index(jobs_command, supervisor_healthy)
+        portfolio_healthy = deploy.index(
+            "wait_for_healthy portfolio-worker 180", supervisor_healthy
+        )
+        jobs_checked = deploy.index(jobs_command, portfolio_healthy)
         self.assertLess(workers_started, supervisor_healthy)
-        self.assertLess(supervisor_healthy, jobs_checked)
+        self.assertLess(supervisor_healthy, portfolio_healthy)
+        self.assertLess(portfolio_healthy, jobs_checked)
 
     def test_smoke_test_checks_compose_cli_without_sending(self) -> None:
         smoke = (

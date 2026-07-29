@@ -15,6 +15,15 @@ sudo ./docker/scripts/setup-host.sh
 /srv/openclaw/deployment/scripts/deploy.sh r27.0.1
 ```
 
+## Portfolio monitor test milestone
+
+The optional portfolio subsystem imports ClamAV-scanned Portfolio Performance
+XML snapshots, monitors confirmed ISIN/symbol/MIC mappings every 15 or 30 minutes,
+analyzes stored numeric series and raises deduplicated course-mark events. Missing
+or critically stale held-position quotes block fresh analysis and feed the
+existing job and monitoring health path. Broker login and order execution are
+not implemented. See `docs/PORTFOLIO_ADVISOR.md`.
+
 ## R22.1 robust migration for existing learning history
 
 The R21/R22 learning schema is now migrated in dependency order: missing feedback columns are added and backfilled before the subject-pattern index is created. Existing correction rows are preserved. The installer snapshots the productive SQLite database, migrates a copy, checks schema and integrity, and only then updates the live workspace and restarts services.

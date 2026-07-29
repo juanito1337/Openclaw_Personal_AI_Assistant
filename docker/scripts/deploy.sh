@@ -99,10 +99,11 @@ wait_for_healthy ollama-proxy 180
 wait_for_healthy gateway 300
 "$SCRIPT_DIR/smoke-test.sh" "$write_test"
 compose --profile maintenance up -d clamav-update
-compose up -d mail-worker sync-worker supervisor-worker
+compose up -d mail-worker sync-worker supervisor-worker portfolio-worker
 wait_for_healthy mail-worker 180
 wait_for_healthy sync-worker 180
 wait_for_healthy supervisor-worker 180
+wait_for_healthy portfolio-worker 180
 compose --profile tools run --rm --no-deps agent-cli \
   /home/node/.openclaw/workspace/scripts/assistant.sh jobs status --target all
 update_env_value OPENCLAW_CURRENT_RUNTIME docker

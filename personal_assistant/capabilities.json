@@ -27,7 +27,14 @@
     "mail.read",
     "mail.reply_draft",
     "mail.compose_draft",
-    "mail.move_single_message"
+    "mail.move_single_message",
+    "portfolio.status",
+    "portfolio.holdings.read",
+    "portfolio.watchlist.read",
+    "portfolio.quotes.read",
+    "portfolio.analysis.deterministic",
+    "portfolio.alerts.read",
+    "portfolio.performance.read"
   ],
   "approval_required": [
     "calendar.create",
@@ -43,7 +50,11 @@
     "nextcloud.workspace.configure",
     "nextcloud.deck.orders.configure",
     "nextcloud.deck.board.create",
-    "nextcloud.deck.stack.create"
+    "nextcloud.deck.stack.create",
+    "portfolio.import.confirmed",
+    "portfolio.watchlist.change",
+    "portfolio.alert.change",
+    "portfolio.job.enable"
   ],
   "hard_denied": [
     "files.delete",
@@ -65,7 +76,13 @@
     "mail.expunge",
     "mail.folder.delete",
     "mail.folder.rename",
-    "mail.folder.create"
+    "mail.folder.create",
+    "portfolio.dkb.credentials",
+    "portfolio.broker.login",
+    "portfolio.order.create",
+    "portfolio.order.modify",
+    "portfolio.order.cancel",
+    "portfolio.autonomous_trading"
   ],
   "notes": [
     "The Personal Assistant is the only agent; mail is a registered tool/subsystem.",
@@ -83,7 +100,10 @@
     "Deck order updates are limited to the configured board and cards carrying the Personal Assistant managed marker.",
     "Direct mail movement is limited to one explicit message ID and existing non-destructive folders; delete, expunge and folder changes remain denied.",
     "Review folders are readable and searchable but are denied as direct move sources.",
-    "A reply or new message is sent only from an immutable stored draft after that complete draft was presented and explicitly approved."
+    "A reply or new message is sent only from an immutable stored draft after that complete draft was presented and explicitly approved.",
+    "Portfolio imports are ClamAV-scanned, append-only local snapshots from the controlled import root.",
+    "A held-position quote gap blocks fresh trend analysis and is integrated into job alerts and the technical monitor.",
+    "Trading-signal performance is separate from technical health; no order execution or DKB credential access exists."
   ],
   "revision": "r15"
 }

@@ -1,7 +1,7 @@
 ---
 name: personal-assistant
 version: 3.4.0-r27.0.1
-description: Operate the local Personal Assistant and its registered tools. Use for status and diagnostics, cross-source search, mail triage, invoice archiving, Nextcloud files, CardDAV contacts, CalDAV calendars and VTODO tasks. The assistant can list and search contacts, calendar events and tasks; it can create new objects and, when allow_update is explicitly enabled for the selected collection, update exactly one existing object by UID with ETag/If-Match protection.
+description: Operate the local Personal Assistant and its registered tools. Use for status and diagnostics, cross-source search, mail triage, invoice archiving, Nextcloud files, CardDAV contacts, CalDAV calendars, VTODO tasks and the read-only portfolio monitor. The assistant can list and search contacts, calendar events and tasks; it can create new objects and, when allow_update is explicitly enabled for the selected collection, update exactly one existing object by UID with ETag/If-Match protection.
 ---
 
 # Personal Assistant
@@ -163,3 +163,26 @@ not agent tools.
 On a failed tool call, preserve the exact error, run the relevant status/doctor
 command and report evidence. Do not convert a temporary configuration or network
 failure into a claim that the capability does not exist.
+
+## Portfolio monitor
+
+```bash
+./scripts/assistant.sh portfolio status
+./scripts/assistant.sh portfolio import-pp --file "<Datei>" --dry-run
+./scripts/assistant.sh portfolio holdings
+./scripts/assistant.sh portfolio quotes status
+./scripts/assistant.sh portfolio analyze --isin "<ISIN>"
+./scripts/assistant.sh portfolio alerts list
+./scripts/assistant.sh portfolio performance
+```
+
+Import only from the configured local portfolio inbox, scan fail-closed with
+ClamAV and run a dry-run before an explicitly approved `--yes` import. Never
+guess ISIN-to-symbol/MIC mapping; Jan must confirm it. A missing or critically
+stale held-position quote blocks fresh analysis and must be diagnosed with
+`portfolio doctor` plus `jobs check --target all --deep`.
+
+Portfolio outputs are informational. Never access DKB credentials, scrape the
+broker, execute orders or turn deterministic SMA/RSI values into an invented
+buy/sell promise. Technical pipeline health belongs to `monitor status`; signal
+quality is a separate evidence report. Details: `docs/PORTFOLIO_ADVISOR.md`.

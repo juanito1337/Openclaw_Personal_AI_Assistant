@@ -89,6 +89,14 @@ class MonitoringToolTests(unittest.TestCase):
             live_health=lambda: {"ok": True, "dav_status": 207},
             mail_database=self.mail_db,
             monitor_database=self.monitor_db,
+            portfolio_health=lambda: {
+                "enabled": True,
+                "ok": False,
+                "state": "degraded",
+                "coverage": 0.5,
+                "required": 2,
+                "fresh": 1,
+            },
         )
 
     def tearDown(self) -> None:
@@ -106,6 +114,12 @@ class MonitoringToolTests(unittest.TestCase):
         self.assertIn("beweist nicht", report["interpretation"])
         self.assertTrue(report["metrics"]["nextcloud_live"]["ok"])
         self.assertEqual(report["metrics"]["mail"]["recent_messages"], 1)
+        self.assertEqual(report["score_schema"], 2)
+        self.assertEqual(report["metrics"]["portfolio"]["state"], "degraded")
+        component = next(
+            item for item in report["components"] if item["id"] == "portfolio_market_data"
+        )
+        self.assertEqual(component["score"], 2.5)
 
     def test_record_and_history(self) -> None:
         first = self.monitor.record(days=7, live=False)

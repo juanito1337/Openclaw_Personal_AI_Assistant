@@ -14,6 +14,8 @@ DEFAULT_RELEASE_TOOL_SETTINGS = Path(__file__).with_name("tool_defaults.toml")
 DEFAULT_WORKSPACE_OUTBOX = WORKSPACE_ROOT / "personal_assistant/data/workspace_outbox"
 DEFAULT_ANTIVIRUS_TEMP = WORKSPACE_ROOT / "personal_assistant/data/antivirus_tmp"
 DEFAULT_ORDERS_DB = WORKSPACE_ROOT / "personal_assistant/data/orders.sqlite3"
+DEFAULT_PORTFOLIO_DB = WORKSPACE_ROOT / "personal_assistant/data/portfolio.sqlite3"
+DEFAULT_PORTFOLIO_INBOX = WORKSPACE_ROOT / "personal_assistant/data/portfolio_inbox"
 
 
 @dataclass(slots=True)
@@ -147,11 +149,29 @@ class SecurityToolSettings:
 
 
 @dataclass(slots=True)
+class PortfolioToolSettings:
+    enabled: bool = False
+    database: Path = DEFAULT_PORTFOLIO_DB
+    import_root: Path = DEFAULT_PORTFOLIO_INBOX
+    provider: str = "disabled"
+    api_key_env: str = "PORTFOLIO_MARKET_DATA_API_KEY"
+    interval_minutes: int = 30
+    stale_warning_minutes: int = 45
+    stale_critical_minutes: int = 90
+    request_timeout_seconds: int = 20
+    max_symbols: int = 100
+    timezone: str = "Europe/Berlin"
+    market_open: str = "08:00"
+    market_close: str = "22:00"
+
+
+@dataclass(slots=True)
 class ToolSettings:
     path: Path
     mail: MailToolSettings = field(default_factory=MailToolSettings)
     nextcloud: NextcloudToolSettings = field(default_factory=NextcloudToolSettings)
     security: SecurityToolSettings = field(default_factory=SecurityToolSettings)
+    portfolio: PortfolioToolSettings = field(default_factory=PortfolioToolSettings)
 
 
 def _section(data: dict[str, Any], name: str) -> dict[str, Any]:
@@ -195,6 +215,18 @@ def _clean_outbox(value: str | Path) -> Path:
     return path
 
 
+def _clean_workspace_path(value: str | Path, *, field_name: str) -> Path:
+    path = Path(value).expanduser()
+    if not path.is_absolute():
+        path = WORKSPACE_ROOT / path
+    path = path.resolve()
+    try:
+        path.relative_to(WORKSPACE_ROOT.resolve())
+    except ValueError as exc:
+        raise ValueError(f"tools.toml: {field_name} muss im Workspace liegen") from exc
+    return path
+
+
 def load_tool_settings(
     path: str | Path | None = None,
     *,
@@ -226,6 +258,7 @@ def load_tool_settings(
     deck_orders_data = _section(nextcloud_data, "deck_orders")
     security_data = _section(data, "security")
     antivirus_data = _section(security_data, "antivirus")
+    portfolio_data = _section(data, "portfolio")
 
     invoices = InvoiceToolSettings(
         enabled=bool(invoice_data.get("enabled", False)),
@@ -344,6 +377,65 @@ def load_tool_settings(
         timeout_seconds=max(5, min(int(antivirus_data.get("timeout_seconds", 120)), 1800)),
         temp_dir=_clean_outbox(antivirus_data.get("temp_dir") or DEFAULT_ANTIVIRUS_TEMP),
     )
+    interval_minutes = int(portfolio_data.get("interval_minutes", 30))
+    if interval_minutes not in {15, 30}:
+        raise ValueError("tools.toml: portfolio.interval_minutes muss 15 oder 30 sein")
+    provider = str(portfolio_data.get("provider") or "disabled").strip().casefold()
+    if provider not in {"disabled", "twelve-data"}:
+        raise ValueError("tools.toml: portfolio.provider muss disabled oder twelve-data sein")
+    api_key_env = str(
+        portfolio_data.get("api_key_env") or "PORTFOLIO_MARKET_DATA_API_KEY"
+    ).strip()
+    if not api_key_env or not api_key_env.replace("_", "").isalnum() or api_key_env[0].isdigit():
+        raise ValueError("tools.toml: portfolio.api_key_env ist kein gueltiger Variablenname")
+    portfolio = PortfolioToolSettings(
+        enabled=bool(portfolio_data.get("enabled", False)),
+        database=_clean_workspace_path(
+            portfolio_data.get("database") or DEFAULT_PORTFOLIO_DB,
+            field_name="portfolio.database",
+        ),
+        import_root=_clean_workspace_path(
+            portfolio_data.get("import_root") or DEFAULT_PORTFOLIO_INBOX,
+            field_name="portfolio.import_root",
+        ),
+        provider=provider,
+        api_key_env=api_key_env,
+        interval_minutes=interval_minutes,
+        stale_warning_minutes=max(
+            interval_minutes,
+            min(int(portfolio_data.get("stale_warning_minutes", 45)), 1440),
+        ),
+        stale_critical_minutes=max(
+            interval_minutes,
+            min(int(portfolio_data.get("stale_critical_minutes", 90)), 2880),
+        ),
+        request_timeout_seconds=max(
+            5, min(int(portfolio_data.get("request_timeout_seconds", 20)), 120)
+        ),
+        max_symbols=max(1, min(int(portfolio_data.get("max_symbols", 100)), 500)),
+        timezone=str(portfolio_data.get("timezone") or "Europe/Berlin").strip(),
+        market_open=str(portfolio_data.get("market_open") or "08:00").strip(),
+        market_close=str(portfolio_data.get("market_close") or "22:00").strip(),
+    )
+    if portfolio.stale_critical_minutes < portfolio.stale_warning_minutes:
+        raise ValueError(
+            "tools.toml: portfolio.stale_critical_minutes muss mindestens stale_warning_minutes sein"
+        )
+    try:
+        from zoneinfo import ZoneInfo
+        ZoneInfo(portfolio.timezone)
+    except Exception as exc:
+        raise ValueError("tools.toml: ungueltige Portfolio-Zeitzone") from exc
+    for clock_name, clock_value in (
+        ("portfolio.market_open", portfolio.market_open),
+        ("portfolio.market_close", portfolio.market_close),
+    ):
+        try:
+            hour, minute = (int(value) for value in clock_value.split(":", 1))
+            if not (0 <= hour <= 23 and 0 <= minute <= 59):
+                raise ValueError
+        except (ValueError, TypeError) as exc:
+            raise ValueError(f"tools.toml: {clock_name} muss HH:MM sein") from exc
     workspace = NextcloudWorkspaceToolSettings(
         enabled=bool(workspace_data.get("enabled", True)),
         resource_id=str(workspace_data.get("resource_id") or "nextcloud-files-main").strip(),
@@ -410,4 +502,5 @@ def load_tool_settings(
             deck_orders=deck_orders,
         ),
         security=SecurityToolSettings(antivirus=antivirus),
+        portfolio=portfolio,
     )

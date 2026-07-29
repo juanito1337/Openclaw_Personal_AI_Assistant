@@ -94,10 +94,11 @@ else
   wait_for_healthy ollama-proxy 180
   wait_for_healthy gateway 300
   compose --profile maintenance up -d clamav-update
-  compose up -d mail-worker sync-worker supervisor-worker
+  compose up -d mail-worker sync-worker supervisor-worker portfolio-worker
   wait_for_healthy mail-worker 180
   wait_for_healthy sync-worker 180
   wait_for_healthy supervisor-worker 180
+  wait_for_healthy portfolio-worker 180
   echo "Rollback erfolgreich: $previous_image"
 fi
 ln -sfn "$backup_id" "$OPENCLAW_BACKUP_DIR/latest"

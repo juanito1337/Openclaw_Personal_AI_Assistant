@@ -17,6 +17,7 @@ from personal_assistant.tool_settings import (
     MailToolSettings,
     NextcloudToolSettings,
     NextcloudWorkspaceToolSettings,
+    PortfolioToolSettings,
     SecurityToolSettings,
     ToolSettings,
 )
@@ -144,6 +145,13 @@ class DirectCalendarToolTests(unittest.TestCase):
                 security=SecurityToolSettings(
                     antivirus=AntivirusToolSettings(enabled=True, temp_dir=Path(tmp) / "av")
                 ),
+                portfolio=PortfolioToolSettings(
+                    enabled=True,
+                    database=Path(tmp) / "portfolio.sqlite3",
+                    import_root=Path(tmp) / "portfolio_inbox",
+                    provider="twelve-data",
+                    interval_minutes=15,
+                ),
             )
             _write_tools(path, settings)
             with path.open("rb") as handle:
@@ -151,6 +159,9 @@ class DirectCalendarToolTests(unittest.TestCase):
             self.assertTrue(data["nextcloud"]["calendar"]["enabled"])
             self.assertEqual(data["nextcloud"]["calendar"]["resource_id"], "cal-personal")
             self.assertTrue(data["security"]["antivirus"]["enabled"])
+            self.assertTrue(data["portfolio"]["enabled"])
+            self.assertEqual(data["portfolio"]["provider"], "twelve-data")
+            self.assertEqual(data["portfolio"]["interval_minutes"], 15)
 
 
 class ReconciliationTests(unittest.TestCase):

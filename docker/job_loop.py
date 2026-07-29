@@ -69,6 +69,14 @@ def config(job: str, workspace: Path) -> tuple[list[str], int, int, bool, dict[s
             True,
             {},
         )
+    if job == "portfolio":
+        return (
+            [str(workspace / "scripts/assistant.sh"), "portfolio", "quotes", "refresh"],
+            int(os.environ.get("PORTFOLIO_INTERVAL_SECONDS", "900")),
+            int(os.environ.get("PORTFOLIO_INITIAL_DELAY_SECONDS", "240")),
+            False,
+            {},
+        )
     raise ValueError(job)
 
 
@@ -80,7 +88,7 @@ def handler(signum: int, frame: object) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("job", choices=("mail", "sync", "supervisor"))
+    parser.add_argument("job", choices=("mail", "sync", "supervisor", "portfolio"))
     args = parser.parse_args()
 
     signal.signal(signal.SIGTERM, handler)
@@ -154,7 +162,7 @@ def main() -> int:
             updated_at=now(),
             last_finished_at=finished,
             last_exit_code=code,
-            result="success" if code in {0, 1} else "failed",
+            result="success" if code == 0 else ("degraded" if code == 1 else "failed"),
             pid=None,
         )
         atomic_json(heartbeat, status)

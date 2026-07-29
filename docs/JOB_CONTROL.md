@@ -19,7 +19,9 @@ systemd state. This allows the assistant to distinguish:
 ```
 
 `standard` contains the supervisor and automatic mail processing. The optional
-knowledge sync is selected explicitly with `sync` or together with `all`.
+knowledge sync is selected explicitly with `sync` or together with `all`. The
+optional portfolio quote worker is selected explicitly with `portfolio` or
+together with `all`; it defaults to OFF.
 
 The supervisor remains active when productive jobs are deliberately switched off.
 This is intentional: without an independent monitor, an inactive job cannot report
@@ -79,6 +81,11 @@ The supervisor can persist alerts while OpenClaw is unavailable. Delivery throug
 OpenClaw requires the gateway and the configured conversation channel to be
 working. A complete host or gateway outage therefore needs an independent external
 watchdog if an out-of-band notification is required.
+
+The portfolio worker checks every 15 minutes and honours the configured 15- or
+30-minute due interval. Its health check fails closed when a held-position quote
+is unavailable or critically stale. This produces the same deduplicated job
+alert and OpenClaw system-event path as other service failures.
 
 
 ## R20.1 mail recovery ordering

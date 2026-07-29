@@ -102,6 +102,15 @@ def default_job_specs() -> tuple[JobSpec, ...]:
             standard=False,
             health_command=("scripts/assistant.sh", "nextcloud", "doctor"),
         ),
+        JobSpec(
+            name="portfolio",
+            description="Aktualisiert Depot- und Watchlist-Kurse mit Frische- und Pflichtdatenpruefung.",
+            timer_unit="personal-assistant-portfolio.timer",
+            service_unit="personal-assistant-portfolio.service",
+            default_on=False,
+            standard=False,
+            health_command=("scripts/assistant.sh", "portfolio", "doctor"),
+        ),
     )
 
 
@@ -747,6 +756,14 @@ class JobController:
                 issues.append({"code": "timer-failed", "detail": f"{spec.timer_unit} meldet einen Fehler"})
             if self._failed(service):
                 issues.append({"code": "service-failed", "detail": f"{spec.service_unit} meldet einen fehlgeschlagenen Lauf"})
+            elif (
+                str(service.get("Result") or "") == "degraded"
+                or str(service.get("ExecMainStatus") or "") == "1"
+            ):
+                issues.append({
+                    "code": "service-degraded",
+                    "detail": f"{spec.service_unit} meldet einen eingeschraenkten Lauf",
+                })
         else:
             if timer.get("ActiveState") == "active":
                 issues.append({"code": "unexpected-on", "detail": f"{spec.timer_unit} laeuft trotz bewusstem OFF-Zustand"})

@@ -585,3 +585,57 @@ Ein Restore aus Spam/Quarantaene in die INBOX ist ein expliziter Nicht-Spam-Gege
 - A second background slot is allowed only for catch-up processing while no interactive or normal request is active or waiting.
 - Interactive requests are never intentionally queued behind newly started background work. Running generations are not forcibly cancelled.
 - The remote Ollama server must permit `OLLAMA_NUM_PARALLEL=2`; OpenClaw does not modify that remote service.
+
+## Portfolio monitor and trade decision support
+
+Use only the registered portfolio commands:
+
+```bash
+./scripts/assistant.sh portfolio status
+./scripts/assistant.sh portfolio doctor
+./scripts/assistant.sh portfolio import-pp --file "<Datei>" --dry-run
+./scripts/assistant.sh portfolio import-pp --file "<Datei>" --yes
+./scripts/assistant.sh portfolio holdings
+./scripts/assistant.sh portfolio watchlist list
+./scripts/assistant.sh portfolio quotes status
+./scripts/assistant.sh portfolio analyze --isin "<ISIN>"
+./scripts/assistant.sh portfolio alerts list
+./scripts/assistant.sh portfolio performance
+./scripts/assistant.sh setup portfolio --provider twelve-data --interval-minutes 30 --approve-permissions
+```
+
+Operational rules:
+
+- This is informational decision support. Never request or store DKB PIN/TAN
+  credentials, scrape online banking, create/modify/cancel orders or claim that
+  an indicator is individual investment advice.
+- Import only Portfolio Performance XML from the configured local import root.
+  Run `--dry-run` first. Productive import requires Jan's explicit instruction
+  and `--yes`. ClamAV is mandatory and fail-closed; DTD/entities are forbidden.
+- Imports are append-only snapshots and duplicate SHA-256 files are idempotent.
+  Never delete or recreate the productive portfolio database as a repair.
+- Never guess a quote symbol from ISIN alone. Jan must confirm exact ISIN,
+  provider symbol, MIC and currency before `watchlist add --yes`.
+- Every quote stores source time, receipt time, provider and currency. Poll
+  interval, provider delay and analysis bar count are distinct facts.
+- Missing, unmapped or critically stale quotes for held positions are failures.
+  A fresh trend conclusion must return `decision=abstain` until required data is
+  available. Market-closed observations remain explicitly timestamped.
+- Chart analysis uses numeric stored observations, never screenshot guessing.
+  SMA/RSI output is deterministic; the language model may explain it but must
+  not invent a buy/sell verdict.
+- Kursmarken use crossing state, hysteresis and cooldown. Create or disable a
+  rule only after Jan explicitly requests it and use `--yes`. A new crossing
+  queues an OpenClaw system event and is not an order instruction.
+- The optional portfolio job defaults to OFF. Enabling/restarting it requires an
+  explicit request via `jobs on portfolio` or `jobs restart portfolio`.
+- Technical market-data health is part of `monitor status`. Signal performance
+  remains separate in `portfolio performance` and must disclose sample size,
+  coverage, forward returns, benchmark adjustment and drawdown; insufficient
+  evidence must be reported as such.
+- For a failed portfolio tool, preserve the exact error, run `portfolio doctor`
+  and `jobs check --target all --deep`, then report the likely cause. Do not
+  change credentials, provider mappings or job state automatically.
+- System-event delivery requires a functioning host and OpenClaw gateway. A
+  complete outage requires an independent external watchdog; do not claim local
+  monitoring alone can deliver that message.

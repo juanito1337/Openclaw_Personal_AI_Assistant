@@ -24,11 +24,18 @@ The total maximum is 100 points:
 - Nextcloud and freshness: 15
 - ActionPlan execution: 15
 - Knowledge index and search: 10
-- Services and host resources: 10
+- Services, security and host resources: 5
+- Depot and market-data pipeline: 5
 
 The classification component uses review/uncertain rate, stored confidence and
 feedback activity. It is explicitly indirect. Precision and recall require
 confirmed labels from the user's correction workflow.
+
+The market-data component is neutral when the optional portfolio tool is disabled.
+When enabled, held-position quote coverage and freshness directly affect the
+technical score. A missing required quote also blocks fresh portfolio analysis.
+Trading-signal performance is not part of this score and is reported separately
+by `portfolio performance`.
 
 ## Ratings
 

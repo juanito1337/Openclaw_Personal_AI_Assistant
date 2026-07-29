@@ -47,6 +47,21 @@ max_scan_bytes = 100000000
 timeout_seconds = 120
 temp_dir = "personal_assistant/data/antivirus_tmp"
 
+[portfolio]
+enabled = false
+database = "personal_assistant/data/portfolio.sqlite3"
+import_root = "personal_assistant/data/portfolio_inbox"
+provider = "disabled"
+api_key_env = "PORTFOLIO_MARKET_DATA_API_KEY"
+interval_minutes = 30
+stale_warning_minutes = 45
+stale_critical_minutes = 90
+request_timeout_seconds = 20
+max_symbols = 100
+timezone = "Europe/Berlin"
+market_open = "08:00"
+market_close = "22:00"
+
 [nextcloud.calendar]
 enabled = true
 resource_id = "nextcloud-calendar-example"

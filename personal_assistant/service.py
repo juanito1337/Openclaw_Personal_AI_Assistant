@@ -36,6 +36,7 @@ from .models import Resource
 from .monitoring import PerformanceMonitor
 from .mail_move import MailMoveService
 from .orders import OrderDeckService, STACKS
+from .portfolio import PortfolioService
 from .policy import DEFAULT_DENIED_ACTIONS, PolicyEngine
 from .registry import ResourceRegistry
 from .settings import SettingsService
@@ -122,6 +123,10 @@ class PersonalAssistant:
             self.tool_settings.nextcloud.deck_orders,
             self.registry, self.policy, self.storage, self.nextcloud_deck,
         )
+        self.portfolio = PortfolioService(
+            self.tool_settings.portfolio,
+            self.antivirus,
+        )
         self.monitor = PerformanceMonitor(
             config,
             self.storage,
@@ -129,6 +134,7 @@ class PersonalAssistant:
             live_health=self.nextcloud_discovery.root_health,
             antivirus_health=self.antivirus.doctor,
             antivirus_summary=self.antivirus.store.summary,
+            portfolio_health=self.portfolio.health,
         )
 
 
@@ -2023,6 +2029,7 @@ class PersonalAssistant:
 
     def close(self) -> None:
         self.order_service.close()
+        self.portfolio.close()
         self.monitor.close()
         self.antivirus.close()
         self.storage.close()
