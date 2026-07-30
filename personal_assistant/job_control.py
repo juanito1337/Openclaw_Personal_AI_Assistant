@@ -1019,7 +1019,12 @@ class JobController:
         commands.append({"command": "daemon-reload", "returncode": reload_result.returncode, "detail": reload_result.stderr.strip()})
         for unit in (spec.timer_unit, spec.service_unit):
             result = self._run(["systemctl", "--user", "reset-failed", unit], timeout=30)
-            commands.append({"command": f"reset-failed {unit}", "returncode": result.returncode, "detail": result.stderr.strip()})
+            commands.append({
+                "command": f"reset-failed {unit}",
+                "returncode": result.returncode,
+                "detail": result.stderr.strip(),
+                "required": False,
+            })
 
         repair: dict[str, Any] = {"attempted": False, "ok": True}
         reporting: dict[str, Any] = {"attempted": False, "ok": True}
@@ -1055,7 +1060,11 @@ class JobController:
             commands.append({"command": f"start --no-block {spec.service_unit}", "returncode": result.returncode, "detail": result.stderr.strip()})
 
         ok = (
-            all(item["returncode"] == 0 for item in commands)
+            all(
+                item["returncode"] == 0
+                for item in commands
+                if item.get("required", True)
+            )
             and bool(repair.get("ok", True))
             and bool(production_gate.get("ok", True))
             and bool(reporting.get("ok", True))

@@ -82,6 +82,11 @@ release backup is created and verified, and a failed smoke test rolls back.
 Remote IMAP, SMTP or Nextcloud effects still cannot be undone by restoring only
 the local backup.
 
+Before changing the deployment bundle, the helper verifies access to the Docker
+API. It never changes host group membership itself. It also passes the complete
+Git commit to the deployment, which verifies both the image label and the source
+revision visible inside the running tool container.
+
 ## 2. Prepare the host
 
 ```bash
@@ -122,7 +127,10 @@ The migration:
 8. points the mail classifier at the container-owned Ollama priority proxy,
 9. validates required files and every staged SQLite database before publishing anything below `/srv/openclaw`,
 10. adds the mail-agent Nextcloud section only when all three Nextcloud credentials exist and the section was missing,
-11. leaves the original live directory untouched until the Docker deployment is verified.
+11. creates a verified backup of an existing `/srv/openclaw` state before a remigration publishes its staged result,
+12. prefers credentials matching the explicit gateway authentication mode and safely replaces an incompatible stale container secret in the staged copy,
+13. records the verified legacy archive, archive member and SHA-256 for a later automatic rollback,
+14. leaves the original live directory untouched until the Docker deployment is verified.
 
 Historical sessions and trajectories are not rewritten; only active configuration
 files are changed. A repeated migration preserves the previously recorded
@@ -168,7 +176,16 @@ Rollback restores the contents of the existing protected `state`, `config` and
 `secrets` roots in place. It does not require permission to delete the
 root-owned `/srv/openclaw` child directories themselves. When the previous
 runtime was systemd, rollback validates and restarts the untouched legacy home;
-it never replaces `~/.openclaw` with container state.
+it never replaces `~/.openclaw` with container state. If that legacy home is
+incomplete, rollback verifies and restores it from the migration archive linked
+in the release backup before stopping the current containers. If no verified
+legacy source is available, rollback aborts while the current runtime is still
+running.
+
+The deployment also verifies that all legacy writer services are inactive and
+their timers disabled before and after the container workers start. A remaining
+legacy writer is a hard failure and triggers recovery instead of allowing two
+writers.
 
 ## 6. Later updates from Git
 

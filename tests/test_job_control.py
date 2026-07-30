@@ -21,6 +21,7 @@ class FakeSystem:
         self.lock_held = False
         self.lock_checks = 0
         self.dry_run_lock_failures = 0
+        self.reset_failed_returncode = 0
         self.openclaw_config = {
             "agents.defaults.heartbeat.target": "none",
             "agents.defaults.heartbeat.every": "30m",
@@ -60,7 +61,11 @@ class FakeSystem:
             if unit in self.units:
                 self.units[unit]["Result"] = "success"
                 self.units[unit]["ActiveState"] = "inactive" if unit.endswith(".service") else self.units[unit]["ActiveState"]
-            return CommandResult(0, "", "")
+            return CommandResult(
+                self.reset_failed_returncode,
+                "",
+                "Unit not loaded" if self.reset_failed_returncode else "",
+            )
         if args[:4] == ["systemctl", "--user", "enable", "--now"]:
             unit = args[4]
             self.add_unit(unit, active="active", enabled="enabled")
@@ -284,6 +289,19 @@ class JobControlTests(unittest.TestCase):
         timer = self.system.units["mail-agent.timer"]
         self.assertEqual(timer["ActiveState"], "active")
         self.assertEqual(timer["UnitFileState"], "enabled")
+
+    def test_on_ignores_reset_failed_for_not_yet_loaded_units(self) -> None:
+        self.system.reset_failed_returncode = 1
+        result = self.controller.on(target="mail", run_now=True)
+        self.assertTrue(result["ok"])
+        resets = [
+            item
+            for item in result["actions"][0]["commands"]
+            if item["command"].startswith("reset-failed ")
+        ]
+        self.assertEqual(len(resets), 2)
+        self.assertTrue(all(item["required"] is False for item in resets))
+        self.assertTrue(all(item["returncode"] == 1 for item in resets))
 
 
     def test_check_auto_recovers_stale_dry_run_and_restarts_mail(self) -> None:

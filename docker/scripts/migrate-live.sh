@@ -24,6 +24,21 @@ require_command python3
 require_command sqlite3
 require_command sha256sum
 
+source_member=$(python3 - "$HOME" "$SOURCE_HOME" <<'PY'
+from pathlib import Path
+import sys
+home = Path(sys.argv[1]).resolve()
+source = Path(sys.argv[2]).resolve()
+try:
+    relative = source.relative_to(home)
+except ValueError as exc:
+    raise SystemExit("OPENCLAW_LIVE_HOME muss innerhalb des Benutzer-Homes liegen.") from exc
+if not relative.parts:
+    raise SystemExit("Das gesamte Benutzer-Home darf nicht als OPENCLAW_LIVE_HOME verwendet werden.")
+print(relative.as_posix())
+PY
+)
+
 required_source_paths=(
   "$SOURCE_HOME/openclaw.json"
   "$SOURCE_HOME/workspace/scripts/assistant.sh"
@@ -66,8 +81,13 @@ stage_config="$stage_root/config"
 stage_secrets="$stage_root/secrets"
 legacy_units_snapshot="$stage_root/legacy-active-units.txt"
 legacy_gateway_environment="$stage_root/legacy-gateway-environment.txt"
+deployment_env_backup="$stage_root/deployment.env.before"
 mkdir -p "$stage_state" "$stage_config/himalaya" "$stage_secrets"
 chmod 700 "$stage_root" "$stage_state" "$stage_config" "$stage_secrets"
+if [[ -f "$ENV_FILE" ]]; then
+  cp "$ENV_FILE" "$deployment_env_backup"
+  chmod 600 "$deployment_env_backup"
+fi
 
 units=(
   mail-agent.timer mail-agent.service
@@ -104,6 +124,38 @@ cleanup_stage() {
 }
 trap cleanup_stage EXIT
 
+prepublish_backup_id=""
+publish_started=false
+
+restore_prepublish_state() {
+  local backup restore_root name source target
+  [[ -n "$prepublish_backup_id" ]] || return 0
+  backup="$OPENCLAW_BACKUP_DIR/$prepublish_backup_id"
+  "$SCRIPT_DIR/verify-backup.sh" "$backup" >/dev/null || return 1
+  restore_root=$(mktemp -d "$OPENCLAW_ROOT/backups/migration/prepublish-restore.XXXXXX") || return 1
+  tar -xzf "$backup/payload.tar.gz" -C "$restore_root" || {
+    rm -rf -- "$restore_root"
+    return 1
+  }
+  for name in state config secrets; do
+    source="$restore_root/$name"
+    target="$OPENCLAW_ROOT/$name"
+    [[ -d "$source" && -d "$target" ]] || {
+      rm -rf -- "$restore_root"
+      echo "Vorheriger Containerzustand konnte nicht wiederhergestellt werden: $name" >&2
+      return 1
+    }
+    rsync -a --delete "$source/" "$target/" || {
+      rm -rf -- "$restore_root"
+      return 1
+    }
+  done
+  rm -rf -- "$restore_root"
+  if [[ -f "$deployment_env_backup" ]]; then
+    cp "$deployment_env_backup" "$ENV_FILE" || return 1
+  fi
+}
+
 for unit in "${units[@]}"; do
   systemctl --user disable --now "$unit" >/dev/null 2>&1 || true
 done
@@ -111,6 +163,11 @@ done
 restart_legacy_on_failure() {
   local code=$?
   trap - ERR
+  if [[ "$publish_started" == "true" ]]; then
+    echo "Migration fehlgeschlagen; stelle den vorherigen /srv/openclaw-Zustand wieder her." >&2
+    restore_prepublish_state || \
+      echo "WARNUNG: Der vorherige Containerzustand konnte nicht vollstaendig wiederhergestellt werden." >&2
+  fi
   echo "Migration fehlgeschlagen; aktiviere den bisherigen systemd-Betrieb erneut." >&2
   if [[ -s "$legacy_units_snapshot" ]]; then
     while IFS= read -r unit; do
@@ -126,14 +183,22 @@ if pgrep -af 'mail_agent|mail-agent|personal_assistant|openclaw.*gateway' >&2; t
 fi
 
 mkdir -p "$OPENCLAW_STATE_DIR" "$OPENCLAW_CONFIG_DIR" "$OPENCLAW_SECRETS_DIR" "$HIMALAYA_CONFIG_DIR"
-backup_paths=(.openclaw)
+backup_paths=("$source_member")
 for path in .config/himalaya .config/openclaw .config/personal-assistant .config/mail-agent.env; do
-  [[ -e "$HOME/$path" ]] && backup_paths+=("$path")
+  if [[ "$path" != "$source_member" && -e "$HOME/$path" ]]; then
+    backup_paths+=("$path")
+  fi
 done
 tar -C "$HOME" -czf "$migration_backup" "${backup_paths[@]}"
 sha256sum "$migration_backup" > "$migration_backup.sha256"
 sha256sum -c "$migration_backup.sha256" >/dev/null
-tar -tzf "$migration_backup" .openclaw/workspace/scripts/assistant.sh >/dev/null
+tar -tzf "$migration_backup" \
+  "$source_member/openclaw.json" \
+  "$source_member/workspace/scripts/assistant.sh" \
+  "$source_member/workspace/scripts/mail-agent.sh" \
+  "$source_member/workspace/mail_agent/config.toml" \
+  "$source_member/workspace/personal_assistant/config.toml" >/dev/null
+migration_sha256=$(sha256sum "$migration_backup" | awk '{print $1}')
 
 rsync -a --delete "$SOURCE_HOME/" "$stage_state/"
 if [[ -d "$OPENCLAW_CONFIG_DIR" ]]; then
@@ -197,6 +262,15 @@ while IFS= read -r -d '' database; do
   }
 done < <(find "$stage_state" -type f \( -name '*.sqlite' -o -name '*.sqlite3' -o -name '*.db' \) -print0)
 
+prepublish_backup_id=$(
+  BACKUP_RETENTION_RELEASES=100000 \
+  PREVIOUS_RUNTIME=legacy-systemd \
+  TARGET_IMAGE=container-state-migration \
+  "$SCRIPT_DIR/backup.sh" "pre-container-remigration-$stamp"
+)
+echo "Verifizierter Zustand vor Remigration: $prepublish_backup_id"
+
+publish_started=true
 mkdir -p "$OPENCLAW_STATE_DIR" "$OPENCLAW_CONFIG_DIR" "$OPENCLAW_SECRETS_DIR" "$HIMALAYA_CONFIG_DIR"
 rsync -a --delete "$stage_state/" "$OPENCLAW_STATE_DIR/"
 rsync -a --delete "$stage_config/" "$OPENCLAW_CONFIG_DIR/"
@@ -207,6 +281,11 @@ chown -R 1000:1000 "$OPENCLAW_STATE_DIR" "$HIMALAYA_CONFIG_DIR" 2>/dev/null || \
 
 update_env_value OPENCLAW_CURRENT_RUNTIME legacy-systemd
 update_env_value OPENCLAW_LEGACY_HOME "$SOURCE_HOME"
+update_env_value OPENCLAW_LEGACY_MIGRATION_BACKUP "$migration_backup"
+update_env_value OPENCLAW_LEGACY_MIGRATION_MEMBER "$source_member"
+update_env_value OPENCLAW_LEGACY_MIGRATION_SHA256 "$migration_sha256"
+publish_started=false
 trap - ERR
 echo "Migration abgeschlossen. Sicherheitskopie: $migration_backup"
+echo "Ruecksetzpunkt fuer vorherigen Containerzustand: $prepublish_backup_id"
 echo "Der alte Live-Ordner wurde nicht geloescht. Starte jetzt deploy.sh mit dem gewuenschten Image."

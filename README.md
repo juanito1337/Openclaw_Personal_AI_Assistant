@@ -7,6 +7,12 @@ GHCR image. On the Docker host, `./docker/scripts/live-test-branch.sh` deploys
 that exact pushed commit through the same single-writer backup, smoke-test and
 rollback path.
 
+The helper checks Docker API access before touching deployment files and
+verifies the full Git revision in both immutable image metadata and the running
+workspace. Remigrations preserve a verified pre-publish `/srv/openclaw` backup
+and link the original legacy archive into release backups, so an incomplete
+legacy home can be recovered before rollback stops the current runtime.
+
 Quick start after Docker is installed:
 
 ```bash

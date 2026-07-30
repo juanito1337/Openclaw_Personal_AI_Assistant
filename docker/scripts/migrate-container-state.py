@@ -164,23 +164,29 @@ def selected_gateway_credential(
     *,
     configured_mode: str,
     source: str,
+    allow_incompatible: bool = False,
 ) -> tuple[str, str, str] | None:
     available = [(key, values.get(key, "").strip()) for key in GATEWAY_AUTH_KEYS]
     available = [(key, value) for key, value in available if value]
     if not available:
         return None
+    if configured_mode in {"token", "password"}:
+        expected_key = (
+            "OPENCLAW_GATEWAY_TOKEN"
+            if configured_mode == "token"
+            else "OPENCLAW_GATEWAY_PASSWORD"
+        )
+        expected_value = values.get(expected_key, "").strip()
+        if expected_value:
+            return expected_key, expected_value, source
+        if allow_incompatible:
+            return None
+        raise RuntimeError(
+            f"Gateway-Auth-Modus {configured_mode!r} widerspricht dem vorhandenen {source}-Secret"
+        )
     if len(available) == 1:
         key, value = available[0]
-        selected_mode = "token" if key.endswith("_TOKEN") else "password"
-        if configured_mode in {"token", "password"} and configured_mode != selected_mode:
-            raise RuntimeError(
-                f"Gateway-Auth-Modus {configured_mode!r} widerspricht dem vorhandenen {source}-Secret"
-            )
         return key, value, source
-    if configured_mode == "token":
-        return "OPENCLAW_GATEWAY_TOKEN", values["OPENCLAW_GATEWAY_TOKEN"].strip(), source
-    if configured_mode == "password":
-        return "OPENCLAW_GATEWAY_PASSWORD", values["OPENCLAW_GATEWAY_PASSWORD"].strip(), source
     raise RuntimeError(
         f"{source} enthaelt Token und Passwort; gateway.auth.mode muss token oder password auswaehlen"
     )
@@ -236,38 +242,43 @@ def ensure_gateway_auth(
 
     destination = secrets_dir / "gateway.env"
     existing = parse_env_files(secrets_dir)
-    selected = selected_gateway_credential(
-        existing,
-        configured_mode=configured_mode,
-        source="bestehendes Container-Secret",
-    )
-
     legacy_environment = parse_systemd_environment(legacy_environment_file)
-    if selected is None:
-        selected = selected_gateway_credential(
-            legacy_environment,
-            configured_mode=configured_mode,
-            source="systemd",
-        )
-
     source_environment = parse_env_files(state_dir, config_dir)
     source_environment.update(legacy_environment)
-    if selected is None:
-        selected = selected_gateway_credential(
-            source_environment,
+    config_values = config_gateway_credentials(data, source_environment)
+
+    candidates = (
+        ("bestehendes Container-Secret", existing),
+        ("systemd", legacy_environment),
+        ("Legacy-Environment", source_environment),
+        ("openclaw.json", config_values),
+    )
+    selected = None
+    incompatible_sources: list[str] = []
+    for source, values in candidates:
+        available = any(values.get(key, "").strip() for key in GATEWAY_AUTH_KEYS)
+        candidate = selected_gateway_credential(
+            values,
             configured_mode=configured_mode,
-            source="Legacy-Environment",
+            source=source,
+            allow_incompatible=True,
         )
+        if candidate is not None:
+            selected = candidate
+            break
+        if available and configured_mode:
+            incompatible_sources.append(source)
 
     if selected is None:
-        config_values = config_gateway_credentials(data, source_environment)
-        selected = selected_gateway_credential(
-            config_values,
-            configured_mode=configured_mode,
-            source="openclaw.json",
-        )
-
-    if selected is None:
+        if configured_mode and incompatible_sources:
+            raise RuntimeError(
+                f"Kein {configured_mode}-Secret fuer gateway.auth.mode={configured_mode} gefunden; "
+                "unpassende Secrets: " + ", ".join(incompatible_sources)
+            )
+        if configured_mode == "password":
+            raise RuntimeError(
+                "gateway.auth.mode=password ist konfiguriert, aber kein Passwort-Secret wurde gefunden"
+            )
         selected = ("OPENCLAW_GATEWAY_TOKEN", secrets.token_hex(32), "neu erzeugt")
 
     key, value, source = selected
@@ -285,7 +296,16 @@ def ensure_gateway_auth(
         )
 
     atomic_write(destination, f"{key}={shlex.quote(value)}\n", mode=0o600)
-    return {"mode": selected_mode, "source": source, "file": str(destination)}
+    return {
+        "mode": selected_mode,
+        "source": source,
+        "file": str(destination),
+        "replaced_incompatible_existing": (
+            source != "bestehendes Container-Secret"
+            and "bestehendes Container-Secret" in incompatible_sources
+        ),
+        "ignored_incompatible_sources": incompatible_sources,
+    }
 
 
 def normalize_ollama_proxy(state_dir: Path, config_dir: Path) -> dict[str, object]:

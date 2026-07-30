@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import sys
+import tarfile
 import tempfile
 import unittest
 from datetime import datetime, timezone
@@ -132,6 +133,10 @@ class ContainerWorkspaceTests(unittest.TestCase):
         local_build = (root / "docker/scripts/build-local.sh").read_text(encoding="utf-8")
 
         self.assertIn("ARG OPENCLAW_SOURCE_REVISION=local", dockerfile)
+        self.assertIn(
+            'LABEL org.opencontainers.image.revision="${OPENCLAW_SOURCE_REVISION}"',
+            dockerfile,
+        )
         self.assertIn("/opt/openclaw-agent/SOURCE_REVISION", dockerfile)
         self.assertIn('source_id="$version@$source_revision"', entrypoint)
         self.assertIn('OPENCLAW_SOURCE_REVISION=${{ github.sha }}', workflow)
@@ -146,6 +151,30 @@ class ContainerWorkspaceTests(unittest.TestCase):
         self.assertIn("type=sha,prefix=sha-", workflow)
         self.assertIn("DOCKER_METADATA_SHORT_SHA_LENGTH: 12", workflow)
         self.assertIn("cancel-in-progress: true", workflow)
+
+    def test_live_test_checks_docker_access_and_exports_exact_revision(self) -> None:
+        helper = (
+            Path(__file__).resolve().parents[1]
+            / "docker/scripts/live-test-branch.sh"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("docker info", helper)
+        self.assertIn("sg docker -c", helper)
+        self.assertNotIn("newgrp docker", helper)
+        self.assertIn(
+            'export OPENCLAW_EXPECTED_SOURCE_REVISION="$local_revision"',
+            helper,
+        )
+
+    def test_deploy_verifies_source_revision_and_disables_legacy_writers(self) -> None:
+        deploy = (
+            Path(__file__).resolve().parents[1] / "docker/scripts/deploy.sh"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("org.opencontainers.image.revision", deploy)
+        self.assertIn("/opt/openclaw-agent/SOURCE_REVISION", deploy)
+        self.assertIn("assert_legacy_writers_disabled", deploy)
+        self.assertIn("validate_legacy_home", deploy)
 
     def test_deployment_checks_job_status_only_after_workers_are_healthy(self) -> None:
         root = Path(__file__).resolve().parents[1]
@@ -239,6 +268,15 @@ class ContainerWorkspaceTests(unittest.TestCase):
             "Verwende den unveraenderten systemd-Workspace weiter",
             rollback,
         )
+        self.assertIn("restore_legacy_home_from_migration", rollback)
+        self.assertIn(
+            "Rollback wurde vor dem Stoppen der aktuellen Container abgebrochen",
+            rollback,
+        )
+        self.assertLess(
+            rollback.index("restore_legacy_home_from_migration"),
+            rollback.index('echo "Stoppe aktuellen Containerstand."'),
+        )
 
     def test_live_migration_validates_and_stages_before_publishing_state(self) -> None:
         migration = (
@@ -273,9 +311,115 @@ class ContainerWorkspaceTests(unittest.TestCase):
             migration,
         )
         self.assertIn(
-            'tar -tzf "$migration_backup" .openclaw/workspace/scripts/assistant.sh',
+            '"$source_member/workspace/scripts/assistant.sh"',
             migration,
         )
+        self.assertIn('"$SCRIPT_DIR/backup.sh" "pre-container-remigration-$stamp"', migration)
+        self.assertIn("restore_prepublish_state", migration)
+        self.assertIn(
+            "update_env_value OPENCLAW_LEGACY_MIGRATION_BACKUP",
+            migration,
+        )
+
+    def test_release_backup_links_and_verifies_legacy_migration_archive(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        backup = (root / "docker/scripts/backup.sh").read_text(encoding="utf-8")
+        verify = (root / "docker/scripts/verify-backup.sh").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn('"legacy_migration_backup"', backup)
+        self.assertIn('"legacy_migration_member"', backup)
+        self.assertIn('"legacy_migration_sha256"', backup)
+        self.assertIn("SHA-256 des Legacy-Migrationsbackups stimmt nicht", verify)
+
+    def test_release_backup_manifest_keeps_verified_legacy_archive(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as folder:
+            temporary = Path(folder)
+            openclaw_root = temporary / "openclaw"
+            for name in ("state", "config", "secrets", "backups/releases"):
+                (openclaw_root / name).mkdir(parents=True)
+            (openclaw_root / "state/data.txt").write_text(
+                "state", encoding="utf-8"
+            )
+
+            legacy_source = temporary / "legacy-source/.openclaw"
+            (legacy_source / "workspace/scripts").mkdir(parents=True)
+            (legacy_source / "openclaw.json").write_text(
+                '{"gateway":{"mode":"local"}}\n', encoding="utf-8"
+            )
+            for name in ("assistant.sh", "mail-agent.sh"):
+                script = legacy_source / "workspace/scripts" / name
+                script.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+                script.chmod(0o700)
+
+            migration_archive = temporary / "legacy-migration.tar.gz"
+            with tarfile.open(migration_archive, "w:gz") as archive:
+                archive.add(legacy_source, arcname=".openclaw")
+            migration_sha = subprocess.run(
+                ["sha256sum", str(migration_archive)],
+                text=True,
+                capture_output=True,
+                check=True,
+            ).stdout.split()[0]
+
+            fake_bin = temporary / "bin"
+            fake_bin.mkdir()
+            fake_sqlite = fake_bin / "sqlite3"
+            fake_sqlite.write_text("#!/bin/sh\nprintf 'ok\\n'\n", encoding="utf-8")
+            fake_sqlite.chmod(0o700)
+
+            environment = os.environ.copy()
+            environment.update(
+                {
+                    "PATH": f"{fake_bin}:{environment.get('PATH', '')}",
+                    "OPENCLAW_ROOT": str(openclaw_root),
+                    "OPENCLAW_STATE_DIR": str(openclaw_root / "state"),
+                    "OPENCLAW_CONFIG_DIR": str(openclaw_root / "config"),
+                    "OPENCLAW_SECRETS_DIR": str(openclaw_root / "secrets"),
+                    "OPENCLAW_BACKUP_DIR": str(
+                        openclaw_root / "backups/releases"
+                    ),
+                    "OPENCLAW_LEGACY_HOME": str(legacy_source),
+                    "OPENCLAW_LEGACY_MIGRATION_BACKUP": str(
+                        migration_archive
+                    ),
+                    "OPENCLAW_LEGACY_MIGRATION_MEMBER": ".openclaw",
+                    "OPENCLAW_LEGACY_MIGRATION_SHA256": migration_sha,
+                    "PREVIOUS_RUNTIME": "legacy-systemd",
+                    "PREVIOUS_IMAGE": "previous:test",
+                    "TARGET_IMAGE": "target:test",
+                }
+            )
+            created = subprocess.run(
+                [str(root / "docker/scripts/backup.sh"), "test-linked-legacy"],
+                cwd=root,
+                env=environment,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            backup_id = created.stdout.strip().splitlines()[-1]
+            backup_dir = openclaw_root / "backups/releases" / backup_id
+            manifest = json.loads(
+                (backup_dir / "manifest.json").read_text(encoding="utf-8")
+            )
+
+            self.assertEqual(
+                manifest["legacy_migration_backup"], str(migration_archive)
+            )
+            self.assertEqual(
+                manifest["legacy_migration_sha256"], migration_sha
+            )
+            subprocess.run(
+                [str(root / "docker/scripts/verify-backup.sh"), str(backup_dir)],
+                cwd=root,
+                env=environment,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
 
 
 if __name__ == "__main__":

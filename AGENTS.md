@@ -6,6 +6,9 @@
 - Never run the old systemd mail writer and the container mail worker at the same time. There must be exactly one writer.
 - Every write-enabled deployment requires a verified local release backup. External backup/restore hooks remain optional and must be enabled when complete rollback of remote IMAP or Nextcloud/CardDAV/CalDAV changes is required.
 - A failed product smoke test must stop the new image and restore the previous local state before restarting the previous image; when an external snapshot was configured, restore it as well.
+- A remigration must create a verified backup of the existing `/srv/openclaw` state before publishing staged state, configuration or secrets. Release backups from a legacy deployment must retain the verified legacy archive reference and SHA-256.
+- Before a legacy rollback stops the current containers, it must verify a startable legacy home or restore it from the linked, verified migration archive. Without either source, abort while the current runtime remains running.
+- A container deployment must verify that legacy writer services are inactive and legacy writer timers are disabled before and after starting container workers.
 - Container jobs use the persistent desired-state file instead of systemd. `jobs on/off/status` remains the supported control interface.
 - Do not claim that replacing an image alone restores remote mail, contacts, calendars, tasks or Nextcloud files.
 

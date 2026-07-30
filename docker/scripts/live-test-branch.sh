@@ -9,6 +9,17 @@ if [[ ${EUID:-$(id -u)} -eq 0 ]]; then
   echo "Bitte als normaler Benutzer mit Docker-Rechten ausfuehren, nicht mit sudo/root." >&2
   exit 2
 fi
+command -v docker >/dev/null 2>&1 || {
+  echo "Docker ist auf diesem Host nicht installiert." >&2
+  exit 2
+}
+docker info >/dev/null 2>&1 || {
+  echo "Der aktuelle Benutzer kann nicht auf die Docker-API zugreifen." >&2
+  echo "Nach bereits erfolgter Aufnahme in die docker-Gruppe neu anmelden oder einmalig:" >&2
+  echo "  sg docker -c './docker/scripts/live-test-branch.sh'" >&2
+  echo "Das Deployment-Skript aendert Gruppenrechte nicht selbst." >&2
+  exit 2
+}
 
 branch=$(git branch --show-current)
 [[ "$branch" == test/* ]] || {
@@ -41,4 +52,5 @@ echo "Aktualisiere das Deployment-Bundle; .env und aktive Hooks bleiben erhalten
 
 echo "Deploye das unveraenderliche Test-Image: $image_tag"
 echo "Das normale Deployment stoppt den bisherigen Writer und erstellt vor Schreibtests ein verifiziertes lokales Backup."
+export OPENCLAW_EXPECTED_SOURCE_REVISION="$local_revision"
 exec /srv/openclaw/deployment/scripts/deploy.sh "$image_tag"
