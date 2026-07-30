@@ -112,13 +112,17 @@ CalDAV events or VTODO tasks automatically.
 
 The migration:
 
-1. disables the old user-level systemd writers,
-2. creates an untouched migration archive,
-3. copies `~/.openclaw` to `/srv/openclaw/state`,
-4. rewrites active workspace paths to `/home/node/.openclaw/workspace`,
-5. migrates Himalaya `secret-tool` commands to protected files in `/srv/openclaw/secrets`,
-6. adds the mail-agent Nextcloud section only when all three Nextcloud credentials exist and the section was missing,
-7. leaves the original live directory in place until the Docker deployment is verified.
+1. rejects an incomplete legacy source before stopping any service,
+2. records and disables the old user-level systemd writers,
+3. creates and verifies an untouched migration archive containing the executable workspace,
+4. builds the complete state/config/secret result in a private staging directory,
+5. rewrites active workspace paths to `/home/node/.openclaw/workspace`,
+6. migrates Himalaya `secret-tool` commands to protected files in `/srv/openclaw/secrets`,
+7. preserves an existing gateway token/password or creates one protected token when the legacy gateway used no authentication,
+8. points the mail classifier at the container-owned Ollama priority proxy,
+9. validates required files and every staged SQLite database before publishing anything below `/srv/openclaw`,
+10. adds the mail-agent Nextcloud section only when all three Nextcloud credentials exist and the section was missing,
+11. leaves the original live directory untouched until the Docker deployment is verified.
 
 Historical sessions and trajectories are not rewritten; only active configuration
 files are changed.
@@ -161,7 +165,9 @@ Any failing command triggers `rollback.sh` automatically.
 
 Rollback restores the contents of the existing protected `state`, `config` and
 `secrets` roots in place. It does not require permission to delete the
-root-owned `/srv/openclaw` child directories themselves.
+root-owned `/srv/openclaw` child directories themselves. When the previous
+runtime was systemd, rollback validates and restarts the untouched legacy home;
+it never replaces `~/.openclaw` with container state.
 
 ## 6. Later updates from Git
 

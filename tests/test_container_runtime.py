@@ -222,6 +222,53 @@ class ContainerWorkspaceTests(unittest.TestCase):
             "setup-host.sh muss die geschuetzte Hoststruktur anlegen", rollback
         )
 
+    def test_legacy_rollback_never_replaces_the_original_workspace_from_container_state(self) -> None:
+        rollback = (
+            Path(__file__).resolve().parents[1] / "docker/scripts/rollback.sh"
+        ).read_text(encoding="utf-8")
+
+        self.assertNotIn(
+            'rsync -a --delete "$OPENCLAW_STATE_DIR/" "$legacy_home/"',
+            rollback,
+        )
+        self.assertIn(
+            '[[ -x "$legacy_home/workspace/scripts/assistant.sh" ]]',
+            rollback,
+        )
+        self.assertIn(
+            "Verwende den unveraenderten systemd-Workspace weiter",
+            rollback,
+        )
+
+    def test_live_migration_validates_and_stages_before_publishing_state(self) -> None:
+        migration = (
+            Path(__file__).resolve().parents[1] / "docker/scripts/migrate-live.sh"
+        ).read_text(encoding="utf-8")
+
+        source_validation = migration.index(
+            '"$SOURCE_HOME/workspace/scripts/assistant.sh"'
+        )
+        stop_units = migration.index(
+            'systemctl --user disable --now "$unit"'
+        )
+        stage_copy = migration.index(
+            'rsync -a --delete "$SOURCE_HOME/" "$stage_state/"'
+        )
+        publish_state = migration.index(
+            'rsync -a --delete "$stage_state/" "$OPENCLAW_STATE_DIR/"'
+        )
+
+        self.assertLess(source_validation, stop_units)
+        self.assertLess(stop_units, stage_copy)
+        self.assertLess(stage_copy, publish_state)
+        self.assertIn("--ensure-gateway-auth", migration)
+        self.assertIn("--normalize-ollama-proxy", migration)
+        self.assertIn("PRAGMA quick_check;", migration)
+        self.assertIn(
+            'tar -tzf "$migration_backup" .openclaw/workspace/scripts/assistant.sh',
+            migration,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

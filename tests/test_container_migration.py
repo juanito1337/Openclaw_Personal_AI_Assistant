@@ -151,6 +151,125 @@ class ContainerMigrationTests(unittest.TestCase):
             )
             self.assertNotIn("[nextcloud]", mail_config.read_text(encoding="utf-8"))
 
+    def test_migrates_gateway_auth_and_normalizes_mail_ollama_proxy(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            state = root / "state"
+            config = root / "config"
+            secrets = root / "secrets"
+            workspace = state / "workspace"
+            (workspace / "mail_agent").mkdir(parents=True)
+            (workspace / "personal_assistant").mkdir(parents=True)
+            config.mkdir()
+            secrets.mkdir()
+
+            (state / "openclaw.json").write_text(
+                json.dumps({"gateway": {"mode": "local"}}),
+                encoding="utf-8",
+            )
+            (workspace / "mail_agent/config.toml").write_text(
+                '[ollama]\nbase_url = "http://127.0.0.1:11434"\nmodel = "test"\n',
+                encoding="utf-8",
+            )
+            (config / "ollama-priority.env").write_text(
+                "OLLAMA_PRIORITY_LISTEN_PORT=12435\n",
+                encoding="utf-8",
+            )
+            legacy_environment = root / "legacy-gateway-environment.txt"
+            legacy_environment.write_text(
+                "PATH=/usr/bin OPENCLAW_GATEWAY_TOKEN=legacy-token\n",
+                encoding="utf-8",
+            )
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(self.script),
+                    "--state-dir",
+                    str(state),
+                    "--config-dir",
+                    str(config),
+                    "--secrets-dir",
+                    str(secrets),
+                    "--source-workspace",
+                    "/home/jan/.openclaw/workspace",
+                    "--target-workspace",
+                    "/home/node/.openclaw/workspace",
+                    "--ensure-gateway-auth",
+                    "--normalize-ollama-proxy",
+                    "--legacy-gateway-environment-file",
+                    str(legacy_environment),
+                ],
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            report = json.loads(result.stdout)
+            self.assertEqual(report["gateway_auth"]["mode"], "token")
+            self.assertEqual(report["gateway_auth"]["source"], "systemd")
+            self.assertEqual(
+                (secrets / "gateway.env").read_text(encoding="utf-8"),
+                "OPENCLAW_GATEWAY_TOKEN=legacy-token\n",
+            )
+            if os.name != "nt":
+                self.assertEqual((secrets / "gateway.env").stat().st_mode & 0o777, 0o600)
+            migrated = json.loads((state / "openclaw.json").read_text(encoding="utf-8"))
+            self.assertEqual(migrated["gateway"]["auth"]["mode"], "token")
+            self.assertIn(
+                'base_url = "http://127.0.0.1:12435"',
+                (workspace / "mail_agent/config.toml").read_text(encoding="utf-8"),
+            )
+
+    def test_generates_gateway_token_once_when_legacy_had_no_auth(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            state = root / "state"
+            config = root / "config"
+            secrets = root / "secrets"
+            workspace = state / "workspace"
+            (workspace / "mail_agent").mkdir(parents=True)
+            config.mkdir()
+            secrets.mkdir()
+
+            (state / "openclaw.json").write_text(
+                json.dumps({"gateway": {"mode": "local"}}),
+                encoding="utf-8",
+            )
+            (workspace / "mail_agent/config.toml").write_text(
+                '[ollama]\nbase_url = "http://127.0.0.1:11434"\n',
+                encoding="utf-8",
+            )
+
+            command = [
+                sys.executable,
+                str(self.script),
+                "--state-dir",
+                str(state),
+                "--config-dir",
+                str(config),
+                "--secrets-dir",
+                str(secrets),
+                "--source-workspace",
+                "/home/jan/.openclaw/workspace",
+                "--target-workspace",
+                "/home/node/.openclaw/workspace",
+                "--ensure-gateway-auth",
+            ]
+            first = subprocess.run(command, text=True, capture_output=True, check=True)
+            first_report = json.loads(first.stdout)
+            self.assertEqual(first_report["gateway_auth"]["source"], "neu erzeugt")
+            token_file = secrets / "gateway.env"
+            first_value = token_file.read_text(encoding="utf-8")
+            self.assertRegex(first_value, r"^OPENCLAW_GATEWAY_TOKEN=[0-9a-f]{64}\n$")
+
+            second = subprocess.run(command, text=True, capture_output=True, check=True)
+            second_report = json.loads(second.stdout)
+            self.assertEqual(
+                second_report["gateway_auth"]["source"],
+                "bestehendes Container-Secret",
+            )
+            self.assertEqual(token_file.read_text(encoding="utf-8"), first_value)
+
 
 if __name__ == "__main__":
     unittest.main()

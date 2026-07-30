@@ -73,9 +73,18 @@ chown -R 1000:1000 "$OPENCLAW_STATE_DIR" "$HIMALAYA_CONFIG_DIR" 2>/dev/null || \
 
 if [[ "$previous_runtime" == "legacy-systemd" ]]; then
   [[ -n "$legacy_home" ]] || { echo "Legacy-Home fehlt im Backup-Manifest" >&2; exit 1; }
-  echo "Stelle den vorherigen systemd-Workspace wieder her: $legacy_home"
-  mkdir -p "$legacy_home"
-  rsync -a --delete "$OPENCLAW_STATE_DIR/" "$legacy_home/"
+  [[ -s "$legacy_home/openclaw.json" ]] || {
+    echo "Legacy-Rollback abgebrochen: $legacy_home/openclaw.json fehlt." >&2
+    echo "Der unveraenderte Legacy-Zustand muss aus dem Migrationsbackup wiederhergestellt werden." >&2
+    exit 1
+  }
+  [[ -x "$legacy_home/workspace/scripts/assistant.sh" ]] || {
+    echo "Legacy-Rollback abgebrochen: $legacy_home/workspace/scripts/assistant.sh fehlt." >&2
+    echo "Der unveraenderte Legacy-Zustand muss aus dem Migrationsbackup wiederhergestellt werden." >&2
+    exit 1
+  }
+  echo "Verwende den unveraenderten systemd-Workspace weiter: $legacy_home"
+  update_env_value OPENCLAW_IMAGE "$previous_image"
   update_env_value OPENCLAW_CURRENT_RUNTIME legacy-systemd
   units_file="$OPENCLAW_CONFIG_DIR/legacy-active-units.txt"
   if [[ -s "$units_file" ]]; then
