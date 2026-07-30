@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+umask 077
 
 SCRIPT_DIR=$(CDPATH= cd "$(dirname "$0")" && pwd)
 # shellcheck source=common.sh
@@ -25,8 +26,85 @@ PY
 previous_image=$(read_manifest previous_image)
 previous_runtime=$(read_manifest previous_runtime)
 legacy_home=$(read_manifest legacy_home)
+legacy_migration_backup=$(read_manifest legacy_migration_backup)
+legacy_migration_member=$(read_manifest legacy_migration_member)
 external_reference=$(read_manifest external_backup_reference)
 previous_runtime=${previous_runtime:-docker}
+
+legacy_home_ready() {
+  [[ -n "$legacy_home" ]] \
+    && [[ -s "$legacy_home/openclaw.json" ]] \
+    && [[ -x "$legacy_home/workspace/scripts/assistant.sh" ]] \
+    && [[ -x "$legacy_home/workspace/scripts/mail-agent.sh" ]]
+}
+
+restore_legacy_home_from_migration() {
+  local restore_root source rescue stamp
+  [[ -f "$legacy_migration_backup" && -n "$legacy_migration_member" ]] || {
+    echo "Legacy-Workspace fehlt und das Release-Backup besitzt kein nutzbares Migrationsarchiv." >&2
+    return 1
+  }
+  python3 - "$HOME" "$legacy_home" "$legacy_migration_member" <<'PY' || return 1
+from pathlib import Path, PurePosixPath
+import sys
+home = Path(sys.argv[1]).resolve()
+legacy = Path(sys.argv[2]).resolve()
+try:
+    relative = legacy.relative_to(home)
+except ValueError as exc:
+    raise SystemExit("Legacy-Home liegt ausserhalb des Benutzer-Homes.") from exc
+if not relative.parts:
+    raise SystemExit("Das gesamte Benutzer-Home darf nicht wiederhergestellt werden.")
+member = PurePosixPath(sys.argv[3])
+if member.is_absolute() or ".." in member.parts or not member.parts:
+    raise SystemExit("Ungueltiger Legacy-Pfad im Backup-Manifest.")
+if member.as_posix() != relative.as_posix():
+    raise SystemExit("Legacy-Home und Archivpfad stimmen nicht ueberein.")
+PY
+
+  restore_root=$(mktemp -d "$OPENCLAW_ROOT/backups/migration/legacy-rollback.XXXXXX") || return 1
+  tar -xzf "$legacy_migration_backup" -C "$restore_root" "$legacy_migration_member" || {
+    rm -rf -- "$restore_root"
+    return 1
+  }
+  source="$restore_root/$legacy_migration_member"
+  [[ -s "$source/openclaw.json" ]] \
+    && [[ -x "$source/workspace/scripts/assistant.sh" ]] \
+    && [[ -x "$source/workspace/scripts/mail-agent.sh" ]] || {
+      rm -rf -- "$restore_root"
+      echo "Das Migrationsarchiv enthaelt keinen startfaehigen Legacy-Workspace." >&2
+      return 1
+    }
+
+  stamp=$(date -u +%Y%m%dT%H%M%SZ)
+  if [[ -d "$legacy_home" ]]; then
+    rescue="$OPENCLAW_ROOT/backups/migration/legacy-home-before-rollback-$stamp.tar.gz"
+    tar -C "$(dirname "$legacy_home")" -czf "$rescue" "$(basename "$legacy_home")" || {
+      rm -rf -- "$restore_root"
+      return 1
+    }
+    echo "Unvollstaendigen Legacy-Stand gesichert: $rescue"
+  else
+    mkdir -p "$legacy_home" || {
+      rm -rf -- "$restore_root"
+      return 1
+    }
+  fi
+  rsync -a --delete "$source/" "$legacy_home/" || {
+    rm -rf -- "$restore_root"
+    return 1
+  }
+  rm -rf -- "$restore_root"
+  legacy_home_ready
+}
+
+if [[ "$previous_runtime" == "legacy-systemd" ]] && ! legacy_home_ready; then
+  echo "Legacy-Workspace ist unvollstaendig; stelle ihn aus dem verifizierten Migrationsarchiv wieder her."
+  restore_legacy_home_from_migration || {
+    echo "Rollback wurde vor dem Stoppen der aktuellen Container abgebrochen." >&2
+    exit 1
+  }
+fi
 
 echo "Stoppe aktuellen Containerstand."
 compose down --remove-orphans >/dev/null 2>&1 || true
@@ -72,10 +150,12 @@ chown -R 1000:1000 "$OPENCLAW_STATE_DIR" "$HIMALAYA_CONFIG_DIR" 2>/dev/null || \
   sudo chown -R 1000:1000 "$OPENCLAW_STATE_DIR" "$HIMALAYA_CONFIG_DIR"
 
 if [[ "$previous_runtime" == "legacy-systemd" ]]; then
-  [[ -n "$legacy_home" ]] || { echo "Legacy-Home fehlt im Backup-Manifest" >&2; exit 1; }
-  echo "Stelle den vorherigen systemd-Workspace wieder her: $legacy_home"
-  mkdir -p "$legacy_home"
-  rsync -a --delete "$OPENCLAW_STATE_DIR/" "$legacy_home/"
+  legacy_home_ready || {
+    echo "Legacy-Rollback abgebrochen: Der wiederhergestellte Workspace ist nicht startfaehig." >&2
+    exit 1
+  }
+  echo "Verwende den unveraenderten systemd-Workspace weiter: $legacy_home"
+  update_env_value OPENCLAW_IMAGE "$previous_image"
   update_env_value OPENCLAW_CURRENT_RUNTIME legacy-systemd
   units_file="$OPENCLAW_CONFIG_DIR/legacy-active-units.txt"
   if [[ -s "$units_file" ]]; then
@@ -94,10 +174,12 @@ else
   wait_for_healthy ollama-proxy 180
   wait_for_healthy gateway 300
   compose --profile maintenance up -d clamav-update
-  compose up -d mail-worker sync-worker supervisor-worker
+  compose up -d mail-worker sync-worker supervisor-worker portfolio-worker monitor-worker
   wait_for_healthy mail-worker 180
   wait_for_healthy sync-worker 180
   wait_for_healthy supervisor-worker 180
+  wait_for_healthy portfolio-worker 180
+  wait_for_healthy monitor-worker 180
   echo "Rollback erfolgreich: $previous_image"
 fi
 ln -sfn "$backup_id" "$OPENCLAW_BACKUP_DIR/latest"

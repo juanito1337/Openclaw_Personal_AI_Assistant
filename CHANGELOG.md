@@ -1,5 +1,23 @@
 # Changelog
 
+## Test-Branch – Transaktionale Container-Remigration und sicherer Rollback
+
+- Remigrationen sichern den bestehenden `/srv/openclaw`-Zustand vor dem
+  Publish und stellen ihn bei einem Teilfehler wieder her.
+- Ein expliziter Gateway-Auth-Modus bevorzugt ein passendes Legacy-Secret;
+  unpassende alte Container-Secrets blockieren eine sichere Remigration nicht
+  mehr und bleiben über den verifizierten Vorzustand wiederherstellbar.
+- Release-Backups verknüpfen das Legacy-Migrationsarchiv mit Pfad,
+  Archivmitglied und SHA-256. Ein unvollständiger Legacy-Workspace wird daraus
+  wiederhergestellt, bevor ein Rollback die aktuellen Container stoppt.
+- Test-Deployments prüfen Docker-Zugriff und vollständige Git-Revision, ohne
+  Gruppenrechte selbst zu verändern.
+- Vor und nach dem Start der Container wird geprüft, dass kein alter
+  systemd-Writer aktiv oder per Timer aktiviert ist.
+- Ein harmloses `systemctl reset-failed` für eine noch nicht geladene Unit macht
+  einen anschließend erfolgreichen `jobs on`-Vorgang nicht mehr fälschlich
+  fehlerhaft.
+
 ## Test-Branch – Image-verwaltete Tool-Standards und neue Mailentwuerfe
 
 - Neue Mails koennen mit `mail compose-draft` vollstaendig vorbereitet und erst

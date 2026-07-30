@@ -82,6 +82,11 @@ release backup is created and verified, and a failed smoke test rolls back.
 Remote IMAP, SMTP or Nextcloud effects still cannot be undone by restoring only
 the local backup.
 
+Before changing the deployment bundle, the helper verifies access to the Docker
+API. It never changes host group membership itself. It also passes the complete
+Git commit to the deployment, which verifies both the image label and the source
+revision visible inside the running tool container.
+
 ## 2. Prepare the host
 
 ```bash
@@ -112,16 +117,24 @@ CalDAV events or VTODO tasks automatically.
 
 The migration:
 
-1. disables the old user-level systemd writers,
-2. creates an untouched migration archive,
-3. copies `~/.openclaw` to `/srv/openclaw/state`,
-4. rewrites active workspace paths to `/home/node/.openclaw/workspace`,
-5. migrates Himalaya `secret-tool` commands to protected files in `/srv/openclaw/secrets`,
-6. adds the mail-agent Nextcloud section only when all three Nextcloud credentials exist and the section was missing,
-7. leaves the original live directory in place until the Docker deployment is verified.
+1. rejects an incomplete legacy source before stopping any service,
+2. records and disables the old user-level systemd writers,
+3. creates and verifies an untouched migration archive containing the executable workspace,
+4. builds the complete state/config/secret result in a private staging directory,
+5. rewrites active workspace paths to `/home/node/.openclaw/workspace`,
+6. migrates Himalaya `secret-tool` commands to protected files in `/srv/openclaw/secrets`,
+7. preserves an existing gateway token/password or creates one protected token when the legacy gateway used no authentication,
+8. points the mail classifier at the container-owned Ollama priority proxy,
+9. validates required files and every staged SQLite database before publishing anything below `/srv/openclaw`,
+10. adds the mail-agent Nextcloud section only when all three Nextcloud credentials exist and the section was missing,
+11. creates a verified backup of an existing `/srv/openclaw` state before a remigration publishes its staged result,
+12. prefers credentials matching the explicit gateway authentication mode and safely replaces an incompatible stale container secret in the staged copy,
+13. records the verified legacy archive, archive member and SHA-256 for a later automatic rollback,
+14. leaves the original live directory untouched until the Docker deployment is verified.
 
 Historical sessions and trajectories are not rewritten; only active configuration
-files are changed.
+files are changed. A repeated migration preserves the previously recorded
+legacy-unit activation set even when those units are already disabled.
 
 ## 4. Private Nextcloud CA
 
@@ -161,7 +174,18 @@ Any failing command triggers `rollback.sh` automatically.
 
 Rollback restores the contents of the existing protected `state`, `config` and
 `secrets` roots in place. It does not require permission to delete the
-root-owned `/srv/openclaw` child directories themselves.
+root-owned `/srv/openclaw` child directories themselves. When the previous
+runtime was systemd, rollback validates and restarts the untouched legacy home;
+it never replaces `~/.openclaw` with container state. If that legacy home is
+incomplete, rollback verifies and restores it from the migration archive linked
+in the release backup before stopping the current containers. If no verified
+legacy source is available, rollback aborts while the current runtime is still
+running.
+
+The deployment also verifies that all legacy writer services are inactive and
+their timers disabled before and after the container workers start. A remaining
+legacy writer is a hard failure and triggers recovery instead of allowing two
+writers.
 
 ## 6. Later updates from Git
 
@@ -226,8 +250,15 @@ docker compose --env-file .env --profile tools run --rm agent-cli \
 ```
 
 The agent's `jobs on/off/status` commands remain available. In container mode
-they change a persistent desired-state file; the mail, sync and supervisor
-workers observe it without requiring systemd inside the containers.
+they change a persistent desired-state file; the mail, sync, portfolio, monitor
+and supervisor workers observe it without requiring systemd inside the
+containers. Mail, sync, portfolio and monitor runs enter the shared adaptive
+scheduler; the supervisor remains outside it.
+
+```bash
+docker compose --env-file .env --profile tools run --rm agent-cli \
+  /home/node/.openclaw/workspace/scripts/assistant.sh scheduler status
+```
 
 ## Backup boundaries
 

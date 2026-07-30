@@ -21,6 +21,7 @@ class FakeSystem:
         self.lock_held = False
         self.lock_checks = 0
         self.dry_run_lock_failures = 0
+        self.reset_failed_returncode = 0
         self.openclaw_config = {
             "agents.defaults.heartbeat.target": "none",
             "agents.defaults.heartbeat.every": "30m",
@@ -60,7 +61,11 @@ class FakeSystem:
             if unit in self.units:
                 self.units[unit]["Result"] = "success"
                 self.units[unit]["ActiveState"] = "inactive" if unit.endswith(".service") else self.units[unit]["ActiveState"]
-            return CommandResult(0, "", "")
+            return CommandResult(
+                self.reset_failed_returncode,
+                "",
+                "Unit not loaded" if self.reset_failed_returncode else "",
+            )
         if args[:4] == ["systemctl", "--user", "enable", "--now"]:
             unit = args[4]
             self.add_unit(unit, active="active", enabled="enabled")
@@ -225,6 +230,36 @@ class JobControlTests(unittest.TestCase):
         codes = {item["code"] for item in report["jobs"][0]["issues"]}
         self.assertIn("health-check-failed", codes)
 
+    def test_supervisor_reports_scheduler_database_failure(self) -> None:
+        spec = JobSpec(
+            name="supervisor",
+            description="Supervisor",
+            timer_unit="personal-assistant-supervisor.timer",
+            service_unit="personal-assistant-supervisor.service",
+            default_on=True,
+            standard=True,
+        )
+        self.system.add_unit(spec.timer_unit, active="active", enabled="enabled")
+        self.system.add_unit(spec.service_unit, active="inactive", enabled="static")
+        self.system.openclaw_config["agents.defaults.heartbeat.target"] = "last"
+        scheduler_path = self.workspace / "personal_assistant/data/work_scheduler.sqlite3"
+        scheduler_path.parent.mkdir(parents=True)
+        scheduler_path.write_bytes(b"not a sqlite database")
+        controller = JobController(
+            state_path=self.root / "supervisor-scheduler-control.json",
+            workspace_root=self.workspace,
+            unit_dir=self.unit_dir,
+            runner=self.system,
+            specs=(spec,),
+            sleeper=lambda _seconds: None,
+        )
+
+        report = controller.status(target="supervisor")
+
+        self.assertFalse(report["ok"])
+        issues = report["jobs"][0]["issues"]
+        self.assertIn("scheduler-health-failed", {item["code"] for item in issues})
+
     def test_check_records_unexpected_off_state(self) -> None:
         report = self.controller.status(target="all", record=True)
         self.assertFalse(report["ok"])
@@ -254,6 +289,19 @@ class JobControlTests(unittest.TestCase):
         timer = self.system.units["mail-agent.timer"]
         self.assertEqual(timer["ActiveState"], "active")
         self.assertEqual(timer["UnitFileState"], "enabled")
+
+    def test_on_ignores_reset_failed_for_not_yet_loaded_units(self) -> None:
+        self.system.reset_failed_returncode = 1
+        result = self.controller.on(target="mail", run_now=True)
+        self.assertTrue(result["ok"])
+        resets = [
+            item
+            for item in result["actions"][0]["commands"]
+            if item["command"].startswith("reset-failed ")
+        ]
+        self.assertEqual(len(resets), 2)
+        self.assertTrue(all(item["required"] is False for item in resets))
+        self.assertTrue(all(item["returncode"] == 1 for item in resets))
 
 
     def test_check_auto_recovers_stale_dry_run_and_restarts_mail(self) -> None:

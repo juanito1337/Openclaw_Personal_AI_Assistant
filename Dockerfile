@@ -8,6 +8,7 @@ RUN cargo install himalaya --version "${HIMALAYA_VERSION}" --locked
 
 FROM ${OPENCLAW_BASE_IMAGE}
 ARG OPENCLAW_SOURCE_REVISION=local
+LABEL org.opencontainers.image.revision="${OPENCLAW_SOURCE_REVISION}"
 
 USER root
 ENV DEBIAN_FRONTEND=noninteractive \

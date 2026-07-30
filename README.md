@@ -7,6 +7,12 @@ GHCR image. On the Docker host, `./docker/scripts/live-test-branch.sh` deploys
 that exact pushed commit through the same single-writer backup, smoke-test and
 rollback path.
 
+The helper checks Docker API access before touching deployment files and
+verifies the full Git revision in both immutable image metadata and the running
+workspace. Remigrations preserve a verified pre-publish `/srv/openclaw` backup
+and link the original legacy archive into release backups, so an incomplete
+legacy home can be recovered before rollback stops the current runtime.
+
 Quick start after Docker is installed:
 
 ```bash
@@ -14,6 +20,15 @@ sudo ./docker/scripts/setup-host.sh
 /srv/openclaw/deployment/scripts/migrate-live.sh --execute
 /srv/openclaw/deployment/scripts/deploy.sh r27.0.1
 ```
+
+## Portfolio monitor test milestone
+
+The optional portfolio subsystem imports ClamAV-scanned Portfolio Performance
+XML snapshots, monitors confirmed ISIN/symbol/MIC mappings every 15 or 30 minutes,
+analyzes stored numeric series and raises deduplicated course-mark events. Missing
+or critically stale held-position quotes block fresh analysis and feed the
+existing job and monitoring health path. Broker login and order execution are
+not implemented. See `docs/PORTFOLIO_ADVISOR.md`.
 
 ## R22.1 robust migration for existing learning history
 
@@ -299,6 +314,23 @@ classification work. Active model generations are never interrupted.
 The technical name `mail-agent.service` remains for compatibility; it is the
 automatic mail interface of the OpenClaw agent, not a second autonomous agent.
 
+## Adaptive background scheduler
+
+Production container workers use a persistent, non-preemptive scheduler for
+complete mail, portfolio, knowledge-sync and monitoring jobs. Recent explicit
+user topics receive a bounded, expiring boost; deadlines and aging prevent other
+work from starving. The supervisor remains outside this queue.
+
+```bash
+./scripts/assistant.sh scheduler status
+./scripts/assistant.sh scheduler doctor
+./scripts/assistant.sh scheduler activity
+./scripts/assistant.sh scheduler focus --topic portfolio --minutes 30
+```
+
+The focus signal is local-only and never enables a job, expands permissions or
+approves an external write. See `docs/ADAPTIVE_SCHEDULER.md`.
+
 ## Services and ON switch
 
 The assistant has a registered job controller with a persistent desired state. It
@@ -316,8 +348,9 @@ can distinguish a deliberate OFF state from an unexpected timer/service failure.
 fingerprint after a bounded successful dry-run and complete revalidation. It never
 uses `--force`. All other starts and repairs remain explicit.
 
-`jobs on standard` installs missing packaged user units, starts the supervisor and
-enables automatic mail processing. Missing configured Agent mail folders are
+`jobs on standard` installs missing packaged user units, starts the supervisor,
+enables automatic mail processing and keeps the hourly technical monitor active.
+Missing configured Agent mail folders are
 recreated through the existing narrow mail setup before a productive run. New or
 resolved supervisor alerts queue an immediate OpenClaw heartbeat notification; an
 unchanged active error is not announced repeatedly. The optional knowledge sync
@@ -338,7 +371,7 @@ See `docs/ASSISTANT_ARCHITECTURE.md`, `docs/CAPABILITIES.md`, `docs/SEARCH.md`,
 
 The assistant can evaluate its technical operation using evidence from its local
 assistant and mail databases, sync state, ActionPlans, index freshness, service
-state and optional live Nextcloud checks:
+state, adaptive queue health and optional live Nextcloud checks:
 
 ```bash
 ./scripts/assistant.sh monitor status --days 7 --live
@@ -351,7 +384,8 @@ classification is correct. The report includes confidence, component scores,
 raw evidence and concrete recommendations. Snapshots are stored locally in
 `personal_assistant/data/monitoring.sqlite3`.
 
-Optional hourly snapshots:
+The production container includes a standard hourly monitor worker. For the
+packaged legacy systemd runtime, the equivalent timer is:
 
 ```bash
 systemctl --user enable --now personal-assistant-monitor.timer

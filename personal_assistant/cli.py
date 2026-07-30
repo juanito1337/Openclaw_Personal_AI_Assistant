@@ -6,8 +6,10 @@ import logging
 from dataclasses import asdict
 from logging.handlers import RotatingFileHandler
 import os
+import sqlite3
 import subprocess
 import sys
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -19,7 +21,8 @@ from .mail_source_setup import configure_mail_sources
 from .job_control import JobController
 from .service import PersonalAssistant
 from .setup import configure_nextcloud, initialize_local_files
-from .tool_setup import configure_calendar_tools, configure_deck_orders_tools, configure_mail_move_tools, configure_mail_tools, configure_tasks_tools, configure_workspace_tools
+from .tool_setup import configure_calendar_tools, configure_deck_orders_tools, configure_mail_move_tools, configure_mail_tools, configure_portfolio_tools, configure_tasks_tools, configure_workspace_tools
+from .work_scheduler import AdaptiveWorkScheduler, VALID_TOPICS
 
 
 def _logging(path: Path, verbose: bool) -> None:
@@ -101,6 +104,15 @@ def parser() -> argparse.ArgumentParser:
     deck_setup.add_argument("--min-confidence", type=float, default=0.82)
     deck_setup.add_argument("--disable-auto-mail", action="store_true")
     deck_setup.add_argument("--approve-permissions", action="store_true")
+    portfolio_setup = setup_sub.add_parser(
+        "portfolio", help="Lokalen Portfolio-Monitor und Marktdatenadapter einrichten"
+    )
+    portfolio_setup.add_argument("--provider", default="twelve-data", choices=("twelve-data",))
+    portfolio_setup.add_argument("--interval-minutes", type=int, default=30, choices=(15, 30))
+    portfolio_setup.add_argument("--stale-warning-minutes", type=int, default=45)
+    portfolio_setup.add_argument("--stale-critical-minutes", type=int, default=90)
+    portfolio_setup.add_argument("--disable", action="store_true")
+    portfolio_setup.add_argument("--approve-permissions", action="store_true")
 
     sub.add_parser("doctor", help="Core, Index, Policies und Nextcloud pruefen")
     sub.add_parser("status", help="Kompakten Status anzeigen")
@@ -124,13 +136,26 @@ def parser() -> argparse.ArgumentParser:
     monitor_history.add_argument("--days", type=int, default=30)
     monitor_history.add_argument("--limit", type=int, default=100)
 
+    scheduler = sub.add_parser("scheduler", help="Adaptive Hintergrund-Queue und Themenfokus verwalten")
+    scheduler_sub = scheduler.add_subparsers(dest="scheduler_command", required=True)
+    scheduler_status = scheduler_sub.add_parser("status", help="Aktive, wartende und letzte Aufgaben anzeigen")
+    scheduler_status.add_argument("--limit", type=int, default=20)
+    scheduler_sub.add_parser("doctor", help="Scheduler-Datenbank, Leases und Fristen pruefen")
+    scheduler_sub.add_parser("activity", help="Aktuelle zeitlich begrenzte Themenprioritaeten anzeigen")
+    scheduler_focus = scheduler_sub.add_parser(
+        "focus", help="Aktuelles Nutzerthema lokal und zeitlich begrenzt priorisieren"
+    )
+    scheduler_focus.add_argument("--topic", required=True, choices=VALID_TOPICS)
+    scheduler_focus.add_argument("--minutes", type=int, default=30)
+    scheduler_focus.add_argument("--source", default="agent-chat")
+
     jobs = sub.add_parser("jobs", help="Hintergrundjobs ueberwachen und kontrolliert ein-/ausschalten")
     jobs_sub = jobs.add_subparsers(dest="jobs_command", required=True)
     jobs_status = jobs_sub.add_parser("status", help="Soll- und Ist-Zustand aller freigegebenen Jobs anzeigen")
-    jobs_status.add_argument("--target", choices=("standard", "all", "supervisor", "mail", "sync"), default="all")
+    jobs_status.add_argument("--target", choices=("standard", "all", "supervisor", "mail", "sync", "portfolio", "monitor"), default="all")
     jobs_status.add_argument("--deep", action="store_true", help="Zusaetzliche Tool-Health-Checks ausfuehren")
     jobs_check = jobs_sub.add_parser("check", help="Jobs pruefen und Zustandswechsel als lokale Alerts speichern")
-    jobs_check.add_argument("--target", choices=("standard", "all", "supervisor", "mail", "sync"), default="all")
+    jobs_check.add_argument("--target", choices=("standard", "all", "supervisor", "mail", "sync", "portfolio", "monitor"), default="all")
     jobs_check.add_argument("--deep", action="store_true", help="Zusaetzliche Tool-Health-Checks ausfuehren")
     jobs_sub.add_parser("alerts", help="Aktive Job-Alerts und letzten beobachteten Zustand anzeigen")
     for command_name, help_text in (
@@ -139,7 +164,7 @@ def parser() -> argparse.ArgumentParser:
         ("off", "Produktive Jobs bewusst ausschalten"),
     ):
         job_action = jobs_sub.add_parser(command_name, help=help_text)
-        job_action.add_argument("target", nargs="?", choices=("standard", "all", "supervisor", "mail", "sync"), default="standard")
+        job_action.add_argument("target", nargs="?", choices=("standard", "all", "supervisor", "mail", "sync", "portfolio", "monitor"), default="standard")
         if command_name in {"on", "restart"}:
             job_action.add_argument("--no-run-now", action="store_true", help="Timer aktivieren, aber keinen sofortigen Joblauf starten")
 
@@ -156,6 +181,64 @@ def parser() -> argparse.ArgumentParser:
     performance_mail = performance_sub.add_parser("mail", help="Laufzeiten des automatischen Mail-Interfaces anzeigen")
     performance_mail.add_argument("--limit", type=int, default=20)
     performance_mail.add_argument("--raw", action="store_true")
+
+    portfolio = sub.add_parser(
+        "portfolio", help="Depot, Watchlist, Marktdaten und regelbasierte Analysen"
+    )
+    portfolio_sub = portfolio.add_subparsers(dest="portfolio_command", required=True)
+    portfolio_sub.add_parser("status", help="Konfiguration, Datenfrische und Abdeckung anzeigen")
+    portfolio_sub.add_parser("doctor", help="Portfolio-Datenbank und Pflichtkurse pruefen")
+    portfolio_import = portfolio_sub.add_parser(
+        "import-pp", help="Portfolio-Performance-XML aus dem kontrollierten Importordner einlesen"
+    )
+    portfolio_import.add_argument("--file", required=True)
+    portfolio_import.add_argument("--dry-run", action="store_true")
+    portfolio_import.add_argument("--yes", action="store_true")
+    portfolio_sub.add_parser("holdings", help="Letzten importierten Depotbestand anzeigen")
+    watchlist = portfolio_sub.add_parser("watchlist", help="Watchlist verwalten")
+    watchlist_sub = watchlist.add_subparsers(dest="watchlist_command", required=True)
+    watchlist_sub.add_parser("list")
+    watchlist_add = watchlist_sub.add_parser(
+        "add", help="Exakte ISIN/Symbol/MIC-Zuordnung bestaetigen und aufnehmen"
+    )
+    watchlist_add.add_argument("--isin", required=True)
+    watchlist_add.add_argument("--name", required=True)
+    watchlist_add.add_argument("--symbol", required=True)
+    watchlist_add.add_argument("--mic", required=True)
+    watchlist_add.add_argument("--currency", required=True)
+    watchlist_add.add_argument("--yes", action="store_true")
+    watchlist_disable = watchlist_sub.add_parser("disable")
+    watchlist_disable.add_argument("--isin", required=True)
+    watchlist_disable.add_argument("--yes", action="store_true")
+    quotes = portfolio_sub.add_parser("quotes", help="Kursversorgung pruefen oder aktualisieren")
+    quotes_sub = quotes.add_subparsers(dest="quotes_command", required=True)
+    quotes_sub.add_parser("status")
+    quotes_refresh = quotes_sub.add_parser("refresh")
+    quotes_refresh.add_argument("--force", action="store_true")
+    portfolio_analyze = portfolio_sub.add_parser(
+        "analyze", help="Zeitreihe und deterministische Trendindikatoren berechnen"
+    )
+    portfolio_analyze.add_argument("--isin", required=True)
+    portfolio_analyze.add_argument("--limit", type=int, default=500)
+    portfolio_alerts = portfolio_sub.add_parser("alerts", help="Kursmarken verwalten")
+    portfolio_alerts_sub = portfolio_alerts.add_subparsers(
+        dest="portfolio_alerts_command", required=True
+    )
+    portfolio_alerts_sub.add_parser("list")
+    portfolio_alert_add = portfolio_alerts_sub.add_parser("add")
+    portfolio_alert_add.add_argument("--isin", required=True)
+    portfolio_alert_add.add_argument("--direction", required=True, choices=("above", "below"))
+    portfolio_alert_add.add_argument("--threshold", required=True)
+    portfolio_alert_add.add_argument("--currency", required=True)
+    portfolio_alert_add.add_argument("--hysteresis-bps", type=int, default=25)
+    portfolio_alert_add.add_argument("--cooldown-minutes", type=int, default=60)
+    portfolio_alert_add.add_argument("--yes", action="store_true")
+    portfolio_alert_disable = portfolio_alerts_sub.add_parser("disable")
+    portfolio_alert_disable.add_argument("--id", required=True)
+    portfolio_alert_disable.add_argument("--yes", action="store_true")
+    portfolio_sub.add_parser(
+        "performance", help="Signalqualitaet getrennt von der technischen Gesundheit anzeigen"
+    )
 
     invoices = sub.add_parser("invoices", help="Rechnungs-OCR, Metadaten und Jahresregister")
     invoices_sub = invoices.add_subparsers(dest="invoices_command", required=True)
@@ -751,6 +834,69 @@ def _handle_jobs(args: argparse.Namespace) -> int:
         return 1
 
 
+def _handle_scheduler(args: argparse.Namespace) -> int:
+    scheduler = AdaptiveWorkScheduler()
+    try:
+        if args.scheduler_command == "status":
+            result = scheduler.snapshot(recent_limit=max(1, min(int(args.limit), 500)))
+        elif args.scheduler_command == "doctor":
+            result = scheduler.doctor()
+        elif args.scheduler_command == "activity":
+            snapshot = scheduler.snapshot(recent_limit=1)
+            result = {
+                "ok": True,
+                "generated_at": snapshot["generated_at"],
+                "activity": snapshot["activity"],
+            }
+        elif args.scheduler_command == "focus":
+            result = scheduler.record_activity(
+                args.topic,
+                source=args.source,
+                boost_minutes=args.minutes,
+            )
+        else:
+            raise ValueError(f"Unbekannter Scheduler-Befehl: {args.scheduler_command}")
+        _print(result)
+        return 0 if result.get("ok") else 1
+    except (OSError, sqlite3.Error, ValueError) as exc:
+        _print({"ok": False, "error": str(exc)})
+        return 1
+    finally:
+        scheduler.close()
+
+
+def _interactive_topic(args: argparse.Namespace) -> str:
+    mapping = {
+        "mail": "mail",
+        "invoices": "mail",
+        "orders": "mail",
+        "portfolio": "portfolio",
+        "nextcloud": "knowledge",
+        "search": "knowledge",
+        "index": "knowledge",
+        "calendar": "planning",
+        "tasks": "planning",
+        "contacts": "planning",
+    }
+    return mapping.get(str(args.command or ""), "")
+
+
+def _record_interactive_activity(args: argparse.Namespace) -> None:
+    if os.environ.get("OPENCLAW_SCHEDULER_SOURCE", "").strip().casefold() in {
+        "background-worker",
+        "supervisor",
+    }:
+        return
+    topic = _interactive_topic(args)
+    if not topic:
+        return
+    scheduler = AdaptiveWorkScheduler()
+    try:
+        scheduler.record_activity(topic, source="interactive-cli", boost_minutes=30)
+    finally:
+        scheduler.close()
+
+
 def main(argv: list[str] | None = None) -> int:
     os.umask(0o077)
     args = parser().parse_args(argv)
@@ -763,6 +909,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "jobs":
         return _handle_jobs(args)
+
+    if args.command == "scheduler":
+        return _handle_scheduler(args)
 
     if args.command == "ollama":
         return _handle_ollama(args)
@@ -784,6 +933,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Konfigurationsfehler: {exc}", file=sys.stderr)
         return 2
     _logging(config.runtime.log_file, args.verbose)
+
+    try:
+        _record_interactive_activity(args)
+    except (OSError, sqlite3.Error, ValueError) as exc:
+        print(f"Scheduler-Warnung: Aktivitaet konnte nicht gespeichert werden: {exc}", file=sys.stderr)
 
     if args.command == "invoices":
         return _run_invoice_tool(args)
@@ -814,6 +968,22 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         except Exception as exc:
             print(f"Direktes Mail-Setup fehlgeschlagen: {exc}", file=sys.stderr)
+            return 1
+
+    if args.command == "setup" and args.setup_command == "portfolio":
+        try:
+            result = configure_portfolio_tools(
+                enable=not args.disable,
+                provider=args.provider,
+                interval_minutes=args.interval_minutes,
+                stale_warning_minutes=args.stale_warning_minutes,
+                stale_critical_minutes=args.stale_critical_minutes,
+                approve_permissions=args.approve_permissions,
+            )
+            _print(result)
+            return 0
+        except Exception as exc:
+            print(f"Portfolio-Setup fehlgeschlagen: {exc}", file=sys.stderr)
             return 1
 
     if args.command == "setup" and args.setup_command == "mail-sources":
@@ -971,7 +1141,12 @@ def main(argv: list[str] | None = None) -> int:
             result = assistant.doctor(live=True)
             result["release"] = release_report(verify=True)
             _print(result)
-            return 0 if result["database"]["ok"] and result["resources"]["ok"] and result["release"].get("ok") else 1
+            return 0 if (
+                result["database"]["ok"]
+                and result["resources"]["ok"]
+                and result["scheduler"]["ok"]
+                and result["release"].get("ok")
+            ) else 1
         if args.command == "status":
             _print({
                 "release": release_report(verify=True),
@@ -1255,6 +1430,79 @@ def main(argv: list[str] | None = None) -> int:
                 return 0
             if args.monitor_command == "history":
                 _print(assistant.monitor.history(days=args.days, limit=args.limit))
+                return 0
+        if args.command == "portfolio":
+            if args.portfolio_command == "status":
+                result = assistant.portfolio.status()
+                _print(result)
+                return 0
+            if args.portfolio_command == "doctor":
+                result = assistant.portfolio.doctor()
+                _print(result)
+                return 0 if result.get("ok") else 1
+            if args.portfolio_command == "import-pp":
+                if args.dry_run and args.yes:
+                    raise ValueError("--dry-run und --yes koennen nicht gemeinsam verwendet werden")
+                if not args.dry_run and not args.yes:
+                    raise PermissionError("Portfolio-Import benoetigt --dry-run oder --yes")
+                result = assistant.portfolio.import_pp(args.file, dry_run=not args.yes)
+                _print(result)
+                return 0
+            if args.portfolio_command == "holdings":
+                _print(assistant.portfolio.holdings())
+                return 0
+            if args.portfolio_command == "watchlist":
+                if args.watchlist_command == "list":
+                    _print(assistant.portfolio.watchlist())
+                    return 0
+                if not args.yes:
+                    raise PermissionError("Watchlist-Aenderung benoetigt --yes")
+                if args.watchlist_command == "add":
+                    _print(
+                        assistant.portfolio.watchlist_add(
+                            isin=args.isin, name=args.name, symbol=args.symbol,
+                            mic=args.mic, currency=args.currency,
+                        )
+                    )
+                    return 0
+                if args.watchlist_command == "disable":
+                    _print(assistant.portfolio.watchlist_disable(args.isin))
+                    return 0
+            if args.portfolio_command == "quotes":
+                if args.quotes_command == "status":
+                    _print(assistant.portfolio.health())
+                    return 0
+                if args.quotes_command == "refresh":
+                    result = assistant.portfolio.refresh_quotes(force=bool(args.force))
+                    _print(result)
+                    if result.get("status") == "degraded":
+                        return 1
+                    return 0 if result.get("ok") else 2
+            if args.portfolio_command == "analyze":
+                result = assistant.portfolio.analyze(args.isin, limit=args.limit)
+                _print(result)
+                return 0 if result.get("ok") else 1
+            if args.portfolio_command == "alerts":
+                if args.portfolio_alerts_command == "list":
+                    _print(assistant.portfolio.alerts())
+                    return 0
+                if not args.yes:
+                    raise PermissionError("Kursalarm-Aenderung benoetigt --yes")
+                if args.portfolio_alerts_command == "add":
+                    _print(
+                        assistant.portfolio.alert_add(
+                            isin=args.isin, direction=args.direction,
+                            threshold=Decimal(args.threshold), currency=args.currency,
+                            hysteresis_bps=args.hysteresis_bps,
+                            cooldown_minutes=args.cooldown_minutes,
+                        )
+                    )
+                    return 0
+                if args.portfolio_alerts_command == "disable":
+                    _print(assistant.portfolio.alert_disable(args.id))
+                    return 0
+            if args.portfolio_command == "performance":
+                _print(assistant.portfolio.signal_performance())
                 return 0
         if args.command == "nextcloud":
             if args.nextcloud_command == "doctor":

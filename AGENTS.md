@@ -6,6 +6,9 @@
 - Never run the old systemd mail writer and the container mail worker at the same time. There must be exactly one writer.
 - Every write-enabled deployment requires a verified local release backup. External backup/restore hooks remain optional and must be enabled when complete rollback of remote IMAP or Nextcloud/CardDAV/CalDAV changes is required.
 - A failed product smoke test must stop the new image and restore the previous local state before restarting the previous image; when an external snapshot was configured, restore it as well.
+- A remigration must create a verified backup of the existing `/srv/openclaw` state before publishing staged state, configuration or secrets. Release backups from a legacy deployment must retain the verified legacy archive reference and SHA-256.
+- Before a legacy rollback stops the current containers, it must verify a startable legacy home or restore it from the linked, verified migration archive. Without either source, abort while the current runtime remains running.
+- A container deployment must verify that legacy writer services are inactive and legacy writer timers are disabled before and after starting container workers.
 - Container jobs use the persistent desired-state file instead of systemd. `jobs on/off/status` remains the supported control interface.
 - Do not claim that replacing an image alone restores remote mail, contacts, calendars, tasks or Nextcloud files.
 
@@ -220,6 +223,44 @@ Operational rules:
 - A queue wait is not a tool failure; report its priority and duration.
 - If the proxy is unavailable, run `ollama status`, then `ollama check`, then the
   service journal. Do not silently bypass the coordinator or rewrite model URLs.
+
+## Adaptive work scheduler
+
+Complete container background jobs must enter the registered persistent scheduler.
+The Ollama proxy remains the separate coordinator for individual model requests.
+
+```bash
+./scripts/assistant.sh scheduler status
+./scripts/assistant.sh scheduler doctor
+./scripts/assistant.sh scheduler activity
+./scripts/assistant.sh scheduler focus --topic "<mail|portfolio|knowledge|planning|operations>" --minutes 30
+```
+
+Operational rules:
+
+- Mail, portfolio, knowledge sync and technical monitoring are fixed allowlisted
+  jobs. Never use the scheduler to execute an arbitrary command.
+- The supervisor and Docker healthchecks remain outside the queue so they can
+  detect a blocked scheduler.
+- A recent explicit user topic may receive a bounded, expiring priority boost.
+  The boost does not enable jobs, grant permissions, approve ActionPlans or
+  authorize external writes.
+- Background workers must identify themselves with
+  `OPENCLAW_SCHEDULER_SOURCE=background-worker` and must not reinforce their own
+  topic priority.
+- Running work is non-preemptive. Never terminate a healthy in-flight task merely
+  because the current chat topic changed.
+- Deadline urgency, wait-time aging and starvation protection must eventually
+  override a temporary topic boost.
+- A worker must hold and renew its scheduler lease. Repeated lease-renewal failure
+  is fail-closed: stop the child safely and report the exact scheduler failure.
+- Queue wait is not itself a tool failure. Report position, effective priority and
+  wait duration when relevant.
+- Scheduler telemetry is local-only and may contain technical timestamps, result
+  codes, durations and bounded error detail, never content or credentials.
+- Diagnose missed deadlines or stale leases with `scheduler doctor`, followed by
+  `jobs check --target all --deep`. Do not delete the scheduler database as a
+  repair.
 
 ## Mail learning contract
 
@@ -585,3 +626,57 @@ Ein Restore aus Spam/Quarantaene in die INBOX ist ein expliziter Nicht-Spam-Gege
 - A second background slot is allowed only for catch-up processing while no interactive or normal request is active or waiting.
 - Interactive requests are never intentionally queued behind newly started background work. Running generations are not forcibly cancelled.
 - The remote Ollama server must permit `OLLAMA_NUM_PARALLEL=2`; OpenClaw does not modify that remote service.
+
+## Portfolio monitor and trade decision support
+
+Use only the registered portfolio commands:
+
+```bash
+./scripts/assistant.sh portfolio status
+./scripts/assistant.sh portfolio doctor
+./scripts/assistant.sh portfolio import-pp --file "<Datei>" --dry-run
+./scripts/assistant.sh portfolio import-pp --file "<Datei>" --yes
+./scripts/assistant.sh portfolio holdings
+./scripts/assistant.sh portfolio watchlist list
+./scripts/assistant.sh portfolio quotes status
+./scripts/assistant.sh portfolio analyze --isin "<ISIN>"
+./scripts/assistant.sh portfolio alerts list
+./scripts/assistant.sh portfolio performance
+./scripts/assistant.sh setup portfolio --provider twelve-data --interval-minutes 30 --approve-permissions
+```
+
+Operational rules:
+
+- This is informational decision support. Never request or store DKB PIN/TAN
+  credentials, scrape online banking, create/modify/cancel orders or claim that
+  an indicator is individual investment advice.
+- Import only Portfolio Performance XML from the configured local import root.
+  Run `--dry-run` first. Productive import requires Jan's explicit instruction
+  and `--yes`. ClamAV is mandatory and fail-closed; DTD/entities are forbidden.
+- Imports are append-only snapshots and duplicate SHA-256 files are idempotent.
+  Never delete or recreate the productive portfolio database as a repair.
+- Never guess a quote symbol from ISIN alone. Jan must confirm exact ISIN,
+  provider symbol, MIC and currency before `watchlist add --yes`.
+- Every quote stores source time, receipt time, provider and currency. Poll
+  interval, provider delay and analysis bar count are distinct facts.
+- Missing, unmapped or critically stale quotes for held positions are failures.
+  A fresh trend conclusion must return `decision=abstain` until required data is
+  available. Market-closed observations remain explicitly timestamped.
+- Chart analysis uses numeric stored observations, never screenshot guessing.
+  SMA/RSI output is deterministic; the language model may explain it but must
+  not invent a buy/sell verdict.
+- Kursmarken use crossing state, hysteresis and cooldown. Create or disable a
+  rule only after Jan explicitly requests it and use `--yes`. A new crossing
+  queues an OpenClaw system event and is not an order instruction.
+- The optional portfolio job defaults to OFF. Enabling/restarting it requires an
+  explicit request via `jobs on portfolio` or `jobs restart portfolio`.
+- Technical market-data health is part of `monitor status`. Signal performance
+  remains separate in `portfolio performance` and must disclose sample size,
+  coverage, forward returns, benchmark adjustment and drawdown; insufficient
+  evidence must be reported as such.
+- For a failed portfolio tool, preserve the exact error, run `portfolio doctor`
+  and `jobs check --target all --deep`, then report the likely cause. Do not
+  change credentials, provider mappings or job state automatically.
+- System-event delivery requires a functioning host and OpenClaw gateway. A
+  complete outage requires an independent external watchdog; do not claim local
+  monitoring alone can deliver that message.

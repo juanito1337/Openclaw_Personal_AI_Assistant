@@ -5,6 +5,7 @@ import argparse
 import json
 import os
 import re
+import secrets
 import shlex
 import subprocess
 import sys
@@ -40,6 +41,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--source-workspace", required=True)
     parser.add_argument("--target-workspace", required=True)
     parser.add_argument("--enable-nextcloud-if-configured", action="store_true")
+    parser.add_argument("--ensure-gateway-auth", action="store_true")
+    parser.add_argument("--normalize-ollama-proxy", action="store_true")
+    parser.add_argument("--legacy-gateway-environment-file", type=Path)
     return parser.parse_args()
 
 
@@ -126,6 +130,220 @@ def parse_env_files(*directories: Path) -> dict[str, str]:
                     value = value[1:-1]
                 values[key] = value
     return values
+
+
+GATEWAY_AUTH_KEYS = ("OPENCLAW_GATEWAY_TOKEN", "OPENCLAW_GATEWAY_PASSWORD")
+
+
+def parse_systemd_environment(path: Path | None) -> dict[str, str]:
+    if path is None or not path.is_file():
+        return {}
+    values: dict[str, str] = {}
+    for item in shlex.split(path.read_text(encoding="utf-8")):
+        key, separator, value = item.partition("=")
+        if separator:
+            values[key] = value
+    return values
+
+
+def gateway_config(state_dir: Path) -> tuple[Path, dict[str, object]]:
+    path = state_dir / "openclaw.json"
+    if not path.is_file():
+        raise RuntimeError(f"OpenClaw-Konfiguration fehlt: {path}")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise RuntimeError("openclaw.json muss ein JSON-Objekt enthalten")
+    gateway = data.get("gateway")
+    if not isinstance(gateway, dict) or gateway.get("mode") != "local":
+        raise RuntimeError("openclaw.json muss gateway.mode=local enthalten")
+    return path, data
+
+
+def selected_gateway_credential(
+    values: dict[str, str],
+    *,
+    configured_mode: str,
+    source: str,
+    allow_incompatible: bool = False,
+) -> tuple[str, str, str] | None:
+    available = [(key, values.get(key, "").strip()) for key in GATEWAY_AUTH_KEYS]
+    available = [(key, value) for key, value in available if value]
+    if not available:
+        return None
+    if configured_mode in {"token", "password"}:
+        expected_key = (
+            "OPENCLAW_GATEWAY_TOKEN"
+            if configured_mode == "token"
+            else "OPENCLAW_GATEWAY_PASSWORD"
+        )
+        expected_value = values.get(expected_key, "").strip()
+        if expected_value:
+            return expected_key, expected_value, source
+        if allow_incompatible:
+            return None
+        raise RuntimeError(
+            f"Gateway-Auth-Modus {configured_mode!r} widerspricht dem vorhandenen {source}-Secret"
+        )
+    if len(available) == 1:
+        key, value = available[0]
+        return key, value, source
+    raise RuntimeError(
+        f"{source} enthaelt Token und Passwort; gateway.auth.mode muss token oder password auswaehlen"
+    )
+
+
+def config_gateway_credentials(
+    data: dict[str, object],
+    environment: dict[str, str],
+) -> dict[str, str]:
+    gateway = data.get("gateway")
+    auth = gateway.get("auth") if isinstance(gateway, dict) else None
+    if not isinstance(auth, dict):
+        return {}
+
+    values: dict[str, str] = {}
+    for field, env_key in (
+        ("token", "OPENCLAW_GATEWAY_TOKEN"),
+        ("password", "OPENCLAW_GATEWAY_PASSWORD"),
+    ):
+        configured = auth.get(field)
+        if isinstance(configured, str) and configured.strip():
+            values[env_key] = configured.strip()
+            continue
+        if isinstance(configured, dict):
+            reference_id = configured.get("id")
+            if isinstance(reference_id, str) and environment.get(reference_id, "").strip():
+                values[env_key] = environment[reference_id].strip()
+    return values
+
+
+def ensure_gateway_auth(
+    state_dir: Path,
+    config_dir: Path,
+    secrets_dir: Path,
+    legacy_environment_file: Path | None,
+) -> dict[str, str]:
+    config_path, data = gateway_config(state_dir)
+    gateway = data["gateway"]
+    assert isinstance(gateway, dict)
+    auth = gateway.get("auth")
+    if auth is None:
+        auth = {}
+        gateway["auth"] = auth
+    if not isinstance(auth, dict):
+        raise RuntimeError("gateway.auth muss ein JSON-Objekt sein")
+    configured_mode = str(auth.get("mode") or "").strip().lower()
+    if configured_mode in {"none", "trusted-proxy"}:
+        raise RuntimeError(
+            f"gateway.auth.mode={configured_mode} ist fuer die direkte LAN-Containerbindung nicht zugelassen"
+        )
+    if configured_mode not in {"", "token", "password"}:
+        raise RuntimeError(f"Unbekannter gateway.auth.mode: {configured_mode}")
+
+    destination = secrets_dir / "gateway.env"
+    existing = parse_env_files(secrets_dir)
+    legacy_environment = parse_systemd_environment(legacy_environment_file)
+    source_environment = parse_env_files(state_dir, config_dir)
+    source_environment.update(legacy_environment)
+    config_values = config_gateway_credentials(data, source_environment)
+
+    candidates = (
+        ("bestehendes Container-Secret", existing),
+        ("systemd", legacy_environment),
+        ("Legacy-Environment", source_environment),
+        ("openclaw.json", config_values),
+    )
+    selected = None
+    incompatible_sources: list[str] = []
+    for source, values in candidates:
+        available = any(values.get(key, "").strip() for key in GATEWAY_AUTH_KEYS)
+        candidate = selected_gateway_credential(
+            values,
+            configured_mode=configured_mode,
+            source=source,
+            allow_incompatible=True,
+        )
+        if candidate is not None:
+            selected = candidate
+            break
+        if available and configured_mode:
+            incompatible_sources.append(source)
+
+    if selected is None:
+        if configured_mode and incompatible_sources:
+            raise RuntimeError(
+                f"Kein {configured_mode}-Secret fuer gateway.auth.mode={configured_mode} gefunden; "
+                "unpassende Secrets: " + ", ".join(incompatible_sources)
+            )
+        if configured_mode == "password":
+            raise RuntimeError(
+                "gateway.auth.mode=password ist konfiguriert, aber kein Passwort-Secret wurde gefunden"
+            )
+        selected = ("OPENCLAW_GATEWAY_TOKEN", secrets.token_hex(32), "neu erzeugt")
+
+    key, value, source = selected
+    selected_mode = "token" if key.endswith("_TOKEN") else "password"
+    if configured_mode and configured_mode != selected_mode:
+        raise RuntimeError(
+            f"gateway.auth.mode={configured_mode} passt nicht zum ausgewaehlten {selected_mode}-Secret"
+        )
+    if not configured_mode:
+        auth["mode"] = selected_mode
+        atomic_write(
+            config_path,
+            json.dumps(data, ensure_ascii=False, indent=2) + "\n",
+            mode=0o600,
+        )
+
+    atomic_write(destination, f"{key}={shlex.quote(value)}\n", mode=0o600)
+    return {
+        "mode": selected_mode,
+        "source": source,
+        "file": str(destination),
+        "replaced_incompatible_existing": (
+            source != "bestehendes Container-Secret"
+            and "bestehendes Container-Secret" in incompatible_sources
+        ),
+        "ignored_incompatible_sources": incompatible_sources,
+    }
+
+
+def normalize_ollama_proxy(state_dir: Path, config_dir: Path) -> dict[str, object]:
+    path = state_dir / "workspace/mail_agent/config.toml"
+    if not path.is_file():
+        raise RuntimeError(f"Mail-Agent-Konfiguration fehlt: {path}")
+    environment = parse_env_files(config_dir)
+    raw_port = environment.get("OLLAMA_PRIORITY_LISTEN_PORT", "11435").strip()
+    try:
+        port = int(raw_port)
+    except ValueError as exc:
+        raise RuntimeError("OLLAMA_PRIORITY_LISTEN_PORT ist keine Zahl") from exc
+    if not 1 <= port <= 65535:
+        raise RuntimeError("OLLAMA_PRIORITY_LISTEN_PORT ist ungueltig")
+
+    expected = f"http://127.0.0.1:{port}"
+    lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+    in_ollama = False
+    found = False
+    changed = False
+    rewritten: list[str] = []
+    for line in lines:
+        section = re.match(r"^\s*\[([^\]]+)\]\s*$", line.strip())
+        if section:
+            in_ollama = section.group(1).strip() == "ollama"
+        if in_ollama and re.match(r"^\s*base_url\s*=", line):
+            found = True
+            newline = "\n" if line.endswith("\n") else ""
+            replacement = f'base_url = "{expected}"{newline}'
+            changed = changed or replacement != line
+            rewritten.append(replacement)
+        else:
+            rewritten.append(line)
+    if not found:
+        raise RuntimeError("[ollama].base_url fehlt in mail_agent/config.toml")
+    if changed:
+        atomic_write(path, "".join(rewritten))
+    return {"changed": changed, "base_url": expected}
 
 
 def ensure_nextcloud_section(state_dir: Path, config_dir: Path, secrets_dir: Path) -> bool:
@@ -222,6 +440,17 @@ def main() -> int:
     nextcloud_added = False
     if args.enable_nextcloud_if_configured:
         nextcloud_added = ensure_nextcloud_section(args.state_dir, args.config_dir, args.secrets_dir)
+    gateway_auth = {}
+    if args.ensure_gateway_auth:
+        gateway_auth = ensure_gateway_auth(
+            args.state_dir,
+            args.config_dir,
+            args.secrets_dir,
+            args.legacy_gateway_environment_file,
+        )
+    ollama_proxy = {}
+    if args.normalize_ollama_proxy:
+        ollama_proxy = normalize_ollama_proxy(args.state_dir, args.config_dir)
 
     report = {
         "ok": True,
@@ -230,6 +459,8 @@ def main() -> int:
         "path_changes": path_changes,
         "himalaya_secrets": secret_changes,
         "nextcloud_section_added": nextcloud_added,
+        "gateway_auth": gateway_auth,
+        "ollama_proxy": ollama_proxy,
     }
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0

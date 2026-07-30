@@ -46,8 +46,11 @@ target=${TARGET_IMAGE:-${OPENCLAW_IMAGE:-unknown}}
 external=${EXTERNAL_BACKUP_REFERENCE:-}
 previous_runtime=${PREVIOUS_RUNTIME:-${OPENCLAW_CURRENT_RUNTIME:-docker}}
 legacy_home=${OPENCLAW_LEGACY_HOME:-}
+legacy_migration_backup=${OPENCLAW_LEGACY_MIGRATION_BACKUP:-}
+legacy_migration_member=${OPENCLAW_LEGACY_MIGRATION_MEMBER:-}
+legacy_migration_sha256=${OPENCLAW_LEGACY_MIGRATION_SHA256:-}
 
-python3 - "$destination/manifest.json" "$backup_id" "$previous" "$target" "$archive_sha" "$external" "$previous_runtime" "$legacy_home" <<'PY'
+python3 - "$destination/manifest.json" "$backup_id" "$previous" "$target" "$archive_sha" "$external" "$previous_runtime" "$legacy_home" "$legacy_migration_backup" "$legacy_migration_member" "$legacy_migration_sha256" <<'PY'
 from datetime import datetime, timezone
 import json, os, socket, sys
 from pathlib import Path
@@ -63,6 +66,9 @@ payload={
   "external_backup_reference": sys.argv[6],
   "previous_runtime": sys.argv[7],
   "legacy_home": sys.argv[8],
+  "legacy_migration_backup": sys.argv[9],
+  "legacy_migration_member": sys.argv[10],
+  "legacy_migration_sha256": sys.argv[11],
   "state_directory": os.environ.get("OPENCLAW_STATE_DIR", ""),
   "verified": False,
 }

@@ -23,6 +23,7 @@ from .tool_settings import (
     MailToolSettings,
     NextcloudToolSettings,
     NextcloudWorkspaceToolSettings,
+    PortfolioToolSettings,
     ToolSettings,
     clean_remote_path,
     load_tool_settings,
@@ -50,6 +51,7 @@ def _write_tools(path: Path, settings: ToolSettings) -> Path | None:
     direct_contacts = settings.nextcloud.contacts
     deck_orders = settings.nextcloud.deck_orders
     antivirus = settings.security.antivirus
+    portfolio = settings.portfolio
     lines = [
         "# Central tool configuration for the Personal Assistant.",
         "# Secrets stay in ~/.config/personal-assistant/secrets.env.",
@@ -142,6 +144,21 @@ def _write_tools(path: Path, settings: ToolSettings) -> Path | None:
         f"timeout_seconds = {antivirus.timeout_seconds}",
         f"temp_dir = {_toml_string(str(antivirus.temp_dir))}",
         "",
+        "[portfolio]",
+        f"enabled = {'true' if portfolio.enabled else 'false'}",
+        f"database = {_toml_string(str(portfolio.database))}",
+        f"import_root = {_toml_string(str(portfolio.import_root))}",
+        f"provider = {_toml_string(portfolio.provider)}",
+        f"api_key_env = {_toml_string(portfolio.api_key_env)}",
+        f"interval_minutes = {portfolio.interval_minutes}",
+        f"stale_warning_minutes = {portfolio.stale_warning_minutes}",
+        f"stale_critical_minutes = {portfolio.stale_critical_minutes}",
+        f"request_timeout_seconds = {portfolio.request_timeout_seconds}",
+        f"max_symbols = {portfolio.max_symbols}",
+        f"timezone = {_toml_string(portfolio.timezone)}",
+        f"market_open = {_toml_string(portfolio.market_open)}",
+        f"market_close = {_toml_string(portfolio.market_close)}",
+        "",
     ]
     rendered = "\n".join(lines).encode("utf-8")
     if old == rendered:
@@ -220,6 +237,7 @@ def _updated_settings(
     direct_tasks: DirectTasksToolSettings | None = None,
     direct_contacts: DirectContactsToolSettings | None = None,
     deck_orders: DeckOrdersToolSettings | None = None,
+    portfolio: PortfolioToolSettings | None = None,
 ) -> ToolSettings:
     return ToolSettings(
         path=existing.path,
@@ -232,7 +250,68 @@ def _updated_settings(
             deck_orders=deck_orders or existing.nextcloud.deck_orders,
         ),
         security=existing.security,
+        portfolio=portfolio or existing.portfolio,
     )
+
+
+def configure_portfolio_tools(
+    *,
+    enable: bool = True,
+    provider: str = "twelve-data",
+    interval_minutes: int = 30,
+    stale_warning_minutes: int = 45,
+    stale_critical_minutes: int = 90,
+    approve_permissions: bool = False,
+    path: Path = DEFAULT_TOOL_SETTINGS,
+) -> dict[str, Any]:
+    existing = load_tool_settings(path)
+    if enable and not approve_permissions:
+        raise PermissionError(
+            "Portfolio-Marktdatenzugriff benoetigt --approve-permissions"
+        )
+    provider = provider.strip().casefold()
+    if provider not in {"disabled", "twelve-data"}:
+        raise ValueError("Portfolio-Anbieter muss disabled oder twelve-data sein")
+    if interval_minutes not in {15, 30}:
+        raise ValueError("Portfolio-Intervall muss 15 oder 30 Minuten sein")
+    warning = max(interval_minutes, min(int(stale_warning_minutes), 1440))
+    critical = max(interval_minutes, min(int(stale_critical_minutes), 2880))
+    if critical < warning:
+        raise ValueError("Kritische Veraltung muss mindestens der Warnschwelle entsprechen")
+    portfolio = PortfolioToolSettings(
+        enabled=bool(enable),
+        database=existing.portfolio.database,
+        import_root=existing.portfolio.import_root,
+        provider=provider if enable else "disabled",
+        api_key_env=existing.portfolio.api_key_env,
+        interval_minutes=interval_minutes,
+        stale_warning_minutes=warning,
+        stale_critical_minutes=critical,
+        request_timeout_seconds=existing.portfolio.request_timeout_seconds,
+        max_symbols=existing.portfolio.max_symbols,
+        timezone=existing.portfolio.timezone,
+        market_open=existing.portfolio.market_open,
+        market_close=existing.portfolio.market_close,
+    )
+    if enable:
+        portfolio.import_root.mkdir(parents=True, exist_ok=True)
+        os.chmod(portfolio.import_root, 0o700)
+    settings = _updated_settings(existing, portfolio=portfolio)
+    backup = _write_tools(Path(path), settings)
+    configured = load_tool_settings(path)
+    return {
+        "ok": True,
+        "tools_file": str(configured.path),
+        "backup": str(backup or ""),
+        "portfolio": asdict(configured.portfolio),
+        "api_key_env": configured.portfolio.api_key_env,
+        "secret_stored": False,
+        "job_enabled": False,
+        "detail": (
+            "API-Schluessel separat im Host-Secrets-Verzeichnis setzen; "
+            "Portfolio-Job bleibt bis 'jobs on portfolio' aus."
+        ),
+    }
 
 
 def configure_mail_tools(

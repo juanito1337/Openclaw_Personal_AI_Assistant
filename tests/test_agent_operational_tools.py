@@ -30,6 +30,20 @@ class AgentOperationalToolTests(unittest.TestCase):
         self.assertEqual(compose.to, "jonas@example.de")
         send = parser().parse_args(["mail", "compose-send", "--draft-id", "draft-1", "--yes"])
         self.assertTrue(send.yes)
+        portfolio = parser().parse_args(
+            ["portfolio", "analyze", "--isin", "DE000BASF111"]
+        )
+        self.assertEqual(portfolio.portfolio_command, "analyze")
+        portfolio_job = parser().parse_args(["jobs", "status", "--target", "portfolio"])
+        self.assertEqual(portfolio_job.target, "portfolio")
+        portfolio_setup = parser().parse_args(
+            [
+                "setup", "portfolio", "--provider", "twelve-data",
+                "--interval-minutes", "15", "--approve-permissions",
+            ]
+        )
+        self.assertEqual(portfolio_setup.interval_minutes, 15)
+        self.assertTrue(portfolio_setup.approve_permissions)
 
     @patch("personal_assistant.cli.subprocess.run")
     def test_ollama_restart_restarts_and_verifies(self, run) -> None:

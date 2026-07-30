@@ -1,0 +1,12 @@
+[Unit]
+Description=Check portfolio market-data refresh every 15 minutes
+
+[Timer]
+OnBootSec=4min
+OnUnitInactiveSec=15min
+AccuracySec=1min
+RandomizedDelaySec=30s
+Unit=personal-assistant-portfolio.service
+
+[Install]
+WantedBy=timers.target

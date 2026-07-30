@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import sqlite3
 import subprocess
 import time
 from dataclasses import dataclass
@@ -11,6 +12,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Sequence
 
 from .config import WORKSPACE_ROOT
+from .work_scheduler import AdaptiveWorkScheduler
 
 
 STATE_VERSION = 2
@@ -94,6 +96,14 @@ def default_job_specs() -> tuple[JobSpec, ...]:
             ),
         ),
         JobSpec(
+            name="monitor",
+            description="Erfasst technische Performance, Datenfrische und Scheduler-Zustand.",
+            timer_unit="personal-assistant-monitor.timer",
+            service_unit="personal-assistant-monitor.service",
+            default_on=True,
+            standard=True,
+        ),
+        JobSpec(
             name="sync",
             description="Aktualisiert den lokalen Wissensindex aus Nextcloud.",
             timer_unit="personal-assistant-sync.timer",
@@ -101,6 +111,15 @@ def default_job_specs() -> tuple[JobSpec, ...]:
             default_on=False,
             standard=False,
             health_command=("scripts/assistant.sh", "nextcloud", "doctor"),
+        ),
+        JobSpec(
+            name="portfolio",
+            description="Aktualisiert Depot- und Watchlist-Kurse mit Frische- und Pflichtdatenpruefung.",
+            timer_unit="personal-assistant-portfolio.timer",
+            service_unit="personal-assistant-portfolio.service",
+            default_on=False,
+            standard=False,
+            health_command=("scripts/assistant.sh", "portfolio", "doctor"),
         ),
     )
 
@@ -747,6 +766,14 @@ class JobController:
                 issues.append({"code": "timer-failed", "detail": f"{spec.timer_unit} meldet einen Fehler"})
             if self._failed(service):
                 issues.append({"code": "service-failed", "detail": f"{spec.service_unit} meldet einen fehlgeschlagenen Lauf"})
+            elif (
+                str(service.get("Result") or "") == "degraded"
+                or str(service.get("ExecMainStatus") or "") == "1"
+            ):
+                issues.append({
+                    "code": "service-degraded",
+                    "detail": f"{spec.service_unit} meldet einen eingeschraenkten Lauf",
+                })
         else:
             if timer.get("ActiveState") == "active":
                 issues.append({"code": "unexpected-on", "detail": f"{spec.timer_unit} laeuft trotz bewusstem OFF-Zustand"})
@@ -759,6 +786,32 @@ class JobController:
                     "code": "heartbeat-delivery-disabled",
                     "detail": "OpenClaw-Heartbeat kann Ausfaelle nicht zustellen; Ziel ist 'none' oder nicht lesbar",
                 })
+            scheduler_path = self.workspace_root / "personal_assistant/data/work_scheduler.sqlite3"
+            if scheduler_path.exists():
+                try:
+                    scheduler = AdaptiveWorkScheduler(scheduler_path)
+                    try:
+                        scheduler_health = scheduler.health()
+                    finally:
+                        scheduler.close()
+                except (OSError, sqlite3.Error) as exc:
+                    scheduler_health = {
+                        "enabled": True,
+                        "ok": False,
+                        "state": "failed",
+                        "error": str(exc)[:500],
+                    }
+                reporting["scheduler"] = scheduler_health
+                if desired_on and not scheduler_health.get("ok"):
+                    issues.append({
+                        "code": "scheduler-health-failed",
+                        "detail": (
+                            "Adaptive Aufgabensteuerung meldet "
+                            f"{scheduler_health.get('state', 'unknown')}; "
+                            f"Fristverletzungen={scheduler_health.get('deadline_misses', 0)}, "
+                            f"stale Leases={scheduler_health.get('stale_leases', 0)}"
+                        ),
+                    })
 
         health: dict[str, Any] = {"checked": False, "ok": True}
         if spec.always_health or deep or any(
@@ -966,7 +1019,12 @@ class JobController:
         commands.append({"command": "daemon-reload", "returncode": reload_result.returncode, "detail": reload_result.stderr.strip()})
         for unit in (spec.timer_unit, spec.service_unit):
             result = self._run(["systemctl", "--user", "reset-failed", unit], timeout=30)
-            commands.append({"command": f"reset-failed {unit}", "returncode": result.returncode, "detail": result.stderr.strip()})
+            commands.append({
+                "command": f"reset-failed {unit}",
+                "returncode": result.returncode,
+                "detail": result.stderr.strip(),
+                "required": False,
+            })
 
         repair: dict[str, Any] = {"attempted": False, "ok": True}
         reporting: dict[str, Any] = {"attempted": False, "ok": True}
@@ -1002,7 +1060,11 @@ class JobController:
             commands.append({"command": f"start --no-block {spec.service_unit}", "returncode": result.returncode, "detail": result.stderr.strip()})
 
         ok = (
-            all(item["returncode"] == 0 for item in commands)
+            all(
+                item["returncode"] == 0
+                for item in commands
+                if item.get("required", True)
+            )
             and bool(repair.get("ok", True))
             and bool(production_gate.get("ok", True))
             and bool(reporting.get("ok", True))

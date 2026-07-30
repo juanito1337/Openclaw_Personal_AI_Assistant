@@ -7,6 +7,11 @@ Timeouts, Modellparameter, Sicherheitsfreigaben oder Mailaktionen zu veraendern.
 Die Messung ist fail-open: Ein Schreib- oder Auswertungsfehler der Telemetrie darf
 einen produktiven Lauf niemals blockieren.
 
+This detailed phase telemetry remains mail-specific. Common whole-job queue wait,
+duration, outcome, lease and deadline telemetry for mail, portfolio, sync and
+monitoring is stored by the adaptive scheduler. See
+`docs/ADAPTIVE_SCHEDULER.md`.
+
 ## Nutzung
 
 ```bash

@@ -1,0 +1,12 @@
+[Unit]
+Description=Record Personal Assistant performance every hour
+
+[Timer]
+OnBootSec=7min
+OnUnitInactiveSec=1h
+AccuracySec=2min
+RandomizedDelaySec=5min
+Unit=personal-assistant-monitor.service
+
+[Install]
+WantedBy=timers.target

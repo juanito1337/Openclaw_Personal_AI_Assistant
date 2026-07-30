@@ -8,6 +8,7 @@ Run:
 ```bash
 ./scripts/assistant.sh version --verify
 ./scripts/assistant.sh jobs check --target all --deep
+./scripts/assistant.sh scheduler doctor
 ```
 
 Reporting rules:
@@ -20,6 +21,8 @@ Reporting rules:
   system event may have triggered this heartbeat immediately after a state change.
 - Clearly distinguish deliberate `OFF` from unexpected `FAILED/DEGRADED`.
 - Do not repeatedly report a healthy state.
+- Report scheduler deadline misses or stale leases with the affected job and
+  queue evidence. The supervisor itself must never enter the adaptive queue.
 - The `jobs check` command itself may perform the single allowlisted mail recovery:
   stop timer/service, wait for the real mail lock, run a bounded successful dry-run
   for a stale/missing fingerprint, revalidate and start normally. A temporary lock
@@ -54,6 +57,7 @@ Additional safe checks when needed:
 ./scripts/assistant.sh mail status
 ./scripts/assistant.sh ollama status
 ./scripts/assistant.sh ollama queue
+./scripts/assistant.sh scheduler status
 ./scripts/assistant.sh performance mail --limit 20
 ```
 
