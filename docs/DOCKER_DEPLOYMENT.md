@@ -125,7 +125,8 @@ The migration:
 11. leaves the original live directory untouched until the Docker deployment is verified.
 
 Historical sessions and trajectories are not rewritten; only active configuration
-files are changed.
+files are changed. A repeated migration preserves the previously recorded
+legacy-unit activation set even when those units are already disabled.
 
 ## 4. Private Nextcloud CA
 

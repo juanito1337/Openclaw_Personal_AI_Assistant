@@ -265,6 +265,14 @@ class ContainerWorkspaceTests(unittest.TestCase):
         self.assertIn("--normalize-ollama-proxy", migration)
         self.assertIn("PRAGMA quick_check;", migration)
         self.assertIn(
+            '"$OPENCLAW_CONFIG_DIR/legacy-active-units.txt"',
+            migration,
+        )
+        self.assertIn(
+            'sort -u -o "$legacy_units_snapshot" "$legacy_units_snapshot"',
+            migration,
+        )
+        self.assertIn(
             'tar -tzf "$migration_backup" .openclaw/workspace/scripts/assistant.sh',
             migration,
         )

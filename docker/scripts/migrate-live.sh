@@ -78,11 +78,22 @@ units=(
   ollama-priority-proxy.service openclaw-gateway.service
 )
 : > "$legacy_units_snapshot"
+if [[ -s "$OPENCLAW_CONFIG_DIR/legacy-active-units.txt" ]]; then
+  while IFS= read -r recorded_unit; do
+    for known_unit in "${units[@]}"; do
+      if [[ "$recorded_unit" == "$known_unit" ]]; then
+        printf '%s\n' "$recorded_unit" >> "$legacy_units_snapshot"
+        break
+      fi
+    done
+  done < "$OPENCLAW_CONFIG_DIR/legacy-active-units.txt"
+fi
 for unit in "${units[@]}"; do
   if systemctl --user is-active --quiet "$unit" || systemctl --user is-enabled --quiet "$unit"; then
     printf '%s\n' "$unit" >> "$legacy_units_snapshot"
   fi
 done
+sort -u -o "$legacy_units_snapshot" "$legacy_units_snapshot"
 systemctl --user show openclaw-gateway.service \
   --property=Environment --value > "$legacy_gateway_environment" 2>/dev/null || \
   : > "$legacy_gateway_environment"
