@@ -1,5 +1,29 @@
 # Changelog
 
+## Test-Branch – Vollstaendige serverseitige Mail-Suche
+
+- `mail search` filtert jetzt direkt auf dem IMAP-Server ueber alle lesbaren
+  Ordner, einschliesslich Review-Ordnern. Absender, Betreff und Textinhalt
+  werden beruecksichtigt; alte Nachrichten verschwinden nicht mehr hinter der
+  normalen Listen-Seitengroesse.
+- Mehrteilige Suchanfragen verknuepfen bis zu zwoelf eindeutige Suchwoerter mit
+  UND, wobei jedes Wort in Absender, Betreff oder Text vorkommen darf.
+- Die Rueckgabe kennzeichnet mit `complete`, `folder_errors` und
+  `results_may_be_truncated`, ob alle Ordner erfolgreich und ohne moegliche
+  Trefferbegrenzung durchsucht wurden. Der Agent darf bei Teilfehlern oder
+  erreichtem Limit nicht behaupten, eine Mail existiere nicht.
+- Ein vollstaendiges Suchversagen, eine leere Ordnerliste und ueberlange
+  Anfragen werden als sichtbare Fehler gemeldet statt als falsches
+  Nulltreffer-Ergebnis.
+- CLI-Hilfe, Tool-Registry, Personal-Assistant-Skill, Betriebsanweisung und
+  Dokumentation beschreiben dieselbe Suchsemantik. Regressionstests decken alte
+  Archivmails, Unicode-Namen, Teilausfaelle, Trefferlimits und die
+  Agenten-Exposition ab.
+- Die Aenderung wird erst mit einem neu gebauten und geprueften Container-Image
+  aktiv. Nach dem Deployment ist ein Gateway-Neustart beziehungsweise eine neue
+  Agentensitzung erforderlich, damit der aktualisierte Skillkontext geladen
+  wird.
+
 ## Test-Branch – Transaktionale Container-Remigration und sicherer Rollback
 
 - Remigrationen sichern den bestehenden `/srv/openclaw`-Zustand vor dem
