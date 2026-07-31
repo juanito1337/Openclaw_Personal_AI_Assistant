@@ -16,6 +16,7 @@ DEFAULT_ANTIVIRUS_TEMP = WORKSPACE_ROOT / "personal_assistant/data/antivirus_tmp
 DEFAULT_ORDERS_DB = WORKSPACE_ROOT / "personal_assistant/data/orders.sqlite3"
 DEFAULT_PORTFOLIO_DB = WORKSPACE_ROOT / "personal_assistant/data/portfolio.sqlite3"
 DEFAULT_PORTFOLIO_INBOX = WORKSPACE_ROOT / "personal_assistant/data/portfolio_inbox"
+DEFAULT_PORTFOLIO_NEXTCLOUD_FOLDER = "Assistent/Finanzen/Portfolio"
 
 
 @dataclass(slots=True)
@@ -153,6 +154,7 @@ class PortfolioToolSettings:
     enabled: bool = False
     database: Path = DEFAULT_PORTFOLIO_DB
     import_root: Path = DEFAULT_PORTFOLIO_INBOX
+    nextcloud_folder: str = DEFAULT_PORTFOLIO_NEXTCLOUD_FOLDER
     provider: str = "disabled"
     api_key_env: str = "PORTFOLIO_MARKET_DATA_API_KEY"
     interval_minutes: int = 30
@@ -398,6 +400,10 @@ def load_tool_settings(
             portfolio_data.get("import_root") or DEFAULT_PORTFOLIO_INBOX,
             field_name="portfolio.import_root",
         ),
+        nextcloud_folder=clean_remote_path(
+            portfolio_data.get("nextcloud_folder") or DEFAULT_PORTFOLIO_NEXTCLOUD_FOLDER,
+            field_name="portfolio.nextcloud_folder",
+        ),
         provider=provider,
         api_key_env=api_key_env,
         interval_minutes=interval_minutes,
@@ -421,6 +427,11 @@ def load_tool_settings(
         raise ValueError(
             "tools.toml: portfolio.stale_critical_minutes muss mindestens stale_warning_minutes sein"
         )
+    if not portfolio.nextcloud_folder or not (
+        portfolio.nextcloud_folder == "Assistent"
+        or portfolio.nextcloud_folder.startswith("Assistent/")
+    ):
+        raise ValueError("tools.toml: portfolio.nextcloud_folder muss unter Assistent/ liegen")
     try:
         from zoneinfo import ZoneInfo
         ZoneInfo(portfolio.timezone)

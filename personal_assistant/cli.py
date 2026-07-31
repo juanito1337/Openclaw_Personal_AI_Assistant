@@ -194,6 +194,14 @@ def parser() -> argparse.ArgumentParser:
     portfolio_import.add_argument("--file", required=True)
     portfolio_import.add_argument("--dry-run", action="store_true")
     portfolio_import.add_argument("--yes", action="store_true")
+    portfolio_csv = portfolio_sub.add_parser(
+        "import-csv", help="Strikten DKB-CSV-Depotsnapshot lokal oder aus Nextcloud einlesen"
+    )
+    portfolio_csv_source = portfolio_csv.add_mutually_exclusive_group(required=True)
+    portfolio_csv_source.add_argument("--file")
+    portfolio_csv_source.add_argument("--nextcloud-path")
+    portfolio_csv.add_argument("--dry-run", action="store_true")
+    portfolio_csv.add_argument("--yes", action="store_true")
     portfolio_sub.add_parser("holdings", help="Letzten importierten Depotbestand anzeigen")
     watchlist = portfolio_sub.add_parser("watchlist", help="Watchlist verwalten")
     watchlist_sub = watchlist.add_subparsers(dest="watchlist_command", required=True)
@@ -1449,6 +1457,18 @@ def main(argv: list[str] | None = None) -> int:
                 if not args.dry_run and not args.yes:
                     raise PermissionError("Portfolio-Import benoetigt --dry-run oder --yes")
                 result = assistant.portfolio.import_pp(args.file, dry_run=not args.yes)
+                _print(result)
+                return 0
+            if args.portfolio_command == "import-csv":
+                if args.dry_run and args.yes:
+                    raise ValueError("--dry-run und --yes koennen nicht gemeinsam verwendet werden")
+                if not args.dry_run and not args.yes:
+                    raise PermissionError("Portfolio-CSV-Import benoetigt --dry-run oder --yes")
+                result = assistant.portfolio_import_csv(
+                    local_file=args.file or "",
+                    nextcloud_path=args.nextcloud_path or "",
+                    dry_run=not args.yes,
+                )
                 _print(result)
                 return 0
             if args.portfolio_command == "holdings":

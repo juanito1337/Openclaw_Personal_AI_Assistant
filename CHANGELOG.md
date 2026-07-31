@@ -24,6 +24,25 @@
   Agentensitzung erforderlich, damit der aktualisierte Skillkontext geladen
   wird.
 
+## Test-Branch – DKB-CSV-Depotimport aus Nextcloud
+
+- Der Portfolio-Monitor importiert neben Portfolio-Performance-XML jetzt das
+  strikt validierte DKB-Depot-CSV-Format mit UTF-8/BOM, Semikolon-Trennung,
+  deutschem Zahlenformat, Stichtag, Depotnummer, WKN, ISIN, Waehrung und
+  Stueckzahl.
+- Lokale CSVs bleiben auf den kontrollierten Portfolio-Importordner begrenzt.
+  Alternativ kann eine exakt ausgewaehlte Datei direkt unter
+  `Assistent/Finanzen/Portfolio/` aus Nextcloud gelesen werden.
+- Nextcloud-Snapshots verwenden unveraenderliche, datierte Dateinamen. Das
+  Datum im Namen muss mit dem einzigen CSV-Stichtag uebereinstimmen; alte
+  Snapshots werden nie ueberschrieben.
+- Download und Import sind groessenbegrenzt, an den zuvor gelisteten ETag
+  gebunden, ClamAV-geprueft, SHA-256-idempotent und erfordern vor jedem
+  produktiven `--yes`-Import einen Dry-Run.
+- Tool-Registry, CLI, Skill, Betriebsvertrag, Dokumentation und Regressionstests
+  beschreiben denselben sicheren Ablauf. Beliebige Broker-CSV-Layouts bleiben
+  bewusst gesperrt.
+
 ## Test-Branch – Transaktionale Container-Remigration und sicherer Rollback
 
 - Remigrationen sichern den bestehenden `/srv/openclaw`-Zustand vor dem

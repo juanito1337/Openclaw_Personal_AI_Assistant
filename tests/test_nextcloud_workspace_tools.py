@@ -69,7 +69,7 @@ class FakeDavClient:
 
     def request(self, method, path, **kwargs):
         self.calls.append((method, path, kwargs))
-        return SimpleNamespace(status=201, reason="Created")
+        return SimpleNamespace(status=201, reason="Created", data=b"payload")
 
 
 class NextcloudWorkspaceToolTests(unittest.TestCase):
@@ -166,6 +166,18 @@ class NextcloudWorkspaceToolTests(unittest.TestCase):
         self.assertIn("Assistent/a.txt", path)
         self.assertEqual(kwargs["headers"]["Overwrite"], "F")
         self.assertTrue(kwargs["headers"]["Destination"].endswith("/Assistent/Archiv/a.txt"))
+
+    def test_download_can_pin_the_previously_listed_etag(self) -> None:
+        client = FakeDavClient()
+        files = NextcloudFiles(SimpleNamespace(), client)
+        self.assertEqual(
+            files.download("Assistent/Finanzen/Portfolio/depot.csv", expected_etag="etag-1"),
+            b"payload",
+        )
+        method, _, kwargs = client.calls[-1]
+        self.assertEqual(method, "GET")
+        self.assertEqual(kwargs["headers"]["If-Match"], '"etag-1"')
+        self.assertEqual(kwargs["expected"], {200, 412})
 
     def _assistant(self) -> PersonalAssistant:
         assistant = object.__new__(PersonalAssistant)

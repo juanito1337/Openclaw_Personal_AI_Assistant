@@ -197,6 +197,8 @@ deadline or lease fails, run `scheduler doctor` and
 ```bash
 ./scripts/assistant.sh portfolio status
 ./scripts/assistant.sh portfolio import-pp --file "<Datei>" --dry-run
+./scripts/assistant.sh portfolio import-csv --file "<DKB-CSV>" --dry-run
+./scripts/assistant.sh portfolio import-csv --nextcloud-path "Assistent/Finanzen/Portfolio/<Datei-DD.MM.YYYY.csv>" --dry-run
 ./scripts/assistant.sh portfolio holdings
 ./scripts/assistant.sh portfolio quotes status
 ./scripts/assistant.sh portfolio analyze --isin "<ISIN>"
@@ -204,8 +206,13 @@ deadline or lease fails, run `scheduler doctor` and
 ./scripts/assistant.sh portfolio performance
 ```
 
-Import only from the configured local portfolio inbox, scan fail-closed with
-ClamAV and run a dry-run before an explicitly approved `--yes` import. Never
+Import Portfolio Performance XML only from the configured local portfolio inbox.
+For CSV, accept only the strict DKB depot export schema. A Nextcloud CSV must be
+an exact, dated file directly below the configured portfolio folder; list that
+folder first, and require the filename date to match the CSV snapshot date.
+Never overwrite an older Nextcloud snapshot or describe arbitrary broker CSV as
+supported. Scan fail-closed with ClamAV and run a dry-run before an explicitly
+approved `--yes` import. Never
 guess ISIN-to-symbol/MIC mapping; Jan must confirm it. A missing or critically
 stale held-position quote blocks fresh analysis and must be diagnosed with
 `portfolio doctor` plus `jobs check --target all --deep`.
