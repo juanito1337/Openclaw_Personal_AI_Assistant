@@ -24,11 +24,13 @@ sudo ./docker/scripts/setup-host.sh
 ## Portfolio monitor test milestone
 
 The optional portfolio subsystem imports ClamAV-scanned Portfolio Performance
-XML snapshots, monitors confirmed ISIN/symbol/MIC mappings every 15 or 30 minutes,
-analyzes stored numeric series and raises deduplicated course-mark events. Missing
-or critically stale held-position quotes block fresh analysis and feed the
-existing job and monitoring health path. Broker login and order execution are
-not implemented. See `docs/PORTFOLIO_ADVISOR.md`.
+XML and strict DKB depot CSV snapshots from the controlled local inbox or an
+exact dated file in `Assistent/Finanzen/Portfolio/`. It never guesses arbitrary
+broker CSV layouts. It monitors confirmed ISIN/symbol/MIC mappings every 15 or
+30 minutes, analyzes stored numeric series and raises deduplicated course-mark
+events. Missing or critically stale held-position quotes block fresh analysis
+and feed the existing job and monitoring health path. Broker login and order
+execution are not implemented. See `docs/PORTFOLIO_ADVISOR.md`.
 
 ## R22.1 robust migration for existing learning history
 

@@ -30,6 +30,8 @@ class AgentCapabilityExposureTests(unittest.TestCase):
             "contacts update --uid",
             "mail compose-draft --to",
             "mail compose-send --draft-id",
+            "portfolio import-csv --file",
+            "portfolio import-csv --nextcloud-path",
         ):
             self.assertIn(command, skill)
 

@@ -52,6 +52,7 @@ temp_dir = "personal_assistant/data/antivirus_tmp"
 enabled = false
 database = "personal_assistant/data/portfolio.sqlite3"
 import_root = "personal_assistant/data/portfolio_inbox"
+nextcloud_folder = "Assistent/Finanzen/Portfolio"
 provider = "disabled"
 api_key_env = "PORTFOLIO_MARKET_DATA_API_KEY"
 interval_minutes = 30

@@ -6,14 +6,20 @@ from unittest.mock import patch
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
+from types import SimpleNamespace
 
 from personal_assistant.antivirus import AntivirusResult
+from personal_assistant.cli import parser as cli_parser
+from personal_assistant.connectors.nextcloud.files import NextcloudFiles, RemoteFile
+from personal_assistant.models import PolicyDecision
 from personal_assistant.portfolio import (
     PortfolioService,
     Quote,
     TwelveDataClient,
+    parse_dkb_portfolio_csv,
     parse_portfolio_performance_xml,
 )
+from personal_assistant.service import PersonalAssistant
 from personal_assistant.tool_settings import PortfolioToolSettings
 from personal_assistant.tool_settings import ToolSettings
 from personal_assistant.tool_registry import build_tool_registry
@@ -64,6 +70,17 @@ def xml_fixture() -> bytes:
 """.encode()
 
 
+def csv_fixture() -> bytes:
+    text = (
+        "Datum der Erstellung;Depotnummer;Wertpapierbezeichnung;WKN;ISIN;"
+        "Einstiegskurs;Bewertungskurs;Stückzahl;Absoluter Gewinn;Relativer Gewinn;Assetklasse\r\n"
+        f"31.07.2026;123456789;BASF SE;BASF11;{ISIN};45,10 €;46,20 €;12,5;13,75 €;2.44%;Aktien\r\n"
+        "31.07.2026;123456789;ADIDAS AG;A1EWWW;DE000A1EWWW0;"
+        "180,00 €;190,00 €;2;20,00 €;5.55%;Aktien\r\n"
+    )
+    return b"\xef\xbb\xbf" + text.encode("utf-8")
+
+
 class PortfolioParserTests(unittest.TestCase):
     def test_parses_structured_snapshot(self) -> None:
         parsed = parse_portfolio_performance_xml(xml_fixture())
@@ -76,6 +93,20 @@ class PortfolioParserTests(unittest.TestCase):
             parse_portfolio_performance_xml(
                 b'<!DOCTYPE x [<!ENTITY y SYSTEM "file:///etc/passwd">]><client>&y;</client>'
             )
+
+    def test_parses_strict_dkb_csv_snapshot(self) -> None:
+        parsed = parse_dkb_portfolio_csv(csv_fixture())
+        self.assertEqual(parsed["source_type"], "dkb-depot-csv")
+        self.assertEqual(parsed["as_of"], "2026-07-31")
+        self.assertEqual(len(parsed["instruments"]), 2)
+        self.assertEqual(parsed["positions"][0]["account"], "123456789")
+        self.assertEqual(parsed["positions"][0]["shares"], "2")
+        self.assertTrue(all(item["currency"] == "EUR" for item in parsed["instruments"]))
+
+    def test_dkb_csv_rejects_inconsistent_snapshot_dates(self) -> None:
+        data = csv_fixture().replace(b"31.07.2026;123456789;ADIDAS", b"30.07.2026;123456789;ADIDAS")
+        with self.assertRaisesRegex(ValueError, "mehrere unterschiedliche Stichtage"):
+            parse_dkb_portfolio_csv(data)
 
     def test_parses_portfolio_performance_relative_security_reference(self) -> None:
         data = b"""
@@ -137,12 +168,37 @@ class PortfolioParserTests(unittest.TestCase):
         self.assertIn("portfolio.setup", ids)
         self.assertIn("portfolio.import.pp", ids)
         self.assertIn("portfolio.import.pp.confirm", ids)
+        self.assertIn("portfolio.import.csv", ids)
+        self.assertIn("portfolio.import.csv.nextcloud", ids)
+        self.assertIn("portfolio.import.csv.confirm", ids)
+        self.assertIn("portfolio.import.csv.nextcloud.confirm", ids)
         self.assertIn("portfolio.quotes.refresh", ids)
         self.assertIn("portfolio.analyze", ids)
         self.assertIn("portfolio.job.on", ids)
         job = next(item for item in default_job_specs() if item.name == "portfolio")
         self.assertFalse(job.default_on)
         self.assertEqual(job.health_command[-2:], ("portfolio", "doctor"))
+
+    def test_cli_accepts_local_and_nextcloud_csv_sources(self) -> None:
+        local = cli_parser().parse_args(
+            ["portfolio", "import-csv", "--file", "snapshot.csv", "--dry-run"]
+        )
+        self.assertEqual(local.file, "snapshot.csv")
+        self.assertTrue(local.dry_run)
+        remote = cli_parser().parse_args(
+            [
+                "portfolio",
+                "import-csv",
+                "--nextcloud-path",
+                "Assistent/Finanzen/Portfolio/snapshot-31.07.2026.csv",
+                "--yes",
+            ]
+        )
+        self.assertEqual(
+            remote.nextcloud_path,
+            "Assistent/Finanzen/Portfolio/snapshot-31.07.2026.csv",
+        )
+        self.assertTrue(remote.yes)
 
     def test_setup_requires_explicit_permission(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
@@ -191,6 +247,8 @@ class PortfolioServiceTests(unittest.TestCase):
         self.inbox.mkdir()
         self.xml = self.inbox / "depot.xml"
         self.xml.write_bytes(xml_fixture())
+        self.csv = self.inbox / "depot-export-31.07.2026.csv"
+        self.csv.write_bytes(csv_fixture())
         self.clock = MutableClock(datetime(2026, 7, 29, 10, 0, tzinfo=timezone.utc))
         self.notifications: list[str] = []
         self.price = Decimal("100")
@@ -243,6 +301,17 @@ class PortfolioServiceTests(unittest.TestCase):
         holdings = self.service.holdings()
         self.assertEqual(holdings["count"], 1)
         self.assertEqual(holdings["positions"][0]["shares"], "12.5")
+
+    def test_dkb_csv_import_is_previewed_and_idempotent(self) -> None:
+        preview = self.service.import_csv(self.csv.name, dry_run=True)
+        self.assertTrue(preview["dry_run"])
+        self.assertEqual(preview["source_type"], "dkb-depot-csv")
+        self.assertEqual(preview["as_of"], "2026-07-31")
+        imported = self.service.import_csv(self.csv.name, dry_run=False)
+        self.assertFalse(imported["duplicate"])
+        duplicate = self.service.import_csv(self.csv.name, dry_run=False)
+        self.assertTrue(duplicate["duplicate"])
+        self.assertEqual(self.service.holdings()["count"], 2)
 
     def test_import_cannot_escape_controlled_root(self) -> None:
         outside = Path(self.temporary.name) / "outside.xml"
@@ -319,6 +388,109 @@ class PortfolioServiceTests(unittest.TestCase):
         self.assertEqual(result["status"], "insufficient_data")
         self.assertEqual(result["sample_size"], 0)
         self.assertIsNone(result["forward_returns"])
+
+
+class PortfolioNextcloudCsvTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temporary = tempfile.TemporaryDirectory()
+        root = Path(self.temporary.name)
+        self.inbox = root / "inbox"
+        self.inbox.mkdir()
+        self.portfolio = PortfolioService(
+            PortfolioToolSettings(
+                enabled=True,
+                database=root / "portfolio.sqlite3",
+                import_root=self.inbox,
+                nextcloud_folder="Assistent/Finanzen/Portfolio",
+                provider="twelve-data",
+            ),
+            CleanAntivirus(),  # type: ignore[arg-type]
+        )
+        remote_path = "Assistent/Finanzen/Portfolio/depot-export-31.07.2026.csv"
+        entry = RemoteFile(
+            href="/remote/depot.csv",
+            path=remote_path,
+            name="depot-export-31.07.2026.csv",
+            is_collection=False,
+            content_type="text/csv",
+            size=len(csv_fixture()),
+            etag="etag-1",
+            modified_at="Fri, 31 Jul 2026 10:00:00 GMT",
+        )
+
+        class FakeFiles:
+            clean_path = staticmethod(NextcloudFiles.clean_path)
+
+            def __init__(self):
+                self.expected_etags = []
+
+            def list_folder(self, path):
+                return [entry]
+
+            def download(self, path, *, expected_etag=""):
+                self.expected_etags.append(expected_etag)
+                return csv_fixture()
+
+        class FakeStorage:
+            def __init__(self):
+                self.events = []
+
+            def audit(self, event, detail, **kwargs):
+                self.events.append((event, detail, kwargs))
+
+        assistant = object.__new__(PersonalAssistant)
+        assistant.portfolio = self.portfolio
+        assistant.nextcloud_files = FakeFiles()
+        assistant.policy = SimpleNamespace(
+            decide=lambda *args, **kwargs: PolicyDecision(True, False, "allowed")
+        )
+        assistant.storage = FakeStorage()
+        assistant.tool_settings = SimpleNamespace(
+            portfolio=self.portfolio.settings,
+            nextcloud=SimpleNamespace(
+                workspace=SimpleNamespace(enabled=True, resource_id="nextcloud-files-main")
+            ),
+        )
+        self.assistant = assistant
+        self.remote_path = remote_path
+
+    def tearDown(self) -> None:
+        self.portfolio.close()
+        self.temporary.cleanup()
+
+    def test_nextcloud_csv_is_downloaded_scanned_and_previewed(self) -> None:
+        result = self.assistant.portfolio_import_csv(
+            nextcloud_path=self.remote_path,
+            dry_run=True,
+        )
+        self.assertTrue(result["dry_run"])
+        self.assertEqual(result["nextcloud_path"], self.remote_path)
+        self.assertEqual(result["nextcloud_etag"], "etag-1")
+        self.assertEqual(self.assistant.nextcloud_files.expected_etags, ["etag-1"])
+        staged = list((self.inbox / ".nextcloud-staging").glob("*.csv"))
+        self.assertEqual(staged, [])
+
+    def test_nextcloud_filename_date_is_checked_before_productive_import(self) -> None:
+        wrong = self.remote_path.replace("31.07.2026", "30.07.2026")
+        self.assistant.nextcloud_files.list_folder = lambda path: [RemoteFile(
+            href="/remote/depot.csv", path=wrong, name=Path(wrong).name,
+            is_collection=False, content_type="text/csv", size=len(csv_fixture()),
+            etag="etag-2", modified_at="",
+        )]
+        with self.assertRaisesRegex(ValueError, "Stichtag"):
+            self.assistant.portfolio_import_csv(nextcloud_path=wrong, dry_run=False)
+        self.assertEqual(self.portfolio.holdings()["count"], 0)
+
+    def test_disabled_portfolio_does_not_access_nextcloud(self) -> None:
+        self.portfolio.settings.enabled = False
+        self.assistant.nextcloud_files.list_folder = lambda path: self.fail(
+            "Deaktiviertes Werkzeug darf Nextcloud nicht lesen"
+        )
+        with self.assertRaisesRegex(PermissionError, "nicht aktiviert"):
+            self.assistant.portfolio_import_csv(
+                nextcloud_path=self.remote_path,
+                dry_run=True,
+            )
 
 
 if __name__ == "__main__":

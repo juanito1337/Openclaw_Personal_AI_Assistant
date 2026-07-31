@@ -636,6 +636,10 @@ Use only the registered portfolio commands:
 ./scripts/assistant.sh portfolio doctor
 ./scripts/assistant.sh portfolio import-pp --file "<Datei>" --dry-run
 ./scripts/assistant.sh portfolio import-pp --file "<Datei>" --yes
+./scripts/assistant.sh portfolio import-csv --file "<DKB-CSV>" --dry-run
+./scripts/assistant.sh portfolio import-csv --file "<DKB-CSV>" --yes
+./scripts/assistant.sh portfolio import-csv --nextcloud-path "Assistent/Finanzen/Portfolio/<Datei-DD.MM.YYYY.csv>" --dry-run
+./scripts/assistant.sh portfolio import-csv --nextcloud-path "Assistent/Finanzen/Portfolio/<Datei-DD.MM.YYYY.csv>" --yes
 ./scripts/assistant.sh portfolio holdings
 ./scripts/assistant.sh portfolio watchlist list
 ./scripts/assistant.sh portfolio quotes status
@@ -650,9 +654,16 @@ Operational rules:
 - This is informational decision support. Never request or store DKB PIN/TAN
   credentials, scrape online banking, create/modify/cancel orders or claim that
   an indicator is individual investment advice.
-- Import only Portfolio Performance XML from the configured local import root.
-  Run `--dry-run` first. Productive import requires Jan's explicit instruction
-  and `--yes`. ClamAV is mandatory and fail-closed; DTD/entities are forbidden.
+- Import only Portfolio Performance XML or the strict DKB depot CSV schema. A
+  local source must be inside the configured import root. A Nextcloud CSV must
+  be selected by exact path directly below the configured portfolio folder;
+  list the folder first and never silently choose the first file.
+- Nextcloud portfolio snapshots use immutable dated filenames. The date in a
+  `DD.MM.YYYY` filename must match the single `Datum der Erstellung` value in
+  the CSV. Never overwrite an older snapshot or claim that general broker CSV
+  formats are supported.
+- Run `--dry-run` first. Productive import requires Jan's explicit instruction
+  and `--yes`. ClamAV is mandatory and fail-closed; XML DTD/entities are forbidden.
 - Imports are append-only snapshots and duplicate SHA-256 files are idempotent.
   Never delete or recreate the productive portfolio database as a repair.
 - Never guess a quote symbol from ISIN alone. Jan must confirm exact ISIN,

@@ -33,6 +33,7 @@ the API key nor enables the background job.
 enabled = true
 database = "personal_assistant/data/portfolio.sqlite3"
 import_root = "personal_assistant/data/portfolio_inbox"
+nextcloud_folder = "Assistent/Finanzen/Portfolio"
 provider = "twelve-data"
 api_key_env = "PORTFOLIO_MARKET_DATA_API_KEY"
 interval_minutes = 30 # only 15 or 30
@@ -65,6 +66,38 @@ The dry-run is mandatory before a productive import in the operating workflow.
 The source file is not modified. Reimporting the same SHA-256 is idempotent.
 DKB PDF parsing is not part of this milestone; Portfolio Performance is the
 structured intermediary.
+
+### DKB CSV and Nextcloud snapshots
+
+The DKB depot CSV export is supported as a strict snapshot format. It must be
+UTF-8 with a semicolon delimiter and contain the German columns
+`Datum der Erstellung`, `Depotnummer`, `Wertpapierbezeichnung`, `WKN`, `ISIN`,
+`Einstiegskurs`, `Bewertungskurs`, `Stückzahl` and `Assetklasse`. General broker
+CSV formats are rejected rather than guessed.
+
+Local preview and confirmed import:
+
+```bash
+./scripts/assistant.sh portfolio import-csv --file "depot-export-31.07.2026.csv" --dry-run
+./scripts/assistant.sh portfolio import-csv --file "depot-export-31.07.2026.csv" --yes
+```
+
+Versioned CSV snapshots may remain in the configured Nextcloud folder. List the
+folder first and select exactly one file; the tool downloads it to a protected
+temporary staging file, scans it with ClamAV, imports it and removes the staging
+copy. The download is pinned to the ETag returned by the folder listing, so a
+concurrently changed file fails closed. The file remains unchanged in Nextcloud.
+
+```bash
+./scripts/assistant.sh nextcloud list --path "Assistent/Finanzen/Portfolio"
+./scripts/assistant.sh portfolio import-csv \
+  --nextcloud-path "Assistent/Finanzen/Portfolio/depot-export-31.07.2026.csv" \
+  --dry-run
+```
+
+Nextcloud filenames are immutable and must contain `DD.MM.YYYY`; that date must
+match the one snapshot date inside the CSV. Productive import still requires a
+separate call with `--yes`. Existing snapshots are never overwritten.
 
 ## Instrument mapping and watchlist
 

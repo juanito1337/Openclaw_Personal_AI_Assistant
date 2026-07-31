@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import csv
 import hashlib
+import io
 import json
 import math
 import os
@@ -25,12 +27,23 @@ from .tool_settings import PortfolioToolSettings
 
 
 SCHEMA_VERSION = 1
-MAX_XML_BYTES = 25_000_000
+MAX_IMPORT_BYTES = 25_000_000
 ISIN_RE = re.compile(r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$")
 MIC_RE = re.compile(r"^[A-Z0-9]{4}$")
 PP_INDEX_RE = re.compile(r"security\[(\d+)\]")
 POSITIVE_TYPES = {"BUY", "DELIVERY_INBOUND", "TRANSFER_IN"}
 NEGATIVE_TYPES = {"SELL", "DELIVERY_OUTBOUND", "TRANSFER_OUT"}
+DKB_CSV_REQUIRED_HEADERS = (
+    "Datum der Erstellung",
+    "Depotnummer",
+    "Wertpapierbezeichnung",
+    "WKN",
+    "ISIN",
+    "Einstiegskurs",
+    "Bewertungskurs",
+    "Stückzahl",
+    "Assetklasse",
+)
 
 
 def _now() -> datetime:
@@ -321,7 +334,7 @@ class PortfolioStore:
 
 
 def parse_portfolio_performance_xml(data: bytes) -> dict[str, Any]:
-    if len(data) > MAX_XML_BYTES:
+    if len(data) > MAX_IMPORT_BYTES:
         raise ValueError("Portfolio-XML ist groesser als 25 MB")
     upper = data[:100_000].upper()
     if b"<!DOCTYPE" in upper or b"<!ENTITY" in upper:
@@ -484,6 +497,119 @@ def parse_portfolio_performance_xml(data: bytes) -> dict[str, Any]:
     }
 
 
+def _dkb_decimal(value: object, *, field: str) -> Decimal:
+    text = str(value or "").strip().replace("\u00a0", "").replace(" ", "")
+    if not text or text in {"-", "-,--"}:
+        raise ValueError(f"DKB-CSV: {field} fehlt")
+    normalized = text.replace(".", "").replace(",", ".")
+    try:
+        return Decimal(normalized)
+    except InvalidOperation as exc:
+        raise ValueError(f"DKB-CSV: {field} ist ungueltig: {text[:80]}") from exc
+
+
+def _dkb_currency(*values: object) -> str:
+    currencies: set[str] = set()
+    for value in values:
+        text = str(value or "").strip().upper().replace("\u00a0", " ")
+        if "€" in text or re.search(r"(?:^|\W)EUR(?:$|\W)", text):
+            currencies.add("EUR")
+        if "$" in text or re.search(r"(?:^|\W)USD(?:$|\W)", text):
+            currencies.add("USD")
+        if "£" in text or re.search(r"(?:^|\W)GBP(?:$|\W)", text):
+            currencies.add("GBP")
+        if re.search(r"(?:^|\W)CHF(?:$|\W)", text):
+            currencies.add("CHF")
+    if len(currencies) != 1:
+        raise ValueError("DKB-CSV: Waehrung fehlt oder ist widerspruechlich")
+    return next(iter(currencies))
+
+
+def parse_dkb_portfolio_csv(data: bytes) -> dict[str, Any]:
+    """Parse one strict DKB depot snapshot exported with German column names."""
+    if len(data) > MAX_IMPORT_BYTES:
+        raise ValueError("Portfolio-CSV ist groesser als 25 MB")
+    if b"\x00" in data:
+        raise ValueError("Portfolio-CSV enthaelt ungueltige Nullbytes")
+    try:
+        text = data.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise ValueError("DKB-CSV muss UTF-8-kodiert sein") from exc
+    reader = csv.DictReader(io.StringIO(text, newline=""), delimiter=";")
+    headers = tuple(str(value or "").strip() for value in (reader.fieldnames or []))
+    missing = [name for name in DKB_CSV_REQUIRED_HEADERS if name not in headers]
+    if missing:
+        raise ValueError("DKB-CSV: Pflichtspalten fehlen: " + ", ".join(missing))
+
+    instruments: dict[str, dict[str, str]] = {}
+    positions: dict[tuple[str, str], Decimal] = {}
+    snapshot_date = ""
+    rows = 0
+    for row_number, row in enumerate(reader, start=2):
+        if not any(str(value or "").strip() for value in row.values()):
+            continue
+        rows += 1
+        if rows > 10_000:
+            raise ValueError("DKB-CSV enthaelt mehr als 10000 Depotpositionen")
+        raw_date = str(row.get("Datum der Erstellung") or "").strip()
+        try:
+            parsed_date = datetime.strptime(raw_date, "%d.%m.%Y").date().isoformat()
+        except ValueError as exc:
+            raise ValueError(
+                f"DKB-CSV Zeile {row_number}: ungueltiges Erstellungsdatum"
+            ) from exc
+        if snapshot_date and parsed_date != snapshot_date:
+            raise ValueError("DKB-CSV enthaelt mehrere unterschiedliche Stichtage")
+        snapshot_date = parsed_date
+
+        account = str(row.get("Depotnummer") or "").strip()
+        if not account or len(account) > 100:
+            raise ValueError(f"DKB-CSV Zeile {row_number}: Depotnummer fehlt oder ist zu lang")
+        isin = str(row.get("ISIN") or "").strip().upper()
+        if not _valid_isin(isin):
+            raise ValueError(f"DKB-CSV Zeile {row_number}: ISIN ist ungueltig")
+        name = " ".join(str(row.get("Wertpapierbezeichnung") or "").split())
+        if not name or len(name) > 300:
+            raise ValueError(f"DKB-CSV Zeile {row_number}: Wertpapierbezeichnung fehlt")
+        wkn = str(row.get("WKN") or "").strip().upper()
+        if len(wkn) > 32:
+            raise ValueError(f"DKB-CSV Zeile {row_number}: WKN ist zu lang")
+        currency = _dkb_currency(row.get("Einstiegskurs"), row.get("Bewertungskurs"))
+        shares = _dkb_decimal(row.get("Stückzahl"), field=f"Stueckzahl in Zeile {row_number}")
+        if shares < 0:
+            raise ValueError(f"DKB-CSV Zeile {row_number}: negative Stueckzahl ist ungueltig")
+
+        instrument = {
+            "isin": isin,
+            "name": name,
+            "wkn": wkn,
+            "symbol": "",
+            "mic": "",
+            "currency": currency,
+        }
+        existing = instruments.get(isin)
+        if existing and any(
+            existing[key] != instrument[key] for key in ("name", "wkn", "currency")
+        ):
+            raise ValueError(f"DKB-CSV: widerspruechliche Stammdaten fuer ISIN {isin}")
+        instruments[isin] = instrument
+        key = (account, isin)
+        positions[key] = positions.get(key, Decimal("0")) + shares
+
+    if not rows:
+        raise ValueError("DKB-CSV enthaelt keine Depotpositionen")
+    return {
+        "source_type": "dkb-depot-csv",
+        "as_of": snapshot_date,
+        "instruments": [instruments[key] for key in sorted(instruments)],
+        "positions": [
+            {"account": account, "isin": isin, "shares": str(shares)}
+            for (account, isin), shares in sorted(positions.items())
+            if shares != 0
+        ],
+    }
+
+
 class PortfolioService:
     def __init__(
         self,
@@ -521,7 +647,15 @@ class PortfolioService:
             raise FileNotFoundError(path)
         return path
 
-    def import_pp(self, value: str | Path, *, dry_run: bool = True) -> dict[str, Any]:
+    def _import_snapshot(
+        self,
+        value: str | Path,
+        *,
+        parser: Callable[[bytes], dict[str, Any]],
+        dry_run: bool,
+        source_name: str = "",
+        expected_as_of: str = "",
+    ) -> dict[str, Any]:
         self._require_enabled()
         path = self._input_path(value)
         scan = self.antivirus.scan_path(path, source_type="portfolio-import")
@@ -531,12 +665,19 @@ class PortfolioService:
             )
         data = path.read_bytes()
         digest = hashlib.sha256(data).hexdigest()
-        parsed = parse_portfolio_performance_xml(data)
+        parsed = parser(data)
+        if expected_as_of and str(parsed.get("as_of") or "") != expected_as_of:
+            raise ValueError(
+                "Erwarteter Portfolio-Stichtag stimmt nicht mit dem Dateiinhalt ueberein"
+            )
+        display_name = str(source_name or path.name).strip()
+        if not display_name or len(display_name) > 255:
+            raise ValueError("Portfolio-Quelldateiname fehlt oder ist zu lang")
         result = {
             "ok": True,
             "dry_run": dry_run,
             "sha256": digest,
-            "source": path.name,
+            "source": display_name,
             "source_type": parsed["source_type"],
             "as_of": parsed["as_of"],
             "instruments": len(parsed["instruments"]),
@@ -579,7 +720,7 @@ class PortfolioService:
                 ) VALUES(?,?,?,?,?,?,?)
                 """,
                 (
-                    digest, parsed["source_type"], path.name, now, parsed["as_of"],
+                    digest, parsed["source_type"], display_name, now, parsed["as_of"],
                     len(parsed["instruments"]), len(parsed["positions"]),
                 ),
             )
@@ -593,6 +734,29 @@ class PortfolioService:
                     (import_id, item["account"], item["isin"], item["shares"], parsed["as_of"]),
                 )
         return {**result, "duplicate": False, "import_id": import_id}
+
+    def import_pp(self, value: str | Path, *, dry_run: bool = True) -> dict[str, Any]:
+        return self._import_snapshot(
+            value,
+            parser=parse_portfolio_performance_xml,
+            dry_run=dry_run,
+        )
+
+    def import_csv(
+        self,
+        value: str | Path,
+        *,
+        dry_run: bool = True,
+        source_name: str = "",
+        expected_as_of: str = "",
+    ) -> dict[str, Any]:
+        return self._import_snapshot(
+            value,
+            parser=parse_dkb_portfolio_csv,
+            dry_run=dry_run,
+            source_name=source_name,
+            expected_as_of=expected_as_of,
+        )
 
     def holdings(self) -> dict[str, Any]:
         latest = self.store.connection.execute(
@@ -960,6 +1124,7 @@ class PortfolioService:
             "enabled": self.settings.enabled,
             "database": str(self.store.path),
             "import_root": str(self.settings.import_root),
+            "nextcloud_folder": self.settings.nextcloud_folder,
             "provider": self.settings.provider,
             "interval_minutes": self.settings.interval_minutes,
             "stale_warning_minutes": self.settings.stale_warning_minutes,
