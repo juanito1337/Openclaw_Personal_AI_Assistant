@@ -483,7 +483,7 @@ def build_tool_registry(settings: ToolSettings) -> list[AgentTool]:
             ),
             AgentTool(
                 "mail.search",
-                "Mail-Metadaten ordneruebergreifend einschliesslich Review-Ordnern durchsuchen",
+                "Mails serverseitig in Absender, Betreff und Text ordneruebergreifend einschliesslich Review-Ordnern durchsuchen; Vollstaendigkeit und Ergebnislimit in der Rueckgabe pruefen",
                 './scripts/assistant.sh mail search --query "<Suchbegriff>" --limit 50',
                 "read",
             ),

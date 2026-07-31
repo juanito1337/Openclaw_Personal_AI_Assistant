@@ -144,6 +144,18 @@ replaced. Deletion and public sharing are not registered.
 ./scripts/assistant.sh invoices review --limit 100
 ```
 
+`mail search` searches server-side across every readable IMAP folder, including
+review folders. Every whitespace-separated query term must match somewhere in
+the sender, subject or text body; the result limit is applied after server-side
+filtering, so old mail is not hidden by the normal listing page size.
+
+Inspect `complete`, `folder_errors` and `results_may_be_truncated` in every search
+result. If `complete` is false, identify the failed folders and describe the
+result as partial; never claim that a mail does not exist. If
+`results_may_be_truncated` is true, refine the query before concluding that a
+specific message is absent. Select a result only by its exact folder and mailbox
+ID before calling `mail read`.
+
 Invoice PDFs use native text first and OCR only as fallback. A reliable invoice
 date determines the year/month folder independently of optional metadata. The
 only productive register is the managed Nextcloud file

@@ -42,6 +42,9 @@ class AgentCapabilityExposureTests(unittest.TestCase):
             self.assertNotIn(claim, skill)
             self.assertNotIn(claim, agents)
         self.assertIn("Do not describe the calendar integration as create-only", agents)
+        self.assertIn("mail search` searches server-side", skill)
+        self.assertIn("`complete`, `folder_errors` and `results_may_be_truncated`", skill)
+        self.assertIn("Bei jedem Suchergebnis `complete`", agents)
 
     def test_registry_exposes_calendar_task_and_contact_read_update_tools(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

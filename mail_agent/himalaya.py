@@ -111,6 +111,47 @@ class HimalayaClient:
             ["envelope", "list", "--folder", folder, "--output", "json"],
             ["envelope", "list", "--folder", folder, "-o", "json"],
         ])
+        return self._parse_envelopes(result, limit=limit, folder=folder)
+
+    def search_envelopes(
+        self,
+        folder: str,
+        terms: list[str],
+        *,
+        limit: int = 50,
+    ) -> tuple[list[Envelope], str]:
+        """Search a complete folder through Himalaya's backend query API."""
+        clean_terms = [str(term).strip() for term in terms if str(term).strip()]
+        if not clean_terms:
+            return [], "Suchbegriff darf nicht leer sein"
+        page_size = max(1, min(int(limit), 200))
+        query: list[str] = []
+        for index, term in enumerate(clean_terms):
+            if index:
+                query.append("and")
+            query.extend([
+                "(", "(", "from", term, "or", "subject", term, ")",
+                "or", "body", term, ")",
+            ])
+        result = self._run_variants([
+            [
+                "envelope", "list", "--folder", folder, "--page-size", str(page_size),
+                "--output", "json", *query, "order", "by", "date", "desc",
+            ],
+            [
+                "envelope", "list", "--folder", folder, "--page-size", str(page_size),
+                "-o", "json", *query, "order", "by", "date", "desc",
+            ],
+        ])
+        return self._parse_envelopes(result, limit=page_size, folder=folder)
+
+    @staticmethod
+    def _parse_envelopes(
+        result: CommandResult,
+        *,
+        limit: int | None,
+        folder: str,
+    ) -> tuple[list[Envelope], str]:
         if not result.ok:
             return [], result.combined
         try:
@@ -125,9 +166,11 @@ class HimalayaClient:
         for item in payload[:limit] if limit else payload:
             if not isinstance(item, dict) or item.get("id") is None:
                 continue
-            sender = item.get("from") or {}
+            sender = item.get("from") or item.get("sender") or {}
             if isinstance(sender, list):
                 sender = sender[0] if sender else {}
+            if isinstance(sender, str):
+                sender = {"name": sender}
             if not isinstance(sender, dict):
                 sender = {}
             envelopes.append(Envelope(

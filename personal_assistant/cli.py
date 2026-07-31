@@ -308,7 +308,10 @@ def parser() -> argparse.ArgumentParser:
     mail_list = mail_sub.add_parser("list", help="Mail-Metadaten eines vorhandenen Ordners auflisten")
     mail_list.add_argument("--folder", required=True)
     mail_list.add_argument("--limit", type=int, default=50)
-    mail_search = mail_sub.add_parser("search", help="Mail-Metadaten ordneruebergreifend durchsuchen")
+    mail_search = mail_sub.add_parser(
+        "search",
+        help="Mails ordneruebergreifend serverseitig in Absender, Betreff und Text durchsuchen",
+    )
     mail_search.add_argument("--query", required=True)
     mail_search.add_argument("--limit", type=int, default=50)
     mail_read = mail_sub.add_parser("read", help="Eine eindeutig identifizierte Mail read-only lesen")

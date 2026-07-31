@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import tempfile
 from dataclasses import asdict
 from email.utils import parseaddr
@@ -78,12 +79,23 @@ class MailMoveService:
         return {"ok": True, "folder": resolved, "count": len(envelopes), "messages": [asdict(item) for item in envelopes]}
 
     def search_messages(self, query: str, *, limit: int = 50) -> dict[str, Any]:
-        """Search envelope metadata in every readable IMAP folder, including review folders."""
+        """Search every readable IMAP folder, including review folders."""
         if not self.settings.enabled:
             raise PermissionError("Direktes Mail-Lesewerkzeug ist deaktiviert")
-        needle = str(query or "").strip().casefold()
-        if not needle:
+        clean_query = " ".join(str(query or "").split())
+        if not clean_query:
             raise ValueError("Suchbegriff darf nicht leer sein")
+        terms: list[str] = []
+        seen_terms: set[str] = set()
+        for term in re.findall(r"[\w@.+-]+", clean_query, flags=re.UNICODE):
+            folded = term.casefold()
+            if folded and folded not in seen_terms:
+                terms.append(term)
+                seen_terms.add(folded)
+        if not terms:
+            raise ValueError("Suchbegriff enthaelt keine durchsuchbaren Zeichen")
+        if len(terms) > 12:
+            raise ValueError("Mail-Suche akzeptiert hoechstens 12 eindeutige Suchwoerter")
         decision = self.policy.decide(self.settings.resource_id, "mail.read", {"query": query})
         if not decision.allowed:
             raise PermissionError(decision.reason)
@@ -91,27 +103,44 @@ class MailMoveService:
         folders, error = client.list_folders()
         if error:
             raise RuntimeError(error)
+        if not folders:
+            raise RuntimeError("Mail-Suche hat keine lesbaren IMAP-Ordner gefunden")
         matches: list[dict[str, Any]] = []
         errors: list[dict[str, str]] = []
+        limited_folders: list[str] = []
         per_folder = max(1, min(200, int(limit)))
         for folder in folders:
-            envelopes, error = client.list_envelopes(folder, limit=per_folder)
+            envelopes, error = client.search_envelopes(folder, terms, limit=per_folder)
             if error:
                 errors.append({"folder": folder, "error": error})
                 continue
+            if len(envelopes) >= per_folder:
+                limited_folders.append(folder)
             for envelope in envelopes:
-                haystack = "\n".join((
-                    envelope.subject, envelope.sender_name, envelope.sender_addr,
-                    envelope.date, envelope.received_at,
-                )).casefold()
-                if needle in haystack:
-                    item = asdict(envelope)
-                    item["folder"] = folder
-                    matches.append(item)
+                item = asdict(envelope)
+                item["folder"] = folder
+                matches.append(item)
+        if folders and len(errors) == len(folders):
+            raise RuntimeError(
+                "Mail-Suche ist in allen Ordnern fehlgeschlagen: "
+                + "; ".join(f"{item['folder']}: {item['error']}" for item in errors)
+            )
         matches.sort(key=lambda item: str(item.get("received_at") or item.get("date") or ""), reverse=True)
+        selected = matches[:per_folder]
         return {
-            "ok": True, "query": query, "count": min(len(matches), per_folder),
-            "messages": matches[:per_folder], "folder_errors": errors,
+            "ok": True,
+            "complete": not errors,
+            "query": query,
+            "query_terms": terms,
+            "count": len(selected),
+            "messages": selected,
+            "result_limit": per_folder,
+            "results_may_be_truncated": bool(limited_folders or len(matches) > per_folder),
+            "limited_folders": limited_folders,
+            "folder_errors": errors,
+            "total_folders": len(folders),
+            "searched_folders": len(folders) - len(errors),
+            "failed_folders": len(errors),
         }
 
     def read_message(

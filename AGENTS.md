@@ -587,7 +587,8 @@ Der Agent darf nach expliziter Einrichtung einzelne, eindeutig per Mail-ID ausge
 
 ## Read-only Review-Mail und genehmigter Antwortversand
 
-- Fuer eine ordneruebergreifende Suche einschliesslich `Agent/Pruefen` und `Agent/Termin-Pruefen` `mail search` verwenden.
+- Fuer eine ordneruebergreifende Suche einschliesslich `Agent/Pruefen` und `Agent/Termin-Pruefen` `mail search` verwenden. Die Suche laeuft serverseitig ueber Absender, Betreff und Textinhalt; das Trefferlimit darf erst nach dem Suchfilter greifen.
+- Bei jedem Suchergebnis `complete`, `folder_errors` und `results_may_be_truncated` auswerten. Bei `complete=false` nur von einer Teilsuche sprechen und die fehlgeschlagenen Ordner nennen. Bei moeglicher Limitierung die Anfrage verfeinern. In beiden Faellen niemals behaupten, eine Mail existiere nicht.
 - Eine Mail erst mit Ordner, aktueller Mail-ID und nach Moeglichkeit `--expected-subject` eindeutig auswaehlen; den Inhalt danach mit `mail read` read-only lesen.
 - Mails aus Review-, Termin-Review- und Virusverdacht-Ordnern duerfen durch das direkte Agentenwerkzeug nicht verschoben werden.
 - Antworten immer zuerst mit `mail reply-draft` als vollstaendigen Entwurf praesentieren. Das Anlegen eines Entwurfs versendet nichts.

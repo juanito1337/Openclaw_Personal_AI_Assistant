@@ -5,6 +5,8 @@ from dataclasses import asdict
 from pathlib import Path
 from types import SimpleNamespace
 
+from mail_agent.command import CommandResult
+from mail_agent.himalaya import HimalayaClient
 from mail_agent.models import Envelope, OperationResult
 from personal_assistant.mail_move import MailMoveService
 from personal_assistant.models import Resource
@@ -23,12 +25,28 @@ class FakeClient:
             "Agent/Pruefen": [Envelope("77", "Treffen TA", "Dirk Jätzel", "dj@ib-jaetzel.de", "2026-07-28")],
             "INBOX": [],
         }
+        self.search_results = {
+            ("Agent/Pruefen", ("jätzel",)): [
+                Envelope("77", "Treffen TA", "Dirk Jätzel", "dj@ib-jaetzel.de", "2026-07-28")
+            ],
+            ("Archiv", ("jörn", "arp")): [
+                Envelope("12", "Alte Nachricht", "Jörn Arp", "joern@example.de", "2024-01-02")
+            ],
+        }
+        self.search_calls = []
+        self.search_errors = set()
         self.templates = []
         self.config = SimpleNamespace(
             mailbox=SimpleNamespace(from_header="Jan <jan@example.de>")
         )
     def list_folders(self): return self.folders, ""
     def list_envelopes(self, folder, limit=None): return list(self.messages.get(folder, []))[:limit], ""
+    def search_envelopes(self, folder, terms, limit=50):
+        self.search_calls.append((folder, tuple(terms), limit))
+        if folder in self.search_errors:
+            return [], f"search failed: {folder}"
+        lookup = (folder, tuple(term.casefold() for term in terms))
+        return list(self.search_results.get(lookup, []))[:limit], ""
     def move_message(self, source, destination, message_id):
         msg = next((x for x in self.messages[source] if x.mailbox_id == message_id), None)
         if not msg: return OperationResult(False, "move-failed", "missing")
@@ -48,6 +66,24 @@ class FakeClient:
         return OperationResult(True, "sent")
 
 
+class FakeRunner:
+    def __init__(self):
+        self.commands = []
+
+    def run(self, command):
+        self.commands.append(command)
+        return CommandResult(
+            list(command),
+            0,
+            (
+                '[{"id":"12","subject":"Alte Nachricht",'
+                '"from":{"name":"Jörn Arp","addr":"joern@example.de"},'
+                '"date":"2024-01-02"}]'
+            ),
+            "",
+        )
+
+
 def build(tmp):
     registry = ResourceRegistry(tmp/'resources.toml')
     registry.resources['mail-agent'] = Resource(
@@ -62,11 +98,46 @@ def build(tmp):
 
 def main():
     with tempfile.TemporaryDirectory() as td:
+        runner = FakeRunner()
+        config = SimpleNamespace(mailbox=SimpleNamespace(
+            himalaya_binary="himalaya", account="", page_size=2,
+        ))
+        himalaya = HimalayaClient(config, runner)
+        searched, error = himalaya.search_envelopes("Archiv", ["Jörn", "Arp"], limit=50)
+        assert not error and searched[0].mailbox_id == "12"
+        command = runner.commands[0]
+        assert command[:2] == ["himalaya", "envelope"]
+        assert command[command.index("--page-size") + 1] == "50"
+        assert "Jörn" in command and "Arp" in command and "body" in command
+        assert command[-4:] == ["order", "by", "date", "desc"]
+
         service, storage = build(Path(td))
         listed = service.list_messages('Archiv', limit=10)
         assert listed['messages'][0]['mailbox_id'] == '42'
         found = service.search_messages('Jätzel', limit=10)
         assert found['messages'][0]['folder'] == 'Agent/Pruefen'
+        old = service.search_messages('JÖRN Arp', limit=10)
+        assert old['messages'][0]['mailbox_id'] == '12'
+        assert old['messages'][0]['folder'] == 'Archiv'
+        assert old['complete'] and old['searched_folders'] == len(service._client_override.folders)
+        assert not old['results_may_be_truncated']
+        assert ('Archiv', ('JÖRN', 'Arp'), 10) in service._client_override.search_calls
+        service._client_override.search_errors.add('Trash')
+        partial = service.search_messages('Jätzel', limit=10)
+        assert not partial['complete'] and partial['failed_folders'] == 1
+        assert partial['folder_errors'][0]['folder'] == 'Trash'
+        service._client_override.search_errors.clear()
+        service._client_override.search_results[('INBOX', ('limit',))] = [
+            Envelope('90', 'Limit A', 'A', 'a@example.de', '2026-07-30'),
+            Envelope('91', 'Limit B', 'B', 'b@example.de', '2026-07-29'),
+        ]
+        limited = service.search_messages('limit', limit=2)
+        assert limited['results_may_be_truncated'] and limited['limited_folders'] == ['INBOX']
+        try:
+            service.search_messages('eins zwei drei vier fünf sechs sieben acht neun zehn elf zwölf dreizehn')
+            raise AssertionError('More than twelve search terms must be rejected')
+        except ValueError:
+            pass
         read = service.read('Agent/Pruefen', '77', expected_subject='Treffen TA')
         assert 'Donnerstag' in read['message']['body_text']
         draft = service.draft_reply(
@@ -125,12 +196,16 @@ def main():
             pass
         ts=ToolSettings(path=Path(td)/'tools.toml')
         ts.mail.move.enabled=True
-        ids={x.id for x in build_tool_registry(ts)}
+        registry_tools = build_tool_registry(ts)
+        ids={x.id for x in registry_tools}
         assert {
             'mail.move-status','mail.list','mail.search','mail.read',
             'mail.reply-draft','mail.reply-send',
             'mail.compose-draft','mail.compose-send','mail.move',
         } <= ids
+        search_tool = next(x for x in registry_tools if x.id == 'mail.search')
+        assert 'serverseitig' in search_tool.description
+        assert 'Vollstaendigkeit' in search_tool.description
         assert any(x.action_type=='mail.move' and x.status=='completed' for x in storage.list_actions(limit=20))
         storage2.close()
         storage.close()

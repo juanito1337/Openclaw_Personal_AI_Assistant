@@ -161,13 +161,19 @@ Creating a contact directly or from a selected mail remains create-only:
 ./scripts/assistant.sh contacts from-mail --folder "INBOX" --message-id "<Mail-ID>" --expected-subject "<Betreff>" --yes
 ```
 
-Mail can be searched across all IMAP folders, including the read-only review
-folders, and then read by exact folder and mailbox ID:
+Mail is searched server-side across all IMAP folders, including the read-only
+review folders. Sender, subject and text body participate in the search, so older
+mail is not hidden by the normal listing page size. A result is then read by exact
+folder and mailbox ID:
 
 ```bash
 ./scripts/assistant.sh mail search --query "dj@ib-jaetzel.de" --limit 50
 ./scripts/assistant.sh mail read --folder "Agent/Pruefen" --message-id "<Mail-ID>" --expected-subject "Treffen TA"
 ```
+
+Check `complete`, `folder_errors` and `results_may_be_truncated` before claiming
+that no message exists. Partial or limited results require a narrower follow-up
+search.
 
 Replies use a mandatory two-step approval flow. `reply-draft` only stores and
 prints the complete recipient, subject and body. `reply-send` accepts only that
