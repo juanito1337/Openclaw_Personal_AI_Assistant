@@ -60,10 +60,14 @@ Portfolio monitor:
 
 ```bash
 ./scripts/assistant.sh portfolio status
-./scripts/assistant.sh setup portfolio --provider twelve-data --interval-minutes 30 --approve-permissions
+./scripts/assistant.sh setup portfolio --provider eodhd --interval-minutes 15 --approve-permissions
 ./scripts/assistant.sh portfolio doctor
 ./scripts/assistant.sh portfolio import-pp --file "depot.xml" --dry-run
 ./scripts/assistant.sh portfolio import-pp --file "depot.xml" --yes
+./scripts/assistant.sh portfolio import-csv --file "depot-export-DD.MM.YYYY.csv" --dry-run
+./scripts/assistant.sh portfolio import-csv --file "depot-export-DD.MM.YYYY.csv" --yes
+./scripts/assistant.sh portfolio import-csv --nextcloud-path "Assistent/Finanzen/Portfolio/depot-export-DD.MM.YYYY.csv" --dry-run
+./scripts/assistant.sh portfolio import-csv --nextcloud-path "Assistent/Finanzen/Portfolio/depot-export-DD.MM.YYYY.csv" --yes
 ./scripts/assistant.sh portfolio holdings
 ./scripts/assistant.sh portfolio watchlist list
 ./scripts/assistant.sh portfolio watchlist add --isin "<ISIN>" --name "<Name>" --symbol "<Symbol>" --mic "<MIC>" --currency EUR --yes

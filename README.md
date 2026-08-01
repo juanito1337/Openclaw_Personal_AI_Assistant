@@ -1,6 +1,13 @@
-# OpenClaw 3.4.0-r27.0.1
+# OpenClaw 3.4.0-r27.1
 
-R27.0.1 is the cumulative container release with migration and runtime fixes. Program code and dependencies live in an immutable image, while productive state, configuration and secrets remain under `/srv/openclaw`. Every deployment stops the writers, creates and verifies a local restore point, runs a bounded product smoke test and automatically returns to the previous image and local data on failure. Optional administrator hooks can additionally snapshot remote IMAP and Nextcloud data. See `docs/DOCKER_DEPLOYMENT.md`.
+R27.1 is the cumulative container release with unified EODHD Live/Delayed
+portfolio quotes for confirmed US and Xetra instruments. Program code and
+dependencies live in an immutable image, while productive state, configuration
+and secrets remain under `/srv/openclaw`. Every deployment stops the writers,
+creates and verifies a local restore point, runs a bounded product smoke test
+and automatically returns to the previous image and local data on failure.
+Optional administrator hooks can additionally snapshot remote IMAP and
+Nextcloud data. See `docs/DOCKER_DEPLOYMENT.md`.
 
 For rapid live iteration, every pushed `test/**` branch builds a commit-addressed
 GHCR image. On the Docker host, `./docker/scripts/live-test-branch.sh` deploys
@@ -18,7 +25,7 @@ Quick start after Docker is installed:
 ```bash
 sudo ./docker/scripts/setup-host.sh
 /srv/openclaw/deployment/scripts/migrate-live.sh --execute
-/srv/openclaw/deployment/scripts/deploy.sh r27.0.1
+/srv/openclaw/deployment/scripts/deploy.sh r27.1
 ```
 
 ## Portfolio monitor test milestone
@@ -27,8 +34,10 @@ The optional portfolio subsystem imports ClamAV-scanned Portfolio Performance
 XML and strict DKB depot CSV snapshots from the controlled local inbox or an
 exact dated file in `Assistent/Finanzen/Portfolio/`. It never guesses arbitrary
 broker CSV layouts. It monitors confirmed ISIN/symbol/MIC mappings every 15 or
-30 minutes, analyzes stored numeric series and raises deduplicated course-mark
-events. Missing or critically stale held-position quotes block fresh analysis
+30 minutes through bounded EODHD Live/Delayed batch requests, analyzes stored
+numeric series and raises deduplicated course-mark events. EODHD stock quotes
+are normally delayed by about 15–20 minutes and are never labeled exchange-real-time.
+Missing or critically stale held-position quotes block fresh analysis
 and feed the existing job and monitoring health path. Broker login and order
 execution are not implemented. See `docs/PORTFOLIO_ADVISOR.md`.
 
@@ -93,7 +102,7 @@ The agent now has registered Ollama and performance commands, and automatic mail
 recovery stops the timer/service and waits for the real process lock before its
 safety dry-run. See `docs/JOB_CONTROL.md` and `docs/OLLAMA_PRIORITY.md`.
 
-# Local Personal Assistant 3.4.0-r27.0.1
+# Local Personal Assistant 3.4.0-r27.1
 
 ## R26.4 agent capability exposure fix
 

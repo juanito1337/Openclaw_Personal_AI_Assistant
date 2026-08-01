@@ -13,15 +13,15 @@ from personal_assistant.cli import parser as cli_parser
 from personal_assistant.connectors.nextcloud.files import NextcloudFiles, RemoteFile
 from personal_assistant.models import PolicyDecision
 from personal_assistant.portfolio import (
+    EodhdClient,
     PortfolioService,
     Quote,
-    TwelveDataClient,
     parse_dkb_portfolio_csv,
     parse_portfolio_performance_xml,
 )
 from personal_assistant.service import PersonalAssistant
 from personal_assistant.tool_settings import PortfolioToolSettings
-from personal_assistant.tool_settings import ToolSettings
+from personal_assistant.tool_settings import ToolSettings, load_tool_settings
 from personal_assistant.tool_registry import build_tool_registry
 from personal_assistant.job_control import default_job_specs
 from personal_assistant.tool_setup import configure_portfolio_tools
@@ -209,8 +209,35 @@ class PortfolioParserTests(unittest.TestCase):
                     path=Path(folder) / "tools.toml",
                 )
 
+    def test_setup_selects_eodhd_secret_and_fifteen_minute_interval(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            result = configure_portfolio_tools(
+                enable=True,
+                provider="eodhd",
+                interval_minutes=15,
+                approve_permissions=True,
+                path=Path(folder) / "tools.toml",
+            )
+        self.assertEqual(result["portfolio"]["provider"], "eodhd")
+        self.assertEqual(result["api_key_env"], "PORTFOLIO_EODHD_API_KEY")
+        self.assertEqual(result["portfolio"]["interval_minutes"], 15)
+
+    def test_legacy_twelve_data_config_migrates_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "tools.toml"
+            path.write_text(
+                "[portfolio]\n"
+                "enabled = true\n"
+                'provider = "twelve-data"\n'
+                'api_key_env = "PORTFOLIO_MARKET_DATA_API_KEY"\n',
+                encoding="utf-8",
+            )
+            settings = load_tool_settings(path)
+        self.assertEqual(settings.portfolio.provider, "disabled")
+        self.assertEqual(settings.portfolio.api_key_env, "PORTFOLIO_EODHD_API_KEY")
+
     @patch("personal_assistant.portfolio.urllib.request.urlopen")
-    def test_provider_uses_intraday_interval_and_keeps_key_out_of_url(self, urlopen) -> None:
+    def test_eodhd_provider_batches_symbols_and_parses_delayed_quotes(self, urlopen) -> None:
         class Response:
             def __enter__(self):
                 return self
@@ -221,22 +248,34 @@ class PortfolioParserTests(unittest.TestCase):
             def read(self, limit):
                 self.limit = limit
                 return (
-                    b'{"symbol":"BAS","mic_code":"XETR","currency":"EUR",'
-                    b'"timestamp":1785320100,"open":"45","high":"47","low":"44",'
-                    b'"close":"46","volume":"1234"}'
+                    b'[{"code":"BAS.XETRA","timestamp":1785320100,"open":45,'
+                    b'"high":47,"low":44,"close":46,"volume":1234},'
+                    b'{"code":"TSLA.US","timestamp":1785320100,"open":300,'
+                    b'"high":310,"low":295,"close":305,"volume":4321}]'
                 )
 
         urlopen.return_value = Response()
-        quote = TwelveDataClient(
-            "top-secret", interval_minutes=15
-        ).fetch({"symbol": "BAS", "mic": "XETR", "currency": "EUR"})
+        quotes = EodhdClient("top-secret").fetch_many([
+            {"isin": ISIN, "symbol": "BAS", "mic": "XETR", "currency": "EUR"},
+            {
+                "isin": "US88160R1014", "symbol": "TSLA", "mic": "XNGS",
+                "currency": "USD",
+            },
+        ])
         request = urlopen.call_args.args[0]
-        self.assertIn("interval=15min", request.full_url)
-        self.assertIn("timezone=UTC", request.full_url)
-        self.assertNotIn("top-secret", request.full_url)
-        self.assertEqual(request.headers["Authorization"], "apikey top-secret")
-        self.assertEqual(quote.price, Decimal("46"))
-        self.assertEqual(quote.volume, Decimal("1234"))
+        self.assertIn("/BAS.XETRA?", request.full_url)
+        self.assertIn("s=TSLA.US", request.full_url)
+        self.assertIn("fmt=json", request.full_url)
+        self.assertEqual(quotes[ISIN].price, Decimal("46"))
+        self.assertEqual(quotes[ISIN].volume, Decimal("1234"))
+        self.assertEqual(quotes["US88160R1014"].currency, "USD")
+
+    def test_eodhd_errors_never_expose_api_key(self) -> None:
+        error = EodhdClient("top-secret")._provider_error(
+            b'{"message":"invalid top-secret"}', "fallback top-secret"
+        )
+        self.assertNotIn("top-secret", str(error))
+        self.assertIn("<redacted>", str(error))
 
 
 class PortfolioServiceTests(unittest.TestCase):
@@ -270,7 +309,7 @@ class PortfolioServiceTests(unittest.TestCase):
                 enabled=True,
                 database=root / "portfolio.sqlite3",
                 import_root=self.inbox,
-                provider="twelve-data",
+                provider="eodhd",
                 interval_minutes=30,
                 stale_warning_minutes=45,
                 stale_critical_minutes=90,
@@ -402,7 +441,7 @@ class PortfolioNextcloudCsvTests(unittest.TestCase):
                 database=root / "portfolio.sqlite3",
                 import_root=self.inbox,
                 nextcloud_folder="Assistent/Finanzen/Portfolio",
-                provider="twelve-data",
+                provider="eodhd",
             ),
             CleanAntivirus(),  # type: ignore[arg-type]
         )

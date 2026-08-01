@@ -76,6 +76,16 @@
 - Container-Smoke-Tests pruefen die registrierten Faehigkeiten und den
   Compose-CLI-Einstieg, ohne eine Mail zu versenden.
 
+## 3.4.0-r27.1 – Einheitliche EODHD-Depotkurse fuer US und Xetra
+
+- EODHD ersetzt Twelve Data als einzigen Portfolio-Marktdatenanbieter und liefert US- sowie Xetra-Werte ueber denselben kontrollierten Live/Delayed-Endpunkt.
+- Bis zu 20 bestaetigte Instrumente werden in einer begrenzten EODHD-Anfrage gebuendelt; RHM/XETR wird sicher zu RHM.XETRA und bestaetigte US-MICs werden zu `.US` uebersetzt.
+- Der EODHD-Schluessel liegt getrennt als `PORTFOLIO_EODHD_API_KEY` im Host-Secrets-Verzeichnis; URL, Token und verkettete HTTP-Fehler werden aus Ausgaben und Tracebacks ferngehalten.
+- Alte Twelve-Data-Konfiguration wird nach dem Update fail-closed deaktiviert und niemals stillschweigend mit einem anderen Anbieter oder alten Secret weiterverwendet.
+- Kursfrische wird je Instrument anhand der Xetra- beziehungsweise US-Handelszeit bewertet; gespeicherte historische Kurse und Depot-Snapshots bleiben erhalten.
+- Portfolio-Setup, Tool-Registry, Skill, Befehlsreferenz und Betriebsvertrag beschreiben EODHD, 15-Minuten-Abruf und die typische 15- bis 20-minuetige Kursverzoegerung konsistent.
+- Regressionstests pruefen EODHD-Batchantworten, Secret-Redaktion, sichere Legacy-Deaktivierung und die vollstaendige Agenten-Exposition.
+
 ## 3.4.0-r27.0.1 – Container-Migrations- und Betriebsfixes
 
 - Die Container-Migration schreibt aktive absolute Workspace-Pfade in openclaw.json sowie den produktiven TOML-Konfigurationen sicher von der nativen Home-Struktur auf /home/node/.openclaw/workspace um.

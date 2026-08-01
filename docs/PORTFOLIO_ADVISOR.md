@@ -22,7 +22,7 @@ The release defaults keep the tool and job off. Instance configuration belongs i
 
 ```bash
 ./scripts/assistant.sh setup portfolio \
-  --provider twelve-data --interval-minutes 30 --approve-permissions
+  --provider eodhd --interval-minutes 15 --approve-permissions
 ```
 
 This creates the controlled import directory and configuration but neither stores
@@ -34,9 +34,9 @@ enabled = true
 database = "personal_assistant/data/portfolio.sqlite3"
 import_root = "personal_assistant/data/portfolio_inbox"
 nextcloud_folder = "Assistent/Finanzen/Portfolio"
-provider = "twelve-data"
-api_key_env = "PORTFOLIO_MARKET_DATA_API_KEY"
-interval_minutes = 30 # only 15 or 30
+provider = "eodhd"
+api_key_env = "PORTFOLIO_EODHD_API_KEY"
+interval_minutes = 15 # only 15 or 30
 stale_warning_minutes = 45
 stale_critical_minutes = 90
 timezone = "Europe/Berlin"
@@ -44,11 +44,18 @@ market_open = "08:00"
 market_close = "22:00"
 ```
 
-Store `PORTFOLIO_MARKET_DATA_API_KEY` only in the host's OpenClaw secrets
-directory, never in Git, `tools.toml`, command output or logs. The initial
-provider adapter uses the fixed HTTPS Twelve Data endpoint. Polling frequency and
-provider-side exchange delay are separate: every quote stores both source time
-and local receipt time.
+Store `PORTFOLIO_EODHD_API_KEY` only in the host's OpenClaw secrets directory,
+never in Git, `tools.toml`, command output or logs. The adapter uses only the
+fixed EODHD Live/Delayed HTTPS endpoint. EODHD requires its token as a query
+parameter, so request URLs are never logged and provider failures redact the
+token. Polling frequency and provider-side exchange delay are separate: every
+quote stores both source time and local receipt time.
+
+The adapter translates confirmed MIC mappings to EODHD symbols. Registered US
+MICs use `.US`; Xetra uses `.XETRA`. Unknown MICs fail closed. Up to 20 mapped
+instruments are fetched in one bounded request. EODHD stock snapshots are
+normally delayed by about 15–20 minutes and must not be described as
+exchange-real-time quotes.
 
 ## Depot import
 

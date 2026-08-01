@@ -30,6 +30,13 @@ SCHEMA_VERSION = 1
 MAX_IMPORT_BYTES = 25_000_000
 ISIN_RE = re.compile(r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$")
 MIC_RE = re.compile(r"^[A-Z0-9]{4}$")
+EODHD_EXCHANGE_BY_MIC = {
+    "XETR": "XETRA",
+    "XNAS": "US",
+    "XNGS": "US",
+    "XNYS": "US",
+}
+EODHD_BATCH_LIMIT = 20
 PP_INDEX_RE = re.compile(r"security\[(\d+)\]")
 POSITIVE_TYPES = {"BUY", "DELIVERY_INBOUND", "TRANSFER_IN"}
 NEGATIVE_TYPES = {"SELL", "DELIVERY_OUTBOUND", "TRANSFER_OUT"}
@@ -112,7 +119,7 @@ class Quote:
     price: Decimal
     currency: str
     observed_at: str
-    provider: str = "twelve-data"
+    provider: str = "eodhd"
     open: Decimal | None = None
     high: Decimal | None = None
     low: Decimal | None = None
@@ -143,71 +150,109 @@ def _notify_openclaw(text: str) -> dict[str, Any]:
         return {"attempted": True, "ok": False, "detail": str(exc)}
 
 
-class TwelveDataClient:
-    endpoint = "https://api.twelvedata.com/quote"
+class EodhdClient:
+    endpoint = "https://eodhd.com/api/real-time"
 
-    def __init__(self, api_key: str, *, timeout: int = 20, interval_minutes: int = 30) -> None:
+    def __init__(self, api_key: str, *, timeout: int = 20) -> None:
         self.api_key = api_key
         self.timeout = timeout
-        self.interval_minutes = interval_minutes
 
-    def fetch(self, instrument: dict[str, str]) -> Quote:
-        params = {
-            "symbol": instrument["symbol"],
-            "interval": f"{self.interval_minutes}min",
-            "timezone": "UTC",
-        }
-        if instrument.get("mic"):
-            params["mic_code"] = instrument["mic"]
-        url = self.endpoint + "?" + urllib.parse.urlencode(params)
-        request = urllib.request.Request(
-            url,
-            headers={
-                "User-Agent": "OpenClaw-Portfolio/1",
-                "Authorization": f"apikey {self.api_key}",
-            },
-        )
+    @staticmethod
+    def ticker(instrument: dict[str, str]) -> str:
+        symbol = str(instrument.get("symbol") or "").strip().upper()
+        mic = str(instrument.get("mic") or "").strip().upper()
+        if not symbol:
+            raise ValueError("EODHD-Zuordnung enthaelt kein Symbol")
+        exchange = EODHD_EXCHANGE_BY_MIC.get(mic)
+        if not exchange:
+            raise ValueError(f"EODHD-Boersencode fuer MIC {mic or '<leer>'} ist nicht registriert")
+        return f"{symbol}.{exchange}"
+
+    def _provider_error(self, raw: bytes, fallback: str) -> RuntimeError:
+        detail = ""
+        try:
+            payload = json.loads(raw.decode("utf-8"))
+            if isinstance(payload, dict):
+                detail = str(payload.get("message") or payload.get("error") or "")
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            detail = ""
+        safe = (detail or fallback).replace(self.api_key, "<redacted>")[:300]
+        return RuntimeError(f"EODHD-Marktdatenfehler: {safe}")
+
+    def fetch_many(self, instruments: list[dict[str, str]]) -> dict[str, Quote]:
+        if not instruments:
+            return {}
+        if len(instruments) > EODHD_BATCH_LIMIT:
+            raise ValueError(f"EODHD-Batch darf hoechstens {EODHD_BATCH_LIMIT} Symbole enthalten")
+        ticker_to_item: dict[str, dict[str, str]] = {}
+        for item in instruments:
+            ticker = self.ticker(item)
+            if ticker in ticker_to_item:
+                raise ValueError(f"Doppelte EODHD-Zuordnung im Batch: {ticker}")
+            ticker_to_item[ticker] = item
+        tickers = list(ticker_to_item)
+        params = {"fmt": "json", "api_token": self.api_key}
+        if len(tickers) > 1:
+            params["s"] = ",".join(tickers[1:])
+        url = f"{self.endpoint}/{urllib.parse.quote(tickers[0], safe='')}?" + urllib.parse.urlencode(params)
+        request = urllib.request.Request(url, headers={"User-Agent": "OpenClaw-Portfolio/1"})
         try:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:
-                raw = response.read(1_000_000)
-        except (urllib.error.URLError, TimeoutError, OSError) as exc:
-            raise RuntimeError(f"Marktdatenanbieter nicht erreichbar: {exc}") from exc
+                raw = response.read(2_000_000)
+        except urllib.error.HTTPError as exc:
+            try:
+                raw = exc.read(64_000)
+            except OSError:
+                raw = b""
+            # HTTPError carries the full request URL, including EODHD's required
+            # query token. Suppress exception chaining so tracebacks cannot leak it.
+            raise self._provider_error(raw, f"HTTP {exc.code}") from None
+        except urllib.error.URLError as exc:
+            reason = str(getattr(exc, "reason", "Verbindung fehlgeschlagen"))
+            raise self._provider_error(b"", reason) from None
+        except (TimeoutError, OSError) as exc:
+            raise self._provider_error(b"", type(exc).__name__) from None
         try:
             payload = json.loads(raw.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise RuntimeError("Marktdatenanbieter lieferte kein gueltiges JSON") from exc
-        if str(payload.get("status") or "").casefold() == "error":
-            code = str(payload.get("code") or "provider-error")
-            message = str(payload.get("message") or "unbekannter Anbieterfehler")
-            raise RuntimeError(f"Marktdatenanbieter {code}: {message[:300]}")
-        price_text = payload.get("close") or payload.get("price")
-        if not price_text:
-            raise RuntimeError("Marktdatenantwort enthaelt keinen Kurs")
-        observed = str(
-            payload.get("last_quote_at")
-            or payload.get("timestamp")
-            or payload.get("datetime")
-            or _iso()
-        )
-        if observed.isdigit():
-            observed = _iso(datetime.fromtimestamp(int(observed), timezone.utc))
-        elif _parse_time(observed) is None:
-            observed = _iso()
-        return Quote(
-            symbol=instrument["symbol"],
-            price=_decimal(price_text),
-            currency=str(payload.get("currency") or instrument.get("currency") or "").upper(),
-            observed_at=observed,
-            open=_decimal(payload["open"]) if payload.get("open") not in {None, ""} else None,
-            high=_decimal(payload["high"]) if payload.get("high") not in {None, ""} else None,
-            low=_decimal(payload["low"]) if payload.get("low") not in {None, ""} else None,
-            volume=_decimal(payload["volume"]) if payload.get("volume") not in {None, ""} else None,
-            market_open=(
-                bool(payload["is_market_open"])
-                if isinstance(payload.get("is_market_open"), bool)
-                else None
-            ),
-        )
+            raise RuntimeError("EODHD lieferte kein gueltiges JSON") from exc
+        if isinstance(payload, dict) and (
+            isinstance(payload.get("code"), int)
+            or str(payload.get("status") or "").casefold() == "error"
+        ):
+            raise self._provider_error(raw, "Anbieterfehler")
+        rows = payload if isinstance(payload, list) else [payload]
+        quotes: dict[str, Quote] = {}
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            code = str(row.get("code") or "").strip().upper()
+            item = ticker_to_item.get(code)
+            if item is None:
+                continue
+            price_text = row.get("close")
+            timestamp = row.get("timestamp")
+            if price_text in {None, ""} or not str(timestamp or "").isdigit():
+                continue
+            observed = _iso(datetime.fromtimestamp(int(timestamp), timezone.utc))
+            quotes[str(item["isin"])] = Quote(
+                symbol=str(item["symbol"]),
+                price=_decimal(price_text),
+                currency=str(item.get("currency") or "").upper(),
+                observed_at=observed,
+                provider="eodhd",
+                open=_decimal(row["open"]) if row.get("open") not in {None, ""} else None,
+                high=_decimal(row["high"]) if row.get("high") not in {None, ""} else None,
+                low=_decimal(row["low"]) if row.get("low") not in {None, ""} else None,
+                volume=_decimal(row["volume"]) if row.get("volume") not in {None, ""} else None,
+            )
+        return quotes
+
+    def fetch(self, instrument: dict[str, str]) -> Quote:
+        quote = self.fetch_many([instrument]).get(str(instrument.get("isin") or ""))
+        if quote is None:
+            raise RuntimeError(f"EODHD lieferte keinen Kurs fuer {self.ticker(instrument)}")
+        return quote
 
 
 class PortfolioStore:
@@ -870,21 +915,44 @@ class PortfolioService:
         ).fetchall()
         return [{**dict(row), "held": row["isin"] in held} for row in rows]
 
-    def _fetcher(self) -> QuoteFetcher:
+    def _fetch_quotes(
+        self, items: list[dict[str, Any]]
+    ) -> tuple[dict[str, Quote], dict[str, str]]:
         if self._quote_fetcher is not None:
-            return self._quote_fetcher
-        if self.settings.provider != "twelve-data":
-            raise RuntimeError("Kein Marktdatenanbieter konfiguriert")
+            quotes: dict[str, Quote] = {}
+            errors: dict[str, str] = {}
+            for item in items:
+                try:
+                    quotes[str(item["isin"])] = self._quote_fetcher(item)
+                except Exception as exc:
+                    errors[str(item["isin"])] = str(exc)[:500]
+            return quotes, errors
+        if self.settings.provider != "eodhd":
+            raise RuntimeError("Kein EODHD-Marktdatenanbieter konfiguriert")
         api_key = os.environ.get(self.settings.api_key_env, "").strip()
         if not api_key:
             raise RuntimeError(
                 f"API-Schluessel fehlt in Umgebungsvariable {self.settings.api_key_env}"
             )
-        return TwelveDataClient(
-            api_key,
-            timeout=self.settings.request_timeout_seconds,
-            interval_minutes=self.settings.interval_minutes,
-        ).fetch
+        client = EodhdClient(api_key, timeout=self.settings.request_timeout_seconds)
+        quotes: dict[str, Quote] = {}
+        errors: dict[str, str] = {}
+        valid_items: list[dict[str, Any]] = []
+        for item in items:
+            try:
+                client.ticker(item)
+                valid_items.append(item)
+            except ValueError as exc:
+                errors[str(item["isin"])] = str(exc)[:500]
+        for offset in range(0, len(valid_items), EODHD_BATCH_LIMIT):
+            chunk = valid_items[offset : offset + EODHD_BATCH_LIMIT]
+            try:
+                quotes.update(client.fetch_many(chunk))
+            except Exception as exc:
+                safe = str(exc).replace(api_key, "<redacted>")[:500]
+                for item in chunk:
+                    errors[str(item["isin"])] = safe
+        return quotes, errors
 
     def refresh_quotes(self, *, force: bool = False) -> dict[str, Any]:
         self._require_enabled()
@@ -917,14 +985,36 @@ class PortfolioService:
         warnings: list[dict[str, str]] = []
         triggered_events: list[dict[str, Any]] = []
         held_missing = 0
-        fetch = self._fetcher() if targets else None
+        eligible: list[dict[str, Any]] = []
         for item in targets:
             if not item["mapping_confirmed"] or not item["symbol"] or not item["mic"]:
                 failures.append({"isin": item["isin"], "error": "Symbol/MIC-Zuordnung nicht bestaetigt"})
                 held_missing += int(item["held"])
+            else:
+                eligible.append(item)
+        quotes: dict[str, Quote] = {}
+        fetch_errors: dict[str, str] = {}
+        if eligible:
+            try:
+                quotes, fetch_errors = self._fetch_quotes(eligible)
+            except Exception as exc:
+                error = str(exc)[:500]
+                fetch_errors = {str(item["isin"]): error for item in eligible}
+        for item in eligible:
+            isin = str(item["isin"])
+            if isin in fetch_errors:
+                failures.append({"isin": isin, "error": fetch_errors[isin]})
+                held_missing += int(item["held"])
+                continue
+            quote = quotes.get(isin)
+            if quote is None:
+                failures.append({
+                    "isin": isin,
+                    "error": f"EODHD lieferte keinen Kurs fuer {item['symbol']}/{item['mic']}",
+                })
+                held_missing += int(item["held"])
                 continue
             try:
-                quote = fetch(item)  # type: ignore[misc]
                 if quote.price <= 0 or not math.isfinite(float(quote.price)):
                     raise ValueError("Kurs ist nicht positiv oder nicht endlich")
                 if (
@@ -943,12 +1033,12 @@ class PortfolioService:
                 if source_age < -300:
                     raise ValueError("Quellzeitstempel liegt unplausibel in der Zukunft")
                 if (
-                    (quote.market_open if quote.market_open is not None else self._market_open(received_at))
+                    (quote.market_open if quote.market_open is not None else self._instrument_market_open(item, received_at))
                     and source_age > self.settings.stale_critical_minutes * 60
                 ):
                     raise ValueError("Marktdatenquelle lieferte einen kritisch veralteten Kurs")
                 if (
-                    (quote.market_open if quote.market_open is not None else self._market_open(received_at))
+                    (quote.market_open if quote.market_open is not None else self._instrument_market_open(item, received_at))
                     and source_age > self.settings.stale_warning_minutes * 60
                 ):
                     warnings.append(
@@ -1035,6 +1125,16 @@ class PortfolioService:
         closing = clock_time.fromisoformat(self.settings.market_close)
         return opening <= local.time().replace(tzinfo=None) <= closing
 
+    def _instrument_market_open(self, item: dict[str, Any], now: datetime) -> bool:
+        mic = str(item.get("mic") or "").upper()
+        if mic == "XETR":
+            local = now.astimezone(ZoneInfo("Europe/Berlin"))
+            return local.weekday() < 5 and clock_time(9, 0) <= local.time().replace(tzinfo=None) <= clock_time(17, 30)
+        if mic in {"XNAS", "XNGS", "XNYS"}:
+            local = now.astimezone(ZoneInfo("America/New_York"))
+            return local.weekday() < 5 and clock_time(9, 30) <= local.time().replace(tzinfo=None) <= clock_time(16, 0)
+        return self._market_open(now)
+
     def health(self) -> dict[str, Any]:
         enabled = self.settings.enabled
         if not enabled:
@@ -1044,7 +1144,7 @@ class PortfolioService:
             }
         targets = self._targets()
         now = self._now()
-        market_open = self._market_open(now)
+        market_open = any(self._instrument_market_open(item, now) for item in targets)
         held_total = sum(int(item["held"]) for item in targets)
         held_fresh = 0
         held_stale = 0
@@ -1056,7 +1156,7 @@ class PortfolioService:
         for item in targets:
             row = self.store.connection.execute(
                 """
-                SELECT price,currency,observed_at,received_at,delay_seconds,market_open
+                SELECT price,currency,provider,observed_at,received_at,delay_seconds,market_open
                 FROM quotes WHERE isin=? ORDER BY observed_at DESC,id DESC LIMIT 1
                 """,
                 (item["isin"],),
@@ -1064,8 +1164,16 @@ class PortfolioService:
             observed = _parse_time(row["observed_at"]) if row else None
             age = int((now - observed).total_seconds()) if observed else None
             mapping_ok = bool(item["mapping_confirmed"] and item["symbol"] and item["mic"])
+            provider_symbol = None
+            mapping_error = None
+            if mapping_ok and self.settings.provider == "eodhd":
+                try:
+                    provider_symbol = EodhdClient.ticker(item)
+                except ValueError as exc:
+                    mapping_ok = False
+                    mapping_error = str(exc)
             provider_open = None if not row or row["market_open"] is None else bool(row["market_open"])
-            effective_open = market_open and provider_open is not False
+            effective_open = self._instrument_market_open(item, now) and provider_open is not False
             stale = bool(
                 not mapping_ok or (effective_open and (age is None or age > warning_seconds))
             )
@@ -1087,7 +1195,10 @@ class PortfolioService:
                     "observed_at": row["observed_at"] if row else None,
                     "age_seconds": age, "stale": stale, "critical": critical,
                     "mapping_confirmed": mapping_ok,
+                    "mapping_error": mapping_error,
                     "provider_market_open": provider_open,
+                    "quote_provider": row["provider"] if row else None,
+                    "provider_symbol": provider_symbol,
                 }
             )
         last_run = self.store.connection.execute(
@@ -1140,7 +1251,7 @@ class PortfolioService:
         configuration_ok = (
             not self.settings.enabled
             or (
-                self.settings.provider == "twelve-data"
+                self.settings.provider == "eodhd"
                 and key_present
                 and self.settings.import_root.is_dir()
             )

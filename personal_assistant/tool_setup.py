@@ -258,8 +258,8 @@ def _updated_settings(
 def configure_portfolio_tools(
     *,
     enable: bool = True,
-    provider: str = "twelve-data",
-    interval_minutes: int = 30,
+    provider: str = "eodhd",
+    interval_minutes: int = 15,
     stale_warning_minutes: int = 45,
     stale_critical_minutes: int = 90,
     approve_permissions: bool = False,
@@ -271,8 +271,8 @@ def configure_portfolio_tools(
             "Portfolio-Marktdatenzugriff benoetigt --approve-permissions"
         )
     provider = provider.strip().casefold()
-    if provider not in {"disabled", "twelve-data"}:
-        raise ValueError("Portfolio-Anbieter muss disabled oder twelve-data sein")
+    if provider not in {"disabled", "eodhd"}:
+        raise ValueError("Portfolio-Anbieter muss disabled oder eodhd sein")
     if interval_minutes not in {15, 30}:
         raise ValueError("Portfolio-Intervall muss 15 oder 30 Minuten sein")
     warning = max(interval_minutes, min(int(stale_warning_minutes), 1440))
@@ -285,7 +285,7 @@ def configure_portfolio_tools(
         import_root=existing.portfolio.import_root,
         nextcloud_folder=existing.portfolio.nextcloud_folder,
         provider=provider if enable else "disabled",
-        api_key_env=existing.portfolio.api_key_env,
+        api_key_env="PORTFOLIO_EODHD_API_KEY",
         interval_minutes=interval_minutes,
         stale_warning_minutes=warning,
         stale_critical_minutes=critical,

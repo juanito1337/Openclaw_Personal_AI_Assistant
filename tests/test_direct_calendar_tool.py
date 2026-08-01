@@ -149,7 +149,7 @@ class DirectCalendarToolTests(unittest.TestCase):
                     enabled=True,
                     database=Path(tmp) / "portfolio.sqlite3",
                     import_root=Path(tmp) / "portfolio_inbox",
-                    provider="twelve-data",
+                    provider="eodhd",
                     interval_minutes=15,
                 ),
             )
@@ -160,7 +160,7 @@ class DirectCalendarToolTests(unittest.TestCase):
             self.assertEqual(data["nextcloud"]["calendar"]["resource_id"], "cal-personal")
             self.assertTrue(data["security"]["antivirus"]["enabled"])
             self.assertTrue(data["portfolio"]["enabled"])
-            self.assertEqual(data["portfolio"]["provider"], "twelve-data")
+            self.assertEqual(data["portfolio"]["provider"], "eodhd")
             self.assertEqual(data["portfolio"]["interval_minutes"], 15)
 
 

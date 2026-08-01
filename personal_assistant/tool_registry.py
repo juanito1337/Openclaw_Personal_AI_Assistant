@@ -190,7 +190,7 @@ def build_tool_registry(settings: ToolSettings) -> list[AgentTool]:
         AgentTool(
             "portfolio.setup",
             "Portfolio-Monitor konfigurieren; API-Schluessel und Job bleiben getrennt",
-            './scripts/assistant.sh setup portfolio --provider twelve-data --interval-minutes 30 --approve-permissions',
+            './scripts/assistant.sh setup portfolio --provider eodhd --interval-minutes 15 --approve-permissions',
             "local-write",
             False,
             "explicit-user-permission-setup",
@@ -285,7 +285,7 @@ def build_tool_registry(settings: ToolSettings) -> list[AgentTool]:
         ),
         AgentTool(
             "portfolio.quotes.refresh",
-            "Faellige Kurse abrufen, Quellzeit und Empfangszeit speichern und Pflichtluecken fail-closed melden",
+            "Faellige EODHD-Live/Delayed-Kurse gebuendelt abrufen, Quellzeit und Empfangszeit speichern und Pflichtluecken fail-closed melden",
             './scripts/assistant.sh portfolio quotes refresh',
             "local-write",
             False,

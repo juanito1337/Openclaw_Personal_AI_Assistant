@@ -156,8 +156,8 @@ class PortfolioToolSettings:
     import_root: Path = DEFAULT_PORTFOLIO_INBOX
     nextcloud_folder: str = DEFAULT_PORTFOLIO_NEXTCLOUD_FOLDER
     provider: str = "disabled"
-    api_key_env: str = "PORTFOLIO_MARKET_DATA_API_KEY"
-    interval_minutes: int = 30
+    api_key_env: str = "PORTFOLIO_EODHD_API_KEY"
+    interval_minutes: int = 15
     stale_warning_minutes: int = 45
     stale_critical_minutes: int = 90
     request_timeout_seconds: int = 20
@@ -379,15 +379,21 @@ def load_tool_settings(
         timeout_seconds=max(5, min(int(antivirus_data.get("timeout_seconds", 120)), 1800)),
         temp_dir=_clean_outbox(antivirus_data.get("temp_dir") or DEFAULT_ANTIVIRUS_TEMP),
     )
-    interval_minutes = int(portfolio_data.get("interval_minutes", 30))
+    interval_minutes = int(portfolio_data.get("interval_minutes", 15))
     if interval_minutes not in {15, 30}:
         raise ValueError("tools.toml: portfolio.interval_minutes muss 15 oder 30 sein")
     provider = str(portfolio_data.get("provider") or "disabled").strip().casefold()
-    if provider not in {"disabled", "twelve-data"}:
-        raise ValueError("tools.toml: portfolio.provider muss disabled oder twelve-data sein")
+    if provider == "twelve-data":
+        # Safe migration from releases before the EODHD switch: do not silently
+        # send market-data requests with a different provider or credential.
+        provider = "disabled"
+    if provider not in {"disabled", "eodhd"}:
+        raise ValueError("tools.toml: portfolio.provider muss disabled oder eodhd sein")
     api_key_env = str(
-        portfolio_data.get("api_key_env") or "PORTFOLIO_MARKET_DATA_API_KEY"
+        portfolio_data.get("api_key_env") or "PORTFOLIO_EODHD_API_KEY"
     ).strip()
+    if api_key_env == "PORTFOLIO_MARKET_DATA_API_KEY":
+        api_key_env = "PORTFOLIO_EODHD_API_KEY"
     if not api_key_env or not api_key_env.replace("_", "").isalnum() or api_key_env[0].isdigit():
         raise ValueError("tools.toml: portfolio.api_key_env ist kein gueltiger Variablenname")
     portfolio = PortfolioToolSettings(

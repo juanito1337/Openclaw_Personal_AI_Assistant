@@ -107,8 +107,8 @@ def parser() -> argparse.ArgumentParser:
     portfolio_setup = setup_sub.add_parser(
         "portfolio", help="Lokalen Portfolio-Monitor und Marktdatenadapter einrichten"
     )
-    portfolio_setup.add_argument("--provider", default="twelve-data", choices=("twelve-data",))
-    portfolio_setup.add_argument("--interval-minutes", type=int, default=30, choices=(15, 30))
+    portfolio_setup.add_argument("--provider", default="eodhd", choices=("eodhd",))
+    portfolio_setup.add_argument("--interval-minutes", type=int, default=15, choices=(15, 30))
     portfolio_setup.add_argument("--stale-warning-minutes", type=int, default=45)
     portfolio_setup.add_argument("--stale-critical-minutes", type=int, default=90)
     portfolio_setup.add_argument("--disable", action="store_true")

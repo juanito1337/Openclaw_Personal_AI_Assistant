@@ -15,7 +15,7 @@
 
 ## Installed release identity
 
-- Installed package release: **3.4.0-r27.0.1**.
+- Installed package release: **3.4.0-r27.1**.
 - The authoritative runtime source is `RELEASE.json`, never conversational memory,
   an archive filename, an old session, or README alone.
 - Before answering any question about the installed version, update contents,
@@ -647,7 +647,7 @@ Use only the registered portfolio commands:
 ./scripts/assistant.sh portfolio analyze --isin "<ISIN>"
 ./scripts/assistant.sh portfolio alerts list
 ./scripts/assistant.sh portfolio performance
-./scripts/assistant.sh setup portfolio --provider twelve-data --interval-minutes 30 --approve-permissions
+./scripts/assistant.sh setup portfolio --provider eodhd --interval-minutes 15 --approve-permissions
 ```
 
 Operational rules:
@@ -669,6 +669,15 @@ Operational rules:
   Never delete or recreate the productive portfolio database as a repair.
 - Never guess a quote symbol from ISIN alone. Jan must confirm exact ISIN,
   provider symbol, MIC and currency before `watchlist add --yes`.
+- EODHD is the sole market-data provider. Translate only registered MICs to the
+  confirmed EODHD ticker form (`RHM.XETRA`, US symbols with `.US`); unknown MICs
+  fail closed instead of falling back to another provider.
+- Use the EODHD Live/Delayed endpoint and batch at most 20 explicitly mapped
+  instruments per request. Stocks are normally delayed by about 15–20 minutes;
+  never describe them as exchange-real-time quotes.
+- The EODHD token belongs only in `PORTFOLIO_EODHD_API_KEY` under the host
+  secrets directory. Because the provider requires a query token, never log a
+  request URL or include it in an error. Redact the token from all failures.
 - Every quote stores source time, receipt time, provider and currency. Poll
   interval, provider delay and analysis bar count are distinct facts.
 - Missing, unmapped or critically stale quotes for held positions are failures.

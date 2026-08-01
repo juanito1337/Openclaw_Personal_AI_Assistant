@@ -1,7 +1,7 @@
 ---
 name: personal-assistant
-version: 3.4.0-r27.0.1
-description: Operate the local Personal Assistant and its registered tools. Use for status and diagnostics, cross-source search, mail triage, invoice archiving, Nextcloud files, CardDAV contacts, CalDAV calendars, VTODO tasks and the read-only portfolio monitor. The assistant can list and search contacts, calendar events and tasks; it can create new objects and, when allow_update is explicitly enabled for the selected collection, update exactly one existing object by UID with ETag/If-Match protection.
+version: 3.4.0-r27.1
+description: Operate the local Personal Assistant and its registered tools. Use for status and diagnostics, cross-source search, mail triage, invoice archiving, Nextcloud files, CardDAV contacts, CalDAV calendars, VTODO tasks and portfolio workflows, including ClamAV-checked Portfolio Performance XML and strict DKB depot CSV imports from the controlled local inbox or an exact Nextcloud path. The assistant can list and search contacts, calendar events and tasks; it can create new objects and, when allow_update is explicitly enabled for the selected collection, update exactly one existing object by UID with ETag/If-Match protection.
 ---
 
 # Personal Assistant
@@ -196,9 +196,11 @@ deadline or lease fails, run `scheduler doctor` and
 
 ```bash
 ./scripts/assistant.sh portfolio status
+./scripts/assistant.sh setup portfolio --provider eodhd --interval-minutes 15 --approve-permissions
 ./scripts/assistant.sh portfolio import-pp --file "<Datei>" --dry-run
 ./scripts/assistant.sh portfolio import-csv --file "<DKB-CSV>" --dry-run
 ./scripts/assistant.sh portfolio import-csv --nextcloud-path "Assistent/Finanzen/Portfolio/<Datei-DD.MM.YYYY.csv>" --dry-run
+./scripts/assistant.sh portfolio import-csv --nextcloud-path "Assistent/Finanzen/Portfolio/<Datei-DD.MM.YYYY.csv>" --yes
 ./scripts/assistant.sh portfolio holdings
 ./scripts/assistant.sh portfolio quotes status
 ./scripts/assistant.sh portfolio analyze --isin "<ISIN>"
@@ -206,8 +208,10 @@ deadline or lease fails, run `scheduler doctor` and
 ./scripts/assistant.sh portfolio performance
 ```
 
-Import Portfolio Performance XML only from the configured local portfolio inbox.
-For CSV, accept only the strict DKB depot export schema. A Nextcloud CSV must be
+Do not claim that CSV import is unavailable or propose manually reading a DKB
+depot CSV before checking `portfolio status` and the registered `import-csv`
+tools. Import Portfolio Performance XML only from the configured local portfolio
+inbox. For CSV, accept only the strict DKB depot export schema. A Nextcloud CSV must be
 an exact, dated file directly below the configured portfolio folder; list that
 folder first, and require the filename date to match the CSV snapshot date.
 Never overwrite an older Nextcloud snapshot or describe arbitrary broker CSV as
@@ -216,6 +220,11 @@ approved `--yes` import. Never
 guess ISIN-to-symbol/MIC mapping; Jan must confirm it. A missing or critically
 stale held-position quote blocks fresh analysis and must be diagnosed with
 `portfolio doctor` plus `jobs check --target all --deep`.
+
+EODHD is the only quote provider. It uses confirmed EODHD forms such as
+`RHM.XETRA` and `TSLA.US`, batches at most 20 mapped instruments and normally
+returns stock prices delayed by about 15–20 minutes. Never call these prices
+exchange-real-time, fall back to Twelve Data or expose `PORTFOLIO_EODHD_API_KEY`.
 
 Portfolio outputs are informational. Never access DKB credentials, scrape the
 broker, execute orders or turn deterministic SMA/RSI values into an invented

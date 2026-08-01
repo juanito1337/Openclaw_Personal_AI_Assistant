@@ -20,7 +20,7 @@ class AgentCapabilityExposureTests(unittest.TestCase):
         skill = (root / "skills/personal-assistant/SKILL.md").read_text(encoding="utf-8")
         agents = (root / "AGENTS.md").read_text(encoding="utf-8")
 
-        self.assertIn("version: 3.4.0-r27.0.1", skill)
+        self.assertIn("version: 3.4.0-r27.1", skill)
         for command in (
             "calendar list --limit 100",
             "calendar search --query",
@@ -47,6 +47,17 @@ class AgentCapabilityExposureTests(unittest.TestCase):
         self.assertIn("mail search` searches server-side", skill)
         self.assertIn("`complete`, `folder_errors` and `results_may_be_truncated`", skill)
         self.assertIn("Bei jedem Suchergebnis `complete`", agents)
+        self.assertIn("Do not claim that CSV import is unavailable", skill)
+        self.assertNotIn("read-only portfolio monitor", skill)
+
+        commands = (root / "skills/personal-assistant/references/commands.md").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("portfolio import-csv --file", commands)
+        self.assertIn("portfolio import-csv --nextcloud-path", commands)
+        self.assertIn("setup portfolio --provider eodhd --interval-minutes 15", commands)
+        self.assertNotIn("--provider twelve-data", skill)
+        self.assertIn("15–20 minutes", skill)
 
     def test_registry_exposes_calendar_task_and_contact_read_update_tools(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

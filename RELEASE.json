@@ -1,24 +1,37 @@
 {
   "schema_version": 1,
   "product": "OpenClaw Local Personal Assistant",
-  "version": "3.4.0-r27.0.1",
-  "release": "r27.0.1",
-  "title": "Container-Migrations- und Betriebsfixes",
-  "released_at": "2026-07-28",
+  "version": "3.4.0-r27.1",
+  "release": "r27.1",
+  "title": "Einheitliche EODHD-Depotkurse fuer US und Xetra",
+  "released_at": "2026-08-01",
   "installed_at": null,
-  "previous_version": "3.4.0-r27.0",
+  "previous_version": "3.4.0-r27.0.1",
   "installation_id": null,
   "changes": [
-    "Die Container-Migration schreibt aktive absolute Workspace-Pfade in openclaw.json sowie den produktiven TOML-Konfigurationen sicher von der nativen Home-Struktur auf /home/node/.openclaw/workspace um.",
-    "Himalaya-Zugangsdaten werden bei einer Live-Migration aus secret-tool in geschuetzte Dateien unter /srv/openclaw/secrets uebernommen; der Container liest sie anschliessend ohne Desktop-Keyring.",
-    "Oeffentliche lokale CA-Zertifikate unter /srv/openclaw/config/ca werden beim Containerstart automatisch mit dem System-Truststore zu einem Laufzeit-Bundle fuer Python, Requests und Node.js kombiniert.",
-    "Der ClamAV-Updater besitzt einen eigenen Healthcheck fuer main-, daily- und bytecode-Signaturen und erbt nicht mehr versehentlich den Gateway-Port-Check.",
-    "Eine fehlende Mail-Agent-Nextcloud-Sektion wird nur bei vollstaendig vorhandenen Nextcloud-Zugangsdaten automatisch und idempotent ergaenzt.",
-    "calendar create wird in Tool-Registry, Skill und Dokumentation ausdruecklich ohne --yes beschrieben; ein Regressionstest verhindert die erneute Erzeugung des ungueltigen Schalters.",
-    "refresh-deployment.sh aktualisiert Compose- und Deployment-Skripte aus einem Git-Checkout, ohne die produktive .env oder aktive lokale Hooks zu ueberschreiben.",
-    "Die GHCR-Standardreferenz, Docker-only-Ausgangswerte und die fuer diese eingeschraenkte Nextcloud-Installation optionale externe Hook-Pflicht wurden an den produktiven Betrieb angepasst."
+    "EODHD ersetzt Twelve Data als einzigen Portfolio-Marktdatenanbieter und liefert US- sowie Xetra-Werte ueber denselben kontrollierten Live/Delayed-Endpunkt.",
+    "Bis zu 20 bestaetigte Instrumente werden in einer begrenzten EODHD-Anfrage gebuendelt; RHM/XETR wird sicher zu RHM.XETRA und bestaetigte US-MICs werden zu .US uebersetzt.",
+    "Der EODHD-Schluessel liegt getrennt als PORTFOLIO_EODHD_API_KEY im Host-Secrets-Verzeichnis; URL, Token und verkettete HTTP-Fehler werden aus Ausgaben und Tracebacks ferngehalten.",
+    "Alte Twelve-Data-Konfiguration wird nach dem Update fail-closed deaktiviert und niemals stillschweigend mit einem anderen Anbieter oder alten Secret weiterverwendet.",
+    "Kursfrische wird je Instrument anhand der Xetra- beziehungsweise US-Handelszeit bewertet; gespeicherte historische Kurse und Depot-Snapshots bleiben erhalten.",
+    "Portfolio-Setup, Tool-Registry, Skill, Befehlsreferenz und Betriebsvertrag beschreiben EODHD, 15-Minuten-Abruf und die typische 15- bis 20-minuetige Kursverzoegerung konsistent.",
+    "Regressionstests pruefen EODHD-Batchantworten, Secret-Redaktion, sichere Legacy-Deaktivierung und die vollstaendige Agenten-Exposition."
   ],
   "history": [
+    {
+      "version": "3.4.0-r27.1",
+      "released_at": "2026-08-01",
+      "title": "Einheitliche EODHD-Depotkurse fuer US und Xetra",
+      "changes": [
+        "EODHD ersetzt Twelve Data als einzigen Portfolio-Marktdatenanbieter und liefert US- sowie Xetra-Werte ueber denselben kontrollierten Live/Delayed-Endpunkt.",
+        "Bis zu 20 bestaetigte Instrumente werden in einer begrenzten EODHD-Anfrage gebuendelt; RHM/XETR wird sicher zu RHM.XETRA und bestaetigte US-MICs werden zu .US uebersetzt.",
+        "Der EODHD-Schluessel liegt getrennt als PORTFOLIO_EODHD_API_KEY im Host-Secrets-Verzeichnis; URL, Token und verkettete HTTP-Fehler werden aus Ausgaben und Tracebacks ferngehalten.",
+        "Alte Twelve-Data-Konfiguration wird nach dem Update fail-closed deaktiviert und niemals stillschweigend mit einem anderen Anbieter oder alten Secret weiterverwendet.",
+        "Kursfrische wird je Instrument anhand der Xetra- beziehungsweise US-Handelszeit bewertet; gespeicherte historische Kurse und Depot-Snapshots bleiben erhalten.",
+        "Portfolio-Setup, Tool-Registry, Skill, Befehlsreferenz und Betriebsvertrag beschreiben EODHD, 15-Minuten-Abruf und die typische 15- bis 20-minuetige Kursverzoegerung konsistent.",
+        "Regressionstests pruefen EODHD-Batchantworten, Secret-Redaktion, sichere Legacy-Deaktivierung und die vollstaendige Agenten-Exposition."
+      ]
+    },
     {
       "version": "3.4.0-r27.0.1",
       "released_at": "2026-07-28",

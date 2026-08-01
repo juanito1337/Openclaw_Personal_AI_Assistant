@@ -15,15 +15,15 @@ class ReleaseAwarenessTests(unittest.TestCase):
     def test_installed_package_manifest_is_consistent(self) -> None:
         report = release_report(verify=True, include_history=True, limit=20)
         self.assertTrue(report["ok"], report)
-        self.assertEqual(report["version"], "3.4.0-r27.0.1")
-        self.assertEqual(report["history"][0]["version"], "3.4.0-r27.0.1")
+        self.assertEqual(report["version"], "3.4.0-r27.1")
+        self.assertEqual(report["history"][0]["version"], "3.4.0-r27.1")
 
     def test_history_since_r18_lists_only_newer_releases(self) -> None:
         report = release_report(include_history=True, since="3.4.0-r18", limit=21)
         versions = [item["version"] for item in report["history"]]
         self.assertEqual(
             versions,
-            ['3.4.0-r27.0.1', '3.4.0-r27.0', '3.4.0-r26.4', '3.4.0-r26.3', '3.4.0-r26.2', '3.4.0-r26.1', '3.4.0-r26', '3.4.0-r25', '3.4.0-r24', '3.4.0-r23.4', '3.4.0-r23.3', '3.4.0-r23.2', '3.4.0-r23.1', '3.4.0-r23', '3.4.0-r22.4', '3.4.0-r22.3', '3.4.0-r22.2', '3.4.0-r22.1', '3.4.0-r22', '3.4.0-r21', '3.4.0-r20.2'],
+            ['3.4.0-r27.1', '3.4.0-r27.0.1', '3.4.0-r27.0', '3.4.0-r26.4', '3.4.0-r26.3', '3.4.0-r26.2', '3.4.0-r26.1', '3.4.0-r26', '3.4.0-r25', '3.4.0-r24', '3.4.0-r23.4', '3.4.0-r23.3', '3.4.0-r23.2', '3.4.0-r23.1', '3.4.0-r23', '3.4.0-r22.4', '3.4.0-r22.3', '3.4.0-r22.2', '3.4.0-r22.1', '3.4.0-r22', '3.4.0-r21'],
         )
         self.assertTrue(report["since_found"])
 
