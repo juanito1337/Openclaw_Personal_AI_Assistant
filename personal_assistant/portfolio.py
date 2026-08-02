@@ -26,7 +26,7 @@ from .antivirus import HostAntivirus
 from .tool_settings import PortfolioToolSettings
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 MAX_IMPORT_BYTES = 25_000_000
 ISIN_RE = re.compile(r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$")
 MIC_RE = re.compile(r"^[A-Z0-9]{4}$")
@@ -302,6 +302,7 @@ class PortfolioStore:
                 absolute_gain TEXT NOT NULL DEFAULT '',
                 relative_gain_percent TEXT NOT NULL DEFAULT '',
                 asset_class TEXT NOT NULL DEFAULT '',
+                snapshot_currency TEXT NOT NULL DEFAULT '',
                 PRIMARY KEY(import_id, account, isin)
             );
             CREATE TABLE IF NOT EXISTS watchlist (
@@ -383,6 +384,7 @@ class PortfolioStore:
             "absolute_gain",
             "relative_gain_percent",
             "asset_class",
+            "snapshot_currency",
         ):
             if column not in position_columns:
                 self.connection.execute(
@@ -724,6 +726,7 @@ def parse_dkb_portfolio_csv(data: bytes) -> dict[str, Any]:
             "absolute_gain": absolute_gain,
             "relative_gain_percent": relative_gain,
             "asset_class": asset_class,
+            "snapshot_currency": currency,
         }
 
     if not rows:
@@ -825,6 +828,7 @@ class PortfolioService:
         ).fetchone()
         if existing:
             backfilled = 0
+            currency_backfilled = 0
             if parsed["source_type"] == "dkb-depot-csv":
                 with self.store.connection:
                     for item in parsed["positions"]:
@@ -848,11 +852,26 @@ class PortfolioService:
                             ),
                         )
                         backfilled += max(0, int(cursor.rowcount))
+                        currency_cursor = self.store.connection.execute(
+                            """
+                            UPDATE position_snapshots SET snapshot_currency=?
+                            WHERE import_id=? AND account=? AND isin=?
+                              AND snapshot_currency=''
+                            """,
+                            (
+                                item.get("snapshot_currency", ""),
+                                int(existing["id"]),
+                                item["account"],
+                                item["isin"],
+                            ),
+                        )
+                        currency_backfilled += max(0, int(currency_cursor.rowcount))
             return {
                 **result,
                 "duplicate": True,
                 "import_id": int(existing["id"]),
                 "snapshot_metrics_backfilled": backfilled,
+                "snapshot_currency_backfilled": currency_backfilled,
             }
         now = _iso(self._now())
         with self.store.connection:
@@ -889,8 +908,9 @@ class PortfolioService:
                     """
                     INSERT INTO position_snapshots(
                         import_id,account,isin,shares,as_of,entry_price,
-                        valuation_price,absolute_gain,relative_gain_percent,asset_class
-                    ) VALUES(?,?,?,?,?,?,?,?,?,?)
+                        valuation_price,absolute_gain,relative_gain_percent,asset_class,
+                        snapshot_currency
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?)
                     """,
                     (
                         import_id,
@@ -903,6 +923,7 @@ class PortfolioService:
                         item.get("absolute_gain", ""),
                         item.get("relative_gain_percent", ""),
                         item.get("asset_class", ""),
+                        item.get("snapshot_currency", ""),
                     ),
                 )
         return {**result, "duplicate": False, "import_id": import_id}
@@ -940,7 +961,9 @@ class PortfolioService:
             """
             SELECT p.account,p.isin,p.shares,p.entry_price,p.valuation_price,
                    p.absolute_gain,p.relative_gain_percent,p.asset_class,
-                   i.name,i.wkn,i.symbol,i.mic,i.currency,i.mapping_confirmed
+                   COALESCE(NULLIF(p.snapshot_currency,''),i.currency) AS currency,
+                   i.currency AS quote_currency,
+                   i.name,i.wkn,i.symbol,i.mic,i.mapping_confirmed
             FROM position_snapshots p JOIN instruments i ON i.isin=p.isin
             WHERE p.import_id=? ORDER BY i.name,p.account
             """,

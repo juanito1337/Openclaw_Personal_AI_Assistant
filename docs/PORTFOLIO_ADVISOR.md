@@ -91,6 +91,9 @@ formats are rejected rather than guessed. The depot snapshot does not contain an
 individual purchase date; that absence does not make its entry price unavailable.
 Individual absolute or relative gain cells may be empty and remain explicitly
 unknown; they do not invalidate an otherwise complete position.
+`portfolio holdings` reports the snapshot value currency as `currency` and the
+market-data mapping currency separately as `quote_currency`. They must not be
+combined without an explicit, timestamped FX conversion.
 
 Local preview and confirmed import:
 

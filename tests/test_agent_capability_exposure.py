@@ -20,7 +20,7 @@ class AgentCapabilityExposureTests(unittest.TestCase):
         skill = (root / "skills/personal-assistant/SKILL.md").read_text(encoding="utf-8")
         agents = (root / "AGENTS.md").read_text(encoding="utf-8")
 
-        self.assertIn("version: 3.4.0-r27.2.1", skill)
+        self.assertIn("version: 3.4.0-r27.2.2", skill)
         for command in (
             "calendar list --limit 100",
             "calendar search --query",
@@ -69,6 +69,7 @@ class AgentCapabilityExposureTests(unittest.TestCase):
         self.assertIn("Do not inspect SQLite directly", skill)
         self.assertIn("entry_price", skill)
         self.assertIn("entry price but no individual purchase date", skill)
+        self.assertIn("`quote_currency`", skill)
         self.assertIn("do not invent `portfolio setup`", agents)
 
         settings = ToolSettings(path=Path("tools.toml"))

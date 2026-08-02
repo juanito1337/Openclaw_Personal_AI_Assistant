@@ -1,19 +1,29 @@
 {
   "schema_version": 1,
   "product": "OpenClaw Local Personal Assistant",
-  "version": "3.4.0-r27.2.1",
-  "release": "r27.2.1",
-  "title": "Optionale DKB-Gewinnfelder",
+  "version": "3.4.0-r27.2.2",
+  "release": "r27.2.2",
+  "title": "Getrennte Snapshot- und Kurswaehrung",
   "released_at": "2026-08-02",
   "installed_at": null,
-  "previous_version": "3.4.0-r27.2",
+  "previous_version": "3.4.0-r27.2.1",
   "installation_id": null,
   "changes": [
-    "Leere Werte in vorhandenen DKB-Spalten fuer absoluten oder relativen Gewinn werden als unbekannt bewahrt und blockieren nicht mehr den gesamten Depotimport.",
-    "Einstiegskurs, Bewertungskurs, Stueckzahl, ISIN und weitere Pflichtdaten bleiben strikt validiert; ungueltige nichtleere Gewinnwerte bleiben sichtbare Fehler.",
-    "Ein Regressionstest bildet den produktiv beobachteten leeren DKB-Gewinnwert ab; alle Funktionen aus r27.2 bleiben enthalten."
+    "DKB-Einstiegskurs, Bewertungskurs und Snapshot-Gewinne behalten ihre Importwaehrung, auch wenn die bestaetigte EODHD-Zuordnung in einer anderen Waehrung notiert.",
+    "portfolio holdings gibt die Snapshot-Waehrung als currency und die Marktdatenwaehrung separat als quote_currency aus und verhindert damit direkte EUR/USD-Fehlvergleiche.",
+    "Identische bereits importierte DKB-Dateien koennen die Snapshot-Waehrung anhand derselben geprueften SHA-256 idempotent nachtragen."
   ],
   "history": [
+    {
+      "version": "3.4.0-r27.2.2",
+      "released_at": "2026-08-02",
+      "title": "Getrennte Snapshot- und Kurswaehrung",
+      "changes": [
+        "DKB-Einstiegskurs, Bewertungskurs und Snapshot-Gewinne behalten ihre Importwaehrung, auch wenn die bestaetigte EODHD-Zuordnung in einer anderen Waehrung notiert.",
+        "portfolio holdings gibt die Snapshot-Waehrung als currency und die Marktdatenwaehrung separat als quote_currency aus und verhindert damit direkte EUR/USD-Fehlvergleiche.",
+        "Identische bereits importierte DKB-Dateien koennen die Snapshot-Waehrung anhand derselben geprueften SHA-256 idempotent nachtragen."
+      ]
+    },
     {
       "version": "3.4.0-r27.2.1",
       "released_at": "2026-08-02",

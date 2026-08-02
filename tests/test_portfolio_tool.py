@@ -106,6 +106,7 @@ class PortfolioParserTests(unittest.TestCase):
         self.assertEqual(parsed["positions"][0]["absolute_gain"], "20.00")
         self.assertEqual(parsed["positions"][0]["relative_gain_percent"], "5.55")
         self.assertEqual(parsed["positions"][0]["asset_class"], "Aktien")
+        self.assertEqual(parsed["positions"][0]["snapshot_currency"], "EUR")
         self.assertTrue(all(item["currency"] == "EUR" for item in parsed["instruments"]))
 
     def test_dkb_csv_rejects_inconsistent_snapshot_dates(self) -> None:
@@ -400,6 +401,7 @@ class PortfolioServiceTests(unittest.TestCase):
         self.assertEqual(basf["absolute_gain"], "13.75")
         self.assertEqual(basf["relative_gain_percent"], "2.44")
         self.assertEqual(basf["asset_class"], "Aktien")
+        self.assertEqual(basf["currency"], "EUR")
 
     def test_duplicate_dkb_csv_backfills_metrics_from_same_verified_sha(self) -> None:
         imported = self.service.import_csv(self.csv.name, dry_run=False)
@@ -409,7 +411,7 @@ class PortfolioServiceTests(unittest.TestCase):
                 """
                 UPDATE position_snapshots
                 SET entry_price='',valuation_price='',absolute_gain='',
-                    relative_gain_percent='',asset_class=''
+                    relative_gain_percent='',asset_class='',snapshot_currency=''
                 WHERE import_id=?
                 """,
                 (import_id,),
@@ -417,8 +419,20 @@ class PortfolioServiceTests(unittest.TestCase):
         duplicate = self.service.import_csv(self.csv.name, dry_run=False)
         self.assertTrue(duplicate["duplicate"])
         self.assertEqual(duplicate["snapshot_metrics_backfilled"], 2)
+        self.assertEqual(duplicate["snapshot_currency_backfilled"], 2)
         holdings = self.service.holdings()
         self.assertTrue(all(item["entry_price"] for item in holdings["positions"]))
+
+    def test_holdings_keep_snapshot_currency_separate_from_quote_currency(self) -> None:
+        self.service.import_csv(self.csv.name, dry_run=False)
+        self.service.watchlist_add(
+            isin=ISIN, name="BASF SE", symbol="BAS", mic="XETR", currency="USD"
+        )
+        basf = next(
+            item for item in self.service.holdings()["positions"] if item["isin"] == ISIN
+        )
+        self.assertEqual(basf["currency"], "EUR")
+        self.assertEqual(basf["quote_currency"], "USD")
 
     def test_import_cannot_escape_controlled_root(self) -> None:
         outside = Path(self.temporary.name) / "outside.xml"

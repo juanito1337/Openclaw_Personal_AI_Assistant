@@ -1,5 +1,16 @@
 # Changelog
 
+## 3.4.0-r27.2.2 – Getrennte Snapshot- und Kurswaehrung
+
+- DKB-Einstiegskurs, Bewertungskurs und Snapshot-Gewinne behalten ihre eigene
+  Importwaehrung, auch wenn die bestaetigte EODHD-Zuordnung fuer ein
+  US-Wertpapier in USD notiert.
+- `portfolio holdings` gibt die DKB-Waehrung als `currency` und die
+  Marktdatenwaehrung separat als `quote_currency` aus, damit der Agent keine
+  EUR-Einstandswerte direkt mit USD-Kursen verrechnet.
+- Bereits importierte identische DKB-Dateien koennen die Snapshot-Waehrung
+  idempotent anhand derselben geprueften SHA-256 nachtragen.
+
 ## 3.4.0-r27.2.1 – Optionale DKB-Gewinnfelder
 
 - Leere Werte in den vorhandenen DKB-Spalten `Absoluter Gewinn` oder

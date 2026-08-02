@@ -1,6 +1,6 @@
 ---
 name: personal-assistant
-version: 3.4.0-r27.2.1
+version: 3.4.0-r27.2.2
 description: Operate the local Personal Assistant and its registered tools. Use for status and diagnostics, cross-source search, mail triage, invoice archiving, Nextcloud files, CardDAV contacts, CalDAV calendars, VTODO tasks and portfolio workflows, including ClamAV-checked Portfolio Performance XML and strict DKB depot CSV imports from the controlled local inbox or an exact Nextcloud path. The assistant can list and search contacts, calendar events and tasks; it can create new objects and, when allow_update is explicitly enabled for the selected collection, update exactly one existing object by UID with ETag/If-Match protection.
 ---
 
@@ -246,6 +246,10 @@ snapshot contains an entry price but no individual purchase date; distinguish
 those fields instead of claiming both are missing.
 The two gain fields may legitimately be empty in individual DKB rows; preserve
 that as unknown without rejecting the otherwise valid snapshot.
+In `portfolio holdings`, `currency` is the currency of entry price, valuation
+price and snapshot gains; `quote_currency` is the currency of the EODHD mapping.
+Never treat a USD quote as directly comparable to an EUR entry price without a
+controlled FX conversion.
 
 For a current/latest price question, resolve the exact ISIN from `portfolio
 holdings` or `portfolio watchlist list`, then call `portfolio quotes get --isin
