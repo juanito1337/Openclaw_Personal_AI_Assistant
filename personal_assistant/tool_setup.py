@@ -260,8 +260,8 @@ def configure_portfolio_tools(
     enable: bool = True,
     provider: str = "eodhd",
     interval_minutes: int = 15,
-    stale_warning_minutes: int = 45,
-    stale_critical_minutes: int = 90,
+    stale_warning_minutes: int | None = None,
+    stale_critical_minutes: int | None = None,
     approve_permissions: bool = False,
     path: Path = DEFAULT_TOOL_SETTINGS,
 ) -> dict[str, Any]:
@@ -273,10 +273,20 @@ def configure_portfolio_tools(
     provider = provider.strip().casefold()
     if provider not in {"disabled", "eodhd"}:
         raise ValueError("Portfolio-Anbieter muss disabled oder eodhd sein")
-    if interval_minutes not in {15, 30}:
-        raise ValueError("Portfolio-Intervall muss 15 oder 30 Minuten sein")
-    warning = max(interval_minutes, min(int(stale_warning_minutes), 1440))
-    critical = max(interval_minutes, min(int(stale_critical_minutes), 2880))
+    if interval_minutes not in {15, 30, 60, 90, 120}:
+        raise ValueError("Portfolio-Intervall muss 15, 30, 60, 90 oder 120 Minuten sein")
+    warning_value = (
+        max(45, interval_minutes + 20)
+        if stale_warning_minutes is None
+        else int(stale_warning_minutes)
+    )
+    critical_value = (
+        max(90, interval_minutes * 2)
+        if stale_critical_minutes is None
+        else int(stale_critical_minutes)
+    )
+    warning = max(interval_minutes, min(warning_value, 1440))
+    critical = max(interval_minutes, min(critical_value, 2880))
     if critical < warning:
         raise ValueError("Kritische Veraltung muss mindestens der Warnschwelle entsprechen")
     portfolio = PortfolioToolSettings(

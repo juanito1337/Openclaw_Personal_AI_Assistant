@@ -15,7 +15,7 @@
 
 ## Installed release identity
 
-- Installed package release: **3.4.0-r27.1**.
+- Installed package release: **3.4.0-r27.2**.
 - The authoritative runtime source is `RELEASE.json`, never conversational memory,
   an archive filename, an old session, or README alone.
 - Before answering any question about the installed version, update contents,
@@ -643,11 +643,22 @@ Use only the registered portfolio commands:
 ./scripts/assistant.sh portfolio import-csv --nextcloud-path "Assistent/Finanzen/Portfolio/<Datei-DD.MM.YYYY.csv>" --yes
 ./scripts/assistant.sh portfolio holdings
 ./scripts/assistant.sh portfolio watchlist list
+./scripts/assistant.sh portfolio watchlist add --isin "<ISIN>" --name "<Name>" --symbol "<Symbol>" --mic "<MIC>" --currency "<ISO>" --yes
+./scripts/assistant.sh portfolio watchlist disable --isin "<ISIN>" --yes
 ./scripts/assistant.sh portfolio quotes status
+./scripts/assistant.sh portfolio quotes get --isin "<ISIN>"
+./scripts/assistant.sh portfolio quotes refresh
+./scripts/assistant.sh portfolio quotes refresh --force
 ./scripts/assistant.sh portfolio analyze --isin "<ISIN>"
 ./scripts/assistant.sh portfolio alerts list
+./scripts/assistant.sh portfolio alerts add --isin "<ISIN>" --direction "<above|below>" --threshold "<Kurs>" --currency "<ISO>" --yes
+./scripts/assistant.sh portfolio alerts disable --id "<Regel-ID>" --yes
 ./scripts/assistant.sh portfolio performance
-./scripts/assistant.sh setup portfolio --provider eodhd --interval-minutes 15 --approve-permissions
+./scripts/assistant.sh setup portfolio --provider eodhd --interval-minutes 90 --approve-permissions
+./scripts/assistant.sh jobs status --target portfolio --deep
+./scripts/assistant.sh jobs on portfolio
+./scripts/assistant.sh jobs restart portfolio
+./scripts/assistant.sh jobs off portfolio
 ```
 
 Operational rules:
@@ -667,6 +678,11 @@ Operational rules:
   and `--yes`. ClamAV is mandatory and fail-closed; XML DTD/entities are forbidden.
 - Imports are append-only snapshots and duplicate SHA-256 files are idempotent.
   Never delete or recreate the productive portfolio database as a repair.
+- A strict DKB CSV snapshot preserves entry price, valuation price, absolute
+  gain, relative gain and asset class. Before claiming that purchase/entry data
+  is unavailable, call `portfolio holdings`. Search mail or documents only if
+  the requested field is empty in that live result. The snapshot has an entry
+  price but no individual purchase date; never conflate those two fields.
 - Never guess a quote symbol from ISIN alone. Jan must confirm exact ISIN,
   provider symbol, MIC and currency before `watchlist add --yes`.
 - EODHD is the sole market-data provider. Translate only registered MICs to the
@@ -680,6 +696,17 @@ Operational rules:
   request URL or include it in an error. Redact the token from all failures.
 - Every quote stores source time, receipt time, provider and currency. Poll
   interval, provider delay and analysis bar count are distinct facts.
+- For a latest/current price question, resolve the exact ISIN with `portfolio
+  holdings` or `portfolio watchlist list`, then call `portfolio quotes get
+  --isin "<ISIN>"`. Report price, currency, source timestamp, provider and
+  stale/critical state. `portfolio quotes status` is health metadata and has no
+  `--detailed` option. Never inspect SQLite directly, invent an option or use a
+  web search while the registered price tool is available.
+- Use `portfolio analyze` for stored time-series indicators, not as a substitute
+  for the exact single-price command.
+- Setup intervals are 15, 30, 60, 90 or 120 minutes. A 90-minute interval is a
+  conservative starting point for a free 20-call/day allowance; configure it
+  only through `setup portfolio` and do not invent `portfolio setup`.
 - Missing, unmapped or critically stale quotes for held positions are failures.
   A fresh trend conclusion must return `decision=abstain` until required data is
   available. Market-closed observations remain explicitly timestamped.

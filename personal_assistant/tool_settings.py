@@ -380,8 +380,10 @@ def load_tool_settings(
         temp_dir=_clean_outbox(antivirus_data.get("temp_dir") or DEFAULT_ANTIVIRUS_TEMP),
     )
     interval_minutes = int(portfolio_data.get("interval_minutes", 15))
-    if interval_minutes not in {15, 30}:
-        raise ValueError("tools.toml: portfolio.interval_minutes muss 15 oder 30 sein")
+    if interval_minutes not in {15, 30, 60, 90, 120}:
+        raise ValueError(
+            "tools.toml: portfolio.interval_minutes muss 15, 30, 60, 90 oder 120 sein"
+        )
     provider = str(portfolio_data.get("provider") or "disabled").strip().casefold()
     if provider == "twelve-data":
         # Safe migration from releases before the EODHD switch: do not silently

@@ -108,9 +108,11 @@ def parser() -> argparse.ArgumentParser:
         "portfolio", help="Lokalen Portfolio-Monitor und Marktdatenadapter einrichten"
     )
     portfolio_setup.add_argument("--provider", default="eodhd", choices=("eodhd",))
-    portfolio_setup.add_argument("--interval-minutes", type=int, default=15, choices=(15, 30))
-    portfolio_setup.add_argument("--stale-warning-minutes", type=int, default=45)
-    portfolio_setup.add_argument("--stale-critical-minutes", type=int, default=90)
+    portfolio_setup.add_argument(
+        "--interval-minutes", type=int, default=15, choices=(15, 30, 60, 90, 120)
+    )
+    portfolio_setup.add_argument("--stale-warning-minutes", type=int)
+    portfolio_setup.add_argument("--stale-critical-minutes", type=int)
     portfolio_setup.add_argument("--disable", action="store_true")
     portfolio_setup.add_argument("--approve-permissions", action="store_true")
 
@@ -221,6 +223,10 @@ def parser() -> argparse.ArgumentParser:
     quotes = portfolio_sub.add_parser("quotes", help="Kursversorgung pruefen oder aktualisieren")
     quotes_sub = quotes.add_subparsers(dest="quotes_command", required=True)
     quotes_sub.add_parser("status")
+    quotes_get = quotes_sub.add_parser(
+        "get", help="Letzten gespeicherten Kurs fuer eine exakte ISIN anzeigen"
+    )
+    quotes_get.add_argument("--isin", required=True)
     quotes_refresh = quotes_sub.add_parser("refresh")
     quotes_refresh.add_argument("--force", action="store_true")
     portfolio_analyze = portfolio_sub.add_parser(
@@ -1495,6 +1501,10 @@ def main(argv: list[str] | None = None) -> int:
                 if args.quotes_command == "status":
                     _print(assistant.portfolio.health())
                     return 0
+                if args.quotes_command == "get":
+                    result = assistant.portfolio.latest_quote(args.isin)
+                    _print(result)
+                    return 0 if result.get("ok") else 1
                 if args.quotes_command == "refresh":
                     result = assistant.portfolio.refresh_quotes(force=bool(args.force))
                     _print(result)

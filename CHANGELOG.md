@@ -1,5 +1,28 @@
 # Changelog
 
+## 3.4.0-r27.2 – Vollstaendige Portfolio-Werkzeuge und DKB-Snapshotwerte
+
+- Ein eigener read-only Befehl `portfolio quotes get --isin` liefert einen
+  gespeicherten Einzelkurs mit Waehrung, Provider, Quellzeit und Frische, ohne
+  dass der Agent SQLite direkt lesen oder eine Websuche improvisieren muss.
+- Der Personal-Assistant-Skill, die Tool-Registry, der Betriebsvertrag und die
+  Befehlsreferenz enthalten jetzt die vollstaendige Portfolio-Matrix
+  einschliesslich Doctor, Watchlist-Aenderungen, Refresh/Force, Kursmarken und
+  Jobsteuerung. Ungueltige Optionen wie `quotes status --detailed` und der
+  erfundene Pfad `portfolio setup` werden ausdruecklich ausgeschlossen.
+- Strikte DKB-CSV-Imports bewahren Einstiegskurs, Bewertungskurs, absoluten und
+  relativen Gewinn sowie Assetklasse im unveraenderlichen Depot-Snapshot und
+  geben diese Werte ueber `portfolio holdings` aus.
+- Bereits importierte identische DKB-Dateien koennen die neuen Snapshotfelder
+  sicher anhand derselben ClamAV-geprueften SHA-256 nachtragen, ohne einen
+  zweiten Import oder eine neue Position anzulegen.
+- Portfolio-Intervalle von 15, 30, 60, 90 und 120 Minuten werden kontrolliert
+  unterstuetzt. Fuer ein kostenloses Kontingent mit 20 Aufrufen pro Tag ist 90
+  Minuten der konservative Startwert; passende Frischegrenzen werden gesetzt.
+- Regressionstests gleichen alle registrierten Portfolio-Werkzeuge gegen Skill
+  und Betriebsvertrag ab und pruefen Einzelkursausgabe, DKB-Kennzahlen,
+  idempotentes Backfill sowie das 90-Minuten-Setup.
+
 ## Test-Branch – Vollstaendige serverseitige Mail-Suche
 
 - `mail search` filtert jetzt direkt auf dem IMAP-Server ueber alle lesbaren

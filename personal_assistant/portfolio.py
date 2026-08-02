@@ -26,7 +26,7 @@ from .antivirus import HostAntivirus
 from .tool_settings import PortfolioToolSettings
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 MAX_IMPORT_BYTES = 25_000_000
 ISIN_RE = re.compile(r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$")
 MIC_RE = re.compile(r"^[A-Z0-9]{4}$")
@@ -49,6 +49,8 @@ DKB_CSV_REQUIRED_HEADERS = (
     "Einstiegskurs",
     "Bewertungskurs",
     "Stückzahl",
+    "Absoluter Gewinn",
+    "Relativer Gewinn",
     "Assetklasse",
 )
 
@@ -295,6 +297,11 @@ class PortfolioStore:
                 isin TEXT NOT NULL REFERENCES instruments(isin),
                 shares TEXT NOT NULL,
                 as_of TEXT NOT NULL,
+                entry_price TEXT NOT NULL DEFAULT '',
+                valuation_price TEXT NOT NULL DEFAULT '',
+                absolute_gain TEXT NOT NULL DEFAULT '',
+                relative_gain_percent TEXT NOT NULL DEFAULT '',
+                asset_class TEXT NOT NULL DEFAULT '',
                 PRIMARY KEY(import_id, account, isin)
             );
             CREATE TABLE IF NOT EXISTS watchlist (
@@ -364,6 +371,24 @@ class PortfolioStore:
         for column in ("open", "high", "low", "volume", "market_open"):
             if column not in quote_columns:
                 self.connection.execute(f"ALTER TABLE quotes ADD COLUMN {column} TEXT")
+        position_columns = {
+            str(row[1])
+            for row in self.connection.execute(
+                "PRAGMA table_info(position_snapshots)"
+            ).fetchall()
+        }
+        for column in (
+            "entry_price",
+            "valuation_price",
+            "absolute_gain",
+            "relative_gain_percent",
+            "asset_class",
+        ):
+            if column not in position_columns:
+                self.connection.execute(
+                    f"ALTER TABLE position_snapshots "
+                    f"ADD COLUMN {column} TEXT NOT NULL DEFAULT ''"
+                )
         self.connection.execute(
             "INSERT OR REPLACE INTO schema_meta(key,value) VALUES('schema_version',?)",
             (str(SCHEMA_VERSION),),
@@ -542,11 +567,20 @@ def parse_portfolio_performance_xml(data: bytes) -> dict[str, Any]:
     }
 
 
-def _dkb_decimal(value: object, *, field: str) -> Decimal:
+def _dkb_decimal(
+    value: object, *, field: str, allow_currency_or_percent: bool = False
+) -> Decimal:
     text = str(value or "").strip().replace("\u00a0", "").replace(" ", "")
     if not text or text in {"-", "-,--"}:
         raise ValueError(f"DKB-CSV: {field} fehlt")
-    normalized = text.replace(".", "").replace(",", ".")
+    is_percent = text.endswith("%")
+    if allow_currency_or_percent:
+        text = re.sub(r"(?:EUR|USD|GBP|CHF|€|\$|£|%)$", "", text, flags=re.I)
+    normalized = (
+        text
+        if is_percent and "." in text and "," not in text
+        else text.replace(".", "").replace(",", ".")
+    )
     try:
         return Decimal(normalized)
     except InvalidOperation as exc:
@@ -587,7 +621,7 @@ def parse_dkb_portfolio_csv(data: bytes) -> dict[str, Any]:
         raise ValueError("DKB-CSV: Pflichtspalten fehlen: " + ", ".join(missing))
 
     instruments: dict[str, dict[str, str]] = {}
-    positions: dict[tuple[str, str], Decimal] = {}
+    positions: dict[tuple[str, str], dict[str, str]] = {}
     snapshot_date = ""
     rows = 0
     for row_number, row in enumerate(reader, start=2):
@@ -623,6 +657,33 @@ def parse_dkb_portfolio_csv(data: bytes) -> dict[str, Any]:
         shares = _dkb_decimal(row.get("Stückzahl"), field=f"Stueckzahl in Zeile {row_number}")
         if shares < 0:
             raise ValueError(f"DKB-CSV Zeile {row_number}: negative Stueckzahl ist ungueltig")
+        entry_price = _dkb_decimal(
+            row.get("Einstiegskurs"),
+            field=f"Einstiegskurs in Zeile {row_number}",
+            allow_currency_or_percent=True,
+        )
+        valuation_price = _dkb_decimal(
+            row.get("Bewertungskurs"),
+            field=f"Bewertungskurs in Zeile {row_number}",
+            allow_currency_or_percent=True,
+        )
+        if entry_price < 0 or valuation_price < 0:
+            raise ValueError(
+                f"DKB-CSV Zeile {row_number}: negative Kurswerte sind ungueltig"
+            )
+        absolute_gain = _dkb_decimal(
+            row.get("Absoluter Gewinn"),
+            field=f"Absoluter Gewinn in Zeile {row_number}",
+            allow_currency_or_percent=True,
+        )
+        relative_gain = _dkb_decimal(
+            row.get("Relativer Gewinn"),
+            field=f"Relativer Gewinn in Zeile {row_number}",
+            allow_currency_or_percent=True,
+        )
+        asset_class = " ".join(str(row.get("Assetklasse") or "").split())
+        if not asset_class or len(asset_class) > 100:
+            raise ValueError(f"DKB-CSV Zeile {row_number}: Assetklasse fehlt oder ist zu lang")
 
         instrument = {
             "isin": isin,
@@ -639,7 +700,20 @@ def parse_dkb_portfolio_csv(data: bytes) -> dict[str, Any]:
             raise ValueError(f"DKB-CSV: widerspruechliche Stammdaten fuer ISIN {isin}")
         instruments[isin] = instrument
         key = (account, isin)
-        positions[key] = positions.get(key, Decimal("0")) + shares
+        if key in positions:
+            raise ValueError(
+                f"DKB-CSV: doppelte Position fuer Depot {account} und ISIN {isin}"
+            )
+        positions[key] = {
+            "account": account,
+            "isin": isin,
+            "shares": str(shares),
+            "entry_price": str(entry_price),
+            "valuation_price": str(valuation_price),
+            "absolute_gain": str(absolute_gain),
+            "relative_gain_percent": str(relative_gain),
+            "asset_class": asset_class,
+        }
 
     if not rows:
         raise ValueError("DKB-CSV enthaelt keine Depotpositionen")
@@ -648,9 +722,9 @@ def parse_dkb_portfolio_csv(data: bytes) -> dict[str, Any]:
         "as_of": snapshot_date,
         "instruments": [instruments[key] for key in sorted(instruments)],
         "positions": [
-            {"account": account, "isin": isin, "shares": str(shares)}
-            for (account, isin), shares in sorted(positions.items())
-            if shares != 0
+            position
+            for _, position in sorted(positions.items())
+            if Decimal(position["shares"]) != 0
         ],
     }
 
@@ -739,7 +813,36 @@ class PortfolioService:
             "SELECT id FROM imports WHERE sha256=?", (digest,)
         ).fetchone()
         if existing:
-            return {**result, "duplicate": True, "import_id": int(existing["id"])}
+            backfilled = 0
+            if parsed["source_type"] == "dkb-depot-csv":
+                with self.store.connection:
+                    for item in parsed["positions"]:
+                        cursor = self.store.connection.execute(
+                            """
+                            UPDATE position_snapshots
+                            SET entry_price=?,valuation_price=?,absolute_gain=?,
+                                relative_gain_percent=?,asset_class=?
+                            WHERE import_id=? AND account=? AND isin=?
+                              AND entry_price='' AND valuation_price=''
+                            """,
+                            (
+                                item.get("entry_price", ""),
+                                item.get("valuation_price", ""),
+                                item.get("absolute_gain", ""),
+                                item.get("relative_gain_percent", ""),
+                                item.get("asset_class", ""),
+                                int(existing["id"]),
+                                item["account"],
+                                item["isin"],
+                            ),
+                        )
+                        backfilled += max(0, int(cursor.rowcount))
+            return {
+                **result,
+                "duplicate": True,
+                "import_id": int(existing["id"]),
+                "snapshot_metrics_backfilled": backfilled,
+            }
         now = _iso(self._now())
         with self.store.connection:
             for item in parsed["instruments"]:
@@ -773,10 +876,23 @@ class PortfolioService:
             for item in parsed["positions"]:
                 self.store.connection.execute(
                     """
-                    INSERT INTO position_snapshots(import_id,account,isin,shares,as_of)
-                    VALUES(?,?,?,?,?)
+                    INSERT INTO position_snapshots(
+                        import_id,account,isin,shares,as_of,entry_price,
+                        valuation_price,absolute_gain,relative_gain_percent,asset_class
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?)
                     """,
-                    (import_id, item["account"], item["isin"], item["shares"], parsed["as_of"]),
+                    (
+                        import_id,
+                        item["account"],
+                        item["isin"],
+                        item["shares"],
+                        parsed["as_of"],
+                        item.get("entry_price", ""),
+                        item.get("valuation_price", ""),
+                        item.get("absolute_gain", ""),
+                        item.get("relative_gain_percent", ""),
+                        item.get("asset_class", ""),
+                    ),
                 )
         return {**result, "duplicate": False, "import_id": import_id}
 
@@ -811,8 +927,9 @@ class PortfolioService:
             return {"ok": True, "as_of": None, "positions": [], "count": 0}
         rows = self.store.connection.execute(
             """
-            SELECT p.account,p.isin,p.shares,i.name,i.wkn,i.symbol,i.mic,i.currency,
-                   i.mapping_confirmed
+            SELECT p.account,p.isin,p.shares,p.entry_price,p.valuation_price,
+                   p.absolute_gain,p.relative_gain_percent,p.asset_class,
+                   i.name,i.wkn,i.symbol,i.mic,i.currency,i.mapping_confirmed
             FROM position_snapshots p JOIN instruments i ON i.isin=p.isin
             WHERE p.import_id=? ORDER BY i.name,p.account
             """,
@@ -1275,6 +1392,47 @@ class PortfolioService:
             (isin, max(1, min(limit, 5000))),
         ).fetchall()
         return [dict(row) for row in reversed(rows)]
+
+    def latest_quote(self, isin: str) -> dict[str, Any]:
+        """Return one stored quote without turning a price lookup into analysis."""
+        isin = isin.strip().upper()
+        health_item = next(
+            (item for item in self.health().get("instruments", []) if item["isin"] == isin),
+            None,
+        )
+        if health_item is None:
+            raise ValueError("ISIN ist weder im Depot noch auf der Watchlist")
+        instrument = self.store.connection.execute(
+            "SELECT name,symbol,mic,currency FROM instruments WHERE isin=?", (isin,)
+        ).fetchone()
+        series = self._series(isin, limit=1)
+        if not series:
+            return {
+                "ok": False,
+                "isin": isin,
+                "name": str(instrument["name"] if instrument else isin),
+                "reason": "Kein gespeicherter Kurs vorhanden",
+                "stale": True,
+                "critical": True,
+            }
+        quote = series[-1]
+        return {
+            "ok": not bool(health_item["critical"]),
+            "isin": isin,
+            "name": str(instrument["name"] if instrument else isin),
+            "symbol": str(instrument["symbol"] if instrument else ""),
+            "mic": str(instrument["mic"] if instrument else ""),
+            "provider_symbol": health_item.get("provider_symbol"),
+            "price": quote["close"],
+            "currency": quote["currency"],
+            "observed_at": quote["observed_at"],
+            "received_at": quote["received_at"],
+            "provider": quote["provider"],
+            "market_open": quote["market_open"],
+            "age_seconds": health_item["age_seconds"],
+            "stale": bool(health_item["stale"]),
+            "critical": bool(health_item["critical"]),
+        }
 
     @staticmethod
     def _sma(values: list[float], size: int) -> float | None:

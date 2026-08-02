@@ -22,7 +22,7 @@ The release defaults keep the tool and job off. Instance configuration belongs i
 
 ```bash
 ./scripts/assistant.sh setup portfolio \
-  --provider eodhd --interval-minutes 15 --approve-permissions
+  --provider eodhd --interval-minutes 90 --approve-permissions
 ```
 
 This creates the controlled import directory and configuration but neither stores
@@ -36,9 +36,9 @@ import_root = "personal_assistant/data/portfolio_inbox"
 nextcloud_folder = "Assistent/Finanzen/Portfolio"
 provider = "eodhd"
 api_key_env = "PORTFOLIO_EODHD_API_KEY"
-interval_minutes = 15 # only 15 or 30
-stale_warning_minutes = 45
-stale_critical_minutes = 90
+interval_minutes = 90 # 15, 30, 60, 90 or 120
+stale_warning_minutes = 110
+stale_critical_minutes = 180
 timezone = "Europe/Berlin"
 market_open = "08:00"
 market_close = "22:00"
@@ -56,6 +56,10 @@ MICs use `.US`; Xetra uses `.XETRA`. Unknown MICs fail closed. Up to 20 mapped
 instruments are fetched in one bounded request. EODHD stock snapshots are
 normally delayed by about 15–20 minutes and must not be described as
 exchange-real-time quotes.
+
+For a free allowance of 20 calls per day, 90 minutes is the conservative
+starting interval. The setup command automatically raises freshness thresholds
+for longer intervals. A paid plan may use a shorter supported interval.
 
 ## Depot import
 
@@ -79,8 +83,12 @@ structured intermediary.
 The DKB depot CSV export is supported as a strict snapshot format. It must be
 UTF-8 with a semicolon delimiter and contain the German columns
 `Datum der Erstellung`, `Depotnummer`, `Wertpapierbezeichnung`, `WKN`, `ISIN`,
-`Einstiegskurs`, `Bewertungskurs`, `Stückzahl` and `Assetklasse`. General broker
-CSV formats are rejected rather than guessed.
+`Einstiegskurs`, `Bewertungskurs`, `Stückzahl`, `Absoluter Gewinn`,
+`Relativer Gewinn` and `Assetklasse`. These values are preserved in the latest
+`portfolio holdings` result as `entry_price`, `valuation_price`,
+`absolute_gain`, `relative_gain_percent` and `asset_class`. General broker CSV
+formats are rejected rather than guessed. The depot snapshot does not contain an
+individual purchase date; that absence does not make its entry price unavailable.
 
 Local preview and confirmed import:
 
@@ -125,6 +133,7 @@ silently guessed. Watchlist changes and alarm changes require explicit `--yes`.
 
 ```bash
 ./scripts/assistant.sh portfolio quotes status
+./scripts/assistant.sh portfolio quotes get --isin "DE000BASF111"
 ./scripts/assistant.sh portfolio quotes refresh
 ./scripts/assistant.sh portfolio analyze --isin "DE000BASF111"
 ./scripts/assistant.sh portfolio alerts add \
@@ -133,7 +142,9 @@ silently guessed. Watchlist changes and alarm changes require explicit `--yes`.
 ./scripts/assistant.sh portfolio alerts list
 ```
 
-Analysis uses stored numeric OHLCV observations, not chart screenshots. It
+Use `quotes get` for one stored price including currency, provider, source time
+and freshness. `quotes status` reports coverage/health and accepts no
+`--detailed` option. Analysis uses stored numeric OHLCV observations, not chart screenshots. It
 reports SMA20/50/200 and RSI14 only when enough observations exist. A critically stale or
 missing required quote returns `decision=abstain`; it cannot produce a fresh
 trend claim. Outside the configured market window, the last observation remains
@@ -147,7 +158,7 @@ informational signal, not an order instruction.
 ## Job and monitoring integration
 
 The packaged worker checks every 15 minutes and refreshes only when the configured
-15- or 30-minute interval is due:
+15-, 30-, 60-, 90- or 120-minute interval is due:
 
 ```bash
 ./scripts/assistant.sh jobs on portfolio

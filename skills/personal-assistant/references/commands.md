@@ -60,7 +60,7 @@ Portfolio monitor:
 
 ```bash
 ./scripts/assistant.sh portfolio status
-./scripts/assistant.sh setup portfolio --provider eodhd --interval-minutes 15 --approve-permissions
+./scripts/assistant.sh setup portfolio --provider eodhd --interval-minutes 90 --approve-permissions
 ./scripts/assistant.sh portfolio doctor
 ./scripts/assistant.sh portfolio import-pp --file "depot.xml" --dry-run
 ./scripts/assistant.sh portfolio import-pp --file "depot.xml" --yes
@@ -71,13 +71,20 @@ Portfolio monitor:
 ./scripts/assistant.sh portfolio holdings
 ./scripts/assistant.sh portfolio watchlist list
 ./scripts/assistant.sh portfolio watchlist add --isin "<ISIN>" --name "<Name>" --symbol "<Symbol>" --mic "<MIC>" --currency EUR --yes
+./scripts/assistant.sh portfolio watchlist disable --isin "<ISIN>" --yes
 ./scripts/assistant.sh portfolio quotes status
+./scripts/assistant.sh portfolio quotes get --isin "<ISIN>"
 ./scripts/assistant.sh portfolio quotes refresh
+./scripts/assistant.sh portfolio quotes refresh --force
 ./scripts/assistant.sh portfolio analyze --isin "<ISIN>"
 ./scripts/assistant.sh portfolio alerts list
 ./scripts/assistant.sh portfolio alerts add --isin "<ISIN>" --direction above --threshold "<Kurs>" --currency EUR --yes
+./scripts/assistant.sh portfolio alerts disable --id "<Regel-ID>" --yes
 ./scripts/assistant.sh portfolio performance
+./scripts/assistant.sh jobs status --target portfolio --deep
 ./scripts/assistant.sh jobs on portfolio
+./scripts/assistant.sh jobs restart portfolio
+./scripts/assistant.sh jobs off portfolio
 ```
 
 No broker login or order operation is registered.

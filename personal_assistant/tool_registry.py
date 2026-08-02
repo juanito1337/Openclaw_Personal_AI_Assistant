@@ -189,8 +189,8 @@ def build_tool_registry(settings: ToolSettings) -> list[AgentTool]:
         ),
         AgentTool(
             "portfolio.setup",
-            "Portfolio-Monitor konfigurieren; API-Schluessel und Job bleiben getrennt",
-            './scripts/assistant.sh setup portfolio --provider eodhd --interval-minutes 15 --approve-permissions',
+            "Portfolio-Monitor konfigurieren; fuer ein 20-Aufrufe/Tag-Kontingent sind 90 Minuten konservativ, API-Schluessel und Job bleiben getrennt",
+            './scripts/assistant.sh setup portfolio --provider eodhd --interval-minutes 90 --approve-permissions',
             "local-write",
             False,
             "explicit-user-permission-setup",
@@ -281,6 +281,12 @@ def build_tool_registry(settings: ToolSettings) -> list[AgentTool]:
             "portfolio.quotes.status",
             "Pflichtkurs-Abdeckung, Alter und letzten Abrufstatus anzeigen",
             './scripts/assistant.sh portfolio quotes status',
+            "read",
+        ),
+        AgentTool(
+            "portfolio.quotes.get",
+            "Letzten gespeicherten Kurswert, Waehrung, Quelle und Zeitstempel fuer eine exakte ISIN anzeigen",
+            './scripts/assistant.sh portfolio quotes get --isin "<ISIN>"',
             "read",
         ),
         AgentTool(

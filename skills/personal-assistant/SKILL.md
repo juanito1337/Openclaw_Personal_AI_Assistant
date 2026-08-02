@@ -1,6 +1,6 @@
 ---
 name: personal-assistant
-version: 3.4.0-r27.1
+version: 3.4.0-r27.2
 description: Operate the local Personal Assistant and its registered tools. Use for status and diagnostics, cross-source search, mail triage, invoice archiving, Nextcloud files, CardDAV contacts, CalDAV calendars, VTODO tasks and portfolio workflows, including ClamAV-checked Portfolio Performance XML and strict DKB depot CSV imports from the controlled local inbox or an exact Nextcloud path. The assistant can list and search contacts, calendar events and tasks; it can create new objects and, when allow_update is explicitly enabled for the selected collection, update exactly one existing object by UID with ETag/If-Match protection.
 ---
 
@@ -196,16 +196,31 @@ deadline or lease fails, run `scheduler doctor` and
 
 ```bash
 ./scripts/assistant.sh portfolio status
-./scripts/assistant.sh setup portfolio --provider eodhd --interval-minutes 15 --approve-permissions
+./scripts/assistant.sh portfolio doctor
+./scripts/assistant.sh setup portfolio --provider eodhd --interval-minutes 90 --approve-permissions
 ./scripts/assistant.sh portfolio import-pp --file "<Datei>" --dry-run
+./scripts/assistant.sh portfolio import-pp --file "<Datei>" --yes
 ./scripts/assistant.sh portfolio import-csv --file "<DKB-CSV>" --dry-run
+./scripts/assistant.sh portfolio import-csv --file "<DKB-CSV>" --yes
 ./scripts/assistant.sh portfolio import-csv --nextcloud-path "Assistent/Finanzen/Portfolio/<Datei-DD.MM.YYYY.csv>" --dry-run
 ./scripts/assistant.sh portfolio import-csv --nextcloud-path "Assistent/Finanzen/Portfolio/<Datei-DD.MM.YYYY.csv>" --yes
 ./scripts/assistant.sh portfolio holdings
+./scripts/assistant.sh portfolio watchlist list
+./scripts/assistant.sh portfolio watchlist add --isin "<ISIN>" --name "<Name>" --symbol "<Symbol>" --mic "<MIC>" --currency "<ISO>" --yes
+./scripts/assistant.sh portfolio watchlist disable --isin "<ISIN>" --yes
 ./scripts/assistant.sh portfolio quotes status
+./scripts/assistant.sh portfolio quotes get --isin "<ISIN>"
+./scripts/assistant.sh portfolio quotes refresh
+./scripts/assistant.sh portfolio quotes refresh --force
 ./scripts/assistant.sh portfolio analyze --isin "<ISIN>"
 ./scripts/assistant.sh portfolio alerts list
+./scripts/assistant.sh portfolio alerts add --isin "<ISIN>" --direction "<above|below>" --threshold "<Kurs>" --currency "<ISO>" --yes
+./scripts/assistant.sh portfolio alerts disable --id "<Regel-ID>" --yes
 ./scripts/assistant.sh portfolio performance
+./scripts/assistant.sh jobs status --target portfolio --deep
+./scripts/assistant.sh jobs on portfolio
+./scripts/assistant.sh jobs restart portfolio
+./scripts/assistant.sh jobs off portfolio
 ```
 
 Do not claim that CSV import is unavailable or propose manually reading a DKB
@@ -221,10 +236,31 @@ guess ISIN-to-symbol/MIC mapping; Jan must confirm it. A missing or critically
 stale held-position quote blocks fresh analysis and must be diagnosed with
 `portfolio doctor` plus `jobs check --target all --deep`.
 
+For a question about a held quantity, entry price, valuation price or the
+snapshot's absolute/relative gain, call `portfolio holdings` before claiming
+that the data is unavailable. Strict DKB CSV imports preserve
+`entry_price`, `valuation_price`, `absolute_gain`, `relative_gain_percent` and
+`asset_class`. Do not search mail/documents for a purchase receipt unless the
+requested field is actually empty in the current holdings result. A DKB depot
+snapshot contains an entry price but no individual purchase date; distinguish
+those fields instead of claiming both are missing.
+
+For a current/latest price question, resolve the exact ISIN from `portfolio
+holdings` or `portfolio watchlist list`, then call `portfolio quotes get --isin
+"<ISIN>"`. Report `price`, `currency`, `observed_at`, `provider` and the
+stale/critical flags. `portfolio quotes status` is health metadata and accepts no `--detailed` option.
+Do not inspect SQLite directly, invent CLI switches or
+substitute a web search while the registered read tool can answer the question.
+Use `portfolio analyze` only when trend indicators or a stored series are
+requested, not as the primary single-price lookup.
+
 EODHD is the only quote provider. It uses confirmed EODHD forms such as
 `RHM.XETRA` and `TSLA.US`, batches at most 20 mapped instruments and normally
 returns stock prices delayed by about 15–20 minutes. Never call these prices
 exchange-real-time, fall back to Twelve Data or expose `PORTFOLIO_EODHD_API_KEY`.
+The setup accepts 15, 30, 60, 90 or 120 minutes. For a free 20-call daily
+allowance, 90 minutes is the conservative starting point; do not promise exact
+provider-call accounting without evidence from the provider account.
 
 Portfolio outputs are informational. Never access DKB credentials, scrape the
 broker, execute orders or turn deterministic SMA/RSI values into an invented

@@ -1,4 +1,4 @@
-# OpenClaw 3.4.0-r27.1
+# OpenClaw 3.4.0-r27.2
 
 R27.1 is the cumulative container release with unified EODHD Live/Delayed
 portfolio quotes for confirmed US and Xetra instruments. Program code and
@@ -25,16 +25,19 @@ Quick start after Docker is installed:
 ```bash
 sudo ./docker/scripts/setup-host.sh
 /srv/openclaw/deployment/scripts/migrate-live.sh --execute
-/srv/openclaw/deployment/scripts/deploy.sh r27.1
+/srv/openclaw/deployment/scripts/deploy.sh r27.2
 ```
 
 ## Portfolio monitor test milestone
 
 The optional portfolio subsystem imports ClamAV-scanned Portfolio Performance
 XML and strict DKB depot CSV snapshots from the controlled local inbox or an
-exact dated file in `Assistent/Finanzen/Portfolio/`. It never guesses arbitrary
-broker CSV layouts. It monitors confirmed ISIN/symbol/MIC mappings every 15 or
-30 minutes through bounded EODHD Live/Delayed batch requests, analyzes stored
+exact dated file in `Assistent/Finanzen/Portfolio/`. DKB entry price, valuation
+price, absolute/relative gain and asset class remain available through
+`portfolio holdings`; arbitrary broker CSV layouts are never guessed. It
+monitors confirmed ISIN/symbol/MIC mappings every 15, 30, 60, 90 or 120 minutes
+through bounded EODHD Live/Delayed batch requests, exposes an exact stored quote
+through `portfolio quotes get --isin`, analyzes stored
 numeric series and raises deduplicated course-mark events. EODHD stock quotes
 are normally delayed by about 15–20 minutes and are never labeled exchange-real-time.
 Missing or critically stale held-position quotes block fresh analysis
@@ -102,7 +105,7 @@ The agent now has registered Ollama and performance commands, and automatic mail
 recovery stops the timer/service and waits for the real process lock before its
 safety dry-run. See `docs/JOB_CONTROL.md` and `docs/OLLAMA_PRIORITY.md`.
 
-# Local Personal Assistant 3.4.0-r27.1
+# Local Personal Assistant 3.4.0-r27.2
 
 ## R26.4 agent capability exposure fix
 
