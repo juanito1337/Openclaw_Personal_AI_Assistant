@@ -1,22 +1,29 @@
 {
   "schema_version": 1,
   "product": "OpenClaw Local Personal Assistant",
-  "version": "3.4.0-r27.2",
-  "release": "r27.2",
-  "title": "Vollstaendige Portfolio-Werkzeuge und DKB-Snapshotwerte",
+  "version": "3.4.0-r27.2.1",
+  "release": "r27.2.1",
+  "title": "Optionale DKB-Gewinnfelder",
   "released_at": "2026-08-02",
   "installed_at": null,
-  "previous_version": "3.4.0-r27.1",
+  "previous_version": "3.4.0-r27.2",
   "installation_id": null,
   "changes": [
-    "Ein eigener read-only Befehl portfolio quotes get --isin liefert gespeicherte Einzelkurse mit Waehrung, Provider, Quellzeit und Frische ohne direkten SQLite-Zugriff oder Websuche.",
-    "Tool-Registry, Personal-Assistant-Skill, Betriebsvertrag und Befehlsreferenz enthalten die vollstaendige Portfolio-Matrix und verbieten erfundene Optionen wie quotes status --detailed sowie den falschen Pfad portfolio setup.",
-    "Strikte DKB-CSV-Imports bewahren Einstiegskurs, Bewertungskurs, absoluten und relativen Gewinn sowie Assetklasse und geben sie ueber portfolio holdings aus.",
-    "Identische bereits importierte DKB-Dateien koennen die neuen Snapshotwerte anhand derselben ClamAV-geprueften SHA-256 idempotent nachtragen, ohne Positionen zu duplizieren.",
-    "Portfolio-Intervalle von 15, 30, 60, 90 und 120 Minuten werden unterstuetzt; 90 Minuten ist der konservative Startwert fuer ein kostenloses 20-Aufrufe/Tag-Kontingent.",
-    "Regressionstests gleichen alle registrierten Portfolio-Werkzeuge gegen Skill und Betriebsvertrag ab und pruefen Einzelkurs, DKB-Kennzahlen, Backfill und 90-Minuten-Setup."
+    "Leere Werte in vorhandenen DKB-Spalten fuer absoluten oder relativen Gewinn werden als unbekannt bewahrt und blockieren nicht mehr den gesamten Depotimport.",
+    "Einstiegskurs, Bewertungskurs, Stueckzahl, ISIN und weitere Pflichtdaten bleiben strikt validiert; ungueltige nichtleere Gewinnwerte bleiben sichtbare Fehler.",
+    "Ein Regressionstest bildet den produktiv beobachteten leeren DKB-Gewinnwert ab; alle Funktionen aus r27.2 bleiben enthalten."
   ],
   "history": [
+    {
+      "version": "3.4.0-r27.2.1",
+      "released_at": "2026-08-02",
+      "title": "Optionale DKB-Gewinnfelder",
+      "changes": [
+        "Leere Werte in vorhandenen DKB-Spalten fuer absoluten oder relativen Gewinn werden als unbekannt bewahrt und blockieren nicht mehr den gesamten Depotimport.",
+        "Einstiegskurs, Bewertungskurs, Stueckzahl, ISIN und weitere Pflichtdaten bleiben strikt validiert; ungueltige nichtleere Gewinnwerte bleiben sichtbare Fehler.",
+        "Ein Regressionstest bildet den produktiv beobachteten leeren DKB-Gewinnwert ab; alle Funktionen aus r27.2 bleiben enthalten."
+      ]
+    },
     {
       "version": "3.4.0-r27.2",
       "released_at": "2026-08-02",

@@ -1,6 +1,6 @@
 ---
 name: personal-assistant
-version: 3.4.0-r27.2
+version: 3.4.0-r27.2.1
 description: Operate the local Personal Assistant and its registered tools. Use for status and diagnostics, cross-source search, mail triage, invoice archiving, Nextcloud files, CardDAV contacts, CalDAV calendars, VTODO tasks and portfolio workflows, including ClamAV-checked Portfolio Performance XML and strict DKB depot CSV imports from the controlled local inbox or an exact Nextcloud path. The assistant can list and search contacts, calendar events and tasks; it can create new objects and, when allow_update is explicitly enabled for the selected collection, update exactly one existing object by UID with ETag/If-Match protection.
 ---
 
@@ -244,6 +244,8 @@ that the data is unavailable. Strict DKB CSV imports preserve
 requested field is actually empty in the current holdings result. A DKB depot
 snapshot contains an entry price but no individual purchase date; distinguish
 those fields instead of claiming both are missing.
+The two gain fields may legitimately be empty in individual DKB rows; preserve
+that as unknown without rejecting the otherwise valid snapshot.
 
 For a current/latest price question, resolve the exact ISIN from `portfolio
 holdings` or `portfolio watchlist list`, then call `portfolio quotes get --isin

@@ -1,4 +1,4 @@
-# OpenClaw 3.4.0-r27.2
+# OpenClaw 3.4.0-r27.2.1
 
 R27.1 is the cumulative container release with unified EODHD Live/Delayed
 portfolio quotes for confirmed US and Xetra instruments. Program code and
@@ -25,7 +25,7 @@ Quick start after Docker is installed:
 ```bash
 sudo ./docker/scripts/setup-host.sh
 /srv/openclaw/deployment/scripts/migrate-live.sh --execute
-/srv/openclaw/deployment/scripts/deploy.sh r27.2
+/srv/openclaw/deployment/scripts/deploy.sh r27.2.1
 ```
 
 ## Portfolio monitor test milestone
@@ -105,7 +105,7 @@ The agent now has registered Ollama and performance commands, and automatic mail
 recovery stops the timer/service and waits for the real process lock before its
 safety dry-run. See `docs/JOB_CONTROL.md` and `docs/OLLAMA_PRIORITY.md`.
 
-# Local Personal Assistant 3.4.0-r27.2
+# Local Personal Assistant 3.4.0-r27.2.1
 
 ## R26.4 agent capability exposure fix
 

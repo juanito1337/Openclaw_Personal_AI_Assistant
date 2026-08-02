@@ -113,6 +113,18 @@ class PortfolioParserTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "mehrere unterschiedliche Stichtage"):
             parse_dkb_portfolio_csv(data)
 
+    def test_dkb_csv_accepts_empty_optional_gain_values(self) -> None:
+        data = csv_fixture().replace(
+            b"13,75\xc2\xa0\xe2\x82\xac;2.44%",
+            b";",
+        )
+        parsed = parse_dkb_portfolio_csv(data)
+        basf = next(item for item in parsed["positions"] if item["isin"] == ISIN)
+        self.assertEqual(basf["entry_price"], "45.10")
+        self.assertEqual(basf["valuation_price"], "46.20")
+        self.assertEqual(basf["absolute_gain"], "")
+        self.assertEqual(basf["relative_gain_percent"], "")
+
     def test_parses_portfolio_performance_relative_security_reference(self) -> None:
         data = b"""
         <client>

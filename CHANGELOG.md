@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.4.0-r27.2.1 – Optionale DKB-Gewinnfelder
+
+- Leere Werte in den vorhandenen DKB-Spalten `Absoluter Gewinn` oder
+  `Relativer Gewinn` werden als unbekannt bewahrt und blockieren nicht mehr den
+  gesamten Depotimport.
+- Einstiegskurs, Bewertungskurs, Stückzahl, ISIN und die übrigen Pflichtdaten
+  bleiben strikt validiert; ungültige nichtleere Gewinnwerte bleiben sichtbare
+  Importfehler.
+- Ein Regressionstest bildet den produktiv beobachteten DKB-Leerwert ab.
+
 ## 3.4.0-r27.2 – Vollstaendige Portfolio-Werkzeuge und DKB-Snapshotwerte
 
 - Ein eigener read-only Befehl `portfolio quotes get --isin` liefert einen

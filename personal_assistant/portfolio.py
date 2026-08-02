@@ -604,6 +604,19 @@ def _dkb_currency(*values: object) -> str:
     return next(iter(currencies))
 
 
+def _dkb_optional_decimal(value: object, *, field: str) -> str:
+    text = str(value or "").strip().replace("\u00a0", "").replace(" ", "")
+    if not text or text in {"-", "-,--"}:
+        return ""
+    return str(
+        _dkb_decimal(
+            value,
+            field=field,
+            allow_currency_or_percent=True,
+        )
+    )
+
+
 def parse_dkb_portfolio_csv(data: bytes) -> dict[str, Any]:
     """Parse one strict DKB depot snapshot exported with German column names."""
     if len(data) > MAX_IMPORT_BYTES:
@@ -671,15 +684,13 @@ def parse_dkb_portfolio_csv(data: bytes) -> dict[str, Any]:
             raise ValueError(
                 f"DKB-CSV Zeile {row_number}: negative Kurswerte sind ungueltig"
             )
-        absolute_gain = _dkb_decimal(
+        absolute_gain = _dkb_optional_decimal(
             row.get("Absoluter Gewinn"),
             field=f"Absoluter Gewinn in Zeile {row_number}",
-            allow_currency_or_percent=True,
         )
-        relative_gain = _dkb_decimal(
+        relative_gain = _dkb_optional_decimal(
             row.get("Relativer Gewinn"),
             field=f"Relativer Gewinn in Zeile {row_number}",
-            allow_currency_or_percent=True,
         )
         asset_class = " ".join(str(row.get("Assetklasse") or "").split())
         if not asset_class or len(asset_class) > 100:
@@ -710,8 +721,8 @@ def parse_dkb_portfolio_csv(data: bytes) -> dict[str, Any]:
             "shares": str(shares),
             "entry_price": str(entry_price),
             "valuation_price": str(valuation_price),
-            "absolute_gain": str(absolute_gain),
-            "relative_gain_percent": str(relative_gain),
+            "absolute_gain": absolute_gain,
+            "relative_gain_percent": relative_gain,
             "asset_class": asset_class,
         }
 

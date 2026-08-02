@@ -89,6 +89,8 @@ UTF-8 with a semicolon delimiter and contain the German columns
 `absolute_gain`, `relative_gain_percent` and `asset_class`. General broker CSV
 formats are rejected rather than guessed. The depot snapshot does not contain an
 individual purchase date; that absence does not make its entry price unavailable.
+Individual absolute or relative gain cells may be empty and remain explicitly
+unknown; they do not invalidate an otherwise complete position.
 
 Local preview and confirmed import:
 
