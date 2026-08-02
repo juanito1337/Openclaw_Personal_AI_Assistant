@@ -883,7 +883,11 @@ class PortfolioService:
                     ON CONFLICT(isin) DO UPDATE SET
                         name=excluded.name,
                         wkn=CASE WHEN excluded.wkn!='' THEN excluded.wkn ELSE instruments.wkn END,
-                        currency=CASE WHEN excluded.currency!='' THEN excluded.currency ELSE instruments.currency END,
+                        currency=CASE
+                            WHEN instruments.mapping_confirmed=1 THEN instruments.currency
+                            WHEN excluded.currency!='' THEN excluded.currency
+                            ELSE instruments.currency
+                        END,
                         updated_at=excluded.updated_at
                     """,
                     (
@@ -962,7 +966,7 @@ class PortfolioService:
             SELECT p.account,p.isin,p.shares,p.entry_price,p.valuation_price,
                    p.absolute_gain,p.relative_gain_percent,p.asset_class,
                    COALESCE(NULLIF(p.snapshot_currency,''),i.currency) AS currency,
-                   i.currency AS quote_currency,
+                   CASE WHEN i.mapping_confirmed=1 THEN i.currency ELSE '' END AS quote_currency,
                    i.name,i.wkn,i.symbol,i.mic,i.mapping_confirmed
             FROM position_snapshots p JOIN instruments i ON i.isin=p.isin
             WHERE p.import_id=? ORDER BY i.name,p.account

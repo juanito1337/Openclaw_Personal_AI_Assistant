@@ -425,6 +425,11 @@ class PortfolioServiceTests(unittest.TestCase):
 
     def test_holdings_keep_snapshot_currency_separate_from_quote_currency(self) -> None:
         self.service.import_csv(self.csv.name, dry_run=False)
+        unmapped = next(
+            item for item in self.service.holdings()["positions"] if item["isin"] == ISIN
+        )
+        self.assertEqual(unmapped["currency"], "EUR")
+        self.assertEqual(unmapped["quote_currency"], "")
         self.service.watchlist_add(
             isin=ISIN, name="BASF SE", symbol="BAS", mic="XETR", currency="USD"
         )
@@ -433,6 +438,22 @@ class PortfolioServiceTests(unittest.TestCase):
         )
         self.assertEqual(basf["currency"], "EUR")
         self.assertEqual(basf["quote_currency"], "USD")
+
+    def test_new_dkb_snapshot_preserves_confirmed_quote_currency(self) -> None:
+        self.service.import_csv(self.csv.name, dry_run=False)
+        self.service.watchlist_add(
+            isin=ISIN, name="BASF SE", symbol="BAS", mic="XETR", currency="USD"
+        )
+        newer = self.inbox / "depot-export-01.08.2026.csv"
+        newer.write_bytes(csv_fixture().replace(b"31.07.2026", b"01.08.2026"))
+        imported = self.service.import_csv(newer.name, dry_run=False)
+        self.assertFalse(imported["duplicate"])
+        basf = next(
+            item for item in self.service.holdings()["positions"] if item["isin"] == ISIN
+        )
+        self.assertEqual(basf["currency"], "EUR")
+        self.assertEqual(basf["quote_currency"], "USD")
+        self.assertEqual(basf["mapping_confirmed"], 1)
 
     def test_import_cannot_escape_controlled_root(self) -> None:
         outside = Path(self.temporary.name) / "outside.xml"

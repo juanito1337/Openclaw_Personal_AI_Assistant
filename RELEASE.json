@@ -1,19 +1,29 @@
 {
   "schema_version": 1,
   "product": "OpenClaw Local Personal Assistant",
-  "version": "3.4.0-r27.2.2",
-  "release": "r27.2.2",
-  "title": "Getrennte Snapshot- und Kurswaehrung",
+  "version": "3.4.0-r27.2.3",
+  "release": "r27.2.3",
+  "title": "Bestaendige EODHD-Zuordnung bei neuen DKB-Snapshots",
   "released_at": "2026-08-02",
   "installed_at": null,
-  "previous_version": "3.4.0-r27.2.1",
+  "previous_version": "3.4.0-r27.2.2",
   "installation_id": null,
   "changes": [
-    "DKB-Einstiegskurs, Bewertungskurs und Snapshot-Gewinne behalten ihre Importwaehrung, auch wenn die bestaetigte EODHD-Zuordnung in einer anderen Waehrung notiert.",
-    "portfolio holdings gibt die Snapshot-Waehrung als currency und die Marktdatenwaehrung separat als quote_currency aus und verhindert damit direkte EUR/USD-Fehlvergleiche.",
-    "Identische bereits importierte DKB-Dateien koennen die Snapshot-Waehrung anhand derselben geprueften SHA-256 idempotent nachtragen."
+    "Neue DKB-Depotsnapshots bewahren die Waehrung einer bereits bestaetigten EODHD-Symbol- und MIC-Zuordnung, statt sie mit der Snapshotwaehrung zu ueberschreiben.",
+    "portfolio holdings zeigt quote_currency erst nach bestaetigter Marktdatenzuordnung; currency bleibt die Waehrung der importierten DKB-Snapshotwerte.",
+    "Ein Regressionstest prueft die kritische Reihenfolge aus DKB-Import, bestaetigter EODHD-Zuordnung und spaeterem neuen DKB-Snapshot."
   ],
   "history": [
+    {
+      "version": "3.4.0-r27.2.3",
+      "released_at": "2026-08-02",
+      "title": "Bestaendige EODHD-Zuordnung bei neuen DKB-Snapshots",
+      "changes": [
+        "Neue DKB-Depotsnapshots bewahren die Waehrung einer bereits bestaetigten EODHD-Symbol- und MIC-Zuordnung, statt sie mit der Snapshotwaehrung zu ueberschreiben.",
+        "portfolio holdings zeigt quote_currency erst nach bestaetigter Marktdatenzuordnung; currency bleibt die Waehrung der importierten DKB-Snapshotwerte.",
+        "Ein Regressionstest prueft die kritische Reihenfolge aus DKB-Import, bestaetigter EODHD-Zuordnung und spaeterem neuen DKB-Snapshot."
+      ]
+    },
     {
       "version": "3.4.0-r27.2.2",
       "released_at": "2026-08-02",

@@ -15,7 +15,7 @@
 
 ## Installed release identity
 
-- Installed package release: **3.4.0-r27.2.2**.
+- Installed package release: **3.4.0-r27.2.3**.
 - The authoritative runtime source is `RELEASE.json`, never conversational memory,
   an archive filename, an old session, or README alone.
 - Before answering any question about the installed version, update contents,
@@ -684,7 +684,9 @@ Operational rules:
   the requested field is empty in that live result. The snapshot has an entry
   price but no individual purchase date; never conflate those two fields.
   In `portfolio holdings`, `currency` belongs to the DKB snapshot values and
-  `quote_currency` belongs to the confirmed EODHD mapping. Never subtract or
+  `quote_currency` belongs to the confirmed EODHD mapping and remains empty
+  until that mapping is confirmed. A later DKB snapshot must never overwrite a
+  confirmed quote currency. Never subtract or
   compare values across these currencies without a controlled FX conversion.
 - Never guess a quote symbol from ISIN alone. Jan must confirm exact ISIN,
   provider symbol, MIC and currency before `watchlist add --yes`.

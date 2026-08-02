@@ -1,5 +1,16 @@
 # Changelog
 
+## 3.4.0-r27.2.3 – Bestaendige EODHD-Zuordnung bei neuen DKB-Snapshots
+
+- Ein neuer DKB-Depotsnapshot darf die Waehrung einer bereits bestaetigten
+  EODHD-Symbol-/MIC-Zuordnung nicht mehr mit der DKB-Snapshotwaehrung
+  ueberschreiben.
+- `portfolio holdings` zeigt `quote_currency` erst nach bestaetigter
+  Marktdatenzuordnung; `currency` bleibt weiterhin die Waehrung der importierten
+  DKB-Snapshotwerte.
+- Ein Regressionstest bildet die kritische Reihenfolge DKB-Import,
+  EODHD-Zuordnung und spaeterer neuer DKB-Snapshot ab.
+
 ## 3.4.0-r27.2.2 – Getrennte Snapshot- und Kurswaehrung
 
 - DKB-Einstiegskurs, Bewertungskurs und Snapshot-Gewinne behalten ihre eigene
@@ -44,7 +55,7 @@
   und Betriebsvertrag ab und pruefen Einzelkursausgabe, DKB-Kennzahlen,
   idempotentes Backfill sowie das 90-Minuten-Setup.
 
-## Test-Branch – Vollstaendige serverseitige Mail-Suche
+### Serverseitige Mail-Suche
 
 - `mail search` filtert jetzt direkt auf dem IMAP-Server ueber alle lesbaren
   Ordner, einschliesslich Review-Ordnern. Absender, Betreff und Textinhalt
@@ -68,7 +79,7 @@
   Agentensitzung erforderlich, damit der aktualisierte Skillkontext geladen
   wird.
 
-## Test-Branch – DKB-CSV-Depotimport aus Nextcloud
+### DKB-CSV-Depotimport aus Nextcloud
 
 - Der Portfolio-Monitor importiert neben Portfolio-Performance-XML jetzt das
   strikt validierte DKB-Depot-CSV-Format mit UTF-8/BOM, Semikolon-Trennung,
