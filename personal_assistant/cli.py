@@ -205,6 +205,10 @@ def parser() -> argparse.ArgumentParser:
     portfolio_csv.add_argument("--dry-run", action="store_true")
     portfolio_csv.add_argument("--yes", action="store_true")
     portfolio_sub.add_parser("holdings", help="Letzten importierten Depotbestand anzeigen")
+    portfolio_sub.add_parser(
+        "valuation",
+        help="Aktuellen Depotwert und Gewinn mit EODHD-Kursen und EODHD-FX berechnen",
+    )
     watchlist = portfolio_sub.add_parser("watchlist", help="Watchlist verwalten")
     watchlist_sub = watchlist.add_subparsers(dest="watchlist_command", required=True)
     watchlist_sub.add_parser("list")
@@ -1480,6 +1484,10 @@ def main(argv: list[str] | None = None) -> int:
             if args.portfolio_command == "holdings":
                 _print(assistant.portfolio.holdings())
                 return 0
+            if args.portfolio_command == "valuation":
+                result = assistant.portfolio.valuation()
+                _print(result)
+                return 0 if result.get("ok") else 1
             if args.portfolio_command == "watchlist":
                 if args.watchlist_command == "list":
                     _print(assistant.portfolio.watchlist())

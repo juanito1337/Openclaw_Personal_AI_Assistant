@@ -140,6 +140,7 @@ silently guessed. Watchlist changes and alarm changes require explicit `--yes`.
 ./scripts/assistant.sh portfolio quotes status
 ./scripts/assistant.sh portfolio quotes get --isin "DE000BASF111"
 ./scripts/assistant.sh portfolio quotes refresh
+./scripts/assistant.sh portfolio valuation
 ./scripts/assistant.sh portfolio analyze --isin "DE000BASF111"
 ./scripts/assistant.sh portfolio alerts add \
   --isin "DE000BASF111" --direction above \
@@ -154,6 +155,18 @@ reports SMA20/50/200 and RSI14 only when enough observations exist. A critically
 missing required quote returns `decision=abstain`; it cannot produce a fresh
 trend claim. Outside the configured market window, the last observation remains
 explicitly timestamped and is not falsely described as a live quote.
+
+`portfolio valuation` is the only supported current depot-gain calculation. A
+refresh requests each required pair, such as `EURUSD.FOREX`, in the same
+at-most-20-symbol EODHD Live/Delayed batch as the equity quotes and stores rate,
+source time and receipt time separately. For a USD equity in an EUR DKB
+snapshot, EODHD's `EURUSD` value is USD per EUR, so the implementation divides
+the USD amount by that rate. The command exposes the original quote, converted
+unit price, position value, cost basis, gain and the exact FX observation. If
+any required quote or FX rate is missing, critically stale or has an invalid
+source timestamp, it returns `incomplete` and deliberately omits totals rather
+than summing mixed currencies. Equity and FX observations remain separately
+timestamped because their markets and provider delays can differ legitimately.
 
 Course marks trigger once per crossing. A rule must clear its hysteresis before a
 new crossing can trigger, and a cooldown prevents rapid repeats. A new event is

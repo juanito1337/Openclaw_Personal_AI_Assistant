@@ -1,19 +1,33 @@
 {
   "schema_version": 1,
   "product": "OpenClaw Local Personal Assistant",
-  "version": "3.4.0-r27.2.3",
-  "release": "r27.2.3",
-  "title": "Bestaendige EODHD-Zuordnung bei neuen DKB-Snapshots",
+  "version": "3.4.0-r27.2.4",
+  "release": "r27.2.4",
+  "title": "Waehrungssichere aktuelle Depotbewertung",
   "released_at": "2026-08-02",
   "installed_at": null,
-  "previous_version": "3.4.0-r27.2.2",
+  "previous_version": "3.4.0-r27.2.3",
   "installation_id": null,
   "changes": [
-    "Neue DKB-Depotsnapshots bewahren die Waehrung einer bereits bestaetigten EODHD-Symbol- und MIC-Zuordnung, statt sie mit der Snapshotwaehrung zu ueberschreiben.",
-    "portfolio holdings zeigt quote_currency erst nach bestaetigter Marktdatenzuordnung; currency bleibt die Waehrung der importierten DKB-Snapshotwerte.",
-    "Ein Regressionstest prueft die kritische Reihenfolge aus DKB-Import, bestaetigter EODHD-Zuordnung und spaeterem neuen DKB-Snapshot."
+    "Benoetigte EODHD-FX-Paare wie EURUSD.FOREX werden ohne zusaetzlichen Provider-Aufruf im selben begrenzten Batch wie die Aktienkurse geladen und mit Quell- und Empfangszeit gespeichert.",
+    "Der neue read-only Befehl portfolio valuation berechnet aktuelle Positionswerte und Gewinne deterministisch in der jeweiligen DKB-Snapshotwaehrung und weist Originalkurs, Umrechnung und Zeitstaende aus.",
+    "Fehlende, kritisch veraltete oder unplausibel zeitgestempelte Aktien- oder FX-Kurse unterdruecken fail-closed jede Gesamtsumme, statt EUR-Einstandswerte mit USD-Kursen zu vermischen.",
+    "Tool-Registry, Personal-Assistant-Skill, Betriebsvertrag und Befehlsreferenz verpflichten den Agenten bei aktuellen Depotgewinnfragen auf portfolio valuation.",
+    "Regressionstests pruefen Aktien/FX-Batching, EURUSD-Kehrwertumrechnung, korrekte EUR-Gewinne und den Abbruch ohne erforderlichen Wechselkurs."
   ],
   "history": [
+    {
+      "version": "3.4.0-r27.2.4",
+      "released_at": "2026-08-02",
+      "title": "Waehrungssichere aktuelle Depotbewertung",
+      "changes": [
+        "Benoetigte EODHD-FX-Paare wie EURUSD.FOREX werden ohne zusaetzlichen Provider-Aufruf im selben begrenzten Batch wie die Aktienkurse geladen und mit Quell- und Empfangszeit gespeichert.",
+        "Der neue read-only Befehl portfolio valuation berechnet aktuelle Positionswerte und Gewinne deterministisch in der jeweiligen DKB-Snapshotwaehrung und weist Originalkurs, Umrechnung und Zeitstaende aus.",
+        "Fehlende, kritisch veraltete oder unplausibel zeitgestempelte Aktien- oder FX-Kurse unterdruecken fail-closed jede Gesamtsumme, statt EUR-Einstandswerte mit USD-Kursen zu vermischen.",
+        "Tool-Registry, Personal-Assistant-Skill, Betriebsvertrag und Befehlsreferenz verpflichten den Agenten bei aktuellen Depotgewinnfragen auf portfolio valuation.",
+        "Regressionstests pruefen Aktien/FX-Batching, EURUSD-Kehrwertumrechnung, korrekte EUR-Gewinne und den Abbruch ohne erforderlichen Wechselkurs."
+      ]
+    },
     {
       "version": "3.4.0-r27.2.3",
       "released_at": "2026-08-02",

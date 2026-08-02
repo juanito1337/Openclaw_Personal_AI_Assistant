@@ -1,8 +1,9 @@
-# OpenClaw 3.4.0-r27.2.3
+# OpenClaw 3.4.0-r27.2.4
 
-R27.2.3 is the cumulative container release with strict DKB portfolio snapshots,
-separate snapshot and quote currencies, and unified EODHD Live/Delayed quotes
-for confirmed US and Xetra instruments. Program code and
+R27.2.4 is the cumulative container release with strict DKB portfolio snapshots,
+separate snapshot and quote currencies, unified EODHD Live/Delayed quotes for
+confirmed US and Xetra instruments, and EODHD FX conversion for current depot
+valuation. Program code and
 dependencies live in an immutable image, while productive state, configuration
 and secrets remain under `/srv/openclaw`. Every deployment stops the writers,
 creates and verifies a local restore point, runs a bounded product smoke test
@@ -26,7 +27,7 @@ Quick start after Docker is installed:
 ```bash
 sudo ./docker/scripts/setup-host.sh
 /srv/openclaw/deployment/scripts/migrate-live.sh --execute
-/srv/openclaw/deployment/scripts/deploy.sh r27.2.3
+/srv/openclaw/deployment/scripts/deploy.sh r27.2.4
 ```
 
 ## Portfolio monitor
@@ -38,7 +39,10 @@ price, absolute/relative gain and asset class remain available through
 `portfolio holdings`; arbitrary broker CSV layouts are never guessed. It
 monitors confirmed ISIN/symbol/MIC mappings every 15, 30, 60, 90 or 120 minutes
 through bounded EODHD Live/Delayed batch requests, exposes an exact stored quote
-through `portfolio quotes get --isin`, analyzes stored
+through `portfolio quotes get --isin`, and calculates current position/depot
+value through `portfolio valuation`. Required FX pairs such as
+`EURUSD.FOREX` share the equity batch and are stored with source time, so EUR
+entry prices are never directly subtracted from USD quotes. It analyzes stored
 numeric series and raises deduplicated course-mark events. EODHD stock quotes
 are normally delayed by about 15–20 minutes and are never labeled exchange-real-time.
 Missing or critically stale held-position quotes block fresh analysis
@@ -106,7 +110,7 @@ The agent now has registered Ollama and performance commands, and automatic mail
 recovery stops the timer/service and waits for the real process lock before its
 safety dry-run. See `docs/JOB_CONTROL.md` and `docs/OLLAMA_PRIORITY.md`.
 
-# Local Personal Assistant 3.4.0-r27.2.3
+# Local Personal Assistant 3.4.0-r27.2.4
 
 ## R26.4 agent capability exposure fix
 

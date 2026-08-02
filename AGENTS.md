@@ -15,7 +15,7 @@
 
 ## Installed release identity
 
-- Installed package release: **3.4.0-r27.2.3**.
+- Installed package release: **3.4.0-r27.2.4**.
 - The authoritative runtime source is `RELEASE.json`, never conversational memory,
   an archive filename, an old session, or README alone.
 - Before answering any question about the installed version, update contents,
@@ -642,6 +642,7 @@ Use only the registered portfolio commands:
 ./scripts/assistant.sh portfolio import-csv --nextcloud-path "Assistent/Finanzen/Portfolio/<Datei-DD.MM.YYYY.csv>" --dry-run
 ./scripts/assistant.sh portfolio import-csv --nextcloud-path "Assistent/Finanzen/Portfolio/<Datei-DD.MM.YYYY.csv>" --yes
 ./scripts/assistant.sh portfolio holdings
+./scripts/assistant.sh portfolio valuation
 ./scripts/assistant.sh portfolio watchlist list
 ./scripts/assistant.sh portfolio watchlist add --isin "<ISIN>" --name "<Name>" --symbol "<Symbol>" --mic "<MIC>" --currency "<ISO>" --yes
 ./scripts/assistant.sh portfolio watchlist disable --isin "<ISIN>" --yes
@@ -688,14 +689,24 @@ Operational rules:
   until that mapping is confirmed. A later DKB snapshot must never overwrite a
   confirmed quote currency. Never subtract or
   compare values across these currencies without a controlled FX conversion.
+- For any question about the current value, current gain/loss or current return
+  of one or more held positions, use `portfolio valuation`. It combines the
+  latest stored EODHD equity quote with the stored, timestamped EODHD FX quote
+  and returns both the original quote and the converted snapshot-currency
+  value. Never reproduce this calculation manually from `holdings` plus
+  `quotes get`. If a required equity or FX quote is missing, critically stale
+  or has an invalid source timestamp, report the incomplete result and no total.
 - Never guess a quote symbol from ISIN alone. Jan must confirm exact ISIN,
   provider symbol, MIC and currency before `watchlist add --yes`.
 - EODHD is the sole market-data provider. Translate only registered MICs to the
   confirmed EODHD ticker form (`RHM.XETRA`, US symbols with `.US`); unknown MICs
   fail closed instead of falling back to another provider.
 - Use the EODHD Live/Delayed endpoint and batch at most 20 explicitly mapped
-  instruments per request. Stocks are normally delayed by about 15–20 minutes;
-  never describe them as exchange-real-time quotes.
+  market-data symbols per request. Required FX such as `EURUSD.FOREX` is placed
+  in the same bounded request as the equity quotes, stored with source/receipt
+  time and never silently replaced by a web or guessed rate. Stocks are
+  normally delayed by about 15–20 minutes; never describe them as
+  exchange-real-time quotes.
 - The EODHD token belongs only in `PORTFOLIO_EODHD_API_KEY` under the host
   secrets directory. Because the provider requires a query token, never log a
   request URL or include it in an error. Redact the token from all failures.

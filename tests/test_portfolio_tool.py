@@ -14,6 +14,7 @@ from personal_assistant.connectors.nextcloud.files import NextcloudFiles, Remote
 from personal_assistant.models import PolicyDecision
 from personal_assistant.portfolio import (
     EodhdClient,
+    FxQuote,
     PortfolioService,
     Quote,
     parse_dkb_portfolio_csv,
@@ -192,6 +193,7 @@ class PortfolioParserTests(unittest.TestCase):
         self.assertIn("portfolio.import.csv.nextcloud.confirm", ids)
         self.assertIn("portfolio.quotes.refresh", ids)
         self.assertIn("portfolio.quotes.get", ids)
+        self.assertIn("portfolio.valuation", ids)
         self.assertIn("portfolio.analyze", ids)
         self.assertIn("portfolio.job.on", ids)
         job = next(item for item in default_job_specs() if item.name == "portfolio")
@@ -222,6 +224,8 @@ class PortfolioParserTests(unittest.TestCase):
             ["portfolio", "quotes", "get", "--isin", ISIN]
         )
         self.assertEqual(quote.isin, ISIN)
+        valuation = cli_parser().parse_args(["portfolio", "valuation"])
+        self.assertEqual(valuation.portfolio_command, "valuation")
         free_interval = cli_parser().parse_args(
             [
                 "setup", "portfolio", "--provider", "eodhd",
@@ -294,24 +298,31 @@ class PortfolioParserTests(unittest.TestCase):
                     b'[{"code":"BAS.XETRA","timestamp":1785320100,"open":45,'
                     b'"high":47,"low":44,"close":46,"volume":1234},'
                     b'{"code":"TSLA.US","timestamp":1785320100,"open":300,'
-                    b'"high":310,"low":295,"close":305,"volume":4321}]'
+                    b'"high":310,"low":295,"close":305,"volume":4321},'
+                    b'{"code":"EURUSD.FOREX","timestamp":1785320100,'
+                    b'"close":1.16}]'
                 )
 
         urlopen.return_value = Response()
-        quotes = EodhdClient("top-secret").fetch_many([
-            {"isin": ISIN, "symbol": "BAS", "mic": "XETR", "currency": "EUR"},
-            {
-                "isin": "US88160R1014", "symbol": "TSLA", "mic": "XNGS",
-                "currency": "USD",
-            },
-        ])
+        quotes, fx_quotes = EodhdClient("top-secret").fetch_market_data(
+            [
+                {"isin": ISIN, "symbol": "BAS", "mic": "XETR", "currency": "EUR"},
+                {
+                    "isin": "US88160R1014", "symbol": "TSLA", "mic": "XNGS",
+                    "currency": "USD",
+                },
+            ],
+            [("EUR", "USD")],
+        )
         request = urlopen.call_args.args[0]
         self.assertIn("/BAS.XETRA?", request.full_url)
         self.assertIn("s=TSLA.US", request.full_url)
+        self.assertIn("EURUSD.FOREX", request.full_url)
         self.assertIn("fmt=json", request.full_url)
         self.assertEqual(quotes[ISIN].price, Decimal("46"))
         self.assertEqual(quotes[ISIN].volume, Decimal("1234"))
         self.assertEqual(quotes["US88160R1014"].currency, "USD")
+        self.assertEqual(fx_quotes[("EUR", "USD")].rate, Decimal("1.16"))
 
     def test_eodhd_errors_never_expose_api_key(self) -> None:
         error = EodhdClient("top-secret")._provider_error(
@@ -487,6 +498,74 @@ class PortfolioServiceTests(unittest.TestCase):
         self.assertEqual(result["provider"], "test-provider")
         self.assertEqual(result["provider_symbol"], "BAS.XETRA")
         self.assertFalse(result["critical"])
+
+    def test_valuation_converts_usd_quotes_with_eodhd_fx_and_totals_in_eur(self) -> None:
+        self.clock.value = datetime(2026, 8, 3, 10, 0, tzinfo=timezone.utc)
+        self.service.import_csv(self.csv.name, dry_run=False)
+        self.service.watchlist_add(
+            isin=ISIN, name="BASF SE", symbol="BAS", mic="XETR", currency="USD"
+        )
+        self.service.watchlist_add(
+            isin="DE000A1EWWW0", name="ADIDAS AG", symbol="ADS", mic="XETR", currency="EUR"
+        )
+
+        def fetch(instrument: dict[str, str]) -> Quote:
+            return Quote(
+                symbol=instrument["symbol"],
+                price=Decimal("60") if instrument["isin"] == ISIN else Decimal("200"),
+                currency=instrument["currency"],
+                observed_at=self.clock().isoformat(),
+                provider="eodhd",
+            )
+
+        self.service._quote_fetcher = fetch
+        self.service._fx_quote_fetcher = lambda base, quote: FxQuote(
+            base_currency=base,
+            quote_currency=quote,
+            rate=Decimal("1.20"),
+            observed_at=self.clock().isoformat(),
+        )
+        refreshed = self.service.refresh_quotes(force=True)
+        self.assertTrue(refreshed["ok"])
+        self.assertEqual(refreshed["fx_expected"], 1)
+        self.assertEqual(refreshed["fx_received"], 1)
+
+        result = self.service.valuation()
+        self.assertTrue(result["ok"])
+        basf = next(item for item in result["positions"] if item["isin"] == ISIN)
+        self.assertEqual(basf["current_price"], "60")
+        self.assertEqual(basf["quote_currency"], "USD")
+        self.assertEqual(basf["current_price_converted"], "50.000000")
+        self.assertEqual(basf["gain"], "61.25")
+        self.assertEqual(basf["fx"]["provider_symbol"], "EURUSD.FOREX")
+        self.assertEqual(basf["fx"]["conversion"], "1 USD = 0.83333333 EUR")
+        self.assertEqual(result["totals"]["EUR"]["cost_basis"], "923.75")
+        self.assertEqual(result["totals"]["EUR"]["current_value"], "1025.00")
+        self.assertEqual(result["totals"]["EUR"]["gain"], "101.25")
+
+    def test_valuation_fails_closed_without_required_fx_rate(self) -> None:
+        self.clock.value = datetime(2026, 8, 3, 10, 0, tzinfo=timezone.utc)
+        self.service.import_csv(self.csv.name, dry_run=False)
+        self.service.watchlist_add(
+            isin=ISIN, name="BASF SE", symbol="BAS", mic="XETR", currency="USD"
+        )
+        self.service.watchlist_add(
+            isin="DE000A1EWWW0", name="ADIDAS AG", symbol="ADS", mic="XETR", currency="EUR"
+        )
+        self.service._quote_fetcher = lambda instrument: Quote(
+            symbol=instrument["symbol"],
+            price=Decimal("100"),
+            currency=instrument["currency"],
+            observed_at=self.clock().isoformat(),
+            provider="eodhd",
+        )
+        refreshed = self.service.refresh_quotes(force=True)
+        self.assertFalse(refreshed["ok"])
+        self.assertEqual(refreshed["fx_received"], 0)
+        result = self.service.valuation()
+        self.assertFalse(result["ok"])
+        self.assertIsNone(result["totals"])
+        self.assertTrue(any("Wechselkurs" in item["error"] for item in result["failures"]))
 
     def test_stale_source_degrades_then_fails_closed(self) -> None:
         self._prepare()

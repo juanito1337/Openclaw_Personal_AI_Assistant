@@ -69,6 +69,7 @@ Portfolio monitor:
 ./scripts/assistant.sh portfolio import-csv --nextcloud-path "Assistent/Finanzen/Portfolio/depot-export-DD.MM.YYYY.csv" --dry-run
 ./scripts/assistant.sh portfolio import-csv --nextcloud-path "Assistent/Finanzen/Portfolio/depot-export-DD.MM.YYYY.csv" --yes
 ./scripts/assistant.sh portfolio holdings
+./scripts/assistant.sh portfolio valuation
 ./scripts/assistant.sh portfolio watchlist list
 ./scripts/assistant.sh portfolio watchlist add --isin "<ISIN>" --name "<Name>" --symbol "<Symbol>" --mic "<MIC>" --currency EUR --yes
 ./scripts/assistant.sh portfolio watchlist disable --isin "<ISIN>" --yes

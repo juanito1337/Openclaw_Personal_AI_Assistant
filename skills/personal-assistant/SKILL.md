@@ -1,6 +1,6 @@
 ---
 name: personal-assistant
-version: 3.4.0-r27.2.3
+version: 3.4.0-r27.2.4
 description: Operate the local Personal Assistant and its registered tools. Use for status and diagnostics, cross-source search, mail triage, invoice archiving, Nextcloud files, CardDAV contacts, CalDAV calendars, VTODO tasks and portfolio workflows, including ClamAV-checked Portfolio Performance XML and strict DKB depot CSV imports from the controlled local inbox or an exact Nextcloud path. The assistant can list and search contacts, calendar events and tasks; it can create new objects and, when allow_update is explicitly enabled for the selected collection, update exactly one existing object by UID with ETag/If-Match protection.
 ---
 
@@ -205,6 +205,7 @@ deadline or lease fails, run `scheduler doctor` and
 ./scripts/assistant.sh portfolio import-csv --nextcloud-path "Assistent/Finanzen/Portfolio/<Datei-DD.MM.YYYY.csv>" --dry-run
 ./scripts/assistant.sh portfolio import-csv --nextcloud-path "Assistent/Finanzen/Portfolio/<Datei-DD.MM.YYYY.csv>" --yes
 ./scripts/assistant.sh portfolio holdings
+./scripts/assistant.sh portfolio valuation
 ./scripts/assistant.sh portfolio watchlist list
 ./scripts/assistant.sh portfolio watchlist add --isin "<ISIN>" --name "<Name>" --symbol "<Symbol>" --mic "<MIC>" --currency "<ISO>" --yes
 ./scripts/assistant.sh portfolio watchlist disable --isin "<ISIN>" --yes
@@ -253,6 +254,16 @@ snapshot must not replace an already confirmed quote currency.
 Never treat a USD quote as directly comparable to an EUR entry price without a
 controlled FX conversion.
 
+For every question about current depot value, current profit/loss or current
+return, call `portfolio valuation`. This is the authoritative deterministic
+calculation: it converts each latest EODHD equity quote into the DKB snapshot
+currency with the stored, timestamped EODHD FX quote (for example
+`EURUSD.FOREX`) and returns position values plus currency-safe totals. Do not
+manually subtract `portfolio quotes get` output from `portfolio holdings`, even
+when the currencies happen to look familiar. If `portfolio valuation` is
+incomplete because an equity/FX quote is missing, stale or has an invalid source
+timestamp, state that limitation and do not invent or sum a partial total.
+
 For a current/latest price question, resolve the exact ISIN from `portfolio
 holdings` or `portfolio watchlist list`, then call `portfolio quotes get --isin
 "<ISIN>"`. Report `price`, `currency`, `observed_at`, `provider` and the
@@ -263,7 +274,8 @@ Use `portfolio analyze` only when trend indicators or a stored series are
 requested, not as the primary single-price lookup.
 
 EODHD is the only quote provider. It uses confirmed EODHD forms such as
-`RHM.XETRA` and `TSLA.US`, batches at most 20 mapped instruments and normally
+`RHM.XETRA` and `TSLA.US`, batches at most 20 market-data symbols including any
+required FX pair, and normally
 returns stock prices delayed by about 15–20 minutes. Never call these prices
 exchange-real-time, fall back to Twelve Data or expose `PORTFOLIO_EODHD_API_KEY`.
 The setup accepts 15, 30, 60, 90 or 120 minutes. For a free 20-call daily

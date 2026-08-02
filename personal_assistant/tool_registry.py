@@ -256,6 +256,12 @@ def build_tool_registry(settings: ToolSettings) -> list[AgentTool]:
             "read",
         ),
         AgentTool(
+            "portfolio.valuation",
+            "Aktuellen Depotwert und Gewinn deterministisch aus gespeicherten EODHD-Aktienkursen und zeitgestempelten EODHD-Wechselkursen berechnen; bei fehlender Umrechnung fail-closed",
+            './scripts/assistant.sh portfolio valuation',
+            "read",
+        ),
+        AgentTool(
             "portfolio.watchlist",
             "Watchlist und bestaetigte ISIN/Symbol/MIC-Zuordnungen anzeigen",
             './scripts/assistant.sh portfolio watchlist list',

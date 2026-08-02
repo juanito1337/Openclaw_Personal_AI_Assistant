@@ -1,5 +1,23 @@
 # Changelog
 
+## 3.4.0-r27.2.4 – Waehrungssichere aktuelle Depotbewertung
+
+- Ein EODHD-Kursrefresh nimmt benoetigte FX-Paare wie `EURUSD.FOREX` in
+  denselben begrenzten Batch wie die Aktienkurse auf und speichert Kurs,
+  Quellzeit, Empfangszeit und Provider versioniert in der Portfolio-Datenbank.
+- Der neue read-only Befehl `portfolio valuation` berechnet je Position den
+  aktuellen Kurs in Originalwaehrung, den FX-konvertierten Kurs in der
+  DKB-Snapshotwaehrung, Depotwert, Einstandswert und Gewinn/Verlust sowie
+  konsistente Waehrungssummen.
+- Fehlende, kritisch veraltete oder unplausibel zeitgestempelte Aktien-/FX-Kurse
+  brechen die Gesamtbewertung fail-closed ab; Teilwerte werden nicht als
+  vollstaendiger Depotgewinn summiert.
+- Tool-Registry, Skill, Betriebsvertrag und Befehlsreferenz verpflichten den
+  Agenten bei aktuellen Gewinnfragen auf das deterministische
+  Bewertungswerkzeug statt auf manuelle EUR/USD-Arithmetik.
+- Regressionstests pruefen EODHD-Aktien/FX-Batching, die Kehrwertumrechnung von
+  EURUSD, korrekte EUR-Positionen und den Abbruch ohne erforderlichen FX-Kurs.
+
 ## 3.4.0-r27.2.3 – Bestaendige EODHD-Zuordnung bei neuen DKB-Snapshots
 
 - Ein neuer DKB-Depotsnapshot darf die Waehrung einer bereits bestaetigten
