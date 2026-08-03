@@ -1,6 +1,6 @@
 ---
 name: personal-assistant
-version: 3.4.0-r27.2.4
+version: 3.4.0-r27.2.5
 description: Operate the local Personal Assistant and its registered tools. Use for status and diagnostics, cross-source search, mail triage, invoice archiving, Nextcloud files, CardDAV contacts, CalDAV calendars, VTODO tasks and portfolio workflows, including ClamAV-checked Portfolio Performance XML and strict DKB depot CSV imports from the controlled local inbox or an exact Nextcloud path. The assistant can list and search contacts, calendar events and tasks; it can create new objects and, when allow_update is explicitly enabled for the selected collection, update exactly one existing object by UID with ETag/If-Match protection.
 ---
 
@@ -197,7 +197,7 @@ deadline or lease fails, run `scheduler doctor` and
 ```bash
 ./scripts/assistant.sh portfolio status
 ./scripts/assistant.sh portfolio doctor
-./scripts/assistant.sh setup portfolio --provider eodhd --interval-minutes 90 --approve-permissions
+./scripts/assistant.sh setup portfolio --provider eodhd --interval-minutes 15 --approve-permissions
 ./scripts/assistant.sh portfolio import-pp --file "<Datei>" --dry-run
 ./scripts/assistant.sh portfolio import-pp --file "<Datei>" --yes
 ./scripts/assistant.sh portfolio import-csv --file "<DKB-CSV>" --dry-run

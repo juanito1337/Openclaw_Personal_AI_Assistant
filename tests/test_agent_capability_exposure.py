@@ -20,7 +20,7 @@ class AgentCapabilityExposureTests(unittest.TestCase):
         skill = (root / "skills/personal-assistant/SKILL.md").read_text(encoding="utf-8")
         agents = (root / "AGENTS.md").read_text(encoding="utf-8")
 
-        self.assertIn("version: 3.4.0-r27.2.4", skill)
+        self.assertIn("version: 3.4.0-r27.2.5", skill)
         for command in (
             "calendar list --limit 100",
             "calendar search --query",
@@ -62,7 +62,7 @@ class AgentCapabilityExposureTests(unittest.TestCase):
         )
         self.assertIn("portfolio import-csv --file", commands)
         self.assertIn("portfolio import-csv --nextcloud-path", commands)
-        self.assertIn("setup portfolio --provider eodhd --interval-minutes 90", commands)
+        self.assertIn("setup portfolio --provider eodhd --interval-minutes 15", commands)
         self.assertNotIn("--provider twelve-data", skill)
         self.assertIn("15–20 minutes", skill)
         self.assertIn("accepts no `--detailed` option", skill)

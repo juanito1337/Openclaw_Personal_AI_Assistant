@@ -19,6 +19,10 @@ run_cli() {
 run_cli /home/node/.openclaw/workspace/scripts/assistant.sh version --verify
 run_cli /home/node/.openclaw/workspace/scripts/assistant.sh capabilities
 run_cli /home/node/.openclaw/workspace/scripts/assistant.sh mail compose-draft --help
+if [[ "${OPENCLAW_MAIL_SEARCH_SMOKE_ENABLED:-false}" == "true" ]]; then
+  smoke_query="openclaw-smoke-no-match-$(date -u +%s)-$$"
+  run_cli /home/node/.openclaw/workspace/scripts/assistant.sh mail search --query "$smoke_query" --limit 1
+fi
 run_cli /home/node/.openclaw/workspace/scripts/mail-agent.sh doctor
 if [[ "$mode" == "true" ]]; then
   run_cli /home/node/.openclaw/workspace/scripts/mail-agent.sh run --dry-run --limit "$limit" --no-digest

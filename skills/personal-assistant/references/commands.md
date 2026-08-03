@@ -60,7 +60,7 @@ Portfolio monitor:
 
 ```bash
 ./scripts/assistant.sh portfolio status
-./scripts/assistant.sh setup portfolio --provider eodhd --interval-minutes 90 --approve-permissions
+./scripts/assistant.sh setup portfolio --provider eodhd --interval-minutes 15 --approve-permissions
 ./scripts/assistant.sh portfolio doctor
 ./scripts/assistant.sh portfolio import-pp --file "depot.xml" --dry-run
 ./scripts/assistant.sh portfolio import-pp --file "depot.xml" --yes

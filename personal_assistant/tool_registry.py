@@ -189,8 +189,8 @@ def build_tool_registry(settings: ToolSettings) -> list[AgentTool]:
         ),
         AgentTool(
             "portfolio.setup",
-            "Portfolio-Monitor konfigurieren; fuer ein 20-Aufrufe/Tag-Kontingent sind 90 Minuten konservativ, API-Schluessel und Job bleiben getrennt",
-            './scripts/assistant.sh setup portfolio --provider eodhd --interval-minutes 90 --approve-permissions',
+            "Portfolio-Monitor fuer den bezahlten EODHD-Zugang auf 15-Minuten-Abrufe konfigurieren; API-Schluessel und Job bleiben getrennt",
+            './scripts/assistant.sh setup portfolio --provider eodhd --interval-minutes 15 --approve-permissions',
             "local-write",
             False,
             "explicit-user-permission-setup",

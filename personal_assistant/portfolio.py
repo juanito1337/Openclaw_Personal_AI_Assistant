@@ -1231,6 +1231,33 @@ class PortfolioService:
     def refresh_quotes(self, *, force: bool = False) -> dict[str, Any]:
         self._require_enabled()
         started_dt = self._now()
+        last_attempt = self.store.connection.execute(
+            """
+            SELECT finished_at,status,error FROM quote_runs
+            ORDER BY id DESC LIMIT 1
+            """
+        ).fetchone()
+        if not force and last_attempt and last_attempt["status"] == "failed":
+            error = str(last_attempt["error"] or "")
+            non_retryable = next(
+                (code for code in ("HTTP 401", "HTTP 402", "HTTP 403") if code in error),
+                "",
+            )
+            last_attempt_at = _parse_time(last_attempt["finished_at"])
+            if non_retryable and last_attempt_at is not None:
+                next_retry_at = (last_attempt_at.astimezone(timezone.utc) + timedelta(days=1)).replace(
+                    hour=0, minute=0, second=0, microsecond=0
+                )
+                if started_dt < next_retry_at:
+                    return {
+                        "ok": False,
+                        "status": "skipped-provider-cooldown",
+                        "provider": self.settings.provider,
+                        "reason": non_retryable,
+                        "last_attempt_at": _iso(last_attempt_at),
+                        "next_retry_at": _iso(next_retry_at),
+                        "force_allowed_only_for_explicit_diagnostic": True,
+                    }
         last_success = self.store.connection.execute(
             """
             SELECT finished_at FROM quote_runs

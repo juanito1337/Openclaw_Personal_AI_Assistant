@@ -1,5 +1,19 @@
 # Changelog
 
+## 3.4.0-r27.2.5 – Robuste Mail-Suche und kontrollierte Kursabrufe
+
+- Erfolgreiche Himalaya-Suchen ohne Treffer werden als vollstaendige leere
+  Trefferliste behandelt; nichtleere ungueltige JSON-Ausgaben bleiben Fehler.
+- Regressionstests decken leere Suchausgaben, kaputtes JSON und den optionalen
+  Container-Smoke-Test fuer einen serverseitigen Nulltreffer ab.
+- Depotpositionen und aktivierte Watchlist-Werte werden weiterhin zu einer
+  eindeutigen Zielmenge zusammengefuehrt und nun ausdruecklich getestet.
+- Der bezahlte EODHD-Zugang wird mit 15-Minuten-Intervall dokumentiert. HTTP
+  401, 402 und 403 loesen bis zum naechsten UTC-Tag einen automatischen
+  Cooldown aus, statt alle 15 Minuten erneut beim Anbieter anzufragen.
+- Der Doctor liest seine Versionsidentitaet aus dem autoritativen
+  `RELEASE.json`, statt eine veraltete Paketkonstante auszugeben.
+
 ## 3.4.0-r27.2.4 – Waehrungssichere aktuelle Depotbewertung
 
 - Ein EODHD-Kursrefresh nimmt benoetigte FX-Paare wie `EURUSD.FOREX` in

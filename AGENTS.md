@@ -15,7 +15,7 @@
 
 ## Installed release identity
 
-- Installed package release: **3.4.0-r27.2.4**.
+- Installed package release: **3.4.0-r27.2.5**.
 - The authoritative runtime source is `RELEASE.json`, never conversational memory,
   an archive filename, an old session, or README alone.
 - Before answering any question about the installed version, update contents,
@@ -655,7 +655,7 @@ Use only the registered portfolio commands:
 ./scripts/assistant.sh portfolio alerts add --isin "<ISIN>" --direction "<above|below>" --threshold "<Kurs>" --currency "<ISO>" --yes
 ./scripts/assistant.sh portfolio alerts disable --id "<Regel-ID>" --yes
 ./scripts/assistant.sh portfolio performance
-./scripts/assistant.sh setup portfolio --provider eodhd --interval-minutes 90 --approve-permissions
+./scripts/assistant.sh setup portfolio --provider eodhd --interval-minutes 15 --approve-permissions
 ./scripts/assistant.sh jobs status --target portfolio --deep
 ./scripts/assistant.sh jobs on portfolio
 ./scripts/assistant.sh jobs restart portfolio
@@ -720,9 +720,14 @@ Operational rules:
   web search while the registered price tool is available.
 - Use `portfolio analyze` for stored time-series indicators, not as a substitute
   for the exact single-price command.
-- Setup intervals are 15, 30, 60, 90 or 120 minutes. A 90-minute interval is a
-  conservative starting point for a free 20-call/day allowance; configure it
-  only through `setup portfolio` and do not invent `portfolio setup`.
+- Setup intervals are 15, 30, 60, 90 or 120 minutes. The configured paid EODHD
+  plan uses 15 minutes. Configure the interval only through `setup portfolio`
+  and do not invent `portfolio setup`.
+- Holdings and enabled watchlist entries form one deduplicated quote target set.
+  A symbol present in both must consume only one provider result per refresh.
+- HTTP 401, 402 and 403 are non-retryable provider responses. Automatic work
+  must enter a UTC-day cooldown instead of retrying every worker tick; only an
+  explicit diagnostic `--force` may bypass that cooldown.
 - Missing, unmapped or critically stale quotes for held positions are failures.
   A fresh trend conclusion must return `decision=abstain` until required data is
   available. Market-closed observations remain explicitly timestamped.

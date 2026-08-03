@@ -22,7 +22,7 @@ The release defaults keep the tool and job off. Instance configuration belongs i
 
 ```bash
 ./scripts/assistant.sh setup portfolio \
-  --provider eodhd --interval-minutes 90 --approve-permissions
+  --provider eodhd --interval-minutes 15 --approve-permissions
 ```
 
 This creates the controlled import directory and configuration but neither stores
@@ -57,9 +57,11 @@ instruments are fetched in one bounded request. EODHD stock snapshots are
 normally delayed by about 15–20 minutes and must not be described as
 exchange-real-time quotes.
 
-For a free allowance of 20 calls per day, 90 minutes is the conservative
-starting interval. The setup command automatically raises freshness thresholds
-for longer intervals. A paid plan may use a shorter supported interval.
+The configured paid EODHD plan uses a 15-minute interval. The setup command
+automatically raises freshness thresholds for longer intervals. Holdings and
+enabled watchlist entries are deduplicated before the bounded provider request.
+HTTP 401, 402 and 403 enter a UTC-day cooldown instead of being retried every
+worker tick.
 
 ## Depot import
 

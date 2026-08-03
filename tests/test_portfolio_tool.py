@@ -487,6 +487,41 @@ class PortfolioServiceTests(unittest.TestCase):
         skipped = self.service.refresh_quotes()
         self.assertEqual(skipped["status"], "skipped-not-due")
 
+    def test_refresh_deduplicates_holdings_and_enabled_watchlist(self) -> None:
+        self._prepare()
+        second_isin = "DE000A1EWWW0"
+        self.service.watchlist_add(
+            isin=second_isin, name="ADIDAS AG", symbol="ADS", mic="XETR", currency="EUR"
+        )
+        fetched: list[str] = []
+
+        def fetch(instrument: dict[str, str]) -> Quote:
+            fetched.append(instrument["isin"])
+            return Quote(
+                symbol=instrument["symbol"], price=Decimal("100"), currency="EUR",
+                observed_at=self.clock().isoformat(), provider="test-provider",
+            )
+
+        self.service._quote_fetcher = fetch
+        result = self.service.refresh_quotes(force=True)
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["expected"], 2)
+        self.assertEqual(sorted(fetched), sorted([ISIN, second_isin]))
+
+    def test_non_retryable_provider_failure_enters_daily_cooldown(self) -> None:
+        self._prepare()
+        self.service._quote_fetcher = lambda instrument: (_ for _ in ()).throw(
+            RuntimeError("EODHD-Marktdatenfehler: HTTP 402")
+        )
+        first = self.service.refresh_quotes(force=True)
+        self.assertFalse(first["ok"])
+        self.clock.value += timedelta(minutes=15)
+        skipped = self.service.refresh_quotes()
+        self.assertFalse(skipped["ok"])
+        self.assertEqual(skipped["status"], "skipped-provider-cooldown")
+        self.assertEqual(skipped["reason"], "HTTP 402")
+        self.assertTrue(skipped["force_allowed_only_for_explicit_diagnostic"])
+
     def test_latest_quote_returns_price_without_analysis_or_sqlite_access(self) -> None:
         self._prepare()
         self.price = Decimal("123.45")

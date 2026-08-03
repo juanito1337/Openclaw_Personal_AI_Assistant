@@ -1,21 +1,33 @@
 {
   "schema_version": 1,
   "product": "OpenClaw Local Personal Assistant",
-  "version": "3.4.0-r27.2.4",
-  "release": "r27.2.4",
-  "title": "Waehrungssichere aktuelle Depotbewertung",
-  "released_at": "2026-08-02",
+  "version": "3.4.0-r27.2.5",
+  "release": "r27.2.5",
+  "title": "Robuste Mail-Suche und kontrollierte Kursabrufe",
+  "released_at": "2026-08-03",
   "installed_at": null,
-  "previous_version": "3.4.0-r27.2.3",
+  "previous_version": "3.4.0-r27.2.4",
   "installation_id": null,
   "changes": [
-    "Benoetigte EODHD-FX-Paare wie EURUSD.FOREX werden ohne zusaetzlichen Provider-Aufruf im selben begrenzten Batch wie die Aktienkurse geladen und mit Quell- und Empfangszeit gespeichert.",
-    "Der neue read-only Befehl portfolio valuation berechnet aktuelle Positionswerte und Gewinne deterministisch in der jeweiligen DKB-Snapshotwaehrung und weist Originalkurs, Umrechnung und Zeitstaende aus.",
-    "Fehlende, kritisch veraltete oder unplausibel zeitgestempelte Aktien- oder FX-Kurse unterdruecken fail-closed jede Gesamtsumme, statt EUR-Einstandswerte mit USD-Kursen zu vermischen.",
-    "Tool-Registry, Personal-Assistant-Skill, Betriebsvertrag und Befehlsreferenz verpflichten den Agenten bei aktuellen Depotgewinnfragen auf portfolio valuation.",
-    "Regressionstests pruefen Aktien/FX-Batching, EURUSD-Kehrwertumrechnung, korrekte EUR-Gewinne und den Abbruch ohne erforderlichen Wechselkurs."
+    "Erfolgreiche Himalaya-Suchen ohne Treffer werden als vollstaendige leere Trefferliste behandelt; nichtleere ungueltige JSON-Ausgaben bleiben sichtbare Fehler.",
+    "Regressionstests und ein optionaler Container-Smoke-Test decken serverseitige Nulltreffer ab.",
+    "Depot und aktivierte Watchlist werden dedupliziert gemeinsam im dokumentierten 15-Minuten-Intervall aktualisiert.",
+    "Nicht wiederholbare EODHD-Antworten HTTP 401, 402 und 403 loesen bis zum naechsten UTC-Tag einen automatischen Cooldown aus.",
+    "Der Doctor liest die verifizierte Versionsidentitaet aus RELEASE.json statt aus einer veralteten Paketkonstante."
   ],
   "history": [
+    {
+      "version": "3.4.0-r27.2.5",
+      "released_at": "2026-08-03",
+      "title": "Robuste Mail-Suche und kontrollierte Kursabrufe",
+      "changes": [
+        "Erfolgreiche Himalaya-Suchen ohne Treffer werden als vollstaendige leere Trefferliste behandelt; nichtleere ungueltige JSON-Ausgaben bleiben sichtbare Fehler.",
+        "Regressionstests und ein optionaler Container-Smoke-Test decken serverseitige Nulltreffer ab.",
+        "Depot und aktivierte Watchlist werden dedupliziert gemeinsam im dokumentierten 15-Minuten-Intervall aktualisiert.",
+        "Nicht wiederholbare EODHD-Antworten HTTP 401, 402 und 403 loesen bis zum naechsten UTC-Tag einen automatischen Cooldown aus.",
+        "Der Doctor liest die verifizierte Versionsidentitaet aus RELEASE.json statt aus einer veralteten Paketkonstante."
+      ]
+    },
     {
       "version": "3.4.0-r27.2.4",
       "released_at": "2026-08-02",

@@ -1,9 +1,10 @@
-# OpenClaw 3.4.0-r27.2.4
+# OpenClaw 3.4.0-r27.2.5
 
-R27.2.4 is the cumulative container release with strict DKB portfolio snapshots,
-separate snapshot and quote currencies, unified EODHD Live/Delayed quotes for
-confirmed US and Xetra instruments, and EODHD FX conversion for current depot
-valuation. Program code and
+R27.2.5 is the cumulative container release with robust server-side mail
+null-result handling, deduplicated 15-minute EODHD updates for holdings and the
+enabled watchlist, and a cooldown for non-retryable provider responses. It also
+contains the strict DKB snapshots, unified EODHD Live/Delayed quotes and FX
+conversion from R27.2.4. Program code and
 dependencies live in an immutable image, while productive state, configuration
 and secrets remain under `/srv/openclaw`. Every deployment stops the writers,
 creates and verifies a local restore point, runs a bounded product smoke test
@@ -27,7 +28,7 @@ Quick start after Docker is installed:
 ```bash
 sudo ./docker/scripts/setup-host.sh
 /srv/openclaw/deployment/scripts/migrate-live.sh --execute
-/srv/openclaw/deployment/scripts/deploy.sh r27.2.4
+/srv/openclaw/deployment/scripts/deploy.sh r27.2.5
 ```
 
 ## Portfolio monitor
@@ -110,7 +111,7 @@ The agent now has registered Ollama and performance commands, and automatic mail
 recovery stops the timer/service and waits for the real process lock before its
 safety dry-run. See `docs/JOB_CONTROL.md` and `docs/OLLAMA_PRIORITY.md`.
 
-# Local Personal Assistant 3.4.0-r27.2.4
+# Local Personal Assistant 3.4.0-r27.2.5
 
 ## R26.4 agent capability exposure fix
 

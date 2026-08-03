@@ -84,6 +84,14 @@ class FakeRunner:
         )
 
 
+class StaticRunner:
+    def __init__(self, result):
+        self.result = result
+
+    def run(self, command):
+        return CommandResult(list(command), *self.result)
+
+
 def build(tmp):
     registry = ResourceRegistry(tmp/'resources.toml')
     registry.resources['mail-agent'] = Resource(
@@ -110,6 +118,14 @@ def main():
         assert command[command.index("--page-size") + 1] == "50"
         assert "Jörn" in command and "Arp" in command and "body" in command
         assert command[-4:] == ["order", "by", "date", "desc"]
+
+        for empty in ("", "  \n"):
+            empty_client = HimalayaClient(config, StaticRunner((0, empty, "")))
+            searched, error = empty_client.search_envelopes("Archiv", ["nichtvorhanden"])
+            assert searched == [] and error == ""
+        malformed_client = HimalayaClient(config, StaticRunner((0, "not-json", "")))
+        searched, error = malformed_client.search_envelopes("Archiv", ["defekt"])
+        assert searched == [] and "Ungueltige Himalaya-JSON-Ausgabe" in error
 
         service, storage = build(Path(td))
         listed = service.list_messages('Archiv', limit=10)

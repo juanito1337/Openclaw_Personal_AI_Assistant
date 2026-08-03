@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from . import __version__
 from .actions import ActionService
 from .antivirus import HostAntivirus
 from .config import AssistantConfig
@@ -42,6 +41,7 @@ from .orders import OrderDeckService, STACKS
 from .portfolio import MAX_IMPORT_BYTES, PortfolioService
 from .policy import DEFAULT_DENIED_ACTIONS, PolicyEngine
 from .registry import ResourceRegistry
+from .release import release_report
 from .settings import SettingsService
 from .storage import AssistantStorage
 from .tool_registry import build_tool_registry
@@ -2144,8 +2144,10 @@ class PersonalAssistant:
         self.storage.close()
 
     def doctor(self, *, live: bool = True) -> dict[str, Any]:
+        release = release_report(verify=True)
         result: dict[str, Any] = {
-            "version": __version__,
+            "version": release["version"],
+            "release_verified": bool(release.get("ok")),
             "database": {"ok": self.storage.integrity() == "ok", "detail": self.storage.integrity()},
             "resources": {
                 "ok": not bool(self.registry.duplicate_ids),

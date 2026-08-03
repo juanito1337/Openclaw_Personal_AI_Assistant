@@ -154,6 +154,11 @@ class HimalayaClient:
     ) -> tuple[list[Envelope], str]:
         if not result.ok:
             return [], result.combined
+        # Himalaya 1.2 exits successfully without writing JSON when a backend
+        # search has no matches.  That is a valid empty result, not a broken
+        # response.  Keep non-empty malformed output fail-closed below.
+        if not result.stdout.strip():
+            return [], ""
         try:
             payload = json.loads(result.stdout)
         except json.JSONDecodeError as exc:
