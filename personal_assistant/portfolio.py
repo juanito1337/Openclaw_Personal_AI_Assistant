@@ -16,7 +16,7 @@ import urllib.request
 import uuid
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
-from datetime import datetime, time as clock_time, timezone
+from datetime import datetime, time as clock_time, timedelta, timezone
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pathlib import Path
 from typing import Any, Callable
