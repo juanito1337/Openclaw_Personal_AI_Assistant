@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import csv
 import hashlib
+import io
 import json
 import math
 import os
@@ -14,8 +16,8 @@ import urllib.request
 import uuid
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
-from datetime import datetime, time as clock_time, timezone
-from decimal import Decimal, InvalidOperation
+from datetime import datetime, time as clock_time, timedelta, timezone
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pathlib import Path
 from typing import Any, Callable
 from zoneinfo import ZoneInfo
@@ -24,13 +26,33 @@ from .antivirus import HostAntivirus
 from .tool_settings import PortfolioToolSettings
 
 
-SCHEMA_VERSION = 1
-MAX_XML_BYTES = 25_000_000
+SCHEMA_VERSION = 4
+MAX_IMPORT_BYTES = 25_000_000
 ISIN_RE = re.compile(r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$")
 MIC_RE = re.compile(r"^[A-Z0-9]{4}$")
+EODHD_EXCHANGE_BY_MIC = {
+    "XETR": "XETRA",
+    "XNAS": "US",
+    "XNGS": "US",
+    "XNYS": "US",
+}
+EODHD_BATCH_LIMIT = 20
 PP_INDEX_RE = re.compile(r"security\[(\d+)\]")
 POSITIVE_TYPES = {"BUY", "DELIVERY_INBOUND", "TRANSFER_IN"}
 NEGATIVE_TYPES = {"SELL", "DELIVERY_OUTBOUND", "TRANSFER_OUT"}
+DKB_CSV_REQUIRED_HEADERS = (
+    "Datum der Erstellung",
+    "Depotnummer",
+    "Wertpapierbezeichnung",
+    "WKN",
+    "ISIN",
+    "Einstiegskurs",
+    "Bewertungskurs",
+    "Stückzahl",
+    "Absoluter Gewinn",
+    "Relativer Gewinn",
+    "Assetklasse",
+)
 
 
 def _now() -> datetime:
@@ -99,7 +121,7 @@ class Quote:
     price: Decimal
     currency: str
     observed_at: str
-    provider: str = "twelve-data"
+    provider: str = "eodhd"
     open: Decimal | None = None
     high: Decimal | None = None
     low: Decimal | None = None
@@ -107,7 +129,17 @@ class Quote:
     market_open: bool | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class FxQuote:
+    base_currency: str
+    quote_currency: str
+    rate: Decimal
+    observed_at: str
+    provider: str = "eodhd"
+
+
 QuoteFetcher = Callable[[dict[str, str]], Quote]
+FxQuoteFetcher = Callable[[str, str], FxQuote]
 EventNotifier = Callable[[str], dict[str, Any]]
 
 
@@ -130,71 +162,152 @@ def _notify_openclaw(text: str) -> dict[str, Any]:
         return {"attempted": True, "ok": False, "detail": str(exc)}
 
 
-class TwelveDataClient:
-    endpoint = "https://api.twelvedata.com/quote"
+class EodhdClient:
+    endpoint = "https://eodhd.com/api/real-time"
 
-    def __init__(self, api_key: str, *, timeout: int = 20, interval_minutes: int = 30) -> None:
+    def __init__(self, api_key: str, *, timeout: int = 20) -> None:
         self.api_key = api_key
         self.timeout = timeout
-        self.interval_minutes = interval_minutes
 
-    def fetch(self, instrument: dict[str, str]) -> Quote:
-        params = {
-            "symbol": instrument["symbol"],
-            "interval": f"{self.interval_minutes}min",
-            "timezone": "UTC",
-        }
-        if instrument.get("mic"):
-            params["mic_code"] = instrument["mic"]
-        url = self.endpoint + "?" + urllib.parse.urlencode(params)
-        request = urllib.request.Request(
-            url,
-            headers={
-                "User-Agent": "OpenClaw-Portfolio/1",
-                "Authorization": f"apikey {self.api_key}",
-            },
-        )
+    @staticmethod
+    def ticker(instrument: dict[str, str]) -> str:
+        symbol = str(instrument.get("symbol") or "").strip().upper()
+        mic = str(instrument.get("mic") or "").strip().upper()
+        if not symbol:
+            raise ValueError("EODHD-Zuordnung enthaelt kein Symbol")
+        exchange = EODHD_EXCHANGE_BY_MIC.get(mic)
+        if not exchange:
+            raise ValueError(f"EODHD-Boersencode fuer MIC {mic or '<leer>'} ist nicht registriert")
+        return f"{symbol}.{exchange}"
+
+    def _provider_error(self, raw: bytes, fallback: str) -> RuntimeError:
+        detail = ""
+        try:
+            payload = json.loads(raw.decode("utf-8"))
+            if isinstance(payload, dict):
+                detail = str(payload.get("message") or payload.get("error") or "")
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            detail = ""
+        safe = (detail or fallback).replace(self.api_key, "<redacted>")[:300]
+        return RuntimeError(f"EODHD-Marktdatenfehler: {safe}")
+
+    @staticmethod
+    def fx_ticker(base_currency: str, quote_currency: str) -> str:
+        base = base_currency.strip().upper()
+        quote = quote_currency.strip().upper()
+        if (
+            len(base) != 3
+            or len(quote) != 3
+            or not base.isalpha()
+            or not quote.isalpha()
+            or base == quote
+        ):
+            raise ValueError("EODHD-FX-Paar benoetigt zwei verschiedene ISO-Waehrungen")
+        return f"{base}{quote}.FOREX"
+
+    def fetch_market_data(
+        self,
+        instruments: list[dict[str, str]],
+        fx_pairs: list[tuple[str, str]] | None = None,
+    ) -> tuple[dict[str, Quote], dict[tuple[str, str], FxQuote]]:
+        pairs = [
+            (str(base).upper(), str(quote).upper())
+            for base, quote in (fx_pairs or [])
+        ]
+        if not instruments and not pairs:
+            return {}, {}
+        if len(instruments) + len(pairs) > EODHD_BATCH_LIMIT:
+            raise ValueError(f"EODHD-Batch darf hoechstens {EODHD_BATCH_LIMIT} Symbole enthalten")
+        ticker_to_item: dict[str, dict[str, str]] = {}
+        for item in instruments:
+            ticker = self.ticker(item)
+            if ticker in ticker_to_item:
+                raise ValueError(f"Doppelte EODHD-Zuordnung im Batch: {ticker}")
+            ticker_to_item[ticker] = item
+        ticker_to_pair: dict[str, tuple[str, str]] = {}
+        for pair in pairs:
+            ticker = self.fx_ticker(*pair)
+            if ticker in ticker_to_pair:
+                raise ValueError(f"Doppeltes EODHD-FX-Paar im Batch: {ticker}")
+            ticker_to_pair[ticker] = pair
+        tickers = [*ticker_to_item, *ticker_to_pair]
+        params = {"fmt": "json", "api_token": self.api_key}
+        if len(tickers) > 1:
+            params["s"] = ",".join(tickers[1:])
+        url = f"{self.endpoint}/{urllib.parse.quote(tickers[0], safe='')}?" + urllib.parse.urlencode(params)
+        request = urllib.request.Request(url, headers={"User-Agent": "OpenClaw-Portfolio/1"})
         try:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:
-                raw = response.read(1_000_000)
-        except (urllib.error.URLError, TimeoutError, OSError) as exc:
-            raise RuntimeError(f"Marktdatenanbieter nicht erreichbar: {exc}") from exc
+                raw = response.read(2_000_000)
+        except urllib.error.HTTPError as exc:
+            try:
+                raw = exc.read(64_000)
+            except OSError:
+                raw = b""
+            # HTTPError carries the full request URL, including EODHD's required
+            # query token. Suppress exception chaining so tracebacks cannot leak it.
+            raise self._provider_error(raw, f"HTTP {exc.code}") from None
+        except urllib.error.URLError as exc:
+            reason = str(getattr(exc, "reason", "Verbindung fehlgeschlagen"))
+            raise self._provider_error(b"", reason) from None
+        except (TimeoutError, OSError) as exc:
+            raise self._provider_error(b"", type(exc).__name__) from None
         try:
             payload = json.loads(raw.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise RuntimeError("Marktdatenanbieter lieferte kein gueltiges JSON") from exc
-        if str(payload.get("status") or "").casefold() == "error":
-            code = str(payload.get("code") or "provider-error")
-            message = str(payload.get("message") or "unbekannter Anbieterfehler")
-            raise RuntimeError(f"Marktdatenanbieter {code}: {message[:300]}")
-        price_text = payload.get("close") or payload.get("price")
-        if not price_text:
-            raise RuntimeError("Marktdatenantwort enthaelt keinen Kurs")
-        observed = str(
-            payload.get("last_quote_at")
-            or payload.get("timestamp")
-            or payload.get("datetime")
-            or _iso()
-        )
-        if observed.isdigit():
-            observed = _iso(datetime.fromtimestamp(int(observed), timezone.utc))
-        elif _parse_time(observed) is None:
-            observed = _iso()
-        return Quote(
-            symbol=instrument["symbol"],
-            price=_decimal(price_text),
-            currency=str(payload.get("currency") or instrument.get("currency") or "").upper(),
-            observed_at=observed,
-            open=_decimal(payload["open"]) if payload.get("open") not in {None, ""} else None,
-            high=_decimal(payload["high"]) if payload.get("high") not in {None, ""} else None,
-            low=_decimal(payload["low"]) if payload.get("low") not in {None, ""} else None,
-            volume=_decimal(payload["volume"]) if payload.get("volume") not in {None, ""} else None,
-            market_open=(
-                bool(payload["is_market_open"])
-                if isinstance(payload.get("is_market_open"), bool)
-                else None
-            ),
-        )
+            raise RuntimeError("EODHD lieferte kein gueltiges JSON") from exc
+        if isinstance(payload, dict) and (
+            isinstance(payload.get("code"), int)
+            or str(payload.get("status") or "").casefold() == "error"
+        ):
+            raise self._provider_error(raw, "Anbieterfehler")
+        rows = payload if isinstance(payload, list) else [payload]
+        quotes: dict[str, Quote] = {}
+        fx_quotes: dict[tuple[str, str], FxQuote] = {}
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            code = str(row.get("code") or "").strip().upper()
+            item = ticker_to_item.get(code)
+            pair = ticker_to_pair.get(code)
+            if item is None and pair is None:
+                continue
+            price_text = row.get("close")
+            timestamp = row.get("timestamp")
+            if price_text in {None, ""} or not str(timestamp or "").isdigit():
+                continue
+            observed = _iso(datetime.fromtimestamp(int(timestamp), timezone.utc))
+            if item is not None:
+                quotes[str(item["isin"])] = Quote(
+                    symbol=str(item["symbol"]),
+                    price=_decimal(price_text),
+                    currency=str(item.get("currency") or "").upper(),
+                    observed_at=observed,
+                    provider="eodhd",
+                    open=_decimal(row["open"]) if row.get("open") not in {None, ""} else None,
+                    high=_decimal(row["high"]) if row.get("high") not in {None, ""} else None,
+                    low=_decimal(row["low"]) if row.get("low") not in {None, ""} else None,
+                    volume=_decimal(row["volume"]) if row.get("volume") not in {None, ""} else None,
+                )
+            elif pair is not None:
+                fx_quotes[pair] = FxQuote(
+                    base_currency=pair[0],
+                    quote_currency=pair[1],
+                    rate=_decimal(price_text),
+                    observed_at=observed,
+                    provider="eodhd",
+                )
+        return quotes, fx_quotes
+
+    def fetch_many(self, instruments: list[dict[str, str]]) -> dict[str, Quote]:
+        quotes, _ = self.fetch_market_data(instruments)
+        return quotes
+
+    def fetch(self, instrument: dict[str, str]) -> Quote:
+        quote = self.fetch_many([instrument]).get(str(instrument.get("isin") or ""))
+        if quote is None:
+            raise RuntimeError(f"EODHD lieferte keinen Kurs fuer {self.ticker(instrument)}")
+        return quote
 
 
 class PortfolioStore:
@@ -237,6 +350,12 @@ class PortfolioStore:
                 isin TEXT NOT NULL REFERENCES instruments(isin),
                 shares TEXT NOT NULL,
                 as_of TEXT NOT NULL,
+                entry_price TEXT NOT NULL DEFAULT '',
+                valuation_price TEXT NOT NULL DEFAULT '',
+                absolute_gain TEXT NOT NULL DEFAULT '',
+                relative_gain_percent TEXT NOT NULL DEFAULT '',
+                asset_class TEXT NOT NULL DEFAULT '',
+                snapshot_currency TEXT NOT NULL DEFAULT '',
                 PRIMARY KEY(import_id, account, isin)
             );
             CREATE TABLE IF NOT EXISTS watchlist (
@@ -263,6 +382,19 @@ class PortfolioStore:
             );
             CREATE INDEX IF NOT EXISTS idx_quotes_isin_time
                 ON quotes(isin, observed_at DESC, id DESC);
+            CREATE TABLE IF NOT EXISTS fx_quotes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                base_currency TEXT NOT NULL,
+                quote_currency TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                rate TEXT NOT NULL,
+                observed_at TEXT NOT NULL,
+                received_at TEXT NOT NULL,
+                delay_seconds INTEGER,
+                UNIQUE(base_currency, quote_currency, provider, observed_at)
+            );
+            CREATE INDEX IF NOT EXISTS idx_fx_quotes_pair_time
+                ON fx_quotes(base_currency, quote_currency, observed_at DESC, id DESC);
             CREATE TABLE IF NOT EXISTS quote_runs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 started_at TEXT NOT NULL,
@@ -306,6 +438,25 @@ class PortfolioStore:
         for column in ("open", "high", "low", "volume", "market_open"):
             if column not in quote_columns:
                 self.connection.execute(f"ALTER TABLE quotes ADD COLUMN {column} TEXT")
+        position_columns = {
+            str(row[1])
+            for row in self.connection.execute(
+                "PRAGMA table_info(position_snapshots)"
+            ).fetchall()
+        }
+        for column in (
+            "entry_price",
+            "valuation_price",
+            "absolute_gain",
+            "relative_gain_percent",
+            "asset_class",
+            "snapshot_currency",
+        ):
+            if column not in position_columns:
+                self.connection.execute(
+                    f"ALTER TABLE position_snapshots "
+                    f"ADD COLUMN {column} TEXT NOT NULL DEFAULT ''"
+                )
         self.connection.execute(
             "INSERT OR REPLACE INTO schema_meta(key,value) VALUES('schema_version',?)",
             (str(SCHEMA_VERSION),),
@@ -321,7 +472,7 @@ class PortfolioStore:
 
 
 def parse_portfolio_performance_xml(data: bytes) -> dict[str, Any]:
-    if len(data) > MAX_XML_BYTES:
+    if len(data) > MAX_IMPORT_BYTES:
         raise ValueError("Portfolio-XML ist groesser als 25 MB")
     upper = data[:100_000].upper()
     if b"<!DOCTYPE" in upper or b"<!ENTITY" in upper:
@@ -484,6 +635,180 @@ def parse_portfolio_performance_xml(data: bytes) -> dict[str, Any]:
     }
 
 
+def _dkb_decimal(
+    value: object, *, field: str, allow_currency_or_percent: bool = False
+) -> Decimal:
+    text = str(value or "").strip().replace("\u00a0", "").replace(" ", "")
+    if not text or text in {"-", "-,--"}:
+        raise ValueError(f"DKB-CSV: {field} fehlt")
+    is_percent = text.endswith("%")
+    if allow_currency_or_percent:
+        text = re.sub(r"(?:EUR|USD|GBP|CHF|€|\$|£|%)$", "", text, flags=re.I)
+    normalized = (
+        text
+        if is_percent and "." in text and "," not in text
+        else text.replace(".", "").replace(",", ".")
+    )
+    try:
+        return Decimal(normalized)
+    except InvalidOperation as exc:
+        raise ValueError(f"DKB-CSV: {field} ist ungueltig: {text[:80]}") from exc
+
+
+def _dkb_currency(*values: object) -> str:
+    currencies: set[str] = set()
+    for value in values:
+        text = str(value or "").strip().upper().replace("\u00a0", " ")
+        if "€" in text or re.search(r"(?:^|\W)EUR(?:$|\W)", text):
+            currencies.add("EUR")
+        if "$" in text or re.search(r"(?:^|\W)USD(?:$|\W)", text):
+            currencies.add("USD")
+        if "£" in text or re.search(r"(?:^|\W)GBP(?:$|\W)", text):
+            currencies.add("GBP")
+        if re.search(r"(?:^|\W)CHF(?:$|\W)", text):
+            currencies.add("CHF")
+    if len(currencies) != 1:
+        raise ValueError("DKB-CSV: Waehrung fehlt oder ist widerspruechlich")
+    return next(iter(currencies))
+
+
+def _dkb_optional_decimal(value: object, *, field: str) -> str:
+    text = str(value or "").strip().replace("\u00a0", "").replace(" ", "")
+    if not text or text in {"-", "-,--"}:
+        return ""
+    return str(
+        _dkb_decimal(
+            value,
+            field=field,
+            allow_currency_or_percent=True,
+        )
+    )
+
+
+def parse_dkb_portfolio_csv(data: bytes) -> dict[str, Any]:
+    """Parse one strict DKB depot snapshot exported with German column names."""
+    if len(data) > MAX_IMPORT_BYTES:
+        raise ValueError("Portfolio-CSV ist groesser als 25 MB")
+    if b"\x00" in data:
+        raise ValueError("Portfolio-CSV enthaelt ungueltige Nullbytes")
+    try:
+        text = data.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise ValueError("DKB-CSV muss UTF-8-kodiert sein") from exc
+    reader = csv.DictReader(io.StringIO(text, newline=""), delimiter=";")
+    headers = tuple(str(value or "").strip() for value in (reader.fieldnames or []))
+    missing = [name for name in DKB_CSV_REQUIRED_HEADERS if name not in headers]
+    if missing:
+        raise ValueError("DKB-CSV: Pflichtspalten fehlen: " + ", ".join(missing))
+
+    instruments: dict[str, dict[str, str]] = {}
+    positions: dict[tuple[str, str], dict[str, str]] = {}
+    snapshot_date = ""
+    rows = 0
+    for row_number, row in enumerate(reader, start=2):
+        if not any(str(value or "").strip() for value in row.values()):
+            continue
+        rows += 1
+        if rows > 10_000:
+            raise ValueError("DKB-CSV enthaelt mehr als 10000 Depotpositionen")
+        raw_date = str(row.get("Datum der Erstellung") or "").strip()
+        try:
+            parsed_date = datetime.strptime(raw_date, "%d.%m.%Y").date().isoformat()
+        except ValueError as exc:
+            raise ValueError(
+                f"DKB-CSV Zeile {row_number}: ungueltiges Erstellungsdatum"
+            ) from exc
+        if snapshot_date and parsed_date != snapshot_date:
+            raise ValueError("DKB-CSV enthaelt mehrere unterschiedliche Stichtage")
+        snapshot_date = parsed_date
+
+        account = str(row.get("Depotnummer") or "").strip()
+        if not account or len(account) > 100:
+            raise ValueError(f"DKB-CSV Zeile {row_number}: Depotnummer fehlt oder ist zu lang")
+        isin = str(row.get("ISIN") or "").strip().upper()
+        if not _valid_isin(isin):
+            raise ValueError(f"DKB-CSV Zeile {row_number}: ISIN ist ungueltig")
+        name = " ".join(str(row.get("Wertpapierbezeichnung") or "").split())
+        if not name or len(name) > 300:
+            raise ValueError(f"DKB-CSV Zeile {row_number}: Wertpapierbezeichnung fehlt")
+        wkn = str(row.get("WKN") or "").strip().upper()
+        if len(wkn) > 32:
+            raise ValueError(f"DKB-CSV Zeile {row_number}: WKN ist zu lang")
+        currency = _dkb_currency(row.get("Einstiegskurs"), row.get("Bewertungskurs"))
+        shares = _dkb_decimal(row.get("Stückzahl"), field=f"Stueckzahl in Zeile {row_number}")
+        if shares < 0:
+            raise ValueError(f"DKB-CSV Zeile {row_number}: negative Stueckzahl ist ungueltig")
+        entry_price = _dkb_decimal(
+            row.get("Einstiegskurs"),
+            field=f"Einstiegskurs in Zeile {row_number}",
+            allow_currency_or_percent=True,
+        )
+        valuation_price = _dkb_decimal(
+            row.get("Bewertungskurs"),
+            field=f"Bewertungskurs in Zeile {row_number}",
+            allow_currency_or_percent=True,
+        )
+        if entry_price < 0 or valuation_price < 0:
+            raise ValueError(
+                f"DKB-CSV Zeile {row_number}: negative Kurswerte sind ungueltig"
+            )
+        absolute_gain = _dkb_optional_decimal(
+            row.get("Absoluter Gewinn"),
+            field=f"Absoluter Gewinn in Zeile {row_number}",
+        )
+        relative_gain = _dkb_optional_decimal(
+            row.get("Relativer Gewinn"),
+            field=f"Relativer Gewinn in Zeile {row_number}",
+        )
+        asset_class = " ".join(str(row.get("Assetklasse") or "").split())
+        if not asset_class or len(asset_class) > 100:
+            raise ValueError(f"DKB-CSV Zeile {row_number}: Assetklasse fehlt oder ist zu lang")
+
+        instrument = {
+            "isin": isin,
+            "name": name,
+            "wkn": wkn,
+            "symbol": "",
+            "mic": "",
+            "currency": currency,
+        }
+        existing = instruments.get(isin)
+        if existing and any(
+            existing[key] != instrument[key] for key in ("name", "wkn", "currency")
+        ):
+            raise ValueError(f"DKB-CSV: widerspruechliche Stammdaten fuer ISIN {isin}")
+        instruments[isin] = instrument
+        key = (account, isin)
+        if key in positions:
+            raise ValueError(
+                f"DKB-CSV: doppelte Position fuer Depot {account} und ISIN {isin}"
+            )
+        positions[key] = {
+            "account": account,
+            "isin": isin,
+            "shares": str(shares),
+            "entry_price": str(entry_price),
+            "valuation_price": str(valuation_price),
+            "absolute_gain": absolute_gain,
+            "relative_gain_percent": relative_gain,
+            "asset_class": asset_class,
+            "snapshot_currency": currency,
+        }
+
+    if not rows:
+        raise ValueError("DKB-CSV enthaelt keine Depotpositionen")
+    return {
+        "source_type": "dkb-depot-csv",
+        "as_of": snapshot_date,
+        "instruments": [instruments[key] for key in sorted(instruments)],
+        "positions": [
+            position
+            for _, position in sorted(positions.items())
+            if Decimal(position["shares"]) != 0
+        ],
+    }
+
+
 class PortfolioService:
     def __init__(
         self,
@@ -491,6 +816,7 @@ class PortfolioService:
         antivirus: HostAntivirus,
         *,
         quote_fetcher: QuoteFetcher | None = None,
+        fx_quote_fetcher: FxQuoteFetcher | None = None,
         notifier: EventNotifier | None = None,
         now: Callable[[], datetime] = _now,
     ) -> None:
@@ -498,6 +824,7 @@ class PortfolioService:
         self.antivirus = antivirus
         self.store = PortfolioStore(settings.database)
         self._quote_fetcher = quote_fetcher
+        self._fx_quote_fetcher = fx_quote_fetcher
         self._notifier = notifier or _notify_openclaw
         self._now = now
 
@@ -521,7 +848,15 @@ class PortfolioService:
             raise FileNotFoundError(path)
         return path
 
-    def import_pp(self, value: str | Path, *, dry_run: bool = True) -> dict[str, Any]:
+    def _import_snapshot(
+        self,
+        value: str | Path,
+        *,
+        parser: Callable[[bytes], dict[str, Any]],
+        dry_run: bool,
+        source_name: str = "",
+        expected_as_of: str = "",
+    ) -> dict[str, Any]:
         self._require_enabled()
         path = self._input_path(value)
         scan = self.antivirus.scan_path(path, source_type="portfolio-import")
@@ -531,12 +866,19 @@ class PortfolioService:
             )
         data = path.read_bytes()
         digest = hashlib.sha256(data).hexdigest()
-        parsed = parse_portfolio_performance_xml(data)
+        parsed = parser(data)
+        if expected_as_of and str(parsed.get("as_of") or "") != expected_as_of:
+            raise ValueError(
+                "Erwarteter Portfolio-Stichtag stimmt nicht mit dem Dateiinhalt ueberein"
+            )
+        display_name = str(source_name or path.name).strip()
+        if not display_name or len(display_name) > 255:
+            raise ValueError("Portfolio-Quelldateiname fehlt oder ist zu lang")
         result = {
             "ok": True,
             "dry_run": dry_run,
             "sha256": digest,
-            "source": path.name,
+            "source": display_name,
             "source_type": parsed["source_type"],
             "as_of": parsed["as_of"],
             "instruments": len(parsed["instruments"]),
@@ -553,7 +895,52 @@ class PortfolioService:
             "SELECT id FROM imports WHERE sha256=?", (digest,)
         ).fetchone()
         if existing:
-            return {**result, "duplicate": True, "import_id": int(existing["id"])}
+            backfilled = 0
+            currency_backfilled = 0
+            if parsed["source_type"] == "dkb-depot-csv":
+                with self.store.connection:
+                    for item in parsed["positions"]:
+                        cursor = self.store.connection.execute(
+                            """
+                            UPDATE position_snapshots
+                            SET entry_price=?,valuation_price=?,absolute_gain=?,
+                                relative_gain_percent=?,asset_class=?
+                            WHERE import_id=? AND account=? AND isin=?
+                              AND entry_price='' AND valuation_price=''
+                            """,
+                            (
+                                item.get("entry_price", ""),
+                                item.get("valuation_price", ""),
+                                item.get("absolute_gain", ""),
+                                item.get("relative_gain_percent", ""),
+                                item.get("asset_class", ""),
+                                int(existing["id"]),
+                                item["account"],
+                                item["isin"],
+                            ),
+                        )
+                        backfilled += max(0, int(cursor.rowcount))
+                        currency_cursor = self.store.connection.execute(
+                            """
+                            UPDATE position_snapshots SET snapshot_currency=?
+                            WHERE import_id=? AND account=? AND isin=?
+                              AND snapshot_currency=''
+                            """,
+                            (
+                                item.get("snapshot_currency", ""),
+                                int(existing["id"]),
+                                item["account"],
+                                item["isin"],
+                            ),
+                        )
+                        currency_backfilled += max(0, int(currency_cursor.rowcount))
+            return {
+                **result,
+                "duplicate": True,
+                "import_id": int(existing["id"]),
+                "snapshot_metrics_backfilled": backfilled,
+                "snapshot_currency_backfilled": currency_backfilled,
+            }
         now = _iso(self._now())
         with self.store.connection:
             for item in parsed["instruments"]:
@@ -564,7 +951,11 @@ class PortfolioService:
                     ON CONFLICT(isin) DO UPDATE SET
                         name=excluded.name,
                         wkn=CASE WHEN excluded.wkn!='' THEN excluded.wkn ELSE instruments.wkn END,
-                        currency=CASE WHEN excluded.currency!='' THEN excluded.currency ELSE instruments.currency END,
+                        currency=CASE
+                            WHEN instruments.mapping_confirmed=1 THEN instruments.currency
+                            WHEN excluded.currency!='' THEN excluded.currency
+                            ELSE instruments.currency
+                        END,
                         updated_at=excluded.updated_at
                     """,
                     (
@@ -579,7 +970,7 @@ class PortfolioService:
                 ) VALUES(?,?,?,?,?,?,?)
                 """,
                 (
-                    digest, parsed["source_type"], path.name, now, parsed["as_of"],
+                    digest, parsed["source_type"], display_name, now, parsed["as_of"],
                     len(parsed["instruments"]), len(parsed["positions"]),
                 ),
             )
@@ -587,12 +978,50 @@ class PortfolioService:
             for item in parsed["positions"]:
                 self.store.connection.execute(
                     """
-                    INSERT INTO position_snapshots(import_id,account,isin,shares,as_of)
-                    VALUES(?,?,?,?,?)
+                    INSERT INTO position_snapshots(
+                        import_id,account,isin,shares,as_of,entry_price,
+                        valuation_price,absolute_gain,relative_gain_percent,asset_class,
+                        snapshot_currency
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?)
                     """,
-                    (import_id, item["account"], item["isin"], item["shares"], parsed["as_of"]),
+                    (
+                        import_id,
+                        item["account"],
+                        item["isin"],
+                        item["shares"],
+                        parsed["as_of"],
+                        item.get("entry_price", ""),
+                        item.get("valuation_price", ""),
+                        item.get("absolute_gain", ""),
+                        item.get("relative_gain_percent", ""),
+                        item.get("asset_class", ""),
+                        item.get("snapshot_currency", ""),
+                    ),
                 )
         return {**result, "duplicate": False, "import_id": import_id}
+
+    def import_pp(self, value: str | Path, *, dry_run: bool = True) -> dict[str, Any]:
+        return self._import_snapshot(
+            value,
+            parser=parse_portfolio_performance_xml,
+            dry_run=dry_run,
+        )
+
+    def import_csv(
+        self,
+        value: str | Path,
+        *,
+        dry_run: bool = True,
+        source_name: str = "",
+        expected_as_of: str = "",
+    ) -> dict[str, Any]:
+        return self._import_snapshot(
+            value,
+            parser=parse_dkb_portfolio_csv,
+            dry_run=dry_run,
+            source_name=source_name,
+            expected_as_of=expected_as_of,
+        )
 
     def holdings(self) -> dict[str, Any]:
         latest = self.store.connection.execute(
@@ -602,8 +1031,11 @@ class PortfolioService:
             return {"ok": True, "as_of": None, "positions": [], "count": 0}
         rows = self.store.connection.execute(
             """
-            SELECT p.account,p.isin,p.shares,i.name,i.wkn,i.symbol,i.mic,i.currency,
-                   i.mapping_confirmed
+            SELECT p.account,p.isin,p.shares,p.entry_price,p.valuation_price,
+                   p.absolute_gain,p.relative_gain_percent,p.asset_class,
+                   COALESCE(NULLIF(p.snapshot_currency,''),i.currency) AS currency,
+                   CASE WHEN i.mapping_confirmed=1 THEN i.currency ELSE '' END AS quote_currency,
+                   i.name,i.wkn,i.symbol,i.mic,i.mapping_confirmed
             FROM position_snapshots p JOIN instruments i ON i.isin=p.isin
             WHERE p.import_id=? ORDER BY i.name,p.account
             """,
@@ -706,25 +1138,126 @@ class PortfolioService:
         ).fetchall()
         return [{**dict(row), "held": row["isin"] in held} for row in rows]
 
-    def _fetcher(self) -> QuoteFetcher:
+    def _required_fx_pairs(self) -> list[tuple[str, str]]:
+        pairs: set[tuple[str, str]] = set()
+        for item in self.holdings().get("positions", []):
+            snapshot_currency = str(item.get("currency") or "").strip().upper()
+            quote_currency = str(item.get("quote_currency") or "").strip().upper()
+            if (
+                _decimal(item.get("shares")) != 0
+                and snapshot_currency
+                and quote_currency
+                and snapshot_currency != quote_currency
+            ):
+                # EODHD EURUSD means USD per one EUR. Keeping the snapshot
+                # currency as the base makes the later conversion explicit:
+                # an amount in USD is divided by EURUSD to obtain EUR.
+                pairs.add((snapshot_currency, quote_currency))
+        return sorted(pairs)
+
+    def _fetch_quotes(
+        self,
+        items: list[dict[str, Any]],
+        fx_pairs: list[tuple[str, str]],
+    ) -> tuple[
+        dict[str, Quote],
+        dict[str, str],
+        dict[tuple[str, str], FxQuote],
+        dict[tuple[str, str], str],
+    ]:
         if self._quote_fetcher is not None:
-            return self._quote_fetcher
-        if self.settings.provider != "twelve-data":
-            raise RuntimeError("Kein Marktdatenanbieter konfiguriert")
+            quotes: dict[str, Quote] = {}
+            errors: dict[str, str] = {}
+            for item in items:
+                try:
+                    quotes[str(item["isin"])] = self._quote_fetcher(item)
+                except Exception as exc:
+                    errors[str(item["isin"])] = str(exc)[:500]
+            fx_quotes: dict[tuple[str, str], FxQuote] = {}
+            fx_errors: dict[tuple[str, str], str] = {}
+            for pair in fx_pairs:
+                if self._fx_quote_fetcher is None:
+                    fx_errors[pair] = "Kein EODHD-FX-Abruf fuer die Waehrungsumrechnung verfuegbar"
+                    continue
+                try:
+                    fx_quotes[pair] = self._fx_quote_fetcher(*pair)
+                except Exception as exc:
+                    fx_errors[pair] = str(exc)[:500]
+            return quotes, errors, fx_quotes, fx_errors
+        if self.settings.provider != "eodhd":
+            raise RuntimeError("Kein EODHD-Marktdatenanbieter konfiguriert")
         api_key = os.environ.get(self.settings.api_key_env, "").strip()
         if not api_key:
             raise RuntimeError(
                 f"API-Schluessel fehlt in Umgebungsvariable {self.settings.api_key_env}"
             )
-        return TwelveDataClient(
-            api_key,
-            timeout=self.settings.request_timeout_seconds,
-            interval_minutes=self.settings.interval_minutes,
-        ).fetch
+        client = EodhdClient(api_key, timeout=self.settings.request_timeout_seconds)
+        quotes: dict[str, Quote] = {}
+        errors: dict[str, str] = {}
+        fx_quotes: dict[tuple[str, str], FxQuote] = {}
+        fx_errors: dict[tuple[str, str], str] = {}
+        valid_items: list[dict[str, Any]] = []
+        for item in items:
+            try:
+                client.ticker(item)
+                valid_items.append(item)
+            except ValueError as exc:
+                errors[str(item["isin"])] = str(exc)[:500]
+        if len(fx_pairs) >= EODHD_BATCH_LIMIT:
+            raise ValueError("Zu viele verschiedene Waehrungspaare fuer einen sicheren EODHD-Batch")
+        offset = 0
+        first = True
+        while offset < len(valid_items) or (first and fx_pairs):
+            included_pairs = fx_pairs if first else []
+            room = EODHD_BATCH_LIMIT - len(included_pairs)
+            chunk = valid_items[offset : offset + room]
+            offset += len(chunk)
+            try:
+                fetched_quotes, fetched_fx = client.fetch_market_data(chunk, included_pairs)
+                quotes.update(fetched_quotes)
+                fx_quotes.update(fetched_fx)
+            except Exception as exc:
+                safe = str(exc).replace(api_key, "<redacted>")[:500]
+                for item in chunk:
+                    errors[str(item["isin"])] = safe
+                for pair in included_pairs:
+                    fx_errors[pair] = safe
+            first = False
+        for pair in fx_pairs:
+            if pair not in fx_quotes and pair not in fx_errors:
+                fx_errors[pair] = f"EODHD lieferte keinen Wechselkurs fuer {EodhdClient.fx_ticker(*pair)}"
+        return quotes, errors, fx_quotes, fx_errors
 
     def refresh_quotes(self, *, force: bool = False) -> dict[str, Any]:
         self._require_enabled()
         started_dt = self._now()
+        last_attempt = self.store.connection.execute(
+            """
+            SELECT finished_at,status,error FROM quote_runs
+            ORDER BY id DESC LIMIT 1
+            """
+        ).fetchone()
+        if not force and last_attempt and last_attempt["status"] == "failed":
+            error = str(last_attempt["error"] or "")
+            non_retryable = next(
+                (code for code in ("HTTP 401", "HTTP 402", "HTTP 403") if code in error),
+                "",
+            )
+            last_attempt_at = _parse_time(last_attempt["finished_at"])
+            if non_retryable and last_attempt_at is not None:
+                next_retry_at = (last_attempt_at.astimezone(timezone.utc) + timedelta(days=1)).replace(
+                    hour=0, minute=0, second=0, microsecond=0
+                )
+                if started_dt < next_retry_at:
+                    return {
+                        "ok": False,
+                        "status": "skipped-provider-cooldown",
+                        "provider": self.settings.provider,
+                        "reason": non_retryable,
+                        "last_attempt_at": _iso(last_attempt_at),
+                        "next_retry_at": _iso(next_retry_at),
+                        "force_allowed_only_for_explicit_diagnostic": True,
+                    }
         last_success = self.store.connection.execute(
             """
             SELECT finished_at FROM quote_runs
@@ -753,14 +1286,99 @@ class PortfolioService:
         warnings: list[dict[str, str]] = []
         triggered_events: list[dict[str, Any]] = []
         held_missing = 0
-        fetch = self._fetcher() if targets else None
+        fx_pairs = self._required_fx_pairs()
+        fx_failures: list[dict[str, str]] = []
+        eligible: list[dict[str, Any]] = []
         for item in targets:
             if not item["mapping_confirmed"] or not item["symbol"] or not item["mic"]:
                 failures.append({"isin": item["isin"], "error": "Symbol/MIC-Zuordnung nicht bestaetigt"})
                 held_missing += int(item["held"])
+            else:
+                eligible.append(item)
+        quotes: dict[str, Quote] = {}
+        fetch_errors: dict[str, str] = {}
+        fx_quotes: dict[tuple[str, str], FxQuote] = {}
+        fx_fetch_errors: dict[tuple[str, str], str] = {}
+        if eligible or fx_pairs:
+            try:
+                quotes, fetch_errors, fx_quotes, fx_fetch_errors = self._fetch_quotes(
+                    eligible, fx_pairs
+                )
+            except Exception as exc:
+                error = str(exc)[:500]
+                fetch_errors = {str(item["isin"]): error for item in eligible}
+                fx_fetch_errors = {pair: error for pair in fx_pairs}
+        for pair in fx_pairs:
+            fx_quote = fx_quotes.get(pair)
+            if pair in fx_fetch_errors:
+                fx_failures.append(
+                    {
+                        "pair": f"{pair[0]}/{pair[1]}",
+                        "provider_symbol": EodhdClient.fx_ticker(*pair),
+                        "error": fx_fetch_errors[pair],
+                    }
+                )
+                continue
+            if fx_quote is None:
+                fx_failures.append(
+                    {
+                        "pair": f"{pair[0]}/{pair[1]}",
+                        "provider_symbol": EodhdClient.fx_ticker(*pair),
+                        "error": "EODHD lieferte keinen Wechselkurs",
+                    }
+                )
                 continue
             try:
-                quote = fetch(item)  # type: ignore[misc]
+                if fx_quote.rate <= 0 or not math.isfinite(float(fx_quote.rate)):
+                    raise ValueError("Wechselkurs ist nicht positiv oder nicht endlich")
+                observed = _parse_time(fx_quote.observed_at)
+                if observed is None:
+                    raise ValueError("FX-Quellzeitstempel fehlt oder ist ungueltig")
+                received_at = self._now()
+                source_age = (received_at - observed).total_seconds()
+                if source_age < -300:
+                    raise ValueError("FX-Quellzeitstempel liegt unplausibel in der Zukunft")
+                with self.store.connection:
+                    self.store.connection.execute(
+                        """
+                        INSERT OR IGNORE INTO fx_quotes(
+                            base_currency,quote_currency,provider,rate,observed_at,
+                            received_at,delay_seconds
+                        ) VALUES(?,?,?,?,?,?,?)
+                        """,
+                        (
+                            fx_quote.base_currency,
+                            fx_quote.quote_currency,
+                            fx_quote.provider,
+                            str(fx_quote.rate),
+                            _iso(observed),
+                            _iso(received_at),
+                            max(0, int(source_age)),
+                        ),
+                    )
+            except Exception as exc:
+                fx_failures.append(
+                    {
+                        "pair": f"{pair[0]}/{pair[1]}",
+                        "provider_symbol": EodhdClient.fx_ticker(*pair),
+                        "error": str(exc)[:500],
+                    }
+                )
+        for item in eligible:
+            isin = str(item["isin"])
+            if isin in fetch_errors:
+                failures.append({"isin": isin, "error": fetch_errors[isin]})
+                held_missing += int(item["held"])
+                continue
+            quote = quotes.get(isin)
+            if quote is None:
+                failures.append({
+                    "isin": isin,
+                    "error": f"EODHD lieferte keinen Kurs fuer {item['symbol']}/{item['mic']}",
+                })
+                held_missing += int(item["held"])
+                continue
+            try:
                 if quote.price <= 0 or not math.isfinite(float(quote.price)):
                     raise ValueError("Kurs ist nicht positiv oder nicht endlich")
                 if (
@@ -779,12 +1397,12 @@ class PortfolioService:
                 if source_age < -300:
                     raise ValueError("Quellzeitstempel liegt unplausibel in der Zukunft")
                 if (
-                    (quote.market_open if quote.market_open is not None else self._market_open(received_at))
+                    (quote.market_open if quote.market_open is not None else self._instrument_market_open(item, received_at))
                     and source_age > self.settings.stale_critical_minutes * 60
                 ):
                     raise ValueError("Marktdatenquelle lieferte einen kritisch veralteten Kurs")
                 if (
-                    (quote.market_open if quote.market_open is not None else self._market_open(received_at))
+                    (quote.market_open if quote.market_open is not None else self._instrument_market_open(item, received_at))
                     and source_age > self.settings.stale_warning_minutes * 60
                 ):
                     warnings.append(
@@ -816,12 +1434,17 @@ class PortfolioService:
                 failures.append({"isin": item["isin"], "error": str(exc)[:500]})
                 held_missing += int(item["held"])
         status = "success"
-        if held_missing:
+        if held_missing or fx_failures:
             status = "failed"
         elif failures or warnings:
             status = "degraded"
         latency = round((time.perf_counter() - started) * 1000.0, 2)
-        error = "; ".join(f"{item['isin']}: {item['error']}" for item in failures)[:4000]
+        error = "; ".join(
+            [
+                *(f"{item['isin']}: {item['error']}" for item in failures),
+                *(f"FX {item['pair']}: {item['error']}" for item in fx_failures),
+            ]
+        )[:4000]
         with self.store.connection:
             cursor = self.store.connection.execute(
                 """
@@ -856,6 +1479,9 @@ class PortfolioService:
             "expected": len(targets),
             "received": received,
             "held_missing": held_missing,
+            "fx_expected": len(fx_pairs),
+            "fx_received": len(fx_pairs) - len(fx_failures),
+            "fx_failures": fx_failures,
             "failures": failures,
             "warnings": warnings,
             "triggered_events": triggered_events,
@@ -871,6 +1497,16 @@ class PortfolioService:
         closing = clock_time.fromisoformat(self.settings.market_close)
         return opening <= local.time().replace(tzinfo=None) <= closing
 
+    def _instrument_market_open(self, item: dict[str, Any], now: datetime) -> bool:
+        mic = str(item.get("mic") or "").upper()
+        if mic == "XETR":
+            local = now.astimezone(ZoneInfo("Europe/Berlin"))
+            return local.weekday() < 5 and clock_time(9, 0) <= local.time().replace(tzinfo=None) <= clock_time(17, 30)
+        if mic in {"XNAS", "XNGS", "XNYS"}:
+            local = now.astimezone(ZoneInfo("America/New_York"))
+            return local.weekday() < 5 and clock_time(9, 30) <= local.time().replace(tzinfo=None) <= clock_time(16, 0)
+        return self._market_open(now)
+
     def health(self) -> dict[str, Any]:
         enabled = self.settings.enabled
         if not enabled:
@@ -880,19 +1516,22 @@ class PortfolioService:
             }
         targets = self._targets()
         now = self._now()
-        market_open = self._market_open(now)
+        market_open = any(self._instrument_market_open(item, now) for item in targets)
         held_total = sum(int(item["held"]) for item in targets)
         held_fresh = 0
         held_stale = 0
         watch_missing = 0
         held_missing = 0
+        fx_stale = 0
+        fx_missing = 0
         details: list[dict[str, Any]] = []
+        fx_details: list[dict[str, Any]] = []
         warning_seconds = self.settings.stale_warning_minutes * 60
         critical_seconds = self.settings.stale_critical_minutes * 60
         for item in targets:
             row = self.store.connection.execute(
                 """
-                SELECT price,currency,observed_at,received_at,delay_seconds,market_open
+                SELECT price,currency,provider,observed_at,received_at,delay_seconds,market_open
                 FROM quotes WHERE isin=? ORDER BY observed_at DESC,id DESC LIMIT 1
                 """,
                 (item["isin"],),
@@ -900,8 +1539,16 @@ class PortfolioService:
             observed = _parse_time(row["observed_at"]) if row else None
             age = int((now - observed).total_seconds()) if observed else None
             mapping_ok = bool(item["mapping_confirmed"] and item["symbol"] and item["mic"])
+            provider_symbol = None
+            mapping_error = None
+            if mapping_ok and self.settings.provider == "eodhd":
+                try:
+                    provider_symbol = EodhdClient.ticker(item)
+                except ValueError as exc:
+                    mapping_ok = False
+                    mapping_error = str(exc)
             provider_open = None if not row or row["market_open"] is None else bool(row["market_open"])
-            effective_open = market_open and provider_open is not False
+            effective_open = self._instrument_market_open(item, now) and provider_open is not False
             stale = bool(
                 not mapping_ok or (effective_open and (age is None or age > warning_seconds))
             )
@@ -923,15 +1570,50 @@ class PortfolioService:
                     "observed_at": row["observed_at"] if row else None,
                     "age_seconds": age, "stale": stale, "critical": critical,
                     "mapping_confirmed": mapping_ok,
+                    "mapping_error": mapping_error,
                     "provider_market_open": provider_open,
+                    "quote_provider": row["provider"] if row else None,
+                    "provider_symbol": provider_symbol,
+                }
+            )
+        forex_open = self._forex_market_open(now)
+        for base_currency, quote_currency in self._required_fx_pairs():
+            row = self.store.connection.execute(
+                """
+                SELECT rate,provider,observed_at,received_at
+                FROM fx_quotes
+                WHERE base_currency=? AND quote_currency=?
+                ORDER BY observed_at DESC,id DESC LIMIT 1
+                """,
+                (base_currency, quote_currency),
+            ).fetchone()
+            observed = _parse_time(row["observed_at"]) if row else None
+            age = int((now - observed).total_seconds()) if observed else None
+            stale = bool(row is None or (forex_open and (age is None or age > warning_seconds)))
+            critical = bool(row is None or (forex_open and (age is None or age > critical_seconds)))
+            if critical:
+                fx_missing += 1
+            elif stale:
+                fx_stale += 1
+            fx_details.append(
+                {
+                    "pair": f"{base_currency}/{quote_currency}",
+                    "provider_symbol": EodhdClient.fx_ticker(base_currency, quote_currency),
+                    "rate": row["rate"] if row else None,
+                    "provider": row["provider"] if row else None,
+                    "observed_at": row["observed_at"] if row else None,
+                    "received_at": row["received_at"] if row else None,
+                    "age_seconds": age,
+                    "stale": stale,
+                    "critical": critical,
                 }
             )
         last_run = self.store.connection.execute(
             "SELECT * FROM quote_runs ORDER BY id DESC LIMIT 1"
         ).fetchone()
-        if held_missing:
+        if held_missing or fx_missing:
             state = "failed"
-        elif held_stale or watch_missing or (last_run and last_run["status"] != "success"):
+        elif held_stale or watch_missing or fx_stale or (last_run and last_run["status"] != "success"):
             state = "degraded"
         else:
             state = "healthy"
@@ -948,6 +1630,12 @@ class PortfolioService:
             "held_missing_or_critical": held_missing,
             "held_stale_warning": held_stale,
             "watchlist_missing_or_stale": watch_missing,
+            "fx_required": len(fx_details),
+            "fx_fresh": len(fx_details) - fx_missing - fx_stale,
+            "fx_missing_or_critical": fx_missing,
+            "fx_stale_warning": fx_stale,
+            "fx_market_open": forex_open,
+            "fx_quotes": fx_details,
             "last_run": dict(last_run) if last_run else None,
             "instruments": details,
             "database_integrity": self.store.integrity(),
@@ -960,6 +1648,7 @@ class PortfolioService:
             "enabled": self.settings.enabled,
             "database": str(self.store.path),
             "import_root": str(self.settings.import_root),
+            "nextcloud_folder": self.settings.nextcloud_folder,
             "provider": self.settings.provider,
             "interval_minutes": self.settings.interval_minutes,
             "stale_warning_minutes": self.settings.stale_warning_minutes,
@@ -975,7 +1664,7 @@ class PortfolioService:
         configuration_ok = (
             not self.settings.enabled
             or (
-                self.settings.provider == "twelve-data"
+                self.settings.provider == "eodhd"
                 and key_present
                 and self.settings.import_root.is_dir()
             )
@@ -999,6 +1688,267 @@ class PortfolioService:
             (isin, max(1, min(limit, 5000))),
         ).fetchall()
         return [dict(row) for row in reversed(rows)]
+
+    def latest_quote(self, isin: str) -> dict[str, Any]:
+        """Return one stored quote without turning a price lookup into analysis."""
+        isin = isin.strip().upper()
+        health_item = next(
+            (item for item in self.health().get("instruments", []) if item["isin"] == isin),
+            None,
+        )
+        if health_item is None:
+            raise ValueError("ISIN ist weder im Depot noch auf der Watchlist")
+        instrument = self.store.connection.execute(
+            "SELECT name,symbol,mic,currency FROM instruments WHERE isin=?", (isin,)
+        ).fetchone()
+        series = self._series(isin, limit=1)
+        if not series:
+            return {
+                "ok": False,
+                "isin": isin,
+                "name": str(instrument["name"] if instrument else isin),
+                "reason": "Kein gespeicherter Kurs vorhanden",
+                "stale": True,
+                "critical": True,
+            }
+        quote = series[-1]
+        return {
+            "ok": not bool(health_item["critical"]),
+            "isin": isin,
+            "name": str(instrument["name"] if instrument else isin),
+            "symbol": str(instrument["symbol"] if instrument else ""),
+            "mic": str(instrument["mic"] if instrument else ""),
+            "provider_symbol": health_item.get("provider_symbol"),
+            "price": quote["close"],
+            "currency": quote["currency"],
+            "observed_at": quote["observed_at"],
+            "received_at": quote["received_at"],
+            "provider": quote["provider"],
+            "market_open": quote["market_open"],
+            "age_seconds": health_item["age_seconds"],
+            "stale": bool(health_item["stale"]),
+            "critical": bool(health_item["critical"]),
+        }
+
+    @staticmethod
+    def _rounded(value: Decimal, places: str = "0.01") -> str:
+        return str(value.quantize(Decimal(places), rounding=ROUND_HALF_UP))
+
+    @staticmethod
+    def _forex_market_open(now: datetime) -> bool:
+        utc = now.astimezone(timezone.utc)
+        if utc.weekday() in {0, 1, 2, 3}:
+            return True
+        if utc.weekday() == 4:
+            return utc.hour < 22
+        if utc.weekday() == 6:
+            return utc.hour >= 22
+        return False
+
+    def _fx_conversion(
+        self,
+        *,
+        source_currency: str,
+        target_currency: str,
+    ) -> dict[str, Any]:
+        source = source_currency.strip().upper()
+        target = target_currency.strip().upper()
+        if source == target:
+            return {
+                "rate": Decimal("1"),
+                "provider_rate": Decimal("1"),
+                "provider_symbol": None,
+                "base_currency": target,
+                "quote_currency": source,
+                "observed_at": None,
+                "received_at": None,
+                "provider": None,
+                "inverted": False,
+            }
+        row = self.store.connection.execute(
+            """
+            SELECT base_currency,quote_currency,provider,rate,observed_at,received_at
+            FROM fx_quotes
+            WHERE base_currency=? AND quote_currency=?
+            ORDER BY observed_at DESC,id DESC LIMIT 1
+            """,
+            (target, source),
+        ).fetchone()
+        inverted = True
+        if row is None:
+            row = self.store.connection.execute(
+                """
+                SELECT base_currency,quote_currency,provider,rate,observed_at,received_at
+                FROM fx_quotes
+                WHERE base_currency=? AND quote_currency=?
+                ORDER BY observed_at DESC,id DESC LIMIT 1
+                """,
+                (source, target),
+            ).fetchone()
+            inverted = False
+        if row is None:
+            raise ValueError(
+                f"Kein gespeicherter EODHD-Wechselkurs fuer {source}/{target} vorhanden"
+            )
+        provider_rate = _decimal(row["rate"])
+        if provider_rate <= 0 or not math.isfinite(float(provider_rate)):
+            raise ValueError(f"Gespeicherter EODHD-Wechselkurs fuer {source}/{target} ist ungueltig")
+        observed = _parse_time(row["observed_at"])
+        if observed is None:
+            raise ValueError(f"EODHD-Wechselkurs fuer {source}/{target} hat keinen Quellzeitstempel")
+        age_seconds = int((self._now() - observed).total_seconds())
+        if age_seconds < -300:
+            raise ValueError(f"EODHD-Wechselkurs fuer {source}/{target} liegt in der Zukunft")
+        if self._forex_market_open(self._now()) and age_seconds > self.settings.stale_critical_minutes * 60:
+            raise ValueError(f"EODHD-Wechselkurs fuer {source}/{target} ist kritisch veraltet")
+        # If the stored provider pair is TARGET/SOURCE (EURUSD for USD->EUR),
+        # EODHD reports SOURCE units per TARGET unit, hence the reciprocal.
+        conversion_rate = Decimal("1") / provider_rate if inverted else provider_rate
+        return {
+            "rate": conversion_rate,
+            "provider_rate": provider_rate,
+            "provider_symbol": EodhdClient.fx_ticker(
+                str(row["base_currency"]), str(row["quote_currency"])
+            ),
+            "base_currency": str(row["base_currency"]),
+            "quote_currency": str(row["quote_currency"]),
+            "observed_at": str(row["observed_at"]),
+            "received_at": str(row["received_at"]),
+            "provider": str(row["provider"]),
+            "inverted": inverted,
+            "age_seconds": age_seconds,
+        }
+
+    def valuation(self) -> dict[str, Any]:
+        """Value the latest holdings without ever mixing unconverted currencies."""
+        holdings = self.holdings()
+        health_by_isin = {
+            str(item["isin"]): item for item in self.health().get("instruments", [])
+        }
+        positions: list[dict[str, Any]] = []
+        failures: list[dict[str, str]] = []
+        totals: dict[str, dict[str, Decimal]] = {}
+        fx_used: dict[str, dict[str, Any]] = {}
+        for item in holdings.get("positions", []):
+            isin = str(item["isin"])
+            try:
+                shares = _decimal(item.get("shares"))
+                entry_text = str(item.get("entry_price") or "").strip()
+                snapshot_currency = str(item.get("currency") or "").strip().upper()
+                quote_currency = str(item.get("quote_currency") or "").strip().upper()
+                if not entry_text:
+                    raise ValueError("Einstiegskurs fehlt im Depot-Snapshot")
+                if not snapshot_currency:
+                    raise ValueError("Snapshot-Waehrung fehlt")
+                if not quote_currency:
+                    raise ValueError("Bestaetigte Kurswaehrung fehlt")
+                health_item = health_by_isin.get(isin)
+                if health_item is None or bool(health_item.get("critical")):
+                    raise ValueError("Aktienkurs fehlt oder ist kritisch veraltet")
+                quote = self.store.connection.execute(
+                    """
+                    SELECT price,currency,provider,observed_at,received_at
+                    FROM quotes WHERE isin=? ORDER BY observed_at DESC,id DESC LIMIT 1
+                    """,
+                    (isin,),
+                ).fetchone()
+                if quote is None:
+                    raise ValueError("Kein gespeicherter Aktienkurs vorhanden")
+                stored_quote_currency = str(quote["currency"] or "").upper()
+                if stored_quote_currency != quote_currency:
+                    raise ValueError("Gespeicherte Kurswaehrung widerspricht der bestaetigten Zuordnung")
+                quote_observed = _parse_time(quote["observed_at"])
+                if quote_observed is None:
+                    raise ValueError("Aktienkurs hat keinen gueltigen Quellzeitstempel")
+                quote_price = _decimal(quote["price"])
+                conversion = self._fx_conversion(
+                    source_currency=quote_currency,
+                    target_currency=snapshot_currency,
+                )
+                converted_price = quote_price * conversion["rate"]
+                entry_price = _decimal(entry_text)
+                cost_basis = shares * entry_price
+                current_value = shares * converted_price
+                gain = current_value - cost_basis
+                gain_percent = (
+                    gain / cost_basis * Decimal("100") if cost_basis != 0 else None
+                )
+                fx_detail = None
+                if conversion["provider_symbol"] is not None:
+                    fx_detail = {
+                        "provider_symbol": conversion["provider_symbol"],
+                        "base_currency": conversion["base_currency"],
+                        "quote_currency": conversion["quote_currency"],
+                        "provider_rate": self._rounded(conversion["provider_rate"], "0.00000001"),
+                        "conversion_rate": self._rounded(conversion["rate"], "0.00000001"),
+                        "conversion": f"1 {quote_currency} = {self._rounded(conversion['rate'], '0.00000001')} {snapshot_currency}",
+                        "observed_at": conversion["observed_at"],
+                        "received_at": conversion["received_at"],
+                        "provider": conversion["provider"],
+                        "inverted": bool(conversion["inverted"]),
+                    }
+                    fx_used[str(conversion["provider_symbol"])] = fx_detail
+                positions.append(
+                    {
+                        "account": item["account"],
+                        "isin": isin,
+                        "name": item["name"],
+                        "shares": str(shares),
+                        "entry_price": self._rounded(entry_price),
+                        "entry_currency": snapshot_currency,
+                        "current_price": str(quote_price),
+                        "quote_currency": quote_currency,
+                        "current_price_converted": self._rounded(converted_price, "0.000001"),
+                        "valuation_currency": snapshot_currency,
+                        "cost_basis": self._rounded(cost_basis),
+                        "current_value": self._rounded(current_value),
+                        "gain": self._rounded(gain),
+                        "gain_percent": self._rounded(gain_percent) if gain_percent is not None else None,
+                        "quote_observed_at": str(quote["observed_at"]),
+                        "quote_received_at": str(quote["received_at"]),
+                        "quote_provider": str(quote["provider"]),
+                        "fx": fx_detail,
+                    }
+                )
+                bucket = totals.setdefault(
+                    snapshot_currency,
+                    {"cost_basis": Decimal("0"), "current_value": Decimal("0"), "gain": Decimal("0")},
+                )
+                bucket["cost_basis"] += cost_basis
+                bucket["current_value"] += current_value
+                bucket["gain"] += gain
+            except (ValueError, InvalidOperation, ZeroDivisionError) as exc:
+                failures.append({"isin": isin, "name": str(item.get("name") or isin), "error": str(exc)})
+        complete = not failures and len(positions) == int(holdings.get("count") or 0)
+        rendered_totals: dict[str, dict[str, str]] | None = None
+        if complete:
+            rendered_totals = {}
+            for currency, values in totals.items():
+                percentage = (
+                    values["gain"] / values["cost_basis"] * Decimal("100")
+                    if values["cost_basis"] != 0
+                    else Decimal("0")
+                )
+                rendered_totals[currency] = {
+                    "cost_basis": self._rounded(values["cost_basis"]),
+                    "current_value": self._rounded(values["current_value"]),
+                    "gain": self._rounded(values["gain"]),
+                    "gain_percent": self._rounded(percentage),
+                }
+        return {
+            "ok": complete,
+            "status": "success" if complete else "incomplete",
+            "snapshot_as_of": holdings.get("as_of"),
+            "source": holdings.get("source"),
+            "positions_expected": int(holdings.get("count") or 0),
+            "positions_valued": len(positions),
+            "positions": positions,
+            "totals": rendered_totals,
+            "fx_quotes": list(fx_used.values()),
+            "failures": failures,
+            "method": "Aktueller EODHD-Kurs, bei Fremdwaehrung mit zeitgestempeltem EODHD-FX-Kurs in die DKB-Snapshotwaehrung umgerechnet",
+            "estimated": True,
+        }
 
     @staticmethod
     def _sma(values: list[float], size: int) -> float | None:

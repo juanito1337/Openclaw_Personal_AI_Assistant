@@ -15,7 +15,7 @@
 
 ## Installed release identity
 
-- Installed package release: **3.4.0-r27.0.1**.
+- Installed package release: **3.4.0-r27.2.5**.
 - The authoritative runtime source is `RELEASE.json`, never conversational memory,
   an archive filename, an old session, or README alone.
 - Before answering any question about the installed version, update contents,
@@ -587,7 +587,8 @@ Der Agent darf nach expliziter Einrichtung einzelne, eindeutig per Mail-ID ausge
 
 ## Read-only Review-Mail und genehmigter Antwortversand
 
-- Fuer eine ordneruebergreifende Suche einschliesslich `Agent/Pruefen` und `Agent/Termin-Pruefen` `mail search` verwenden.
+- Fuer eine ordneruebergreifende Suche einschliesslich `Agent/Pruefen` und `Agent/Termin-Pruefen` `mail search` verwenden. Die Suche laeuft serverseitig ueber Absender, Betreff und Textinhalt; das Trefferlimit darf erst nach dem Suchfilter greifen.
+- Bei jedem Suchergebnis `complete`, `folder_errors` und `results_may_be_truncated` auswerten. Bei `complete=false` nur von einer Teilsuche sprechen und die fehlgeschlagenen Ordner nennen. Bei moeglicher Limitierung die Anfrage verfeinern. In beiden Faellen niemals behaupten, eine Mail existiere nicht.
 - Eine Mail erst mit Ordner, aktueller Mail-ID und nach Moeglichkeit `--expected-subject` eindeutig auswaehlen; den Inhalt danach mit `mail read` read-only lesen.
 - Mails aus Review-, Termin-Review- und Virusverdacht-Ordnern duerfen durch das direkte Agentenwerkzeug nicht verschoben werden.
 - Antworten immer zuerst mit `mail reply-draft` als vollstaendigen Entwurf praesentieren. Das Anlegen eines Entwurfs versendet nichts.
@@ -636,13 +637,29 @@ Use only the registered portfolio commands:
 ./scripts/assistant.sh portfolio doctor
 ./scripts/assistant.sh portfolio import-pp --file "<Datei>" --dry-run
 ./scripts/assistant.sh portfolio import-pp --file "<Datei>" --yes
+./scripts/assistant.sh portfolio import-csv --file "<DKB-CSV>" --dry-run
+./scripts/assistant.sh portfolio import-csv --file "<DKB-CSV>" --yes
+./scripts/assistant.sh portfolio import-csv --nextcloud-path "Assistent/Finanzen/Portfolio/<Datei-DD.MM.YYYY.csv>" --dry-run
+./scripts/assistant.sh portfolio import-csv --nextcloud-path "Assistent/Finanzen/Portfolio/<Datei-DD.MM.YYYY.csv>" --yes
 ./scripts/assistant.sh portfolio holdings
+./scripts/assistant.sh portfolio valuation
 ./scripts/assistant.sh portfolio watchlist list
+./scripts/assistant.sh portfolio watchlist add --isin "<ISIN>" --name "<Name>" --symbol "<Symbol>" --mic "<MIC>" --currency "<ISO>" --yes
+./scripts/assistant.sh portfolio watchlist disable --isin "<ISIN>" --yes
 ./scripts/assistant.sh portfolio quotes status
+./scripts/assistant.sh portfolio quotes get --isin "<ISIN>"
+./scripts/assistant.sh portfolio quotes refresh
+./scripts/assistant.sh portfolio quotes refresh --force
 ./scripts/assistant.sh portfolio analyze --isin "<ISIN>"
 ./scripts/assistant.sh portfolio alerts list
+./scripts/assistant.sh portfolio alerts add --isin "<ISIN>" --direction "<above|below>" --threshold "<Kurs>" --currency "<ISO>" --yes
+./scripts/assistant.sh portfolio alerts disable --id "<Regel-ID>" --yes
 ./scripts/assistant.sh portfolio performance
-./scripts/assistant.sh setup portfolio --provider twelve-data --interval-minutes 30 --approve-permissions
+./scripts/assistant.sh setup portfolio --provider eodhd --interval-minutes 15 --approve-permissions
+./scripts/assistant.sh jobs status --target portfolio --deep
+./scripts/assistant.sh jobs on portfolio
+./scripts/assistant.sh jobs restart portfolio
+./scripts/assistant.sh jobs off portfolio
 ```
 
 Operational rules:
@@ -650,15 +667,67 @@ Operational rules:
 - This is informational decision support. Never request or store DKB PIN/TAN
   credentials, scrape online banking, create/modify/cancel orders or claim that
   an indicator is individual investment advice.
-- Import only Portfolio Performance XML from the configured local import root.
-  Run `--dry-run` first. Productive import requires Jan's explicit instruction
-  and `--yes`. ClamAV is mandatory and fail-closed; DTD/entities are forbidden.
+- Import only Portfolio Performance XML or the strict DKB depot CSV schema. A
+  local source must be inside the configured import root. A Nextcloud CSV must
+  be selected by exact path directly below the configured portfolio folder;
+  list the folder first and never silently choose the first file.
+- Nextcloud portfolio snapshots use immutable dated filenames. The date in a
+  `DD.MM.YYYY` filename must match the single `Datum der Erstellung` value in
+  the CSV. Never overwrite an older snapshot or claim that general broker CSV
+  formats are supported.
+- Run `--dry-run` first. Productive import requires Jan's explicit instruction
+  and `--yes`. ClamAV is mandatory and fail-closed; XML DTD/entities are forbidden.
 - Imports are append-only snapshots and duplicate SHA-256 files are idempotent.
   Never delete or recreate the productive portfolio database as a repair.
+- A strict DKB CSV snapshot preserves entry price, valuation price, absolute
+  gain, relative gain and asset class. Before claiming that purchase/entry data
+  is unavailable, call `portfolio holdings`. Search mail or documents only if
+  the requested field is empty in that live result. The snapshot has an entry
+  price but no individual purchase date; never conflate those two fields.
+  In `portfolio holdings`, `currency` belongs to the DKB snapshot values and
+  `quote_currency` belongs to the confirmed EODHD mapping and remains empty
+  until that mapping is confirmed. A later DKB snapshot must never overwrite a
+  confirmed quote currency. Never subtract or
+  compare values across these currencies without a controlled FX conversion.
+- For any question about the current value, current gain/loss or current return
+  of one or more held positions, use `portfolio valuation`. It combines the
+  latest stored EODHD equity quote with the stored, timestamped EODHD FX quote
+  and returns both the original quote and the converted snapshot-currency
+  value. Never reproduce this calculation manually from `holdings` plus
+  `quotes get`. If a required equity or FX quote is missing, critically stale
+  or has an invalid source timestamp, report the incomplete result and no total.
 - Never guess a quote symbol from ISIN alone. Jan must confirm exact ISIN,
   provider symbol, MIC and currency before `watchlist add --yes`.
+- EODHD is the sole market-data provider. Translate only registered MICs to the
+  confirmed EODHD ticker form (`RHM.XETRA`, US symbols with `.US`); unknown MICs
+  fail closed instead of falling back to another provider.
+- Use the EODHD Live/Delayed endpoint and batch at most 20 explicitly mapped
+  market-data symbols per request. Required FX such as `EURUSD.FOREX` is placed
+  in the same bounded request as the equity quotes, stored with source/receipt
+  time and never silently replaced by a web or guessed rate. Stocks are
+  normally delayed by about 15–20 minutes; never describe them as
+  exchange-real-time quotes.
+- The EODHD token belongs only in `PORTFOLIO_EODHD_API_KEY` under the host
+  secrets directory. Because the provider requires a query token, never log a
+  request URL or include it in an error. Redact the token from all failures.
 - Every quote stores source time, receipt time, provider and currency. Poll
   interval, provider delay and analysis bar count are distinct facts.
+- For a latest/current price question, resolve the exact ISIN with `portfolio
+  holdings` or `portfolio watchlist list`, then call `portfolio quotes get
+  --isin "<ISIN>"`. Report price, currency, source timestamp, provider and
+  stale/critical state. `portfolio quotes status` is health metadata and has no
+  `--detailed` option. Never inspect SQLite directly, invent an option or use a
+  web search while the registered price tool is available.
+- Use `portfolio analyze` for stored time-series indicators, not as a substitute
+  for the exact single-price command.
+- Setup intervals are 15, 30, 60, 90 or 120 minutes. The configured paid EODHD
+  plan uses 15 minutes. Configure the interval only through `setup portfolio`
+  and do not invent `portfolio setup`.
+- Holdings and enabled watchlist entries form one deduplicated quote target set.
+  A symbol present in both must consume only one provider result per refresh.
+- HTTP 401, 402 and 403 are non-retryable provider responses. Automatic work
+  must enter a UTC-day cooldown instead of retrying every worker tick; only an
+  explicit diagnostic `--force` may bypass that cooldown.
 - Missing, unmapped or critically stale quotes for held positions are failures.
   A fresh trend conclusion must return `decision=abstain` until required data is
   available. Market-closed observations remain explicitly timestamped.

@@ -148,6 +148,7 @@ def _write_tools(path: Path, settings: ToolSettings) -> Path | None:
         f"enabled = {'true' if portfolio.enabled else 'false'}",
         f"database = {_toml_string(str(portfolio.database))}",
         f"import_root = {_toml_string(str(portfolio.import_root))}",
+        f"nextcloud_folder = {_toml_string(portfolio.nextcloud_folder)}",
         f"provider = {_toml_string(portfolio.provider)}",
         f"api_key_env = {_toml_string(portfolio.api_key_env)}",
         f"interval_minutes = {portfolio.interval_minutes}",
@@ -257,10 +258,10 @@ def _updated_settings(
 def configure_portfolio_tools(
     *,
     enable: bool = True,
-    provider: str = "twelve-data",
-    interval_minutes: int = 30,
-    stale_warning_minutes: int = 45,
-    stale_critical_minutes: int = 90,
+    provider: str = "eodhd",
+    interval_minutes: int = 15,
+    stale_warning_minutes: int | None = None,
+    stale_critical_minutes: int | None = None,
     approve_permissions: bool = False,
     path: Path = DEFAULT_TOOL_SETTINGS,
 ) -> dict[str, Any]:
@@ -270,20 +271,31 @@ def configure_portfolio_tools(
             "Portfolio-Marktdatenzugriff benoetigt --approve-permissions"
         )
     provider = provider.strip().casefold()
-    if provider not in {"disabled", "twelve-data"}:
-        raise ValueError("Portfolio-Anbieter muss disabled oder twelve-data sein")
-    if interval_minutes not in {15, 30}:
-        raise ValueError("Portfolio-Intervall muss 15 oder 30 Minuten sein")
-    warning = max(interval_minutes, min(int(stale_warning_minutes), 1440))
-    critical = max(interval_minutes, min(int(stale_critical_minutes), 2880))
+    if provider not in {"disabled", "eodhd"}:
+        raise ValueError("Portfolio-Anbieter muss disabled oder eodhd sein")
+    if interval_minutes not in {15, 30, 60, 90, 120}:
+        raise ValueError("Portfolio-Intervall muss 15, 30, 60, 90 oder 120 Minuten sein")
+    warning_value = (
+        max(45, interval_minutes + 20)
+        if stale_warning_minutes is None
+        else int(stale_warning_minutes)
+    )
+    critical_value = (
+        max(90, interval_minutes * 2)
+        if stale_critical_minutes is None
+        else int(stale_critical_minutes)
+    )
+    warning = max(interval_minutes, min(warning_value, 1440))
+    critical = max(interval_minutes, min(critical_value, 2880))
     if critical < warning:
         raise ValueError("Kritische Veraltung muss mindestens der Warnschwelle entsprechen")
     portfolio = PortfolioToolSettings(
         enabled=bool(enable),
         database=existing.portfolio.database,
         import_root=existing.portfolio.import_root,
+        nextcloud_folder=existing.portfolio.nextcloud_folder,
         provider=provider if enable else "disabled",
-        api_key_env=existing.portfolio.api_key_env,
+        api_key_env="PORTFOLIO_EODHD_API_KEY",
         interval_minutes=interval_minutes,
         stale_warning_minutes=warning,
         stale_critical_minutes=critical,

@@ -1,5 +1,135 @@
 # Changelog
 
+## 3.4.0-r27.2.5 – Robuste Mail-Suche und kontrollierte Kursabrufe
+
+- Erfolgreiche Himalaya-Suchen ohne Treffer werden als vollstaendige leere
+  Trefferliste behandelt; nichtleere ungueltige JSON-Ausgaben bleiben Fehler.
+- Regressionstests decken leere Suchausgaben, kaputtes JSON und den optionalen
+  Container-Smoke-Test fuer einen serverseitigen Nulltreffer ab.
+- Depotpositionen und aktivierte Watchlist-Werte werden weiterhin zu einer
+  eindeutigen Zielmenge zusammengefuehrt und nun ausdruecklich getestet.
+- Der bezahlte EODHD-Zugang wird mit 15-Minuten-Intervall dokumentiert. HTTP
+  401, 402 und 403 loesen bis zum naechsten UTC-Tag einen automatischen
+  Cooldown aus, statt alle 15 Minuten erneut beim Anbieter anzufragen.
+- Der Doctor liest seine Versionsidentitaet aus dem autoritativen
+  `RELEASE.json`, statt eine veraltete Paketkonstante auszugeben.
+
+## 3.4.0-r27.2.4 – Waehrungssichere aktuelle Depotbewertung
+
+- Ein EODHD-Kursrefresh nimmt benoetigte FX-Paare wie `EURUSD.FOREX` in
+  denselben begrenzten Batch wie die Aktienkurse auf und speichert Kurs,
+  Quellzeit, Empfangszeit und Provider versioniert in der Portfolio-Datenbank.
+- Der neue read-only Befehl `portfolio valuation` berechnet je Position den
+  aktuellen Kurs in Originalwaehrung, den FX-konvertierten Kurs in der
+  DKB-Snapshotwaehrung, Depotwert, Einstandswert und Gewinn/Verlust sowie
+  konsistente Waehrungssummen.
+- Fehlende, kritisch veraltete oder unplausibel zeitgestempelte Aktien-/FX-Kurse
+  brechen die Gesamtbewertung fail-closed ab; Teilwerte werden nicht als
+  vollstaendiger Depotgewinn summiert.
+- Tool-Registry, Skill, Betriebsvertrag und Befehlsreferenz verpflichten den
+  Agenten bei aktuellen Gewinnfragen auf das deterministische
+  Bewertungswerkzeug statt auf manuelle EUR/USD-Arithmetik.
+- Regressionstests pruefen EODHD-Aktien/FX-Batching, die Kehrwertumrechnung von
+  EURUSD, korrekte EUR-Positionen und den Abbruch ohne erforderlichen FX-Kurs.
+
+## 3.4.0-r27.2.3 – Bestaendige EODHD-Zuordnung bei neuen DKB-Snapshots
+
+- Ein neuer DKB-Depotsnapshot darf die Waehrung einer bereits bestaetigten
+  EODHD-Symbol-/MIC-Zuordnung nicht mehr mit der DKB-Snapshotwaehrung
+  ueberschreiben.
+- `portfolio holdings` zeigt `quote_currency` erst nach bestaetigter
+  Marktdatenzuordnung; `currency` bleibt weiterhin die Waehrung der importierten
+  DKB-Snapshotwerte.
+- Ein Regressionstest bildet die kritische Reihenfolge DKB-Import,
+  EODHD-Zuordnung und spaeterer neuer DKB-Snapshot ab.
+
+## 3.4.0-r27.2.2 – Getrennte Snapshot- und Kurswaehrung
+
+- DKB-Einstiegskurs, Bewertungskurs und Snapshot-Gewinne behalten ihre eigene
+  Importwaehrung, auch wenn die bestaetigte EODHD-Zuordnung fuer ein
+  US-Wertpapier in USD notiert.
+- `portfolio holdings` gibt die DKB-Waehrung als `currency` und die
+  Marktdatenwaehrung separat als `quote_currency` aus, damit der Agent keine
+  EUR-Einstandswerte direkt mit USD-Kursen verrechnet.
+- Bereits importierte identische DKB-Dateien koennen die Snapshot-Waehrung
+  idempotent anhand derselben geprueften SHA-256 nachtragen.
+
+## 3.4.0-r27.2.1 – Optionale DKB-Gewinnfelder
+
+- Leere Werte in den vorhandenen DKB-Spalten `Absoluter Gewinn` oder
+  `Relativer Gewinn` werden als unbekannt bewahrt und blockieren nicht mehr den
+  gesamten Depotimport.
+- Einstiegskurs, Bewertungskurs, Stückzahl, ISIN und die übrigen Pflichtdaten
+  bleiben strikt validiert; ungültige nichtleere Gewinnwerte bleiben sichtbare
+  Importfehler.
+- Ein Regressionstest bildet den produktiv beobachteten DKB-Leerwert ab.
+
+## 3.4.0-r27.2 – Vollstaendige Portfolio-Werkzeuge und DKB-Snapshotwerte
+
+- Ein eigener read-only Befehl `portfolio quotes get --isin` liefert einen
+  gespeicherten Einzelkurs mit Waehrung, Provider, Quellzeit und Frische, ohne
+  dass der Agent SQLite direkt lesen oder eine Websuche improvisieren muss.
+- Der Personal-Assistant-Skill, die Tool-Registry, der Betriebsvertrag und die
+  Befehlsreferenz enthalten jetzt die vollstaendige Portfolio-Matrix
+  einschliesslich Doctor, Watchlist-Aenderungen, Refresh/Force, Kursmarken und
+  Jobsteuerung. Ungueltige Optionen wie `quotes status --detailed` und der
+  erfundene Pfad `portfolio setup` werden ausdruecklich ausgeschlossen.
+- Strikte DKB-CSV-Imports bewahren Einstiegskurs, Bewertungskurs, absoluten und
+  relativen Gewinn sowie Assetklasse im unveraenderlichen Depot-Snapshot und
+  geben diese Werte ueber `portfolio holdings` aus.
+- Bereits importierte identische DKB-Dateien koennen die neuen Snapshotfelder
+  sicher anhand derselben ClamAV-geprueften SHA-256 nachtragen, ohne einen
+  zweiten Import oder eine neue Position anzulegen.
+- Portfolio-Intervalle von 15, 30, 60, 90 und 120 Minuten werden kontrolliert
+  unterstuetzt. Fuer ein kostenloses Kontingent mit 20 Aufrufen pro Tag ist 90
+  Minuten der konservative Startwert; passende Frischegrenzen werden gesetzt.
+- Regressionstests gleichen alle registrierten Portfolio-Werkzeuge gegen Skill
+  und Betriebsvertrag ab und pruefen Einzelkursausgabe, DKB-Kennzahlen,
+  idempotentes Backfill sowie das 90-Minuten-Setup.
+
+### Serverseitige Mail-Suche
+
+- `mail search` filtert jetzt direkt auf dem IMAP-Server ueber alle lesbaren
+  Ordner, einschliesslich Review-Ordnern. Absender, Betreff und Textinhalt
+  werden beruecksichtigt; alte Nachrichten verschwinden nicht mehr hinter der
+  normalen Listen-Seitengroesse.
+- Mehrteilige Suchanfragen verknuepfen bis zu zwoelf eindeutige Suchwoerter mit
+  UND, wobei jedes Wort in Absender, Betreff oder Text vorkommen darf.
+- Die Rueckgabe kennzeichnet mit `complete`, `folder_errors` und
+  `results_may_be_truncated`, ob alle Ordner erfolgreich und ohne moegliche
+  Trefferbegrenzung durchsucht wurden. Der Agent darf bei Teilfehlern oder
+  erreichtem Limit nicht behaupten, eine Mail existiere nicht.
+- Ein vollstaendiges Suchversagen, eine leere Ordnerliste und ueberlange
+  Anfragen werden als sichtbare Fehler gemeldet statt als falsches
+  Nulltreffer-Ergebnis.
+- CLI-Hilfe, Tool-Registry, Personal-Assistant-Skill, Betriebsanweisung und
+  Dokumentation beschreiben dieselbe Suchsemantik. Regressionstests decken alte
+  Archivmails, Unicode-Namen, Teilausfaelle, Trefferlimits und die
+  Agenten-Exposition ab.
+- Die Aenderung wird erst mit einem neu gebauten und geprueften Container-Image
+  aktiv. Nach dem Deployment ist ein Gateway-Neustart beziehungsweise eine neue
+  Agentensitzung erforderlich, damit der aktualisierte Skillkontext geladen
+  wird.
+
+### DKB-CSV-Depotimport aus Nextcloud
+
+- Der Portfolio-Monitor importiert neben Portfolio-Performance-XML jetzt das
+  strikt validierte DKB-Depot-CSV-Format mit UTF-8/BOM, Semikolon-Trennung,
+  deutschem Zahlenformat, Stichtag, Depotnummer, WKN, ISIN, Waehrung und
+  Stueckzahl.
+- Lokale CSVs bleiben auf den kontrollierten Portfolio-Importordner begrenzt.
+  Alternativ kann eine exakt ausgewaehlte Datei direkt unter
+  `Assistent/Finanzen/Portfolio/` aus Nextcloud gelesen werden.
+- Nextcloud-Snapshots verwenden unveraenderliche, datierte Dateinamen. Das
+  Datum im Namen muss mit dem einzigen CSV-Stichtag uebereinstimmen; alte
+  Snapshots werden nie ueberschrieben.
+- Download und Import sind groessenbegrenzt, an den zuvor gelisteten ETag
+  gebunden, ClamAV-geprueft, SHA-256-idempotent und erfordern vor jedem
+  produktiven `--yes`-Import einen Dry-Run.
+- Tool-Registry, CLI, Skill, Betriebsvertrag, Dokumentation und Regressionstests
+  beschreiben denselben sicheren Ablauf. Beliebige Broker-CSV-Layouts bleiben
+  bewusst gesperrt.
+
 ## Test-Branch – Transaktionale Container-Remigration und sicherer Rollback
 
 - Remigrationen sichern den bestehenden `/srv/openclaw`-Zustand vor dem
@@ -32,6 +162,16 @@
   ausdruecklicher `--approve-permissions`-Freigabe.
 - Container-Smoke-Tests pruefen die registrierten Faehigkeiten und den
   Compose-CLI-Einstieg, ohne eine Mail zu versenden.
+
+## 3.4.0-r27.1 – Einheitliche EODHD-Depotkurse fuer US und Xetra
+
+- EODHD ersetzt Twelve Data als einzigen Portfolio-Marktdatenanbieter und liefert US- sowie Xetra-Werte ueber denselben kontrollierten Live/Delayed-Endpunkt.
+- Bis zu 20 bestaetigte Instrumente werden in einer begrenzten EODHD-Anfrage gebuendelt; RHM/XETR wird sicher zu RHM.XETRA und bestaetigte US-MICs werden zu `.US` uebersetzt.
+- Der EODHD-Schluessel liegt getrennt als `PORTFOLIO_EODHD_API_KEY` im Host-Secrets-Verzeichnis; URL, Token und verkettete HTTP-Fehler werden aus Ausgaben und Tracebacks ferngehalten.
+- Alte Twelve-Data-Konfiguration wird nach dem Update fail-closed deaktiviert und niemals stillschweigend mit einem anderen Anbieter oder alten Secret weiterverwendet.
+- Kursfrische wird je Instrument anhand der Xetra- beziehungsweise US-Handelszeit bewertet; gespeicherte historische Kurse und Depot-Snapshots bleiben erhalten.
+- Portfolio-Setup, Tool-Registry, Skill, Befehlsreferenz und Betriebsvertrag beschreiben EODHD, 15-Minuten-Abruf und die typische 15- bis 20-minuetige Kursverzoegerung konsistent.
+- Regressionstests pruefen EODHD-Batchantworten, Secret-Redaktion, sichere Legacy-Deaktivierung und die vollstaendige Agenten-Exposition.
 
 ## 3.4.0-r27.0.1 – Container-Migrations- und Betriebsfixes
 

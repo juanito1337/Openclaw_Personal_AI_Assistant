@@ -38,7 +38,7 @@ class AgentOperationalToolTests(unittest.TestCase):
         self.assertEqual(portfolio_job.target, "portfolio")
         portfolio_setup = parser().parse_args(
             [
-                "setup", "portfolio", "--provider", "twelve-data",
+                "setup", "portfolio", "--provider", "eodhd",
                 "--interval-minutes", "15", "--approve-permissions",
             ]
         )

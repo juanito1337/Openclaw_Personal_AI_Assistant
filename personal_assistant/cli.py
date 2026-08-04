@@ -107,10 +107,12 @@ def parser() -> argparse.ArgumentParser:
     portfolio_setup = setup_sub.add_parser(
         "portfolio", help="Lokalen Portfolio-Monitor und Marktdatenadapter einrichten"
     )
-    portfolio_setup.add_argument("--provider", default="twelve-data", choices=("twelve-data",))
-    portfolio_setup.add_argument("--interval-minutes", type=int, default=30, choices=(15, 30))
-    portfolio_setup.add_argument("--stale-warning-minutes", type=int, default=45)
-    portfolio_setup.add_argument("--stale-critical-minutes", type=int, default=90)
+    portfolio_setup.add_argument("--provider", default="eodhd", choices=("eodhd",))
+    portfolio_setup.add_argument(
+        "--interval-minutes", type=int, default=15, choices=(15, 30, 60, 90, 120)
+    )
+    portfolio_setup.add_argument("--stale-warning-minutes", type=int)
+    portfolio_setup.add_argument("--stale-critical-minutes", type=int)
     portfolio_setup.add_argument("--disable", action="store_true")
     portfolio_setup.add_argument("--approve-permissions", action="store_true")
 
@@ -194,7 +196,19 @@ def parser() -> argparse.ArgumentParser:
     portfolio_import.add_argument("--file", required=True)
     portfolio_import.add_argument("--dry-run", action="store_true")
     portfolio_import.add_argument("--yes", action="store_true")
+    portfolio_csv = portfolio_sub.add_parser(
+        "import-csv", help="Strikten DKB-CSV-Depotsnapshot lokal oder aus Nextcloud einlesen"
+    )
+    portfolio_csv_source = portfolio_csv.add_mutually_exclusive_group(required=True)
+    portfolio_csv_source.add_argument("--file")
+    portfolio_csv_source.add_argument("--nextcloud-path")
+    portfolio_csv.add_argument("--dry-run", action="store_true")
+    portfolio_csv.add_argument("--yes", action="store_true")
     portfolio_sub.add_parser("holdings", help="Letzten importierten Depotbestand anzeigen")
+    portfolio_sub.add_parser(
+        "valuation",
+        help="Aktuellen Depotwert und Gewinn mit EODHD-Kursen und EODHD-FX berechnen",
+    )
     watchlist = portfolio_sub.add_parser("watchlist", help="Watchlist verwalten")
     watchlist_sub = watchlist.add_subparsers(dest="watchlist_command", required=True)
     watchlist_sub.add_parser("list")
@@ -213,6 +227,10 @@ def parser() -> argparse.ArgumentParser:
     quotes = portfolio_sub.add_parser("quotes", help="Kursversorgung pruefen oder aktualisieren")
     quotes_sub = quotes.add_subparsers(dest="quotes_command", required=True)
     quotes_sub.add_parser("status")
+    quotes_get = quotes_sub.add_parser(
+        "get", help="Letzten gespeicherten Kurs fuer eine exakte ISIN anzeigen"
+    )
+    quotes_get.add_argument("--isin", required=True)
     quotes_refresh = quotes_sub.add_parser("refresh")
     quotes_refresh.add_argument("--force", action="store_true")
     portfolio_analyze = portfolio_sub.add_parser(
@@ -308,7 +326,10 @@ def parser() -> argparse.ArgumentParser:
     mail_list = mail_sub.add_parser("list", help="Mail-Metadaten eines vorhandenen Ordners auflisten")
     mail_list.add_argument("--folder", required=True)
     mail_list.add_argument("--limit", type=int, default=50)
-    mail_search = mail_sub.add_parser("search", help="Mail-Metadaten ordneruebergreifend durchsuchen")
+    mail_search = mail_sub.add_parser(
+        "search",
+        help="Mails ordneruebergreifend serverseitig in Absender, Betreff und Text durchsuchen",
+    )
     mail_search.add_argument("--query", required=True)
     mail_search.add_argument("--limit", type=int, default=50)
     mail_read = mail_sub.add_parser("read", help="Eine eindeutig identifizierte Mail read-only lesen")
@@ -1448,9 +1469,25 @@ def main(argv: list[str] | None = None) -> int:
                 result = assistant.portfolio.import_pp(args.file, dry_run=not args.yes)
                 _print(result)
                 return 0
+            if args.portfolio_command == "import-csv":
+                if args.dry_run and args.yes:
+                    raise ValueError("--dry-run und --yes koennen nicht gemeinsam verwendet werden")
+                if not args.dry_run and not args.yes:
+                    raise PermissionError("Portfolio-CSV-Import benoetigt --dry-run oder --yes")
+                result = assistant.portfolio_import_csv(
+                    local_file=args.file or "",
+                    nextcloud_path=args.nextcloud_path or "",
+                    dry_run=not args.yes,
+                )
+                _print(result)
+                return 0
             if args.portfolio_command == "holdings":
                 _print(assistant.portfolio.holdings())
                 return 0
+            if args.portfolio_command == "valuation":
+                result = assistant.portfolio.valuation()
+                _print(result)
+                return 0 if result.get("ok") else 1
             if args.portfolio_command == "watchlist":
                 if args.watchlist_command == "list":
                     _print(assistant.portfolio.watchlist())
@@ -1472,6 +1509,10 @@ def main(argv: list[str] | None = None) -> int:
                 if args.quotes_command == "status":
                     _print(assistant.portfolio.health())
                     return 0
+                if args.quotes_command == "get":
+                    result = assistant.portfolio.latest_quote(args.isin)
+                    _print(result)
+                    return 0 if result.get("ok") else 1
                 if args.quotes_command == "refresh":
                     result = assistant.portfolio.refresh_quotes(force=bool(args.force))
                     _print(result)

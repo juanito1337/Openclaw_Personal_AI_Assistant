@@ -81,9 +81,23 @@ class NextcloudFiles:
             ))
         return items
 
-    def download(self, path: str) -> bytes:
+    def download(self, path: str, *, expected_etag: str = "") -> bytes:
         clean = self.clean_path(path)
-        response = self.client.request("GET", self.files_root() + self._quote(clean), expected={200})
+        etag = str(expected_etag or "").strip()
+        if "\r" in etag or "\n" in etag:
+            raise ValueError("Ungueltiger Nextcloud-ETag")
+        if etag and not (etag.startswith('"') or etag.startswith('W/"')):
+            etag = f'"{etag}"'
+        response = self.client.request(
+            "GET",
+            self.files_root() + self._quote(clean),
+            headers={"If-Match": etag} if etag else None,
+            expected={200, 412} if etag else {200},
+        )
+        if response.status == 412:
+            raise NextcloudError(
+                "Nextcloud-Datei wurde seit der Auswahl geaendert; bitte erneut auflisten"
+            )
         return response.data
 
     def exists(self, path: str) -> bool:

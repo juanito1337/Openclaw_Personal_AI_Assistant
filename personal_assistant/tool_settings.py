@@ -16,6 +16,7 @@ DEFAULT_ANTIVIRUS_TEMP = WORKSPACE_ROOT / "personal_assistant/data/antivirus_tmp
 DEFAULT_ORDERS_DB = WORKSPACE_ROOT / "personal_assistant/data/orders.sqlite3"
 DEFAULT_PORTFOLIO_DB = WORKSPACE_ROOT / "personal_assistant/data/portfolio.sqlite3"
 DEFAULT_PORTFOLIO_INBOX = WORKSPACE_ROOT / "personal_assistant/data/portfolio_inbox"
+DEFAULT_PORTFOLIO_NEXTCLOUD_FOLDER = "Assistent/Finanzen/Portfolio"
 
 
 @dataclass(slots=True)
@@ -153,9 +154,10 @@ class PortfolioToolSettings:
     enabled: bool = False
     database: Path = DEFAULT_PORTFOLIO_DB
     import_root: Path = DEFAULT_PORTFOLIO_INBOX
+    nextcloud_folder: str = DEFAULT_PORTFOLIO_NEXTCLOUD_FOLDER
     provider: str = "disabled"
-    api_key_env: str = "PORTFOLIO_MARKET_DATA_API_KEY"
-    interval_minutes: int = 30
+    api_key_env: str = "PORTFOLIO_EODHD_API_KEY"
+    interval_minutes: int = 15
     stale_warning_minutes: int = 45
     stale_critical_minutes: int = 90
     request_timeout_seconds: int = 20
@@ -377,15 +379,23 @@ def load_tool_settings(
         timeout_seconds=max(5, min(int(antivirus_data.get("timeout_seconds", 120)), 1800)),
         temp_dir=_clean_outbox(antivirus_data.get("temp_dir") or DEFAULT_ANTIVIRUS_TEMP),
     )
-    interval_minutes = int(portfolio_data.get("interval_minutes", 30))
-    if interval_minutes not in {15, 30}:
-        raise ValueError("tools.toml: portfolio.interval_minutes muss 15 oder 30 sein")
+    interval_minutes = int(portfolio_data.get("interval_minutes", 15))
+    if interval_minutes not in {15, 30, 60, 90, 120}:
+        raise ValueError(
+            "tools.toml: portfolio.interval_minutes muss 15, 30, 60, 90 oder 120 sein"
+        )
     provider = str(portfolio_data.get("provider") or "disabled").strip().casefold()
-    if provider not in {"disabled", "twelve-data"}:
-        raise ValueError("tools.toml: portfolio.provider muss disabled oder twelve-data sein")
+    if provider == "twelve-data":
+        # Safe migration from releases before the EODHD switch: do not silently
+        # send market-data requests with a different provider or credential.
+        provider = "disabled"
+    if provider not in {"disabled", "eodhd"}:
+        raise ValueError("tools.toml: portfolio.provider muss disabled oder eodhd sein")
     api_key_env = str(
-        portfolio_data.get("api_key_env") or "PORTFOLIO_MARKET_DATA_API_KEY"
+        portfolio_data.get("api_key_env") or "PORTFOLIO_EODHD_API_KEY"
     ).strip()
+    if api_key_env == "PORTFOLIO_MARKET_DATA_API_KEY":
+        api_key_env = "PORTFOLIO_EODHD_API_KEY"
     if not api_key_env or not api_key_env.replace("_", "").isalnum() or api_key_env[0].isdigit():
         raise ValueError("tools.toml: portfolio.api_key_env ist kein gueltiger Variablenname")
     portfolio = PortfolioToolSettings(
@@ -397,6 +407,10 @@ def load_tool_settings(
         import_root=_clean_workspace_path(
             portfolio_data.get("import_root") or DEFAULT_PORTFOLIO_INBOX,
             field_name="portfolio.import_root",
+        ),
+        nextcloud_folder=clean_remote_path(
+            portfolio_data.get("nextcloud_folder") or DEFAULT_PORTFOLIO_NEXTCLOUD_FOLDER,
+            field_name="portfolio.nextcloud_folder",
         ),
         provider=provider,
         api_key_env=api_key_env,
@@ -421,6 +435,11 @@ def load_tool_settings(
         raise ValueError(
             "tools.toml: portfolio.stale_critical_minutes muss mindestens stale_warning_minutes sein"
         )
+    if not portfolio.nextcloud_folder or not (
+        portfolio.nextcloud_folder == "Assistent"
+        or portfolio.nextcloud_folder.startswith("Assistent/")
+    ):
+        raise ValueError("tools.toml: portfolio.nextcloud_folder muss unter Assistent/ liegen")
     try:
         from zoneinfo import ZoneInfo
         ZoneInfo(portfolio.timezone)

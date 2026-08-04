@@ -1,9 +1,10 @@
-# Docker deployment and rollback (R27.0.1)
+# Docker deployment, worker architecture and rollback (R27.2.3)
 
-R27.0.1 separates the immutable program image from productive state. The image is
-replaced during updates; `/srv/openclaw` remains on the host. The release also
-fixes native-to-container workspace migration, Himalaya keyring migration,
-private CA handling and the ClamAV updater healthcheck.
+The container runtime separates the immutable program image from productive
+state. The image is replaced during updates; `/srv/openclaw` remains on the
+host. Gateway, background workers and diagnostic commands use the same image and
+source revision, while separate containers give each process an independent
+lifecycle, healthcheck and failure boundary.
 
 ## Host layout
 
@@ -30,6 +31,172 @@ private CA handling and the ClamAV updater healthcheck.
 The container uses host networking on Linux. This preserves the current local
 Ollama proxy and gateway addresses and avoids exposing extra Docker bridge ports.
 Only one set of writer containers may run at a time.
+
+## Container and worker architecture
+
+The stack does not build a separate image for every subsystem. Gateway, proxy,
+background workers and the command-line tool all start from the same immutable
+`OPENCLAW_IMAGE`. Compose gives each container a different command:
+
+```text
+One immutable OpenClaw image
+│
+├── openclaw-gateway
+│   └── openclaw gateway --bind lan --port 18789
+│
+├── openclaw-ollama-proxy
+│   └── ollama-priority-proxy.sh serve
+│
+├── openclaw-mail-worker
+│   └── job_loop.py mail
+│
+├── openclaw-portfolio-worker
+│   └── job_loop.py portfolio
+│
+├── openclaw-sync-worker
+│   └── job_loop.py sync
+│
+├── openclaw-monitor-worker
+│   └── job_loop.py monitor
+│
+├── openclaw-supervisor-worker
+│   └── job_loop.py supervisor
+│
+└── openclaw-agent-cli
+    └── one requested assistant.sh command, then exit
+
+Maintenance profile:
+└── openclaw-clamav-update
+    └── freshclam loop for the shared signature volume
+```
+
+This design provides process isolation without creating independent assistant
+installations. There is one Personal Assistant, one release identity and one
+persistent state tree. The workers are specialized execution processes of that
+assistant, not autonomous agents.
+
+### Responsibilities and dependencies
+
+| Container | Responsibility | Important dependency |
+| --- | --- | --- |
+| `openclaw-gateway` | Chat sessions, agent context, tool selection and system events | starts after the Ollama proxy is healthy |
+| `openclaw-ollama-proxy` | Prioritizes interactive and background model requests and bounds concurrency | connects to the configured Ollama upstream |
+| `openclaw-mail-worker` | Scheduled IMAP processing, ClamAV gates, classification and approved mail actions | uses the Ollama proxy; must be the only mail writer |
+| `openclaw-portfolio-worker` | Due EODHD refreshes, quote storage, freshness checks and price alerts | uses confirmed mappings and persistent portfolio state |
+| `openclaw-sync-worker` | Read-only synchronization of configured external sources into the local index | starts after the gateway is healthy |
+| `openclaw-monitor-worker` | Local operational snapshots, freshness and reliability evidence | starts after the gateway is healthy |
+| `openclaw-supervisor-worker` | Desired/actual job-state checks, heartbeats and alerts | remains outside the business-job scheduler |
+| `openclaw-agent-cli` | Runs one registered administrative or diagnostic command | created only through the Compose `tools` profile |
+| `openclaw-clamav-update` | Updates the shared ClamAV databases | owns write access to the `clamav-db` volume |
+
+Each long-running service has its own Docker healthcheck and
+`restart: unless-stopped`. A failed portfolio process can therefore restart
+without taking down mail or the gateway. Conversely, a healthy container only
+proves that its process and heartbeat are healthy; it does not automatically
+mean that the corresponding business job is enabled.
+
+### Shared state, configuration and secrets
+
+All normal containers mount the same host-owned paths:
+
+```text
+/srv/openclaw/state
+    -> /home/node/.openclaw                 read/write
+
+/srv/openclaw/config
+    -> /etc/openclaw-agent                  read-only
+
+/srv/openclaw/config/himalaya
+    -> /home/node/.config/himalaya          read-only
+
+/srv/openclaw/secrets
+    -> /run/openclaw-secrets                read-only
+
+Docker volume clamav-db
+    -> /var/lib/clamav                      read-only in normal containers
+                                           read/write in clamav-update
+```
+
+The workers consequently see the same configuration, tool registry and local
+databases, but normally operate on separate subsystem data:
+
+```text
+mail-worker        -> mail_agent/data/mail_agent.sqlite3
+portfolio-worker   -> personal_assistant/data/portfolio.sqlite3
+monitor-worker     -> personal_assistant/data/monitoring.sqlite3
+supervisor-worker  -> job heartbeats, alerts and scheduler state
+sync-worker        -> local search index and source caches
+```
+
+They are not five copies of the data. Persistent state exists once on the host
+and survives container replacement. Release-owned code and skills come from the
+image; instance configuration and runtime data remain outside it.
+
+At startup, the common entrypoint copies the image-owned source, scripts,
+documentation and Personal-Assistant skill into the persistent workspace. It
+preserves `config.toml`, `rules.toml`, `resources.toml`, `policies.toml`,
+`tools.toml` and every `data/` directory. A shared filesystem lock serializes
+this synchronization when several containers start together.
+
+### Worker loop and scheduler
+
+The five worker containers execute the same bounded loop implementation with a
+different job name:
+
+```text
+container starts
+    -> load configuration and secrets
+    -> read persistent desired state
+    -> if OFF: publish an idle/healthy heartbeat and wait
+    -> if ON: request scheduler permission when required
+    -> run exactly the allowlisted job
+    -> record result and heartbeat
+    -> wait for the next outer interval
+    -> repeat
+```
+
+Mail, portfolio, sync and monitor are business jobs and enter the shared,
+persistent adaptive scheduler. This prevents heavy background work from running
+without coordination. The supervisor stays outside that queue so it can still
+detect a stalled scheduler or missing worker heartbeat.
+
+Some subsystems apply an additional internal due check. For example, the
+portfolio worker may wake every 15 minutes while the configured provider
+interval is 90 minutes. Runs before the next due time return
+`skipped-not-due` and do not consume another EODHD request.
+
+### Docker state versus job desired state
+
+Container state and business-job state are intentionally separate:
+
+| Docker process | Desired job state | Meaning |
+| --- | --- | --- |
+| running | `ON` | the worker performs its scheduled job |
+| running | `OFF` | the worker remains observable but performs no business work |
+| stopped/unhealthy | `ON` | failure; the supervisor must report the missing service or heartbeat |
+| stopped | `OFF` | acceptable only when the deployment intentionally stopped that container |
+
+The persistent desired state is controlled through the registered interface,
+not by manually editing Compose:
+
+```bash
+./scripts/assistant.sh jobs status --target all
+./scripts/assistant.sh jobs on portfolio
+./scripts/assistant.sh jobs off portfolio
+./scripts/assistant.sh jobs restart portfolio
+```
+
+This distinction explains why `docker compose ps` and `jobs status` answer
+different questions. Docker reports whether a process exists; the job
+controller reports whether work is intended, running and healthy.
+
+### Agent sessions after image updates
+
+The gateway loads the Personal-Assistant skill into an agent session. Replacing
+the image updates the workspace and newly created sessions, but it cannot
+rewrite context already stored in an open conversation. After an update that
+changes `AGENTS.md` or `skills/personal-assistant/SKILL.md`, verify the release
+and open a new chat session before testing the new agent behavior.
 
 ## 1. Build or publish the image
 

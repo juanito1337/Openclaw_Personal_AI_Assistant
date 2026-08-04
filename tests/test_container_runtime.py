@@ -234,6 +234,8 @@ class ContainerWorkspaceTests(unittest.TestCase):
 
         self.assertIn("assistant.sh capabilities", smoke)
         self.assertIn("assistant.sh mail compose-draft --help", smoke)
+        self.assertIn("OPENCLAW_MAIL_SEARCH_SMOKE_ENABLED", smoke)
+        self.assertIn("assistant.sh mail search --query", smoke)
         self.assertNotIn("assistant.sh mail compose-send", smoke)
 
     def test_rollback_restores_contents_without_removing_protected_roots(self) -> None:
