@@ -1,0 +1,422 @@
+{
+  "schema_version": 1,
+  "mypy_version": "mypy 2.3.0 (compiled: yes)",
+  "policy": "Only these exact legacy path/code/message fingerprints are accepted; every new error fails.",
+  "error_count": 124,
+  "fingerprints": [
+    {
+      "path": "docker/scripts/migrate-container-state.py",
+      "code": "dict-item",
+      "message": "Dict entry 3 has incompatible type \"str\": \"bool\"; expected \"str\": \"str\"",
+      "count": 1
+    },
+    {
+      "path": "docker/scripts/migrate-container-state.py",
+      "code": "dict-item",
+      "message": "Dict entry 4 has incompatible type \"str\": \"list[str]\"; expected \"str\": \"str\"",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "attr-defined",
+      "message": "\"HimalayaClient\" has no attribute \"is_missing_message_error\"",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/attachments.py",
+      "code": "attr-defined",
+      "message": "\"Message[str, str]\" has no attribute \"iter_parts\"",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\"",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "dict-item",
+      "message": "Unpacked dict entry 1 has incompatible type \"object\"; expected \"SupportsKeysAndGetItem[str, dict[str, Sequence[str]]]\"",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "index",
+      "message": "Value of type \"object\" is not indexable",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "misc",
+      "message": "Expected iterable as variadic argument",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "assignment",
+      "message": "Incompatible types in assignment (expression has type \"OperationResult\", variable has type \"dict[str, Any]\")",
+      "count": 4
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "assignment",
+      "message": "Incompatible types in assignment (expression has type \"tuple[str, str, str, str, str, str, str]\", variable has type \"tuple[str, str, str, str, str, str]\")",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "attr-defined",
+      "message": "\"MailAgent\" has no attribute \"nextcloud_files\"",
+      "count": 2
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "attr-defined",
+      "message": "\"dict[str, Any]\" has no attribute \"detail\"",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "attr-defined",
+      "message": "\"dict[str, Any]\" has no attribute \"ok\"",
+      "count": 4
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"get\"",
+      "count": 2
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "call-overload",
+      "message": "No overload variant of \"asdict\" matches argument type \"dict[str, Any]\"",
+      "count": 3
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "call-overload",
+      "message": "No overload variant of \"dict\" matches argument type \"object\"",
+      "count": 3
+    },
+    {
+      "path": "mail_agent/config.py",
+      "code": "arg-type",
+      "message": "Argument 1 to \"Path\" has incompatible type \"str | PathLike[str] | None\"; expected \"str | PathLike[str]\"",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/config.py",
+      "code": "assignment",
+      "message": "Incompatible types in assignment (expression has type \"str\", variable has type \"float\")",
+      "count": 2
+    },
+    {
+      "path": "mail_agent/invoice_extract.py",
+      "code": "no-redef",
+      "message": "Name \"left\" already defined on line 466",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoice_extract.py",
+      "code": "no-redef",
+      "message": "Name \"right\" already defined on line 467",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "arg-type",
+      "message": "Argument 2 to \"update_invoice_extraction\" of \"Storage\" has incompatible type \"**dict[str, object]\"; expected \"float\"",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "arg-type",
+      "message": "Argument 2 to \"update_invoice_extraction\" of \"Storage\" has incompatible type \"**dict[str, object]\"; expected \"int | None\"",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "arg-type",
+      "message": "Argument 2 to \"update_invoice_extraction\" of \"Storage\" has incompatible type \"**dict[str, object]\"; expected \"str\"",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "arg-type",
+      "message": "Argument 7 to \"record_invoice\" of \"Storage\" has incompatible type \"**dict[str, object]\"; expected \"float\"",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "arg-type",
+      "message": "Argument 7 to \"record_invoice\" of \"Storage\" has incompatible type \"**dict[str, object]\"; expected \"int | None\"",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "arg-type",
+      "message": "Argument 7 to \"record_invoice\" of \"Storage\" has incompatible type \"**dict[str, object]\"; expected \"str\"",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "arg-type",
+      "message": "Argument 8 to \"record_invoice\" of \"Storage\" has incompatible type \"**dict[str, object]\"; expected \"float\"",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "arg-type",
+      "message": "Argument 8 to \"record_invoice\" of \"Storage\" has incompatible type \"**dict[str, object]\"; expected \"int | None\"",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "arg-type",
+      "message": "Argument 8 to \"record_invoice\" of \"Storage\" has incompatible type \"**dict[str, object]\"; expected \"str\"",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\"",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/learning.py",
+      "code": "valid-type",
+      "message": "Function \"mail_agent.learning.LearningFolderRegistry.list\" is not valid as a type",
+      "count": 2
+    },
+    {
+      "path": "mail_agent/nextcloud.py",
+      "code": "no-redef",
+      "message": "Name \"emails\" already defined on line 417",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/parser.py",
+      "code": "attr-defined",
+      "message": "\"Message[str, str]\" has no attribute \"get_content\"; maybe \"get_content_type\"?",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/setup_assistant.py",
+      "code": "attr-defined",
+      "message": "\"object\" has no attribute \"get\"",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/storage.py",
+      "code": "arg-type",
+      "message": "Argument 1 to \"int\" has incompatible type \"int | None\"; expected \"str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc\"",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/telemetry.py",
+      "code": "arg-type",
+      "message": "Argument 1 to \"dict\" has incompatible type \"Any | dict[Any, Any] | None\"; expected \"SupportsKeysAndGetItem[Any, Any]\"",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/telemetry.py",
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\"",
+      "count": 17
+    },
+    {
+      "path": "mail_agent/telemetry.py",
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\"",
+      "count": 9
+    },
+    {
+      "path": "mail_agent/telemetry.py",
+      "code": "misc",
+      "message": "Generator has incompatible item type \"float\"; expected \"bool\"",
+      "count": 10
+    },
+    {
+      "path": "personal_assistant/actions.py",
+      "code": "assignment",
+      "message": "Incompatible types in assignment (expression has type \"Contact\", variable has type \"CalendarObject\")",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/actions.py",
+      "code": "assignment",
+      "message": "Incompatible types in assignment (expression has type \"TaskObject\", variable has type \"CalendarObject\")",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "assignment",
+      "message": "Incompatible types in assignment (expression has type \"ActionPlan\", variable has type \"dict[str, Any]\")",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "attr-defined",
+      "message": "\"dict[str, Any]\" has no attribute \"status\"",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "call-overload",
+      "message": "No overload variant of \"asdict\" matches argument type \"dict[str, Any]\"",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/config.py",
+      "code": "arg-type",
+      "message": "Argument 1 to \"Path\" has incompatible type \"str | PathLike[str] | None\"; expected \"str | PathLike[str]\"",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/ical_edit.py",
+      "code": "arg-type",
+      "message": "Argument 1 to \"component_properties\" has incompatible type \"tuple[str, ...]\"; expected \"str\"",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/ical_edit.py",
+      "code": "assignment",
+      "message": "Incompatible types in assignment (expression has type \"str\", variable has type \"tuple[str, ...]\")",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/ical_edit.py",
+      "code": "return-value",
+      "message": "Incompatible return value type (got \"tuple[tuple[str, ...], ComponentSelection]\", expected \"tuple[str, ComponentSelection]\")",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "arg-type",
+      "message": "Argument 1 to \"int\" has incompatible type \"int | None\"; expected \"str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc\"",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "assignment",
+      "message": "Incompatible types in assignment (expression has type \"tuple[()]\", variable has type \"tuple[float, float, float]\")",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/ollama_priority_proxy.py",
+      "code": "arg-type",
+      "message": "Argument 1 to \"HTTPConnection\" has incompatible type \"str | None\"; expected \"str\"",
+      "count": 2
+    },
+    {
+      "path": "personal_assistant/ollama_priority_proxy.py",
+      "code": "arg-type",
+      "message": "Argument 1 to \"HTTPSConnection\" has incompatible type \"str | None\"; expected \"str\"",
+      "count": 2
+    },
+    {
+      "path": "personal_assistant/ollama_priority_proxy.py",
+      "code": "arg-type",
+      "message": "Argument 1 to \"float\" has incompatible type \"object\"; expected \"str | Buffer | SupportsFloat | SupportsIndex\"",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/ollama_priority_proxy.py",
+      "code": "call-overload",
+      "message": "No overload variant of \"int\" matches argument type \"object\"",
+      "count": 3
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "arg-type",
+      "message": "Argument 1 to \"_dict\" of \"OrderStore\" has incompatible type \"Row | None\"; expected \"Row\"",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "attr-defined",
+      "message": "\"list?[sqlite3.Row]\" has no attribute \"__iter__\" (not iterable)",
+      "count": 2
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "valid-type",
+      "message": "Function \"personal_assistant.orders.OrderStore.list\" is not valid as a type",
+      "count": 2
+    },
+    {
+      "path": "personal_assistant/portfolio.py",
+      "code": "arg-type",
+      "message": "Argument 1 to \"int\" has incompatible type \"Any | None\"; expected \"str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc\"",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/portfolio.py",
+      "code": "arg-type",
+      "message": "Argument 1 to \"int\" has incompatible type \"int | None\"; expected \"str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc\"",
+      "count": 2
+    },
+    {
+      "path": "personal_assistant/portfolio.py",
+      "code": "assignment",
+      "message": "Incompatible types in assignment (expression has type \"dict[str, str] | None\", variable has type \"dict[str, str]\")",
+      "count": 2
+    },
+    {
+      "path": "personal_assistant/portfolio.py",
+      "code": "assignment",
+      "message": "Incompatible types in assignment (expression has type \"tuple[str, str] | None\", variable has type \"tuple[str, str]\")",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/portfolio.py",
+      "code": "no-redef",
+      "message": "Name \"errors\" already defined on line 1171",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/portfolio.py",
+      "code": "no-redef",
+      "message": "Name \"fx_errors\" already defined on line 1178",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/portfolio.py",
+      "code": "no-redef",
+      "message": "Name \"fx_quotes\" already defined on line 1177",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/portfolio.py",
+      "code": "no-redef",
+      "message": "Name \"quotes\" already defined on line 1170",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/registry.py",
+      "code": "valid-type",
+      "message": "Function \"personal_assistant.registry.ResourceRegistry.list\" is not valid as a type",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/registry.py",
+      "code": "var-annotated",
+      "message": "Need type annotation for \"resource\"",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "var-annotated",
+      "message": "Need type annotation for \"duplicates\"",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/storage.py",
+      "code": "arg-type",
+      "message": "Argument 1 to \"int\" has incompatible type \"int | None\"; expected \"str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc\"",
+      "count": 1
+    }
+  ]
+}

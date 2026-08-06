@@ -11,7 +11,6 @@ from typing import Any
 
 from .utils import now_utc_iso
 
-
 _CATEGORY_VERDICTS = {"spam", "routine", "relevant"}
 
 

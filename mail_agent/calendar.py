@@ -12,11 +12,11 @@ import shutil
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from email.utils import parseaddr
 from pathlib import Path
-from typing import Callable
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from personal_assistant.tool_settings import CalendarMailToolSettings
@@ -64,7 +64,7 @@ def _parse_ics_datetime(value: str, params: str, default_tz: str) -> tuple[datet
     if value.endswith("Z"):
         raw = value[:-1]
         fmt = "%Y%m%dT%H%M%S" if len(raw) >= 15 else "%Y%m%dT%H%M"
-        parsed = datetime.strptime(raw, fmt).replace(tzinfo=timezone.utc)
+        parsed = datetime.strptime(raw, fmt).replace(tzinfo=UTC)
     else:
         raw = value[:15] if len(value) >= 15 else value[:13]
         fmt = "%Y%m%dT%H%M%S" if len(raw) >= 15 else "%Y%m%dT%H%M"
@@ -348,7 +348,7 @@ class CalendarManager:
 
         token = self._approval_token()
         token_hash = self._token_hash(token)
-        expires = datetime.now(timezone.utc) + timedelta(days=self.config.calendar.approval_expiry_days)
+        expires = datetime.now(UTC) + timedelta(days=self.config.calendar.approval_expiry_days)
         event_json = self._normalized_to_json(normalized)
         approval_id = self.storage.create_calendar_approval(
             token_hash=token_hash,
@@ -476,10 +476,10 @@ class CalendarManager:
         try:
             expires_at = datetime.fromisoformat(str(approval["expires_at"]).replace("Z", "+00:00"))
         except (ValueError, TypeError):
-            expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+            expires_at = datetime.now(UTC) - timedelta(seconds=1)
         if expires_at.tzinfo is None:
-            expires_at = expires_at.replace(tzinfo=timezone.utc)
-        if datetime.now(timezone.utc) > expires_at.astimezone(timezone.utc):
+            expires_at = expires_at.replace(tzinfo=UTC)
+        if datetime.now(UTC) > expires_at.astimezone(UTC):
             self.storage.update_calendar_approval(
                 int(approval["id"]), "expired", response_stable_key=message.stable_key, responded=True
             )
@@ -707,7 +707,7 @@ class CalendarManager:
             "METHOD:PUBLISH",
             "BEGIN:VEVENT",
             f"UID:{_escape_ics(uid)}",
-            f"DTSTAMP:{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}",
+            f"DTSTAMP:{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}",
         ]
         if isinstance(start, datetime):
             zone_name = event.timezone or self.config.calendar.timezone
@@ -820,7 +820,7 @@ class CalendarManager:
         if not base_url.strip("/") or not username or not password:
             return OperationResult(False, "caldav-config-missing", "CalDAV-URL/Benutzer/Passwort fehlen in Umgebungsvariablen")
         target = urllib.parse.urljoin(base_url, urllib.parse.quote(safe_filename(event.uid)) + ".ics")
-        token = base64.b64encode(f"{username}:{password}".encode("utf-8")).decode("ascii")
+        token = base64.b64encode(f"{username}:{password}".encode()).decode("ascii")
         request = urllib.request.Request(
             target,
             data=event.ics.encode("utf-8"),

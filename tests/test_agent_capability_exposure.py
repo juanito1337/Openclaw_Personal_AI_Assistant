@@ -19,6 +19,12 @@ class AgentCapabilityExposureTests(unittest.TestCase):
         root = Path(__file__).parents[1]
         skill = (root / "skills/personal-assistant/SKILL.md").read_text(encoding="utf-8")
         agents = (root / "AGENTS.md").read_text(encoding="utf-8")
+        references = "\n".join(
+            path.read_text(encoding="utf-8")
+            for path in sorted((root / "skills/personal-assistant/references").glob("*.md"))
+        )
+        documented = "\n".join((skill, agents, references))
+        normalized_agents = " ".join(agents.split())
 
         self.assertIn("version: 3.4.0-r27.2.5", skill)
         for command in (
@@ -38,9 +44,9 @@ class AgentCapabilityExposureTests(unittest.TestCase):
             "portfolio quotes get --isin",
             "portfolio quotes refresh --force",
             "portfolio alerts disable --id",
-            "jobs status --target portfolio --deep",
+            "jobs status --target all",
         ):
-            self.assertIn(command, skill)
+            self.assertIn(command, documented)
 
         stale_claims = (
             "It may not update, overwrite or delete an existing event",
@@ -48,29 +54,29 @@ class AgentCapabilityExposureTests(unittest.TestCase):
             "update and delete remain prohibited",
         )
         for claim in stale_claims:
-            self.assertNotIn(claim, skill)
-            self.assertNotIn(claim, agents)
+            self.assertNotIn(claim, documented)
         self.assertIn("Do not describe the calendar integration as create-only", agents)
-        self.assertIn("mail search` searches server-side", skill)
-        self.assertIn("`complete`, `folder_errors` and `results_may_be_truncated`", skill)
+        self.assertIn("`mail search` searches server-side", references)
+        self.assertIn("`complete`,", references)
+        self.assertIn("`folder_errors` and `results_may_be_truncated`", references)
         self.assertIn("Bei jedem Suchergebnis `complete`", agents)
-        self.assertIn("Do not claim that CSV import is unavailable", skill)
-        self.assertNotIn("read-only portfolio monitor", skill)
+        self.assertIn("Do not claim that CSV import is unavailable", references)
+        self.assertNotIn("read-only portfolio monitor", documented)
 
-        commands = (root / "skills/personal-assistant/references/commands.md").read_text(
+        commands = (root / "skills/personal-assistant/references/tool-contract.md").read_text(
             encoding="utf-8"
         )
         self.assertIn("portfolio import-csv --file", commands)
         self.assertIn("portfolio import-csv --nextcloud-path", commands)
         self.assertIn("setup portfolio --provider eodhd --interval-minutes 15", commands)
-        self.assertNotIn("--provider twelve-data", skill)
-        self.assertIn("15–20 minutes", skill)
-        self.assertIn("accepts no `--detailed` option", skill)
-        self.assertIn("Do not inspect SQLite directly", skill)
-        self.assertIn("entry_price", skill)
-        self.assertIn("entry price but no individual purchase date", skill)
-        self.assertIn("`quote_currency`", skill)
-        self.assertIn("do not invent `portfolio setup`", agents)
+        self.assertNotIn("--provider twelve-data", documented)
+        self.assertIn("15–20 minutes", references)
+        self.assertIn("accepts no `--detailed`", references)
+        self.assertIn("Do not inspect SQLite directly", references)
+        self.assertIn("`entry_price`", references)
+        self.assertIn("entry price but no individual purchase date", references)
+        self.assertIn("`quote_currency`", references)
+        self.assertIn("do not invent `portfolio setup`", normalized_agents)
 
         settings = ToolSettings(path=Path("tools.toml"))
         portfolio_tools = {
@@ -111,7 +117,7 @@ class AgentCapabilityExposureTests(unittest.TestCase):
             normalized = command.replace('./scripts/assistant.sh ', '')
             command_prefix = normalized.split(' "<', 1)[0]
             self.assertTrue(
-                command_prefix in skill or command_prefix in agents,
+                command_prefix in documented,
                 f"Portfolio-Registry-Befehl fehlt in Skill/AGENTS.md: {command}",
             )
 

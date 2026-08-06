@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import tempfile
-from dataclasses import asdict
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -13,8 +12,8 @@ from personal_assistant.models import Resource
 from personal_assistant.policy import PolicyEngine
 from personal_assistant.registry import ResourceRegistry
 from personal_assistant.storage import AssistantStorage
-from personal_assistant.tool_settings import MailMoveToolSettings, ToolSettings
 from personal_assistant.tool_registry import build_tool_registry
+from personal_assistant.tool_settings import MailMoveToolSettings, ToolSettings
 
 
 class FakeClient:
@@ -49,8 +48,10 @@ class FakeClient:
         return list(self.search_results.get(lookup, []))[:limit], ""
     def move_message(self, source, destination, message_id):
         msg = next((x for x in self.messages[source] if x.mailbox_id == message_id), None)
-        if not msg: return OperationResult(False, "move-failed", "missing")
-        self.messages[source].remove(msg); self.messages.setdefault(destination, []).append(msg)
+        if not msg:
+            return OperationResult(False, "move-failed", "missing")
+        self.messages[source].remove(msg)
+        self.messages.setdefault(destination, []).append(msg)
         return OperationResult(True, "moved", destination=destination)
     def export_message(self, folder, message_id, destination):
         destination.write_bytes(
@@ -227,4 +228,5 @@ def main():
         storage.close()
     print('test_mail_move_tool: OK')
 
-if __name__ == '__main__': main()
+if __name__ == '__main__':
+    main()

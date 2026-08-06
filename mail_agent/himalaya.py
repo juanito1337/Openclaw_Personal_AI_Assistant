@@ -6,13 +6,13 @@ import os
 import re
 import tempfile
 import tomllib
+from contextlib import suppress
 from pathlib import Path
 
 from .command import CommandResult, CommandRunner
 from .config import Config
 from .models import Envelope, OperationResult
 from .utils import atomic_write_bytes, decode_header_value
-
 
 ANSI_ESCAPE_RE = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
@@ -358,10 +358,8 @@ class HimalayaClient:
         finally:
             if override_path is not None:
                 override_path.unlink(missing_ok=True)
-                try:
+                with suppress(OSError):
                     override_path.parent.rmdir()
-                except OSError:
-                    pass
 
         if result.ok:
             return OperationResult(True, "sent")

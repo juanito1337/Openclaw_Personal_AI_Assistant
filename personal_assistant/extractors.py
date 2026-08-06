@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import csv
 import hashlib
 import html
 import io
-import json
 import re
 import shutil
 import subprocess
@@ -12,7 +10,6 @@ import tempfile
 import zipfile
 from pathlib import Path
 from xml.etree import ElementTree
-
 
 _TEXT_SUFFIXES = {".txt", ".md", ".csv", ".json", ".xml", ".html", ".htm", ".ics", ".vcf", ".log"}
 

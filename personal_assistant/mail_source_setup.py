@@ -5,12 +5,11 @@ import os
 import re
 import shutil
 import tempfile
-from datetime import datetime, timezone
+from collections.abc import Iterable
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Iterable
 
 from .config import WORKSPACE_ROOT
-
 
 DEFAULT_MAIL_CONFIG = WORKSPACE_ROOT / "mail_agent/config.toml"
 _KEY_RE = re.compile(r"^\s*(source_folder|quarantine_folders|quarantine_max_per_run|quarantine_rescue_only)\s*=")
@@ -88,7 +87,7 @@ def configure_mail_sources(
     if rendered == original:
         backup = ""
     else:
-        stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S-%f")
+        stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S-%f")
         backup_path = config_path.with_name(config_path.name + f".backup-{stamp}")
         shutil.copy2(config_path, backup_path)
         mode = config_path.stat().st_mode & 0o777

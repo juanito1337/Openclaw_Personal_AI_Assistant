@@ -5,12 +5,11 @@ import os
 import subprocess
 import sys
 import tempfile
-import threading
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import textwrap
+import threading
 import unittest
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-
 
 WORKSPACE = Path(__file__).resolve().parents[1]
 
@@ -233,13 +232,17 @@ command_timeout_seconds = 10
             tools_config.write_text(
                 "[nextcloud.workspace]\n"
                 "enabled = false\n"
-                + 'outbox = "' + str(WORKSPACE / "mail_agent" / "data" / "test_workspace_outbox") + '"\n\n'
+                + 'outbox = "' + str(temp / "test_workspace_outbox") + '"\n\n'
                 + "[nextcloud.deck_orders]\n"
                 + "enabled = false\n"
-                + 'database = "' + str(WORKSPACE / "mail_agent" / "data" / "test_orders.sqlite3") + '"\n\n'
+                + 'database = "' + str(temp / "test_orders.sqlite3") + '"\n\n'
                 + "[security.antivirus]\n"
                 + "enabled = false\n"
-                + 'temp_dir = "' + str(WORKSPACE / "mail_agent" / "data" / "test_antivirus_tmp") + '"\n',
+                + 'temp_dir = "' + str(temp / "test_antivirus_tmp") + '"\n\n'
+                + "[portfolio]\n"
+                + "enabled = false\n"
+                + 'database = "' + str(temp / "portfolio.sqlite3") + '"\n'
+                + 'import_root = "' + str(temp / "portfolio_import") + '"\n',
                 encoding="utf-8",
             )
             assistant_resources = temp / "resources.toml"
@@ -270,6 +273,7 @@ command_timeout_seconds = 10
             env = os.environ.copy()
             env["FAKE_STATE_DIR"] = str(temp)
             env["HIMALAYA_CONFIG"] = str(himalaya_config)
+            env["OPENCLAW_WORKSPACE"] = str(temp)
             env["OPENCLAW_TOOLS_CONFIG"] = str(tools_config)
             env["PERSONAL_ASSISTANT_CONFIG"] = str(assistant_config)
             base_command = [

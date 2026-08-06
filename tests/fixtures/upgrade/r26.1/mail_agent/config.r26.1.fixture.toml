@@ -1,0 +1,20 @@
+[ollama]
+batch_size = 3
+batch_prefetch = 9
+batch_retry_timeout_seconds = 300
+batch_max_split_depth = 2
+batch_max_total_chars = 18000
+batch_adaptive_target_chars = 14000
+parallel_requests = 1
+background_burst = false
+single_retry_num_predict = 1024
+
+[invoices]
+metadata_enabled = true
+register_enabled = true
+register_delimiter = ";"
+
+[runtime]
+database = "mail_agent/data/mail_agent.sqlite3"
+rules_file = "mail_agent/rules.r26.1.fixture.toml"
+log_file = "mail_agent/data/mail_agent.log"

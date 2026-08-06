@@ -1,29 +1,20 @@
-# Migration
+# Migrationen
 
-The migration script performs an atomic workspace replacement with full backup and
-rollback. It preserves private runtime state and removes obsolete source, skills,
-caches, and stale instructions from the active workspace.
+Der produktive Container-Migrations- und Rollbackpfad ist im
+[Docker-Betrieb](DOCKER_DEPLOYMENT.md) beschrieben. Regeln fuer neue Daten- und
+Schemamigrationen stehen in [`../CONTRIBUTING.md`](../CONTRIBUTING.md).
 
-Preserved when present:
+Die alte native Migration liegt als historischer Stand unter
+[`archive/MIGRATION_PRE_CONTAINER.md`](archive/MIGRATION_PRE_CONTAINER.md).
 
-```text
-mail_agent/config.toml
-mail_agent/rules.toml
-mail_agent/data/
-personal_assistant/config.toml
-personal_assistant/resources.toml
-personal_assistant/policies.toml
-personal_assistant/data/
-skills/openclaw-nextcloud/
-IDENTITY.md
-SOUL.md
-USER.md
-.git/
-```
+## Unterstuetzte direkte Upgradegrenze
 
-Secrets remain outside the workspace. If no central secrets file exists, the migration
-copies the legacy `~/.config/mail-agent.env` to
-`~/.config/personal-assistant/secrets.env` and leaves the legacy file intact.
+Der aktuelle Stack unterstuetzt direkte Upgrades ab `3.4.0-r26.1`. Die
+maschinenlesbare Policy und das neutrale Parser-Fixture liegen unter
+[`architecture/compatibility-policy.json`](architecture/compatibility-policy.json)
+und `tests/fixtures/upgrade/r26.1/`. Aeltere Installationen muessen zunaechst mit
+ihrem historischen Release bis r26.1 migriert werden; sie duerfen die entfernten
+Einmalskripte nicht aus einem aktuellen Checkout nachladen.
 
-Both timers remain disabled after migration until mail and assistant validation have
-completed.
+Diese Untergrenze entfernt keine Datenmigration: SQLite-Schemamigrationen,
+Container-State-Migration und verifizierte Legacy-Archive bleiben verpflichtend.

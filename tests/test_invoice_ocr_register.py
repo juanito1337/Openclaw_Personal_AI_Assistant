@@ -2,19 +2,24 @@ from __future__ import annotations
 
 import csv
 import io
-import json
 import sqlite3
 from pathlib import Path
 from unittest.mock import patch
 
 from mail_agent.config import InvoiceConfig
-from mail_agent.invoice_extract import FieldValue, InvoiceExtractor, InvoiceMetadata, _choose, parse_invoice_text
+from mail_agent.invoice_extract import (
+    FieldValue,
+    InvoiceExtractor,
+    InvoiceMetadata,
+    _choose,
+    parse_invoice_text,
+)
 from mail_agent.invoice_register import InvoiceRegister
 from mail_agent.invoices import InvoiceManager
 from mail_agent.models import ParsedMessage
 from mail_agent.storage import Storage
 from personal_assistant.tool_registry import build_tool_registry
-from personal_assistant.tool_settings import ToolSettings, MailToolSettings, InvoiceToolSettings
+from personal_assistant.tool_settings import InvoiceToolSettings, MailToolSettings, ToolSettings
 
 
 def message(subject: str = "Rechnung", date: str = "Fri, 24 Jul 2026 10:00:00 +0200") -> ParsedMessage:

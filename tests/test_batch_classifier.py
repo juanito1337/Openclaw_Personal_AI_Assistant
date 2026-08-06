@@ -92,7 +92,7 @@ class BatchClassifierTests(unittest.TestCase):
             f"Message-ID: <batch-{index}@example.test>\r\n"
             "Content-Type: text/plain; charset=utf-8\r\n\r\n"
             f"{body}\r\n"
-        ).encode("utf-8")
+        ).encode()
         return parse_eml(raw, Envelope(str(index)), "INBOX")
 
     def test_five_unresolved_messages_use_one_structured_batch_request(self) -> None:

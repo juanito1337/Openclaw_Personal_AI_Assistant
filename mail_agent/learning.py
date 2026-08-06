@@ -10,7 +10,6 @@ from .config import Config
 from .models import ParsedMessage
 from .utils import now_utc_iso, safe_filename
 
-
 _SCHEMA_VERSION = 1
 _CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")
 _LABEL_RE = re.compile(r"[^a-z0-9_-]+")

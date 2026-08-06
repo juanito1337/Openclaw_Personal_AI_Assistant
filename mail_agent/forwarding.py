@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import zipfile
+from contextlib import suppress
 from email.utils import parseaddr
 from pathlib import Path
 
@@ -62,10 +63,8 @@ class Forwarder:
     @staticmethod
     def _cleanup(*paths: Path) -> None:
         for path in paths:
-            try:
+            with suppress(OSError):
                 path.unlink(missing_ok=True)
-            except OSError:
-                pass
 
     def _subject_and_body(self, message: ParsedMessage, classification: Classification) -> tuple[str, str]:
         prefix = self.config.forwarding.subject_prefix.format(importance=classification.importance).strip()

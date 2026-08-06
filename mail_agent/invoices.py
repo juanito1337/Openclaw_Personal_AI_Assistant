@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import logging
 import json
+import logging
 from dataclasses import dataclass
 from datetime import datetime
 from email.utils import parsedate_to_datetime
@@ -18,7 +18,6 @@ from .invoice_register import InvoiceRegister
 from .models import Classification, OperationResult, ParsedMessage
 from .storage import Storage
 from .utils import safe_filename
-
 
 _FILENAME_POSITIVE = (
     "rechnung", "invoice", "faktura", "facture", "tax-invoice", "tax_invoice",

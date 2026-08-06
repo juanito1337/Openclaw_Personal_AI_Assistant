@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "inventory_date": "2026-08-06",
+  "classification_overrides": [
+    {"prefix": "legacy/systemd/", "classification": "compatibility", "rollback_relevance": "legacy-systemd"},
+    {"prefix": "docs/archive/", "classification": "deprecated", "rollback_relevance": "historical-evidence"},
+    {"prefix": "docker/scripts/migrate", "classification": "migration-only", "rollback_relevance": "container-migration"},
+    {"path": "docker/scripts/rollback.sh", "classification": "active", "rollback_relevance": "release-rollback"},
+    {"path": "docker/scripts/restore-test.sh", "classification": "active", "rollback_relevance": "release-rollback"},
+    {"path": "docker/scripts/verify-backup.sh", "classification": "active", "rollback_relevance": "release-rollback"},
+    {"path": "personal_assistant/mail_move.py", "classification": "compatibility", "rollback_relevance": "python-import-compatibility"},
+    {"path": "mail_agent/nextcloud.py", "classification": "active", "rollback_relevance": "mail-contact-and-calendar-signal-compatibility"}
+  ],
+  "removed_components": [
+    {
+      "paths": ["skills/mail-chief-of-staff/SKILL.md", "skills/mail-chief-of-staff/references/commands.md"],
+      "classification": "deprecated",
+      "owner": "Tool Contract Maintainers",
+      "productive_callers_before": [],
+      "test_evidence_before": [],
+      "deployment_evidence": "The container entrypoint exposes only skills/personal-assistant.",
+      "rollback_relevance": "none; a verified legacy home carries its own historical skill copy",
+      "replacement": "skills/personal-assistant/SKILL.md",
+      "decision": "removed"
+    },
+    {
+      "paths": ["scripts/nextcloud-list.sh"],
+      "classification": "unused",
+      "owner": "Tool Contract Maintainers",
+      "productive_callers_before": [],
+      "test_evidence_before": [],
+      "deployment_evidence": "Not copied by setup-host and not referenced by Compose or an entrypoint.",
+      "rollback_relevance": "none",
+      "replacement": "./scripts/assistant.sh nextcloud list",
+      "decision": "removed"
+    },
+    {
+      "paths": ["mail_agent/nextcloud_files.py"],
+      "classification": "unused",
+      "owner": "Mail Domain Maintainers",
+      "productive_callers_before": [],
+      "test_evidence_before": ["tests/test_invoices_calendar_approval.py"],
+      "deployment_evidence": "Invoice writes use PersonalAssistantActionBridge and personal_assistant.connectors.nextcloud.files.",
+      "rollback_relevance": "none; legacy rollback runs its archived source tree",
+      "replacement": "personal_assistant/connectors/nextcloud/files.py",
+      "decision": "removed"
+    },
+    {
+      "paths": ["mail_agent/config_migrate_r25.py", "mail_agent/config_migrate_r26.py", "mail_agent/config_migrate_r261.py"],
+      "classification": "migration-only",
+      "owner": "Mail Domain Maintainers",
+      "productive_callers_before": [],
+      "test_evidence_before": ["tests/test_r25_config_migration.py", "tests/test_r26_invoice_config_migration.py", "tests/test_r261_ollama_reliability.py"],
+      "deployment_evidence": "No installer, container migration, CLI or packaging entrypoint imported these standalone modules.",
+      "rollback_relevance": "none for supported direct upgrades from 3.4.0-r26.1",
+      "replacement": "tests/fixtures/upgrade/r26.1 plus current config parser and database/container migrations",
+      "decision": "removed"
+    }
+  ]
+}

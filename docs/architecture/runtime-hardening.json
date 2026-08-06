@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "milestone": "M4",
+  "defaults": {
+    "read_only": true,
+    "cap_drop": ["ALL"],
+    "security_opt": ["no-new-privileges:true"],
+    "logging_driver": "local",
+    "logging_max_size": "10m",
+    "logging_max_file": "3"
+  },
+  "published_ports": {
+    "gateway": [{"mode": "ingress", "host_ip": "127.0.0.1", "published": "18789", "target": 18789, "protocol": "tcp"}]
+  },
+  "roles": {
+    "layout-init": {"user": "1000:1000", "networks": [], "pids": 128, "memory": 1073741824, "cpus": 1.0, "env_files": [], "secret_files": []},
+    "ollama-proxy": {"user": "1000:1000", "networks": ["backend", "egress"], "pids": 256, "memory": 1073741824, "cpus": 2.0, "env_files": ["/etc/openclaw-env/ollama-priority.env"], "secret_files": []},
+    "gateway": {"user": "1000:1000", "networks": ["backend", "egress"], "pids": 512, "memory": 2147483648, "cpus": 2.0, "env_files": [], "secret_files": ["gateway.env", "mail-agent.env", "personal-assistant.env", "himalaya-imap-password", "himalaya-smtp-password"]},
+    "mail-worker": {"user": "1000:1000", "networks": ["backend", "egress"], "pids": 256, "memory": 2147483648, "cpus": 2.0, "env_files": ["/etc/openclaw-env/mail-agent.env"], "secret_files": ["mail-agent.env", "personal-assistant.env", "himalaya-imap-password", "himalaya-smtp-password"]},
+    "sync-worker": {"user": "1000:1000", "networks": ["backend", "egress"], "pids": 192, "memory": 1073741824, "cpus": 1.0, "env_files": ["/etc/openclaw-env/mail-agent.env", "/etc/openclaw-env/personal-assistant.env"], "secret_files": ["mail-agent.env", "personal-assistant.env"]},
+    "supervisor-worker": {"user": "1000:1000", "networks": ["backend"], "pids": 128, "memory": 536870912, "cpus": 0.5, "env_files": ["/etc/openclaw-env/mail-agent.env"], "secret_files": ["mail-agent.env", "gateway.env"]},
+    "portfolio-worker": {"user": "1000:1000", "networks": ["backend", "egress"], "pids": 192, "memory": 1073741824, "cpus": 1.0, "env_files": ["/etc/openclaw-env/personal-assistant.env"], "secret_files": ["personal-assistant.env", "gateway.env"]},
+    "monitor-worker": {"user": "1000:1000", "networks": ["backend", "egress"], "pids": 192, "memory": 1073741824, "cpus": 1.0, "env_files": ["/etc/openclaw-env/mail-agent.env", "/etc/openclaw-env/personal-assistant.env"], "secret_files": ["mail-agent.env", "personal-assistant.env", "gateway.env"]},
+    "agent-cli": {"user": "1000:1000", "networks": ["backend", "egress"], "pids": 512, "memory": 2147483648, "cpus": 2.0, "env_files": ["/etc/openclaw-env/mail-agent.env", "/etc/openclaw-env/personal-assistant.env"], "secret_files": ["mail-agent.env", "personal-assistant.env", "gateway.env", "himalaya-imap-password", "himalaya-smtp-password"]},
+    "clamav-update": {"user": "100:101", "networks": ["egress"], "pids": 128, "memory": 536870912, "cpus": 1.0, "env_files": [], "secret_files": []}
+  },
+  "exceptions": {
+    "root_roles": [],
+    "host_network_roles": [],
+    "host_gateway_roles": ["ollama-proxy"]
+  }
+}

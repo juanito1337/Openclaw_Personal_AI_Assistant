@@ -4,11 +4,10 @@ import hashlib
 import html
 import json
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from email.header import decode_header, make_header
 from pathlib import Path
 from typing import Any
-
 
 _TAG_RE = re.compile(r"<[^>]+>")
 _WS_RE = re.compile(r"\s+")
@@ -21,7 +20,7 @@ _PREFIX_RE = re.compile(r"^(?:(?:re|fw|fwd|aw|wg)\s*:\s*)+", re.IGNORECASE)
 
 
 def now_utc_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def utf8_clean(value: Any) -> str:

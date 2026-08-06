@@ -1,0 +1,43 @@
+usage: __main__.py [-h] [--config CONFIG] [--verbose]
+                   {setup,doctor,status,capabilities,version,monitor,scheduler,jobs,ollama,performance,portfolio,invoices,security,tools,mail,nextcloud,calendar,tasks,contacts,deck,orders,resources,index,search,actions,settings}
+                   ...
+
+Lokale Personal-Assistant-Plattform
+
+positional arguments:
+  {setup,doctor,status,capabilities,version,monitor,scheduler,jobs,ollama,performance,portfolio,invoices,security,tools,mail,nextcloud,calendar,tasks,contacts,deck,orders,resources,index,search,actions,settings}
+    setup               Zentrale Einrichtung
+    doctor              Core, Index, Policies und Nextcloud pruefen
+    status              Kompakten Status anzeigen
+    capabilities        Maschinenlesbare Rechte und Grenzen anzeigen
+    version             Installierte Version, Konsistenz und Updatehistorie
+                        anzeigen
+    monitor             Leistung, Zuverlaessigkeit und Datenfrische bewerten
+    scheduler           Adaptive Hintergrund-Queue und Themenfokus verwalten
+    jobs                Hintergrundjobs ueberwachen und kontrolliert
+                        ein-/ausschalten
+    ollama              Ollama-Prioritaetskoordinator pruefen und kontrolliert
+                        starten
+    performance         Privacy-sichere Performance-Telemetrie auswerten
+    portfolio           Depot, Watchlist, Marktdaten und regelbasierte
+                        Analysen
+    invoices            Rechnungs-OCR, Metadaten und Jahresregister
+    security            Sicherheitswerkzeuge des Personal Assistants
+    tools               Fuer den Agenten freigegebene Werkzeuge anzeigen
+    mail                Mail-Werkzeug des Personal Assistants
+    nextcloud           Nextcloud-Verbindung und Discovery
+    calendar            Direktes Nextcloud-Kalenderwerkzeug
+    tasks               Direktes Nextcloud-Aufgabenwerkzeug
+    contacts            Direktes Nextcloud-CardDAV-Kontaktwerkzeug
+    deck                Nextcloud Deck-Verbindung und Bestellboard
+    orders              Laufende Bestellungen aus Mail und Nextcloud Deck
+    resources           Dynamische Ressourcen verwalten
+    index               Lokalen Wissensindex aktualisieren
+    search              Schnelle lokale Hybrid-Grundsuche
+    actions             ActionPlan/Outbox verwalten
+    settings            Kontrollierte, sichere Settings
+
+options:
+  -h, --help            show this help message and exit
+  --config CONFIG
+  --verbose

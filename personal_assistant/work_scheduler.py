@@ -4,13 +4,13 @@ import json
 import os
 import sqlite3
 import uuid
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from .config import WORKSPACE_ROOT
-
 
 DEFAULT_SCHEDULER_DB = WORKSPACE_ROOT / "personal_assistant/data/work_scheduler.sqlite3"
 VALID_TOPICS = ("mail", "portfolio", "knowledge", "planning", "operations")
@@ -18,11 +18,11 @@ TERMINAL_STATES = ("completed", "degraded", "failed", "cancelled", "interrupted"
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _iso(value: datetime) -> str:
-    return value.astimezone(timezone.utc).isoformat(timespec="seconds")
+    return value.astimezone(UTC).isoformat(timespec="seconds")
 
 
 def _parse_time(value: object) -> datetime | None:
@@ -34,8 +34,8 @@ def _parse_time(value: object) -> datetime | None:
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def _percentile(values: list[float], percentile: float) -> float:
@@ -122,7 +122,10 @@ class AdaptiveWorkScheduler:
         arbitration_seconds: int | None = None,
         starvation_seconds: int | None = None,
     ) -> None:
-        self.path = Path(path or DEFAULT_SCHEDULER_DB).expanduser().resolve()
+        default = DEFAULT_SCHEDULER_DB
+        if root := os.environ.get("OPENCLAW_COORDINATION_DATA_DIR"):
+            default = Path(root).expanduser().resolve() / "work_scheduler.sqlite3"
+        self.path = Path(path or default).expanduser().resolve()
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.now = now or _utc_now
         self.lease_seconds = max(
@@ -229,7 +232,7 @@ class AdaptiveWorkScheduler:
         boost_minutes: int = 30,
     ) -> dict[str, Any]:
         clean_topic = self.validate_topic(topic)
-        now = self.now().astimezone(timezone.utc)
+        now = self.now().astimezone(UTC)
         minutes = max(1, min(int(boost_minutes), 180))
         until = now + timedelta(minutes=minutes)
         with self.connection:
@@ -266,7 +269,7 @@ class AdaptiveWorkScheduler:
         arbitration_seconds: int | None = None,
     ) -> str:
         policy = self.policy(job)
-        now = self.now().astimezone(timezone.utc)
+        now = self.now().astimezone(UTC)
         delay = self.arbitration_seconds if arbitration_seconds is None else max(0, int(arbitration_seconds))
         not_before = now + timedelta(seconds=delay)
         deadline = now + timedelta(seconds=policy.deadline_seconds)
@@ -395,7 +398,7 @@ class AdaptiveWorkScheduler:
         return recovered
 
     def claim(self, ticket_id: str, *, owner: str) -> ClaimResult:
-        now = self.now().astimezone(timezone.utc)
+        now = self.now().astimezone(UTC)
         clean_ticket = str(ticket_id or "")
         clean_owner = str(owner or "unknown")[:160]
         self._begin()
@@ -483,7 +486,7 @@ class AdaptiveWorkScheduler:
             raise
 
     def renew(self, lease_token: str, *, owner: str) -> bool:
-        now = self.now().astimezone(timezone.utc)
+        now = self.now().astimezone(UTC)
         expires = now + timedelta(seconds=self.lease_seconds)
         with self.connection:
             updated = self.connection.execute(
@@ -509,7 +512,7 @@ class AdaptiveWorkScheduler:
         clean_result = str(result or "").strip().casefold()
         if clean_result not in TERMINAL_STATES:
             raise ValueError(f"Unbekanntes Scheduler-Ergebnis: {result}")
-        now = self.now().astimezone(timezone.utc)
+        now = self.now().astimezone(UTC)
         row = self.connection.execute(
             """
             SELECT id,started_at FROM task_queue
@@ -545,7 +548,7 @@ class AdaptiveWorkScheduler:
         return updated.rowcount == 1
 
     def cancel_pending(self, ticket_id: str, *, detail: str = "") -> bool:
-        now = self.now().astimezone(timezone.utc)
+        now = self.now().astimezone(UTC)
         with self.connection:
             updated = self.connection.execute(
                 """
@@ -594,7 +597,7 @@ class AdaptiveWorkScheduler:
         }
 
     def snapshot(self, *, recent_limit: int = 20) -> dict[str, Any]:
-        now = self.now().astimezone(timezone.utc)
+        now = self.now().astimezone(UTC)
         activity = self._activity_locked()
         active_rows = self.connection.execute(
             "SELECT * FROM task_queue WHERE status='running' ORDER BY started_at"
@@ -737,7 +740,7 @@ class AdaptiveWorkScheduler:
         }
 
     def health(self) -> dict[str, Any]:
-        now = self.now().astimezone(timezone.utc)
+        now = self.now().astimezone(UTC)
         try:
             integrity_row = self.connection.execute("PRAGMA integrity_check").fetchone()
             integrity = str(integrity_row[0] if integrity_row else "unknown")
@@ -789,7 +792,7 @@ class AdaptiveWorkScheduler:
         return health
 
     def prune(self, *, keep_days: int = 180) -> int:
-        cutoff = _iso(self.now().astimezone(timezone.utc) - timedelta(days=max(7, int(keep_days))))
+        cutoff = _iso(self.now().astimezone(UTC) - timedelta(days=max(7, int(keep_days))))
         with self.connection:
             cursor = self.connection.execute(
                 """

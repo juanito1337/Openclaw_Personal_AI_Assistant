@@ -4,6 +4,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from mail_agent.cli import _productive_checks_with_folder_self_heal
 from personal_assistant.job_control import CommandResult, JobController, JobSpec
@@ -167,13 +168,19 @@ class FakeMailAgent:
 
 class JobControlTests(unittest.TestCase):
     def setUp(self) -> None:
+        self.legacy_environment = patch.dict(
+            "os.environ", {"OPENCLAW_ENABLE_LEGACY_SYSTEMD": "YES"}, clear=False
+        )
+        self.legacy_environment.start()
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)
         self.workspace = self.root / "workspace"
         self.unit_dir = self.root / "units"
-        (self.workspace / "deploy/systemd").mkdir(parents=True)
+        (self.workspace / "legacy/systemd/units").mkdir(parents=True)
         for unit in ("mail-agent.service", "mail-agent.timer"):
-            (self.workspace / "deploy/systemd" / unit).write_text("[Unit]\nDescription=Test\n", encoding="utf-8")
+            (self.workspace / "legacy/systemd/units" / unit).write_text(
+                "[Unit]\nDescription=Test\n", encoding="utf-8"
+            )
         self.spec = JobSpec(
             name="mail",
             description="Mail",
@@ -202,6 +209,7 @@ class JobControlTests(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.temp.cleanup()
+        self.legacy_environment.stop()
 
     def test_always_health_reports_priority_proxy_failure(self) -> None:
         spec = JobSpec(
@@ -409,7 +417,9 @@ class JobControlTests(unittest.TestCase):
 
     def test_supervisor_on_enables_heartbeat_delivery(self) -> None:
         for unit in ("personal-assistant-supervisor.service", "personal-assistant-supervisor.timer"):
-            (self.workspace / "deploy/systemd" / unit).write_text("[Unit]\nDescription=Test\n", encoding="utf-8")
+            (self.workspace / "legacy/systemd/units" / unit).write_text(
+                "[Unit]\nDescription=Test\n", encoding="utf-8"
+            )
         spec = JobSpec(
             name="supervisor",
             description="Supervisor",

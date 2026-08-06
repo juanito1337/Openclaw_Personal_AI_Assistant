@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+from contextlib import suppress
 from dataclasses import dataclass
 from typing import Any
 from xml.etree import ElementTree
@@ -118,7 +119,7 @@ class NextcloudTasks:
  <c:filter><c:comp-filter name='VCALENDAR'><c:comp-filter name='VTODO'>
   <c:prop-filter name='UID'><c:text-match collation='i;octet'>{escaped}</c:text-match></c:prop-filter>
  </c:comp-filter></c:comp-filter></c:filter>
-</c:calendar-query>""".encode("utf-8")
+</c:calendar-query>""".encode()
         response = self.client.request(
             "REPORT", task_list.href, data=body,
             headers={"Depth": "1", "Content-Type": "application/xml; charset=utf-8"},
@@ -289,14 +290,10 @@ class NextcloudTasks:
         props = component_properties(ics, "VTODO")
         priority = 0
         percent = 0
-        try:
+        with suppress(ValueError):
             priority = int(first_value(props, "PRIORITY", "0") or 0)
-        except ValueError:
-            pass
-        try:
+        with suppress(ValueError):
             percent = int(first_value(props, "PERCENT-COMPLETE", "0") or 0)
-        except ValueError:
-            pass
         categories = first_value(props, "CATEGORIES")
         return {
             "uid": unescape_ical(first_value(props, "UID")),

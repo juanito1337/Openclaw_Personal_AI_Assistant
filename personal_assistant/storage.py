@@ -1,39 +1,96 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import uuid
 from pathlib import Path
 from typing import Any
 
+from .contracts.time import now_utc_iso
 from .models import ActionPlan, SearchResult
-from mail_agent.utils import now_utc_iso
-
 
 SCHEMA_VERSION = 1
 
 
 class AssistantStorage:
-    def __init__(self, path: Path) -> None:
-        self.path = path
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.connection = sqlite3.connect(path)
-        self.connection.row_factory = sqlite3.Row
-        self.connection.execute("PRAGMA journal_mode=WAL")
-        self.connection.execute("PRAGMA foreign_keys=ON")
-        self.connection.execute("PRAGMA busy_timeout=5000")
-        self.fts_enabled = False
-        self._migrate()
+    def __init__(
+        self,
+        path: Path,
+        *,
+        read_only: bool = False,
+        enable_knowledge: bool = True,
+        knowledge_read_only: bool | None = None,
+    ) -> None:
+        self.path = path.expanduser().resolve()
+        self.enable_knowledge = enable_knowledge
+        self.core_read_only = read_only
+        self.knowledge_read_only = (
+            read_only if knowledge_read_only is None else knowledge_read_only
+        )
+        knowledge_root = os.environ.get("OPENCLAW_KNOWLEDGE_DATA_DIR")
+        self.knowledge_path = (
+            Path(knowledge_root).expanduser().resolve() / "knowledge.sqlite3"
+            if enable_knowledge and knowledge_root else self.path
+        )
+        self.connection = self._connect(self.path, read_only=read_only)
+        if (
+            self.knowledge_path == self.path
+            and self.enable_knowledge
+            and self.knowledge_read_only != self.core_read_only
+        ):
+            self.connection.close()
+            raise ValueError(
+                "Getrennte Lese-/Schreibmodi erfordern eine separate Wissensdatenbank"
+            )
+        self.knowledge_connection = (
+            self.connection
+            if self.knowledge_path == self.path
+            else self._connect(
+                self.knowledge_path, read_only=self.knowledge_read_only
+            )
+        )
+        if self.enable_knowledge and self.knowledge_read_only:
+            self.fts_enabled = bool(
+                self.knowledge_connection.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='knowledge_fts'"
+                ).fetchone()
+            )
+        else:
+            self.fts_enabled = False
+        if not self.core_read_only or (
+            self.enable_knowledge and not self.knowledge_read_only
+        ):
+            self._migrate()
+
+    @staticmethod
+    def _connect(path: Path, *, read_only: bool) -> sqlite3.Connection:
+        if read_only:
+            connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        else:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            connection = sqlite3.connect(path)
+        connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA foreign_keys=ON")
+        connection.execute("PRAGMA busy_timeout=5000")
+        if not read_only:
+            connection.execute("PRAGMA journal_mode=WAL")
+        return connection
 
     def close(self) -> None:
+        if self.knowledge_connection is not self.connection:
+            self.knowledge_connection.close()
         self.connection.close()
 
     def _migrate(self) -> None:
-        current = int(self.connection.execute("PRAGMA user_version").fetchone()[0])
-        if current > SCHEMA_VERSION:
-            raise RuntimeError(f"Assistant-Datenbankschema {current} ist neuer als {SCHEMA_VERSION}")
-        self.connection.executescript(
-            """
+        if not self.core_read_only:
+            current = int(self.connection.execute("PRAGMA user_version").fetchone()[0])
+            if current > SCHEMA_VERSION:
+                raise RuntimeError(
+                    f"Assistant-Datenbankschema {current} ist neuer als {SCHEMA_VERSION}"
+                )
+            self.connection.executescript(
+                """
             CREATE TABLE IF NOT EXISTS resources (
                 resource_id TEXT PRIMARY KEY,
                 kind TEXT NOT NULL,
@@ -44,6 +101,52 @@ class AssistantStorage:
                 metadata_json TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS action_plans (
+                id TEXT PRIMARY KEY,
+                idempotency_key TEXT NOT NULL UNIQUE,
+                action_type TEXT NOT NULL,
+                resource_id TEXT NOT NULL,
+                payload_json TEXT NOT NULL,
+                status TEXT NOT NULL,
+                requires_approval INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                error TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_action_status ON action_plans(status);
+            CREATE TABLE IF NOT EXISTS audit_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                actor TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                resource_id TEXT,
+                detail_json TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS settings_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                setting_key TEXT NOT NULL,
+                old_value TEXT,
+                new_value TEXT,
+                actor TEXT NOT NULL,
+                approved INTEGER NOT NULL,
+                created_at TEXT NOT NULL
+            );
+                """
+            )
+            self.connection.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
+            self.connection.commit()
+        if not self.enable_knowledge or self.knowledge_read_only:
+            return
+
+        knowledge_version = int(
+            self.knowledge_connection.execute("PRAGMA user_version").fetchone()[0]
+        )
+        if knowledge_version > SCHEMA_VERSION:
+            raise RuntimeError(
+                f"Wissensdatenbankschema {knowledge_version} ist neuer als {SCHEMA_VERSION}"
+            )
+        self.knowledge_connection.executescript(
+            """
             CREATE TABLE IF NOT EXISTS sync_state (
                 resource_id TEXT NOT NULL,
                 scope TEXT NOT NULL,
@@ -79,50 +182,26 @@ class AssistantStorage:
                 text TEXT NOT NULL,
                 UNIQUE(document_id, chunk_index)
             );
-            CREATE TABLE IF NOT EXISTS action_plans (
-                id TEXT PRIMARY KEY,
-                idempotency_key TEXT NOT NULL UNIQUE,
-                action_type TEXT NOT NULL,
-                resource_id TEXT NOT NULL,
-                payload_json TEXT NOT NULL,
-                status TEXT NOT NULL,
-                requires_approval INTEGER NOT NULL,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                error TEXT
-            );
-            CREATE INDEX IF NOT EXISTS idx_action_status ON action_plans(status);
-            CREATE TABLE IF NOT EXISTS audit_log (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                actor TEXT NOT NULL,
-                event_type TEXT NOT NULL,
-                resource_id TEXT,
-                detail_json TEXT NOT NULL,
-                created_at TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS settings_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                setting_key TEXT NOT NULL,
-                old_value TEXT,
-                new_value TEXT,
-                actor TEXT NOT NULL,
-                approved INTEGER NOT NULL,
-                created_at TEXT NOT NULL
-            );
             """
         )
         try:
-            self.connection.execute(
+            self.knowledge_connection.execute(
                 "CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_fts USING fts5(title, text, source_type, resource_id, tokenize='unicode61 remove_diacritics 2')"
             )
             self.fts_enabled = True
         except sqlite3.OperationalError:
             self.fts_enabled = False
-        self.connection.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
-        self.connection.commit()
+        self.knowledge_connection.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
+        self.knowledge_connection.commit()
 
     def integrity(self) -> str:
-        return str(self.connection.execute("PRAGMA integrity_check").fetchone()[0])
+        core = str(self.connection.execute("PRAGMA integrity_check").fetchone()[0])
+        if not self.enable_knowledge:
+            return core
+        knowledge = str(
+            self.knowledge_connection.execute("PRAGMA integrity_check").fetchone()[0]
+        )
+        return "ok" if core == knowledge == "ok" else f"core={core}; knowledge={knowledge}"
 
     def audit(self, event_type: str, detail: dict[str, Any], *, resource_id: str = "", actor: str = "assistant") -> None:
         self.connection.execute(
@@ -132,7 +211,7 @@ class AssistantStorage:
         self.connection.commit()
 
     def set_sync_state(self, resource_id: str, scope: str, *, cursor: str = "", etag: str = "", status: str, detail: str = "") -> None:
-        self.connection.execute(
+        self.knowledge_connection.execute(
             """
             INSERT INTO sync_state(resource_id,scope,cursor,etag,synced_at,status,detail)
             VALUES(?,?,?,?,?,?,?)
@@ -142,10 +221,10 @@ class AssistantStorage:
             """,
             (resource_id, scope, cursor, etag, now_utc_iso(), status, detail),
         )
-        self.connection.commit()
+        self.knowledge_connection.commit()
 
     def get_document(self, resource_id: str, source_id: str) -> sqlite3.Row | None:
-        return self.connection.execute(
+        return self.knowledge_connection.execute(
             "SELECT * FROM documents WHERE resource_id=? AND source_id=?", (resource_id, source_id)
         ).fetchone()
 
@@ -166,7 +245,7 @@ class AssistantStorage:
     ) -> int:
         timestamp = now_utc_iso()
         metadata_json = json.dumps(metadata or {}, ensure_ascii=False)
-        self.connection.execute(
+        self.knowledge_connection.execute(
             """
             INSERT INTO documents(source_type,resource_id,source_id,uri,title,mime_type,modified_at,etag,sha256,metadata_json,indexed_at)
             VALUES(?,?,?,?,?,?,?,?,?,?,?)
@@ -180,23 +259,29 @@ class AssistantStorage:
         row = self.get_document(resource_id, source_id)
         assert row is not None
         document_id = int(row["id"])
-        old_rows = self.connection.execute("SELECT id FROM chunks WHERE document_id=?", (document_id,)).fetchall()
+        old_rows = self.knowledge_connection.execute(
+            "SELECT id FROM chunks WHERE document_id=?", (document_id,)
+        ).fetchall()
         if self.fts_enabled:
             for old in old_rows:
-                self.connection.execute("DELETE FROM knowledge_fts WHERE rowid=?", (int(old["id"]),))
-        self.connection.execute("DELETE FROM chunks WHERE document_id=?", (document_id,))
+                self.knowledge_connection.execute(
+                    "DELETE FROM knowledge_fts WHERE rowid=?", (int(old["id"]),)
+                )
+        self.knowledge_connection.execute(
+            "DELETE FROM chunks WHERE document_id=?", (document_id,)
+        )
         for index, text in enumerate(chunks):
-            cursor = self.connection.execute(
+            cursor = self.knowledge_connection.execute(
                 "INSERT INTO chunks(document_id,chunk_index,text) VALUES(?,?,?)",
                 (document_id, index, text),
             )
             chunk_id = int(cursor.lastrowid)
             if self.fts_enabled:
-                self.connection.execute(
+                self.knowledge_connection.execute(
                     "INSERT INTO knowledge_fts(rowid,title,text,source_type,resource_id) VALUES(?,?,?,?,?)",
                     (chunk_id, title, text, source_type, resource_id),
                 )
-        self.connection.commit()
+        self.knowledge_connection.commit()
         return document_id
 
     def search(
@@ -228,7 +313,7 @@ class AssistantStorage:
             """
             values = [query, *params, limit]
             try:
-                rows = self.connection.execute(sql, values).fetchall()
+                rows = self.knowledge_connection.execute(sql, values).fetchall()
             except sqlite3.OperationalError:
                 rows = self._search_like(query, params, where_extra, limit)
         else:
@@ -263,7 +348,9 @@ class AssistantStorage:
             WHERE (c.text LIKE ? OR d.title LIKE ?) {where_extra}
             ORDER BY d.modified_at DESC, d.id DESC LIMIT ?
         """
-        return self.connection.execute(sql, [pattern, pattern, *params, limit]).fetchall()
+        return self.knowledge_connection.execute(
+            sql, [pattern, pattern, *params, limit]
+        ).fetchall()
 
     def create_action(
         self,
@@ -274,20 +361,30 @@ class AssistantStorage:
         payload: dict[str, Any],
         requires_approval: bool,
     ) -> ActionPlan:
-        existing = self.connection.execute(
-            "SELECT * FROM action_plans WHERE idempotency_key=?", (idempotency_key,)
-        ).fetchone()
-        if existing:
-            return self._row_action(existing)
         action_id = str(uuid.uuid4())
         timestamp = now_utc_iso()
         status = "proposed" if requires_approval else "approved"
-        self.connection.execute(
-            "INSERT INTO action_plans(id,idempotency_key,action_type,resource_id,payload_json,status,requires_approval,created_at,updated_at,error) VALUES(?,?,?,?,?,?,?,?,?,?)",
-            (action_id, idempotency_key, action_type, resource_id, json.dumps(payload, ensure_ascii=False), status, int(requires_approval), timestamp, timestamp, ""),
-        )
-        self.connection.commit()
-        return self.get_action(action_id)
+        with self.connection:
+            self.connection.execute(
+                """
+                INSERT OR IGNORE INTO action_plans(
+                    id,idempotency_key,action_type,resource_id,payload_json,status,
+                    requires_approval,created_at,updated_at,error
+                ) VALUES(?,?,?,?,?,?,?,?,?,?)
+                """,
+                (
+                    action_id, idempotency_key, action_type, resource_id,
+                    json.dumps(payload, ensure_ascii=False), status,
+                    int(requires_approval), timestamp, timestamp, "",
+                ),
+            )
+            row = self.connection.execute(
+                "SELECT * FROM action_plans WHERE idempotency_key=?",
+                (idempotency_key,),
+            ).fetchone()
+        if row is None:
+            raise RuntimeError("ActionPlan konnte nach idempotentem Insert nicht gelesen werden")
+        return self._row_action(row)
 
     def get_action(self, action_id: str) -> ActionPlan:
         row = self.connection.execute("SELECT * FROM action_plans WHERE id=?", (action_id,)).fetchone()

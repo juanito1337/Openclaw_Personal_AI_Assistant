@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR=$(CDPATH= cd "$(dirname "$0")" && pwd)
+SCRIPT_DIR=$(CDPATH='' cd "$(dirname "$0")" && pwd)
+# shellcheck source=docker/scripts/common.sh
 # shellcheck source=common.sh
 . "$SCRIPT_DIR/common.sh"
 
@@ -17,18 +18,28 @@ docker info >/dev/null 2>&1 || {
   exit 2
 }
 
-target_arg=${1:?Image-Tag oder vollstaendige Image-Referenz angeben}
-repository=${OPENCLAW_IMAGE_REPOSITORY:-ghcr.io/juanito1337/openclaw_personal_ai_assistant}
-if [[ "$target_arg" == */*:* || "$target_arg" == *@sha256:* ]]; then
-  target_image=$target_arg
-else
-  target_image="$repository:$target_arg"
-fi
+target_image=${1:?Signierte Runtime-Image-Referenz mit Digest angeben}
+target_proxy_image=${2:-${OPENCLAW_TARGET_PROXY_IMAGE:-}}
+target_maintenance_image=${3:-${OPENCLAW_TARGET_MAINTENANCE_IMAGE:-}}
+[[ -n "$target_proxy_image" ]] || {
+  echo "Signiertes Proxy-Image als zweites Argument oder OPENCLAW_TARGET_PROXY_IMAGE angeben." >&2
+  exit 2
+}
+[[ -n "$target_maintenance_image" ]] || {
+  echo "Signiertes Maintenance-Image als drittes Argument oder OPENCLAW_TARGET_MAINTENANCE_IMAGE angeben." >&2
+  exit 2
+}
 previous_image=${OPENCLAW_IMAGE:-}
+previous_proxy_image=${OPENCLAW_PROXY_IMAGE:-$previous_image}
+previous_maintenance_image=${OPENCLAW_MAINTENANCE_IMAGE:-$previous_image}
 previous_runtime=${OPENCLAW_CURRENT_RUNTIME:-docker}
 expected_source_revision=${OPENCLAW_EXPECTED_SOURCE_REVISION:-}
 [[ -n "$previous_image" ]] || { echo "OPENCLAW_IMAGE fehlt in $ENV_FILE" >&2; exit 2; }
 [[ "$target_image" != "$previous_image" ]] || echo "Hinweis: Zielimage entspricht dem aktuell eingetragenen Image."
+[[ "$expected_source_revision" =~ ^[0-9a-f]{40}$ ]] || {
+  echo "OPENCLAW_EXPECTED_SOURCE_REVISION muss fuer M7 den exakten 40-stelligen Git-Commit enthalten." >&2
+  exit 2
+}
 
 legacy_units=(
   mail-agent.timer mail-agent.service
@@ -84,30 +95,30 @@ if [[ "$write_test" == "true" && "$require_external" == "true" ]]; then
   [[ -x "$restore_hook" ]] || { echo "Externer Restore-Hook fehlt oder ist nicht ausfuehrbar: $restore_hook" >&2; exit 2; }
 fi
 
-echo "Ziehe Zielimage: $target_image"
-docker pull "$target_image"
-# Pin remote images to the immutable registry digest. Local-only images do not
-# have RepoDigests and intentionally keep their explicit local tag.
-resolved_target=$(docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$target_image" 2>/dev/null | awk 'NF {print; exit}')
-if [[ -n "$resolved_target" ]]; then
-  echo "Verwende unveraenderlichen Image-Digest: $resolved_target"
-  target_image=$resolved_target
-fi
+echo "Pruefe signierte M7-Images vor jeder Aenderung am laufenden Stack."
+"$SCRIPT_DIR/verify-image-supply-chain.sh" "$target_image" "$expected_source_revision" runtime
+"$SCRIPT_DIR/verify-image-supply-chain.sh" "$target_proxy_image" "$expected_source_revision" proxy
+"$SCRIPT_DIR/verify-image-supply-chain.sh" "$target_maintenance_image" "$expected_source_revision" maintenance
 
-if [[ -n "$expected_source_revision" ]]; then
-  actual_source_revision=$(
-    docker image inspect \
-      --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' \
-      "$target_image"
-  )
-  [[ "$actual_source_revision" == "$expected_source_revision" ]] || {
-    echo "Test-Image enthaelt nicht den erwarteten Git-Commit." >&2
-    echo "Erwartet: $expected_source_revision" >&2
-    echo "Image: ${actual_source_revision:-<fehlend>}" >&2
-    exit 1
-  }
-  echo "Image-Quellrevision verifiziert: $actual_source_revision"
-fi
+target_layout_min=$(
+  docker image inspect \
+    --format '{{index .Config.Labels "org.opencontainers.image.openclaw.layout-min"}}' \
+    "$target_image" 2>/dev/null || true
+)
+target_layout_max=$(
+  docker image inspect \
+    --format '{{index .Config.Labels "org.opencontainers.image.openclaw.layout-max"}}' \
+    "$target_image" 2>/dev/null || true
+)
+# Images before M2 had no layout labels. They are certified only for layout 1;
+# an M2 state therefore fails closed before the current stack is stopped.
+target_layout_min=${target_layout_min:-1}
+target_layout_max=${target_layout_max:-1}
+python3 "$SCRIPT_DIR/check-layout-compatibility.py" \
+  --state-dir "$OPENCLAW_STATE_DIR" \
+  --target-image "$target_image" \
+  --target-min "$target_layout_min" \
+  --target-max "$target_layout_max"
 
 restart_previous_on_prebackup_failure() {
   local code=$?
@@ -144,7 +155,10 @@ if [[ -n "$backup_hook" && -x "$backup_hook" ]]; then
   [[ -n "$external_reference" ]] || { echo "Externer Backup-Hook lieferte keine Referenz." >&2; false; }
 fi
 
-export PREVIOUS_IMAGE="$previous_image" TARGET_IMAGE="$target_image" EXTERNAL_BACKUP_REFERENCE="$external_reference" PREVIOUS_RUNTIME="$previous_runtime"
+export PREVIOUS_IMAGE="$previous_image" PREVIOUS_PROXY_IMAGE="$previous_proxy_image" \
+  PREVIOUS_MAINTENANCE_IMAGE="$previous_maintenance_image" TARGET_IMAGE="$target_image" \
+  TARGET_PROXY_IMAGE="$target_proxy_image" TARGET_MAINTENANCE_IMAGE="$target_maintenance_image" \
+  EXTERNAL_BACKUP_REFERENCE="$external_reference" PREVIOUS_RUNTIME="$previous_runtime"
 backup_id=$("$SCRIPT_DIR/backup.sh" "${previous_image##*:}-to-${target_image##*:}")
 echo "Verifiziertes Release-Backup: $backup_id"
 trap - ERR
@@ -153,26 +167,37 @@ rollback_on_failure() {
   local code=$?
   trap - ERR
   echo "Deployment fehlgeschlagen (Code $code). Starte automatischen Rollback." >&2
-  "$SCRIPT_DIR/rollback.sh" "$backup_id" --automatic || true
+  if ! "$SCRIPT_DIR/rollback.sh" "$backup_id" --automatic; then
+    echo "Automatischer Rollback meldet einen Fehler; der Deploymentzustand ist nicht freigegeben." >&2
+    exit 70
+  fi
   exit "$code"
 }
 trap rollback_on_failure ERR
 update_env_value OPENCLAW_IMAGE "$target_image"
+update_env_value OPENCLAW_PROXY_IMAGE "$target_proxy_image"
+update_env_value OPENCLAW_MAINTENANCE_IMAGE "$target_maintenance_image"
 export OPENCLAW_IMAGE="$target_image"
+export OPENCLAW_PROXY_IMAGE="$target_proxy_image"
+export OPENCLAW_MAINTENANCE_IMAGE="$target_maintenance_image"
 
-compose --profile maintenance run --rm --entrypoint freshclam clamav-update --verbose || true
+compose --profile maintenance run --rm --no-deps --entrypoint freshclam clamav-update \
+  --stdout --datadir=/var/lib/clamav --verbose
+compose --profile maintenance run --rm --no-deps --entrypoint python3 clamav-update \
+  -P -m personal_assistant.clamav_health
 compose up -d ollama-proxy gateway
 wait_for_healthy ollama-proxy 180
 wait_for_healthy gateway 300
-if [[ -n "$expected_source_revision" ]]; then
-  compose --profile tools run --rm --no-deps agent-cli \
-    /bin/sh -c \
-    'actual=$(tr -d "\r\n" </opt/openclaw-agent/SOURCE_REVISION); test "$actual" = "$1"' \
-    source-revision-check "$expected_source_revision"
-  echo "Laufende Workspace-Quellrevision verifiziert: $expected_source_revision"
-fi
+# The single-quoted expression intentionally runs inside the container shell.
+# shellcheck disable=SC2016
+compose --profile tools run --rm --no-deps agent-cli \
+  /bin/sh -c \
+  'actual=$(tr -d "\r\n" </opt/openclaw-agent/SOURCE_REVISION); test "$actual" = "$1"' \
+  source-revision-check "$expected_source_revision"
+echo "Laufende Workspace-Quellrevision verifiziert: $expected_source_revision"
 "$SCRIPT_DIR/smoke-test.sh" "$write_test"
 compose --profile maintenance up -d clamav-update
+wait_for_healthy clamav-update 180
 compose up -d mail-worker sync-worker supervisor-worker portfolio-worker monitor-worker
 wait_for_healthy mail-worker 180
 wait_for_healthy sync-worker 180
@@ -180,7 +205,7 @@ wait_for_healthy supervisor-worker 180
 wait_for_healthy portfolio-worker 180
 wait_for_healthy monitor-worker 180
 compose --profile tools run --rm --no-deps agent-cli \
-  /home/node/.openclaw/workspace/scripts/assistant.sh jobs status --target all
+  /opt/openclaw-agent/scripts/assistant.sh jobs status --target all
 if [[ "$previous_runtime" == "legacy-systemd" ]]; then
   assert_legacy_writers_disabled
 fi

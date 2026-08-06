@@ -281,19 +281,23 @@ class ActionService:
 
     @staticmethod
     def _contact_changes_match(contact, changes: dict[str, Any]) -> bool:
-        if "name" in changes and contact.name != str(changes["name"]):
-            return False
-        if "emails" in changes and {value.casefold() for value in contact.emails} != {
-            str(value).casefold() for value in changes["emails"]
-        }:
-            return False
-        if "phones" in changes and set(contact.phones) != {str(value) for value in changes["phones"]}:
-            return False
-        if "organization" in changes and contact.organization != str(changes["organization"]):
-            return False
-        if "note" in changes and contact.note != str(changes["note"]):
-            return False
-        return True
+        return not (
+            ("name" in changes and contact.name != str(changes["name"]))
+            or (
+                "emails" in changes
+                and {value.casefold() for value in contact.emails}
+                != {str(value).casefold() for value in changes["emails"]}
+            )
+            or (
+                "phones" in changes
+                and set(contact.phones) != {str(value) for value in changes["phones"]}
+            )
+            or (
+                "organization" in changes
+                and contact.organization != str(changes["organization"])
+            )
+            or ("note" in changes and contact.note != str(changes["note"]))
+        )
 
     def execute_calendar_update(self, action_id: str) -> tuple[ActionPlan, bool]:
         """Execute calendar.update and verify completed retries by content hash."""

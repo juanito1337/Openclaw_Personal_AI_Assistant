@@ -2,7 +2,7 @@
 set -euo pipefail
 umask 077
 
-SOURCE_ROOT=$(CDPATH= cd "$(dirname "$0")/../.." && pwd)
+SOURCE_ROOT=$(CDPATH='' cd "$(dirname "$0")/../.." && pwd)
 cd "$SOURCE_ROOT"
 
 if [[ ${EUID:-$(id -u)} -eq 0 ]]; then
@@ -50,7 +50,32 @@ image_tag="sha-$short_revision"
 echo "Aktualisiere das Deployment-Bundle; .env und aktive Hooks bleiben erhalten."
 "$SOURCE_ROOT/docker/scripts/refresh-deployment.sh"
 
-echo "Deploye das unveraenderliche Test-Image: $image_tag"
+deployment_env=/srv/openclaw/deployment/.env
+[[ -f "$deployment_env" ]] || { echo "Deployment-Umgebung fehlt: $deployment_env" >&2; exit 2; }
+set -a
+# Administrator-controlled deployment variables; deploy.sh reads the same file.
+# shellcheck disable=SC1090
+. "$deployment_env"
+set +a
+repository=${OPENCLAW_IMAGE_REPOSITORY:?OPENCLAW_IMAGE_REPOSITORY fehlt in $deployment_env}
+
+resolve_digest() {
+  local tagged=$1 digest
+  docker pull "$tagged" >/dev/null
+  digest=$(docker image inspect --format '{{index .RepoDigests 0}}' "$tagged")
+  [[ "$digest" =~ @sha256:[0-9a-f]{64}$ ]] || {
+    echo "Kein unveraenderlicher Digest fuer $tagged ermittelbar: $digest" >&2
+    return 1
+  }
+  printf '%s\n' "$digest"
+}
+
+runtime_image=$(resolve_digest "$repository:$image_tag")
+proxy_image=$(resolve_digest "$repository:$image_tag-proxy")
+maintenance_image=$(resolve_digest "$repository:$image_tag-maintenance")
+
+echo "Deploye den signierten Test-Rollensatz fuer: $image_tag"
 echo "Das normale Deployment stoppt den bisherigen Writer und erstellt vor Schreibtests ein verifiziertes lokales Backup."
 export OPENCLAW_EXPECTED_SOURCE_REVISION="$local_revision"
-exec /srv/openclaw/deployment/scripts/deploy.sh "$image_tag"
+exec /srv/openclaw/deployment/scripts/deploy.sh \
+  "$runtime_image" "$proxy_image" "$maintenance_image"

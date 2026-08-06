@@ -160,6 +160,7 @@ class ContainerMigrationTests(unittest.TestCase):
             workspace = state / "workspace"
             (workspace / "mail_agent").mkdir(parents=True)
             (workspace / "personal_assistant").mkdir(parents=True)
+            (state / "agents/main/agent").mkdir(parents=True)
             config.mkdir()
             secrets.mkdir()
 
@@ -169,6 +170,10 @@ class ContainerMigrationTests(unittest.TestCase):
             )
             (workspace / "mail_agent/config.toml").write_text(
                 '[ollama]\nbase_url = "http://127.0.0.1:11434"\nmodel = "test"\n',
+                encoding="utf-8",
+            )
+            (state / "agents/main/agent/models.json").write_text(
+                json.dumps({"providers": {"ollama": {"baseUrl": "http://127.0.0.1:11435"}}}),
                 encoding="utf-8",
             )
             (config / "ollama-priority.env").write_text(
@@ -216,9 +221,11 @@ class ContainerMigrationTests(unittest.TestCase):
             migrated = json.loads((state / "openclaw.json").read_text(encoding="utf-8"))
             self.assertEqual(migrated["gateway"]["auth"]["mode"], "token")
             self.assertIn(
-                'base_url = "http://127.0.0.1:12435"',
+                'base_url = "http://ollama-proxy:11435"',
                 (workspace / "mail_agent/config.toml").read_text(encoding="utf-8"),
             )
+            models = json.loads((state / "agents/main/agent/models.json").read_text(encoding="utf-8"))
+            self.assertEqual(models["providers"]["ollama"]["baseUrl"], "http://ollama-proxy:11435")
 
     def test_generates_gateway_token_once_when_legacy_had_no_auth(self) -> None:
         with tempfile.TemporaryDirectory() as folder:

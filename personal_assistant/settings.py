@@ -11,7 +11,6 @@ from typing import Any
 
 from .storage import AssistantStorage
 
-
 SAFE_SETTINGS: dict[str, tuple[str, str, type, Any, Any]] = {
     "search.default_limit": ("search", "default_limit", int, 1, 200),
     "search.nextcloud_max_depth": ("search", "nextcloud_max_depth", int, 1, 20),

@@ -1,0 +1,190 @@
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import tempfile
+import unittest
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from unittest import mock
+
+from personal_assistant import container_entrypoint
+from personal_assistant.clamav_health import inspect_database
+from personal_assistant.container_health import evaluate
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+class ContainerHardeningM4Tests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        rendered = subprocess.run(
+            [
+                "docker", "compose", "--profile", "tools", "--profile", "maintenance",
+                "--env-file", "docker/deployment.env.example", "-f", "compose.yaml",
+                "config", "--format", "json",
+            ],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+        cls.compose = json.loads(rendered.stdout)
+        cls.contract = json.loads(
+            (ROOT / "docs/architecture/runtime-hardening.json").read_text(encoding="utf-8")
+        )
+
+    def test_rendered_compose_matches_hardening_contract(self) -> None:
+        defaults = self.contract["defaults"]
+        for role, expected in self.contract["roles"].items():
+            service = self.compose["services"][role]
+            self.assertEqual(service["user"], expected["user"], role)
+            self.assertEqual(sorted(service.get("networks", {})), sorted(expected["networks"]), role)
+            self.assertEqual(service["pids_limit"], expected["pids"], role)
+            self.assertEqual(int(service["mem_limit"]), expected["memory"], role)
+            self.assertEqual(float(service["cpus"]), expected["cpus"], role)
+            self.assertTrue(service["read_only"], role)
+            self.assertEqual(service["cap_drop"], defaults["cap_drop"], role)
+            self.assertEqual(service["security_opt"], defaults["security_opt"], role)
+            self.assertEqual(service["logging"]["driver"], defaults["logging_driver"], role)
+
+    def test_only_gateway_publishes_loopback_port(self) -> None:
+        published = {name: value.get("ports", []) for name, value in self.compose["services"].items()}
+        self.assertEqual(published["gateway"], self.contract["published_ports"]["gateway"])
+        self.assertTrue(all(not ports for name, ports in published.items() if name != "gateway"))
+        self.assertFalse(self.contract["exceptions"]["host_network_roles"])
+        self.assertEqual(self.contract["exceptions"]["host_gateway_roles"], ["ollama-proxy"])
+        self.assertIn(
+            "host.docker.internal=host-gateway",
+            self.compose["services"]["ollama-proxy"]["extra_hosts"],
+        )
+
+    def test_roles_mount_exact_env_and_secret_files(self) -> None:
+        forbidden_targets = {"/etc/openclaw-agent", "/run/openclaw-secrets"}
+        for role, expected in self.contract["roles"].items():
+            volumes = self.compose["services"][role].get("volumes", [])
+            targets = {item["target"] for item in volumes}
+            self.assertFalse(targets & forbidden_targets, role)
+            env_files = sorted(target for target in targets if target.startswith("/etc/openclaw-env/"))
+            secret_files = sorted(
+                Path(target).name for target in targets
+                if target.startswith("/run/openclaw-env/") or target.startswith("/run/openclaw-secrets/")
+            )
+            self.assertEqual(env_files, sorted(expected["env_files"]), role)
+            self.assertEqual(secret_files, sorted(expected["secret_files"]), role)
+
+    def test_env_parser_treats_shell_syntax_as_literal_data(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            env_file = root / "mail-agent.env"
+            marker = root / "executed"
+            env_file.write_text(
+                f"NEXTCLOUD_TOKEN='$(touch {marker})'\nNEXTCLOUD_URL=https://example.invalid\n",
+                encoding="utf-8",
+            )
+            with mock.patch.object(container_entrypoint, "ENV_ROOTS", (root,)):
+                values = container_entrypoint.parse_env_file(env_file)
+            self.assertEqual(values["NEXTCLOUD_TOKEN"], f"$(touch {marker})")
+            self.assertFalse(marker.exists())
+
+    def test_env_parser_rejects_unapproved_keys_and_locations(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            env_file = root / "foreign.env"
+            env_file.write_text("LD_PRELOAD=/tmp/evil.so\n", encoding="utf-8")
+            with (
+                mock.patch.object(container_entrypoint, "ENV_ROOTS", (root,)),
+                self.assertRaisesRegex(ValueError, "Nicht freigegebener"),
+            ):
+                container_entrypoint.parse_env_file(env_file)
+            with self.assertRaisesRegex(ValueError, "Mountwurzeln"):
+                container_entrypoint.parse_env_file(env_file)
+
+    def test_proxy_loopback_is_translated_and_listener_is_pinned(self) -> None:
+        environment = {"OLLAMA_PRIORITY_UPSTREAM": "http://127.0.0.1:11434"}
+        container_entrypoint.normalize_proxy_network(environment)
+        self.assertEqual(environment["OLLAMA_PRIORITY_UPSTREAM"], "http://host.docker.internal:11434")
+        self.assertEqual(environment["OLLAMA_PRIORITY_LISTEN_HOST"], "0.0.0.0")
+        self.assertEqual(environment["OLLAMA_PRIORITY_LISTEN_PORT"], "11435")
+
+    def test_worker_liveness_does_not_mask_business_failure(self) -> None:
+        current = datetime.now(UTC)
+        payload = {
+            "updated_at": current.isoformat(),
+            "state": "waiting",
+            "business_status": "failed",
+            "consecutive_failures": 3,
+        }
+        self.assertTrue(evaluate("", payload, current=current)["ok"])
+        self.assertTrue(evaluate("-readiness", payload, current=current)["ok"])
+        with self.assertRaisesRegex(ValueError, "business unhealthy"):
+            evaluate("-business", payload, current=current)
+
+    def test_disabled_worker_is_ready_and_business_healthy(self) -> None:
+        current = datetime.now(UTC)
+        payload = {
+            "updated_at": current.isoformat(),
+            "state": "disabled",
+            "business_status": "disabled",
+            "consecutive_failures": 2,
+        }
+        self.assertTrue(evaluate("-readiness", payload, current=current)["ok"])
+        self.assertTrue(evaluate("-business", payload, current=current)["ok"])
+
+    def test_stale_or_stopped_heartbeat_fails_liveness(self) -> None:
+        current = datetime.now(UTC)
+        base = {"state": "waiting", "business_status": "healthy"}
+        with self.assertRaisesRegex(ValueError, "stale heartbeat"):
+            evaluate(
+                "",
+                {**base, "updated_at": (current - timedelta(seconds=181)).isoformat()},
+                current=current,
+            )
+        with self.assertRaisesRegex(ValueError, "worker stopped"):
+            evaluate("", {**base, "state": "stopped", "updated_at": current.isoformat()}, current=current)
+
+    def test_clamav_health_requires_complete_fresh_signatures_and_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            database = Path(folder)
+            current = 2_000_000_000.0
+            for name in ("main.cvd", "daily.cld", "bytecode.cvd"):
+                path = database / name
+                path.write_bytes(b"signature")
+                # Explicit timestamps make this test independent of wall time.
+                os.utime(path, (current - 60, current - 60))
+            completed = subprocess.CompletedProcess(
+                ["clamscan", "--version"], 0, "ClamAV 1.4.3/27888/Tue Aug 5 00:00:00 2026\n", ""
+            )
+            report = inspect_database(
+                database, max_age_seconds=120, now=current, run=lambda *args, **kwargs: completed
+            )
+            self.assertTrue(report["ok"])
+            (database / "main.cvd").unlink()
+            with self.assertRaisesRegex(ValueError, "Signatur fehlt"):
+                inspect_database(
+                    database,
+                    max_age_seconds=120,
+                    now=current,
+                    run=lambda *args, **kwargs: completed,
+                )
+
+    def test_clamav_health_rejects_old_database_and_unverifiable_scanner(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            database = Path(folder)
+            current = 2_000_000_000.0
+            for name in ("main.cvd", "daily.cvd", "bytecode.cvd"):
+                path = database / name
+                path.write_bytes(b"signature")
+                os.utime(path, (current - 500, current - 500))
+            good = subprocess.CompletedProcess(["clamscan", "--version"], 0, "ClamAV 1.4/42/date\n", "")
+            with self.assertRaisesRegex(ValueError, "zu alt"):
+                inspect_database(database, max_age_seconds=120, now=current, run=lambda *args, **kwargs: good)
+            os.utime(database / "daily.cvd", (current, current))
+            bad = subprocess.CompletedProcess(["clamscan", "--version"], 0, "ClamAV 1.4\n", "")
+            with self.assertRaisesRegex(ValueError, "Scanneridentitaet"):
+                inspect_database(database, max_age_seconds=120, now=current, run=lambda *args, **kwargs: bad)
+
+
+if __name__ == "__main__":
+    unittest.main()

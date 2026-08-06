@@ -5,11 +5,12 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from personal_assistant.cli import parser
 from personal_assistant.models import Resource
 from personal_assistant.policy import PolicyEngine
 from personal_assistant.registry import ResourceRegistry
-from personal_assistant.tool_setup import configure_mail_move_tools
 from personal_assistant.tool_settings import load_tool_settings
+from personal_assistant.tool_setup import configure_mail_move_tools
 
 
 class ReleaseConfigDefaultsTests(unittest.TestCase):
@@ -57,8 +58,7 @@ denied_sources = ["Lokale Pruefung"]
             defaults = root / "policy-defaults.toml"
             local = root / "policies.toml"
             defaults.write_text(
-                '[deny]\nactions = ["mail.delete"]\n'
-                '[approval]\nactions = ["mail.send"]\n',
+                '[deny]\nactions = ["mail.delete"]\n[approval]\nactions = ["mail.send"]\n',
                 encoding="utf-8",
             )
             local.write_text("[deny]\nactions = []\n[approval]\nactions = []\n", encoding="utf-8")
@@ -79,7 +79,6 @@ denied_sources = ["Lokale Pruefung"]
         root = Path(__file__).resolve().parents[1]
         dockerfile = (root / "Dockerfile").read_text(encoding="utf-8")
         compose = (root / "compose.yaml").read_text(encoding="utf-8")
-        cli = (root / "personal_assistant/cli.py").read_text(encoding="utf-8")
 
         self.assertIn(
             "OPENCLAW_TOOL_DEFAULTS_CONFIG=/opt/openclaw-agent/personal_assistant/tool_defaults.toml",
@@ -89,7 +88,12 @@ denied_sources = ["Lokale Pruefung"]
             "OPENCLAW_POLICY_DEFAULTS_CONFIG: /opt/openclaw-agent/personal_assistant/policy_defaults.toml",
             compose,
         )
-        self.assertIn('"compose-draft", "compose-send"', cli)
+        draft = parser().parse_args(
+            ["mail", "compose-draft", "--to", "a@example.test", "--subject", "S", "--body", "B"]
+        )
+        send = parser().parse_args(["mail", "compose-send", "--draft-id", "draft-1", "--yes"])
+        self.assertEqual((draft.command, draft.mail_command), ("mail", "compose-draft"))
+        self.assertEqual((send.command, send.mail_command, send.yes), ("mail", "compose-send", True))
 
     def test_direct_mail_setup_requires_and_records_forward_permission(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
@@ -98,12 +102,14 @@ denied_sources = ["Lokale Pruefung"]
             config_dir.mkdir()
             registry_path = config_dir / "resources.toml"
             registry = ResourceRegistry(registry_path)
-            registry.upsert(Resource(
-                id="mail-agent",
-                kind="email-service",
-                connector="mail-agent",
-                permissions=("read", "move"),
-            ))
+            registry.upsert(
+                Resource(
+                    id="mail-agent",
+                    kind="email-service",
+                    connector="mail-agent",
+                    permissions=("read", "move"),
+                )
+            )
             tools_path = config_dir / "tools.toml"
 
             with patch("personal_assistant.tool_setup.WORKSPACE_ROOT", root):

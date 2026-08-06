@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import multiprocessing
 import tempfile
-import time
 import unittest
 from pathlib import Path
 

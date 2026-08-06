@@ -2,8 +2,8 @@
 set -euo pipefail
 umask 077
 
-SCRIPT_DIR=$(CDPATH= cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-DEPLOYMENT_DIR=$(CDPATH= cd "$SCRIPT_DIR/.." && pwd)
+SCRIPT_DIR=$(CDPATH='' cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+DEPLOYMENT_DIR=$(CDPATH='' cd "$SCRIPT_DIR/.." && pwd)
 ENV_FILE=${OPENCLAW_DEPLOY_ENV:-$DEPLOYMENT_DIR/.env}
 COMPOSE_FILE=${OPENCLAW_COMPOSE_FILE:-$DEPLOYMENT_DIR/compose.yaml}
 

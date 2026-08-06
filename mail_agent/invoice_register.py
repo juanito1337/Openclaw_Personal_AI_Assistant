@@ -12,7 +12,6 @@ from typing import Any
 from .config import InvoiceConfig
 from .storage import Storage
 
-
 HEADERS = (
     "Status",
     "Rechnungsdatum",

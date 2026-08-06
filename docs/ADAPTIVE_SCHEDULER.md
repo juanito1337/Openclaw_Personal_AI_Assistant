@@ -87,5 +87,6 @@ A full host, Docker daemon, gateway or notification-channel outage still require
 an external watchdog for out-of-band delivery.
 
 The current immutable production runtime is the container deployment. Legacy
-systemd units remain packaged for migration and fallback, but adaptive whole-job
-arbitration is performed by the container worker loops.
+systemd units remain frozen and SHA-verified under `legacy/systemd/` for rollback
+compatibility, but adaptive whole-job arbitration is performed only by the
+container worker loops.

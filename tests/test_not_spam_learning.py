@@ -16,7 +16,6 @@ from personal_assistant.cli import parser as assistant_parser
 from personal_assistant.tool_registry import build_tool_registry
 from personal_assistant.tool_settings import ToolSettings
 
-
 BASE = b"""From: Shop <news@example.test>
 To: Jan <jan@example.test>
 Subject: Produktinfo 4711

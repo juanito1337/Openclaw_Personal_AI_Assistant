@@ -1,20 +1,19 @@
 from __future__ import annotations
 
-import json
 import copy
+import json
 import re
 import shutil
 import subprocess
 import tempfile
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Iterable
 
 from .config import InvoiceConfig
 from .models import ParsedMessage
-
 
 _DATE_TOKEN = re.compile(r"(?<!\d)(\d{1,2}[.\-/]\d{1,2}[.\-/](?:\d{2}|\d{4})|\d{4}-\d{1,2}-\d{1,2})(?!\d)")
 _AMOUNT_TOKEN = re.compile(
@@ -288,7 +287,6 @@ def _supplier_field(lines: list[str], message: ParsedMessage) -> FieldValue:
             return FieldValue(value[:200], 0.94, line[:300])
         if index + 1 < len(lines):
             candidate = _clean_line(lines[index + 1])
-            folded = candidate.casefold()
             if (
                 3 <= len(candidate) <= 200
                 and not _supplier_line_excluded(candidate)
@@ -302,7 +300,6 @@ def _supplier_field(lines: list[str], message: ParsedMessage) -> FieldValue:
     sender = _clean_line(message.sender_name)
     for index, line in enumerate(lines[:12]):
         candidate = _clean_line(line)
-        folded = candidate.casefold()
         if not (3 <= len(candidate) <= 200):
             continue
         if _supplier_line_excluded(candidate):

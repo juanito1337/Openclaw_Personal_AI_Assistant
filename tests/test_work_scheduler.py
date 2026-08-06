@@ -3,7 +3,7 @@ from __future__ import annotations
 import tempfile
 import threading
 import unittest
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -15,7 +15,7 @@ from personal_assistant.work_scheduler import AdaptiveWorkScheduler
 
 class MutableClock:
     def __init__(self) -> None:
-        self.value = datetime(2026, 7, 29, 10, 0, tzinfo=timezone.utc)
+        self.value = datetime(2026, 7, 29, 10, 0, tzinfo=UTC)
 
     def __call__(self) -> datetime:
         return self.value

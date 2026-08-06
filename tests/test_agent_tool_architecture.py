@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import tempfile
 import unittest
-from types import SimpleNamespace
-from unittest.mock import patch
 from datetime import datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from mail_agent.assistant_bridge import PersonalAssistantActionBridge
 from mail_agent.calendar import CalendarManager

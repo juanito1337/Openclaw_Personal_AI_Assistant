@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from email import policy
 from email.message import Message
 from email.parser import BytesParser
 from email.utils import getaddresses, parseaddr
-from typing import Iterable
 
 from .models import AttachmentInfo, Envelope, ParsedMessage
 from .utils import decode_header_value, html_to_text, stable_message_key, utf8_clean

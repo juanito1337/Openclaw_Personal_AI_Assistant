@@ -5,12 +5,13 @@ import logging
 import os
 import shutil
 import time
+from collections.abc import Iterable
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from .command import CommandResult, CommandRunner
-from .config import Config, WORKSPACE_ROOT
+from .config import WORKSPACE_ROOT, Config
 from .models import OperationResult
 from .utils import atomic_write_bytes, extract_json_object, normalize_address
 

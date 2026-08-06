@@ -3,11 +3,11 @@ from __future__ import annotations
 import getpass
 import os
 import shutil
-from pathlib import Path
 
-from .config import AssistantConfig, WORKSPACE_ROOT
-from .env import update_env
 from mail_agent.setup_assistant import update_toml_values
+
+from .config import WORKSPACE_ROOT, AssistantConfig
+from .env import update_env
 
 
 def initialize_local_files() -> list[str]:

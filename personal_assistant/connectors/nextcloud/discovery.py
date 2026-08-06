@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from xml.etree import ElementTree
 
 from .client import NextcloudClient
-from .xmlutil import CALDAV, CARDDAV, DAV, q, parse_multistatus
+from .xmlutil import CALDAV, CARDDAV, DAV, parse_multistatus, q
 
 
 @dataclass(slots=True, frozen=True)

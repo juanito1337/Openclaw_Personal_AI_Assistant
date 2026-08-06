@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "documents": [
+    {"path": "docs/architecture/README.md", "owner": "Architecture Maintainers"},
+    {"path": "docs/architecture/CONTAINER_ROLES.md", "owner": "Operations Maintainers"},
+    {"path": "docs/architecture/DATA_CATALOG.md", "owner": "Data Maintainers"},
+    {"path": "docs/architecture/TRUST_BOUNDARIES.md", "owner": "Security Maintainers"},
+    {"path": "docs/architecture/EXTENDING.md", "owner": "Architecture Maintainers"},
+    {"path": "docs/architecture/IMAGE_SUPPLY_CHAIN.md", "owner": "Security Maintainers"},
+    {"path": "docs/architecture/RECOVERY_AND_RELEASE.md", "owner": "Operations Maintainers"},
+    {"path": "docs/architecture/adr/README.md", "owner": "Architecture Maintainers"},
+    {"path": "docs/architecture/adr/0000-template.md", "owner": "Architecture Maintainers"},
+    {"path": "docs/architecture/adr/0001-modularer-monolith-multi-container.md", "owner": "Architecture Maintainers"},
+    {"path": "docs/architecture/adr/0002-single-writer.md", "owner": "Security Maintainers"},
+    {"path": "docs/architecture/adr/0003-sqlite-datenowner.md", "owner": "Data Maintainers"},
+    {"path": "docs/architecture/adr/0004-unveraenderlicher-programmcode.md", "owner": "Architecture Maintainers"},
+    {"path": "docs/architecture/adr/0005-legacy-rollback-untergrenze.md", "owner": "Operations Maintainers"},
+    {"path": "docs/architecture/adr/0006-toolvertrag-source-of-truth.md", "owner": "Tool Contract Maintainers"},
+    {"path": "docs/architecture/adr/0007-shared-sqlite-scheduler.md", "owner": "Data Maintainers"},
+    {"path": "docs/architecture/adr/0008-container-netze-host-ollama.md", "owner": "Security Maintainers"},
+    {"path": "docs/architecture/adr/0009-typisierte-domaenen-toolvertraege.md", "owner": "Tool Contract Maintainers"},
+    {"path": "docs/architecture/adr/0010-m6-legacy-und-upgradegrenze.md", "owner": "Operations Maintainers"},
+    {"path": "docs/architecture/adr/0011-reproduzierbare-rollenimages.md", "owner": "Security Maintainers"},
+    {"path": "docs/architecture/adr/0012-m8-recovery-und-agentenvertrag.md", "owner": "Operations Maintainers"}
+  ]
+}

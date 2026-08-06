@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import json
-import sqlite3
 import tempfile
 import unittest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -25,7 +23,7 @@ class MonitoringToolTests(unittest.TestCase):
         self.monitor_db = root / "monitor.sqlite3"
         self.storage = AssistantStorage(self.assistant_db)
         self.mail = MailStorage(self.mail_db)
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
 
         self.storage.index_document(
             source_type="nextcloud-file",

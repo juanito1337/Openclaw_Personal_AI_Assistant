@@ -1,5 +1,10 @@
 # Roadmap
 
+Diese Datei beschreibt die fachliche Produktentwicklung. Die priorisierte technische
+Modernisierung des Docker-Stacks, einschliesslich eigenstaendiger Entwicklungs-Prompts
+und Milestone-Tests, steht in
+[`CONTAINER_ARCHITECTURE_ROADMAP.md`](CONTAINER_ARCHITECTURE_ROADMAP.md).
+
 ## 3.4.x foundation
 
 - stabilize the Personal Assistant core and Nextcloud synchronization

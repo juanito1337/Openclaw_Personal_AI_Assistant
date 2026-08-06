@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR=$(CDPATH= cd "$(dirname "$0")" && pwd)
+SCRIPT_DIR=$(CDPATH='' cd "$(dirname "$0")" && pwd)
+# shellcheck source=docker/scripts/common.sh
 # shellcheck source=common.sh
 . "$SCRIPT_DIR/common.sh"
 mode=${1:-${OPENCLAW_WRITE_TEST_ENABLED:-true}}
@@ -16,20 +17,20 @@ run_cli() {
   compose --profile tools run --rm --no-deps agent-cli "$@" 2>&1 | tee -a "$log"
 }
 
-run_cli /home/node/.openclaw/workspace/scripts/assistant.sh version --verify
-run_cli /home/node/.openclaw/workspace/scripts/assistant.sh capabilities
-run_cli /home/node/.openclaw/workspace/scripts/assistant.sh mail compose-draft --help
+run_cli /opt/openclaw-agent/scripts/assistant.sh version --verify
+run_cli /opt/openclaw-agent/scripts/assistant.sh capabilities
+run_cli /opt/openclaw-agent/scripts/assistant.sh mail compose-draft --help
 if [[ "${OPENCLAW_MAIL_SEARCH_SMOKE_ENABLED:-false}" == "true" ]]; then
   smoke_query="openclaw-smoke-no-match-$(date -u +%s)-$$"
-  run_cli /home/node/.openclaw/workspace/scripts/assistant.sh mail search --query "$smoke_query" --limit 1
+  run_cli /opt/openclaw-agent/scripts/assistant.sh mail search --query "$smoke_query" --limit 1
 fi
-run_cli /home/node/.openclaw/workspace/scripts/mail-agent.sh doctor
+run_cli /opt/openclaw-agent/scripts/mail-agent.sh doctor
 if [[ "$mode" == "true" ]]; then
-  run_cli /home/node/.openclaw/workspace/scripts/mail-agent.sh run --dry-run --limit "$limit" --no-digest
-  run_cli /home/node/.openclaw/workspace/scripts/mail-agent.sh production-check
-  run_cli /home/node/.openclaw/workspace/scripts/mail-agent.sh run --limit "$limit" --no-digest
+  run_cli /opt/openclaw-agent/scripts/mail-agent.sh run --dry-run --limit "$limit" --no-digest
+  run_cli /opt/openclaw-agent/scripts/mail-agent.sh production-check
+  run_cli /opt/openclaw-agent/scripts/mail-agent.sh run --limit "$limit" --no-digest
 else
-  run_cli /home/node/.openclaw/workspace/scripts/mail-agent.sh production-check || true
+  run_cli /opt/openclaw-agent/scripts/mail-agent.sh production-check || true
 fi
 
 echo "Smoke-Test erfolgreich. Log: $log"

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 backup=${1:?Backup-Verzeichnis oder ID angeben}
-SCRIPT_DIR=$(CDPATH= cd "$(dirname "$0")" && pwd)
+SCRIPT_DIR=$(CDPATH='' cd "$(dirname "$0")" && pwd)
+# shellcheck source=docker/scripts/common.sh
 # shellcheck source=common.sh
 . "$SCRIPT_DIR/common.sh"
 [[ -d "$backup" ]] || backup="$OPENCLAW_BACKUP_DIR/$backup"

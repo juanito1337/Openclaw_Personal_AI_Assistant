@@ -1,26 +1,26 @@
 from __future__ import annotations
 
-import json
 import fcntl
+import json
 import logging
 import os
-import time
 import threading
+import time
 import uuid
 from collections import defaultdict
+from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Iterator, Mapping, Sequence
-
+from typing import Any
 
 _MAX_FILE_BYTES = 20_000_000
 _CHECKPOINT_PHASES = {"preflight", "mail_processing", "classification", "digest"}
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+    return datetime.now(UTC).isoformat(timespec="milliseconds")
 
 
 def _round_ms(value: float) -> float:
@@ -145,7 +145,7 @@ class PerformanceTelemetry:
     _lock: threading.RLock = field(init=False, default_factory=threading.RLock, repr=False)
 
     @classmethod
-    def for_database(cls, database: Path, *, operation: str = "mail-agent") -> "PerformanceTelemetry":
+    def for_database(cls, database: Path, *, operation: str = "mail-agent") -> PerformanceTelemetry:
         disabled = os.environ.get("MAIL_AGENT_TELEMETRY", "1").strip().casefold() in {
             "0", "false", "no", "off",
         }
@@ -469,7 +469,7 @@ class PerformanceTelemetry:
                 total_ms = 0.0
                 try:
                     started = datetime.fromisoformat(started_at)
-                    total_ms = (datetime.now(timezone.utc) - started.astimezone(timezone.utc)).total_seconds() * 1000.0
+                    total_ms = (datetime.now(UTC) - started.astimezone(UTC)).total_seconds() * 1000.0
                 except (TypeError, ValueError):
                     pass
                 ollama = stale.get("ollama") if isinstance(stale.get("ollama"), Mapping) else {}

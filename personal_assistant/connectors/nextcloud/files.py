@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import posixpath
 import hashlib
+import posixpath
 import re
 import urllib.parse
 from dataclasses import dataclass
@@ -11,7 +11,7 @@ from ...config import AssistantConfig
 from ...knowledge import KnowledgeIndexer
 from ...storage import AssistantStorage
 from .client import NextcloudClient, NextcloudError
-from .xmlutil import DAV, q, parse_multistatus
+from .xmlutil import DAV, parse_multistatus, q
 
 
 @dataclass(slots=True, frozen=True)

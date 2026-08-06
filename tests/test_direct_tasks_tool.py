@@ -1,17 +1,13 @@
 from __future__ import annotations
 
-import tempfile
 import unittest
-from dataclasses import replace
 from pathlib import Path
-from types import SimpleNamespace
 
 from personal_assistant.connectors.nextcloud.tasks import NextcloudTasks
 from personal_assistant.models import ActionPlan, PolicyDecision, Resource
 from personal_assistant.service import PersonalAssistant
 from personal_assistant.tool_registry import build_tool_registry
 from personal_assistant.tool_settings import DirectTasksToolSettings, ToolSettings
-
 
 RESOURCE_ID = "nextcloud-calendar-test"
 

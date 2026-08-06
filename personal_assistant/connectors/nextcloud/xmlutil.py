@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from xml.etree import ElementTree
 
-
 DAV = "DAV:"
 CALDAV = "urn:ietf:params:xml:ns:caldav"
 CARDDAV = "urn:ietf:params:xml:ns:carddav"

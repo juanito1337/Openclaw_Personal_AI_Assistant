@@ -7,8 +7,8 @@ import ssl
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Mapping
 
 from ...config import AssistantConfig
 
@@ -79,7 +79,7 @@ class NextcloudClient:
         base_url = self.validate_url()
         _, username, token = self.credentials()
         url = base_url + "/" + path.lstrip("/")
-        auth = base64.b64encode(f"{username}:{token}".encode("utf-8")).decode("ascii")
+        auth = base64.b64encode(f"{username}:{token}".encode()).decode("ascii")
         request_headers = {
             "Authorization": "Basic " + auth,
             "User-Agent": "Personal-Assistant/3.4.0",

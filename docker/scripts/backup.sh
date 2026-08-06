@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR=$(CDPATH= cd "$(dirname "$0")" && pwd)
+SCRIPT_DIR=$(CDPATH='' cd "$(dirname "$0")" && pwd)
+# shellcheck source=docker/scripts/common.sh
 # shellcheck source=common.sh
 . "$SCRIPT_DIR/common.sh"
 require_command sqlite3
@@ -43,6 +44,10 @@ tar --numeric-owner -C "$OPENCLAW_ROOT" -czf "$archive" \
 archive_sha=$(sha256sum "$archive" | awk '{print $1}')
 previous=${PREVIOUS_IMAGE:-${OPENCLAW_IMAGE:-unknown}}
 target=${TARGET_IMAGE:-${OPENCLAW_IMAGE:-unknown}}
+previous_proxy=${PREVIOUS_PROXY_IMAGE:-${OPENCLAW_PROXY_IMAGE:-$previous}}
+target_proxy=${TARGET_PROXY_IMAGE:-${OPENCLAW_PROXY_IMAGE:-$target}}
+previous_maintenance=${PREVIOUS_MAINTENANCE_IMAGE:-${OPENCLAW_MAINTENANCE_IMAGE:-$previous}}
+target_maintenance=${TARGET_MAINTENANCE_IMAGE:-${OPENCLAW_MAINTENANCE_IMAGE:-$target}}
 external=${EXTERNAL_BACKUP_REFERENCE:-}
 previous_runtime=${PREVIOUS_RUNTIME:-${OPENCLAW_CURRENT_RUNTIME:-docker}}
 legacy_home=${OPENCLAW_LEGACY_HOME:-}
@@ -50,7 +55,7 @@ legacy_migration_backup=${OPENCLAW_LEGACY_MIGRATION_BACKUP:-}
 legacy_migration_member=${OPENCLAW_LEGACY_MIGRATION_MEMBER:-}
 legacy_migration_sha256=${OPENCLAW_LEGACY_MIGRATION_SHA256:-}
 
-python3 - "$destination/manifest.json" "$backup_id" "$previous" "$target" "$archive_sha" "$external" "$previous_runtime" "$legacy_home" "$legacy_migration_backup" "$legacy_migration_member" "$legacy_migration_sha256" <<'PY'
+python3 - "$destination/manifest.json" "$backup_id" "$previous" "$target" "$archive_sha" "$external" "$previous_runtime" "$legacy_home" "$legacy_migration_backup" "$legacy_migration_member" "$legacy_migration_sha256" "$previous_proxy" "$target_proxy" "$previous_maintenance" "$target_maintenance" <<'PY'
 from datetime import datetime, timezone
 import json, os, socket, sys
 from pathlib import Path
@@ -69,6 +74,10 @@ payload={
   "legacy_migration_backup": sys.argv[9],
   "legacy_migration_member": sys.argv[10],
   "legacy_migration_sha256": sys.argv[11],
+  "previous_proxy_image": sys.argv[12],
+  "target_proxy_image": sys.argv[13],
+  "previous_maintenance_image": sys.argv[14],
+  "target_maintenance_image": sys.argv[15],
   "state_directory": os.environ.get("OPENCLAW_STATE_DIR", ""),
   "verified": False,
 }
@@ -87,6 +96,6 @@ ln -sfn "$backup_id" "$OPENCLAW_BACKUP_DIR/latest"
 
 retention=${BACKUP_RETENTION_RELEASES:-10}
 mapfile -t old < <(find "$OPENCLAW_BACKUP_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort -r | tail -n +$((retention + 1)))
-for item in "${old[@]}"; do rm -rf "$OPENCLAW_BACKUP_DIR/$item"; done
+for item in "${old[@]}"; do rm -rf "${OPENCLAW_BACKUP_DIR:?}/$item"; done
 
 printf '%s\n' "$backup_id"

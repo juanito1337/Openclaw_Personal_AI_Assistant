@@ -57,7 +57,7 @@ class RunSummary:
         if not result.ok:
             self.errors.append(result.detail or result.status)
 
-    def merge(self, other: "RunSummary") -> None:
+    def merge(self, other: RunSummary) -> None:
         self.processed += other.processed
         self.skipped += other.skipped
         self.actions.extend(other.actions)
@@ -545,7 +545,7 @@ class MailAgent:
 
                 if verdict != "not_spam" and not self.dry_run:
                     self.storage.record_feedback(message, verdict, folder, label=label)
-                result = self._route(message, classification, folder, force=True if verdict != "not_spam" else False)
+                result = self._route(message, classification, folder, force=verdict != "not_spam")
                 summary.processed += 1
                 summary.add(message, result, classification.category)
 

@@ -1,0 +1,54 @@
+name: openclaw-m8-integration
+
+services:
+  fake-services:
+    image: python:3.11-alpine3.22@sha256:a4fc589b32e824f3f02ed9d7e7be19518aa47e105b80416336af9f202275a489
+    command: ["python3", "/m8/fake_services.py"]
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16m
+    volumes:
+      - ./fake_services.py:/m8/fake_services.py:ro
+    expose: ["1025", "1143", "3310", "8080"]
+    networks: [m8]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2).read()"]
+      interval: 1s
+      timeout: 3s
+      retries: 20
+
+  scenario:
+    image: python:3.11-alpine3.22@sha256:a4fc589b32e824f3f02ed9d7e7be19518aa47e105b80416336af9f202275a489
+    command: ["python3", "/m8/scenario.py"]
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16m
+    volumes:
+      - ./scenario.py:/m8/scenario.py:ro
+      - ./network_probe.py:/m8/network_probe.py:ro
+    depends_on:
+      fake-services:
+        condition: service_healthy
+    networks: [m8]
+
+  writer-probe:
+    image: python:3.11-alpine3.22@sha256:a4fc589b32e824f3f02ed9d7e7be19518aa47e105b80416336af9f202275a489
+    command: ["python3", "/m8/writer_probe.py", "--hold-seconds", "30"]
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    volumes:
+      - ./writer_probe.py:/m8/writer_probe.py:ro
+      - writer-lease:/lease
+    networks: [m8]
+
+networks:
+  m8:
+    internal: true
+
+volumes:
+  writer-lease:

@@ -9,7 +9,6 @@ import unittest
 import urllib.request
 from argparse import Namespace
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 

@@ -7,15 +7,15 @@ import json
 import logging
 import os
 import signal
-import socket
 import ssl
 import threading
 import time
+from collections.abc import Mapping
+from contextlib import suppress
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any, Mapping
+from typing import Any
 from urllib.parse import urlsplit
-
 
 LOG = logging.getLogger("ollama-priority-proxy")
 
@@ -96,7 +96,7 @@ class ProxyConfig:
     connect_timeout_seconds: float = 10.0
 
     @classmethod
-    def from_env(cls) -> "ProxyConfig":
+    def from_env(cls) -> ProxyConfig:
         upstream = os.environ.get("OLLAMA_PRIORITY_UPSTREAM", "").strip()
         if not upstream:
             raise ValueError("OLLAMA_PRIORITY_UPSTREAM ist nicht gesetzt")
@@ -601,29 +601,25 @@ class PriorityProxyHandler(BaseHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError):
             self.priority_server.stats.record_client_disconnect()
             LOG.info("Client hat die Verbindung vorzeitig beendet")
-        except (socket.timeout, TimeoutError) as exc:
+        except TimeoutError as exc:
             self.priority_server.stats.record_upstream_timeout()
             LOG.warning("Ollama-Upstream-Zeitlimit nach %.1fs: %s", upstream_timeout_seconds, exc)
             if not self._response_started and not self.wfile.closed:
-                try:
+                with suppress(BrokenPipeError, ConnectionResetError):
                     self._json_response(
                         504,
                         {"error": "Ollama-Modelllauf hat das Zeitlimit ueberschritten", "error_type": "upstream_timeout"},
                         X_Ollama_Queue_Wait_Ms=f"{queue_wait_ms:.3f}",
                     )
-                except (BrokenPipeError, ConnectionResetError):
-                    pass
         except Exception as exc:
             LOG.exception("Ollama-Proxyfehler: %s", exc)
             if not self._response_started and not self.wfile.closed:
-                try:
+                with suppress(BrokenPipeError, ConnectionResetError):
                     self._json_response(
                         502,
                         {"error": "Ollama-Upstream nicht erreichbar", "error_type": "upstream_error", "detail": str(exc)[:300]},
                         X_Ollama_Queue_Wait_Ms=f"{queue_wait_ms:.3f}",
                     )
-                except (BrokenPipeError, ConnectionResetError):
-                    pass
         finally:
             if ticket is not None:
                 self.priority_server.gate.release(ticket)

@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 from mail_agent.classifier import OllamaClassifier
 from personal_assistant.models import Resource
-from personal_assistant.orders import MANAGED_BEGIN, OrderDeckService, OrderEvent, OrderStore, STACKS
+from personal_assistant.orders import MANAGED_BEGIN, STACKS, OrderDeckService, OrderEvent, OrderStore
 from personal_assistant.policy import PolicyEngine
 from personal_assistant.registry import ResourceRegistry
 from personal_assistant.storage import AssistantStorage

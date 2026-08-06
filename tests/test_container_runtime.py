@@ -7,7 +7,7 @@ import sys
 import tarfile
 import tempfile
 import unittest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -42,7 +42,7 @@ class ContainerWorkspaceTests(unittest.TestCase):
             (status_dir / "mail.json").write_text(
                 json.dumps(
                     {
-                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                        "updated_at": datetime.now(UTC).isoformat(),
                         "state": "waiting",
                         "result": "success",
                         "last_exit_code": 0,
@@ -82,7 +82,7 @@ class ContainerWorkspaceTests(unittest.TestCase):
             (status_dir / "portfolio.json").write_text(
                 json.dumps(
                     {
-                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                        "updated_at": datetime.now(UTC).isoformat(),
                         "state": "waiting",
                         "result": "degraded",
                         "last_exit_code": 1,
@@ -110,37 +110,47 @@ class ContainerWorkspaceTests(unittest.TestCase):
             )
 
     def test_clamav_updater_has_its_own_database_healthcheck(self) -> None:
-        compose = (Path(__file__).resolve().parents[1] / "compose.yaml").read_text(encoding="utf-8")
+        root = Path(__file__).resolve().parents[1]
+        compose = (root / "compose.yaml").read_text(encoding="utf-8")
+        verifier = (root / "personal_assistant/clamav_health.py").read_text(encoding="utf-8")
+        deploy = (root / "docker/scripts/deploy.sh").read_text(encoding="utf-8")
         clamav = compose.split("  clamav-update:\n", 1)[1].split("\nvolumes:\n", 1)[0]
-        self.assertIn("/var/lib/clamav/main.cvd", clamav)
-        self.assertIn("/var/lib/clamav/daily.cvd", clamav)
-        self.assertIn("/var/lib/clamav/bytecode.cvd", clamav)
+        self.assertIn("personal_assistant.clamav_health", clamav)
+        self.assertIn('SIGNATURE_GROUPS = ("main", "daily", "bytecode")', verifier)
+        self.assertIn("max_age_seconds", verifier)
+        self.assertIn("scanner_identity", verifier)
         self.assertNotIn("127.0.0.1:18789", clamav)
+        self.assertNotIn("freshclam clamav-update --verbose || true", deploy)
+        self.assertIn("-P -m personal_assistant.clamav_health", deploy)
+        self.assertIn("wait_for_healthy clamav-update 180", deploy)
 
     def test_entrypoint_builds_runtime_ca_bundle_from_public_crt_files(self) -> None:
-        entrypoint = (Path(__file__).resolve().parents[1] / "docker/entrypoint.sh").read_text(encoding="utf-8")
+        entrypoint = (
+            Path(__file__).resolve().parents[1] / "personal_assistant/container_entrypoint.py"
+        ).read_text(encoding="utf-8")
         self.assertIn("configure_custom_ca", entrypoint)
         self.assertIn("SSL_CERT_FILE", entrypoint)
         self.assertIn("REQUESTS_CA_BUNDLE", entrypoint)
         self.assertIn("NODE_EXTRA_CA_CERTS", entrypoint)
-        self.assertIn("-name '*.crt'", entrypoint)
+        self.assertIn('glob("*.crt")', entrypoint)
 
-    def test_branch_image_revision_invalidates_workspace_source_marker(self) -> None:
+    def test_branch_image_revision_is_bound_to_immutable_layout_marker(self) -> None:
         root = Path(__file__).resolve().parents[1]
         dockerfile = (root / "Dockerfile").read_text(encoding="utf-8")
-        entrypoint = (root / "docker/entrypoint.sh").read_text(encoding="utf-8")
+        entrypoint = (root / "personal_assistant/container_entrypoint.py").read_text(encoding="utf-8")
         workflow = (root / ".github/workflows/container.yml").read_text(encoding="utf-8")
         local_build = (root / "docker/scripts/build-local.sh").read_text(encoding="utf-8")
 
         self.assertIn("ARG OPENCLAW_SOURCE_REVISION=local", dockerfile)
         self.assertIn(
-            'LABEL org.opencontainers.image.revision="${OPENCLAW_SOURCE_REVISION}"',
+            'org.opencontainers.image.revision="${OPENCLAW_SOURCE_REVISION}"',
             dockerfile,
         )
         self.assertIn("/opt/openclaw-agent/SOURCE_REVISION", dockerfile)
-        self.assertIn('source_id="$version@$source_revision"', entrypoint)
+        self.assertIn('"personal_assistant.runtime_layout"', entrypoint)
+        self.assertIn("OPENCLAW_IMAGE_REVISION=${OPENCLAW_SOURCE_REVISION}", dockerfile)
         self.assertIn('OPENCLAW_SOURCE_REVISION=${{ github.sha }}', workflow)
-        self.assertIn('--build-arg OPENCLAW_SOURCE_REVISION="$revision"', local_build)
+        self.assertIn('OPENCLAW_SOURCE_REVISION=$revision', local_build)
 
     def test_test_branch_push_builds_sha_tagged_container(self) -> None:
         workflow = (
@@ -165,14 +175,19 @@ class ContainerWorkspaceTests(unittest.TestCase):
             'export OPENCLAW_EXPECTED_SOURCE_REVISION="$local_revision"',
             helper,
         )
+        self.assertIn("@sha256:[0-9a-f]{64}", helper)
+        self.assertIn('"$runtime_image" "$proxy_image" "$maintenance_image"', helper)
 
     def test_deploy_verifies_source_revision_and_disables_legacy_writers(self) -> None:
-        deploy = (
-            Path(__file__).resolve().parents[1] / "docker/scripts/deploy.sh"
-        ).read_text(encoding="utf-8")
+        root = Path(__file__).resolve().parents[1]
+        deploy = (root / "docker/scripts/deploy.sh").read_text(encoding="utf-8")
+        verifier = (root / "docker/scripts/verify-image-supply-chain.sh").read_text(
+            encoding="utf-8"
+        )
 
-        self.assertIn("org.opencontainers.image.revision", deploy)
-        self.assertIn("/opt/openclaw-agent/SOURCE_REVISION", deploy)
+        self.assertIn('"$SCRIPT_DIR/verify-image-supply-chain.sh"', deploy)
+        self.assertIn("org.opencontainers.image.revision", verifier)
+        self.assertIn('actual_revision" == "$expected_revision', verifier)
         self.assertIn("assert_legacy_writers_disabled", deploy)
         self.assertIn("validate_legacy_home", deploy)
 
@@ -181,7 +196,7 @@ class ContainerWorkspaceTests(unittest.TestCase):
         smoke = (root / "docker/scripts/smoke-test.sh").read_text(encoding="utf-8")
         deploy = (root / "docker/scripts/deploy.sh").read_text(encoding="utf-8")
         jobs_command = (
-            "/home/node/.openclaw/workspace/scripts/assistant.sh "
+            "/opt/openclaw-agent/scripts/assistant.sh "
             "jobs status --target all"
         )
 
@@ -220,8 +235,8 @@ class ContainerWorkspaceTests(unittest.TestCase):
 
     def test_packaged_hourly_monitor_units_exist(self) -> None:
         root = Path(__file__).resolve().parents[1]
-        service = root / "deploy/systemd/personal-assistant-monitor.service"
-        timer = root / "deploy/systemd/personal-assistant-monitor.timer"
+        service = root / "legacy/systemd/units/personal-assistant-monitor.service"
+        timer = root / "legacy/systemd/units/personal-assistant-monitor.timer"
         self.assertTrue(service.is_file())
         self.assertTrue(timer.is_file())
         self.assertIn("monitor record --days 7 --live", service.read_text(encoding="utf-8"))
@@ -239,18 +254,19 @@ class ContainerWorkspaceTests(unittest.TestCase):
         self.assertNotIn("assistant.sh mail compose-send", smoke)
 
     def test_rollback_restores_contents_without_removing_protected_roots(self) -> None:
-        rollback = (
-            Path(__file__).resolve().parents[1] / "docker/scripts/rollback.sh"
-        ).read_text(encoding="utf-8")
+        root = Path(__file__).resolve().parents[1]
+        rollback = (root / "docker/scripts/rollback.sh").read_text(encoding="utf-8")
+        restore = (root / "docker/scripts/restore-local-state.sh").read_text(encoding="utf-8")
 
         self.assertNotIn(
             'rm -rf "$OPENCLAW_STATE_DIR" "$OPENCLAW_CONFIG_DIR" "$OPENCLAW_SECRETS_DIR"',
             rollback,
         )
-        self.assertIn('tar -xzf "$backup/payload.tar.gz" -C "$restore_root"', rollback)
-        self.assertIn('rsync -a --delete "$source/" "$target/"', rollback)
+        self.assertIn('OPENCLAW_RESTORE_OFFLINE=YES', rollback)
+        self.assertIn('tar -xzf "$backup/payload.tar.gz" -C "$restore_root"', restore)
+        self.assertIn('rsync -a --delete "$restore_root/state/"', restore)
         self.assertIn(
-            "setup-host.sh muss die geschuetzte Hoststruktur anlegen", rollback
+            "setup-host.sh muss die geschuetzte Hoststruktur anlegen", restore
         )
 
     def test_legacy_rollback_never_replaces_the_original_workspace_from_container_state(self) -> None:

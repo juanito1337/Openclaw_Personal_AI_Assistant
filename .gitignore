@@ -2,9 +2,19 @@
 .env
 .env.*
 !.env.example
+*.env
+!*.env.example
 mail_agent/config.toml
 mail_agent/rules.toml
 *.secret
+*.pem
+*.key
+*.p12
+*.pfx
+secrets.toml
+secrets.json
+credentials.toml
+credentials.json
 
 # Runtime state and private content
 mail_agent/data/**
@@ -21,6 +31,7 @@ mail_agent/data/**
 *.log
 *.log.*
 *.lock
+!requirements-dev.lock
 *.eml
 *.msg
 
@@ -56,6 +67,7 @@ __pycache__/
 htmlcov/
 .venv/
 venv/
+.tools/
 build/
 dist/
 *.egg-info/

@@ -8,8 +8,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from personal_assistant.models import Resource
-from personal_assistant.service import _replace_discovered_nextcloud_resources
+from personal_assistant.models import Resource  # noqa: E402
+from personal_assistant.service import _replace_discovered_nextcloud_resources  # noqa: E402
 
 
 def resource(resource_id: str, kind: str = "test", marker: str = "old") -> Resource:

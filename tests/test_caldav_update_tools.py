@@ -22,7 +22,6 @@ from personal_assistant.tool_settings import (
     ToolSettings,
 )
 
-
 CAL_ID = "calendar-edit"
 TASK_ID = "tasks-edit"
 CAL_HREF = "/remote.php/dav/calendars/openclaw/personal/"

@@ -9,17 +9,16 @@ import textwrap
 import unittest
 from pathlib import Path
 
+from mail_agent.cli import build_parser as mail_parser
 from mail_agent.config import load_config
 from mail_agent.learning import LearningFolderRegistry
 from mail_agent.models import Envelope
 from mail_agent.parser import parse_eml
 from mail_agent.rules import RuleEngine
 from mail_agent.storage import Storage
-from personal_assistant.tool_registry import build_tool_registry
 from personal_assistant.cli import parser as assistant_parser
-from mail_agent.cli import build_parser as mail_parser
+from personal_assistant.tool_registry import build_tool_registry
 from personal_assistant.tool_settings import ToolSettings
-
 
 WORKSPACE = Path(__file__).resolve().parents[1]
 

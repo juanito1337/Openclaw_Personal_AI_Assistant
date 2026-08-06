@@ -25,7 +25,7 @@ class _FakeResponse:
         self.payload = payload
         self.headers = headers or {}
 
-    def __enter__(self) -> "_FakeResponse":
+    def __enter__(self) -> _FakeResponse:
         return self
 
     def __exit__(self, exc_type, exc, traceback) -> None:

@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
-
 VALID_CATEGORIES = {"spam", "relevant", "appointment", "routine", "uncertain"}
 VALID_EVENT_STATUSES = {"confirmed", "tentative", "proposed"}
 
@@ -152,7 +151,7 @@ class OrderSignal:
     reason: str = ""
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any] | None) -> "OrderSignal | None":
+    def from_dict(cls, data: dict[str, Any] | None) -> OrderSignal | None:
         if not isinstance(data, dict):
             return None
         try:

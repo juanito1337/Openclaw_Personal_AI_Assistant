@@ -9,7 +9,6 @@ from typing import Any
 from .models import PolicyDecision
 from .registry import ResourceRegistry
 
-
 DEFAULT_DENIED_ACTIONS = {
     "files.delete",
     "files.overwrite",

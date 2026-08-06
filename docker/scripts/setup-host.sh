@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SOURCE_ROOT=$(CDPATH= cd "$(dirname "$0")/../.." && pwd)
+SOURCE_ROOT=$(CDPATH='' cd "$(dirname "$0")/../.." && pwd)
 TARGET_ROOT=${OPENCLAW_ROOT:-/srv/openclaw}
 DEPLOYMENT="$TARGET_ROOT/deployment"
 
@@ -53,7 +53,14 @@ fi
 if [[ ! -f "$TARGET_ROOT/config/personal-assistant.env" ]]; then
   sudo cp "$SOURCE_ROOT/docker/config/personal-assistant.env.example" "$TARGET_ROOT/config/personal-assistant.env"
 fi
+for secret in gateway.env mail-agent.env personal-assistant.env \
+  himalaya-imap-password himalaya-smtp-password; do
+  if [[ ! -e "$TARGET_ROOT/secrets/$secret" ]]; then
+    sudo install -m 600 /dev/null "$TARGET_ROOT/secrets/$secret"
+  fi
+done
 sudo chmod 700 "$DEPLOYMENT/scripts/"*.sh "$DEPLOYMENT/scripts/"*.py "$DEPLOYMENT/hooks/"*.sh
+sudo chmod 600 "$TARGET_ROOT/secrets/"*
 sudo chown -R "$OWNER":"$OWNER" "$DEPLOYMENT" "$TARGET_ROOT/config" "$TARGET_ROOT/secrets" "$TARGET_ROOT/backups"
 sudo chown -R 1000:1000 "$TARGET_ROOT/state" "$TARGET_ROOT/config/himalaya"
 

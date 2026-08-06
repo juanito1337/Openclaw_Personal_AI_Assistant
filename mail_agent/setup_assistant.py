@@ -12,8 +12,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from .config import Config, WORKSPACE_ROOT, load_config
-
+from .config import WORKSPACE_ROOT, Config, load_config
 
 RECOMMENDED_VALUES: dict[tuple[str, str], object] = {
     ("ollama", "timeout_seconds"): 600,
@@ -240,37 +239,34 @@ def _yes_no(label: str, default: bool = True) -> bool:
     return answer in {"j", "ja", "y", "yes"}
 
 
-def _systemctl_state(unit: str, action: str) -> str:
+def job_information() -> dict[str, str]:
+    command = [
+        str(WORKSPACE_ROOT / "scripts/assistant.sh"),
+        "jobs",
+        "status",
+        "--target",
+        "mail",
+    ]
     try:
         result = subprocess.run(
-            ["systemctl", "--user", action, unit],
+            command,
             capture_output=True,
             text=True,
-            timeout=4,
+            timeout=20,
             check=False,
         )
     except (FileNotFoundError, subprocess.TimeoutExpired):
-        return "unbekannt"
-    stdout = result.stdout.strip()
-    stderr = result.stderr.strip()
-    if stdout:
-        return stdout
-    lowered = stderr.casefold()
-    if any(marker in lowered for marker in (
-        "failed to connect to bus",
-        "failed to connect to user scope bus",
-        "no medium found",
-        "not been booted with systemd",
-    )):
-        return "unverfuegbar"
-    return stderr or ("ja" if result.returncode == 0 else "nein")
-
-
-def timer_information() -> dict[str, str]:
+        return {"desired": "unbekannt", "state": "unverfuegbar", "detail": ""}
+    try:
+        payload = json.loads(result.stdout)
+        job = payload.get("jobs", [])[0]
+    except (IndexError, json.JSONDecodeError, TypeError, AttributeError):
+        detail = (result.stderr.strip() or result.stdout.strip())[-500:]
+        return {"desired": "unbekannt", "state": "unverfuegbar", "detail": detail}
     return {
-        "timer_active": _systemctl_state("mail-agent.timer", "is-active"),
-        "timer_enabled": _systemctl_state("mail-agent.timer", "is-enabled"),
-        "service_active": _systemctl_state("mail-agent.service", "is-active"),
+        "desired": str(job.get("desired") or "unbekannt"),
+        "state": str(job.get("state") or "unbekannt"),
+        "detail": "; ".join(str(item.get("detail") or "") for item in job.get("issues", [])),
     }
 
 
@@ -366,7 +362,7 @@ Themen:
   help invoices    Rechnungs-PDFs sicher in Nextcloud archivieren
   help openclaw    Unterschied zwischen Skill und Plugin
   help calendar    Schutz für automatisch erkannte Termine
-  help automation  systemd-Timer, Locks und produktive Läufe
+  help automation  Containerjobs, Locks und produktive Läufe
   help security    Secrets und Sicherheitsgrenzen
 
 Assistenten:
@@ -384,8 +380,8 @@ Komplett interaktiv:
 
 Oder zustandsabhaengig und einzeln:
   ./scripts/mail-agent.sh guide
-  1. systemctl --user disable --now mail-agent.timer
-  2. systemctl --user stop mail-agent.service
+  1. ./scripts/assistant.sh jobs off standard
+     (nur nach ausdruecklichem Auftrag; stoppt die produktiven Containerjobs)
   3. ./scripts/mail-agent.sh configure
   4. ./scripts/mail-agent.sh setup --dry-run
   5. ./scripts/mail-agent.sh setup
@@ -393,7 +389,8 @@ Oder zustandsabhaengig und einzeln:
   7. ./scripts/mail-agent.sh nextcloud setup        # optional
   8. ./scripts/mail-agent.sh run --dry-run --no-digest --limit 20
   9. Zuordnungen prüfen
- 10. ./scripts/mail-agent.sh run --no-digest --limit 10
+ 10. ./scripts/assistant.sh jobs on standard
+     (nur nach ausdruecklichem Auftrag und erfolgreicher Pruefung)
 
 Ein produktiver Lauf wird blockiert, solange kein erfolgreicher Dry-Run zur aktuellen
 config.toml und rules.toml gespeichert wurde. --force ist kein normaler Setup-Schritt.
@@ -423,8 +420,8 @@ AGENTS.md / HEARTBEAT.md
   Schlanke Entwicklungs- und Heartbeat-Regeln. Persönliche OpenClaw-Dateien wie
   MEMORY.md, USER.md, SOUL.md oder memory/ bleiben lokal und unversioniert.
 
-skills/mail-chief-of-staff/SKILL.md
-  Verweist OpenClaw bei Setup-, Training- und Nextcloud-Fragen auf die geprüfte CLI.
+skills/personal-assistant/SKILL.md
+  Beschreibt den einzigen aktiven Agenten und verweist auf registrierte Assistant-Befehle.
 
 skills/openclaw-nextcloud/
   Optional lokal installierter Community-Skill. Nicht in Git aufnehmen oder manuell
@@ -674,29 +671,32 @@ Relevante Werte:
   approval_expiry_days = 14
   require_future = true
 """,
-        "automation": """AUTOMATIK / SYSTEMD
-===================
+        "automation": """AUTOMATIK / CONTAINERJOBS
+========================
 
 Der produktive Service verwendet einen begrenzten Drain-Modus:
   ./scripts/mail-agent.sh run --drain --batch-size 20 --max-messages 500 --max-runtime 2400 --shutdown-reserve 180 --max-batches 100 --no-digest
 
 Solange Arbeit vorhanden ist, folgen die 20er-Batches direkt aufeinander. Sobald die
-INBOX leer ist, endet der Python-Prozess. systemd prüft 20 Minuten nach Laufende erneut.
+INBOX leer ist, endet der Python-Prozess. Der Containerworker prueft nach seinem
+konfigurierten Intervall erneut.
 Ein Dry-Run mit --drain verarbeitet absichtlich nur einen Batch.
 
 Status:
-  systemctl --user status mail-agent.timer mail-agent.service
-  systemctl --user list-timers --all | grep mail-agent
+  ./scripts/assistant.sh jobs status --target all
+  ./scripts/assistant.sh jobs check --target all --deep
 
-Leerlaufintervall ändern:
-  ./scripts/set-mail-agent-interval.sh 20m
+Die Intervalle werden ueber die kontrollierte Containerkonfiguration verwaltet. Der
+alte systemd-Intervallhelfer liegt nur noch im verifizierten Legacy-Rollbackpaket und
+ist kein aktiver Assistentenbefehl.
 
 Während Einrichtung/Training stoppen:
-  systemctl --user disable --now mail-agent.timer
-  systemctl --user stop mail-agent.service
+  ./scripts/assistant.sh jobs off standard
 
 Nach geprüftem Dry-Run und kleinem Produktivlauf aktivieren:
-  systemctl --user enable --now mail-agent.timer
+  ./scripts/assistant.sh jobs on standard
+
+`jobs off/on` benoetigt immer einen ausdruecklichen Nutzerauftrag.
 
 Die Lock-Datei nur entfernen, wenn
   pgrep -af 'python3 -m mail_agent'
@@ -774,9 +774,7 @@ def build_guide(config: Config, checks: dict[str, object]) -> str:
     for key in ("config", "himalaya", "folders", "ollama", "database", "nextcloud", "invoices", "calendar"):
         value = checks.get(key, {})
         ok = bool(value.get("ok")) if isinstance(value, dict) else False
-        if key == "nextcloud" and not config.nextcloud.enabled:
-            marker = "AUS"
-        elif key == "invoices" and not config.invoices.enabled:
+        if key == "nextcloud" and not config.nextcloud.enabled or key == "invoices" and not config.invoices.enabled:
             marker = "AUS"
         else:
             marker = "OK" if ok else ("OPTIONAL" if key in {"calendar", "nextcloud", "invoices"} else "FEHLT")
@@ -790,7 +788,7 @@ def build_guide(config: Config, checks: dict[str, object]) -> str:
                 detail = f" - {detail_value}"
         lines.append(f"  [{marker:8}] {labels[key]}{detail}")
 
-    timer = timer_information()
+    job = job_information()
     lock = lock_information(config)
     state = read_setup_state(config)
     dry_run_current = bool(
@@ -800,8 +798,8 @@ def build_guide(config: Config, checks: dict[str, object]) -> str:
     lines.extend([
         "",
         "Automatik:",
-        f"  Timer aktiv:   {timer['timer_active']}",
-        f"  Timer enabled: {timer['timer_enabled']}",
+        f"  Mailjob Soll:  {job['desired']}",
+        f"  Mailjob Ist:   {job['state']}",
         f"  Lauf aktiv:    {'ja, PID ' + str(lock['pid']) if lock['active'] else 'nein'}",
         f"  Letzter Dry-Run: {state.get('last_dry_run_at', 'noch keiner')}"
         + (" (gueltig und erfolgreich)" if dry_run_current else (" (veraltet)" if state.get("last_dry_run_ok") else "")),
@@ -822,10 +820,10 @@ def build_guide(config: Config, checks: dict[str, object]) -> str:
             "Es laeuft bereits ein Agent-Prozess. Nicht parallel starten. Status pruefen mit:\n"
             f"     ps -o pid,etime,cmd -p {lock['pid']}"
         )
-    if timer.get("timer_active") == "active" or timer.get("timer_enabled") == "enabled":
+    if job.get("desired") == "on":
         steps.append(
-            "Waehren der Einrichtung den Timer stoppen:\n"
-            "     systemctl --user disable --now mail-agent.timer"
+            "Waehren der Einrichtung den Mailjob nach ausdruecklicher Freigabe stoppen:\n"
+            "     ./scripts/assistant.sh jobs off standard"
         )
     if isinstance(himalaya, dict) and not himalaya.get("ok"):
         steps.append("Himalaya installieren oder mailbox.himalaya_binary in mail_agent/config.toml korrigieren.")

@@ -1,12 +1,9 @@
-# Architecture
+# Architektur
 
-The project is a modular monolith with two operational sub-systems:
+Dieses Dokument bleibt als stabiler Kompatibilitaetslink bestehen. Der aktuelle
+verbindliche Einstieg ist der [Architekturvertrag](architecture/README.md).
 
-1. `mail_agent/` performs mailbox triage and mail-specific actions.
-2. `personal_assistant/` provides resources, policies, indexing, search, ActionPlans,
-   Nextcloud connectors, and future cross-domain capabilities.
-
-The mail agent is intentionally not folded into the assistant core. This protects the
-working mailbox pipeline and isolates Nextcloud/index failures from mail processing.
-
-See `ASSISTANT_ARCHITECTURE.md` for module boundaries and extension rules.
+Der primaere Runtimepfad ist der rollenbasierte Docker-Stack. Die vor M1 gueltige
+Beschreibung wurde unter
+[`archive/pre-container/ARCHITECTURE.md`](archive/pre-container/ARCHITECTURE.md)
+unveraendert als historischer Kontext erhalten.

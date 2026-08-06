@@ -6,23 +6,22 @@ import shutil
 import sqlite3
 import subprocess
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
-from mail_agent.utils import now_utc_iso
-
-from .config import AssistantConfig, WORKSPACE_ROOT
+from .config import WORKSPACE_ROOT, AssistantConfig
+from .contracts.time import now_utc_iso
 from .registry import ResourceRegistry
 from .storage import AssistantStorage
-
 
 DEFAULT_MONITOR_DB = WORKSPACE_ROOT / "personal_assistant/data/monitoring.sqlite3"
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _parse_time(value: object) -> datetime | None:
@@ -32,8 +31,8 @@ def _parse_time(value: object) -> datetime | None:
     try:
         parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
         if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=timezone.utc)
-        return parsed.astimezone(timezone.utc)
+            parsed = parsed.replace(tzinfo=UTC)
+        return parsed.astimezone(UTC)
     except ValueError:
         return None
 
@@ -186,7 +185,10 @@ class PerformanceMonitor:
         self.registry = registry
         self.live_health = live_health
         self.mail_database = (mail_database or self._mail_database()).expanduser().resolve()
-        self.monitor_database = Path(monitor_database or DEFAULT_MONITOR_DB).expanduser().resolve()
+        default_monitor = DEFAULT_MONITOR_DB
+        if root := os.environ.get("OPENCLAW_MONITORING_DATA_DIR"):
+            default_monitor = Path(root).expanduser().resolve() / "monitoring.sqlite3"
+        self.monitor_database = Path(monitor_database or default_monitor).expanduser().resolve()
         self.antivirus_health = antivirus_health
         self.antivirus_summary = antivirus_summary
         self.portfolio_health = portfolio_health
@@ -210,6 +212,8 @@ class PerformanceMonitor:
 
             return load_mail_config().runtime.database
         except Exception:
+            if root := os.environ.get("OPENCLAW_MAIL_DATA_DIR"):
+                return Path(root).expanduser().resolve() / "mail_agent.sqlite3"
             return WORKSPACE_ROOT / "mail_agent/data/mail_agent.sqlite3"
 
     @staticmethod
@@ -318,30 +322,44 @@ class PerformanceMonitor:
         return result
 
     def _assistant_metrics(self, since: str, *, now: datetime) -> dict[str, Any]:
-        connection = self.storage.connection
-        document_rows = self._query_all(connection, "SELECT source_type, COUNT(*) count FROM documents GROUP BY source_type")
+        core_connection = self.storage.connection
+        knowledge_connection = self.storage.knowledge_connection
+        document_rows = self._query_all(
+            knowledge_connection,
+            "SELECT source_type, COUNT(*) count FROM documents GROUP BY source_type",
+        )
         action_rows = self._query_all(
-            connection,
+            core_connection,
             "SELECT status, COUNT(*) count FROM action_plans WHERE updated_at >= ? GROUP BY status",
             (since,),
         )
         stale_row = self._query_one(
-            connection,
+            core_connection,
             """
             SELECT COUNT(*) count FROM action_plans
             WHERE status IN ('proposed','approved','executing') AND updated_at < ?
             """,
             ((now - timedelta(hours=24)).isoformat(),),
         )
-        sync_rows = self._query_all(connection, "SELECT resource_id,scope,synced_at,status,detail FROM sync_state ORDER BY resource_id,scope")
-        latest_row = self._query_one(connection, "SELECT MAX(indexed_at) latest, COUNT(*) total FROM documents")
-        chunk_row = self._query_one(connection, "SELECT COUNT(*) count FROM chunks")
+        sync_rows = self._query_all(
+            knowledge_connection,
+            "SELECT resource_id,scope,synced_at,status,detail FROM sync_state ORDER BY resource_id,scope",
+        )
+        latest_row = self._query_one(
+            knowledge_connection,
+            "SELECT MAX(indexed_at) latest, COUNT(*) total FROM documents",
+        )
+        chunk_row = self._query_one(
+            knowledge_connection, "SELECT COUNT(*) count FROM chunks"
+        )
 
         started = time.perf_counter()
         try:
-            connection.execute("SELECT COUNT(*) FROM documents").fetchone()
+            knowledge_connection.execute("SELECT COUNT(*) FROM documents").fetchone()
             if self.storage.fts_enabled:
-                connection.execute("SELECT rowid FROM knowledge_fts LIMIT 1").fetchone()
+                knowledge_connection.execute(
+                    "SELECT rowid FROM knowledge_fts LIMIT 1"
+                ).fetchone()
             query_ms = (time.perf_counter() - started) * 1000.0
         except sqlite3.Error:
             query_ms = -1.0

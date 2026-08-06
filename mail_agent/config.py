@@ -9,7 +9,6 @@ from typing import Any
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-
 WORKSPACE_ROOT = Path(os.environ.get("OPENCLAW_WORKSPACE") or Path(__file__).resolve().parents[1]).expanduser().resolve()
 DEFAULT_CONFIG_PATH = WORKSPACE_ROOT / "mail_agent/config.toml"
 
@@ -564,6 +563,18 @@ def load_config(path: str | Path | None = None) -> Config:
         if key in runtime_data:
             runtime_data[key] = _resolve_path(runtime_data[key])
     runtime = RuntimeConfig(**runtime_data)
+    mail_data = os.environ.get("OPENCLAW_MAIL_DATA_DIR", "").strip()
+    if mail_data:
+        data_root = Path(mail_data).expanduser().resolve()
+        forwarding.payload_dir = data_root / "forward_payloads"
+        calendar.pending_dir = data_root / "calendar_pending"
+        calendar.created_dir = data_root / "calendar_created"
+        nextcloud.contact_cache_file = data_root / "nextcloud_contacts_cache.json"
+        invoices.register_dir = data_root / "invoice_register"
+        runtime.database = data_root / "mail_agent.sqlite3"
+        runtime.log_file = data_root / "mail_agent.log"
+        runtime.lock_file = data_root / "mail_agent.lock"
+        runtime.learning_folders_file = data_root / "learning_folders.json"
 
     config = Config(
         mailbox=mailbox,

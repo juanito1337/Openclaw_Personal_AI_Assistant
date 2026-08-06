@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import os
 import shutil
 import sqlite3
@@ -9,27 +8,31 @@ import subprocess
 import tempfile
 import time
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 from .config import WORKSPACE_ROOT
 from .tool_settings import AntivirusToolSettings
 
-
 DEFAULT_ANTIVIRUS_DB = WORKSPACE_ROOT / "personal_assistant/data/antivirus.sqlite3"
 
 
+def _default_antivirus_database() -> Path:
+    root = os.environ.get("OPENCLAW_SECURITY_DATA_DIR")
+    return Path(root).expanduser().resolve() / "antivirus.sqlite3" if root else DEFAULT_ANTIVIRUS_DB
+
+
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def _parse_time(value: str) -> datetime | None:
     try:
         parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
         if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=timezone.utc)
-        return parsed.astimezone(timezone.utc)
+            parsed = parsed.replace(tzinfo=UTC)
+        return parsed.astimezone(UTC)
     except (TypeError, ValueError):
         return None
 
@@ -131,7 +134,7 @@ class AntivirusStore:
         self.connection.commit()
 
     def summary(self, *, days: int = 7) -> dict[str, Any]:
-        since = (datetime.now(timezone.utc) - timedelta(days=max(1, int(days)))).isoformat()
+        since = (datetime.now(UTC) - timedelta(days=max(1, int(days)))).isoformat()
         rows = self.connection.execute(
             "SELECT status,COUNT(*) AS count FROM scans WHERE scanned_at>=? GROUP BY status",
             (since,),
@@ -162,7 +165,7 @@ class HostAntivirus:
         runner: Any | None = None,
     ) -> None:
         self.settings = settings
-        self.store = AntivirusStore(database or DEFAULT_ANTIVIRUS_DB)
+        self.store = AntivirusStore(database or _default_antivirus_database())
         self._runner = runner
         self._identity: str | None = None
 
@@ -273,7 +276,7 @@ class HostAntivirus:
         scanned = _parse_time(str(row["scanned_at"] or ""))
         if scanned is None:
             return None
-        age = datetime.now(timezone.utc) - scanned
+        age = datetime.now(UTC) - scanned
         if age.total_seconds() > self.settings.cache_hours * 3600:
             return None
         return AntivirusResult(

@@ -3,9 +3,9 @@ from __future__ import annotations
 import logging
 import subprocess
 import time
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterable, Mapping
 
 from .telemetry import command_category
 

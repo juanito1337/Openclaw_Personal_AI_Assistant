@@ -1,57 +1,30 @@
+# Development-only build overlay. Production compose.yaml consumes immutable
+# digest references produced by the signed M7 release workflow.
+x-m7-build-args: &m7-build-args
+  OPENCLAW_BASE_IMAGE: ${OPENCLAW_BASE_IMAGE:-ghcr.io/openclaw/openclaw:2026.7.1-2@sha256:8789721d2e9b24b780a1504b56deb4c6bd5c7dbf96a1dd117e7c45c2ed72c8ac}
+  NODE_BASE_IMAGE: ${NODE_BASE_IMAGE:-node:24-alpine3.22@sha256:191c9f0080fcbbc6547a85dc0ff7988072214a355aabdc1d2ec55a7dae5eea8a}
+  PYTHON_BASE_IMAGE: ${PYTHON_BASE_IMAGE:-python:3.11-alpine3.22@sha256:a4fc589b32e824f3f02ed9d7e7be19518aa47e105b80416336af9f202275a489}
+  HIMALAYA_VERSION: ${HIMALAYA_VERSION:-1.2.0}
+  HIMALAYA_ARCHIVE_SHA256: ${HIMALAYA_ARCHIVE_SHA256:-e04e6382e3e664ef34b01afa1a2216113194a2975d2859727647b22d9b36d4e4}
+  HIMALAYA_SHA256: ${HIMALAYA_SHA256:-9529d2584add1c4343f32524e6f985e7c98d491f3b854747318020eb1ec1df7f}
+  OPENCLAW_SOURCE_REVISION: ${OPENCLAW_SOURCE_REVISION:-local}
+  OPENCLAW_BUILD_CREATED: ${OPENCLAW_BUILD_CREATED:-1970-01-01T00:00:00Z}
+  SOURCE_DATE_EPOCH: ${SOURCE_DATE_EPOCH:-0}
+  OPENCLAW_VERSION: ${OPENCLAW_VERSION:-3.4.0-r27.2.5}
+
 services:
   gateway:
     build:
       context: .
-      args:
-        OPENCLAW_BASE_IMAGE: ${OPENCLAW_BASE_IMAGE:-ghcr.io/openclaw/openclaw:2026.6.11}
-        HIMALAYA_VERSION: ${HIMALAYA_VERSION:-1.2.0}
-        OPENCLAW_SOURCE_REVISION: ${OPENCLAW_SOURCE_REVISION:-local}
+      target: runtime
+      args: *m7-build-args
   ollama-proxy:
     build:
       context: .
-      args:
-        OPENCLAW_BASE_IMAGE: ${OPENCLAW_BASE_IMAGE:-ghcr.io/openclaw/openclaw:2026.6.11}
-        HIMALAYA_VERSION: ${HIMALAYA_VERSION:-1.2.0}
-        OPENCLAW_SOURCE_REVISION: ${OPENCLAW_SOURCE_REVISION:-local}
-  mail-worker:
+      target: proxy-runtime
+      args: *m7-build-args
+  clamav-update:
     build:
       context: .
-      args:
-        OPENCLAW_BASE_IMAGE: ${OPENCLAW_BASE_IMAGE:-ghcr.io/openclaw/openclaw:2026.6.11}
-        HIMALAYA_VERSION: ${HIMALAYA_VERSION:-1.2.0}
-        OPENCLAW_SOURCE_REVISION: ${OPENCLAW_SOURCE_REVISION:-local}
-  sync-worker:
-    build:
-      context: .
-      args:
-        OPENCLAW_BASE_IMAGE: ${OPENCLAW_BASE_IMAGE:-ghcr.io/openclaw/openclaw:2026.6.11}
-        HIMALAYA_VERSION: ${HIMALAYA_VERSION:-1.2.0}
-        OPENCLAW_SOURCE_REVISION: ${OPENCLAW_SOURCE_REVISION:-local}
-  supervisor-worker:
-    build:
-      context: .
-      args:
-        OPENCLAW_BASE_IMAGE: ${OPENCLAW_BASE_IMAGE:-ghcr.io/openclaw/openclaw:2026.6.11}
-        HIMALAYA_VERSION: ${HIMALAYA_VERSION:-1.2.0}
-        OPENCLAW_SOURCE_REVISION: ${OPENCLAW_SOURCE_REVISION:-local}
-  portfolio-worker:
-    build:
-      context: .
-      args:
-        OPENCLAW_BASE_IMAGE: ${OPENCLAW_BASE_IMAGE:-ghcr.io/openclaw/openclaw:2026.6.11}
-        HIMALAYA_VERSION: ${HIMALAYA_VERSION:-1.2.0}
-        OPENCLAW_SOURCE_REVISION: ${OPENCLAW_SOURCE_REVISION:-local}
-  monitor-worker:
-    build:
-      context: .
-      args:
-        OPENCLAW_BASE_IMAGE: ${OPENCLAW_BASE_IMAGE:-ghcr.io/openclaw/openclaw:2026.6.11}
-        HIMALAYA_VERSION: ${HIMALAYA_VERSION:-1.2.0}
-        OPENCLAW_SOURCE_REVISION: ${OPENCLAW_SOURCE_REVISION:-local}
-  agent-cli:
-    build:
-      context: .
-      args:
-        OPENCLAW_BASE_IMAGE: ${OPENCLAW_BASE_IMAGE:-ghcr.io/openclaw/openclaw:2026.6.11}
-        HIMALAYA_VERSION: ${HIMALAYA_VERSION:-1.2.0}
-        OPENCLAW_SOURCE_REVISION: ${OPENCLAW_SOURCE_REVISION:-local}
+      target: maintenance-runtime
+      args: *m7-build-args

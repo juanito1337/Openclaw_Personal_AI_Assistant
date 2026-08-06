@@ -14,7 +14,6 @@ from mail_agent.storage import Storage
 from personal_assistant.antivirus import HostAntivirus
 from personal_assistant.tool_settings import AntivirusToolSettings, InvoiceToolSettings
 
-
 FAKE_SCANNER = r'''#!/bin/sh
 for arg in "$@"; do last="$arg"; done
 case " $* " in

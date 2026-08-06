@@ -1,5 +1,181 @@
 # Changelog
 
+## Unreleased – M8 End-to-End-Recovery, Skills und Releaseabschluss
+
+- Ein hermetischer, intern vernetzter Compose-Stack prueft Fake-IMAP/SMTP,
+  WebDAV/CardDAV/CalDAV, Ollama, Marktdaten, ClamAV-Fixtures, ETag-Konflikt,
+  Netzwerkverlust, Containercrash und einen exklusiven Mailwriter ohne produktive
+  Konten, Secrets, Hostports oder Mounts.
+- Der lokale Recovery-Drill sichert und restauriert r26.1, den aktuellen Stand und
+  ein fehlgeschlagenes Upgrade bytegenau; RTO/RPO und die nicht abgedeckten
+  Remotegrenzen werden maschinenlesbar und im Recoveryvertrag dokumentiert.
+- Ein fehlender externer Restore-Hook bricht vor dem Containerstop ab. Scheitert
+  ein vorhandener Hook zur Laufzeit, startet der verifizierte alte lokale Stand
+  trotzdem, waehrend der unklare Remotezustand und Rollbackfehler sichtbar bleiben.
+- `AGENTS.md` ist auf dauerhafte Invarianten konzentriert. Der kurze
+  Personal-Assistant-Skill routet in Domaenenreferenzen; alle 124 Toolbefehle,
+  Modi, Wirkungen, Approvals, Version und Testanker werden aus dem typisierten
+  Katalog generiert und in CI gegen Drift geprueft.
+- Releasecheckliste, Single-Writer-Canary und ADR-0012 schliessen die technische
+  Roadmap ab. Ein produktives Deployment und ein echter externer Snapshot-Restore
+  bleiben separate ausdrueckliche Operationsauftraege.
+
+## Unreleased – M7 Reproduzierbare und attestierte Image-Lieferkette
+
+- OpenClaw-Quellimage, Node-/Python-Alpine-Basisimages sowie Syft, Trivy und Cosign
+  sind per Digest gepinnt; direkte Alpine-Pakete sowie Version, Archiv- und
+  Binary-Pruefsumme des offiziellen Himalaya-amd64-Artefakts sind fail-closed
+  festgelegt.
+- Aus demselben Release entstehen ein voller Runtime-Target sowie deutlich
+  schmalere Proxy- und ClamAV-Maintenance-Targets. Tests, Deployment, Legacy,
+  Entwicklungsdokumente, Secrets und Laufzeitdaten bleiben aus allen Images.
+- GitHub Actions sind commit-gepinnt und besitzen minimale Jobberechtigungen.
+  CI erzeugt und prueft je Rolle SPDX-SBOM, SLSA-Provenance, kritischen CVE- und
+  Secret-Scan, OCI-Identitaet sowie keyless Cosign-Signatur.
+- Das Deployment akzeptiert drei unveraenderliche Digests und verifiziert Signatur,
+  SLSA-/SPDX-Attestierungen, Release, Rolle und exakten Git-Commit vor dem Stoppen
+  des laufenden Stacks; Backup und Rollback bewahren den kompletten Rollensatz.
+- Zwei saubere No-Cache-Builds, Rollen-Smokes, Rootfs-Artefaktscan,
+  Signatur-Negativtest, Vulnerability-Policy und reproduzierbare Groessen-/Start-/
+  RAM-Messungen bilden die M7-Abnahme.
+- Die bytegleichen OCI-Doppelbuilds und die M6/M7-Baseline dokumentieren 0
+  kritische CVEs, 11,53 bis 94,50 Prozent kleinere Rollenimages sowie die bewusst
+  akzeptierte, sichtbar weitergemessene Kaltstart-/RAM-Regression des Alpine-Pfads.
+
+## Unreleased – M6 Evidenzbasierte Bereinigung und Legacy-Ausstieg
+
+- Ein deterministisches Komponenten-Inventar klassifiziert alle Pythonmodule,
+  Shell-Einstiege, Skills, systemd-Units, Migrationen und Dokumente samt Owner,
+  Aufrufern, Tests, Coverage-Snapshot, Git-Datum und Rollbackrelevanz.
+- Der alte Mail-Skill, ein doppelter Nextcloud-Listenwrapper, der ungenutzte
+  Mail-Dateiclient sowie drei nicht aufgerufene Einmal-Konfigurationsmigrationen
+  wurden mit maschinenlesbarer Nutzungs- und Ersatzpfad-Evidenz entfernt.
+- Native systemd-Artefakte sind aus dem aktiven Deploymentbaum in ein
+  fehlgeschlossenes, SHA-verifiziertes Kompatibilitaetspaket unter
+  `legacy/systemd/` verschoben. Die Rueckfallfaehigkeit bleibt bis zur M8-
+  Recovery-Entscheidung erhalten.
+- Direkte Upgrades beginnen verbindlich bei `3.4.0-r26.1`; ein neutrales Fixture
+  prueft den aktuellen Konfigurationsparser. Datenbank- und Container-State-
+  Migrationen bleiben unveraendert verpflichtend.
+- Aktive Hilfe und Nextcloud-Status verwenden nur registrierten Job-Controller
+  beziehungsweise den zentralen ActionPlan-Dateiconnector. Positive und negative
+  M6-Regressionspruefungen sichern Paketdrift und entfernte Oberflaechen.
+
+## Unreleased – M5 Modulare Anwendungsdienste und Toolvertrag
+
+- Alle 124 stabilen Toolprojektionen und die Top-Level-CLI-Hilfe sind als Golden
+  Contracts fixiert; Modi, externe Wirkung, Approval und Fehlercodes werden
+  regressionsgeprueft.
+- Der zentrale 959-Zeilen-Registry-Builder ist durch typisierte Domaenenkataloge
+  mit Handler-, Schema-, Doku- und Testankern sowie eine kleine Live-Projektion
+  ersetzt. Die Befehlsreferenz wird deterministisch daraus erzeugt und in CI
+  validiert.
+- `tools list --catalog` und `capabilities --schema` funktionieren ohne
+  Konfiguration oder Secrets. Live-Capabilities sind explizit als konfigurierte
+  Instanzsicht getrennt.
+- CLI-Domaenenhandler, ein eigener Portfolio-Importparser sowie neutrale
+  Contracts/Ports reduzieren zentrale Dispatcher. Der konkrete Mailadapter wird
+  nur am Bootstrap zusammengesetzt; Core-Rueckimporte und interne Importzyklen sind
+  automatisiert verboten.
+- Policy-Negativtests bestaetigen, dass M5 weder Berechtigungen noch externe
+  Schreib-, Approval- oder Loeschvertraege erweitert.
+
+## Unreleased – M4 Rollenbezogene Container-Haertung
+
+- Hostnetzwerk entfernt: internes `backend`, begrenztes `egress`, nur Gateway auf
+  `127.0.0.1:18789`; allein der Ollama-Proxy besitzt die in ADR-0008 dokumentierte
+  Host-Gateway-Ausnahme.
+- Alle Rollen laufen mit read-only Rootfs, `cap_drop: ALL`,
+  `no-new-privileges`, explizit nicht-root, sicheren tmpfs-Pfaden, PID-/CPU-/
+  RAM-Grenzen und begrenzter lokaler Logrotation.
+- Ganze Config-/Secretwurzeln sind durch einzelne rollenbezogene Dateimounts
+  ersetzt. Der Entry Point parst eine Schluessel-Whitelist als Daten und fuehrt
+  weder Env-Dateien noch fremden Shellcode aus.
+- Der isolierte ClamAV-Updater laeuft als `clamav` ohne Capabilities; Vollstaendigkeit,
+  Frische und Scanner-/Signaturidentitaet werden fail-closed geprueft.
+- Liveness, Readiness und fachlicher Jobzustand sind getrennt. Heartbeats bewahren
+  wiederholte Fehler und behandeln bewusst deaktivierte Jobs als beobachtbar ready.
+- Ein maschinenlesbarer M4-Vertrag sowie statische und isolierte Docker-Tests pruefen
+  Mounts, Secrets, Netznegative, Signale, Rootfs, PID/OOM und Ressourcenlimits.
+
+## Unreleased – M3 Datenbesitz, Mountgrenzen und Nebenlaeufigkeit
+
+- State-Layout 3 trennt Instanz, Gateway/Sessions, Mail, Orders, Portfolio,
+  Monitoring, Wissensindex, Core/ActionPlan, Security und bewusst geteilte
+  Koordination; die alte kombinierte Assistant-DB wird verlustfrei aufgeteilt.
+- Ein einmaliger `layout-init` besitzt den universellen State-Mount; Fachworker
+  erhalten nur ihre in `state-access.json` beschriebenen `ro`/`rw`-Teilbaeume.
+- Die Migration prueft Schreibbarkeit, UID, Freiplatz und SQLite-Integritaet, sichert
+  Datenbanken ueber die SQLite-Backup-API, publiziert gestagt/atomar und besitzt
+  einen SHA-verifizierten, traversal-sicheren Restorepfad.
+- ActionPlan-Erzeugung ist unter Mehrprozesslast atomar idempotent. Scheduler-WAL,
+  Owner/Token-Leases und Crash-Recovery bleiben als bewusst kleine gemeinsame
+  Koordinationsgrenze in ADR-0007 dokumentiert.
+- Reale Parallel-, Lock-, SIGKILL-, Full-/Read-only-Disk-, Backup-/Restore- und
+  Compose-Mounttests sowie ein `strace`-Zugriffsauditor sichern M3 ab.
+
+## Unreleased – M2 Unveraenderlicher Code und eindeutige Release-Ausfuehrung
+
+- Gateway, Proxy, Worker und agent-cli starten Shell- und Python-Code nur noch aus
+  `/opt/openclaw-agent`; beschreibbarer Workspace-Code wird weder ausgefuehrt noch
+  fuer Python-Imports verwendet.
+- Compose setzt das Container-Root-Dateisystem read-only und stellt nur ein
+  gehaertetes temporaeres `/tmp` sowie die expliziten persistenten Mounts bereit.
+- Die idempotente State-Layoutmigration 1 -> 2 sichert und entfernt alten
+  synchronisierten Releasecode, bewahrt Konfiguration, Datenbanken, Sessions,
+  Korrekturhistorie und lokale Dokumente und exponiert nur notwendige
+  Agentenanweisungen/Skills als Image-Links.
+- Deployments pruefen die Layoutgrenzen des Zielimages vor dem Stoppen des laufenden
+  Stacks; Downgrades auf unbeschriftete Vor-M2-Images brechen fail-closed ab.
+- Status und Doctor melden und verifizieren Release-Manifest, VERSION, OCI-/Source-
+  Revision sowie reale Python-, Shell- und Worker-Pfade.
+- Fixture- und Containerregressionstests pruefen Manipulationen im State-Workspace,
+  read-only Imagecode, parallele Starts, fehlgeschlagene Migration, Idempotenz und
+  Versions-/Revisionsabweichungen.
+
+## Unreleased – M1 Architekturvertrag, ADRs und Git-Arbeitsweise
+
+- `docs/architecture/README.md` ist der verbindliche Einstieg fuer Systemkontext,
+  Container- und Komponentenansicht; Rollen-, Daten- und Trust-Boundary-Matrizen
+  dokumentieren technische Ist-Rechte und bekannte Isolationsluecken.
+- Sechs nummerierte ADRs entscheiden modularen Monolith, Single Writer,
+  SQLite-Datenowner, unveraenderlichen Code, Legacy-Rollback-Untergrenze und den
+  maschinenlesbaren Toolvertrag. Offene Folgefragen bleiben sichtbar.
+- `CONTRIBUTING.md` und `SECURITY.md` definieren Branch-, Commit-, PR-, Review-,
+  Migrations-, Release- und Schwachstellenregeln.
+- Systemd-zentrierte Architektur- und alte Git-/Security-/Migrationsdokumente sind
+  als nicht normative Historie archiviert; README und Kompatibilitaetslinks zeigen
+  auf den aktuellen Containervertrag.
+- Ein in `check-repo.sh` integrierter Dokumentationscheck prueft interne Links,
+  eindeutige Owner, Releaseverweise, Zwei-Link-Erreichbarkeit und Rollen-/Datenmatrix.
+
+## Unreleased – M0 Baseline, Testvollstaendigkeit und Integritaet
+
+- pytest ist der einheitliche lokale und CI-Test-Runner. Er fuehrt die bisherigen
+  349 unittest-Tests und die zuvor ausgelassenen 13 freien Rechnungs-Tests aus;
+  getrennte Collection-Waechter verhindern unbemerkte Verkleinerungen.
+- Gepinnte Ruff-, mypy-, ShellCheck-, Hadolint-, Coverage- und Build-Pruefungen,
+  Compose-Validierung, `git diff --check` und Python-Kompilierung sind Bestandteil
+  von `check-repo.sh` und GitHub Actions.
+- Ein deterministischer Generator/Verifier deckt die exakte Git-Quellmenge ab und
+  bindet `SOURCE_MANIFEST.sha256` in Release-Verifikation, Repository-Check und CI
+  ein; positive und negative Regressionstests sichern alle Fehlerklassen.
+- Wheel-Build, frische Installation, CLI-/Release-/Testprobe sowie Image-Build und
+  Artefaktpruefung sind automatisiert. Die reproduzierbare M0-Messung dokumentiert
+  Coverage, Typaltlasten, Modul-/Funktionsgroessen und CI-Containerkennzahlen.
+- M0 aendert keine produktiven Container-Mounts, Netzwerke, Berechtigungen,
+  Jobzustaende oder fachliche Schreiblogik.
+- Die unabhaengige M0-Pruefung ersetzte die globale Ruff-E501-Ausnahme durch eine
+  quellzeilengebundene, nicht wachsende Baseline und erweiterte die echten
+  Collection-/Manifest-Regressionen.
+- Die Artefaktpruefung blockiert nun auch produktive `.env`-Varianten,
+  Laufzeitdatenbaeume, lokale virtuelle Umgebungen sowie Schluessel- und
+  Zugangsdaten ausserhalb von `/opt/openclaw-agent`; Publish-Images werden vor dem
+  Push geprueft.
+- Rekursive Dockerignore-Regeln und eine enge Bereinigung nach dem Paketbau halten
+  Python-Caches, `build/` und `*.egg-info` aus dem Laufzeitimage. Der dynamische
+  Rootfs-Scan sowie der isolierte Container-CLI-Kaltstart sind lokal bestaetigt.
+
 ## 3.4.0-r27.2.5 – Robuste Mail-Suche und kontrollierte Kursabrufe
 
 - Erfolgreiche Himalaya-Suchen ohne Treffer werden als vollstaendige leere

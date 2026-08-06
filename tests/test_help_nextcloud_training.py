@@ -4,10 +4,10 @@ import os
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
+from datetime import UTC, datetime, timedelta
 from io import StringIO
-from datetime import datetime, timedelta, timezone
-from types import SimpleNamespace
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from mail_agent.cli import main as cli_main
@@ -21,7 +21,6 @@ from mail_agent.rules import RuleEngine
 from mail_agent.setup_assistant import configuration_fingerprint, extended_help
 from mail_agent.storage import Storage
 from mail_agent.training import TrainingManager
-
 
 WORKSPACE = Path(__file__).resolve().parents[1]
 
@@ -305,7 +304,7 @@ Kannst du mich bitte zurueckrufen?\r
             notes="N" * 9000,
             location="L" * 1000,
         )
-        start = datetime(2026, 7, 18, 10, 0, tzinfo=timezone.utc)
+        start = datetime(2026, 7, 18, 10, 0, tzinfo=UTC)
         normalized = SimpleNamespace(event=event, start=start, end=start + timedelta(hours=1))
         with patch.object(client, "_run", return_value={"uid": "test-uid"}) as call:
             result = client.create_event(normalized)

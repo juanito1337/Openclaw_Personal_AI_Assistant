@@ -1,26 +1,52 @@
 name: openclaw-agent
 
+# M4: immutable, non-root defaults. Role-specific limits are intentionally
+# explicit below and are verified against docs/architecture/runtime-hardening.json.
 x-openclaw-common: &openclaw-common
   image: ${OPENCLAW_IMAGE:?OPENCLAW_IMAGE must be set}
-  network_mode: host
+  user: "1000:1000"
   restart: unless-stopped
+  read_only: true
+  cap_drop: [ALL]
   security_opt:
     - no-new-privileges:true
+  tmpfs:
+    - /tmp:rw,nosuid,nodev,noexec,size=128m,mode=1777
+  logging:
+    driver: local
+    options:
+      max-size: "10m"
+      max-file: "3"
+  stop_grace_period: 2m
   environment: &openclaw-environment
     TZ: ${TZ:-Europe/Berlin}
+    HOME: /home/node
     OPENCLAW_RUNTIME: container
+    OPENCLAW_IMAGE_ROOT: /opt/openclaw-agent
+    OPENCLAW_CODE_ROOT: /opt/openclaw-agent
+    OPENCLAW_RELEASE_ROOT: /opt/openclaw-agent
+    OPENCLAW_STATE_ROOT: /run/openclaw-state
     OPENCLAW_WORKSPACE: /home/node/.openclaw/workspace
+    OPENCLAW_LAYOUT_MODE: verify
+    OPENCLAW_GATEWAY_DATA_DIR: /home/node/.openclaw
+    OPENCLAW_MAIL_DATA_DIR: /var/lib/openclaw/mail
+    OPENCLAW_CORE_DATA_DIR: /var/lib/openclaw/core
+    OPENCLAW_KNOWLEDGE_DATA_DIR: /var/lib/openclaw/knowledge
+    OPENCLAW_ORDERS_DATA_DIR: /var/lib/openclaw/orders
+    OPENCLAW_PORTFOLIO_DATA_DIR: /var/lib/openclaw/portfolio
+    OPENCLAW_MONITORING_DATA_DIR: /var/lib/openclaw/monitoring
+    OPENCLAW_SECURITY_DATA_DIR: /var/lib/openclaw/security
+    OPENCLAW_COORDINATION_DATA_DIR: /var/lib/openclaw/coordination
     MAIL_AGENT_CONFIG: /home/node/.openclaw/workspace/mail_agent/config.toml
     PERSONAL_ASSISTANT_CONFIG: /home/node/.openclaw/workspace/personal_assistant/config.toml
     OPENCLAW_TOOLS_CONFIG: /home/node/.openclaw/workspace/personal_assistant/tools.toml
     OPENCLAW_TOOL_DEFAULTS_CONFIG: /opt/openclaw-agent/personal_assistant/tool_defaults.toml
     OPENCLAW_POLICY_DEFAULTS_CONFIG: /opt/openclaw-agent/personal_assistant/policy_defaults.toml
-    OPENCLAW_CONTAINER_CONFIG_DIR: /etc/openclaw-agent
-    OPENCLAW_CONTAINER_SECRET_DIR: /run/openclaw-secrets
-    OPENCLAW_LOG_DIR: /home/node/.openclaw/workspace/personal_assistant/data/container_logs
-    OPENCLAW_JOB_STATUS_DIR: /home/node/.openclaw/workspace/personal_assistant/data/container_jobs
-    OLLAMA_PRIORITY_ENV_FILE: /etc/openclaw-agent/ollama-priority.env
-    OPENCLAW_GATEWAY_PORT: ${OPENCLAW_GATEWAY_PORT:-18789}
+    OPENCLAW_CA_DIR: /etc/openclaw-ca
+    OPENCLAW_LOG_DIR: /var/lib/openclaw/coordination/container_logs
+    OPENCLAW_JOB_STATUS_DIR: /var/lib/openclaw/coordination/container_jobs
+    OPENCLAW_GATEWAY_PORT: "18789"
+    OPENCLAW_GATEWAY_WS_URL: ws://gateway:18789
     MAIL_INTERVAL_SECONDS: ${MAIL_INTERVAL_SECONDS:-1200}
     MAIL_INITIAL_DELAY_SECONDS: ${MAIL_INITIAL_DELAY_SECONDS:-120}
     MAIL_DRAIN_BATCH_SIZE: ${MAIL_DRAIN_BATCH_SIZE:-20}
@@ -39,31 +65,71 @@ x-openclaw-common: &openclaw-common
     SCHEDULER_LEASE_SECONDS: ${SCHEDULER_LEASE_SECONDS:-90}
     SCHEDULER_ARBITRATION_SECONDS: ${SCHEDULER_ARBITRATION_SECONDS:-2}
     SCHEDULER_STARVATION_SECONDS: ${SCHEDULER_STARVATION_SECONDS:-1800}
-  volumes:
-    - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}:/home/node/.openclaw
-    - ${HIMALAYA_CONFIG_DIR:-/srv/openclaw/config/himalaya}:/home/node/.config/himalaya:ro
-    - ${OPENCLAW_CONFIG_DIR:-/srv/openclaw/config}:/etc/openclaw-agent:ro
-    - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}:/run/openclaw-secrets:ro
-    - clamav-db:/var/lib/clamav:ro
-  stop_grace_period: 2m
 
 services:
+  layout-init:
+    <<: *openclaw-common
+    container_name: openclaw-layout-init
+    restart: "no"
+    network_mode: none
+    pids_limit: 128
+    cpus: 1.0
+    mem_limit: 1g
+    environment:
+      <<: *openclaw-environment
+      OPENCLAW_ROLE: layout-init
+      OPENCLAW_LAYOUT_MODE: migrate
+      OPENCLAW_STATE_ROOT: /var/lib/openclaw-state
+      OPENCLAW_WORKSPACE: /var/lib/openclaw-state/workspace
+    command: ["/bin/true"]
+    volumes:
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}:/var/lib/openclaw-state
+
   ollama-proxy:
     <<: *openclaw-common
+    image: ${OPENCLAW_PROXY_IMAGE:?OPENCLAW_PROXY_IMAGE must be set}
     container_name: openclaw-ollama-proxy
-    command: ["/home/node/.openclaw/workspace/scripts/ollama-priority-proxy.sh", "serve"]
+    pids_limit: 256
+    cpus: 2.0
+    mem_limit: 1g
+    environment:
+      <<: *openclaw-environment
+      OPENCLAW_ROLE: ollama-proxy
+      OLLAMA_PRIORITY_ENV_FILE: /etc/openclaw-env/ollama-priority.env
+    depends_on:
+      layout-init:
+        condition: service_completed_successfully
+    command: ["/opt/openclaw-agent/scripts/ollama-priority-proxy.sh", "serve"]
+    expose: ["11435"]
+    networks: [backend, egress]
+    extra_hosts:
+      - host.docker.internal:host-gateway
     healthcheck:
       test: ["CMD", "/opt/openclaw-agent/docker/healthcheck.sh", "proxy"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 20s
+    volumes:
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/instance:/home/node/.openclaw/workspace:ro
+      - ${OPENCLAW_CONFIG_DIR:-/srv/openclaw/config}/ollama-priority.env:/etc/openclaw-env/ollama-priority.env:ro
 
   gateway:
     <<: *openclaw-common
     container_name: openclaw-gateway
-    command: ["openclaw", "gateway", "--bind", "lan", "--port", "${OPENCLAW_GATEWAY_PORT:-18789}"]
+    pids_limit: 512
+    cpus: 2.0
+    mem_limit: 2g
+    environment:
+      <<: *openclaw-environment
+      OPENCLAW_ROLE: gateway
+    command: ["openclaw", "gateway", "--bind", "lan", "--port", "18789"]
+    ports:
+      - ${OPENCLAW_GATEWAY_BIND_ADDRESS:-127.0.0.1}:${OPENCLAW_GATEWAY_PORT:-18789}:18789
+    networks: [backend, egress]
     depends_on:
+      layout-init:
+        condition: service_completed_successfully
       ollama-proxy:
         condition: service_healthy
     healthcheck:
@@ -72,12 +138,40 @@ services:
       timeout: 10s
       retries: 8
       start_period: 90s
+    volumes:
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/gateway:/home/node/.openclaw
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/instance:/home/node/.openclaw/workspace
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/domains/mail:/var/lib/openclaw/mail
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/domains/orders:/var/lib/openclaw/orders
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/domains/portfolio:/var/lib/openclaw/portfolio
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/domains/monitoring:/var/lib/openclaw/monitoring
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/domains/knowledge:/var/lib/openclaw/knowledge
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/shared/core:/var/lib/openclaw/core
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/shared/security:/var/lib/openclaw/security
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/shared/coordination:/var/lib/openclaw/coordination
+      - ${HIMALAYA_CONFIG_DIR:-/srv/openclaw/config/himalaya}:/home/node/.config/himalaya:ro
+      - ${OPENCLAW_CONFIG_DIR:-/srv/openclaw/config}/ca:/etc/openclaw-ca:ro
+      - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/gateway.env:/run/openclaw-env/gateway.env:ro
+      - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/mail-agent.env:/run/openclaw-env/mail-agent.env:ro
+      - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/personal-assistant.env:/run/openclaw-env/personal-assistant.env:ro
+      - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/himalaya-imap-password:/run/openclaw-secrets/himalaya-imap-password:ro
+      - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/himalaya-smtp-password:/run/openclaw-secrets/himalaya-smtp-password:ro
+      - clamav-db:/var/lib/clamav:ro
 
   mail-worker:
     <<: *openclaw-common
     container_name: openclaw-mail-worker
+    pids_limit: 256
+    cpus: 2.0
+    mem_limit: 2g
+    environment:
+      <<: *openclaw-environment
+      OPENCLAW_ROLE: mail-worker
     command: ["python3", "/opt/openclaw-agent/docker/job_loop.py", "mail"]
+    networks: [backend, egress]
     depends_on:
+      layout-init:
+        condition: service_completed_successfully
       ollama-proxy:
         condition: service_healthy
     healthcheck:
@@ -86,12 +180,36 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+    volumes:
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/instance:/home/node/.openclaw/workspace:ro
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/domains/mail:/var/lib/openclaw/mail
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/domains/orders:/var/lib/openclaw/orders
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/shared/core:/var/lib/openclaw/core
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/shared/security:/var/lib/openclaw/security
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/shared/coordination:/var/lib/openclaw/coordination
+      - ${HIMALAYA_CONFIG_DIR:-/srv/openclaw/config/himalaya}:/home/node/.config/himalaya:ro
+      - ${OPENCLAW_CONFIG_DIR:-/srv/openclaw/config}/ca:/etc/openclaw-ca:ro
+      - ${OPENCLAW_CONFIG_DIR:-/srv/openclaw/config}/mail-agent.env:/etc/openclaw-env/mail-agent.env:ro
+      - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/mail-agent.env:/run/openclaw-env/mail-agent.env:ro
+      - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/personal-assistant.env:/run/openclaw-env/personal-assistant.env:ro
+      - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/himalaya-imap-password:/run/openclaw-secrets/himalaya-imap-password:ro
+      - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/himalaya-smtp-password:/run/openclaw-secrets/himalaya-smtp-password:ro
+      - clamav-db:/var/lib/clamav:ro
 
   sync-worker:
     <<: *openclaw-common
     container_name: openclaw-sync-worker
+    pids_limit: 192
+    cpus: 1.0
+    mem_limit: 1g
+    environment:
+      <<: *openclaw-environment
+      OPENCLAW_ROLE: sync-worker
     command: ["python3", "/opt/openclaw-agent/docker/job_loop.py", "sync"]
+    networks: [backend, egress]
     depends_on:
+      layout-init:
+        condition: service_completed_successfully
       gateway:
         condition: service_healthy
     healthcheck:
@@ -100,12 +218,32 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+    volumes:
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/instance:/home/node/.openclaw/workspace:ro
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/domains/mail:/var/lib/openclaw/mail:ro
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/domains/knowledge:/var/lib/openclaw/knowledge
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/shared/core:/var/lib/openclaw/core:ro
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/shared/coordination:/var/lib/openclaw/coordination
+      - ${OPENCLAW_CONFIG_DIR:-/srv/openclaw/config}/ca:/etc/openclaw-ca:ro
+      - ${OPENCLAW_CONFIG_DIR:-/srv/openclaw/config}/mail-agent.env:/etc/openclaw-env/mail-agent.env:ro
+      - ${OPENCLAW_CONFIG_DIR:-/srv/openclaw/config}/personal-assistant.env:/etc/openclaw-env/personal-assistant.env:ro
+      - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/mail-agent.env:/run/openclaw-env/mail-agent.env:ro
+      - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/personal-assistant.env:/run/openclaw-env/personal-assistant.env:ro
 
   supervisor-worker:
     <<: *openclaw-common
     container_name: openclaw-supervisor-worker
+    pids_limit: 128
+    cpus: 0.5
+    mem_limit: 512m
+    environment:
+      <<: *openclaw-environment
+      OPENCLAW_ROLE: supervisor-worker
     command: ["python3", "/opt/openclaw-agent/docker/job_loop.py", "supervisor"]
+    networks: [backend]
     depends_on:
+      layout-init:
+        condition: service_completed_successfully
       gateway:
         condition: service_healthy
     healthcheck:
@@ -114,23 +252,56 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+    volumes:
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/instance:/home/node/.openclaw/workspace:ro
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/shared/coordination:/var/lib/openclaw/coordination
+      - ${OPENCLAW_CONFIG_DIR:-/srv/openclaw/config}/mail-agent.env:/etc/openclaw-env/mail-agent.env:ro
+      - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/mail-agent.env:/run/openclaw-env/mail-agent.env:ro
+      - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/gateway.env:/run/openclaw-env/gateway.env:ro
 
   portfolio-worker:
     <<: *openclaw-common
     container_name: openclaw-portfolio-worker
+    pids_limit: 192
+    cpus: 1.0
+    mem_limit: 1g
+    environment:
+      <<: *openclaw-environment
+      OPENCLAW_ROLE: portfolio-worker
     command: ["python3", "/opt/openclaw-agent/docker/job_loop.py", "portfolio"]
+    networks: [backend, egress]
+    depends_on:
+      layout-init:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "/opt/openclaw-agent/docker/healthcheck.sh", "worker", "portfolio"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 60s
+    volumes:
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/instance:/home/node/.openclaw/workspace:ro
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/domains/portfolio:/var/lib/openclaw/portfolio
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/shared/coordination:/var/lib/openclaw/coordination
+      - ${OPENCLAW_CONFIG_DIR:-/srv/openclaw/config}/ca:/etc/openclaw-ca:ro
+      - ${OPENCLAW_CONFIG_DIR:-/srv/openclaw/config}/personal-assistant.env:/etc/openclaw-env/personal-assistant.env:ro
+      - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/personal-assistant.env:/run/openclaw-env/personal-assistant.env:ro
+      - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/gateway.env:/run/openclaw-env/gateway.env:ro
 
   monitor-worker:
     <<: *openclaw-common
     container_name: openclaw-monitor-worker
+    pids_limit: 192
+    cpus: 1.0
+    mem_limit: 1g
+    environment:
+      <<: *openclaw-environment
+      OPENCLAW_ROLE: monitor-worker
     command: ["python3", "/opt/openclaw-agent/docker/job_loop.py", "monitor"]
+    networks: [backend, egress]
     depends_on:
+      layout-init:
+        condition: service_completed_successfully
       gateway:
         condition: service_healthy
     healthcheck:
@@ -139,43 +310,101 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+    volumes:
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/instance:/home/node/.openclaw/workspace:ro
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/domains/mail:/var/lib/openclaw/mail:ro
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/domains/portfolio:/var/lib/openclaw/portfolio:ro
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/domains/monitoring:/var/lib/openclaw/monitoring
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/domains/knowledge:/var/lib/openclaw/knowledge:ro
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/shared/core:/var/lib/openclaw/core:ro
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/shared/security:/var/lib/openclaw/security:ro
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/shared/coordination:/var/lib/openclaw/coordination
+      - ${OPENCLAW_CONFIG_DIR:-/srv/openclaw/config}/ca:/etc/openclaw-ca:ro
+      - ${OPENCLAW_CONFIG_DIR:-/srv/openclaw/config}/mail-agent.env:/etc/openclaw-env/mail-agent.env:ro
+      - ${OPENCLAW_CONFIG_DIR:-/srv/openclaw/config}/personal-assistant.env:/etc/openclaw-env/personal-assistant.env:ro
+      - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/mail-agent.env:/run/openclaw-env/mail-agent.env:ro
+      - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/personal-assistant.env:/run/openclaw-env/personal-assistant.env:ro
+      - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/gateway.env:/run/openclaw-env/gateway.env:ro
 
   agent-cli:
     <<: *openclaw-common
-    profiles: ["tools"]
+    profiles: [tools]
     container_name: openclaw-agent-cli
     restart: "no"
-    command: ["/home/node/.openclaw/workspace/scripts/assistant.sh", "status"]
+    pids_limit: 512
+    cpus: 2.0
+    mem_limit: 2g
+    environment:
+      <<: *openclaw-environment
+      OPENCLAW_ROLE: agent-cli
+    command: ["/opt/openclaw-agent/scripts/assistant.sh", "status"]
+    networks: [backend, egress]
+    depends_on:
+      layout-init:
+        condition: service_completed_successfully
+    volumes:
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/gateway:/home/node/.openclaw
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/instance:/home/node/.openclaw/workspace
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/domains/mail:/var/lib/openclaw/mail
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/domains/orders:/var/lib/openclaw/orders
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/domains/portfolio:/var/lib/openclaw/portfolio
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/domains/monitoring:/var/lib/openclaw/monitoring
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/domains/knowledge:/var/lib/openclaw/knowledge
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/shared/core:/var/lib/openclaw/core
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/shared/security:/var/lib/openclaw/security
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/shared/coordination:/var/lib/openclaw/coordination
+      - ${HIMALAYA_CONFIG_DIR:-/srv/openclaw/config/himalaya}:/home/node/.config/himalaya:ro
+      - ${OPENCLAW_CONFIG_DIR:-/srv/openclaw/config}/ca:/etc/openclaw-ca:ro
+      - ${OPENCLAW_CONFIG_DIR:-/srv/openclaw/config}/mail-agent.env:/etc/openclaw-env/mail-agent.env:ro
+      - ${OPENCLAW_CONFIG_DIR:-/srv/openclaw/config}/personal-assistant.env:/etc/openclaw-env/personal-assistant.env:ro
+      - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/mail-agent.env:/run/openclaw-env/mail-agent.env:ro
+      - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/personal-assistant.env:/run/openclaw-env/personal-assistant.env:ro
+      - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/gateway.env:/run/openclaw-env/gateway.env:ro
+      - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/himalaya-imap-password:/run/openclaw-secrets/himalaya-imap-password:ro
+      - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/himalaya-smtp-password:/run/openclaw-secrets/himalaya-smtp-password:ro
+      - clamav-db:/var/lib/clamav:ro
 
   clamav-update:
-    image: ${OPENCLAW_IMAGE:?OPENCLAW_IMAGE must be set}
-    profiles: ["maintenance"]
+    image: ${OPENCLAW_MAINTENANCE_IMAGE:?OPENCLAW_MAINTENANCE_IMAGE must be set}
+    profiles: [maintenance]
     container_name: openclaw-clamav-update
-    user: "0:0"
+    user: "100:101"
     restart: unless-stopped
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        set -eu
-        while true; do
-          freshclam || true
-          sleep ${CLAMAV_UPDATE_INTERVAL_SECONDS:-14400}
-        done
-    volumes:
-      - clamav-db:/var/lib/clamav
+    read_only: true
+    cap_drop: [ALL]
     security_opt:
       - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,noexec,size=64m,mode=1777
+      - /var/log/clamav:rw,nosuid,nodev,noexec,size=16m,mode=0750
+    pids_limit: 128
+    cpus: 1.0
+    mem_limit: 512m
+    logging:
+      driver: local
+      options:
+        max-size: "5m"
+        max-file: "3"
+    stop_grace_period: 30s
+    entrypoint: ["/sbin/tini", "--", "/opt/openclaw-agent/docker/clamav-update.sh"]
+    environment:
+      CLAMAV_DATABASE_DIR: /var/lib/clamav
+      CLAMAV_SIGNATURE_MAX_AGE_SECONDS: ${CLAMAV_SIGNATURE_MAX_AGE_SECONDS:-172800}
+      CLAMAV_UPDATE_INTERVAL_SECONDS: ${CLAMAV_UPDATE_INTERVAL_SECONDS:-14400}
+    networks: [egress]
+    volumes:
+      - clamav-db:/var/lib/clamav
     healthcheck:
-      test:
-        - CMD-SHELL
-        - >-
-          (test -s /var/lib/clamav/main.cvd || test -s /var/lib/clamav/main.cld) &&
-          (test -s /var/lib/clamav/daily.cvd || test -s /var/lib/clamav/daily.cld) &&
-          (test -s /var/lib/clamav/bytecode.cvd || test -s /var/lib/clamav/bytecode.cld)
+      test: ["CMD", "python3", "-P", "-m", "personal_assistant.clamav_health"]
       interval: 1m
       timeout: 10s
       retries: 3
-      start_period: 30s
+      start_period: 2m
+
+networks:
+  backend:
+    internal: true
+  egress: {}
 
 volumes:
   clamav-db:

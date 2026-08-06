@@ -7,17 +7,14 @@ from datetime import datetime, timedelta
 from email.message import EmailMessage
 from pathlib import Path
 from unittest.mock import patch
-import urllib.error
 
 from mail_agent.app import MailAgent
 from mail_agent.attachments import extract_pdf_attachments
 from mail_agent.calendar import CalendarManager
 from mail_agent.command import CommandRunner
 from mail_agent.config import load_config
-from mail_agent.invoices import InvoiceManager
 from mail_agent.invoice_extract import FieldValue, InvoiceMetadata
-from mail_agent.nextcloud_files import NextcloudFilesClient
-from personal_assistant.tool_settings import CalendarMailToolSettings, InvoiceToolSettings
+from mail_agent.invoices import InvoiceManager
 from mail_agent.models import (
     CalendarEvent,
     Classification,
@@ -28,6 +25,7 @@ from mail_agent.models import (
 )
 from mail_agent.parser import parse_eml
 from mail_agent.storage import Storage
+from personal_assistant.tool_settings import InvoiceToolSettings
 
 
 class FakeWebDAV:
@@ -233,7 +231,7 @@ class InvoiceCalendarApprovalTests(unittest.TestCase):
         self.assertRegex(bridge.uploads[0][0], r"^Assistent/Rechnungen/2026/05/")
         self.assertNotIn("/Pruefen/", bridge.uploads[0][0])
         self.assertEqual(bridge.registers[0][1], "Assistent/Rechnungen/2026/Rechnungen_2026.csv")
-        self.assertIn("Prüfen".encode("utf-8"), bridge.registers[0][2])
+        self.assertIn("Prüfen".encode(), bridge.registers[0][2])
 
     def test_multiple_ambiguous_pdfs_are_sent_to_review(self) -> None:
         self.config.invoices.enabled = True
@@ -268,54 +266,6 @@ class InvoiceCalendarApprovalTests(unittest.TestCase):
         result = manager.process(message, classification)
         self.assertEqual(result.status, "invoice-not-routine")
         self.assertEqual(bridge.uploads, [])
-
-    def test_nextcloud_upload_uses_official_files_dav_and_no_overwrite(self) -> None:
-        self.config.nextcloud.enabled = True
-        client = NextcloudFilesClient(self.config)
-        captured = {}
-
-        class Response:
-            status = 201
-            reason = "Created"
-            def __enter__(self): return self
-            def __exit__(self, *args): return False
-
-        def fake_urlopen(request, timeout):
-            captured["url"] = request.full_url
-            captured["method"] = request.get_method()
-            captured["headers"] = {key.casefold(): value for key, value in request.header_items()}
-            captured["data"] = request.data
-            return Response()
-
-        env = {
-            self.config.nextcloud.base_url_env: "https://cloud.example.test",
-            self.config.nextcloud.username_env: "jan@example.test",
-            self.config.nextcloud.token_env: "app-password",
-        }
-        with patch.dict("os.environ", env, clear=False), patch("urllib.request.urlopen", side_effect=fake_urlopen):
-            result = client.upload_pdf("Mail-Agent/Rechnungen/2026/07/Rechnung 1.pdf", b"%PDF-1.7\n")
-
-        self.assertTrue(result.ok)
-        self.assertEqual(captured["method"], "PUT")
-        self.assertIn("/remote.php/dav/files/jan%40example.test/", captured["url"])
-        self.assertIn("Rechnung%201.pdf", captured["url"])
-        self.assertEqual(captured["headers"]["if-none-match"], "*")
-        self.assertEqual(captured["headers"]["content-type"], "application/pdf")
-
-    def test_nextcloud_precondition_failure_is_a_safe_duplicate(self) -> None:
-        self.config.nextcloud.enabled = True
-        client = NextcloudFilesClient(self.config)
-        request_url = "https://cloud.example.test/remote.php/dav/files/jan/x.pdf"
-        error = urllib.error.HTTPError(request_url, 412, "Precondition Failed", {}, None)
-        env = {
-            self.config.nextcloud.base_url_env: "https://cloud.example.test",
-            self.config.nextcloud.username_env: "jan",
-            self.config.nextcloud.token_env: "app-password",
-        }
-        with patch.dict("os.environ", env, clear=False), patch("urllib.request.urlopen", side_effect=error):
-            result = client.upload_pdf("Mail-Agent/Rechnungen/x.pdf", b"%PDF-1.7\n")
-        self.assertTrue(result.ok)
-        self.assertEqual(result.status, "invoice-already-exists")
 
     def test_dry_run_reports_would_archive_invoice(self) -> None:
         agent = MailAgent(self.config, dry_run=True)

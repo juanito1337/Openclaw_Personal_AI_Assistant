@@ -1,0 +1,13 @@
+[spam]
+addresses = []
+domains = []
+sender_names = []
+subject_phrases = []
+
+[important]
+addresses = []
+domains = []
+
+[routine]
+addresses = []
+domains = []

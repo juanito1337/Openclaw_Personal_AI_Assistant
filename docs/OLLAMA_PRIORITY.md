@@ -2,7 +2,7 @@
 
 ## Zweck
 
-OpenClaw ist der einzige Agent. Das technische `mail-agent.service` ist sein
+OpenClaw ist der einzige Agent. Der technische `mail-worker` ist sein
 automatisches Mail-Interface. R20 ordnet neue Ollama-Modellaufrufe, damit direkte
 Benutzeranfragen nicht hinter neu beginnender Hintergrundklassifikation warten.
 
@@ -31,22 +31,21 @@ OpenClaw-Client ohne Anpassung Vorrang erhaelt.
   Wachstum.
 - Native Ollama-NDJSON-Streams werden unveraendert durchgereicht.
 - Bei einem internen Fehler der Schedulerlogik wird die einzelne Anfrage direkt
-  an Ollama weitergeleitet. Faellt der gesamte Proxyprozess aus, startet systemd
-  ihn automatisch neu und der Supervisor meldet den Fehler.
+  an Ollama weitergeleitet. Faellt der gesamte Proxyprozess aus, greift die
+  Compose-Restartpolicy; Healthcheck und Supervisor melden den Fehler.
 
 ## Betrieb
 
 ```bash
-./scripts/ollama-priority-proxy.sh status
-./scripts/ollama-priority-proxy.sh check-upstream
-./scripts/ollama-priority-proxy.sh config
-systemctl --user status ollama-priority-proxy.service --no-pager -l
+./scripts/assistant.sh ollama status
+./scripts/assistant.sh ollama check
+./scripts/assistant.sh ollama queue
 ```
 
 Die nicht-geheime Konfiguration liegt in:
 
 ```text
-~/.config/openclaw/ollama-priority.env
+/srv/openclaw/config/ollama-priority.env
 ```
 
 ## Telemetrie
@@ -56,14 +55,11 @@ bestehende r18-Telemetrie. Mailinhalte, Betreffzeilen und Modellantworten werden
 nicht in der Performance-Datei gespeichert.
 
 
-## Agent-facing commands
+## Schreibende Betriebsbefehle
 
 The supported interface is:
 
 ```bash
-./scripts/assistant.sh ollama status
-./scripts/assistant.sh ollama check
-./scripts/assistant.sh ollama queue
 ./scripts/assistant.sh ollama start
 ./scripts/assistant.sh ollama restart
 ```

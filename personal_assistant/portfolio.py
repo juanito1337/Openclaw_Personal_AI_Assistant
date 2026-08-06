@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import csv
 import hashlib
-import io
 import json
 import math
 import os
@@ -14,17 +12,18 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
-import xml.etree.ElementTree as ET
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, time as clock_time, timedelta, timezone
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from datetime import UTC, datetime, timedelta
+from datetime import time as clock_time
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from .antivirus import HostAntivirus
+from .portfolio_import import parse_dkb_portfolio_csv, parse_portfolio_performance_xml
 from .tool_settings import PortfolioToolSettings
-
 
 SCHEMA_VERSION = 4
 MAX_IMPORT_BYTES = 25_000_000
@@ -37,30 +36,14 @@ EODHD_EXCHANGE_BY_MIC = {
     "XNYS": "US",
 }
 EODHD_BATCH_LIMIT = 20
-PP_INDEX_RE = re.compile(r"security\[(\d+)\]")
-POSITIVE_TYPES = {"BUY", "DELIVERY_INBOUND", "TRANSFER_IN"}
-NEGATIVE_TYPES = {"SELL", "DELIVERY_OUTBOUND", "TRANSFER_OUT"}
-DKB_CSV_REQUIRED_HEADERS = (
-    "Datum der Erstellung",
-    "Depotnummer",
-    "Wertpapierbezeichnung",
-    "WKN",
-    "ISIN",
-    "Einstiegskurs",
-    "Bewertungskurs",
-    "Stückzahl",
-    "Absoluter Gewinn",
-    "Relativer Gewinn",
-    "Assetklasse",
-)
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _iso(value: datetime | None = None) -> str:
-    return (value or _now()).astimezone(timezone.utc).isoformat(timespec="seconds")
+    return (value or _now()).astimezone(UTC).isoformat(timespec="seconds")
 
 
 def _parse_time(value: object) -> datetime | None:
@@ -72,20 +55,8 @@ def _parse_time(value: object) -> datetime | None:
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
-
-
-def _local_name(tag: str) -> str:
-    return tag.rsplit("}", 1)[-1].casefold()
-
-
-def _child_text(node: ET.Element, *names: str) -> str:
-    wanted = {name.casefold() for name in names}
-    for child in node:
-        if _local_name(child.tag) in wanted:
-            return str(child.text or "").strip()
-    return ""
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def _decimal(value: object, *, scale: int = 0) -> Decimal:
@@ -102,10 +73,7 @@ def _decimal(value: object, *, scale: int = 0) -> Decimal:
 def _valid_isin(value: str) -> bool:
     if not ISIN_RE.fullmatch(value):
         return False
-    digits = "".join(
-        str(ord(character) - 55) if character.isalpha() else character
-        for character in value
-    )
+    digits = "".join(str(ord(character) - 55) if character.isalpha() else character for character in value)
     total = 0
     double = False
     for character in reversed(digits):
@@ -146,7 +114,7 @@ EventNotifier = Callable[[str], dict[str, Any]]
 def _notify_openclaw(text: str) -> dict[str, Any]:
     try:
         completed = subprocess.run(
-            ["openclaw", "system", "event", "--text", text[:1800], "--mode", "now"],
+            _system_event_command(text),
             capture_output=True,
             text=True,
             timeout=30,
@@ -195,13 +163,7 @@ class EodhdClient:
     def fx_ticker(base_currency: str, quote_currency: str) -> str:
         base = base_currency.strip().upper()
         quote = quote_currency.strip().upper()
-        if (
-            len(base) != 3
-            or len(quote) != 3
-            or not base.isalpha()
-            or not quote.isalpha()
-            or base == quote
-        ):
+        if len(base) != 3 or len(quote) != 3 or not base.isalpha() or not quote.isalpha() or base == quote:
             raise ValueError("EODHD-FX-Paar benoetigt zwei verschiedene ISO-Waehrungen")
         return f"{base}{quote}.FOREX"
 
@@ -210,10 +172,7 @@ class EodhdClient:
         instruments: list[dict[str, str]],
         fx_pairs: list[tuple[str, str]] | None = None,
     ) -> tuple[dict[str, Quote], dict[tuple[str, str], FxQuote]]:
-        pairs = [
-            (str(base).upper(), str(quote).upper())
-            for base, quote in (fx_pairs or [])
-        ]
+        pairs = [(str(base).upper(), str(quote).upper()) for base, quote in (fx_pairs or [])]
         if not instruments and not pairs:
             return {}, {}
         if len(instruments) + len(pairs) > EODHD_BATCH_LIMIT:
@@ -257,8 +216,7 @@ class EodhdClient:
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise RuntimeError("EODHD lieferte kein gueltiges JSON") from exc
         if isinstance(payload, dict) and (
-            isinstance(payload.get("code"), int)
-            or str(payload.get("status") or "").casefold() == "error"
+            isinstance(payload.get("code"), int) or str(payload.get("status") or "").casefold() == "error"
         ):
             raise self._provider_error(raw, "Anbieterfehler")
         rows = payload if isinstance(payload, list) else [payload]
@@ -276,7 +234,7 @@ class EodhdClient:
             timestamp = row.get("timestamp")
             if price_text in {None, ""} or not str(timestamp or "").isdigit():
                 continue
-            observed = _iso(datetime.fromtimestamp(int(timestamp), timezone.utc))
+            observed = _iso(datetime.fromtimestamp(int(timestamp), UTC))
             if item is not None:
                 quotes[str(item["isin"])] = Quote(
                     symbol=str(item["symbol"]),
@@ -439,10 +397,7 @@ class PortfolioStore:
             if column not in quote_columns:
                 self.connection.execute(f"ALTER TABLE quotes ADD COLUMN {column} TEXT")
         position_columns = {
-            str(row[1])
-            for row in self.connection.execute(
-                "PRAGMA table_info(position_snapshots)"
-            ).fetchall()
+            str(row[1]) for row in self.connection.execute("PRAGMA table_info(position_snapshots)").fetchall()
         }
         for column in (
             "entry_price",
@@ -454,8 +409,7 @@ class PortfolioStore:
         ):
             if column not in position_columns:
                 self.connection.execute(
-                    f"ALTER TABLE position_snapshots "
-                    f"ADD COLUMN {column} TEXT NOT NULL DEFAULT ''"
+                    f"ALTER TABLE position_snapshots ADD COLUMN {column} TEXT NOT NULL DEFAULT ''"
                 )
         self.connection.execute(
             "INSERT OR REPLACE INTO schema_meta(key,value) VALUES('schema_version',?)",
@@ -469,344 +423,6 @@ class PortfolioStore:
     def integrity(self) -> str:
         row = self.connection.execute("PRAGMA integrity_check").fetchone()
         return str(row[0] if row else "unknown")
-
-
-def parse_portfolio_performance_xml(data: bytes) -> dict[str, Any]:
-    if len(data) > MAX_IMPORT_BYTES:
-        raise ValueError("Portfolio-XML ist groesser als 25 MB")
-    upper = data[:100_000].upper()
-    if b"<!DOCTYPE" in upper or b"<!ENTITY" in upper:
-        raise ValueError("DTD und externe Entitaeten sind im Portfolio-XML verboten")
-    try:
-        root = ET.fromstring(data)
-    except ET.ParseError as exc:
-        raise ValueError(f"Ungueltiges Portfolio-XML: {exc}") from exc
-
-    securities: list[dict[str, str]] = []
-    by_uuid: dict[str, dict[str, str]] = {}
-    by_isin: dict[str, dict[str, str]] = {}
-    by_id: dict[str, dict[str, str]] = {}
-    splits_by_isin: dict[str, list[tuple[str, Decimal]]] = {}
-    for node in root.iter():
-        if _local_name(node.tag) != "security":
-            continue
-        isin = (_child_text(node, "isin") or node.attrib.get("isin", "")).strip().upper()
-        if not _valid_isin(isin):
-            continue
-        item = {
-            "isin": isin,
-            "uuid": (_child_text(node, "uuid", "id") or node.attrib.get("uuid", "")).strip(),
-            "name": (_child_text(node, "name") or node.attrib.get("name", "") or isin).strip(),
-            "wkn": (_child_text(node, "wkn") or node.attrib.get("wkn", "")).strip().upper(),
-            "symbol": (
-                _child_text(node, "tickerSymbol", "ticker", "symbol")
-                or node.attrib.get("ticker", "")
-            ).strip().upper(),
-            "mic": (
-                _child_text(node, "mic", "market")
-                or node.attrib.get("mic", "")
-            ).strip().upper(),
-            "currency": (
-                _child_text(node, "currencyCode", "currency")
-                or node.attrib.get("currency", "")
-            ).strip().upper(),
-        }
-        securities.append(item)
-        by_isin[isin] = item
-        if item["uuid"]:
-            by_uuid[item["uuid"]] = item
-        if node.attrib.get("id"):
-            by_id[str(node.attrib["id"])] = item
-        splits: list[tuple[str, Decimal]] = []
-        for event in node.iter():
-            if _local_name(event.tag) not in {"event", "security-event"}:
-                continue
-            if _child_text(event, "type").strip().upper() != "STOCK_SPLIT":
-                continue
-            event_date = _child_text(event, "date")[:10]
-            details = _child_text(event, "details")
-            match = re.search(r"(\d+(?:[.,]\d+)?)\s*:\s*(\d+(?:[.,]\d+)?)", details)
-            if not event_date or not match:
-                raise ValueError(
-                    f"Aktiensplit fuer {isin} kann nicht sicher ausgewertet werden"
-                )
-            numerator = _decimal(match.group(1))
-            denominator = _decimal(match.group(2))
-            if numerator <= 0 or denominator <= 0:
-                raise ValueError(f"Ungueltiges Aktiensplit-Verhaeltnis fuer {isin}")
-            splits.append((event_date, numerator / denominator))
-        splits_by_isin[isin] = sorted(splits)
-
-    positions: dict[tuple[str, str], Decimal] = {}
-    as_of = ""
-    transaction_accounts: dict[int, str] = {}
-
-    def remember_accounts(node: ET.Element, account: str = "Depot") -> None:
-        local = _local_name(node.tag)
-        if local == "portfolio":
-            account = _child_text(node, "name") or account
-        if local in {"portfolio-transaction", "portfolio_transaction", "transaction"}:
-            transaction_accounts[id(node)] = account
-        for child in node:
-            remember_accounts(child, account)
-
-    remember_accounts(root)
-    for node in root.iter():
-        local = _local_name(node.tag)
-        if local == "position":
-            isin = (_child_text(node, "isin") or node.attrib.get("isin", "")).strip().upper()
-            if isin not in by_isin:
-                continue
-            shares_raw = _child_text(node, "shares", "quantity") or node.attrib.get("shares", "")
-            account = (_child_text(node, "account", "portfolio") or node.attrib.get("account", "Depot")).strip()
-            positions[(account or "Depot", isin)] = _decimal(shares_raw)
-            as_of = _child_text(node, "date", "asOf") or node.attrib.get("as_of", "") or as_of
-            continue
-        if local not in {"portfolio-transaction", "portfolio_transaction", "transaction"}:
-            continue
-        tx_type = (_child_text(node, "type") or node.attrib.get("type", "")).strip().upper()
-        if tx_type not in POSITIVE_TYPES | NEGATIVE_TYPES:
-            continue
-        shares_node = next(
-            (child for child in node if _local_name(child.tag) in {"shares", "quantity"}),
-            None,
-        )
-        shares_text = (
-            str(shares_node.text or "").strip() if shares_node is not None else ""
-        ) or (shares_node.attrib.get("value", "") if shares_node is not None else "")
-        # Portfolio Performance serializes Values.Share with six decimal places
-        # (for example 47 shares as 47000000).
-        scale = 6 if shares_text and shares_text.lstrip("-").isdigit() else 0
-        shares = _decimal(shares_text, scale=scale)
-        security_node = next(
-            (child for child in node if _local_name(child.tag) == "security"),
-            None,
-        )
-        reference = ""
-        if security_node is not None:
-            reference = str(
-                security_node.attrib.get("reference")
-                or security_node.attrib.get("uuid")
-                or security_node.text
-                or ""
-            ).strip()
-        item = by_uuid.get(reference) or by_id.get(reference) or by_isin.get(reference.upper())
-        if item is None:
-            match = PP_INDEX_RE.search(reference)
-            if match and 0 < int(match.group(1)) <= len(securities):
-                item = securities[int(match.group(1)) - 1]
-            elif reference.endswith("/securities/security") and securities:
-                item = securities[0]
-        if item is None:
-            isin = (_child_text(node, "isin") or node.attrib.get("isin", "")).strip().upper()
-            item = by_isin.get(isin)
-        if item is None:
-            continue
-        tx_date = _child_text(node, "date", "datetime")[:10]
-        splits = splits_by_isin.get(item["isin"], [])
-        if splits and not tx_date:
-            raise ValueError(
-                f"Transaktionsdatum fuer Aktiensplit-Berechnung bei {item['isin']} fehlt"
-            )
-        for split_date, factor in splits:
-            if tx_date < split_date:
-                shares *= factor
-        account = (
-            _child_text(node, "portfolio", "account")
-            or node.attrib.get("account", "")
-            or transaction_accounts.get(id(node), "Depot")
-        ).strip()
-        sign = Decimal("-1") if tx_type in NEGATIVE_TYPES else Decimal("1")
-        key = (account, item["isin"])
-        positions[key] = positions.get(key, Decimal("0")) + sign * shares
-        as_of = max(as_of, tx_date or as_of)
-
-    if not securities:
-        raise ValueError("Keine Wertpapiere mit gueltiger ISIN im Portfolio-XML gefunden")
-    return {
-        "source_type": "portfolio-performance-xml",
-        "as_of": as_of or _iso(),
-        "instruments": securities,
-        "positions": [
-            {"account": account, "isin": isin, "shares": str(shares)}
-            for (account, isin), shares in sorted(positions.items())
-            if shares != 0
-        ],
-    }
-
-
-def _dkb_decimal(
-    value: object, *, field: str, allow_currency_or_percent: bool = False
-) -> Decimal:
-    text = str(value or "").strip().replace("\u00a0", "").replace(" ", "")
-    if not text or text in {"-", "-,--"}:
-        raise ValueError(f"DKB-CSV: {field} fehlt")
-    is_percent = text.endswith("%")
-    if allow_currency_or_percent:
-        text = re.sub(r"(?:EUR|USD|GBP|CHF|€|\$|£|%)$", "", text, flags=re.I)
-    normalized = (
-        text
-        if is_percent and "." in text and "," not in text
-        else text.replace(".", "").replace(",", ".")
-    )
-    try:
-        return Decimal(normalized)
-    except InvalidOperation as exc:
-        raise ValueError(f"DKB-CSV: {field} ist ungueltig: {text[:80]}") from exc
-
-
-def _dkb_currency(*values: object) -> str:
-    currencies: set[str] = set()
-    for value in values:
-        text = str(value or "").strip().upper().replace("\u00a0", " ")
-        if "€" in text or re.search(r"(?:^|\W)EUR(?:$|\W)", text):
-            currencies.add("EUR")
-        if "$" in text or re.search(r"(?:^|\W)USD(?:$|\W)", text):
-            currencies.add("USD")
-        if "£" in text or re.search(r"(?:^|\W)GBP(?:$|\W)", text):
-            currencies.add("GBP")
-        if re.search(r"(?:^|\W)CHF(?:$|\W)", text):
-            currencies.add("CHF")
-    if len(currencies) != 1:
-        raise ValueError("DKB-CSV: Waehrung fehlt oder ist widerspruechlich")
-    return next(iter(currencies))
-
-
-def _dkb_optional_decimal(value: object, *, field: str) -> str:
-    text = str(value or "").strip().replace("\u00a0", "").replace(" ", "")
-    if not text or text in {"-", "-,--"}:
-        return ""
-    return str(
-        _dkb_decimal(
-            value,
-            field=field,
-            allow_currency_or_percent=True,
-        )
-    )
-
-
-def parse_dkb_portfolio_csv(data: bytes) -> dict[str, Any]:
-    """Parse one strict DKB depot snapshot exported with German column names."""
-    if len(data) > MAX_IMPORT_BYTES:
-        raise ValueError("Portfolio-CSV ist groesser als 25 MB")
-    if b"\x00" in data:
-        raise ValueError("Portfolio-CSV enthaelt ungueltige Nullbytes")
-    try:
-        text = data.decode("utf-8-sig")
-    except UnicodeDecodeError as exc:
-        raise ValueError("DKB-CSV muss UTF-8-kodiert sein") from exc
-    reader = csv.DictReader(io.StringIO(text, newline=""), delimiter=";")
-    headers = tuple(str(value or "").strip() for value in (reader.fieldnames or []))
-    missing = [name for name in DKB_CSV_REQUIRED_HEADERS if name not in headers]
-    if missing:
-        raise ValueError("DKB-CSV: Pflichtspalten fehlen: " + ", ".join(missing))
-
-    instruments: dict[str, dict[str, str]] = {}
-    positions: dict[tuple[str, str], dict[str, str]] = {}
-    snapshot_date = ""
-    rows = 0
-    for row_number, row in enumerate(reader, start=2):
-        if not any(str(value or "").strip() for value in row.values()):
-            continue
-        rows += 1
-        if rows > 10_000:
-            raise ValueError("DKB-CSV enthaelt mehr als 10000 Depotpositionen")
-        raw_date = str(row.get("Datum der Erstellung") or "").strip()
-        try:
-            parsed_date = datetime.strptime(raw_date, "%d.%m.%Y").date().isoformat()
-        except ValueError as exc:
-            raise ValueError(
-                f"DKB-CSV Zeile {row_number}: ungueltiges Erstellungsdatum"
-            ) from exc
-        if snapshot_date and parsed_date != snapshot_date:
-            raise ValueError("DKB-CSV enthaelt mehrere unterschiedliche Stichtage")
-        snapshot_date = parsed_date
-
-        account = str(row.get("Depotnummer") or "").strip()
-        if not account or len(account) > 100:
-            raise ValueError(f"DKB-CSV Zeile {row_number}: Depotnummer fehlt oder ist zu lang")
-        isin = str(row.get("ISIN") or "").strip().upper()
-        if not _valid_isin(isin):
-            raise ValueError(f"DKB-CSV Zeile {row_number}: ISIN ist ungueltig")
-        name = " ".join(str(row.get("Wertpapierbezeichnung") or "").split())
-        if not name or len(name) > 300:
-            raise ValueError(f"DKB-CSV Zeile {row_number}: Wertpapierbezeichnung fehlt")
-        wkn = str(row.get("WKN") or "").strip().upper()
-        if len(wkn) > 32:
-            raise ValueError(f"DKB-CSV Zeile {row_number}: WKN ist zu lang")
-        currency = _dkb_currency(row.get("Einstiegskurs"), row.get("Bewertungskurs"))
-        shares = _dkb_decimal(row.get("Stückzahl"), field=f"Stueckzahl in Zeile {row_number}")
-        if shares < 0:
-            raise ValueError(f"DKB-CSV Zeile {row_number}: negative Stueckzahl ist ungueltig")
-        entry_price = _dkb_decimal(
-            row.get("Einstiegskurs"),
-            field=f"Einstiegskurs in Zeile {row_number}",
-            allow_currency_or_percent=True,
-        )
-        valuation_price = _dkb_decimal(
-            row.get("Bewertungskurs"),
-            field=f"Bewertungskurs in Zeile {row_number}",
-            allow_currency_or_percent=True,
-        )
-        if entry_price < 0 or valuation_price < 0:
-            raise ValueError(
-                f"DKB-CSV Zeile {row_number}: negative Kurswerte sind ungueltig"
-            )
-        absolute_gain = _dkb_optional_decimal(
-            row.get("Absoluter Gewinn"),
-            field=f"Absoluter Gewinn in Zeile {row_number}",
-        )
-        relative_gain = _dkb_optional_decimal(
-            row.get("Relativer Gewinn"),
-            field=f"Relativer Gewinn in Zeile {row_number}",
-        )
-        asset_class = " ".join(str(row.get("Assetklasse") or "").split())
-        if not asset_class or len(asset_class) > 100:
-            raise ValueError(f"DKB-CSV Zeile {row_number}: Assetklasse fehlt oder ist zu lang")
-
-        instrument = {
-            "isin": isin,
-            "name": name,
-            "wkn": wkn,
-            "symbol": "",
-            "mic": "",
-            "currency": currency,
-        }
-        existing = instruments.get(isin)
-        if existing and any(
-            existing[key] != instrument[key] for key in ("name", "wkn", "currency")
-        ):
-            raise ValueError(f"DKB-CSV: widerspruechliche Stammdaten fuer ISIN {isin}")
-        instruments[isin] = instrument
-        key = (account, isin)
-        if key in positions:
-            raise ValueError(
-                f"DKB-CSV: doppelte Position fuer Depot {account} und ISIN {isin}"
-            )
-        positions[key] = {
-            "account": account,
-            "isin": isin,
-            "shares": str(shares),
-            "entry_price": str(entry_price),
-            "valuation_price": str(valuation_price),
-            "absolute_gain": absolute_gain,
-            "relative_gain_percent": relative_gain,
-            "asset_class": asset_class,
-            "snapshot_currency": currency,
-        }
-
-    if not rows:
-        raise ValueError("DKB-CSV enthaelt keine Depotpositionen")
-    return {
-        "source_type": "dkb-depot-csv",
-        "as_of": snapshot_date,
-        "instruments": [instruments[key] for key in sorted(instruments)],
-        "positions": [
-            position
-            for _, position in sorted(positions.items())
-            if Decimal(position["shares"]) != 0
-        ],
-    }
 
 
 class PortfolioService:
@@ -861,16 +477,12 @@ class PortfolioService:
         path = self._input_path(value)
         scan = self.antivirus.scan_path(path, source_type="portfolio-import")
         if not scan.clean:
-            raise PermissionError(
-                f"Portfolio-Import fail-closed gesperrt: ClamAV-Status {scan.status}"
-            )
+            raise PermissionError(f"Portfolio-Import fail-closed gesperrt: ClamAV-Status {scan.status}")
         data = path.read_bytes()
         digest = hashlib.sha256(data).hexdigest()
         parsed = parser(data)
         if expected_as_of and str(parsed.get("as_of") or "") != expected_as_of:
-            raise ValueError(
-                "Erwarteter Portfolio-Stichtag stimmt nicht mit dem Dateiinhalt ueberein"
-            )
+            raise ValueError("Erwarteter Portfolio-Stichtag stimmt nicht mit dem Dateiinhalt ueberein")
         display_name = str(source_name or path.name).strip()
         if not display_name or len(display_name) > 255:
             raise ValueError("Portfolio-Quelldateiname fehlt oder ist zu lang")
@@ -959,8 +571,13 @@ class PortfolioService:
                         updated_at=excluded.updated_at
                     """,
                     (
-                        item["isin"], item["name"], item["wkn"], item["symbol"],
-                        item["mic"], item["currency"], now,
+                        item["isin"],
+                        item["name"],
+                        item["wkn"],
+                        item["symbol"],
+                        item["mic"],
+                        item["currency"],
+                        now,
                     ),
                 )
             cursor = self.store.connection.execute(
@@ -970,8 +587,13 @@ class PortfolioService:
                 ) VALUES(?,?,?,?,?,?,?)
                 """,
                 (
-                    digest, parsed["source_type"], display_name, now, parsed["as_of"],
-                    len(parsed["instruments"]), len(parsed["positions"]),
+                    digest,
+                    parsed["source_type"],
+                    display_name,
+                    now,
+                    parsed["as_of"],
+                    len(parsed["instruments"]),
+                    len(parsed["positions"]),
                 ),
             )
             import_id = int(cursor.lastrowid)
@@ -1061,9 +683,7 @@ class PortfolioService:
         ).fetchall()
         return {"ok": True, "count": len(rows), "items": [dict(row) for row in rows]}
 
-    def watchlist_add(
-        self, *, isin: str, name: str, symbol: str, mic: str, currency: str
-    ) -> dict[str, Any]:
+    def watchlist_add(self, *, isin: str, name: str, symbol: str, mic: str, currency: str) -> dict[str, Any]:
         self._require_enabled()
         isin = isin.strip().upper()
         symbol = symbol.strip().upper()
@@ -1097,8 +717,12 @@ class PortfolioService:
                 (isin, now, now),
             )
         return {
-            "ok": True, "isin": isin, "name": name.strip() or isin,
-            "symbol": symbol, "mic": mic, "currency": currency,
+            "ok": True,
+            "isin": isin,
+            "name": name.strip() or isin,
+            "symbol": symbol,
+            "mic": mic,
+            "currency": currency,
             "mapping_confirmed": True,
         }
 
@@ -1114,16 +738,10 @@ class PortfolioService:
         return {"ok": True, "isin": isin.strip().upper(), "enabled": False}
 
     def _targets(self) -> list[dict[str, Any]]:
-        held = {
-            row["isin"]
-            for row in self.holdings()["positions"]
-            if _decimal(row["shares"]) != 0
-        }
+        held = {row["isin"] for row in self.holdings()["positions"] if _decimal(row["shares"]) != 0}
         watched = {
             row["isin"]
-            for row in self.store.connection.execute(
-                "SELECT isin FROM watchlist WHERE enabled=1"
-            ).fetchall()
+            for row in self.store.connection.execute("SELECT isin FROM watchlist WHERE enabled=1").fetchall()
         }
         targets = sorted(held | watched)
         if not targets:
@@ -1166,31 +784,29 @@ class PortfolioService:
         dict[tuple[str, str], str],
     ]:
         if self._quote_fetcher is not None:
-            quotes: dict[str, Quote] = {}
-            errors: dict[str, str] = {}
+            override_quotes: dict[str, Quote] = {}
+            override_errors: dict[str, str] = {}
             for item in items:
                 try:
-                    quotes[str(item["isin"])] = self._quote_fetcher(item)
+                    override_quotes[str(item["isin"])] = self._quote_fetcher(item)
                 except Exception as exc:
-                    errors[str(item["isin"])] = str(exc)[:500]
-            fx_quotes: dict[tuple[str, str], FxQuote] = {}
-            fx_errors: dict[tuple[str, str], str] = {}
+                    override_errors[str(item["isin"])] = str(exc)[:500]
+            override_fx_quotes: dict[tuple[str, str], FxQuote] = {}
+            override_fx_errors: dict[tuple[str, str], str] = {}
             for pair in fx_pairs:
                 if self._fx_quote_fetcher is None:
-                    fx_errors[pair] = "Kein EODHD-FX-Abruf fuer die Waehrungsumrechnung verfuegbar"
+                    override_fx_errors[pair] = "Kein EODHD-FX-Abruf fuer die Waehrungsumrechnung verfuegbar"
                     continue
                 try:
-                    fx_quotes[pair] = self._fx_quote_fetcher(*pair)
+                    override_fx_quotes[pair] = self._fx_quote_fetcher(*pair)
                 except Exception as exc:
-                    fx_errors[pair] = str(exc)[:500]
-            return quotes, errors, fx_quotes, fx_errors
+                    override_fx_errors[pair] = str(exc)[:500]
+            return override_quotes, override_errors, override_fx_quotes, override_fx_errors
         if self.settings.provider != "eodhd":
             raise RuntimeError("Kein EODHD-Marktdatenanbieter konfiguriert")
         api_key = os.environ.get(self.settings.api_key_env, "").strip()
         if not api_key:
-            raise RuntimeError(
-                f"API-Schluessel fehlt in Umgebungsvariable {self.settings.api_key_env}"
-            )
+            raise RuntimeError(f"API-Schluessel fehlt in Umgebungsvariable {self.settings.api_key_env}")
         client = EodhdClient(api_key, timeout=self.settings.request_timeout_seconds)
         quotes: dict[str, Quote] = {}
         errors: dict[str, str] = {}
@@ -1245,7 +861,7 @@ class PortfolioService:
             )
             last_attempt_at = _parse_time(last_attempt["finished_at"])
             if non_retryable and last_attempt_at is not None:
-                next_retry_at = (last_attempt_at.astimezone(timezone.utc) + timedelta(days=1)).replace(
+                next_retry_at = (last_attempt_at.astimezone(UTC) + timedelta(days=1)).replace(
                     hour=0, minute=0, second=0, microsecond=0
                 )
                 if started_dt < next_retry_at:
@@ -1275,9 +891,7 @@ class PortfolioService:
                 "ok": True,
                 "status": "skipped-not-due",
                 "last_success_at": _iso(last_finished),
-                "next_due_in_seconds": max(
-                    0, int(due_after - (started_dt - last_finished).total_seconds())
-                ),
+                "next_due_in_seconds": max(0, int(due_after - (started_dt - last_finished).total_seconds())),
             }
         started = time.perf_counter()
         targets = self._targets()[: self.settings.max_symbols]
@@ -1301,9 +915,7 @@ class PortfolioService:
         fx_fetch_errors: dict[tuple[str, str], str] = {}
         if eligible or fx_pairs:
             try:
-                quotes, fetch_errors, fx_quotes, fx_fetch_errors = self._fetch_quotes(
-                    eligible, fx_pairs
-                )
+                quotes, fetch_errors, fx_quotes, fx_fetch_errors = self._fetch_quotes(eligible, fx_pairs)
             except Exception as exc:
                 error = str(exc)[:500]
                 fetch_errors = {str(item["isin"]): error for item in eligible}
@@ -1372,10 +984,12 @@ class PortfolioService:
                 continue
             quote = quotes.get(isin)
             if quote is None:
-                failures.append({
-                    "isin": isin,
-                    "error": f"EODHD lieferte keinen Kurs fuer {item['symbol']}/{item['mic']}",
-                })
+                failures.append(
+                    {
+                        "isin": isin,
+                        "error": f"EODHD lieferte keinen Kurs fuer {item['symbol']}/{item['mic']}",
+                    }
+                )
                 held_missing += int(item["held"])
                 continue
             try:
@@ -1397,14 +1011,16 @@ class PortfolioService:
                 if source_age < -300:
                     raise ValueError("Quellzeitstempel liegt unplausibel in der Zukunft")
                 if (
-                    (quote.market_open if quote.market_open is not None else self._instrument_market_open(item, received_at))
-                    and source_age > self.settings.stale_critical_minutes * 60
-                ):
+                    quote.market_open
+                    if quote.market_open is not None
+                    else self._instrument_market_open(item, received_at)
+                ) and source_age > self.settings.stale_critical_minutes * 60:
                     raise ValueError("Marktdatenquelle lieferte einen kritisch veralteten Kurs")
                 if (
-                    (quote.market_open if quote.market_open is not None else self._instrument_market_open(item, received_at))
-                    and source_age > self.settings.stale_warning_minutes * 60
-                ):
+                    quote.market_open
+                    if quote.market_open is not None
+                    else self._instrument_market_open(item, received_at)
+                ) and source_age > self.settings.stale_warning_minutes * 60:
                     warnings.append(
                         {"isin": item["isin"], "warning": "Marktdatenquelle lieferte einen veralteten Kurs"}
                     )
@@ -1418,9 +1034,13 @@ class PortfolioService:
                         ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
                         """,
                         (
-                            item["isin"], quote.provider, str(quote.price),
-                            quote.currency or item["currency"], _iso(observed),
-                            _iso(received_at), delay,
+                            item["isin"],
+                            quote.provider,
+                            str(quote.price),
+                            quote.currency or item["currency"],
+                            _iso(observed),
+                            _iso(received_at),
+                            delay,
                             str(quote.open) if quote.open is not None else None,
                             str(quote.high) if quote.high is not None else None,
                             str(quote.low) if quote.low is not None else None,
@@ -1453,8 +1073,14 @@ class PortfolioService:
                 ) VALUES(?,?,?,?,?,?,?,?)
                 """,
                 (
-                    _iso(started_dt), _iso(self._now()), status, len(targets),
-                    received, held_missing, latency, error,
+                    _iso(started_dt),
+                    _iso(self._now()),
+                    status,
+                    len(targets),
+                    received,
+                    held_missing,
+                    latency,
+                    error,
                 ),
             )
         notification = {"attempted": False, "ok": True, "detail": "Keine neue Kursmarke"}
@@ -1501,18 +1127,26 @@ class PortfolioService:
         mic = str(item.get("mic") or "").upper()
         if mic == "XETR":
             local = now.astimezone(ZoneInfo("Europe/Berlin"))
-            return local.weekday() < 5 and clock_time(9, 0) <= local.time().replace(tzinfo=None) <= clock_time(17, 30)
+            return local.weekday() < 5 and clock_time(9, 0) <= local.time().replace(
+                tzinfo=None
+            ) <= clock_time(17, 30)
         if mic in {"XNAS", "XNGS", "XNYS"}:
             local = now.astimezone(ZoneInfo("America/New_York"))
-            return local.weekday() < 5 and clock_time(9, 30) <= local.time().replace(tzinfo=None) <= clock_time(16, 0)
+            return local.weekday() < 5 and clock_time(9, 30) <= local.time().replace(
+                tzinfo=None
+            ) <= clock_time(16, 0)
         return self._market_open(now)
 
     def health(self) -> dict[str, Any]:
         enabled = self.settings.enabled
         if not enabled:
             return {
-                "enabled": False, "ok": True, "state": "disabled",
-                "coverage": None, "required": 0, "fresh": 0,
+                "enabled": False,
+                "ok": True,
+                "state": "disabled",
+                "coverage": None,
+                "required": 0,
+                "fresh": 0,
             }
         targets = self._targets()
         now = self._now()
@@ -1549,12 +1183,8 @@ class PortfolioService:
                     mapping_error = str(exc)
             provider_open = None if not row or row["market_open"] is None else bool(row["market_open"])
             effective_open = self._instrument_market_open(item, now) and provider_open is not False
-            stale = bool(
-                not mapping_ok or (effective_open and (age is None or age > warning_seconds))
-            )
-            critical = bool(
-                not mapping_ok or (effective_open and (age is None or age > critical_seconds))
-            )
+            stale = bool(not mapping_ok or (effective_open and (age is None or age > warning_seconds)))
+            critical = bool(not mapping_ok or (effective_open and (age is None or age > critical_seconds)))
             if item["held"]:
                 if critical or row is None:
                     held_missing += 1
@@ -1566,9 +1196,12 @@ class PortfolioService:
                 watch_missing += 1
             details.append(
                 {
-                    "isin": item["isin"], "held": bool(item["held"]),
+                    "isin": item["isin"],
+                    "held": bool(item["held"]),
                     "observed_at": row["observed_at"] if row else None,
-                    "age_seconds": age, "stale": stale, "critical": critical,
+                    "age_seconds": age,
+                    "stale": stale,
+                    "critical": critical,
                     "mapping_confirmed": mapping_ok,
                     "mapping_error": mapping_error,
                     "provider_market_open": provider_open,
@@ -1661,13 +1294,8 @@ class PortfolioService:
     def doctor(self) -> dict[str, Any]:
         health = self.health()
         key_present = bool(os.environ.get(self.settings.api_key_env, "").strip())
-        configuration_ok = (
-            not self.settings.enabled
-            or (
-                self.settings.provider == "eodhd"
-                and key_present
-                and self.settings.import_root.is_dir()
-            )
+        configuration_ok = not self.settings.enabled or (
+            self.settings.provider == "eodhd" and key_present and self.settings.import_root.is_dir()
         )
         return {
             "ok": configuration_ok and self.store.integrity() == "ok" and bool(health["ok"]),
@@ -1736,7 +1364,7 @@ class PortfolioService:
 
     @staticmethod
     def _forex_market_open(now: datetime) -> bool:
-        utc = now.astimezone(timezone.utc)
+        utc = now.astimezone(UTC)
         if utc.weekday() in {0, 1, 2, 3}:
             return True
         if utc.weekday() == 4:
@@ -1787,9 +1415,7 @@ class PortfolioService:
             ).fetchone()
             inverted = False
         if row is None:
-            raise ValueError(
-                f"Kein gespeicherter EODHD-Wechselkurs fuer {source}/{target} vorhanden"
-            )
+            raise ValueError(f"Kein gespeicherter EODHD-Wechselkurs fuer {source}/{target} vorhanden")
         provider_rate = _decimal(row["rate"])
         if provider_rate <= 0 or not math.isfinite(float(provider_rate)):
             raise ValueError(f"Gespeicherter EODHD-Wechselkurs fuer {source}/{target} ist ungueltig")
@@ -1807,9 +1433,7 @@ class PortfolioService:
         return {
             "rate": conversion_rate,
             "provider_rate": provider_rate,
-            "provider_symbol": EodhdClient.fx_ticker(
-                str(row["base_currency"]), str(row["quote_currency"])
-            ),
+            "provider_symbol": EodhdClient.fx_ticker(str(row["base_currency"]), str(row["quote_currency"])),
             "base_currency": str(row["base_currency"]),
             "quote_currency": str(row["quote_currency"]),
             "observed_at": str(row["observed_at"]),
@@ -1822,9 +1446,7 @@ class PortfolioService:
     def valuation(self) -> dict[str, Any]:
         """Value the latest holdings without ever mixing unconverted currencies."""
         holdings = self.holdings()
-        health_by_isin = {
-            str(item["isin"]): item for item in self.health().get("instruments", [])
-        }
+        health_by_isin = {str(item["isin"]): item for item in self.health().get("instruments", [])}
         positions: list[dict[str, Any]] = []
         failures: list[dict[str, str]] = []
         totals: dict[str, dict[str, Decimal]] = {}
@@ -1870,9 +1492,7 @@ class PortfolioService:
                 cost_basis = shares * entry_price
                 current_value = shares * converted_price
                 gain = current_value - cost_basis
-                gain_percent = (
-                    gain / cost_basis * Decimal("100") if cost_basis != 0 else None
-                )
+                gain_percent = gain / cost_basis * Decimal("100") if cost_basis != 0 else None
                 fx_detail = None
                 if conversion["provider_symbol"] is not None:
                     fx_detail = {
@@ -1977,13 +1597,19 @@ class PortfolioService:
             raise ValueError("ISIN ist weder im Depot noch auf der Watchlist")
         if not series:
             return {
-                "ok": False, "decision": "abstain", "isin": isin,
-                "reason": "Keine Kursdaten vorhanden", "series": [],
+                "ok": False,
+                "decision": "abstain",
+                "isin": isin,
+                "reason": "Keine Kursdaten vorhanden",
+                "series": [],
             }
         if health_item["critical"]:
             return {
-                "ok": False, "decision": "abstain", "isin": isin,
-                "reason": "Pflichtkurs ist kritisch veraltet", "as_of": series[-1]["observed_at"],
+                "ok": False,
+                "decision": "abstain",
+                "isin": isin,
+                "reason": "Pflichtkurs ist kritisch veraltet",
+                "as_of": series[-1]["observed_at"],
                 "series": series,
             }
         values = [float(row["close"]) for row in series]
@@ -2017,16 +1643,25 @@ class PortfolioService:
             "last_price": values[-1],
             "currency": series[-1]["currency"],
             "indicators": {
-                "trend": trend, "sma20": sma20, "sma50": sma50,
-                "sma200": sma200, "rsi14": rsi14,
+                "trend": trend,
+                "sma20": sma20,
+                "sma50": sma50,
+                "sma200": sma200,
+                "rsi14": rsi14,
             },
             "series": series,
             "disclaimer": "Informationssystem ohne Orderausfuehrung; keine individuelle Anlageberatung.",
         }
 
     def alert_add(
-        self, *, isin: str, direction: str, threshold: Decimal,
-        currency: str, hysteresis_bps: int = 25, cooldown_minutes: int = 60,
+        self,
+        *,
+        isin: str,
+        direction: str,
+        threshold: Decimal,
+        currency: str,
+        hysteresis_bps: int = 25,
+        cooldown_minutes: int = 60,
     ) -> dict[str, Any]:
         self._require_enabled()
         isin = isin.strip().upper()
@@ -2054,9 +1689,15 @@ class PortfolioService:
                 ) VALUES(?,?,?,?,?,?,?,1,?,?)
                 """,
                 (
-                    rule_id, isin, direction, str(threshold), currency,
+                    rule_id,
+                    isin,
+                    direction,
+                    str(threshold),
+                    currency,
                     max(0, min(hysteresis_bps, 5000)),
-                    max(0, min(cooldown_minutes, 10080)), now, now,
+                    max(0, min(cooldown_minutes, 10080)),
+                    now,
+                    now,
                 ),
             )
         return {"ok": True, "id": rule_id, "isin": isin, "direction": direction}
@@ -2095,7 +1736,6 @@ class PortfolioService:
             threshold = _decimal(rule["threshold"])
             price = quote.price
             crossed = price >= threshold if rule["direction"] == "above" else price <= threshold
-            state = "crossed" if crossed else "clear"
             last_triggered = _parse_time(rule["last_triggered_at"])
             cooldown = int(rule["cooldown_minutes"]) * 60
             can_trigger = last_triggered is None or (now - last_triggered).total_seconds() >= cooldown
@@ -2107,8 +1747,13 @@ class PortfolioService:
                         VALUES(?,?,?,?,?,?,?)
                         """,
                         (
-                            str(uuid.uuid4()), rule["id"], isin, "triggered",
-                            str(price), quote.observed_at, _iso(now),
+                            str(uuid.uuid4()),
+                            rule["id"],
+                            isin,
+                            "triggered",
+                            str(price),
+                            quote.observed_at,
+                            _iso(now),
                         ),
                     )
                     self.store.connection.execute(
@@ -2158,3 +1803,11 @@ class PortfolioService:
                 "nach gespeicherten, zeitlich abgeschlossenen Beobachtungsfenstern bewertet."
             ),
         }
+
+
+def _system_event_command(text: str) -> list[str]:
+    command = ["openclaw", "system", "event", "--text", text[:1800], "--mode", "now"]
+    gateway_url = os.environ.get("OPENCLAW_GATEWAY_WS_URL", "").strip()
+    if gateway_url:
+        command.extend(["--url", gateway_url])
+    return command

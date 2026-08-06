@@ -21,7 +21,7 @@ def make_message(*, sender: str, subject: str, message_id: str):
         f"Message-ID: <{message_id}>\r\n"
         "Content-Type: text/plain; charset=utf-8\r\n\r\n"
         "Lokaler Testinhalt, der nicht exportiert werden darf.\r\n"
-    ).encode("utf-8")
+    ).encode()
     return parse_eml(raw, Envelope(message_id), "INBOX")
 
 

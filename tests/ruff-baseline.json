@@ -1,0 +1,5391 @@
+{
+  "schema_version": 1,
+  "ruff_version": "ruff 0.15.22",
+  "policy": "Only these exact legacy path/code/message/source-line fingerprints are accepted; every new or changed finding fails.",
+  "error_count": 781,
+  "fingerprints": [
+    {
+      "path": "docker/job_loop.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "9cefddb7213842f0d3e1f07bcd48b5543d6aa21b3ccda0e5fd4699f9fdc04022",
+      "count": 1
+    },
+    {
+      "path": "docker/job_loop.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "5ad5bff10fceafd7beceb1ef76904064dc98997fa3bc8b5e37395f5bf1464c49",
+      "count": 1
+    },
+    {
+      "path": "docker/job_loop.py",
+      "code": "E501",
+      "message": "Line too long (122 > 110)",
+      "line_sha256": "6177df104bebc025c7cf57393bcbe9fd9131ba944cfca31b0af689af92507200",
+      "count": 1
+    },
+    {
+      "path": "docker/job_loop.py",
+      "code": "E501",
+      "message": "Line too long (128 > 110)",
+      "line_sha256": "10d4775b9eaf3704b1ffce2a414fa571a89daa8812a892e008ed4043370688aa",
+      "count": 1
+    },
+    {
+      "path": "docker/scripts/migrate-container-state.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "d944d91ba0ab6dd21b75960697e3b512d6f7e0aeb95cbffd5f68bc5ff0312e27",
+      "count": 1
+    },
+    {
+      "path": "docker/scripts/migrate-container-state.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "f98b7000b4eb9345d0fc3fc80a7d10ff0ad9da3f73e95a07d7ec1e1bc491de1f",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "2e189d69db9ded2e3e002dfc50df1b368395c80dccd90d66ed84531d87d0f67a",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "4d8ec8d7e61888c2637c3ac10ab94bbbe8955f906e83c529454176a2033443fd",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "7198f87bce9551b6b5e1d5d49042b6f29a65b5378444fd22968867c1b77c3bfb",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "bd3ce16af02be463e9cae98bbb3da568f11f88c8c09d6a81be87a92993fdcb6e",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "cba2349fa704bcccde35bb5c56f936b84ce1e9d848a36c667460c5af936aeceb",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "62af54a7ed2c999036a34298cc64453db5e04b107831a3d285da0cd90eb6d7c7",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "ec69aad5bf5a1732e036103c85e83f3249b629254a538086dbbcadc14fac97d5",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "e4dc59226c9b9b8370da8049bc7249edc5168dfa870ef3c36424e793c99acc95",
+      "count": 2
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "ab4b3d4bf174e5daeb8fb4098830a2fee2c499d1bd0f5bd23cd15c975f256c51",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "1604c9f31cfae3b39546504bf169c7e50fd3ab6c639516261374a0cd8fd8ccd8",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "95a166b9d3219eba271c85b73a77a64c19ead8342a5fe8964b70bb8ee13a5699",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (117 > 110)",
+      "line_sha256": "5feaba4085d5e03947b062122f961ffd7c2c0afb8c8f451f8804207fef2a6a1e",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "9eb4850425abac1918c63335daea8341d5f5c6054a5eeacbb722a2a390e7c53c",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "a28a259fc3927edda2dc0cbdcd52ffb0844171e98cdc87da2335e3eb94859563",
+      "count": 2
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "5cbc80f9fa087583f55d910c482aaedd947d9e473d05439111f8d1e36e3034ed",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "7614ae491351ae08d5b5ed66907993c7e04ae77deab58c5ef68cc49187658289",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "ae2972f95b51759a8a85523a93c7528d585e6706bdccad1f808871345a01f312",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "ee6e566a896397746c08df10a974921462cf129e11eda0518147482ed5bc03a5",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (122 > 110)",
+      "line_sha256": "8c0f8d8aee019d94760774a95ce73bd11f4e6a0eaaec4605b55294e36dd0cd51",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (123 > 110)",
+      "line_sha256": "e77e339d38ebbfc6172a2f3ca2894e620e4fe367249cf62070ca351695fb3064",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (124 > 110)",
+      "line_sha256": "09bddf1ec3374bcec8f2f3cb66d33f943ae6a29d3847b62d9b07fa81a578b664",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (124 > 110)",
+      "line_sha256": "1f0946a4c7ee31522ad32f62dd924bc1c78ec05fd24180ba425731086ffa4904",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (125 > 110)",
+      "line_sha256": "f5d3a05d215deea9b1a88f831ffb10a9d83f59ddd0c95d81d99b8f53c8202e04",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (127 > 110)",
+      "line_sha256": "ddb1f3f1182e531bd646b255d0a8e37e802d3ed1ffe018fa568b789dc36ed0c8",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (128 > 110)",
+      "line_sha256": "b47ad1fc0991ba21b3467960a13978c837efb535f331d294284c35914d517736",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (129 > 110)",
+      "line_sha256": "2ff9cdd300902bd40847c72d988d276cfef1809505c33ff2d8aadc9a84b19622",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (129 > 110)",
+      "line_sha256": "6fab26f703c7f4f9e64ace4748548ecb35e7a85e328810f4f9fe5d95aaba73fa",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (131 > 110)",
+      "line_sha256": "3814bac9e8a5b5fdfef90e5aced42c832b2a813c955a2d006f8fabf8625c35be",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (131 > 110)",
+      "line_sha256": "6ca79833fb8dc57f9cd1a22e4dcc68261da5a0eee4ca4d1934ee0bfce1c586e9",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (137 > 110)",
+      "line_sha256": "1f8e4f91aa1fa8fe394f32861a955f967938fa655d9f19efa898a51d7fc5b992",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (139 > 110)",
+      "line_sha256": "a23a50b4a9a55bffce5354ff018a1dc6f1152632f2b6e7627e0b22f186f64840",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (140 > 110)",
+      "line_sha256": "12e3e322bd60129d15cd9c2a89073e1efcf7d0bf2fe5efd368670acb1ec57ee1",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (141 > 110)",
+      "line_sha256": "33b363c1ed8de9b2479bab2d5a9ee3d569a75219d4437509e34d9fb4ed04e49f",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (145 > 110)",
+      "line_sha256": "262347043b78f81242d83b1a4c7917182fecc4d260c64320c30d975641773928",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (146 > 110)",
+      "line_sha256": "73b48aedf9d56f4d3a29f4a8e85a0b081aecb501ad8068b2551a5f5a2d4960a1",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (147 > 110)",
+      "line_sha256": "664bc5c403c27b8796f26484438409693033c6d1b8b2d714ba90429cd1b2b8aa",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (147 > 110)",
+      "line_sha256": "b3af9311e106eb234f67f34495e965577211ccfe49264aa8ff0b4b59122108c5",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (174 > 110)",
+      "line_sha256": "a629af831d9129be942e1e6880c729ed960729edfbebd66a27bd9f140c0230ea",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/app.py",
+      "code": "E501",
+      "message": "Line too long (180 > 110)",
+      "line_sha256": "b28e2cfdb5317afabf57a168e1ea4103d48673a0f44e659a1362c6384855272e",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/assistant_bridge.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "f343e23f24a57fea87653da6fe8d8a0315be8fd552cc8a90a6d6020d59485284",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/assistant_bridge.py",
+      "code": "E501",
+      "message": "Line too long (120 > 110)",
+      "line_sha256": "c251cada3f45061f92b617a544758594b833e53a995cdf0e363c5d920d27ee7d",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/assistant_bridge.py",
+      "code": "E501",
+      "message": "Line too long (125 > 110)",
+      "line_sha256": "1c46612759f374478a242433dea943d8a690b14d7945c2c592d9036c4bbe2afe",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/assistant_bridge.py",
+      "code": "E501",
+      "message": "Line too long (126 > 110)",
+      "line_sha256": "03d473ccaaadebb19db58ff2364991da12391b01e51f0571f9f564271db857d5",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/assistant_bridge.py",
+      "code": "E501",
+      "message": "Line too long (131 > 110)",
+      "line_sha256": "42cb5009ba984b9f87e257f0606dcff39478624d80fac7daf523f8bb4b2f930d",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/assistant_bridge.py",
+      "code": "E501",
+      "message": "Line too long (156 > 110)",
+      "line_sha256": "498f8b789358d7f76478881950a125379930c2b152a0f6718a1468a3641cd063",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/assistant_bridge.py",
+      "code": "E501",
+      "message": "Line too long (173 > 110)",
+      "line_sha256": "7316130b0347c2ec9534024b9fe9530e536305b2759a75b2ca345c75288b06e8",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/assistant_bridge.py",
+      "code": "E501",
+      "message": "Line too long (178 > 110)",
+      "line_sha256": "c67acb9735805d9a8587972fcea7ad6f9e66531398044844eec970f727d257dc",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "8264086783e008ac07c6f6531ce52508228fbb4880225edfd3e028d090eb576f",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "b7c3ad340b0eab42cc9cdefcebb72f7e58591c1ee57f111c4fd8804b1ed7db52",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "26d710758e0f2aa1bd635c43532f43af4c3cc5b755977f1d6303e71de57cda2f",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "7f04d4ef2015e6ef24ab142e3cc36821da9cc5cf9f91c1b733dba3ea8c70bf34",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "f6899c6be70672afe7d9a2d0a3b74c3deef6ca7d97f2ba54957e1ff65768e78f",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (117 > 110)",
+      "line_sha256": "9aa750328192cc4ce05f562262ff3f24fea6f4d8d7f773725ae9b834cd3e2a16",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (117 > 110)",
+      "line_sha256": "bfe54f5b6f8a1ab529eaec6f5e73f5cfb68d6019f0a674450a1cadec66ed5896",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (117 > 110)",
+      "line_sha256": "dd0d00d6337d8cfd6aabf687f18a9dfa31632a889d4e845a687b6c524663ae45",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (117 > 110)",
+      "line_sha256": "e36d1f7927d5f81f6f54bfa2a939c51ed6a3af22db49d2f5948d1ba914d76c8a",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "0ecd31f784ac83dc77f7fa0cc3f772838e830b51fc160e5d753542779bc39cb3",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "6fe4a7b4629f1c77617929f0e11bd3edb8d81b5d9e9b53cfab80945e23c15ca5",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "e714880c50ca05d8d603833554bb02e53819cb1e86315ba29ae8d6a70fcb1236",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (119 > 110)",
+      "line_sha256": "ea0b1584af77d5eb21f26e74b4ffd84870c7689d29cbd1e7b0586337ebb68870",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (120 > 110)",
+      "line_sha256": "7d3cd1a2fef528951ad4b270ceb80f420a89b2007a96e485c22b95daacad9eb3",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "d4f69cc45b0c10df31c5518e4d204259597b5a73f309122c2ba8d897bac551df",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (122 > 110)",
+      "line_sha256": "38048c9e20f01a0e3081d0e22db69cc4ed052603df6178a093cb6aa46b2e65b9",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (123 > 110)",
+      "line_sha256": "33b7616f66eda47e55c4dff76f5f1427f7e4aa4c335e8440b9bb6cab9c50dac7",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (124 > 110)",
+      "line_sha256": "f96c52aea986e3dbe1322a70be26f7b1ead9c96f3d87d7dd8d44acbd9f15787d",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (125 > 110)",
+      "line_sha256": "13e3b11f70474b08a50d94b5133271f634baca13ab09fd55a78096e61ed035d3",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (125 > 110)",
+      "line_sha256": "389b1e5710c0849c5bffe066ec046e2f54aac66f36ca6886ec12c7bc6580fd3e",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (125 > 110)",
+      "line_sha256": "88e2adfdad16774257cc0608b63263c37957dc9509b0b6d3b76f0e42919c20cc",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (125 > 110)",
+      "line_sha256": "c757e2936dd924cf6123a849aa0978d9c2020e291a8728f81b0b2dd3273be33d",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (126 > 110)",
+      "line_sha256": "a8c9c6556b1e60a2fe33a4e273417af5194074a95fcd2f3321f68f8158e7cc57",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (127 > 110)",
+      "line_sha256": "f8242926cd6d1c862d878fd76cfff6869af347ce8b0fefdf5f48a7f547654c44",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (128 > 110)",
+      "line_sha256": "45435471c479bb60fd3fcc629370bffbb64e51079cd5db2e0f014987c9e15557",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (130 > 110)",
+      "line_sha256": "7745f93db2aa53355c72b5dd988721784c9553e9f4e9298d2094c72d804fe09e",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (130 > 110)",
+      "line_sha256": "be6f6db34d0512b0219d758363e96dc2d348c7ee22df48d6b418c7c163fe6759",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (132 > 110)",
+      "line_sha256": "7308d1043369745eecf5ff9c321219690d2cb4539734dbced05f70a7eb3d0c98",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (133 > 110)",
+      "line_sha256": "81c0966031a3cfe823bfb2ae9d49e1bc30a7836b52c21b4a8c88b15a1b7ab0a1",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (136 > 110)",
+      "line_sha256": "29d4c15241105d86413ce2657dd37fac556e0637fcc7691776d07989cf356ca0",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (141 > 110)",
+      "line_sha256": "09cdcbcf42ca587a9e08d59390f2d5a030ae6d2d46993f3f56060ee141549ab1",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (141 > 110)",
+      "line_sha256": "74b09cdc49251df1cf845235f461a161baa7cfac24181b3421450f1cc3ee5deb",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (142 > 110)",
+      "line_sha256": "1a68cf9c2a582463efb84da30b8a80cb9416131b5b8a5cc4920c5d4c7ded0e34",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (143 > 110)",
+      "line_sha256": "b9d61e0225b49408e8bd46795c102481eb34837a5b6e0fcaccc1cabcdf4e9bfb",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (157 > 110)",
+      "line_sha256": "1a1547dd13bb9401831ae58e1b36d0990f1e39630d2b31600102a048959abf03",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/calendar.py",
+      "code": "E501",
+      "message": "Line too long (204 > 110)",
+      "line_sha256": "082c442d116176d6529b5bd27c30fbbfa5c827d6ecf1ea2296d8ab48f0d1d57d",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "969ba0f5adde0e384ee20fb1cc8bffc6d14a2d598aac1bbefa932eb8303f8d80",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "8b33fa3214fc46707cfd2f4aeeddbc2cdba827d3cae82c8a995d58c5be4b38d5",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "0901f6a4c09ded4905a66074445feac1c440928670056f89f1c4c3f80791c20f",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "20df051ecfe531a70d7d1f6676aa852d6ef3334bf2e0ec8b9ccce4dc2edc861d",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "e5ca4361a732ba4279498b8f680d3e1a58e0accb6004f7b4ca3fa5b63b06536a",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "3f586bf5b7bf77b36735a83089f706781e9fd762584024a8e836df692500a727",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "757d5256d6f82bef88a1afbe26e3c01e16457bb2e87be5ac34e57129bcf46a53",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (119 > 110)",
+      "line_sha256": "893920718efe9bc4f9e6ca9621ca47ebd03a7df7a68f66c45f2d70c8f0422217",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "3d95382061efed75cb79234dbab359896a79e749f7936956018f60af6a1801e8",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "8399cb963448bd7436495154529d71cd8270792e50c1e56c0b5505cf8e388fb4",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "a4fecce9a3960d058457562f055c4b8bb359e12880ca5f9668c04a91a3280072",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (131 > 110)",
+      "line_sha256": "e89f1e7314ef8c4a3eb7ce4ab7e34c2d644c8b0d7e619c6744e6381966123420",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (137 > 110)",
+      "line_sha256": "769f3f454db2b9c45fa7b96f2ebce462f64ca44923de0749214591acace8bf8b",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (143 > 110)",
+      "line_sha256": "8b57137d22d773b0cd30d2e8df887cfa3bcbd512f0326c604335b2fdf253ddcb",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (144 > 110)",
+      "line_sha256": "eb5438b8dea53116bb62fc3322a01c44412aacf6bf7cc941c4ae738c8c78e2e9",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (145 > 110)",
+      "line_sha256": "edce93fb8efc45733cb838dd929747764fd18792c4ade7db51051e106616871a",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (149 > 110)",
+      "line_sha256": "b76b282e8a411a74904ab6231063e42a4db9f26db5ddbc81f6f34bd1e0b20c53",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (149 > 110)",
+      "line_sha256": "c42408522ebbd16bdc85189e01ba30c0fbc2ba2358bf69dca648d398c7f1e5ef",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (160 > 110)",
+      "line_sha256": "7c4e2cdff01b494a476f11928ef670221969aa4b7fbdecf3b009e5226e9c52cb",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (165 > 110)",
+      "line_sha256": "0f360ea9a16c060760d64b8bf4e21e7f87b34641286ab134506dc67c57857383",
+      "count": 2
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (167 > 110)",
+      "line_sha256": "5d5bf4e8c5b7cf779afcdcc3c60c9347baef1838ef3445ac33912349356ad89e",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (168 > 110)",
+      "line_sha256": "091a412eb0d35ec66372c619212662a625f23e54acad5f6250c058e7fbb5125c",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (178 > 110)",
+      "line_sha256": "de4518c5560cb0c8a5c9623750df105c58e0de076e7942d0abf62d2322c5dc5b",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (179 > 110)",
+      "line_sha256": "9fc5db429ed31654f3b956efbbe87dfb8e7a93fde53bf801f056dadfd3717ef6",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (185 > 110)",
+      "line_sha256": "4ff151f88bab7724032941bffd3932bc72603a2b868491d5c590ba15159a2c82",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (194 > 110)",
+      "line_sha256": "f3d12eccbd628bb21d21bed5b8195a91c680f06ea20bea936b8c80f5dfd7cc75",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (199 > 110)",
+      "line_sha256": "9b5f141e98f3a30773cdd58abf26eebd8785425bfc61271bf612e4b7ee962b77",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (201 > 110)",
+      "line_sha256": "6cb58adfa00362a04a2b8f82fc5b5a20fe4a3d1de15de6559417fa5c8f66e60e",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (225 > 110)",
+      "line_sha256": "ec46e586c744dc4ff7738c20a03b64f81e7cede215fe846be930e87318aff26e",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (232 > 110)",
+      "line_sha256": "eaf7f427c1f29eff0810cb52b647fc236278ecce7b771658523020b8379c63aa",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/classifier.py",
+      "code": "E501",
+      "message": "Line too long (256 > 110)",
+      "line_sha256": "020b63aeb4891bdb0524b42c17e1babb107716f53a08b5899eac77adacb3c21c",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "14c33e014c7c459c56b9155bc592fb07e1a1f940ffbbead2cab4b4bc9fdd31de",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "4bbae66510c47b82e4300309c55edc92a4fd55ecee425f27ae4acb768bcdf9b3",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "4e79665330c674b9d51706edfce629097f39e1fac8b79147910960be8c82a440",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "948104f8b930ee0d9a39143881c49b58a4c4aa69705e83f291bbca3e234ac1bb",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "968eeebecb4140ddb2cb983653f01d9dac73dfea7a265c5b8f09e27a111b5c18",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "96b78828b74c014963122837beefbc0dbef878922d77b629a299853d1317730d",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "b05f856f3f88d901dfd6bd4487965d35dbfbf3ce78bf6c30c212d190b45f727b",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "da1bebb411fa44cf1309f39911e47190931150a008c652fdf506964498e932ba",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "39ba44231fbed9580450013ce7760c08f2b1fbbb7fdf4db24d598cc052311504",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "b9b06390974244d091646617275e9ad78d6f6b941246d122bf7fc58671c240d5",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "e87ff4099f6d1d8e752ce753ec8eeb9da1e4e70e58eb2c84b823793db1e41a40",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "3d2acdc681e6ab6ef7be50e16557303397f02cc6a16f79cac6ea8decbd5e39b7",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "8434a870568fea2d4eab36d530f0fef56a923738c6b1f6898658d9d7a7386d5c",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "4a50f7fb4499884aa5d76e7cf838906539b989eaaeb63d2eaf305fdbc08ed866",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "d5deffee52a81626d5344645b61255955a8286748aea9e31b2720b8f7e15f2af",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "36adbf91d93e12814de444030d7c4cf41f84ce1b47e800cf01b55bf0e7e1b111",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "9c76165eff43e3c362d9457fbaa53c247da8f3424c4eadeb456c870c933402fb",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "a2c0f2591141ce1d3ecdcade460b16f2cc5eb7e7f58646296ca587ca76be092e",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "b4286bbb5f5c6f5348d45a1a2ffcef0b2f9fd9691b23531216bea8e0a46771d6",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "e0976c190894c7bb5d72cb9930cd90d82773d07f19f1c3a595f0017070b78635",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "89b9addc4d0c960cfc4bfb6e3f2f3e2acf290321368a5d49f9be2035a53e40b0",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (117 > 110)",
+      "line_sha256": "1b4bd135b47bceb2330041e35edabe4bc54d1dc110ff845cc3d39fc3817458da",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "083762379d98b996f8d31c123a25204a63aabeb56845986e77e81871570e617f",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "24666725ec196b164fc686b0bea82c9ee236ee4cd9040f4455c1a18a7a5ced6e",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "9e242f562f9d3374fe690b59b07c887f016c2f003ab79ed0aa7b49e55ff9c300",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (119 > 110)",
+      "line_sha256": "4d4a4247566103ea7028ccf40608b25947b3a809189603fcd95272d5ceb2f530",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (120 > 110)",
+      "line_sha256": "596462c2d73ae23b900ae8c779d69dc09b72d1cecef650965237bb471f823ecd",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (120 > 110)",
+      "line_sha256": "72bfb974174721f0e35a550f5c7b162b8eb8eebb714636f9b4980ce9f16c1643",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "2346f12d2cb6bec9e952c7924db413ebc562a2ca0897dd868f5f402c9490d2cd",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "80b7415274ddeaf278b030315c3cbd047d46596926c3cbd8176506abc1ea58df",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (122 > 110)",
+      "line_sha256": "a4a52c86b7a8eabb3fdcf727a906e913a4eb485e67dacbf0dfe733868a7d2dea",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (124 > 110)",
+      "line_sha256": "4b2ee1f1774cc5b380c8d5a0125b9013864bb3ff36b9ba0141af4b150cedc9e4",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (124 > 110)",
+      "line_sha256": "aae7f94bd312723c445470c7728b08167cdf6760d237db76c3df7b9fbedf1f93",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (125 > 110)",
+      "line_sha256": "1130249886c0df234c6bc34e57a7808233fc4cf3fe176cbb2b9f256f58398b49",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (125 > 110)",
+      "line_sha256": "c4ddcd83c2ebe375e99a742f67a72148ff4797f6585673c1553e68fa8f1026be",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (129 > 110)",
+      "line_sha256": "fa2137230d7f78fdf007046cbee7f063d5c3ae54ff1eb7dffd60655841a60356",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (132 > 110)",
+      "line_sha256": "dd59daea54550da97e2e32905eb167b73d349d26a62aed211a3a0a923f977aae",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (140 > 110)",
+      "line_sha256": "61ae4eacc4aa198eb7a223505cf1fb4e2ec1433921328627a369f2c865530580",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (140 > 110)",
+      "line_sha256": "6e61ce8e92db2e5215cfc7833c03713bf49fa0c46eba30fa5f83366d274996e0",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (145 > 110)",
+      "line_sha256": "f2a763ede590386b2c60d16dafbd3fe18f72d2f02fc55f55738f71d1ce76583c",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/cli.py",
+      "code": "E501",
+      "message": "Line too long (154 > 110)",
+      "line_sha256": "3d04cdd24ca1d47f08467ab568f6769e4d84510691a7702252bea732e379e41f",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/command.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "96c812178e503537a8db097d8c27e6bc7f3bcb28c4ab7173d97fb7421aa92412",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/config.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "002a717414eba94fc483944af20092e08b766d38a2328fe644a5c7e48eabecb0",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/config.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "02f945ce78cf4658ad0b9800f817c525b875d25dfe8417e87f8677fba4e931cd",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/config.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "593319a9248465a3e735702dc5f2e357101584f46079d49ea844a49a7c774fbb",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/config.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "98405ac0b3667dd9a9a8905d6b7eb43eefef9d3a2941d68c73ddd6dad90f8db1",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/config.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "3979868cb99e07ef95d2237c1612a73c82112733a2a2bc4780b6e01837a08210",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/config.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "6b4596b0f20c1768c3661c5966424e0798c19b485c01208345929b94c52d7c4d",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/config.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "f8b8d6c30366ff012c9429d4bca54c3d71d36a4ce5dc9869c8d10f293289725e",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/config.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "3f739dbb97277f82f630c6ab674b300fe824a72956ae18efab6b3674c7c49b6f",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/config.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "72e6431b44563f4a1e12b869824db575205cc344da6507755761845dfeec9f1f",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/config.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "f6c1b2c081334ab8a0f0e553d16e95038f9671c6d86c8dce78b8116809b9aec0",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/config.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "0467099fa5efab55946d758fe27cd0cd8a2fe4e5cb65438bc3e2e0325dc629d3",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/config.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "7746d267f3fb0afef84150718b2b5f4d7f8ef4374203995d080ff9fc4d49ef7b",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/config.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "7bbe76c9006c5b1a77730228ee40fcb7010a11e998a2f241c124195a5054f413",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/config.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "8ff00c47da90dc79363f29c620d12d9dac6db63637051047104fb2fe0d4ebdc1",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/config.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "dcf44f3095dfdac2e2d8e01310d3b609bd1216394f44e194219eb0a7386cdc2e",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/config.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "dfaeef51c10d3c08e40dfe6a85697e25ea535edcaa1208dd1930026ffa19e26c",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/config.py",
+      "code": "E501",
+      "message": "Line too long (128 > 110)",
+      "line_sha256": "d5046cc3dca030af21608ad3031463ea98335d4f103cafbb3202d15ade36468f",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/config.py",
+      "code": "E501",
+      "message": "Line too long (129 > 110)",
+      "line_sha256": "d61dcb70fff03782966daacd876ddd5084465a18ed7efb3ac5e73eba358fd68b",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/config_migrate_r261.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "e6197402844adfe384893d5453391e6955193db37b81d2d53e124ae139d1a2b5",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/forwarding.py",
+      "code": "E501",
+      "message": "Line too long (119 > 110)",
+      "line_sha256": "09cd52054f6d5a961f1d5a1ff7941f763299ee590d18bbcf3fd1ef360186f84e",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/forwarding.py",
+      "code": "E501",
+      "message": "Line too long (132 > 110)",
+      "line_sha256": "ffd6208df570e36a986f15fcae34321bea5dab0671664f8284a8ebc66bcb0987",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/himalaya.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "89bcf08dcb154e7d48308b8ebe2c46de3b7160caa77b96a42238e5203991f095",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/himalaya.py",
+      "code": "E501",
+      "message": "Line too long (119 > 110)",
+      "line_sha256": "2f35960b49f1f262d61a7862dfba6f40bca9ca36ea7a6f1772579b919135e383",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/himalaya.py",
+      "code": "E501",
+      "message": "Line too long (124 > 110)",
+      "line_sha256": "fe3088c8207e7f2db563571d3e0aced67348d73cf8429bf7e2f5c35210e755d0",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoice_extract.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "16f4ff03594c6d6049861f373870131b976502bad6b4ed20ad788eaaf9752d70",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoice_extract.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "76e8d0bd5397ca7e586a3d3c7db47fdd201d1df50790458656ec21100646a6c3",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoice_extract.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "49baf16d5447e724fc3bacf5b4d2249ff8c5dd6cdc6f2c47391db016229b4708",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoice_extract.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "3f14a7c3b660639352edf5bc584e09d9ff0dad897225f241dc7e421580d304ae",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoice_extract.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "6bab7c013f5e1729e8ce0cfcdbb1b8298440564c724f4c121896458043f45f80",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoice_extract.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "de0223d6aab083115140012f3f9b184e3d090f943d805cd30ada2edcf56d39e0",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoice_extract.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "f064228212ab780abd7512eb3864d432f848408649b23bcb1715748af3eea70c",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoice_extract.py",
+      "code": "E501",
+      "message": "Line too long (119 > 110)",
+      "line_sha256": "19e33092c416012730a32a0422c1557399a10024be11d0234d653fa5d1566e92",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoice_extract.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "8aa4dba076c9125840aae0bf4ee644abfee86e1b5037860ebf85c627b276f55a",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoice_extract.py",
+      "code": "E501",
+      "message": "Line too long (124 > 110)",
+      "line_sha256": "174408866fae1ff3e8159660969e13e1f81693eb0044f395cf735b94bd9a7fe8",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoice_extract.py",
+      "code": "E501",
+      "message": "Line too long (125 > 110)",
+      "line_sha256": "c8cae20e1d01d9e3e3751eea6ed3b8b29f80892ac29b812e5f443cc0fee56362",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoice_extract.py",
+      "code": "E501",
+      "message": "Line too long (136 > 110)",
+      "line_sha256": "99a91f614779509257746ec438a33053f565c3d107cf063494b7e791d6a65af1",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoice_register.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "21d6ce07cbe088c47bc31f1955cf70da42c18018d171587890acbd2f4de615b7",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoice_register.py",
+      "code": "E501",
+      "message": "Line too long (128 > 110)",
+      "line_sha256": "8b006e203ceac7dfc4bdf942c056c4b62c148989aa7755bec90c38ffbb464e46",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "03fc9eeaaaea84889660ec12d51645e044fbf1e464a49c9bd3aa68f50665808e",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "64113980d85f221ee50b66ff3951345a95d02b9259364c3acd40aba84212034a",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "2793fed5a465a7f0fe58998be8398b45717960d09daec347638b062cb908a4c6",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "577ed2a40dc0093e3333b1b0d1c626b87826279088f6ec5c2ee1dec382cd8d4a",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "6435101ee96df6f3470910f40aed7de554a13e7b5396bdfb850126162496e568",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "bbd6dc4e5a6574eca52e6782e2f8b9cb0e894331f32301f2b3b9095e3ff4e74c",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "E501",
+      "message": "Line too long (119 > 110)",
+      "line_sha256": "d2c892b9d359e2b29a1f9a139c737608d4f35cae8e99ab7dddfbb32aad29e886",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "6217f805609b8fffb2c06126c477348bef1483ab1109a9271305f15be0b2e570",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "6e646ceeff49f7a6464ea7c695c38e759cdddff6ea3dd50445853e945784d292",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "E501",
+      "message": "Line too long (122 > 110)",
+      "line_sha256": "af94342602e3135fcdef6f6b8d468cf4869f087a31578e0170fa86e4ad36dab0",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "E501",
+      "message": "Line too long (125 > 110)",
+      "line_sha256": "9019e593c90b8157223e9536b2f9969e697dc99512daa55a84bd3da360a82f36",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "E501",
+      "message": "Line too long (127 > 110)",
+      "line_sha256": "dcab5780a6483d330042cdde9f3c4d62b48cd3425960111e98019868ba956648",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "E501",
+      "message": "Line too long (127 > 110)",
+      "line_sha256": "e4ff375580fb7139237209061eed10a789355bff7d4ae137404284f1ebff85e7",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "E501",
+      "message": "Line too long (131 > 110)",
+      "line_sha256": "94310cc68ada86260dd88ccb0949310481d725d485124d477dac3bc8694a0d0b",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "E501",
+      "message": "Line too long (133 > 110)",
+      "line_sha256": "30b6eae9637a1558fb1ea86aeaf404d140c3f6b6599aed550217b469faa1d990",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "E501",
+      "message": "Line too long (133 > 110)",
+      "line_sha256": "45b29ecedd6a278b1f797fc18bfd6afccf55d775fb196288b7a493de9378ffe6",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "E501",
+      "message": "Line too long (133 > 110)",
+      "line_sha256": "6f05e6e8c915ff6d94f4d147c5bd0118269c71604c0a4c097d4865a4e5999fab",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "E501",
+      "message": "Line too long (133 > 110)",
+      "line_sha256": "b379c46e5883d854437e050af7a3a0a9fd0924a9ef7c683a9b57b66adc317897",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "E501",
+      "message": "Line too long (136 > 110)",
+      "line_sha256": "8bec76220f2705aacc2361170bab00af7622c469359e0d15c98fb7e5cd13b345",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "E501",
+      "message": "Line too long (136 > 110)",
+      "line_sha256": "bb54278a839b6f349a51c1dd08108403c005d7dcee47d49f10d26b406667be6b",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "E501",
+      "message": "Line too long (137 > 110)",
+      "line_sha256": "651ae0f87d62c449e69d1443ad487e8e425de07d15af5ef60fd2b24226446803",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/invoices.py",
+      "code": "E501",
+      "message": "Line too long (140 > 110)",
+      "line_sha256": "021350df290ff655da418fafbc7d6e2afe0e4ae60eff424183508c674c73b381",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/learning.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "fce75c7299dc236267634c92179ec955f56ac9386c89805c139c0a3789c2fb61",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/learning_quality.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "c5a23246ae64ee924599686e15d7edf34a95b864b5f98aa4a7c4828f9fb6d8e7",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/learning_quality.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "09a2d70ffe7b171560d1d020b6d84787fb1b50085bd94ad6caf7063965ae57a9",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/learning_quality.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "d3af847adcb9567edae83eb1c1fe2f9e95e792861d2f1910f6720d8ea9271344",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/learning_quality.py",
+      "code": "E501",
+      "message": "Line too long (120 > 110)",
+      "line_sha256": "a4e86c741e1ee641a26385052f2c768cfab2b26d20135ef97bddb6f5651437fa",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/learning_quality.py",
+      "code": "E501",
+      "message": "Line too long (123 > 110)",
+      "line_sha256": "a17f7f72341e3bbf298e05b8c5f12bf4edb723270d734558894043b865754b7f",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/learning_quality.py",
+      "code": "E501",
+      "message": "Line too long (133 > 110)",
+      "line_sha256": "a5c07b0fa59c5f21e77fe7d9d810e50987e37474cd2a0797fc712391114f2223",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/learning_quality.py",
+      "code": "E501",
+      "message": "Line too long (140 > 110)",
+      "line_sha256": "a1852697fc529a4ee5f28a1bd3deacb9352a04fa6f09bce179b7522f03ec3963",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/learning_quality.py",
+      "code": "E501",
+      "message": "Line too long (148 > 110)",
+      "line_sha256": "737f8fdcb179f4b6891fd84ea85eac650f93c6ce0034a4d6887454e99933a1e8",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/learning_quality.py",
+      "code": "E501",
+      "message": "Line too long (153 > 110)",
+      "line_sha256": "682e27e0aeae7790daa1d2d03865dd32ca4453aeb4b3ee2c0aeb493e897ad461",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/lock.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "a3d333a52fd7768006fc53b2215a6339e5b6e66b47ce6d3105da20d435aa33d0",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/lock.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "564084be6c666f70d7662abf8ed9c7b7e6e528baf70bddf3db1ed098ab025568",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/models.py",
+      "code": "E501",
+      "message": "Line too long (215 > 110)",
+      "line_sha256": "d79a37ca1d9ebb8d74ede1e751e1268fc6a7740d236a858d9cbb788c37574fbd",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/nextcloud.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "a99723aeb626ba7d967541a9fec1da7af21d819d57e97bf4943926fc5c5cb4e8",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/nextcloud.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "94fd3ed0baebb52906d66db699db8a00fa7067c7972f7e439710546ef10a0358",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/nextcloud.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "cb6593a5801fc35f969702ba193f04344c20f6e82ca34219cc90a770ab0d5055",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/nextcloud.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "a124654491f9947a8dc608fb62a8c5b4678abeee7cbfe19cdba97695afde8551",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/nextcloud.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "c21803baa525aa957e961398fa3dae7afb264496ad3975543b0d60a76e06fdb0",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/nextcloud.py",
+      "code": "E501",
+      "message": "Line too long (117 > 110)",
+      "line_sha256": "88c769ec78b155c75c6a1b26600892b86bd5d66f9c01efbe23d6ac1480d56bca",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/nextcloud.py",
+      "code": "E501",
+      "message": "Line too long (117 > 110)",
+      "line_sha256": "94d93837860014b4f17b9080a8db00ce8c0fa18deb81664624086e232e4b2be5",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/nextcloud.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "ba081357c2a383579a098727aaae3e3f9f18c8fb57f40ca1236a0a30c71cd7ae",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/nextcloud.py",
+      "code": "E501",
+      "message": "Line too long (120 > 110)",
+      "line_sha256": "502a76a4376d5ccea03f01eb1235a9897bcbd13ef34334209138c57e6fdb8e06",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/nextcloud.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "a5514c2eea260a7e0b7c267dc265580f27b01a031b0f73f90614d7bb2636f63a",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/nextcloud.py",
+      "code": "E501",
+      "message": "Line too long (123 > 110)",
+      "line_sha256": "a962f53bf8864a90e7e1dee67b0649774ee56df06a9d7266b406c640a61a9809",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/nextcloud.py",
+      "code": "E501",
+      "message": "Line too long (127 > 110)",
+      "line_sha256": "0f4596611a5d5ebb06da964e138e32764e5434812ebd2f9b9ad811a1d849629d",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/nextcloud.py",
+      "code": "E501",
+      "message": "Line too long (133 > 110)",
+      "line_sha256": "87d09094094c9f1af633c89b84ca27f4fba15aea1d247e31abe633a07585978b",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/nextcloud.py",
+      "code": "E501",
+      "message": "Line too long (135 > 110)",
+      "line_sha256": "2a7ea5c6b2d993fc5250daf5c1c2cdd629c2447cd0a44adeee0cc582768637b9",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/nextcloud_files.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "62c6f5ff9825bbdd97e2df1b7a60dd7f58aa688449ddef7406292aa586995022",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/nextcloud_files.py",
+      "code": "E501",
+      "message": "Line too long (117 > 110)",
+      "line_sha256": "2b6ba3a8ad679cfc47fcc0ce50de6faea609dbf2462aed3828e80c5af06f496a",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/nextcloud_files.py",
+      "code": "E501",
+      "message": "Line too long (119 > 110)",
+      "line_sha256": "1a5bd4bca517729d0c11f9124e5ab276e1c13f99a81fca4c814785b55a4ea86f",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/nextcloud_files.py",
+      "code": "E501",
+      "message": "Line too long (124 > 110)",
+      "line_sha256": "1c237b1b7eb58097070181b2fa05e339f49b8f81be4c779876ce31c4b6555472",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/nextcloud_setup.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "ca12be340729373237e8a005de11dad41a18d7386453d157e09002ecf1ee4565",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/rules.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "33b518af1037d501b6e62755972a9acf4a8b5119e1b4f47644c5356197e336d5",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/rules.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "2f2f9daf94276cd10df0b411ad4c5a03bfa89d806ee4d7f2a613f904c9b7d8df",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/rules.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "768418339d86e04e67d5890b18de965dfe6c69696f2d4444894d275f1162eef9",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/rules.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "26ca8909bec0da04d6158b74a26d6d813325434a4e7a8a05110e17f5d83b1766",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/rules.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "e0829e31f9e0bbb91043b084dd60823c68c77cfbcf1f9c76e154e613062b027e",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/rules.py",
+      "code": "E501",
+      "message": "Line too long (125 > 110)",
+      "line_sha256": "8c7bbf2f77ab9cbef541a0b4ac29f09f4331f8072372c129164d13ba9aa070cc",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/rules.py",
+      "code": "E501",
+      "message": "Line too long (131 > 110)",
+      "line_sha256": "e1529d0eda8b96ca5038ca84e0972f9e59d4beb294633db81e776b43aaf71f5d",
+      "count": 2
+    },
+    {
+      "path": "mail_agent/rules.py",
+      "code": "E501",
+      "message": "Line too long (136 > 110)",
+      "line_sha256": "0b06df1563cbb18122a1b223d715d4ae0596413cd37317bacd5e066474828add",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/rules.py",
+      "code": "E501",
+      "message": "Line too long (142 > 110)",
+      "line_sha256": "94d59b33c5a9491fae4482740c48e77fe0babcea197b01ade2346bcf599bec49",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/rules.py",
+      "code": "E501",
+      "message": "Line too long (153 > 110)",
+      "line_sha256": "f16484721bb6770b42416b747643331e17b499010f6f82fb8deeb251e02a4b65",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/rules.py",
+      "code": "E501",
+      "message": "Line too long (176 > 110)",
+      "line_sha256": "1c69fb7cabf66bebb5c330751d9df7f3dbf0d9149b9659db6ddcf8189cc4763c",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/setup_assistant.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "be254d57783095ba51737fac5f35bc28f6ad11e235b965cf283c7c3cd5d0d29b",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/setup_assistant.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "45d2710b52dc987dca9a6746522f0b8615e03c6e78a7ea546d48904b948681cb",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/setup_assistant.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "9205a02087c3811f8632fb93aae5f6a400fff615aee32d44d60dd03b4a87dbfd",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/setup_assistant.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "beacb18726a36f4e97ea1e8b46dba54792bf29c1ad0325edca1377cbe84c2361",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/setup_assistant.py",
+      "code": "E501",
+      "message": "Line too long (117 > 110)",
+      "line_sha256": "55115adedc106e091a8228669e768e4c7efef605b160886311401e00e6ba294d",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/setup_assistant.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "0d7fae3f175f5286f88e4e94723d11c9e77b2194650fae5797c4bc2b71e2a9cd",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/setup_assistant.py",
+      "code": "E501",
+      "message": "Line too long (120 > 110)",
+      "line_sha256": "7954770497df2274b7214a6fd37dfd1b9404eec026214f27c3767b2c82b1b590",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/setup_assistant.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "759352e22ed045e8edbf405a57c9e60076e579fbfc201276b6930fcf24a9a68e",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/setup_assistant.py",
+      "code": "E501",
+      "message": "Line too long (123 > 110)",
+      "line_sha256": "baba2a7b0f24abffa4bf9863923dbeaa40cad2e8c04e2e729e1c26bdf47c0429",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/setup_assistant.py",
+      "code": "E501",
+      "message": "Line too long (124 > 110)",
+      "line_sha256": "c86a50e3c112fc0baf6b57aba1f5f62049371967e7ea90c7ea94fb6fa6063a6f",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/setup_assistant.py",
+      "code": "E501",
+      "message": "Line too long (126 > 110)",
+      "line_sha256": "f71bd5e6fd54687bb4dfa234a0ce3747ec3873f2e10a30e575ec94fb643efb27",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/setup_assistant.py",
+      "code": "E501",
+      "message": "Line too long (134 > 110)",
+      "line_sha256": "ac42561ce7f9248edb097461a1f374f416d3a2a894b4f507c22572abbe67d60b",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/setup_assistant.py",
+      "code": "E501",
+      "message": "Line too long (144 > 110)",
+      "line_sha256": "6afbb38d7d6e2af87f74aeee737a8d9bce19e80eed0e0fe95206e504a2ba97a8",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/setup_assistant.py",
+      "code": "E501",
+      "message": "Line too long (144 > 110)",
+      "line_sha256": "858b11ecae9c19e9ca0dcccd140f3598f6527557356a6fc9b92b6796bc87789b",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/setup_assistant.py",
+      "code": "E501",
+      "message": "Line too long (179 > 110)",
+      "line_sha256": "b2fa7f44ed84a9cea81b96ad44b91d79ec2f885463d3810b388b589ad134e257",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/storage.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "b1a22d744bf1faaa3a12e34d98b7e4474373a243258f1e5986fd8c7a28163589",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/storage.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "0b743bef3950cd5c774446278670956c3fd2edcda1e77acae07ecd48c7c95848",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/storage.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "700caaadf59428bfe03dc126b314a5d63e5c0923d117c2675ff1d78b831e63b6",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/storage.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "801b35a6632bcd729e637cf6ed60e68296651d7c84d6fd17c2a61dd426947ad4",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/storage.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "d4313aedd180377c6219e1cd683974093353807ecc1d736b2f31c68df3e1230c",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/storage.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "0c7e82562d65b9e3e307fb33286555616029d8e7c28ade2e951459339d967eb4",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/storage.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "366520015fe87c8a7bc1f18c5461df8f66d9f49a60ae5846f03926c468677626",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/storage.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "4c2412b31dc563773d11349227d9bea1f7a2356047e21350354dcddb5a9c7e4c",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/storage.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "871162c2073540e3e7f034bf4ca8d2de14777fe2b68fc4ed6661fd50eae4da1d",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/storage.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "ef739be0ffc171792e8d5008b12e3f3253a3d89e6860b3a3f8462ddf6b48c356",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/storage.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "fdd17341e93ade204b48e04a8449ab9ffd415d5e7fa18011ab0f352292fc9cc7",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/storage.py",
+      "code": "E501",
+      "message": "Line too long (120 > 110)",
+      "line_sha256": "d825ebbde663e9a4fdf5a36c13c5b4d058af8e747ce3e0759c932518761d2a37",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/storage.py",
+      "code": "E501",
+      "message": "Line too long (123 > 110)",
+      "line_sha256": "b8a5a89111a8757d3f3945576bafee55e673eaf8c6490e7bd524e45b3e894dc7",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/storage.py",
+      "code": "E501",
+      "message": "Line too long (124 > 110)",
+      "line_sha256": "c5c7cdd1926e6c724f38b989d0ac001465bf8ef6fcac270a520cec2045f2da24",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/storage.py",
+      "code": "E501",
+      "message": "Line too long (127 > 110)",
+      "line_sha256": "69ab05727d7f8bc2a5de704dbf5997dfa7d74f18f66587cb49d48732b0c4d589",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/storage.py",
+      "code": "E501",
+      "message": "Line too long (129 > 110)",
+      "line_sha256": "86d11ea13327a51a7c0f3bd9031be85c5d58dd4c96f5f7da5f71f39cff7db852",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/telemetry.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "084e733dade77aa369400c98368135eb7b2ff880a94a607e88575f0d75b9a3a5",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/telemetry.py",
+      "code": "E501",
+      "message": "Line too long (126 > 110)",
+      "line_sha256": "cc1b11ea9d40dd552e558e23628a12851ad975fb3ca245fd13500fd34ec88c2b",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/telemetry.py",
+      "code": "E501",
+      "message": "Line too long (147 > 110)",
+      "line_sha256": "ee2f23cde6182e906da8a73b5ddc336cd43ce80c24899640934c7b8003c549aa",
+      "count": 1
+    },
+    {
+      "path": "mail_agent/utils.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "e5dfb2a7a4e463b7b91b01339f24b1f1a365acde3bb524aba978cb5e90af1d8f",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/actions.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "5ff37b2651cb2d5618012b969b58fce512119725121b8625f10011603bd869d7",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/actions.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "2998d37ac0d0e451d14a0675432b1556e4a6d5341ed58018b33f5679f42a70fa",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/actions.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "8c6644f8c83d84100f694d0b34208be70e0df3fd4d04f2675fcbcaeb76ddd6d7",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/actions.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "e801c304d9db629b16b782cd5d3ef9a12ebeb83bfc1df433f0069d6f410609f6",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/actions.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "80d311bcb090403a787cd34bf396d19bc34e8012a7dcf7260b1c201604df4fc5",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/actions.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "0ef1c66ee3a47a8252a396a4690c1ddf5042099df1f3de35c70c0eb8b9f36ef6",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/actions.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "9b1c3b5e2a16f8435f9a4f449122be537c94ef685bd81bcc4cf702fcd8555433",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/actions.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "d57ee0da7c58b18f0198dfa3053eaf01659f3162b2043c1387c1a871c94a63d9",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/actions.py",
+      "code": "E501",
+      "message": "Line too long (117 > 110)",
+      "line_sha256": "ad0be1de2a8ae3833be14b9f253502ebba64335d3e0b6a7dd02a2ada9b89380b",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/actions.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "2b3ae1729b8c4de79baf537653c1a6fc82487c35a55c81e8aad6222ad4c4bf43",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/actions.py",
+      "code": "E501",
+      "message": "Line too long (130 > 110)",
+      "line_sha256": "f778b3b0022087b0c93b5a6d112ea788f4c6377088ef7f0ed03babd7764b54d1",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/antivirus.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "01b13927e46b5a8d39d0e22e8ec0fc2e5f3d511758fff3849fdbea26d7c7d9ff",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/antivirus.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "73a9f9eef510b71099b6ff14aabb770a4c828a9ae156b4973fef7a32eec1d63c",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/antivirus.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "f07fc4c523f5656a3563ac1b06a21827bd3bfb49a187330c6d689904088cf671",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/antivirus.py",
+      "code": "E501",
+      "message": "Line too long (119 > 110)",
+      "line_sha256": "97aed71cecf552cba9738cc4448fb590d7ca7df0ec90eccd2f1745cf1fbab45b",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/antivirus.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "19cdd0a72b7f6e9262b038d7efaed5904246233de9968d04c48404440a5a9193",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/antivirus.py",
+      "code": "E501",
+      "message": "Line too long (124 > 110)",
+      "line_sha256": "0cf888035f60ba26b973deceb83af4323ce08edcb767673f11a4222217a66162",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/antivirus.py",
+      "code": "E501",
+      "message": "Line too long (124 > 110)",
+      "line_sha256": "6eccdd2997963ba712b777de70817a92c62b791db02ac4fa847e91c90470ef2e",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/antivirus.py",
+      "code": "E501",
+      "message": "Line too long (139 > 110)",
+      "line_sha256": "b51a329338e95302296c396b9e0c271162eb49a5f1ba2770c7a5fffc4c6e0cfc",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/antivirus.py",
+      "code": "E501",
+      "message": "Line too long (146 > 110)",
+      "line_sha256": "916dbeb44a0589b813755a8ea7dc25205153089af081b774133394b9ea39107a",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "0687552d8192da02ff0c9b7358e8125c1d0d076ca2822e264c89ced9e7a6f222",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "4ba7d1eb0d76cc5bf2cf5dc9395154e130792af3e651d58da73d3c0803f787f6",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "9b296a25d48b9b5a5d7809ac01fdcc9c1bbf8d81767aa2c8cd32384e3ffda822",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "acadb480e413133da551a5c4b67eddff46c7480f20731db4d5bc64b6f9b6cfe4",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "cb08fada32719f0099348f4b103e6f0669affb94b52ec31474cace40a56bffb3",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "de51a52be8fc0de6ebe9a6fbe0dbe13ab6a1dacb25eeb566d0f856c31223d715",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "e6c1ea59fd0090b4d519c47941d78c3f70df2dee3279a205437a1a7985e96f41",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "1704d309594e7a5fb6ca1e66cf8930ed1008ccef1d42cb00cee89e2a5298c84d",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "17b6a9d4fd171bc9acca36a4cd4c0619e866666b7aa83cb67e5a9d052cdf1d1c",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "2e8f99c70474fc4e6988ee6678ae3a53a10e839b655ee3cf2621c548b2de602b",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "3aee299cd1198446465cceb2940929ca9bdf2833102badd0dd00f8ca50a70b24",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "c43094dc9a42c231ecff3b0f66aa8a33c4a84ea84c07b7d8a99eca4306acc107",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "1ea3e180366bda7ba239b29c726821753149c183e6fddbd35903e985de28fb71",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "511be9cee5937719b11465d7dd65a613cbf256fd5f447804c08fe5ad6e98ae2b",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "6b3886fab4e659650fb960bb176fba23b34d6e65de6c401fbe763bdb67152be1",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "fa37d4b7918ab874e40b471ad1fe649e726685d51943d68fc358de587b578c2e",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "069dfd32420f320f81f585e3d4ed1d111128cefdb052bc763f2db7ac73a60796",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "0d0fe57902fd2acb7d597778ef88703bc84bbcfb5a4ad72d7f97e3d9fc7fd8a2",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "75775f3137b553bb8236fb3f0680a3527208e72d02ca36c3a494e313fd62379e",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "d4b5856d116bdfb78619e9266897ceca0000dfdea9ee908a21e4d04327a83c7d",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "14cbaf83db4a31931a81fbfe3e6c28a6b7f7abbc747e72b43fac8586907d4df7",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "37060a56f4959fb7ec728720c966b7b6d913ca28a3996d48bbb48b271068c6c3",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "72865f42e4b86dbd633611aee7e2110f6076eb165351e15f0d164727285e5d75",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "822206ba1871f12902a5eb89b748a0b053318bda6514f3cdeead8ca05aadaf7c",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "aaf3daf4ac4b728a06a17759e82300443809db5d36de1ec1e04fc0ebaf7b5434",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "ac718bb02a37832b5c00590107dc1555b59d2e966e0470985fe3e6ebad35ca33",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "e2658f6526a4ac88cba972573ba5648b72f75a676b47ecea7a767e82aca7af94",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "fba155e874f1a31e5fc4314c2a6c423938095aeb1ea50fa994eb1428663b0cb0",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "38bbe87cbe400e22ef27c501b6214f4fc0052dc6b92b7c0b7053663111bada4b",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "69685457fa5d98c6b2d9defe73a6e093f1e364e98f665e45b38c3d27ab886775",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "786cc6f6d4a75bf731c7c87476ef14657d1cac1ececc3f36d3ad151b7ac759c2",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "bab5d98532c7e4c7199c38542a3adf08847d69f0734eea9cccf1ab1d139615a3",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (117 > 110)",
+      "line_sha256": "48e792e5984813edf8ee8e84c4171866527cfdfbafa0826650e4b3f7bae9a2c8",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (117 > 110)",
+      "line_sha256": "5d8116b970dcf212dab7c7d52a4affb1b3ac512607cb7aac3b369f8ead865e21",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (117 > 110)",
+      "line_sha256": "a42cfaa77c149b16cd6839fabe95c601221f9b9e0fe96d1f095883378f3ed5e1",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "ad4a22114bf4589cb6827d1b10598e8748f06abd9166a11f965153f840ef614e",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "fcf3e51fb2035f7742babdc110b8486c1f881aa6fc418624271b8b709096aadb",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (119 > 110)",
+      "line_sha256": "1e55e75f361c9bfc7c850ffc5418e3e12040206302c9663e5b16e4db99a441e0",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (119 > 110)",
+      "line_sha256": "8ef30f0046d07f61d690c768da5698a94accfaf20654019e0d66d77dca2d6bd2",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (119 > 110)",
+      "line_sha256": "d05af480071c6a784eddbd568da1501d45dfbdf2bc90d87f11a8f369b70b109e",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (119 > 110)",
+      "line_sha256": "ee6e81238dde0b61080e8466e8b2d251f98e292e07b3e0920de24f09fe5faf11",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (119 > 110)",
+      "line_sha256": "f2b02cc16716aa9eac945335fd9a843d3fe8af40d7323d19d156a10c624abfa3",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (119 > 110)",
+      "line_sha256": "f4844d1534bdee0966cbaafe348a772d7f2bd2f1846e0f4b824e471e7c859489",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (120 > 110)",
+      "line_sha256": "47c8ab54dab621078ba83852b9e26a405a6312c46f0fd4993c797152d5b71abb",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (120 > 110)",
+      "line_sha256": "7e75660cde7ac12e160c5ffff021b4f16ea34db8d63f3bbf031455fbe91eef50",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (120 > 110)",
+      "line_sha256": "9e5a103edca2339d5e7ee84562c563738a098a7b252043a39ca7b6cf80fdfa93",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (120 > 110)",
+      "line_sha256": "e5e932002efb83b2a93f515dcbbfbe1a36d0e69b90cb0c33f5e73b3c4bc31953",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "47b7408db4469785e2432fd89341e05dfe29353c62e92ac5f5abf8efb5400b4e",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "4e81d1215eda8944cb9676fc0471b1c9c81ae0051ec9fe7633ce12d5b46e348d",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "c9ffd30916851ba2ed02de7bd150d593a85420684e36b29bd4b1c076317debb9",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "e352ca19da48a56db1fefcdb5ebce1c95521b20f9643ca93fb08532a54ae9796",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (122 > 110)",
+      "line_sha256": "03210d021ca6ca1d43bcdddcd1b0c9a3fd8a3b1d179cffb6debd3f26b4012cd5",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (122 > 110)",
+      "line_sha256": "50c5724045a8c95b8d6cceabbc54ea7e20e23511ce6aa90899b834d7ebf0d67a",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (122 > 110)",
+      "line_sha256": "c74ef5c1fd79f6bf5aea56486747c58c3db4fa554d0b69aa90c86ff01c88e410",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (123 > 110)",
+      "line_sha256": "05c1bcce98d462b37d9638ebcae392f4ce0b8fcdeb3ce18a9246ed1850abb729",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (123 > 110)",
+      "line_sha256": "50770ac630f6f093e5bcf0581efc79427ee684f074e685f3463afef3524087e7",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (125 > 110)",
+      "line_sha256": "006c8e5ab57f49115565ae1b3404da41ff75f8304f3ccc29acd8288ad02c9eba",
+      "count": 2
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (125 > 110)",
+      "line_sha256": "518a9d19d70fe56a3cb6d9dd3fe66b95ad9936be808eb7fe6a1e40387e87ac05",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (125 > 110)",
+      "line_sha256": "63d89b24b8d87bd2b25279f030a5f35ea042434221ef720515f9159f349b23a5",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (125 > 110)",
+      "line_sha256": "d4d65d20e18649f0c99d33d3d403a1caf18bbcd9befd7503539c7d6b8d3d9f5e",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (126 > 110)",
+      "line_sha256": "95d0d026a2fbe3356683038844eb8b5d031936e8f40280034b8b96dfcc3559fa",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (127 > 110)",
+      "line_sha256": "5fca1dee50fcea67f0974a8528a6c36cfde6dd7ab5e40dbc30b20e093a0f98de",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (128 > 110)",
+      "line_sha256": "41506075b32ffe10252d17c4c14950c1c77dfef7797f93e3abd31691d949071a",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (129 > 110)",
+      "line_sha256": "4c918df477051595ae6f97a9e0848c119ca6ccbdc968b68b2630545d3e0b2560",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (129 > 110)",
+      "line_sha256": "b2b0931988730e2f6f892b5c740ad3d912cbdf3f53e6f3cd6fab175cfc26f604",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (129 > 110)",
+      "line_sha256": "fb67f068ae59460db44ce882ddbf1378569f7b33d9635bda8cace4ed61b72ff1",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (130 > 110)",
+      "line_sha256": "4ac9db6a8c943d3743c10b6b3aa2ab29d14eae0aa0357462f91d3dccee5dd2c6",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (131 > 110)",
+      "line_sha256": "69b9ba74492d95cc48f8d8fb718727139bc2ad98019516e510551c765d1f7ff1",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (132 > 110)",
+      "line_sha256": "9f3003d56384e51900e0203c08b1b8c8c6c71ecb435818e0a70ce8dd31ed1507",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (132 > 110)",
+      "line_sha256": "f83441ae4d1fdbdae0b580f9359a29c9a9a959ca027ad9665a002243da612ee4",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (133 > 110)",
+      "line_sha256": "a99d3033e16f2a44e999f090acc4779432d201dc2b854c84ade86ea1a25901a1",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (133 > 110)",
+      "line_sha256": "c1c874b4ca9543f794b43682de31afc37d0a15f84765dd444c8befea2b9890ec",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (134 > 110)",
+      "line_sha256": "25f2bc0665bdc34bbe74dbca371a834181c5d464f1031f4c4d873bc171733360",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (134 > 110)",
+      "line_sha256": "2b553857677f1424e2ea19d5ccc27f47207d807397e29dbb7f93fd95c9c0cf3b",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (135 > 110)",
+      "line_sha256": "badc04c8db1e11f7346cdeb462bf8c52a4ade3b04a50e07d57121ccea44d2598",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (137 > 110)",
+      "line_sha256": "1c02582bc703d7a148ebdc2dba3a56eb7b756173b9bbca303de30e65806f28b1",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (137 > 110)",
+      "line_sha256": "f56478b55727e41013f0784228f96f1086786e09eea8c2317a8afecdbf56820d",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (138 > 110)",
+      "line_sha256": "51a77022752b7a31269c59ba48ac7533faabc7ce4bf837a6ad1dfe77075e9afd",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (148 > 110)",
+      "line_sha256": "c94706fa624d6305766d4d822ec5c4996f3dee272d690a816e62aeb51301a165",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (150 > 110)",
+      "line_sha256": "10682e0bb689d64447a491cd32ef56c40a336c50d91fcbaa086d60c3075f01ae",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (151 > 110)",
+      "line_sha256": "2a38d78d2b046e1ec19d6dabe1930627a28dc5df6bfa39cfe69ec61adee7f5e2",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (151 > 110)",
+      "line_sha256": "d4b663e605f8d22a6109718bf454a43407679f0d2af129e2ce61dab770d0adbe",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (155 > 110)",
+      "line_sha256": "618e812302ab1011ded3a3cddf524c396944330ac84f2f7cb0748b8de0d8558f",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/cli.py",
+      "code": "E501",
+      "message": "Line too long (157 > 110)",
+      "line_sha256": "69788e3eb32d6b83a1074797fb306ef35f95950ccbe88c36d2f48aa428713ecc",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/config.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "15b0ee96f3354ceff7e9eb6bb5bbb2f8d2842447cae94e7895b209a15e01b8ea",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/config.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "2c3f33f1c05c88f81e8a57d1198e0e548e83f73f0a9ea326685eb1bf7ff82695",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/config.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "8ff00c47da90dc79363f29c620d12d9dac6db63637051047104fb2fe0d4ebdc1",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/connectors/nextcloud/calendar.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "76d1f8b98852e16d5cbb08f82c4deb04c41a24c4d2f974c6ecbe3e9f49d38a20",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/connectors/nextcloud/calendar.py",
+      "code": "E501",
+      "message": "Line too long (117 > 110)",
+      "line_sha256": "3406b30ee04300616612faaa711e1b22111d835370ed7eabf0d5431756409a29",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/connectors/nextcloud/calendar.py",
+      "code": "E501",
+      "message": "Line too long (125 > 110)",
+      "line_sha256": "25f3144a5d1cd4d178c15f34e8549fcf7776a18c1e1b11fd6b0d453c02618b8b",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/connectors/nextcloud/calendar.py",
+      "code": "E501",
+      "message": "Line too long (145 > 110)",
+      "line_sha256": "cdcd075d03c2bf185bd740b632672a00e1633834165d8f939b0b6fe673882219",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/connectors/nextcloud/client.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "cd37020db60cab0607a0e291d9a1dbc8393592a41f32dae946df69a74a106d94",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/connectors/nextcloud/contacts.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "5b318cb38d8acab0d33ac2418b9d0173ce43dca78248b1047b4eecd5fe36af19",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/connectors/nextcloud/contacts.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "1dc406d303cbdccf58b4f42ba9176670ead1b5e60121ce28b360f5f893333f65",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/connectors/nextcloud/contacts.py",
+      "code": "E501",
+      "message": "Line too long (125 > 110)",
+      "line_sha256": "25f3144a5d1cd4d178c15f34e8549fcf7776a18c1e1b11fd6b0d453c02618b8b",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/connectors/nextcloud/contacts.py",
+      "code": "E501",
+      "message": "Line too long (140 > 110)",
+      "line_sha256": "7d196f1d3e2fddaeb86f34db1c4725beb6f6f6057a158f164f16d84849b34dd4",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/connectors/nextcloud/deck.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "c7d893dc85b1dfef99b05e1bcf5b3e748d561fee00a2ced2482555fcc0456873",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/connectors/nextcloud/deck.py",
+      "code": "E501",
+      "message": "Line too long (134 > 110)",
+      "line_sha256": "d501b6cfe22126524eae31dd0426e47825ead83fef73df58553630c803d4ec9d",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/connectors/nextcloud/discovery.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "96dba5d637b16718e597057739cd41984eedc47f20992b2586e442ac772d7167",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/connectors/nextcloud/discovery.py",
+      "code": "E501",
+      "message": "Line too long (126 > 110)",
+      "line_sha256": "b8a1914c09a4144f5784c51989c3c74ee4a512c4c99f0c6b5a20720745880271",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/connectors/nextcloud/files.py",
+      "code": "E501",
+      "message": "Line too long (122 > 110)",
+      "line_sha256": "6f10ab2b100babebfb123aae2d2b1b8a3010e7705e15897a554ce494b17ce88c",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/connectors/nextcloud/files.py",
+      "code": "E501",
+      "message": "Line too long (122 > 110)",
+      "line_sha256": "fca738b395783462774c558d17818dc53fb027c0f85242645caf4fee89f78531",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/connectors/nextcloud/files.py",
+      "code": "E501",
+      "message": "Line too long (130 > 110)",
+      "line_sha256": "760ee3bd55969a3aac1aece1c2212b6d24db7c7d99f4a1d326161320748de580",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/connectors/nextcloud/files.py",
+      "code": "E501",
+      "message": "Line too long (165 > 110)",
+      "line_sha256": "aea98fd6b993498e01a101e51d1337119fffc789a305da13cbf65a007bdf326e",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/connectors/nextcloud/tasks.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "5ec1d54edd4756978312a6dd3da4879f74accf4e23a342fcbdb59effb109622a",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/connectors/nextcloud/tasks.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "124eda877ac6e541cd6f8459711e675d22ed8b5520378ab02749e7425f5b091f",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/contact_tools.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "16c87949e1054300a54b90fc8c4521951385b6a30752e7419d63e683efee4810",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/contact_tools.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "8ec33d16e74570477a69bc4b83e4372f62cbdc7c9767dd592120998b560f05df",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/contact_tools.py",
+      "code": "E501",
+      "message": "Line too long (117 > 110)",
+      "line_sha256": "842e50d3999e59770c72114a302e2b6bce21655707c0a97e139428cdb1c1bdf7",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/extractors.py",
+      "code": "E501",
+      "message": "Line too long (136 > 110)",
+      "line_sha256": "ade72884afdf61ebd9137c6ec8a39b57f29143ca68c3e79a529261e42cca90f6",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "5c17881237b126188648f1726a45625d55fd7e3e587965f299db37a07de7ce01",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "b919e784e3324f673124bae4cc145e47988a6fa27d87647c42dabe11de46e6f0",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "97297172671252263c2dd6c84d2106572ced3a49ddeb9538c801547e5208b2b3",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "46f08868fec4c1575d6446c2ce136409b457743846c29abce2ae164eb6f0d3ae",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "d1e5a50ab788b12f9b01cd0a70968a09f69577577fb585465c37ebc293d2b179",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "587239c0b356d558a1e047478e4e825b01201999bca93da4313184d2a710644f",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "94b0b73951b0939f09d6785acf5d9dfe1f3e87477db7d7f1003a379340888b1c",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "ad0d101fd837eeb32dad5bace799576055a4bd28f4bfef90e3e56a3eee277247",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (117 > 110)",
+      "line_sha256": "473025836c0a38a338ee568b9c39e039d62554a1c6f074f98f622d5b84194934",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "604808f37d7a1b67a4c3663e24312a058d52a929d8e20ee679a5567b99173b10",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "a682a6913a8f2c8cd944264beb8f4f1f561f4953932385875833e793cfd98f19",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "c088215d2c1f8b14bf672389d9d7ad4e24fdc8e216f38261770c0d3a838c7abf",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (123 > 110)",
+      "line_sha256": "0d972814ebed16b0c18f3e04ffb0552282406be23b05d5d8881a5c6d537cd0c0",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (123 > 110)",
+      "line_sha256": "3207dcf7d5ce3615451c3fe75e043f9b6f4b7260040a5d1c675edbfa4ff14324",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (123 > 110)",
+      "line_sha256": "3ef42116cbd504ee2f72111fb488ff97e516125bdf47610804278258b37b4ce7",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (123 > 110)",
+      "line_sha256": "d6002d6ae1baef89bf9011e41d599c1445b07687ef3c491ca201cbf5464ddafe",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (123 > 110)",
+      "line_sha256": "e1566c3d669617b59db0805c104db9a70a7e052a92211cee8a1a711f5646176b",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (126 > 110)",
+      "line_sha256": "0f079a51102e1ce42a114be9282d7898e19cd0dd13e70193d0585143efa7d341",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (128 > 110)",
+      "line_sha256": "fb1518cd0c878434d444fda6916edf9b95e5f425579d07d54bcb637ea1b2a2e6",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (129 > 110)",
+      "line_sha256": "b1a941e11163b2f58669ce8a0fa97b9b5c50a7ad2bb665ac779833dc32e1b75c",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (130 > 110)",
+      "line_sha256": "70fa6b20d46b7d9b4a84dbb9190886fd4ad283be11a9a27930bb54450513bad5",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (130 > 110)",
+      "line_sha256": "7c9adf650128219948efb031f429b8b27247b1fed26314886cf8ed612ab19b09",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (131 > 110)",
+      "line_sha256": "ebd94273bc46f557e29b8a66710b0153cb962caa0d3558b954a8eeca106205bf",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (132 > 110)",
+      "line_sha256": "7497e785486e23ae3876328385445a1b4f3b602f0467185dd9ae858c31b82e1c",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (133 > 110)",
+      "line_sha256": "057ff92b325375fb1a760fc11fa180ed733a40815dc3526ad1dd70f711f00549",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (135 > 110)",
+      "line_sha256": "154f7e2d6672343afcef8e6e6e428b6f56e11f7f7a89993462d714306e62a186",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (136 > 110)",
+      "line_sha256": "80716c73dcb802752836e67861c92104fbc1d7afb64905df1b78aead79f56611",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (136 > 110)",
+      "line_sha256": "c131418fd39e69efa48b9a553f8e4b26f3589168edc641dc3ae67fb53b9871e0",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (137 > 110)",
+      "line_sha256": "1e13696840688d91711d67027949dd2a8163e372c592eea97ff21f1c7bbfafd1",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (137 > 110)",
+      "line_sha256": "56bb977e30a8ab6f8fefca9f22bf5abc5159ee06d13b39d3acb85b6331b2cde2",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (141 > 110)",
+      "line_sha256": "3f3108d848f1ffc0c8c1cce05442be2a74502032a7a27c1698c9ee27044c361f",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (144 > 110)",
+      "line_sha256": "d03b6240bc7ce6fdb0482775ce6ac4b55fb65f4f119cc211dc2fa10cbb2b68b6",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/job_control.py",
+      "code": "E501",
+      "message": "Line too long (147 > 110)",
+      "line_sha256": "266a8f7444a03eed84efd5531fd1324f22cb7fac0d4c685da9d11f4d5be286de",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/knowledge.py",
+      "code": "E501",
+      "message": "Line too long (117 > 110)",
+      "line_sha256": "54422226fef287d935c96712027da37298250f762f8453c43e6055bb766f083c",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/knowledge.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "2785416c2df893089f14f966c6fb6be4d8fb7836e6e9a334833b2027c3a9c4db",
+      "count": 2
+    },
+    {
+      "path": "personal_assistant/knowledge.py",
+      "code": "E501",
+      "message": "Line too long (171 > 110)",
+      "line_sha256": "b75e097f8dfd6bb8710e8b086e34ec8b8fcdc84454c6128bb440b99efeabadcb",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/mail_move.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "fe76402dca0235aa0e892e2e66d2bc368bad02200d37e9dcb85be6264d3779ba",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/mail_move.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "cefaf8a7f3e2b0d6926b7770ee7733b2fe0e3aa052caf7ec61c8a5f6293005a6",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/mail_move.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "1a153ab3f33ff7e5d71ab8eccd1e2ea2263aceb3b01d0a80f6eabe30583d645e",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/mail_move.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "79d1cbb9c2b03b85c7dca7bf62fa1cdfed42918b72bbb794f42a7cf9b4df5a05",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/mail_move.py",
+      "code": "E501",
+      "message": "Line too long (122 > 110)",
+      "line_sha256": "473d154d1b8fdfd9fda249faff0179330477878cd5da9da4e8b962b1a352a0fb",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/mail_move.py",
+      "code": "E501",
+      "message": "Line too long (122 > 110)",
+      "line_sha256": "5090eb46df6eb63a7fac3d08a33f5a3ccfa0323b872b3f51ed8e232188d540d6",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/mail_move.py",
+      "code": "E501",
+      "message": "Line too long (124 > 110)",
+      "line_sha256": "68409c5eb94bea10f81ec3f8ae023ec39564f6d7d96ac6fda58e8bb84ad2b125",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/mail_move.py",
+      "code": "E501",
+      "message": "Line too long (124 > 110)",
+      "line_sha256": "afa24a6ac970bbb38fc0f3483f5fe7a7a892f1ef716ad6ddada2882d0891bb7a",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/mail_move.py",
+      "code": "E501",
+      "message": "Line too long (125 > 110)",
+      "line_sha256": "8b14e476ae7e63877ff2d106d2576bfd575e012904a423300ab4ee5217637db5",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/mail_move.py",
+      "code": "E501",
+      "message": "Line too long (135 > 110)",
+      "line_sha256": "312a950949dbbf1c77ae4d61b71f6dd196d8a963ec3066350932aa1b4bc76e7d",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/mail_move.py",
+      "code": "E501",
+      "message": "Line too long (139 > 110)",
+      "line_sha256": "3cd5512f89ae08bb7122ec7e66893be6ea58e7640a1b7c014dc106fb1efb8f1f",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/mail_move.py",
+      "code": "E501",
+      "message": "Line too long (152 > 110)",
+      "line_sha256": "de80f290af6c9c5d7f515f2cf16adc524955ea1842474f814c35a6aa1e62d7d9",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/mail_source_setup.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "8b7e522fb3fcf5c9a75db023d0245bb6e112272d5397e92bb51586531d4484d1",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/mail_source_setup.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "be86a9d2b5ad841ef2661c8308226e66a01780b8630220500528ab1654736dc7",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/mail_source_setup.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "7433f5f560090b4678d3bdf76469bdb05cc322670bf156b4d5c3c1ae4e6983e9",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "6e5023a7cf122e1394f44990a70051a80330b56f5c6bc01e17f6a9b743c62e3a",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "07d499462c4644cfac888c956df02d7ba2c75a339fdb4b12e9d10d79b6d4aef3",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "689cc696ce95f1bd81b7900faaaaf1791dc7a48d295548ebff5e5b32764271d4",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "1631f7843b6d97343df2bf88fdc1b563cdd803b8d4f192a68d880abd6cf4868a",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "e64bf32414f7e9cbe5729a50c2dc8874cdef175cc079e421db0021bc0c6d4a38",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "4d4acc142d82b7463865d706c4aaebf630a55d7109f144dea015f7daac229a38",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "e71eb41fd89cf5d03d577bb4b3151b739889d0c1a054ff9843668168cf3306b4",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "01ecfac79fe54c54be8509a574d653d8ba298d695d3e01c7f25ba2f760d73a10",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "632b03833bd5427dfe2a8ed62af86cce2892f5ead2eb2e3c422e40071530d238",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "bb46b875522fbb67105d70b858bc255f61a50541db49de34c8c7abee750eccfb",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "E501",
+      "message": "Line too long (119 > 110)",
+      "line_sha256": "2468a1a5c5563f66c3d47383a8cabcb559660441e9179a9734bdc290c4a97ae3",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "E501",
+      "message": "Line too long (123 > 110)",
+      "line_sha256": "4dc89c28bc33395a51d3e789c18bb4a2d4b5dc21934d2751eae0f228d8053d8b",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "E501",
+      "message": "Line too long (125 > 110)",
+      "line_sha256": "5540e9c356ab3910af88a655b1884fae7865739bd9b0070fd4f5264e3155d76f",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "E501",
+      "message": "Line too long (125 > 110)",
+      "line_sha256": "d54a0a4cef8d98f8d1e0683a5dfba96b382fd352acbd838d68cd31588bfd9c0e",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "E501",
+      "message": "Line too long (129 > 110)",
+      "line_sha256": "eb597bd62d228371f07cbea2b68c9a1aca957caaf84387f90c8befbf67d79049",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "E501",
+      "message": "Line too long (130 > 110)",
+      "line_sha256": "6e718db629afe298e53d64e64aa3c16e6942ddfbbec92c34f392c0d3803e6e1b",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "E501",
+      "message": "Line too long (130 > 110)",
+      "line_sha256": "8c6eb12a9b9f9211be7c013681bd527d65b844af3b5e79f90fdf10ed9c8b6116",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "E501",
+      "message": "Line too long (135 > 110)",
+      "line_sha256": "5713263c90f26541100385227af15ab2138fcd20e7013ad8fcf4637acdcd05f1",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "E501",
+      "message": "Line too long (136 > 110)",
+      "line_sha256": "cae6d3f99ea6be9bb4c78a733cbe9c6d16eb8bc3aba9e5870eb4a22381e64e8b",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "E501",
+      "message": "Line too long (138 > 110)",
+      "line_sha256": "a253268c809f7ca402203b80bc16bb6862e0077f1d2d0dbd27f36620d6126a64",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "E501",
+      "message": "Line too long (140 > 110)",
+      "line_sha256": "27991580ad2a0b05d54ad11b9cc59a7b94d2a467cf727a1757cf0271c56186e9",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "E501",
+      "message": "Line too long (140 > 110)",
+      "line_sha256": "ef6fc79840ad4e82389065a3a630bd82ea44608dc74bfa9b279bce911595103b",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "E501",
+      "message": "Line too long (142 > 110)",
+      "line_sha256": "54e4a0bb6722584791c14f5c94eb61ced925946c959c13de1be043dd0a008400",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "E501",
+      "message": "Line too long (144 > 110)",
+      "line_sha256": "2b73f997c80b4b92ba818bb946b191db37577c68ad0fe4766449de88cb2106ab",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "E501",
+      "message": "Line too long (144 > 110)",
+      "line_sha256": "44daecd52a091551c552f3d1625c56b68e9c237968ee53413876b8b40e86be1d",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "E501",
+      "message": "Line too long (152 > 110)",
+      "line_sha256": "a3c05c0158bf31ecb872040843fcb4bc4a68f21d1227022f173261a831a3b0e4",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "E501",
+      "message": "Line too long (157 > 110)",
+      "line_sha256": "5d6104e81bac993fe83c74cff16599d6e776d5de037b62cdf872174e48454310",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "E501",
+      "message": "Line too long (159 > 110)",
+      "line_sha256": "87b3049dcebbd9679c95d36307055b1c04cadce5a1ac3017f55fbd006aeac673",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/monitoring.py",
+      "code": "E501",
+      "message": "Line too long (166 > 110)",
+      "line_sha256": "0b23e26c2872e6f957c5c0eac3bac5f89b21f9e75f59749537a94b7b2721a2bf",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/ollama_priority_config.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "4c9bea00309a4f640271368709394078176cc0a4fd97bf7901dabd322c26f44f",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/ollama_priority_config.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "83ad4a3ea88cb877b708c8f5b835878ecb47b4b8c4c4cc17d3cf9d53352dccf1",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/ollama_priority_proxy.py",
+      "code": "E501",
+      "message": "Line too long (117 > 110)",
+      "line_sha256": "6d57fe6d2cc9ea0993c5e32e722bd8ca431d0d2663585131fa44709a8a361751",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/ollama_priority_proxy.py",
+      "code": "E501",
+      "message": "Line too long (122 > 110)",
+      "line_sha256": "82d62f99ee87ee8d8e1ee965b6499efbd1cbceca19d4cf4eb4c32078e0125e77",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/ollama_priority_proxy.py",
+      "code": "E501",
+      "message": "Line too long (128 > 110)",
+      "line_sha256": "0ef4593f56532bb449c45c89a79396cd9d4810a728dac60ef8710caaa067e0f6",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "526ea0c2e6f99c845e2352b186193d67fdd364d9d05d940c84222c232005639c",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "4a86fbb4e6b6ba9cb12e2416e600f1342a0d5c3b7703c3fb1c93c19ef1f8b175",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "42a0720a845a3a51eb4753bbf26310e86a558698484802606be65d2ffdc8bd04",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "cbe691b4b9706d739a78c29df9830fde32dcf9fcc55f295c01b2865f6ab4e331",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "2c022116de07194cd12b9cbeb0e88db625bd2639ab4d5dd1d32eb2367af0ea29",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "704b9d4f6dc69f9cea35603b6d41570e0c4059e3729f68f623b734bff653e738",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "f194ebd3f66ae6983823660f28b616fe77dd9d481d2ed45fb92c5a01f100d2cf",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "e6355da057c9d19ac6e7731921f4ca534edd60a211661c3830ef04a63cf754a2",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "E501",
+      "message": "Line too long (120 > 110)",
+      "line_sha256": "6dadd3ec462f4d7ddfc3a4c478030aecdc70bb99fdd4e5067575728d2ec34158",
+      "count": 2
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "E501",
+      "message": "Line too long (122 > 110)",
+      "line_sha256": "4aaa567f06f399b40e07d1f985651e48ec6edf2476f32a105009d83385cad3b5",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "E501",
+      "message": "Line too long (125 > 110)",
+      "line_sha256": "a04544aab74717ffb39c0b970e94467b0da357c70dce91623096db7ce7cd76e9",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "E501",
+      "message": "Line too long (126 > 110)",
+      "line_sha256": "aff25f709f363ee5a33c7f651c7307a1ff8a248c8410ba30c5e6ba509c4f2c46",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "E501",
+      "message": "Line too long (127 > 110)",
+      "line_sha256": "8e270b9a75aa2c3d22817784e9084124e87a268067707e2cd4fa4806dd638b24",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "E501",
+      "message": "Line too long (128 > 110)",
+      "line_sha256": "16a18baa15e8d2c1ee29a2afac367c7302121ec1bf632f528965872041ec9026",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "E501",
+      "message": "Line too long (129 > 110)",
+      "line_sha256": "ae5c133a2c9f30f55bd4eede068edbbf8ea231f2a647ce749fdab144be6298f2",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "E501",
+      "message": "Line too long (129 > 110)",
+      "line_sha256": "af8403be50d67711b62e1b9ef2d09fd5040017bc8adad2eb0effac2bd277486e",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "E501",
+      "message": "Line too long (133 > 110)",
+      "line_sha256": "6dd9856dbf0ded170c64fc389eb0c67cc8d53e060c8e46c3b02c64baf8d21bb4",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "E501",
+      "message": "Line too long (134 > 110)",
+      "line_sha256": "afd519cc3da4bdbc500057b012549d861207104b1c8d293d3fe1e00daf5b2362",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "E501",
+      "message": "Line too long (135 > 110)",
+      "line_sha256": "61dcf050bab4d9b8c3fe631ce7c8891b7a86eafe5a0245fb8eccc7504a76e008",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "E501",
+      "message": "Line too long (143 > 110)",
+      "line_sha256": "d401a35ba8fef7de0ae3f284714f8d5e3d62bc42b07d95e0b5a6445ea23bdfe2",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "E501",
+      "message": "Line too long (145 > 110)",
+      "line_sha256": "b96b386badfc745b77767d7b4b2282e342988d1777e59faa8d5fbb436a63ac9c",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "E501",
+      "message": "Line too long (148 > 110)",
+      "line_sha256": "d79ccca39157da9346710fe57a8dd16f206b96c5fce3d5e0c7e8911a5f114d80",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "E501",
+      "message": "Line too long (159 > 110)",
+      "line_sha256": "fba3ddfb961e2bcecc4a44a0f4d166fbcf8b5d014934d6fed99eada227b93248",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "E501",
+      "message": "Line too long (195 > 110)",
+      "line_sha256": "a029fa435cd39ad44e6dbdbd67699095d151c357db387f8d15c013e1b8e9a991",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "E501",
+      "message": "Line too long (197 > 110)",
+      "line_sha256": "b14c595306b7d829a4bc9320ee4490e2ea1f5e67d7b902d3fece2d77d993be39",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "E501",
+      "message": "Line too long (206 > 110)",
+      "line_sha256": "6cc0a2f77871275888f5bed56ac0255e083eea73b2d610d6482888d4def27caa",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "E501",
+      "message": "Line too long (213 > 110)",
+      "line_sha256": "44eac85c8f37727d43270cee42d597dd1a8853fb81a5a4714197a9462dbf8c27",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "E501",
+      "message": "Line too long (223 > 110)",
+      "line_sha256": "40bb41d46a0913f42462918585a7f053677b85a36cd8a1ede36c05b4db9e175d",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "E501",
+      "message": "Line too long (295 > 110)",
+      "line_sha256": "9a9c9a75c088fe5ca9efdbb7988a5fc7fae4cc8620ae73df3ce3be18ccda0b44",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/orders.py",
+      "code": "E501",
+      "message": "Line too long (346 > 110)",
+      "line_sha256": "578e151594a8d2ae5573cc2f9def59b59f0390c722d6511c4fb303d22d8818e1",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/policy.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "4d69d5773cdbe697d8b59d8fa6b9f34792f885000a83828650fa1e28cbf05d69",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/policy.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "5d5bcd96cb49b9a35d46088b6dce5fe968cf5873119c48fe6aa836c7a20287a1",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/policy.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "f1017e793b60c92d140e1378a5e266489c16037ba26c4718715079034aef43ac",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/policy.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "4d8b7ed2333219196302aff2770e17565b26eaeda2301a2d85265758311173a9",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/policy.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "e7110f19f6f35e36cec7dfbcfb77fc63a1a5d0e137b9932f4fc68b578fa73b74",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/policy.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "ff89c0e5732fac54803ac897be19b8f6e6b5bf4b8c8ae236ebb0dc1daadfc8a7",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/policy.py",
+      "code": "E501",
+      "message": "Line too long (119 > 110)",
+      "line_sha256": "52d559bcbeb29d1eb6a3cf2d84ce44a1e8f6061ab1e056f6905b85f63de4d3f0",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/policy.py",
+      "code": "E501",
+      "message": "Line too long (127 > 110)",
+      "line_sha256": "f13736e2d07301ad16a0e2ce63823f5092819a9d34213b49794fd9595ef959ed",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/portfolio.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "c82218d6c6ad2ae58a91c0436a970383868a21879e927b8cb7f53cb503db62c3",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/portfolio.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "8d99f786dc15b36ece5fe795d961e9c7608cad6a4638c92d05ee1d53005a5be5",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/portfolio.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "cd59327cc76dc4befd6aa0a31b444aef1667553b613e4acbafe0ec4cf77336e3",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/portfolio.py",
+      "code": "E501",
+      "message": "Line too long (125 > 110)",
+      "line_sha256": "5f67cbc5a329a4f9dc5d8d93872fbacc18bbec2e978e7e6feac3a82a9ec74e9e",
+      "count": 2
+    },
+    {
+      "path": "personal_assistant/portfolio.py",
+      "code": "E501",
+      "message": "Line too long (132 > 110)",
+      "line_sha256": "2e5346290a2260b09baa76da8514e57560d074451530f109864cba6ed857c272",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/portfolio.py",
+      "code": "E501",
+      "message": "Line too long (139 > 110)",
+      "line_sha256": "3b1a42befa429c93c67621953d1aaee9fe74f5b6f4f434b5e0bf9ea306bf49dd",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/release.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "3a2f8cf42fff0e4766bf7b89221bd6344149de5fc7fc8ac2ba9a016fbaf0fd90",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/release.py",
+      "code": "E501",
+      "message": "Line too long (123 > 110)",
+      "line_sha256": "cc01fa502a207dea557c7dad36c6eb0298f38ebb473372b251e4603ab7a11ee8",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/release.py",
+      "code": "E501",
+      "message": "Line too long (128 > 110)",
+      "line_sha256": "0417260f50edf2ae018f660b824245487c84e77b3a22ed7fd09de06b32428b79",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/release.py",
+      "code": "E501",
+      "message": "Line too long (129 > 110)",
+      "line_sha256": "bf96df5fcd1c106164602fd9c78b906797feca9e54d146554f5fed25642cf776",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/release.py",
+      "code": "E501",
+      "message": "Line too long (131 > 110)",
+      "line_sha256": "99fdbc2876a92a5e462f4eefd9968cfd6e58a6a24862de6770d31f21333261ab",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "4b45209e8ced20c0c04111768840263ba01092039e8e5879bf1b0d502ee4499d",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "8d3d863781a9e90299c3129fddb03351d855965c2cf8b3159aac95294798419a",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "9b88a493aea46d3fd1e5e6f66847e4d2c699ba0a0d19c34638ed67e71d9c63d8",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "3f67900ff2729e47fab54c52f0b035d9607f70493b33287adcc972934a564077",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "613d8c230f46d9d4d3cae18a97dca51631eab3c6e75722d746dbef72300cde6d",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "113f07943aa4e8acced894f9faa7a6194a3f45f60bac35a07899a531237ff435",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "3d6c36196069729fbc7188b7fc2673e55f1e22a5fd11d829e47ce053dc6bcb5d",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "c204502a04cb35933ff4550bfd5a52055cc7c7726b49260c037a2504e26f5b05",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "cb1c26486987eb69c056bd4ac1178e3ae3a2ccb3a7071b9a282fca4e7f2e15f4",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "de17c61dc2b1258b3c3a691eadd34ded2cd1a9558acf2315c5fdff4f3ae46824",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "afff8da39b4c9c99e4391dd6bb2aa09603d9cf5c28f366fc65fb7fb50e63c282",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "e9ae1ae92512e1ee7331b72d8f8938019da13e6e4420869b95077bdeb29e6f3f",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "ed998a67d6903b34a711cd8098db3cdf74f2f85eddc71acb5093cc1af3f3530a",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "7af82c8b3ab18f41b4d349afda7946aabd4eff7c686a40ed32c5c75e38fa6ccf",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (117 > 110)",
+      "line_sha256": "158306621cdcad66727ae83c337c8389bd91e3e4c4cc02e6eb9695e483fd4546",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (117 > 110)",
+      "line_sha256": "3f843e39616bc17f81fe98127341fe023a7b43dc8e4588204e0a458a922a40d0",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "1483985f7f29a83be84c6b315102598a73046fd80c190d03628b54b938cbef1e",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "6e43de435579bcaf18090a7ceb7fedfada66870ad371a87b4760faae850b3022",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "8e610cbc4470061d482dfa8980ff944164a63b862179cb19114fa656f7c7329b",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "8f524d53ad60be4a300cd861bc2e8a85578bd50cd12e3fa3e6b93bc55249fb74",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (119 > 110)",
+      "line_sha256": "d5cc8e3a71f074fdee593efacacc7af5819676b5ae34b4b4db2c5882a4a1815d",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (120 > 110)",
+      "line_sha256": "370f0f4d26827349aba9ed79c61f573a6c32d0f9d00b60821ab2865425a99d59",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (120 > 110)",
+      "line_sha256": "a0bfab30073c95b590aaec64fbf5ffce24c850f056409b8ecc6bf6687179da27",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "16c0d4c811515fa018025a5a444fafb3baffb82ebe2c2cd879b13cc1d1c3fcd9",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (124 > 110)",
+      "line_sha256": "02505a0ca0a365410458a9e4e35d26d299fcee5765ff2591395e562b8db324bf",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (124 > 110)",
+      "line_sha256": "4ad1302b37652de79963576696417b2433b89bc6239c91c87fae974ca6e5ea7f",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (124 > 110)",
+      "line_sha256": "c49d88de15489b7b4a5a93bdb543ccb1b64fdb64d8e84fb48a2416a14ade6d63",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (125 > 110)",
+      "line_sha256": "f462653f18fb15c8bed24075b3c0790bc74d65f77d99c9d58ba54006cb61771a",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (126 > 110)",
+      "line_sha256": "86612adeea966591dfa9b1fc290212c9dc2f46f98049d3a3599e31b25dd5cb9c",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (128 > 110)",
+      "line_sha256": "0d3c44f09047bee2f8a6912b385360f8325a7b964550962147f563fb16b219ef",
+      "count": 2
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (128 > 110)",
+      "line_sha256": "52a65d144bef969d5116b5b85689bb943cf48f267ecf01fc086190d71b92cf24",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (128 > 110)",
+      "line_sha256": "9a408436db98c76d1179352091bb9672c0cc355538f53678ba920451ac1d4981",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (130 > 110)",
+      "line_sha256": "d34a797340d8af6d6fa5245973b352a87e7a33a3ce9fa8933acb67117a71318e",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (133 > 110)",
+      "line_sha256": "4dd5181b913c9716e95266ad178f2c2c972028e96ce353ce7f531bdc4cd38641",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (134 > 110)",
+      "line_sha256": "f18bf1af5f1f33d1c2d9b1a97981b5885b9b406233a08fe21349a2a663774219",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (135 > 110)",
+      "line_sha256": "ed922cc04eb3ad2532689ddbbfe72a1a7eb639aaefd8420bb9c61dbd28f3d595",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (143 > 110)",
+      "line_sha256": "2a838c4cb4963039648b2acfcfb89f28214bf6867a36a09090eef9d7171707c6",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (149 > 110)",
+      "line_sha256": "42a130a89382596d261b819f272ee4b6e9d0addedad3b24ebce4f08be18b11e9",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (152 > 110)",
+      "line_sha256": "7805b7c04dcbf332a33415ed5f57c621a007b49294c08c74163681fddb51cace",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (161 > 110)",
+      "line_sha256": "92c69b0bfea8aeda49f52e8c8d755ff02fd3d6b1d012e6184c8cd2250907ea14",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/service.py",
+      "code": "E501",
+      "message": "Line too long (176 > 110)",
+      "line_sha256": "549e92de47a6ad66701583429bd98bc022c4ff4d141064873f93b7d38ae1acdc",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/settings.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "388c44fb9e51344ac6ba48112c72a85076f356b2b9b7e1600dc56c2ea9a443a3",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/settings.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "48fd7fa306366840f42e7199f21810adecf22e7399359d6fa6e0fc99873b198d",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/settings.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "1f356e63031b964cce9b266a7305a636072a3ee30f691cd96d6a2b1d3c14dd72",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/settings.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "9129062df3815d688efd4839bae71c591f84a0802ce7abeff82a9926e5e168c6",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/settings.py",
+      "code": "E501",
+      "message": "Line too long (136 > 110)",
+      "line_sha256": "5fa224ac767815a5c59aad0be750e148cd795bd1ae0741f1765521da84e3f091",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/storage.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "310d889ca75af75d78bc299c3023cb634078af0d658a7bbe7075eb6c1a69a238",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/storage.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "262b4533d5f8e017a01b87966f1f05ba7861e0465a1042f89bb650575b2d4d27",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/storage.py",
+      "code": "E501",
+      "message": "Line too long (126 > 110)",
+      "line_sha256": "2087fdc97b2f37d0a3dc24715414e648ebcb6c04cbc51b539f5be5d49f49131f",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/storage.py",
+      "code": "E501",
+      "message": "Line too long (135 > 110)",
+      "line_sha256": "4e394861f12bed8c9309382049a61cdbbca7ed3f859360602ba4c29820435838",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/storage.py",
+      "code": "E501",
+      "message": "Line too long (137 > 110)",
+      "line_sha256": "233bbaa4eae0dfc024adbd396d011f8a17ab92b4330c41cc3630497912d8d5e8",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/storage.py",
+      "code": "E501",
+      "message": "Line too long (158 > 110)",
+      "line_sha256": "9fa458ca6dc3b6cd571c509cc348b41108b5ebce8227fa8fb0631aefa0cf3f15",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/storage.py",
+      "code": "E501",
+      "message": "Line too long (166 > 110)",
+      "line_sha256": "a0d73c57272108b33f2d419fcb8b849d19146e4897ae286df91db47fbf8c867c",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/storage.py",
+      "code": "E501",
+      "message": "Line too long (177 > 110)",
+      "line_sha256": "1a4d998231ff02dce55ba1b13355af828d153fb01453b483c86fb4738b0f7526",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "4597f0fc5e7381569ae9c65b20136280358de0ec3d2a81c3b8fe8aa7004561fe",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "20f9c081039ce60bf23dce2eef2238ffa15bdb2b9c20bf4e1d8dd5ca946cd5b0",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "623b3e3346dddba518dc055b92a58c266f0fc5953c56d45af0f456661dc18fef",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "87a5cdf7b531d0433c07380d7a9bd34b49855ae48e64bbcde5502b9bb89e2bb5",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "594de6a8e434348439eab2ae480b4f9350daf377390b990c1cf296af729f563c",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "a6737d8dc9543d0f7bad7f66417ad38d97dc5663955284dab9fcb0782548a051",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "344d6758fa31d90cd64c21bb6130e6c62de21c9554e71eac4e65e99b26a90f2a",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "4e03f98031a5bf5249ec13c4ec6ea90a7922e44615c2f0c865e8c1c642583032",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (117 > 110)",
+      "line_sha256": "a6c0dbe11fe8da8fe1571e28cf3e0e43c432a24a78abb0240ce62badacd2d427",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (117 > 110)",
+      "line_sha256": "fc9c979e7e2713b484efeb884b10bffafc4c538003e2105f08cbd1179f1875fc",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "00b90a2474892a0140137dfa81a456c2452de14b2ebc64cc0ab001b276f40085",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "16c9c79652596e2e40cf6c6ac6afa0b9facd67c6621cc8950a6bae13a8149ecf",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (119 > 110)",
+      "line_sha256": "4115b470ca8539847badba9cf6199eb9f22a33ab56da20ec32dac8b9d1437cf4",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (119 > 110)",
+      "line_sha256": "8174b298e6bfcfa9b998eadd44321035b2bad942a55dde10973adb4c76c6a137",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (119 > 110)",
+      "line_sha256": "9407d3debc0dabc49d646e19a43300aafa25af637e53a3483f90fed7698dfcc2",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (119 > 110)",
+      "line_sha256": "f45505e77351039fd829122ce5289b2ca9df112d70ac53edd40d292cad76e9b1",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "9397659ab31963281920d76066b7874b6644fa4b41f13120685c3e3a777a32bb",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (122 > 110)",
+      "line_sha256": "4977e7728e6fdc3763e997d8905438ecd0a479fd514c8c6956f6abf356255521",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (122 > 110)",
+      "line_sha256": "d9a0113ce44ac45523c38e99046ecd051b4d98e8eed6c6c8883624c94d69df5c",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (122 > 110)",
+      "line_sha256": "ef655f7bceae8248703a5b32f384a1de346fe56f5bc68baa4089d1dd53dfb21d",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (122 > 110)",
+      "line_sha256": "f3cc82dbe8860a1095edffb71f8b741a83ff9071124d1c14ee384e1252bb9feb",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (123 > 110)",
+      "line_sha256": "eaddf8435b4646f9e99ba68b2e9d9d699236d844de45901515d28284836de921",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (124 > 110)",
+      "line_sha256": "27ca2aa124f530c4ea0e069bd2d8a951c39c7b31d2318c514a5ae5802d2237d8",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (125 > 110)",
+      "line_sha256": "7eca90fb3e760126066a6584edc283f4933257e7893637fa09bd4cc7ff83e49a",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (128 > 110)",
+      "line_sha256": "455510932c24bfbb7ac8505844e1560841b0f90d4c8b71a20d0c230ecf049ac8",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (128 > 110)",
+      "line_sha256": "fa3b6f6a0d875f5ea7ae8bdb2f544170e22600bddb942ec1e1f10a3f94d30bf7",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (129 > 110)",
+      "line_sha256": "cca7ec320772225ff09a081516ca047e7bbbe5e79cc1e1074cd7b347d23a1659",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (131 > 110)",
+      "line_sha256": "4517e55ce2828a36db7b1176df3bd96ee72479174a894a74d0d472ef14285b61",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (131 > 110)",
+      "line_sha256": "e52c10edd2671e867b4d67de612d1bc5690daf51007012b32e9b5e4f40af78d1",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (134 > 110)",
+      "line_sha256": "10c8c3ea50e634650c419022534f5a45fde4b2d5b8fb444e6f2f7179fa1d5f0c",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (135 > 110)",
+      "line_sha256": "cf9e67744e57e57f2e92124c255a4e539b05b01d059d8c259e78371f91091bd9",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (136 > 110)",
+      "line_sha256": "6a26f68907a2d0908aab8a7ebaed37aae9ffd0b5ceeb38b14d845e145d6168e0",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (137 > 110)",
+      "line_sha256": "2aff1aecba68a10389802763d0684abf991a3c0838cb617bb844651d68779f95",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (137 > 110)",
+      "line_sha256": "6d58b9799860be3e3aa4c5d82792b4ac96f1b4bfd01b8d91b6c02d10507bed8c",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (137 > 110)",
+      "line_sha256": "6f0aa52dc0b9d833b708311ad7a0d747c7d484aaa4aca0ac9ce3bb22f93d5fe0",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (137 > 110)",
+      "line_sha256": "762b7b4f7a34b7dd3726b501cf32d3c596c39227aa339a1aee467b39596c8c0b",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (139 > 110)",
+      "line_sha256": "1eee632ec25ab5ad1fda1443e43fec3e0851396d36a7de11cd503c2279211cbc",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (140 > 110)",
+      "line_sha256": "a13e45cb2615d81c87c968fe1625f85689b1bc022e49f12a38d93095b9488af3",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (141 > 110)",
+      "line_sha256": "01a15b06c46a9db556b4e9c08d7061c0d8447f8d7ab6e28f4ebcb5fa2c4096eb",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (143 > 110)",
+      "line_sha256": "676c5fb747540157719b86e12fd89ebbc01389aa2f056f09db771b17c96f3384",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (145 > 110)",
+      "line_sha256": "20bc057cbb6e60770aae76d80cdd1caffae61eba1ce2b7e25baeb5442fa34855",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (145 > 110)",
+      "line_sha256": "9fd5f90281b705e3aa08b561ef563dd8b8f4cb5b06fa4a224f1fe5a2b07c42de",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (146 > 110)",
+      "line_sha256": "2c0fd586aa01c398e25439632df343f29b2208b472635efae8a598327ddd51e0",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (147 > 110)",
+      "line_sha256": "393ee2ddad4263a6310862cec5562d2b5a096e51f9898edac215f580b600719d",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (147 > 110)",
+      "line_sha256": "4433825024b653559c48365c6ea23af1ab2e3781f241b92dbf77f3fa6f04a9c7",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (148 > 110)",
+      "line_sha256": "0185858fe254e4fd4adc967b103d7240d740e4bbf188a6d49cbff76fb8ac174f",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (148 > 110)",
+      "line_sha256": "0f2ff7248e0bf70a91d12c6711ea68d4ba5c89fd864c5eea3f881a5330719f5a",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (148 > 110)",
+      "line_sha256": "671a9f4d3cc218b5dfe2e0b1e87c7f2e4fde338c866597d5b19baebe7ce8d3c1",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (148 > 110)",
+      "line_sha256": "99dc09642ce6edb0a3c24108439f8e7ffad453006eb1a25ae646ef06b98bcf67",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (150 > 110)",
+      "line_sha256": "602f26331c825bbbbabba1a0bacf2f0f324b9346b73bc4359eba67b9c84ef714",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (150 > 110)",
+      "line_sha256": "dede3858591f8443f59b5b6098b95eb929ee4ca9a4168eb0f1263744bcf5a280",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (152 > 110)",
+      "line_sha256": "0116489121e387a014bc919157ad3a03b8000bdb42637b3c96e7a4c871c70998",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (161 > 110)",
+      "line_sha256": "0d2f9aae736bef22a40f9b3783fd52ed08fbba6441c7b2a2ed7309bc664a3053",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (175 > 110)",
+      "line_sha256": "466a08eccbdbc619bbffaf4231dcdc5815494c8554b91151c64ded318911f34b",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (183 > 110)",
+      "line_sha256": "662fcf11c0665fc8e72e0a56bfd55612cbc4e366130189c6c73b6177267829e9",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (187 > 110)",
+      "line_sha256": "12a3962bac5bc273d6efaa648b19846dc87ee9c6bd459dc679983d3240137c6c",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (191 > 110)",
+      "line_sha256": "cfa845931fffb3ac0133d32889dc1917eb4a30a2dbffde59cd15c029ed54854d",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_registry.py",
+      "code": "E501",
+      "message": "Line too long (192 > 110)",
+      "line_sha256": "24fda980349ce82e1d5d886ff1071e75b72885eec2f31abaa1342bf70b7bc654",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_settings.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "ac34b48c9068e3b93491d829184ff9fd6af35d6fd59997cd78319f78b8b8b318",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_settings.py",
+      "code": "E501",
+      "message": "Line too long (120 > 110)",
+      "line_sha256": "254967001e4e13e938dc598f8fc5cedc0ef46d396cb175fa2f36f7631d567904",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_settings.py",
+      "code": "E501",
+      "message": "Line too long (132 > 110)",
+      "line_sha256": "691523d191b702046cca6cc822b8c69a85b77e74b2d0590e1fb47fa7e78537a2",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_settings.py",
+      "code": "E501",
+      "message": "Line too long (142 > 110)",
+      "line_sha256": "e4dc01eb9a14019b1ed0a884ce784503aa79943df9b13e7d3562e725a295f409",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_setup.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "b2f5c521a8cd07d39bd060b997322b6d79acc026484466eb9756c5eddb124a1f",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_setup.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "bbe5ca371cbafe46323d41dc2b4ffe8062d6bd726a2a66a9393a0ad8a2098065",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_setup.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "2e220c28c44f7654823c3a1b544eed3561607c63aa0ad41c964e9e2b79e20753",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/tool_setup.py",
+      "code": "E501",
+      "message": "Line too long (124 > 110)",
+      "line_sha256": "98c2e34f64a17e9e67ef4d2d0fb69b7e31cb388ab6fccbcec06d51647c32f370",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/work_scheduler.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "26ea1949f37b26c2857a7da84a3b20de6447db532eb34320d7b3b894bd1911d7",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/work_scheduler.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "2abe7ff00567933fbd8be486a53bb913e4265b083b7e0623a7339698f3e4e8f8",
+      "count": 1
+    },
+    {
+      "path": "personal_assistant/work_scheduler.py",
+      "code": "E501",
+      "message": "Line too long (130 > 110)",
+      "line_sha256": "8faf4f4839b4784d9ac8c10f96ead65f0a44e86ae5e5a32b1e7ce808b2d08317",
+      "count": 1
+    },
+    {
+      "path": "scripts/check-mypy.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "bde36eedb85cbb8c3887f385e7eb95b7365b227eaed286e16a9e184e128e886a",
+      "count": 1
+    },
+    {
+      "path": "tests/test_agent_operational_tools.py",
+      "code": "E501",
+      "message": "Line too long (128 > 110)",
+      "line_sha256": "f63d1c697af421a930c3baf72838722e452e59eeba94c7fdcd859442f2339390",
+      "count": 1
+    },
+    {
+      "path": "tests/test_batch_classifier.py",
+      "code": "E501",
+      "message": "Line too long (120 > 110)",
+      "line_sha256": "8c46abc4dda7dfe22ef8ab94c9b127a8bac79ec40e7f572b7000d683131dcb0b",
+      "count": 1
+    },
+    {
+      "path": "tests/test_batch_classifier.py",
+      "code": "E501",
+      "message": "Line too long (125 > 110)",
+      "line_sha256": "95d6354155db23155a8e9f4acbd5739de74c940a7ac3a472b110366d89dca4f0",
+      "count": 1
+    },
+    {
+      "path": "tests/test_caldav_discovery_tools.py",
+      "code": "E501",
+      "message": "Line too long (121 > 110)",
+      "line_sha256": "e9acbd94952a41538ed6182df07e008ae4fc46fd4ba0cde29451f835444272d5",
+      "count": 1
+    },
+    {
+      "path": "tests/test_container_migration.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "bb0b882bf22eef9ecfc58a5a22d16d7e3f44a7e4f93a1592f90c9a3152fd9177",
+      "count": 1
+    },
+    {
+      "path": "tests/test_container_migration.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "e1fa5ab15bcc1e474eb2f9d0c12bdb8b9ddc1cf53beb7c930246351c63b466b0",
+      "count": 1
+    },
+    {
+      "path": "tests/test_container_migration.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "3a77ab306ec58ac75c2042a441a92c0638ef81d745be2e55d5b4d1376c9b0f6e",
+      "count": 1
+    },
+    {
+      "path": "tests/test_container_migration.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "7e28c9e0f4ef516fba4b458d32f614ae631dece5043ac4b803967d9667569da2",
+      "count": 1
+    },
+    {
+      "path": "tests/test_container_runtime.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "76c34ad48dc937674fea5381cabed1c0bd3a7d24d5df77259203d96088841a3d",
+      "count": 1
+    },
+    {
+      "path": "tests/test_direct_tasks_tool.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "b980a2d9bc916326a457a757257205e0af19b7123192ee0e2a201b7316b28c5f",
+      "count": 1
+    },
+    {
+      "path": "tests/test_help_nextcloud_training.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "fce15277e682e9133eabb7ab242a1bddb6c3ee9f192a68ab54f2c69abd5fa04e",
+      "count": 1
+    },
+    {
+      "path": "tests/test_integration_cli.py",
+      "code": "E501",
+      "message": "Line too long (118 > 110)",
+      "line_sha256": "f36706d8b54ad095a348b20179b95444f9c29bbfeb097b756b38f6152c5c2fa0",
+      "count": 1
+    },
+    {
+      "path": "tests/test_integration_cli.py",
+      "code": "E501",
+      "message": "Line too long (122 > 110)",
+      "line_sha256": "c3c02f6b3a9de51ce8548c38849971eb705b2a1ab73c61d77d4d0e702e94d1d8",
+      "count": 1
+    },
+    {
+      "path": "tests/test_integration_cli.py",
+      "code": "E501",
+      "message": "Line too long (314 > 110)",
+      "line_sha256": "c53c53f901b10aab3e23d8b8d177d11833a46cbea51b2ca2365e2ed002405ffc",
+      "count": 1
+    },
+    {
+      "path": "tests/test_invoice_ocr_register.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "72195b1d4359468bde1427e53010e1343e4587f0b12b4e3e5eb5f10ba6dc9aeb",
+      "count": 2
+    },
+    {
+      "path": "tests/test_invoices_calendar_approval.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "2386b11dd90ceb225a81fbdffe7e7f10e41a64d59d029fdd4221119c9f6d5873",
+      "count": 1
+    },
+    {
+      "path": "tests/test_invoices_calendar_approval.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "61be8c7a92795de8c75c4600f3c237cdefc8c0663296a0c0132ace1fc50b7db1",
+      "count": 1
+    },
+    {
+      "path": "tests/test_invoices_calendar_approval.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "59582422004c707dfb28b3623ea240e1da8b6393279c55a7115638081755ddda",
+      "count": 1
+    },
+    {
+      "path": "tests/test_invoices_calendar_approval.py",
+      "code": "E501",
+      "message": "Line too long (136 > 110)",
+      "line_sha256": "7de908aba593874e388573f8f91c2e355bb53ff445fd53c7f3e8e4bbb39333de",
+      "count": 1
+    },
+    {
+      "path": "tests/test_invoices_calendar_approval.py",
+      "code": "E501",
+      "message": "Line too long (137 > 110)",
+      "line_sha256": "385abb73224077d7a03e2767d714b1b36e62d66cb877db7187efc454c6b855c3",
+      "count": 1
+    },
+    {
+      "path": "tests/test_invoices_calendar_approval.py",
+      "code": "E501",
+      "message": "Line too long (143 > 110)",
+      "line_sha256": "1d88af0d3400f83a476b8a41b9765121032c2141f7a61d3cebf33fcde8e6568d",
+      "count": 1
+    },
+    {
+      "path": "tests/test_invoices_calendar_approval.py",
+      "code": "E501",
+      "message": "Line too long (196 > 110)",
+      "line_sha256": "5493c683ec236bed2f780ff28c656d68ee80510ee583a4d264d3681a77f18801",
+      "count": 1
+    },
+    {
+      "path": "tests/test_job_control.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "4aab2baacbd44c9d64254f57bc0e8bfa795c84912aebff75eed2fdd610a97e00",
+      "count": 1
+    },
+    {
+      "path": "tests/test_job_control.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "288b70b4b18db6c5a486fd42545fbffd08d5bae25ac39f2bbc9e099097d92151",
+      "count": 2
+    },
+    {
+      "path": "tests/test_job_control.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "a585e8fad1f4d0665b76df990a53cf9f0792af0f57cdbcb6ca22e45bf78402c0",
+      "count": 1
+    },
+    {
+      "path": "tests/test_job_control.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "08de23b09f1660fd7cdf22c6879c2796b22d70e59142eea10ca92cf6e3bf361b",
+      "count": 1
+    },
+    {
+      "path": "tests/test_job_control.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "35e9045318c159eaa87a4d9cf935a717a38d849d067b994e4a63166b126bb766",
+      "count": 1
+    },
+    {
+      "path": "tests/test_job_control.py",
+      "code": "E501",
+      "message": "Line too long (123 > 110)",
+      "line_sha256": "b736e5713e512cc75ee0231a3a5c3d86bbd1fb86d0efe186c8ebd3425c8a80af",
+      "count": 1
+    },
+    {
+      "path": "tests/test_job_control.py",
+      "code": "E501",
+      "message": "Line too long (126 > 110)",
+      "line_sha256": "49040f98bac2bb5a7fe077efe024d6022189d329fb18d97d4faf333669ee19b4",
+      "count": 1
+    },
+    {
+      "path": "tests/test_job_control.py",
+      "code": "E501",
+      "message": "Line too long (130 > 110)",
+      "line_sha256": "70bf84dd652b568bff82db3266cd45ea7ec831fc41a5004604786b382dfea592",
+      "count": 1
+    },
+    {
+      "path": "tests/test_job_control.py",
+      "code": "E501",
+      "message": "Line too long (134 > 110)",
+      "line_sha256": "694e513b2eacc6243ace6de8024fbcf3abd7774c131cbfa592c2c76d5dcd170a",
+      "count": 1
+    },
+    {
+      "path": "tests/test_job_control.py",
+      "code": "E501",
+      "message": "Line too long (147 > 110)",
+      "line_sha256": "1f083ab74ee15c2ea3bbb9899a23d051fd37a2a0a5b555d7b2879f1a8ac15170",
+      "count": 1
+    },
+    {
+      "path": "tests/test_job_control.py",
+      "code": "E501",
+      "message": "Line too long (156 > 110)",
+      "line_sha256": "7ca1c306fa1eaa9a13a3c261e6b3b4dd7feb6d6a441529076f12b03372bbdf15",
+      "count": 1
+    },
+    {
+      "path": "tests/test_job_control.py",
+      "code": "E501",
+      "message": "Line too long (160 > 110)",
+      "line_sha256": "bbdf0f830cd0bf3b9e32814f7c8da3e5c8628b863f10fe8fcb1d387cefd2899d",
+      "count": 1
+    },
+    {
+      "path": "tests/test_learning_patterns.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "fb7e6a9959d8f97680a7039e1a04431b2889965b61609de7109942b7c7832e6d",
+      "count": 1
+    },
+    {
+      "path": "tests/test_learning_patterns.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "176cbacbad9b4590dfa577e2e5dce6ea2dd20fec634e7a8ea89ae6e565e36947",
+      "count": 1
+    },
+    {
+      "path": "tests/test_learning_quality.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "354a8ddcf77f1f9096d7a09fb136027a68c79f89d8b5fa78526097a53ad6db57",
+      "count": 2
+    },
+    {
+      "path": "tests/test_learning_quality.py",
+      "code": "E501",
+      "message": "Line too long (126 > 110)",
+      "line_sha256": "14f62df97d9c7eb8b8af1ba92227db8f6c267d62d1fca3d1fb2305f248df55db",
+      "count": 1
+    },
+    {
+      "path": "tests/test_learning_quality.py",
+      "code": "E501",
+      "message": "Line too long (126 > 110)",
+      "line_sha256": "d365c9a1937f763a520b7858136acc68b20b6420be85c21224b59793a27eb1f9",
+      "count": 1
+    },
+    {
+      "path": "tests/test_learning_quality.py",
+      "code": "E501",
+      "message": "Line too long (127 > 110)",
+      "line_sha256": "5ff04aaf36d91de0b0a0a2323907d708ac854246f514e2cceadfc289c87805c0",
+      "count": 1
+    },
+    {
+      "path": "tests/test_learning_quality.py",
+      "code": "E501",
+      "message": "Line too long (128 > 110)",
+      "line_sha256": "042b52d9aa26b73b4b7e659aec6e09f442570f24c496d20bee2ba238d573c6bc",
+      "count": 1
+    },
+    {
+      "path": "tests/test_mail_agent.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "9785e595acd37362c336efacc4d3618418f4d5bfe67082860140088e2af77a0c",
+      "count": 1
+    },
+    {
+      "path": "tests/test_mail_agent.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "b272a3fddf880bb0415b242728b406dd367c95dd5f7f29022d5fa76c35c92005",
+      "count": 1
+    },
+    {
+      "path": "tests/test_mail_agent.py",
+      "code": "E501",
+      "message": "Line too long (127 > 110)",
+      "line_sha256": "51f5bbd851624dbc78cbe838f077991a14a0222f9387cbd496f8778b0d0a887b",
+      "count": 1
+    },
+    {
+      "path": "tests/test_mail_agent.py",
+      "code": "E501",
+      "message": "Line too long (136 > 110)",
+      "line_sha256": "10f51eb131aa3e1a96d0ad1b1ce7ddf38a10512a7e682f6d1834f001a67ba042",
+      "count": 1
+    },
+    {
+      "path": "tests/test_mail_agent.py",
+      "code": "E501",
+      "message": "Line too long (156 > 110)",
+      "line_sha256": "9be2b83da5fbb165d65cc79116221ff0b1f620a379caf5165bec82e289b6a42f",
+      "count": 1
+    },
+    {
+      "path": "tests/test_mail_agent.py",
+      "code": "E501",
+      "message": "Line too long (214 > 110)",
+      "line_sha256": "285cef39b497c17bc241b9b9f98a99b62c3fd852fee27d0b3abd9067bc1b866b",
+      "count": 1
+    },
+    {
+      "path": "tests/test_mail_move_tool.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "71abad52adb2a84bdce338d80bbe9b5b245eeda26295a211df1a1a118cefcac5",
+      "count": 1
+    },
+    {
+      "path": "tests/test_mail_move_tool.py",
+      "code": "E501",
+      "message": "Line too long (128 > 110)",
+      "line_sha256": "6805740635ef778518dc57e5b7fb5e51d2ebd49fca87e50daaed7b0f7d1c9a45",
+      "count": 1
+    },
+    {
+      "path": "tests/test_mail_move_tool.py",
+      "code": "E501",
+      "message": "Line too long (129 > 110)",
+      "line_sha256": "6b59bbe2e8b5d1d4efca2f2c8ae6b91912a944a81b65e7f98250e4c9d46bf3e9",
+      "count": 1
+    },
+    {
+      "path": "tests/test_mail_move_tool.py",
+      "code": "E501",
+      "message": "Line too long (140 > 110)",
+      "line_sha256": "cdee4459614569ec8a00507364b62cfa35fa113ca4f2587fcc496d35c9ec3526",
+      "count": 1
+    },
+    {
+      "path": "tests/test_mail_quarantine_sources.py",
+      "code": "E501",
+      "message": "Line too long (126 > 110)",
+      "line_sha256": "da1a22f112cc10780fa08748a8d919d63f5979eadb34bcaba70305f32d65b50d",
+      "count": 1
+    },
+    {
+      "path": "tests/test_monitoring_tool.py",
+      "code": "E501",
+      "message": "Line too long (133 > 110)",
+      "line_sha256": "d1825cdd5f2a07b1a8827e22ffe5e6261624e2fe6fc0a2318c1da98407ee9c17",
+      "count": 1
+    },
+    {
+      "path": "tests/test_nextcloud_discovery_idempotency.py",
+      "code": "E501",
+      "message": "Line too long (129 > 110)",
+      "line_sha256": "aa88082de4529ca5a1e1768773102947f1d126523358794d13d303ef67fb7a5a",
+      "count": 1
+    },
+    {
+      "path": "tests/test_nextcloud_workspace_tools.py",
+      "code": "E501",
+      "message": "Line too long (116 > 110)",
+      "line_sha256": "a004247b4f5ed7bfed8cc3288d730ffa65c5ed09e61d53277c13fb41c8f90aa4",
+      "count": 1
+    },
+    {
+      "path": "tests/test_nextcloud_workspace_tools.py",
+      "code": "E501",
+      "message": "Line too long (117 > 110)",
+      "line_sha256": "388f7373f6e52c55bc68b03e63cd42e25c52ec27d6ff53e670cc3c1450185218",
+      "count": 1
+    },
+    {
+      "path": "tests/test_not_spam_learning.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "9b63b5bc783cc9dfa44ac3437cb9d1f89b3a94b13a28e91c3951d9674a2429d3",
+      "count": 1
+    },
+    {
+      "path": "tests/test_not_spam_learning.py",
+      "code": "E501",
+      "message": "Line too long (125 > 110)",
+      "line_sha256": "79597f302fd479e16a34c8389e9b60ef9b3af68349770b2fe4de633d7dc3d823",
+      "count": 1
+    },
+    {
+      "path": "tests/test_ollama_priority_config.py",
+      "code": "E501",
+      "message": "Line too long (114 > 110)",
+      "line_sha256": "2c859700f6871916af031c2da9f880db1136c48e932269052b0ad30bb9cf4b32",
+      "count": 1
+    },
+    {
+      "path": "tests/test_ollama_priority_config.py",
+      "code": "E501",
+      "message": "Line too long (126 > 110)",
+      "line_sha256": "09fb0c40ed4c1de9af47a3c214dacfb0043bdf0df6d8b37e514efe2a42e10ec9",
+      "count": 1
+    },
+    {
+      "path": "tests/test_order_deck_tool.py",
+      "code": "E501",
+      "message": "Line too long (113 > 110)",
+      "line_sha256": "5e6c3b51ce129e2ecd7dd2cb5334177fa4f1bd423daf913ca4825274266163b6",
+      "count": 1
+    },
+    {
+      "path": "tests/test_order_deck_tool.py",
+      "code": "E501",
+      "message": "Line too long (122 > 110)",
+      "line_sha256": "eec47efc9c7954f370e9f8ef70d590e72ec046c9feb73c551d7c7d91a941484c",
+      "count": 1
+    },
+    {
+      "path": "tests/test_order_deck_tool.py",
+      "code": "E501",
+      "message": "Line too long (129 > 110)",
+      "line_sha256": "97f44d7ebb2ee7664af183b55f7506ce3f26010290175fc098bb2999473aabb4",
+      "count": 1
+    },
+    {
+      "path": "tests/test_order_deck_tool.py",
+      "code": "E501",
+      "message": "Line too long (131 > 110)",
+      "line_sha256": "ba6751d755af0e51599d4a3a72bbd98bf39e8ec4e6a351cc8237aad88064762f",
+      "count": 1
+    },
+    {
+      "path": "tests/test_order_deck_tool.py",
+      "code": "E501",
+      "message": "Line too long (134 > 110)",
+      "line_sha256": "ac862584d37f25fc988a86782b12f2369b723c6cf1c5aff5d0d14f96bbb60fb0",
+      "count": 1
+    },
+    {
+      "path": "tests/test_order_deck_tool.py",
+      "code": "E501",
+      "message": "Line too long (137 > 110)",
+      "line_sha256": "f8ee7fe2d786388d57c0f0be07fff397bf9963efb90c6333466635f43d2554e9",
+      "count": 1
+    },
+    {
+      "path": "tests/test_order_deck_tool.py",
+      "code": "E501",
+      "message": "Line too long (152 > 110)",
+      "line_sha256": "57ec30cfd511065ef833aa631d4b5f413b2bc3fa02189a3b03b7717f84bd1a8b",
+      "count": 1
+    },
+    {
+      "path": "tests/test_order_deck_tool.py",
+      "code": "E501",
+      "message": "Line too long (169 > 110)",
+      "line_sha256": "128936a02fe8793e21b919f35d827bafe1a7b96e95b90192578f70e26b152da2",
+      "count": 1
+    },
+    {
+      "path": "tests/test_order_deck_tool.py",
+      "code": "E501",
+      "message": "Line too long (210 > 110)",
+      "line_sha256": "dd308988c70adbc3d11ec2f30b7ca827e5c8623c03f7dced3e6a1cd109ebbde2",
+      "count": 1
+    },
+    {
+      "path": "tests/test_parser_legacy_headers.py",
+      "code": "E501",
+      "message": "Line too long (124 > 110)",
+      "line_sha256": "15def5cfc2db3d6aba386a4bd1e289605bd231cb20fce96691ccf9707a5c19fc",
+      "count": 1
+    },
+    {
+      "path": "tests/test_parser_legacy_headers.py",
+      "code": "E501",
+      "message": "Line too long (218 > 110)",
+      "line_sha256": "f077de48a2743e801a5fbdb07ae79c234b6ed307ea44b714a66481d7312b014d",
+      "count": 1
+    },
+    {
+      "path": "tests/test_parser_legacy_headers.py",
+      "code": "E501",
+      "message": "Line too long (309 > 110)",
+      "line_sha256": "ca50742bffe2989699e4b83e42dfc618f090f3f79d7d7c53a49860ff5209b531",
+      "count": 1
+    },
+    {
+      "path": "tests/test_parser_legacy_headers.py",
+      "code": "E501",
+      "message": "Line too long (425 > 110)",
+      "line_sha256": "7692f80d2cfec995b57c1452fa84802effcd062f72ce9037ab9829f31a9b115b",
+      "count": 1
+    },
+    {
+      "path": "tests/test_performance_telemetry.py",
+      "code": "E501",
+      "message": "Line too long (117 > 110)",
+      "line_sha256": "6484e5ae27c8816d8573507579d71dd50391f5da1eb792d87f35f1177d93d3dd",
+      "count": 1
+    },
+    {
+      "path": "tests/test_performance_telemetry.py",
+      "code": "E501",
+      "message": "Line too long (117 > 110)",
+      "line_sha256": "9eeb9a0299694b65a3f80c8423cfc0459b74b96b1372658bf8a1f18bb3be1bba",
+      "count": 1
+    },
+    {
+      "path": "tests/test_performance_telemetry.py",
+      "code": "E501",
+      "message": "Line too long (123 > 110)",
+      "line_sha256": "5268fd142fff9aa85f87c25a72d735fc6b59543ed22f7bc57f5d3f685d0ccac0",
+      "count": 1
+    },
+    {
+      "path": "tests/test_personal_assistant_core.py",
+      "code": "E501",
+      "message": "Line too long (111 > 110)",
+      "line_sha256": "df76460e8ecf3fa4b8a09c1f317c3d2656e188d6bc300471746633a791cd8cc1",
+      "count": 1
+    },
+    {
+      "path": "tests/test_personal_assistant_core.py",
+      "code": "E501",
+      "message": "Line too long (405 > 110)",
+      "line_sha256": "e9cf54fe667bc8275f2f29c9d745eaf10c571f8aa46778da2bf1b147664a3232",
+      "count": 1
+    },
+    {
+      "path": "tests/test_personal_assistant_core.py",
+      "code": "E501",
+      "message": "Line too long (422 > 110)",
+      "line_sha256": "2c9e540dbfcb092723a98808b527e4c2397b39685d1b0629aa3fbd5f7f23ca73",
+      "count": 1
+    },
+    {
+      "path": "tests/test_r25_config_migration.py",
+      "code": "E501",
+      "message": "Line too long (112 > 110)",
+      "line_sha256": "a60261164ee7f02d54d37a6fd7686e1571147d5b1aee8032d7e209f895bcdf6e",
+      "count": 1
+    },
+    {
+      "path": "tests/test_r25_config_migration.py",
+      "code": "E501",
+      "message": "Line too long (115 > 110)",
+      "line_sha256": "9952b6e05b53600939d15adafed8867dce3186b2b4e901c7080883a861f92449",
+      "count": 1
+    }
+  ]
+}

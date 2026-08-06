@@ -6,7 +6,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-
 WORKSPACE_ROOT = Path(os.environ.get("OPENCLAW_WORKSPACE") or Path(__file__).resolve().parents[1]).expanduser().resolve()
 DEFAULT_CONFIG = WORKSPACE_ROOT / "personal_assistant/config.toml"
 DEFAULT_RESOURCES = WORKSPACE_ROOT / "personal_assistant/resources.toml"
@@ -83,10 +82,22 @@ class AssistantConfig:
     path: Path = field(default_factory=lambda: DEFAULT_CONFIG)
 
     def ensure_dirs(self) -> None:
+        if (
+            os.environ.get("OPENCLAW_RUNTIME") == "container"
+            and os.environ.get("OPENCLAW_ROLE")
+            in {"portfolio-worker", "monitor-worker", "sync-worker"}
+        ):
+            # Layout initialization owns container directories. Worker roles
+            # must not probe or create directories outside their mounts.
+            return
         self.runtime.database.parent.mkdir(parents=True, exist_ok=True)
         self.runtime.log_file.parent.mkdir(parents=True, exist_ok=True)
         self.search.mail_snapshot_dir.mkdir(parents=True, exist_ok=True)
-        self.runtime.secrets_file.parent.mkdir(parents=True, exist_ok=True)
+        # Container secrets are externally managed read-only inputs.  Creating a
+        # fallback directory below $HOME would violate the immutable rootfs
+        # contract and is not needed after the entrypoint loaded /run secrets.
+        if os.environ.get("OPENCLAW_RUNTIME") != "container":
+            self.runtime.secrets_file.parent.mkdir(parents=True, exist_ok=True)
 
 
 def _validate(config: AssistantConfig) -> None:
@@ -131,11 +142,22 @@ def load_config(path: str | Path | None = None) -> AssistantConfig:
         if key in runtime_data:
             runtime_data[key] = _resolve(runtime_data[key])
     runtime = RuntimeConfig(**runtime_data)
+    core_data = os.environ.get("OPENCLAW_CORE_DATA_DIR", "").strip()
+    if core_data:
+        core_root = Path(core_data).expanduser().resolve()
+        runtime.database = core_root / "assistant.sqlite3"
+        runtime.log_file = core_root / "assistant.log"
+        runtime.resources_file = core_root / "resources.toml"
 
     search_data = _section(data, "search").copy()
     if "mail_snapshot_dir" in search_data:
         search_data["mail_snapshot_dir"] = _resolve(search_data["mail_snapshot_dir"])
     search = SearchConfig(**search_data)
+    mail_data = os.environ.get("OPENCLAW_MAIL_DATA_DIR", "").strip()
+    if mail_data:
+        search.mail_snapshot_dir = (
+            Path(mail_data).expanduser().resolve() / "search_documents"
+        )
 
     nextcloud_data = _section(data, "nextcloud").copy()
     if "allowed_file_roots" in nextcloud_data:

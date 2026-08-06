@@ -10,7 +10,6 @@ from mail_agent.parser import parse_eml
 from mail_agent.rules import RuleEngine
 from mail_agent.storage import Storage
 
-
 POSTMASTER_MARKETING = b"""From: bike-angebot.de <postmaster@xmail.bike-angebot.de>\r
 To: Jan <jan@example.test>\r
 Subject: Neu: Wir kaufen Dein Fahrrad!\r

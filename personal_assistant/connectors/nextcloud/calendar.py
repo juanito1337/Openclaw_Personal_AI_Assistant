@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import re
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from ...config import AssistantConfig
 from ...extractors import chunks
@@ -11,7 +11,7 @@ from ...ical_edit import component_properties, first_value, unescape_ical
 from ...storage import AssistantStorage
 from .client import NextcloudClient, NextcloudError
 from .discovery import DiscoveredCollection
-from .xmlutil import CALDAV, DAV, q, parse_multistatus
+from .xmlutil import CALDAV, DAV, parse_multistatus, q
 
 
 @dataclass(slots=True, frozen=True)
@@ -36,7 +36,7 @@ class NextcloudCalendar:
         self.client = client
 
     def list_events(self, calendar: DiscoveredCollection) -> list[CalendarObject]:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         start = now - timedelta(days=self.config.nextcloud.calendar_horizon_days_back)
         end = now + timedelta(days=self.config.nextcloud.calendar_horizon_days_forward)
         body = f"""<?xml version='1.0' encoding='utf-8'?>
@@ -45,7 +45,7 @@ class NextcloudCalendar:
  <c:filter><c:comp-filter name='VCALENDAR'><c:comp-filter name='VEVENT'>
  <c:time-range start='{start.strftime('%Y%m%dT%H%M%SZ')}' end='{end.strftime('%Y%m%dT%H%M%SZ')}'/>
  </c:comp-filter></c:comp-filter></c:filter>
-</c:calendar-query>""".encode("utf-8")
+</c:calendar-query>""".encode()
         response = self.client.request(
             "REPORT", calendar.href, data=body,
             headers={"Depth": "1", "Content-Type": "application/xml; charset=utf-8"},
@@ -70,7 +70,7 @@ class NextcloudCalendar:
  <c:filter><c:comp-filter name='VCALENDAR'><c:comp-filter name='VEVENT'>
   <c:prop-filter name='UID'><c:text-match collation='i;octet'>{escaped}</c:text-match></c:prop-filter>
  </c:comp-filter></c:comp-filter></c:filter>
-</c:calendar-query>""".encode("utf-8")
+</c:calendar-query>""".encode()
         response = self.client.request(
             "REPORT", calendar.href, data=body,
             headers={"Depth": "1", "Content-Type": "application/xml; charset=utf-8"},

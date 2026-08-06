@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import hashlib
 import re
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from email.utils import parseaddr
-from typing import Any, Iterable
+from typing import Any
 
-from mail_agent.models import ParsedMessage
-
+from .contracts.ports import MailMessagePort
 
 _EMAIL_RE = re.compile(r"^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$")
 _PHONE_LABEL_RE = re.compile(
@@ -137,7 +137,7 @@ def _phones(body: str) -> tuple[str, ...]:
     return tuple(values)
 
 
-def candidate_from_mail(message: ParsedMessage) -> ContactCandidate:
+def candidate_from_mail(message: MailMessagePort) -> ContactCandidate:
     email = normalize_email(message.sender_addr)
     lines = _signature_lines(message.body_text)
     header_name = _clean_name(message.sender_name)
@@ -265,7 +265,7 @@ def build_vcard(candidate: ContactCandidate, uid: str, *, note: str = "") -> str
     if candidate.source_hash:
         lines.append(f"X-OPENCLAW-SOURCE-HASH:{_vcard_escape(candidate.source_hash)}")
     lines.extend([
-        "REV:" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ"),
+        "REV:" + datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ"),
         "END:VCARD",
     ])
     folded: list[str] = []
@@ -397,7 +397,7 @@ def update_vcard(raw: str, uid: str, changes: dict[str, Any]) -> str:
         additions.append(f"ORG:{_vcard_escape(str(changes['organization']))}")
     if "note" in changes and str(changes["note"]):
         additions.append(f"NOTE:{_vcard_escape(str(changes['note']))}")
-    additions.append("REV:" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ"))
+    additions.append("REV:" + datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ"))
 
     # Keep VERSION and UID near the top, then place changed canonical fields
     # before the remaining preserved properties. This avoids changing the UID

@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "package": "legacy-systemd",
+  "status": "compatibility",
+  "frozen_from": "3.4.0-r27.2.5",
+  "active_deployment": false,
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "0dd7d2156dc926cde1c34107696bd09eb167ad1b458a4f0ff9440e1aab7a8fbe"
+    },
+    {
+      "path": "set-mail-agent-interval.sh",
+      "sha256": "db90acae3567d65c532fde0a7045280ebd22cb73a5f28d9404f6e05e4ff322da"
+    },
+    {
+      "path": "units/mail-agent.service",
+      "sha256": "5dcf93c95c73104b5b4f54866472d98fc378cf45e4e2a134299f3d0723064f70"
+    },
+    {
+      "path": "units/mail-agent.timer",
+      "sha256": "075849232072c50ea5d0aacb5dfab3fb3aa55ebf665e37ee8f8d638a7e3abf5b"
+    },
+    {
+      "path": "units/ollama-priority-proxy.service",
+      "sha256": "12315c82027dde7f91a7ab0633a8a206376dd84d05f42d14b99ea3a9cc2e129c"
+    },
+    {
+      "path": "units/openclaw-gateway-ollama-priority.conf",
+      "sha256": "c21653b93bf41ede355f8b5b96ad4c977bb5d78b62fe25ecc7526849efa5ae46"
+    },
+    {
+      "path": "units/personal-assistant-monitor.service",
+      "sha256": "f8b9d801311d06b4674b8551f9685482916c147cbc7103d87178744f3eeaab91"
+    },
+    {
+      "path": "units/personal-assistant-monitor.timer",
+      "sha256": "a0eab75778fcbf076c03995d2daa094cbc9defec237bd157689880a2a9f30b29"
+    },
+    {
+      "path": "units/personal-assistant-portfolio.service",
+      "sha256": "5bee7232c6da3a3e89a63f9a2824c2c94f17895f83051f2f01e17d70cdd84fc0"
+    },
+    {
+      "path": "units/personal-assistant-portfolio.timer",
+      "sha256": "775ba4e7d0075f907f15f1d9f4ff8cf8442904ffe815d98cd5417e14039e7c14"
+    },
+    {
+      "path": "units/personal-assistant-supervisor.service",
+      "sha256": "f11bf54801e88f00a704f97ff0e410a2506cebb3f18f8bdba2515ea0b7f108ef"
+    },
+    {
+      "path": "units/personal-assistant-supervisor.timer",
+      "sha256": "802c7ef897bc9ac8d2e7807ae728fe185e9be5a0aacd9a25444f101e38c78f59"
+    },
+    {
+      "path": "units/personal-assistant-sync.service",
+      "sha256": "035d1cf7d0ce86372f9852fba8c832f9c42ec5d10c172cec913ee18c25a7215f"
+    },
+    {
+      "path": "units/personal-assistant-sync.timer",
+      "sha256": "3cca47a974f3c6642263b8dbb4256f65acc995d4bf08119f3b3d074cb0a3a9e6"
+    }
+  ]
+}

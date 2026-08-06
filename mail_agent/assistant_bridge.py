@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+from personal_assistant.bootstrap import create_personal_assistant
 from personal_assistant.config import load_config as load_assistant_config
 from personal_assistant.service import PersonalAssistant
 
@@ -27,7 +28,7 @@ class PersonalAssistantActionBridge:
     def _open(self) -> PersonalAssistant:
         # With no explicit path, load_config honors PERSONAL_ASSISTANT_CONFIG and
         # otherwise falls back to the normal workspace configuration.
-        return PersonalAssistant(load_assistant_config(self.config_path))
+        return create_personal_assistant(load_assistant_config(self.config_path))
 
     def health(self, *, resource_id: str = "nextcloud-files-main") -> OperationResult:
         assistant = self._open()

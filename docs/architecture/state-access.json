@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "layout": 3,
+  "roots": {
+    "instance": "/home/node/.openclaw/workspace",
+    "gateway": "/home/node/.openclaw",
+    "mail": "/var/lib/openclaw/mail",
+    "orders": "/var/lib/openclaw/orders",
+    "portfolio": "/var/lib/openclaw/portfolio",
+    "monitoring": "/var/lib/openclaw/monitoring",
+    "knowledge": "/var/lib/openclaw/knowledge",
+    "core": "/var/lib/openclaw/core",
+    "security": "/var/lib/openclaw/security",
+    "coordination": "/var/lib/openclaw/coordination"
+  },
+  "roles": {
+    "ollama-proxy": {"instance": "ro"},
+    "gateway": {"gateway": "rw", "instance": "rw", "mail": "rw", "orders": "rw", "portfolio": "rw", "monitoring": "rw", "knowledge": "rw", "core": "rw", "security": "rw", "coordination": "rw"},
+    "mail-worker": {"instance": "ro", "mail": "rw", "orders": "rw", "core": "rw", "security": "rw", "coordination": "rw"},
+    "sync-worker": {"instance": "ro", "mail": "ro", "knowledge": "rw", "core": "ro", "coordination": "rw"},
+    "supervisor-worker": {"instance": "ro", "coordination": "rw"},
+    "portfolio-worker": {"instance": "ro", "portfolio": "rw", "coordination": "rw"},
+    "monitor-worker": {"instance": "ro", "mail": "ro", "portfolio": "ro", "monitoring": "rw", "knowledge": "ro", "core": "ro", "security": "ro", "coordination": "rw"},
+    "agent-cli": {"gateway": "rw", "instance": "rw", "mail": "rw", "orders": "rw", "portfolio": "rw", "monitoring": "rw", "knowledge": "rw", "core": "rw", "security": "rw", "coordination": "rw"},
+    "layout-init": {"state-root": "rw"},
+    "clamav-update": {}
+  },
+  "shared_contracts": {
+    "core": "personal_assistant.storage owns schema; sync and ActionPlan callers transact through AssistantStorage; idempotency_key is unique",
+    "knowledge": "personal_assistant.storage owns documents, chunks, FTS and sync cursors in a database separate from ActionPlans and audit data",
+    "coordination": "personal_assistant.work_scheduler owns the WAL schema; workers own only their heartbeat/log; JobController owns job_control.json",
+    "security": "personal_assistant.antivirus owns cache schema; verdict writes are keyed by content and scanner identity"
+  }
+}

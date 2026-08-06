@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "minimum_direct_upgrade_version": "3.4.0-r26.1",
+  "minimum_direct_upgrade_fixture": "tests/fixtures/upgrade/r26.1",
+  "current_runtime": "docker",
+  "legacy_systemd": {
+    "status": "compatibility",
+    "package": "legacy/systemd",
+    "minimum_repository_package_version": "3.4.0-r27.2.5",
+    "rollback_supported": true,
+    "end_of_support": null,
+    "removal_gate": "separate production transition and end-of-support ADR after M8 fixture recovery"
+  },
+  "m8_container_recovery": {
+    "status": "accepted-fixture-and-hermetic-integration",
+    "evidence": "docs/architecture/RECOVERY_AND_RELEASE.md",
+    "productive_canary_completed": false,
+    "remote_restore_completed": false
+  },
+  "migration_policy": {
+    "database_migrations": "retained and mandatory",
+    "container_state_migrations": "retained and mandatory",
+    "standalone_config_migrations_before_r26_1": "unsupported"
+  }
+}

@@ -3,14 +3,13 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
-from types import SimpleNamespace
 
-from mail_agent.app import MailAgent, RunSummary
+from mail_agent.app import MailAgent
 from mail_agent.config import load_config
 from mail_agent.models import Classification, OperationResult, ParsedMessage
 from mail_agent.storage import Storage
-from personal_assistant.tool_registry import build_tool_registry
 from personal_assistant.mail_source_setup import configure_mail_sources
+from personal_assistant.tool_registry import build_tool_registry
 from personal_assistant.tool_settings import MailToolSettings, ToolSettings
 
 

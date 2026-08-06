@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "measured_at": "2026-08-06",
+  "source_revision": "3de8b1f7dbf7a1cb25bdfbcf7598c3b6965ca823",
+  "release": "3.4.0-r27.2.5",
+  "platform": "linux/amd64",
+  "samples_per_role": 12,
+  "commands": {
+    "build": "./docker/scripts/build-local.sh openclaw-agent:m7-local openclaw-agent:m7-proxy openclaw-agent:m7-maintenance",
+    "benchmark_m7": ".venv/bin/python scripts/benchmark-m7.py --samples 12 --runtime openclaw-agent:m7-local --proxy openclaw-agent:m7-proxy --maintenance openclaw-agent:m7-maintenance --output build/m7-baseline.json",
+    "benchmark_m6": ".venv/bin/python scripts/benchmark-m7.py --samples 12 --runtime openclaw-agent:m6-local --proxy openclaw-agent:m6-local --maintenance openclaw-agent:m6-local --output build/m7-m6-comparison.json",
+    "reproducibility": "./scripts/check-reproducible-images.sh",
+    "scan": "./scripts/check-image-supply-chain.sh <image> <role> 3de8b1f7dbf7a1cb25bdfbcf7598c3b6965ca823 build/m7/<role>"
+  },
+  "tool_versions": {
+    "docker_client": "29.6.2",
+    "docker_server": "29.6.2",
+    "docker_compose": "5.3.1",
+    "syft": "1.50.0",
+    "trivy": "0.73.0",
+    "cosign": "3.1.3"
+  },
+  "clean_builds": {
+    "first_all_roles_seconds": 184,
+    "second_all_roles_seconds": 180,
+    "runtime_oci_sha256_both_builds": "27509cd21c4af0d84e5dd52f5e45639cdb88a5cce6048264bbf0808a07ecdd4a",
+    "proxy_oci_sha256_both_builds": "64a72985b85e3fc5fcdeccca116661c41f1b33122f41cdca41ba2fe3983cb0fd",
+    "maintenance_oci_sha256_both_builds": "e79c21e5938a276c44a8fa85ab6087391fc4f00e1ff7a2c00564e03ac790d0da"
+  },
+  "roles": {
+    "runtime": {
+      "m6_image_bytes": 425555866,
+      "m7_image_bytes": 376499617,
+      "image_change_percent": -11.528,
+      "m6_cold_start_ms_median": 1039.578,
+      "m7_cold_start_ms_median": 1385.997,
+      "cold_start_change_percent": 33.323,
+      "m6_peak_rss_kib_median": 33110,
+      "m7_peak_rss_kib_median": 32668,
+      "peak_rss_change_percent": -1.335,
+      "spdx_packages": 926,
+      "vulnerabilities": {"critical": 0, "high": 18, "medium": 35, "low": 23},
+      "secret_findings": 0
+    },
+    "proxy": {
+      "m6_image_bytes": 425555866,
+      "m7_image_bytes": 23417257,
+      "image_change_percent": -94.497,
+      "m6_cold_start_ms_median": 647.402,
+      "m7_cold_start_ms_median": 1318.595,
+      "cold_start_change_percent": 103.675,
+      "m6_peak_rss_kib_median": 20968,
+      "m7_peak_rss_kib_median": 25002,
+      "peak_rss_change_percent": 19.239,
+      "spdx_packages": 84,
+      "vulnerabilities": {"critical": 0, "high": 5, "medium": 14, "low": 21},
+      "secret_findings": 0
+    },
+    "maintenance": {
+      "m6_image_bytes": 425555866,
+      "m7_image_bytes": 45627796,
+      "image_change_percent": -89.278,
+      "m6_cold_start_ms_median": 538.852,
+      "m7_cold_start_ms_median": 820.468,
+      "cold_start_change_percent": 52.262,
+      "m6_peak_rss_kib_median": 12310,
+      "m7_peak_rss_kib_median": 14726,
+      "peak_rss_change_percent": 19.626,
+      "spdx_packages": 95,
+      "vulnerabilities": {"critical": 0, "high": 5, "medium": 14, "low": 21},
+      "secret_findings": 0
+    }
+  }
+}

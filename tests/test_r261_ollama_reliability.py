@@ -8,7 +8,6 @@ from unittest.mock import patch
 
 from mail_agent.classifier import OllamaClassifier, OllamaOutputTruncatedError
 from mail_agent.config import load_config
-from mail_agent.config_migrate_r261 import migrate_mail_config
 from mail_agent.models import Classification, Envelope
 from mail_agent.parser import parse_eml
 from mail_agent.rules import RuleEngine
@@ -106,7 +105,7 @@ class OllamaReliabilityTests(unittest.TestCase):
             f"Message-ID: <r261-{index}@example.test>\r\n"
             "Content-Type: text/plain; charset=utf-8\r\n\r\n"
             "Bitte geben Sie uns eine Rueckmeldung.\r\n"
-        ).encode("utf-8")
+        ).encode()
         return parse_eml(raw, Envelope(str(index)), "INBOX")
 
     def test_truncated_single_json_retries_with_larger_schema_budget(self) -> None:
@@ -171,33 +170,6 @@ class OllamaReliabilityTests(unittest.TestCase):
         self.assertEqual(calls, [3, 2])
         self.assertEqual([item.source for item in results], ["split", "split", "split"])
         self.assertEqual(self.classifier.metrics_snapshot()["batch_splits"], 1)
-
-    def test_r261_migration_changes_only_known_defaults(self) -> None:
-        config = self.root / "legacy.toml"
-        config.write_text(
-            "[ollama]\n"
-            "batch_size = 5\n"
-            "batch_prefetch = 15\n"
-            "batch_retry_timeout_seconds = 180\n"
-            "batch_max_split_depth = 1\n"
-            "batch_max_total_chars = 28000\n"
-            "parallel_requests = 2\n"
-            "background_burst = true\n"
-            "num_predict = 640\n"
-            "\n[thresholds]\nspam = 0.95\n",
-            encoding="utf-8",
-        )
-
-        result = migrate_mail_config(config)
-        updated = config.read_text(encoding="utf-8")
-
-        self.assertTrue(result["changed"])
-        self.assertIn("batch_size = 3", updated)
-        self.assertIn("batch_retry_timeout_seconds = 300", updated)
-        self.assertIn("parallel_requests = 1", updated)
-        self.assertIn("background_burst = false", updated)
-        self.assertIn("single_retry_num_predict = 1024", updated)
-        self.assertIn("num_predict = 640", updated)
 
 
 if __name__ == "__main__":

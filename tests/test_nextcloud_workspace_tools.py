@@ -8,10 +8,10 @@ from types import SimpleNamespace
 from personal_assistant.actions import ActionService
 from personal_assistant.connectors.nextcloud.files import NextcloudFiles
 from personal_assistant.models import ActionPlan, Resource
-from personal_assistant.storage import AssistantStorage
 from personal_assistant.policy import PolicyEngine
 from personal_assistant.registry import ResourceRegistry
 from personal_assistant.service import PersonalAssistant
+from personal_assistant.storage import AssistantStorage
 from personal_assistant.tool_registry import build_tool_registry
 from personal_assistant.tool_settings import (
     MailToolSettings,

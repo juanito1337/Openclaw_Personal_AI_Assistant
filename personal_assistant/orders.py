@@ -3,21 +3,19 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+from dataclasses import asdict, dataclass
+from datetime import UTC, date, datetime, time, timedelta
 from email.utils import parsedate_to_datetime
-from dataclasses import asdict, dataclass, field
-from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
 from .config import WORKSPACE_ROOT
 from .connectors.nextcloud.deck import NextcloudDeck
-from .models import Resource
 from .policy import PolicyEngine
 from .registry import ResourceRegistry
 from .storage import AssistantStorage
 from .tool_settings import DeckOrdersToolSettings
-
 
 DEFAULT_ORDERS_DB = WORKSPACE_ROOT / "personal_assistant/data/orders.sqlite3"
 MANAGED_BEGIN = "<!-- PERSONAL_ASSISTANT_ORDER_BEGIN -->"
@@ -55,7 +53,7 @@ MAX_PLAUSIBLE_DATE = date(2100, 12, 31)
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def _norm(value: str) -> str:
@@ -70,14 +68,14 @@ def _mail_received_iso(value: str) -> str:
         parsed = parsedate_to_datetime(raw)
         if parsed is not None:
             if parsed.tzinfo is None:
-                parsed = parsed.replace(tzinfo=timezone.utc)
+                parsed = parsed.replace(tzinfo=UTC)
             return parsed.isoformat(timespec="seconds")
     except (TypeError, ValueError, OverflowError):
         pass
     try:
         parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
         if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=timezone.utc)
+            parsed = parsed.replace(tzinfo=UTC)
         return parsed.isoformat(timespec="seconds")
     except ValueError:
         return ""
@@ -187,7 +185,7 @@ class OrderEvent:
     reason: str = ""
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "OrderEvent":
+    def from_dict(cls, data: dict[str, Any]) -> OrderEvent:
         event_type = str(data.get("event_type") or "unknown").strip().casefold()
         if event_type not in EVENT_TO_STATUS:
             event_type = "unknown"
@@ -334,9 +332,7 @@ class OrderStore:
             status = "refunded"
         elif current_status == "return":
             status = "refunded" if proposed == "refunded" else "return"
-        elif current_status == "review" and proposed != "review":
-            status = proposed
-        elif proposed in {"return", "refunded"} or RANK.get(proposed, 0) >= RANK.get(current_status, 0):
+        elif current_status == "review" and proposed != "review" or proposed in {"return", "refunded"} or RANK.get(proposed, 0) >= RANK.get(current_status, 0):
             status = proposed
         else:
             status = current_status

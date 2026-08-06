@@ -2,7 +2,7 @@
 set -euo pipefail
 umask 077
 
-SOURCE_ROOT=$(CDPATH= cd "$(dirname "$0")/../.." && pwd)
+SOURCE_ROOT=$(CDPATH='' cd "$(dirname "$0")/../.." && pwd)
 TARGET_ROOT=${OPENCLAW_ROOT:-/srv/openclaw}
 DEPLOYMENT="$TARGET_ROOT/deployment"
 

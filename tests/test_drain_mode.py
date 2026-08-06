@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
 import unittest
+from types import SimpleNamespace
 
 from mail_agent.app import MailAgent, RunSummary
 from mail_agent.cli import build_parser

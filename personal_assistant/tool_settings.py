@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import tomllib
 import os
+import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from .config import WORKSPACE_ROOT
-
 
 DEFAULT_TOOL_SETTINGS = WORKSPACE_ROOT / "personal_assistant/tools.toml"
 DEFAULT_RELEASE_TOOL_SETTINGS = Path(__file__).with_name("tool_defaults.toml")
@@ -468,6 +467,21 @@ def load_tool_settings(
         allow_write_text=bool(workspace_data.get("allow_write_text", True)),
         allow_move=bool(workspace_data.get("allow_move", True)),
     )
+
+    # Container layout v3 injects role-mounted data roots after the instance
+    # configuration was parsed.  These roots are administrator-owned mount
+    # points, so they intentionally do not pass through the legacy
+    # workspace-only validators above.
+    if orders_root := os.environ.get("OPENCLAW_ORDERS_DATA_DIR"):
+        deck_orders.database = Path(orders_root).expanduser().resolve() / "orders.sqlite3"
+    if security_root := os.environ.get("OPENCLAW_SECURITY_DATA_DIR"):
+        antivirus.temp_dir = Path(security_root).expanduser().resolve() / "tmp"
+    if portfolio_root := os.environ.get("OPENCLAW_PORTFOLIO_DATA_DIR"):
+        root = Path(portfolio_root).expanduser().resolve()
+        portfolio.database = root / "portfolio.sqlite3"
+        portfolio.import_root = root / "inbox"
+    if core_root := os.environ.get("OPENCLAW_CORE_DATA_DIR"):
+        workspace.outbox = Path(core_root).expanduser().resolve() / "workspace_outbox"
 
     if calendar_mail.enabled:
         if not calendar_mail.sender_addresses:

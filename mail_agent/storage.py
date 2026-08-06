@@ -6,10 +6,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from .models import Classification, ParsedMessage
 from .learning import message_feature_metadata
+from .models import Classification, ParsedMessage
 from .utils import normalize_subject, normalize_subject_pattern, now_utc_iso
-
 
 SCHEMA_VERSION = 1
 

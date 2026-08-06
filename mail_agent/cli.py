@@ -1,45 +1,46 @@
 from __future__ import annotations
 
 import argparse
+import json
+import logging
+import os
+import sys
 from dataclasses import asdict
 from datetime import datetime
 from email.utils import parsedate_to_datetime
-import json
-import logging
 from logging.handlers import RotatingFileHandler
-import os
-import sys
 from pathlib import Path
 from typing import Any
 
-from .app import MailAgent
-from .config import Config, load_config
-from .envfile import default_env_file, load_env_file
-from .learning import LearningFolderRegistry
-from .learning_quality import LearningQualityAnalyzer
-from .invoice_extract import InvoiceExtractor, amount_to_cents
-from .invoice_register import InvoiceRegister
-from .assistant_bridge import PersonalAssistantActionBridge
-from .storage import Storage
-from .models import ParsedMessage
 from personal_assistant.antivirus import HostAntivirus
 from personal_assistant.tool_settings import load_tool_settings
+
+from .app import MailAgent
+from .assistant_bridge import PersonalAssistantActionBridge
+from .config import Config, load_config
+from .envfile import default_env_file, load_env_file
+from .invoice_extract import InvoiceExtractor, amount_to_cents
+from .invoice_register import InvoiceRegister
+from .learning import LearningFolderRegistry
+from .learning_quality import LearningQualityAnalyzer
 from .lock import ProcessLock, ProcessLockError, inspect_process_lock
+from .models import ParsedMessage
 from .nextcloud import NextcloudSkillClient, NextcloudSkillError
 from .nextcloud_setup import interactive_nextcloud_setup
 from .setup_assistant import (
     build_guide,
+    configuration_fingerprint,
     extended_help,
     interactive_configure,
     invalidate_dry_run,
     productive_run_blockers,
     read_setup_state,
-    configuration_fingerprint,
     record_dry_run,
     update_toml_values,
 )
-from .training import TrainingManager
+from .storage import Storage
 from .telemetry import read_recent_performance, summarize_performance
+from .training import TrainingManager
 from .utils import normalize_address
 
 
@@ -335,7 +336,7 @@ def _handle_nextcloud(args: argparse.Namespace, config: Config) -> int:
         updated_agent = MailAgent(updated, dry_run=True)
         try:
             health = updated_agent.nextcloud.health(live=True)
-            files_health = updated_agent.nextcloud_files.health(live=updated.invoices.enabled)
+            files_health = updated_agent.assistant_bridge.health()
             result = {
                 **health,
                 "files": {"ok": files_health.ok, "detail": files_health.detail},
@@ -355,7 +356,7 @@ def _handle_nextcloud(args: argparse.Namespace, config: Config) -> int:
         command = args.nextcloud_command
         if command in {"doctor", "status"}:
             result = client.health(live=True)
-            files_health = agent.nextcloud_files.health(live=config.invoices.enabled)
+            files_health = agent.assistant_bridge.health()
             result["files"] = {
                 "ok": files_health.ok,
                 "enabled": config.invoices.enabled,
@@ -484,10 +485,7 @@ def _handle_training(args: argparse.Namespace, config: Config) -> int:
             return 0
         if command == "dataset-export":
             output = Path(args.output).expanduser()
-            if not output.is_absolute():
-                output = (Path.cwd() / output).resolve()
-            else:
-                output = output.resolve()
+            output = (Path.cwd() / output).resolve() if not output.is_absolute() else output.resolve()
             allowed_root = config.runtime.database.parent.resolve()
             try:
                 output.relative_to(allowed_root)
@@ -742,8 +740,9 @@ def _sync_invoice_register(
     invoice_tool: object,
     dry_run: bool = False,
 ) -> dict[str, object]:
-    folder = str(getattr(invoice_tool, "folder"))
-    resource_id = str(getattr(invoice_tool, "resource_id"))
+    # The caller supplies one of multiple settings dataclasses behind this narrow dynamic boundary.
+    folder = str(getattr(invoice_tool, "folder"))  # noqa: B009
+    resource_id = str(getattr(invoice_tool, "resource_id"))  # noqa: B009
     rendered = register.render(year, invoice_folder=folder)
     bridge = PersonalAssistantActionBridge(dry_run=dry_run)
     result = bridge.sync_invoice_register(

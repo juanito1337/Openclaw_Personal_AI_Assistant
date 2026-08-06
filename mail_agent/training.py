@@ -12,7 +12,6 @@ from typing import Any
 from .storage import Storage
 from .utils import normalize_address
 
-
 RULE_KEYS: dict[str, tuple[str, ...]] = {
     "spam": ("addresses", "domains", "sender_names", "subject_phrases"),
     "important": ("addresses", "domains"),

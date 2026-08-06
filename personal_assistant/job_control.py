@@ -6,19 +6,28 @@ import shutil
 import sqlite3
 import subprocess
 import time
+from collections.abc import Callable, Iterable, Sequence
+from contextlib import suppress
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable, Iterable, Sequence
+from typing import Any
 
 from .config import WORKSPACE_ROOT
 from .work_scheduler import AdaptiveWorkScheduler
-
 
 STATE_VERSION = 2
 AUTO_RECOVERY_COOLDOWN = timedelta(minutes=30)
 DEFAULT_STATE_PATH = WORKSPACE_ROOT / "personal_assistant/data/job_control.json"
 USER_UNIT_DIR = Path("~/.config/systemd/user").expanduser()
+
+
+def _system_event_command(text: str) -> list[str]:
+    command = ["openclaw", "system", "event", "--text", text, "--mode", "now"]
+    gateway_url = os.environ.get("OPENCLAW_GATEWAY_WS_URL", "").strip()
+    if gateway_url:
+        command.extend(["--url", gateway_url])
+    return command
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,7 +57,7 @@ Sleeper = Callable[[float], None]
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def _default_runner(command: Sequence[str], timeout: int) -> CommandResult:
@@ -144,12 +153,18 @@ class JobController:
         sleeper: Sleeper | None = None,
     ) -> None:
         self.workspace_root = Path(workspace_root).expanduser().resolve()
-        self.state_path = Path(state_path or DEFAULT_STATE_PATH).expanduser().resolve()
+        default_state = DEFAULT_STATE_PATH
+        if root := os.environ.get("OPENCLAW_COORDINATION_DATA_DIR"):
+            default_state = Path(root).expanduser().resolve() / "job_control.json"
+        self.state_path = Path(state_path or default_state).expanduser().resolve()
         self.unit_dir = Path(unit_dir or USER_UNIT_DIR).expanduser().resolve()
         self.runner = runner or _default_runner
         self.sleeper = sleeper or time.sleep
         self.specs = {item.name: item for item in (specs or default_job_specs())}
         self.container_mode = os.environ.get("OPENCLAW_RUNTIME", "").strip().lower() == "container"
+        self.legacy_activation_allowed = (
+            os.environ.get("OPENCLAW_ENABLE_LEGACY_SYSTEMD", "").strip() == "YES"
+        )
         self.container_status_dir = Path(
             os.environ.get("OPENCLAW_JOB_STATUS_DIR")
             or (self.workspace_root / "personal_assistant/data/container_jobs")
@@ -259,8 +274,8 @@ class JobController:
             try:
                 parsed = datetime.fromisoformat(updated.replace("Z", "+00:00"))
                 if parsed.tzinfo is None:
-                    parsed = parsed.replace(tzinfo=timezone.utc)
-                fresh = datetime.now(timezone.utc) - parsed.astimezone(timezone.utc) < timedelta(minutes=5)
+                    parsed = parsed.replace(tzinfo=UTC)
+                fresh = datetime.now(UTC) - parsed.astimezone(UTC) < timedelta(minutes=5)
             except ValueError:
                 fresh = False
         active = desired and fresh
@@ -418,8 +433,8 @@ class JobController:
         except ValueError:
             return False
         if attempted.tzinfo is None:
-            attempted = attempted.replace(tzinfo=timezone.utc)
-        return datetime.now(timezone.utc) - attempted < AUTO_RECOVERY_COOLDOWN
+            attempted = attempted.replace(tzinfo=UTC)
+        return datetime.now(UTC) - attempted < AUTO_RECOVERY_COOLDOWN
 
     def _mail_lock_status(self) -> dict[str, Any]:
         result = self._run(["scripts/mail-agent.sh", "lock-status"], timeout=20)
@@ -542,7 +557,7 @@ class JobController:
             "Melde Jan den erkannten Ausfall, die ausgefuehrten sicheren Schritte und den aktuellen Zustand. "
             "Es wurde kein --force verwendet."
         )[:1800]
-        result = self._run(["openclaw", "system", "event", "--text", text, "--mode", "now"], timeout=30)
+        result = self._run(_system_event_command(text), timeout=30)
         return {
             "attempted": True,
             "ok": result.returncode == 0,
@@ -786,7 +801,12 @@ class JobController:
                     "code": "heartbeat-delivery-disabled",
                     "detail": "OpenClaw-Heartbeat kann Ausfaelle nicht zustellen; Ziel ist 'none' oder nicht lesbar",
                 })
-            scheduler_path = self.workspace_root / "personal_assistant/data/work_scheduler.sqlite3"
+            scheduler_path = (
+                Path(os.environ["OPENCLAW_COORDINATION_DATA_DIR"]).expanduser().resolve()
+                / "work_scheduler.sqlite3"
+                if os.environ.get("OPENCLAW_COORDINATION_DATA_DIR")
+                else self.workspace_root / "personal_assistant/data/work_scheduler.sqlite3"
+            )
             if scheduler_path.exists():
                 try:
                     scheduler = AdaptiveWorkScheduler(scheduler_path)
@@ -898,10 +918,7 @@ class JobController:
               "konkreten Zustand. Starte oder repariere Jobs nicht ohne seinen "
               "ausdruecklichen Auftrag."
         )[:1800]
-        result = self._run(
-            ["openclaw", "system", "event", "--text", text, "--mode", "now"],
-            timeout=30,
-        )
+        result = self._run(_system_event_command(text), timeout=30)
         return {
             "attempted": True,
             "ok": result.returncode == 0,
@@ -964,7 +981,7 @@ class JobController:
         results: list[dict[str, Any]] = []
         self.unit_dir.mkdir(parents=True, exist_ok=True)
         for unit in (spec.service_unit, spec.timer_unit):
-            source = self.workspace_root / "deploy/systemd" / unit
+            source = self.workspace_root / "legacy/systemd/units" / unit
             destination = self.unit_dir / unit
             if destination.exists():
                 results.append({"unit": unit, "status": "exists", "path": str(destination), "ok": True})
@@ -1137,6 +1154,23 @@ class JobController:
 
     def on(self, *, target: str = "standard", restart: bool = False, run_now: bool = True) -> dict[str, Any]:
         selected = self._select(target)
+        if not self.container_mode and not self.legacy_activation_allowed:
+            operation = "restart" if restart else "on"
+            return {
+                "ok": False,
+                "operation": operation,
+                "target": target,
+                "actions": [{
+                    "name": spec.name,
+                    "ok": False,
+                    "detail": (
+                        "Legacy-systemd-Aktivierung ist eingefroren; den Docker-Jobpfad "
+                        "verwenden oder fuer einen verifizierten Legacy-Rollback explizit "
+                        "OPENCLAW_ENABLE_LEGACY_SYSTEMD=YES setzen"
+                    ),
+                } for spec in selected],
+                "status": self.status(target=target, deep=False, record=False),
+            }
         for spec in selected:
             self.state["desired"][spec.name] = True
         self._save_state()
@@ -1158,10 +1192,8 @@ class JobController:
             if self.container_mode:
                 self.container_status_dir.mkdir(parents=True, exist_ok=True)
                 wake = self.container_status_dir / f"{spec.name}.wake"
-                try:
+                with suppress(FileNotFoundError):
                     wake.unlink()
-                except FileNotFoundError:
-                    pass
                 actions.append({
                     "name": spec.name,
                     "ok": True,

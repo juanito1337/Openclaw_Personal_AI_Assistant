@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -8,11 +7,9 @@ from unittest.mock import patch
 
 from personal_assistant.cli import parser
 from personal_assistant.connectors.nextcloud.discovery import DiscoveredCollection, NextcloudDiscovery
-from personal_assistant.models import Resource
 from personal_assistant.service import PersonalAssistant
 from personal_assistant.tool_registry import build_tool_registry
 from personal_assistant.tool_settings import ToolSettings
-
 
 MULTISTATUS = b"""<?xml version='1.0' encoding='utf-8'?>
 <d:multistatus xmlns:d='DAV:' xmlns:c='urn:ietf:params:xml:ns:caldav'>

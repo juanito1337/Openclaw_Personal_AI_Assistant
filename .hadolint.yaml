@@ -1,0 +1,3 @@
+# M7 pins every base image by digest and every direct apt dependency by exact
+# Debian version. There are intentionally no global Dockerfile-lint exceptions.
+ignored: []

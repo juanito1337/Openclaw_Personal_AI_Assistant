@@ -9,7 +9,7 @@ from ...extractors import chunks
 from ...storage import AssistantStorage
 from .client import NextcloudClient
 from .discovery import DiscoveredCollection
-from .xmlutil import CARDDAV, DAV, q, parse_multistatus
+from .xmlutil import CARDDAV, DAV, parse_multistatus, q
 
 
 @dataclass(slots=True, frozen=True)

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 import tempfile
 import unittest
@@ -111,7 +110,7 @@ class PersonalAssistantCoreTests(unittest.TestCase):
         self.assertEqual(books[0].name, "Kontakte")
 
     def test_extractors_and_chunking(self) -> None:
-        text = extract_text("notes.txt", "A\nB\nC".encode("utf-8"))
+        text = extract_text("notes.txt", b"A\nB\nC")
         self.assertIn("A", text)
         parts = chunks("eins zwei drei vier fuenf", size=10, overlap=2)
         self.assertGreaterEqual(len(parts), 2)
@@ -196,8 +195,8 @@ class PersonalAssistantConnectorTests(unittest.TestCase):
             self.assertNotIn("DELETE", [call[0] for call in client.calls])
 
     def test_vcard_and_ics_parsers(self) -> None:
-        from personal_assistant.connectors.nextcloud.contacts import NextcloudContacts
         from personal_assistant.connectors.nextcloud.calendar import NextcloudCalendar
+        from personal_assistant.connectors.nextcloud.contacts import NextcloudContacts
         contact = NextcloudContacts._parse_vcard(
             "BEGIN:VCARD\nUID:1\nFN:Max Mustermann\nEMAIL:max@example.org\nTEL:+49123\nORG:Firma\nEND:VCARD\n",
             "fallback",

@@ -8,9 +8,7 @@ on:
     tags:
       - "r*"
 
-permissions:
-  contents: read
-  packages: write
+permissions: {}
 
 concurrency:
   group: container-${{ github.ref }}
@@ -21,49 +19,207 @@ env:
 
 jobs:
   test:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
+      - name: Install pinned development toolchain
+        run: ./scripts/bootstrap-dev.sh
       - name: Repository checks
         run: ./scripts/check-repo.sh
 
-  build-and-push:
+  build-scan-sign:
     needs: test
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+      packages: write
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
             type=ref,event=branch
             type=ref,event=tag
             type=sha,prefix=sha-
-      - uses: docker/build-push-action@v6
+      - id: refs
+        name: Derive immutable role tags
+        env:
+          RUNTIME_TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          repository="ghcr.io/${GITHUB_REPOSITORY,,}"
+          created=$(git show -s --format=%cI "$GITHUB_SHA")
+          source_epoch=$(git show -s --format=%ct "$GITHUB_SHA")
+          {
+            echo "repository=$repository"
+            echo "created=$created"
+            echo "source_epoch=$source_epoch"
+            echo 'runtime<<EOF'
+            printf '%s\n' "$RUNTIME_TAGS"
+            echo 'EOF'
+            echo 'proxy<<EOF'
+            sed '/^$/d; s/$/-proxy/' <<< "$RUNTIME_TAGS"
+            echo 'EOF'
+            echo 'maintenance<<EOF'
+            sed '/^$/d; s/$/-maintenance/' <<< "$RUNTIME_TAGS"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+      - name: Build local candidates from the tested checkout
+        env:
+          OPENCLAW_SOURCE_REVISION: ${{ github.sha }}
+          OPENCLAW_BUILD_CREATED: ${{ steps.refs.outputs.created }}
+        run: ./docker/scripts/build-local.sh openclaw-agent:m7-candidate openclaw-agent:m7-candidate-proxy openclaw-agent:m7-candidate-maintenance
+      - name: Verify candidates, secrets, vulnerabilities, SBOM and local provenance
+        run: |
+          ./scripts/check-role-images.sh openclaw-agent:m7-candidate openclaw-agent:m7-candidate-proxy openclaw-agent:m7-candidate-maintenance "${GITHUB_SHA}"
+          ./scripts/check-source-secrets.sh
+          ./scripts/check-local-signature.sh
+          ./scripts/check-image-supply-chain.sh openclaw-agent:m7-candidate runtime "${GITHUB_SHA}" build/m7/runtime
+          ./scripts/check-image-supply-chain.sh openclaw-agent:m7-candidate-proxy proxy "${GITHUB_SHA}" build/m7/proxy
+          ./scripts/check-image-supply-chain.sh openclaw-agent:m7-candidate-maintenance maintenance "${GITHUB_SHA}" build/m7/maintenance
+          ./scripts/check-container-runtime.sh openclaw-agent:m7-candidate
+          ./scripts/check-container-hardening.sh openclaw-agent:m7-candidate
+      - name: Rebuild twice and require identical OCI artifacts
+        env:
+          OPENCLAW_SOURCE_REVISION: ${{ github.sha }}
+          OPENCLAW_BUILD_CREATED: ${{ steps.refs.outputs.created }}
+        run: ./scripts/check-reproducible-images.sh
+      - name: Publish runtime with BuildKit SBOM and provenance
+        id: runtime
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          target: runtime
+          outputs: type=image,push=true,rewrite-timestamp=true
+          tags: ${{ steps.refs.outputs.runtime }}
+          sbom: true
+          provenance: mode=max
           build-args: |
-            OPENCLAW_BASE_IMAGE=ghcr.io/openclaw/openclaw:2026.6.11
-            HIMALAYA_VERSION=1.2.0
             OPENCLAW_SOURCE_REVISION=${{ github.sha }}
-      - name: Show live-test image
-        if: startsWith(github.ref, 'refs/heads/test/')
+            OPENCLAW_BUILD_CREATED=${{ steps.refs.outputs.created }}
+            SOURCE_DATE_EPOCH=${{ steps.refs.outputs.source_epoch }}
+            OPENCLAW_VERSION=3.4.0-r27.2.5
+      - name: Publish proxy with BuildKit SBOM and provenance
+        id: proxy
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          target: proxy-runtime
+          outputs: type=image,push=true,rewrite-timestamp=true
+          tags: ${{ steps.refs.outputs.proxy }}
+          sbom: true
+          provenance: mode=max
+          build-args: |
+            OPENCLAW_SOURCE_REVISION=${{ github.sha }}
+            OPENCLAW_BUILD_CREATED=${{ steps.refs.outputs.created }}
+            SOURCE_DATE_EPOCH=${{ steps.refs.outputs.source_epoch }}
+            OPENCLAW_VERSION=3.4.0-r27.2.5
+      - name: Publish maintenance with BuildKit SBOM and provenance
+        id: maintenance
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          target: maintenance-runtime
+          outputs: type=image,push=true,rewrite-timestamp=true
+          tags: ${{ steps.refs.outputs.maintenance }}
+          sbom: true
+          provenance: mode=max
+          build-args: |
+            OPENCLAW_SOURCE_REVISION=${{ github.sha }}
+            OPENCLAW_BUILD_CREATED=${{ steps.refs.outputs.created }}
+            SOURCE_DATE_EPOCH=${{ steps.refs.outputs.source_epoch }}
+            OPENCLAW_VERSION=3.4.0-r27.2.5
+      - uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
+      - name: Sign immutable image digests with GitHub OIDC
+        env:
+          REPOSITORY: ${{ steps.refs.outputs.repository }}
         run: |
-          echo "Live-Test-Image: ghcr.io/${GITHUB_REPOSITORY,,}:sha-${GITHUB_SHA:0:12}"
-          echo "Auf dem Host aus dem gleichen Commit:"
-          echo "./docker/scripts/live-test-branch.sh"
+          cosign sign --yes "$REPOSITORY@${{ steps.runtime.outputs.digest }}"
+          cosign sign --yes "$REPOSITORY@${{ steps.proxy.outputs.digest }}"
+          cosign sign --yes "$REPOSITORY@${{ steps.maintenance.outputs.digest }}"
+      - name: Publish GitHub build provenance attestations
+        uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661 # v3
+        with:
+          subject-name: ${{ steps.refs.outputs.repository }}
+          subject-digest: ${{ steps.runtime.outputs.digest }}
+          push-to-registry: true
+      - name: Publish proxy build provenance attestation
+        uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661 # v3
+        with:
+          subject-name: ${{ steps.refs.outputs.repository }}
+          subject-digest: ${{ steps.proxy.outputs.digest }}
+          push-to-registry: true
+      - name: Publish maintenance build provenance attestation
+        uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661 # v3
+        with:
+          subject-name: ${{ steps.refs.outputs.repository }}
+          subject-digest: ${{ steps.maintenance.outputs.digest }}
+          push-to-registry: true
+      - name: Publish runtime SBOM attestation
+        uses: actions/attest-sbom@51e74621a501c89df81fc1391c5a8f4cfc9fab2f # v3
+        with:
+          subject-name: ${{ steps.refs.outputs.repository }}
+          subject-digest: ${{ steps.runtime.outputs.digest }}
+          sbom-path: build/m7/runtime/image.spdx.json
+          push-to-registry: true
+      - name: Publish proxy SBOM attestation
+        uses: actions/attest-sbom@51e74621a501c89df81fc1391c5a8f4cfc9fab2f # v3
+        with:
+          subject-name: ${{ steps.refs.outputs.repository }}
+          subject-digest: ${{ steps.proxy.outputs.digest }}
+          sbom-path: build/m7/proxy/image.spdx.json
+          push-to-registry: true
+      - name: Publish maintenance SBOM attestation
+        uses: actions/attest-sbom@51e74621a501c89df81fc1391c5a8f4cfc9fab2f # v3
+        with:
+          subject-name: ${{ steps.refs.outputs.repository }}
+          subject-digest: ${{ steps.maintenance.outputs.digest }}
+          sbom-path: build/m7/maintenance/image.spdx.json
+          push-to-registry: true
+      - name: Verify published signatures
+        env:
+          REPOSITORY: ${{ steps.refs.outputs.repository }}
+        run: |
+          identity="^https://github.com/${GITHUB_REPOSITORY}/.github/workflows/container.yml@${GITHUB_REF}$"
+          issuer="https://token.actions.githubusercontent.com"
+          cosign verify --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer" "$REPOSITORY@${{ steps.runtime.outputs.digest }}" >/dev/null
+          cosign verify --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer" "$REPOSITORY@${{ steps.proxy.outputs.digest }}" >/dev/null
+          cosign verify --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer" "$REPOSITORY@${{ steps.maintenance.outputs.digest }}" >/dev/null
+          cosign verify-attestation --type slsaprovenance --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer" "$REPOSITORY@${{ steps.runtime.outputs.digest }}" >/dev/null
+          cosign verify-attestation --type spdxjson --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer" "$REPOSITORY@${{ steps.runtime.outputs.digest }}" >/dev/null
+          cosign verify-attestation --type slsaprovenance --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer" "$REPOSITORY@${{ steps.proxy.outputs.digest }}" >/dev/null
+          cosign verify-attestation --type spdxjson --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer" "$REPOSITORY@${{ steps.proxy.outputs.digest }}" >/dev/null
+          cosign verify-attestation --type slsaprovenance --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer" "$REPOSITORY@${{ steps.maintenance.outputs.digest }}" >/dev/null
+          cosign verify-attestation --type spdxjson --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer" "$REPOSITORY@${{ steps.maintenance.outputs.digest }}" >/dev/null
+      - name: Smoke-test the published immutable role digests
+        env:
+          REPOSITORY: ${{ steps.refs.outputs.repository }}
+        run: |
+          runtime="$REPOSITORY@${{ steps.runtime.outputs.digest }}"
+          proxy="$REPOSITORY@${{ steps.proxy.outputs.digest }}"
+          maintenance="$REPOSITORY@${{ steps.maintenance.outputs.digest }}"
+          docker pull "$runtime"
+          docker pull "$proxy"
+          docker pull "$maintenance"
+          ./scripts/check-role-images.sh "$runtime" "$proxy" "$maintenance" "$GITHUB_SHA"
+      - name: Show immutable deployment command
+        run: |
+          echo './docker/scripts/deploy.sh \\'
+          echo '  "${{ steps.refs.outputs.repository }}@${{ steps.runtime.outputs.digest }}" \\'
+          echo '  "${{ steps.refs.outputs.repository }}@${{ steps.proxy.outputs.digest }}" \\'
+          echo '  "${{ steps.refs.outputs.repository }}@${{ steps.maintenance.outputs.digest }}"'

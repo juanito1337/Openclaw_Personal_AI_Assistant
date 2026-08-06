@@ -2,7 +2,8 @@
 set -euo pipefail
 umask 077
 
-SCRIPT_DIR=$(CDPATH= cd "$(dirname "$0")" && pwd)
+SCRIPT_DIR=$(CDPATH='' cd "$(dirname "$0")" && pwd)
+# shellcheck source=docker/scripts/common.sh
 # shellcheck source=common.sh
 . "$SCRIPT_DIR/common.sh"
 
@@ -24,12 +25,25 @@ print(json.load(open(sys.argv[1], encoding="utf-8")).get(sys.argv[2], ""))
 PY
 }
 previous_image=$(read_manifest previous_image)
+previous_proxy_image=$(read_manifest previous_proxy_image)
+previous_maintenance_image=$(read_manifest previous_maintenance_image)
 previous_runtime=$(read_manifest previous_runtime)
 legacy_home=$(read_manifest legacy_home)
 legacy_migration_backup=$(read_manifest legacy_migration_backup)
 legacy_migration_member=$(read_manifest legacy_migration_member)
 external_reference=$(read_manifest external_backup_reference)
 previous_runtime=${previous_runtime:-docker}
+previous_proxy_image=${previous_proxy_image:-$previous_image}
+previous_maintenance_image=${previous_maintenance_image:-$previous_image}
+restore_hook=${OPENCLAW_EXTERNAL_RESTORE_HOOK:-}
+
+# The executable contract is checked before stopping anything. The hook can
+# still fail while restoring; in that case local rollback continues and the
+# final non-zero result explicitly marks remote recovery as uncertain.
+if [[ -n "$external_reference" && ! -x "$restore_hook" ]]; then
+  echo "Rollback wurde vor dem Stoppen abgebrochen: externer Restore-Hook fehlt: $restore_hook" >&2
+  exit 1
+fi
 
 legacy_home_ready() {
   [[ -n "$legacy_home" ]] \
@@ -117,35 +131,17 @@ if [[ -d "$OPENCLAW_STATE_DIR" ]]; then
     EXTERNAL_BACKUP_REFERENCE="" "$SCRIPT_DIR/backup.sh" "forensic-before-rollback" >/dev/null || true
 fi
 
+external_restore_failed=0
 if [[ -n "$external_reference" ]]; then
-  restore_hook=${OPENCLAW_EXTERNAL_RESTORE_HOOK:-}
-  [[ -x "$restore_hook" ]] || {
-    echo "Externe Daten wurden moeglicherweise geaendert, aber der Restore-Hook fehlt: $restore_hook" >&2
-    exit 1
-  }
   echo "Stelle externen Snapshot wieder her: $external_reference"
-  "$restore_hook" "$external_reference"
+  if ! "$restore_hook" "$external_reference"; then
+    external_restore_failed=1
+    echo "Externer Restore fehlgeschlagen; lokaler Rollback wird fortgesetzt. Remote-Zustand ist unklar." >&2
+  fi
 fi
 
 echo "Stelle lokalen Zustand aus $backup_id wieder her."
-restore_root=$(mktemp -d)
-cleanup_restore() {
-  rm -rf "$restore_root"
-}
-trap cleanup_restore EXIT
-tar -xzf "$backup/payload.tar.gz" -C "$restore_root"
-for name in state config secrets; do
-  source="$restore_root/$name"
-  target="$OPENCLAW_ROOT/$name"
-  [[ -d "$source" ]] || { echo "Restore-Quelle fehlt im Backup: $name" >&2; exit 1; }
-  [[ -d "$target" ]] || {
-    echo "Restore-Ziel fehlt; setup-host.sh muss die geschuetzte Hoststruktur anlegen: $target" >&2
-    exit 1
-  }
-  rsync -a --delete "$source/" "$target/"
-done
-cleanup_restore
-trap - EXIT
+OPENCLAW_RESTORE_OFFLINE=YES "$SCRIPT_DIR/restore-local-state.sh" "$backup"
 chown -R 1000:1000 "$OPENCLAW_STATE_DIR" "$HIMALAYA_CONFIG_DIR" 2>/dev/null || \
   sudo chown -R 1000:1000 "$OPENCLAW_STATE_DIR" "$HIMALAYA_CONFIG_DIR"
 
@@ -156,6 +152,8 @@ if [[ "$previous_runtime" == "legacy-systemd" ]]; then
   }
   echo "Verwende den unveraenderten systemd-Workspace weiter: $legacy_home"
   update_env_value OPENCLAW_IMAGE "$previous_image"
+  update_env_value OPENCLAW_PROXY_IMAGE "$previous_proxy_image"
+  update_env_value OPENCLAW_MAINTENANCE_IMAGE "$previous_maintenance_image"
   update_env_value OPENCLAW_CURRENT_RUNTIME legacy-systemd
   units_file="$OPENCLAW_CONFIG_DIR/legacy-active-units.txt"
   if [[ -s "$units_file" ]]; then
@@ -166,9 +164,15 @@ if [[ "$previous_runtime" == "legacy-systemd" ]]; then
   echo "Rollback auf den vorherigen systemd-Betrieb abgeschlossen."
 else
   update_env_value OPENCLAW_IMAGE "$previous_image"
+  update_env_value OPENCLAW_PROXY_IMAGE "$previous_proxy_image"
+  update_env_value OPENCLAW_MAINTENANCE_IMAGE "$previous_maintenance_image"
   update_env_value OPENCLAW_CURRENT_RUNTIME docker
   export OPENCLAW_IMAGE="$previous_image"
+  export OPENCLAW_PROXY_IMAGE="$previous_proxy_image"
+  export OPENCLAW_MAINTENANCE_IMAGE="$previous_maintenance_image"
   docker pull "$previous_image" >/dev/null
+  docker pull "$previous_proxy_image" >/dev/null
+  docker pull "$previous_maintenance_image" >/dev/null
   compose --profile maintenance run --rm --entrypoint freshclam clamav-update --verbose || true
   compose up -d ollama-proxy gateway
   wait_for_healthy ollama-proxy 180
@@ -184,3 +188,7 @@ else
 fi
 ln -sfn "$backup_id" "$OPENCLAW_BACKUP_DIR/latest"
 [[ "$automatic" == "--automatic" ]] || echo "Wiederhergestellt aus: $backup_id"
+if [[ $external_restore_failed -ne 0 ]]; then
+  echo "Lokaler Rollback abgeschlossen, externer Restore jedoch fehlgeschlagen: $external_reference" >&2
+  exit 1
+fi

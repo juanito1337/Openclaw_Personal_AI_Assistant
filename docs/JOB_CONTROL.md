@@ -1,7 +1,7 @@
 # Job control, failure reporting and the ON switch
 
-The job controller keeps a persistent **desired state** separate from the actual
-systemd state. This allows the assistant to distinguish:
+The job controller keeps a persistent **desired state** separate from the observed
+Docker worker or legacy systemd state. This allows the assistant to distinguish:
 
 - `ON`: intended to run and timer is enabled/active,
 - `OFF`: deliberately disabled by the user,
@@ -45,21 +45,29 @@ a missing or stale successful dry-run fingerprint, the controller may:
 5. emit an OpenClaw event reporting success or failure.
 
 A failed automatic dry-run is not repeated for 30 minutes, preventing a retry loop.
-All other `on` and `restart` actions require an explicit user instruction and operate
-only on the fixed allowlist of packaged user units.
+All other `on` and `restart` actions require an explicit user instruction and
+operate only on the fixed job allowlist. In the active Docker runtime they change
+the persistent desired-state file consumed by the worker loops; they do not install
+or enable host units.
 
 The productive preflight may also run the existing setup only when configured
 `Agent/...` folders are missing. It never changes credentials, forwarding, policies,
 permissions or antivirus behavior.
 
-## Supervisor installation
+## Containerbetrieb und Legacy-Kompatibilitaet
 
-The first explicit start installs missing packaged user units without overwriting
-existing local units:
+The active container runtime uses:
 
 ```bash
 ./scripts/assistant.sh jobs on standard
 ```
+
+This command requires an explicit request and changes only the container
+desired-state contract. Native user units and the old interval helper are frozen
+under `legacy/systemd/`, verified by `legacy/systemd/manifest.json` and reserved for
+a verified rollback. The helper additionally requires
+`OPENCLAW_ENABLE_LEGACY_SYSTEMD=YES`; it is not a deployment entrypoint. A legacy
+writer and the container mail writer must never run together.
 
 The supervisor records lightweight checks every five minutes. A newly detected
 or resolved alert also queues an immediate OpenClaw system event; the heartbeat

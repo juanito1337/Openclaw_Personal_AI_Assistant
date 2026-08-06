@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime, time, timedelta, timezone
+from datetime import UTC, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from .config import Config
@@ -31,12 +31,12 @@ class DigestManager:
         local_start = datetime.combine(now.date(), time.min, tzinfo=zone)
         local_end = local_start + timedelta(days=1)
         rows = self.storage.digest_rows(
-            local_start.astimezone(timezone.utc).isoformat(timespec="seconds"),
-            local_end.astimezone(timezone.utc).isoformat(timespec="seconds"),
+            local_start.astimezone(UTC).isoformat(timespec="seconds"),
+            local_end.astimezone(UTC).isoformat(timespec="seconds"),
         )
         events = self.storage.digest_events(
-            local_start.astimezone(timezone.utc).isoformat(timespec="seconds"),
-            local_end.astimezone(timezone.utc).isoformat(timespec="seconds"),
+            local_start.astimezone(UTC).isoformat(timespec="seconds"),
+            local_end.astimezone(UTC).isoformat(timespec="seconds"),
         )
         if len(rows) + len(events) < self.config.digest.min_items and not force:
             return OperationResult(True, "digest-empty")

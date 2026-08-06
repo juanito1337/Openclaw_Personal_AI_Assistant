@@ -4,8 +4,8 @@ import logging
 import os
 import tempfile
 import unittest
-from unittest import mock
 from pathlib import Path
+from unittest import mock
 
 from mail_agent.app import MailAgent, RunSummary
 from mail_agent.calendar import CalendarManager, event_from_ics
@@ -21,7 +21,6 @@ from mail_agent.parser import parse_eml
 from mail_agent.rules import RuleEngine
 from mail_agent.storage import Storage
 from personal_assistant.antivirus import AntivirusResult
-
 
 SAMPLE = b"""From: Example Shop <news@example-shop.test>\r
 To: Jan <jan@example.test>\r
@@ -639,10 +638,8 @@ END:VCALENDAR
 
     def test_process_lock_blocks_parallel_runs(self) -> None:
         lock_path = self.root / "mail-agent.lock"
-        with ProcessLock(lock_path):
-            with self.assertRaises(ProcessLockError):
-                with ProcessLock(lock_path):
-                    pass
+        with ProcessLock(lock_path), self.assertRaises(ProcessLockError), ProcessLock(lock_path):
+            pass
 
 
 if __name__ == "__main__":

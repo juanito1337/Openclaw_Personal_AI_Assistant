@@ -4,18 +4,91 @@ on:
   push:
   pull_request:
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   test:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: ${{ matrix.python-version }}
-      - run: ./scripts/check-repo.sh
+      - name: Install pinned development toolchain
+        run: ./scripts/bootstrap-dev.sh
+      - name: Repository checks
+        run: ./scripts/check-repo.sh
+      - name: Preserve reproducible quality baseline
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: quality-baseline-python-${{ matrix.python-version }}
+          path: |
+            build/m0-baseline.json
+            build/pytest.xml
+            build/coverage.json
+            build/m8-recovery.json
+          if-no-files-found: error
+      - name: Wheel build and isolated install
+        if: matrix.python-version == '3.12'
+        run: ./scripts/check-wheel.sh
+
+  container:
+    needs: test
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Build M7 role images
+        id: image
+        env:
+          OPENCLAW_SOURCE_REVISION: ${{ github.sha }}
+        run: |
+          started=$(date +%s)
+          ./docker/scripts/build-local.sh openclaw-agent:m7-ci openclaw-agent:m7-ci-proxy openclaw-agent:m7-ci-maintenance
+          finished=$(date +%s)
+          echo "build_seconds=$((finished-started))" >> "$GITHUB_OUTPUT"
+      - name: Verify role contents and smoke tests
+        run: ./scripts/check-role-images.sh openclaw-agent:m7-ci openclaw-agent:m7-ci-proxy openclaw-agent:m7-ci-maintenance "${GITHUB_SHA}"
+      - name: Verify source secrets and local signature behavior
+        run: |
+          ./scripts/check-source-secrets.sh
+          ./scripts/check-local-signature.sh
+      - name: Generate SBOM/provenance and scan every role
+        run: |
+          ./scripts/check-image-supply-chain.sh openclaw-agent:m7-ci runtime "${GITHUB_SHA}" build/m7/runtime
+          ./scripts/check-image-supply-chain.sh openclaw-agent:m7-ci-proxy proxy "${GITHUB_SHA}" build/m7/proxy
+          ./scripts/check-image-supply-chain.sh openclaw-agent:m7-ci-maintenance maintenance "${GITHUB_SHA}" build/m7/maintenance
+      - name: Verify state isolation and immutable runtime
+        run: ./scripts/check-container-runtime.sh openclaw-agent:m7-ci
+      - name: Verify role hardening
+        run: ./scripts/check-container-hardening.sh openclaw-agent:m7-ci
+      - name: Hermetic M8 protocol and failure-injection stack
+        run: ./scripts/check-m8-integration.sh
+      - name: Record M7 image baseline
+        run: |
+          python3 scripts/benchmark-m7.py \
+            --runtime openclaw-agent:m7-ci \
+            --proxy openclaw-agent:m7-ci-proxy \
+            --maintenance openclaw-agent:m7-ci-maintenance \
+            --output build/m7-baseline.json
+          cat build/m7-baseline.json >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve supply-chain evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: m7-supply-chain
+          path: |
+            build/m7/
+            build/m7-baseline.json
+            build/m8-integration.json
+          if-no-files-found: error

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import tomllib
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from .models import Classification, ParsedMessage
 from .storage import Storage
@@ -119,15 +120,13 @@ class RuleEngine:
 
     def is_trusted_sender(self, message: ParsedMessage, feedback_count: int = 2) -> bool:
         """Trust calendar automation only after an explicit user signal."""
-        if self._explicitly_important(message):
-            return True
-        if self.storage.exact_feedback_verdict(message) == "relevant":
-            return True
-        if self.trust_contacts_for_calendar and self._is_known_contact(message.sender_addr):
-            return True
         # Sender-wide feedback is deliberately not sufficient: one sender may
         # legitimately send invoices, newsletters and security warnings.
-        return False
+        return (
+            self._explicitly_important(message)
+            or self.storage.exact_feedback_verdict(message) == "relevant"
+            or (self.trust_contacts_for_calendar and self._is_known_contact(message.sender_addr))
+        )
 
     def _is_known_contact(self, sender_addr: str) -> bool:
         if not self.contact_lookup:

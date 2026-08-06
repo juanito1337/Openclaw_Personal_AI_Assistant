@@ -1,16 +1,12 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import logging
-import mimetypes
 import os
-import re
-import tempfile
+from collections.abc import Callable
 from dataclasses import asdict
-from datetime import datetime, timedelta, timezone
-from pathlib import Path
-from typing import Any
+from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 from zoneinfo import ZoneInfo
 
 from .actions import ActionService
@@ -19,8 +15,8 @@ from .config import AssistantConfig
 from .connectors.nextcloud.calendar import NextcloudCalendar
 from .connectors.nextcloud.client import NextcloudClient
 from .connectors.nextcloud.contacts import NextcloudContacts
-from .connectors.nextcloud.discovery import NextcloudDiscovery
 from .connectors.nextcloud.deck import NextcloudDeck
+from .connectors.nextcloud.discovery import NextcloudDiscovery
 from .connectors.nextcloud.files import NextcloudFiles
 from .connectors.nextcloud.tasks import NextcloudTasks
 from .contact_tools import (
@@ -31,22 +27,34 @@ from .contact_tools import (
     normalize_contact_update,
     update_vcard,
 )
+from .contracts.ports import MailOperationsPort
 from .ical_edit import component_properties, first_value, update_component
-from .knowledge import KnowledgeIndexer
 from .job_control import JobController
+from .knowledge import KnowledgeIndexer
 from .models import Resource
 from .monitoring import PerformanceMonitor
-from .mail_move import MailMoveService
-from .orders import OrderDeckService, STACKS
-from .portfolio import MAX_IMPORT_BYTES, PortfolioService
+from .orders import OrderDeckService
 from .policy import DEFAULT_DENIED_ACTIONS, PolicyEngine
+from .portfolio import PortfolioService
 from .registry import ResourceRegistry
 from .release import release_report
+from .runtime_identity import runtime_identity
+from .services.mail import MailApplicationMixin
+from .services.orders import OrderApplicationMixin
+from .services.portfolio import PortfolioApplicationMixin
+from .services.security import SecurityApplicationMixin
+from .services.workspace import WorkspaceServiceMixin
 from .settings import SettingsService
+from .state_paths import state_paths
 from .storage import AssistantStorage
-from .tool_registry import build_tool_registry
 from .tool_settings import load_tool_settings
 from .work_scheduler import AdaptiveWorkScheduler
+
+
+class _RoleRestrictedAntivirus:
+    def scan_path(self, *args: Any, **kwargs: Any) -> Any:
+        del args, kwargs
+        raise PermissionError("Antivirus- und Importpfad ist fuer diese Workerrolle gesperrt")
 
 
 def _replace_discovered_nextcloud_resources(
@@ -65,8 +73,7 @@ def _replace_discovered_nextcloud_resources(
     retained = [
         item
         for item in existing
-        if item.id not in generated_ids
-        and not item.id.startswith(generated_prefixes)
+        if item.id not in generated_ids and not item.id.startswith(generated_prefixes)
     ]
     existing_by_id = {item.id: item for item in existing}
     merged: dict[str, Resource] = {item.id: item for item in retained}
@@ -92,11 +99,53 @@ def _replace_discovered_nextcloud_resources(
     return list(merged.values())
 
 
-class PersonalAssistant:
-    def __init__(self, config: AssistantConfig) -> None:
+class PersonalAssistant(
+    MailApplicationMixin,
+    PortfolioApplicationMixin,
+    OrderApplicationMixin,
+    SecurityApplicationMixin,
+    WorkspaceServiceMixin,
+):
+    def __init__(
+        self,
+        config: AssistantConfig,
+        *,
+        mail_operations_factory: Callable[..., MailOperationsPort] | None = None,
+    ) -> None:
         self.config = config
         self.log = logging.getLogger(__name__)
-        self.storage = AssistantStorage(config.runtime.database)
+        self.role = os.environ.get("OPENCLAW_ROLE", "agent-cli").strip()
+        self.order_service: Any = None
+        self.portfolio: Any = None
+        self.monitor: Any = None
+        self.scheduler: Any = None
+        self.antivirus: Any = None
+
+        if self.role == "portfolio-worker":
+            self.tool_settings = load_tool_settings()
+            blocked_antivirus = cast(HostAntivirus, _RoleRestrictedAntivirus())
+            self.portfolio = PortfolioService(self.tool_settings.portfolio, blocked_antivirus)
+            return
+
+        if self.role == "monitor-worker":
+            self.storage = AssistantStorage(config.runtime.database, read_only=True)
+            self.registry = ResourceRegistry(config.runtime.resources_file)
+            self.nextcloud_client = NextcloudClient(config)
+            self.nextcloud_discovery = NextcloudDiscovery(self.nextcloud_client)
+            self.monitor = PerformanceMonitor(
+                config,
+                self.storage,
+                self.registry,
+                live_health=self.nextcloud_discovery.root_health,
+            )
+            return
+
+        self.storage = AssistantStorage(
+            config.runtime.database,
+            read_only=self.role == "sync-worker",
+            enable_knowledge=self.role != "mail-worker",
+            knowledge_read_only=False if self.role == "sync-worker" else None,
+        )
         self.registry = ResourceRegistry(config.runtime.resources_file)
         self.policy = PolicyEngine(config.runtime.policies_file, self.registry)
         self.indexer = KnowledgeIndexer(config, self.storage)
@@ -107,6 +156,8 @@ class PersonalAssistant:
         self.nextcloud_calendar = NextcloudCalendar(config, self.nextcloud_client)
         self.nextcloud_tasks = NextcloudTasks(self.nextcloud_client)
         self.nextcloud_deck = NextcloudDeck(self.nextcloud_client)
+        if self.role == "sync-worker":
+            return
         self.actions = ActionService(
             self.storage,
             self.registry,
@@ -120,20 +171,27 @@ class PersonalAssistant:
         self.settings = SettingsService(config.path, self.storage)
         self.tool_settings = load_tool_settings()
         self.antivirus = HostAntivirus(self.tool_settings.security.antivirus)
-        self.mail_move_service = MailMoveService(
+        if mail_operations_factory is None:
+            raise RuntimeError(
+                "Konkreter Mailadapter fehlt; PersonalAssistant ueber personal_assistant.bootstrap erzeugen"
+            )
+        self.mail_move_service = mail_operations_factory(
             self.tool_settings.mail.move, self.registry, self.policy, self.storage
         )
         self.order_service = OrderDeckService(
             self.tool_settings.nextcloud.deck_orders,
-            self.registry, self.policy, self.storage, self.nextcloud_deck,
+            self.registry,
+            self.policy,
+            self.storage,
+            self.nextcloud_deck,
         )
+        if self.role == "mail-worker":
+            return
         self.portfolio = PortfolioService(
             self.tool_settings.portfolio,
             self.antivirus,
         )
-        self.scheduler = AdaptiveWorkScheduler(
-            config.runtime.database.parent / "work_scheduler.sqlite3"
-        )
+        self.scheduler = AdaptiveWorkScheduler()
         self.monitor = PerformanceMonitor(
             config,
             self.storage,
@@ -145,207 +203,6 @@ class PersonalAssistant:
             scheduler_health=self.scheduler.health,
             jobs_health=lambda: JobController().status(target="all", deep=False, record=False),
         )
-
-
-
-
-    def mail_move_status(self) -> dict[str, Any]:
-        return self.mail_move_service.status()
-
-    def portfolio_import_csv(
-        self,
-        *,
-        local_file: str = "",
-        nextcloud_path: str = "",
-        dry_run: bool = True,
-    ) -> dict[str, Any]:
-        if bool(local_file) == bool(nextcloud_path):
-            raise ValueError("Genau eine CSV-Quelle angeben: --file oder --nextcloud-path")
-        if local_file:
-            return self.portfolio.import_csv(local_file, dry_run=dry_run)
-        if not self.portfolio.settings.enabled:
-            raise PermissionError("Portfolio-Werkzeug ist in tools.toml nicht aktiviert")
-
-        remote = self.nextcloud_files.clean_path(nextcloud_path)
-        configured_root = self.nextcloud_files.clean_path(
-            self.tool_settings.portfolio.nextcloud_folder
-        )
-        if not remote.startswith(configured_root + "/") or not remote.casefold().endswith(".csv"):
-            raise PermissionError(
-                f"Portfolio-CSV muss direkt unter {configured_root}/ liegen"
-            )
-        relative = remote[len(configured_root) + 1:]
-        if not relative or "/" in relative:
-            raise PermissionError(
-                f"Portfolio-CSV muss direkt unter {configured_root}/ liegen"
-            )
-        filename_match = re.search(r"(\d{2})\.(\d{2})\.(\d{4})", relative)
-        if not filename_match:
-            raise ValueError("Nextcloud-Portfolio-CSV benoetigt ein Datum DD.MM.YYYY im Dateinamen")
-        try:
-            filename_date = datetime.strptime(
-                filename_match.group(0), "%d.%m.%Y"
-            ).date().isoformat()
-        except ValueError as exc:
-            raise ValueError("Nextcloud-Portfolio-CSV enthaelt ein ungueltiges Dateidatum") from exc
-
-        workspace = self._workspace()
-        decision = self.policy.decide(
-            workspace.resource_id,
-            "files.read",
-            {"path": remote, "portfolio_csv": True},
-        )
-        if not decision.allowed:
-            raise PermissionError(decision.reason)
-        entries = [
-            item for item in self.nextcloud_files.list_folder(configured_root)
-            if item.path == remote and not item.is_collection
-        ]
-        if len(entries) != 1:
-            raise FileNotFoundError(f"Nextcloud-Portfolio-CSV nicht eindeutig gefunden: {remote}")
-        entry = entries[0]
-        if not entry.etag:
-            raise ValueError("Nextcloud-Portfolio-CSV besitzt keinen pruefbaren ETag")
-        if entry.size <= 0 or entry.size > MAX_IMPORT_BYTES:
-            raise ValueError("Nextcloud-Portfolio-CSV ist leer oder groesser als 25 MB")
-        payload = self.nextcloud_files.download(remote, expected_etag=entry.etag)
-        if not payload or len(payload) > MAX_IMPORT_BYTES:
-            raise ValueError("Nextcloud-Portfolio-CSV ist leer oder groesser als 25 MB")
-
-        import_root = self.tool_settings.portfolio.import_root.expanduser().resolve()
-        staging_root = import_root / ".nextcloud-staging"
-        staging_root.mkdir(parents=True, exist_ok=True)
-        os.chmod(import_root, 0o700)
-        os.chmod(staging_root, 0o700)
-        temporary_path: Path | None = None
-        try:
-            with tempfile.NamedTemporaryFile(
-                prefix="portfolio-", suffix=".csv", dir=staging_root, delete=False
-            ) as handle:
-                handle.write(payload)
-                temporary_path = Path(handle.name)
-            os.chmod(temporary_path, 0o600)
-            result = self.portfolio.import_csv(
-                temporary_path,
-                dry_run=dry_run,
-                source_name=entry.name,
-                expected_as_of=filename_date,
-            )
-        finally:
-            if temporary_path is not None:
-                temporary_path.unlink(missing_ok=True)
-        self.storage.audit(
-            "portfolio.csv.nextcloud_import",
-            {
-                "path": remote,
-                "etag": entry.etag,
-                "sha256": result.get("sha256"),
-                "dry_run": dry_run,
-                "as_of": result.get("as_of"),
-            },
-            resource_id=workspace.resource_id,
-        )
-        return {
-            **result,
-            "nextcloud_path": remote,
-            "nextcloud_etag": entry.etag,
-        }
-
-    def mail_list_messages(self, folder: str, *, limit: int = 50) -> dict[str, Any]:
-        return self.mail_move_service.list_messages(folder, limit=limit)
-
-    def mail_search_messages(self, query: str, *, limit: int = 50) -> dict[str, Any]:
-        return self.mail_move_service.search_messages(query, limit=limit)
-
-    def mail_read_message(self, folder: str, message_id: str, *, expected_subject: str = "") -> dict[str, Any]:
-        return self.mail_move_service.read(folder, message_id, expected_subject=expected_subject)
-
-    def mail_draft_reply(
-        self, folder: str, message_id: str, body: str, *, expected_subject: str = ""
-    ) -> dict[str, Any]:
-        return self.mail_move_service.draft_reply(
-            folder, message_id, body, expected_subject=expected_subject
-        )
-
-    def mail_send_reply(self, draft_id: str, *, approved: bool = False) -> dict[str, Any]:
-        return self.mail_move_service.send_reply(draft_id, approved=approved)
-
-    def mail_draft_message(self, recipient: str, subject: str, body: str) -> dict[str, Any]:
-        return self.mail_move_service.draft_message(recipient, subject, body)
-
-    def mail_send_message(self, draft_id: str, *, approved: bool = False) -> dict[str, Any]:
-        return self.mail_move_service.send_message(draft_id, approved=approved)
-
-    def mail_move_message(self, *, source: str, destination: str, message_id: str, expected_subject: str = "", dry_run: bool = False) -> dict[str, Any]:
-        return self.mail_move_service.move(
-            source=source, destination=destination, message_id=message_id,
-            expected_subject=expected_subject, dry_run=dry_run,
-        )
-
-    def deck_discover(self) -> dict[str, Any]:
-        return {"ok": True, "boards": self.nextcloud_deck.list_boards(details=True)}
-
-    def deck_prepare_orders_board(
-        self, *, board_id: int = 0, board_title: str = "Bestellungen", create_board: bool = False
-    ) -> dict[str, Any]:
-        boards = self.nextcloud_deck.list_boards(details=True)
-        board = next((item for item in boards if int(item.get("id") or 0) == int(board_id)), None) if board_id else None
-        if board is None:
-            board = next((item for item in boards if str(item.get("title") or "").casefold() == board_title.casefold()), None)
-        if board is None and create_board:
-            board = self.nextcloud_deck.create_board(board_title)
-        if board is None:
-            raise ValueError("Deck-Board nicht gefunden; --board-id angeben oder --create-board verwenden")
-        resolved_id = int(board["id"])
-        stacks = self.nextcloud_deck.list_stacks(resolved_id)
-        existing = {str(item.get("title") or "").casefold() for item in stacks}
-        created = []
-        for index, (_, title) in enumerate(STACKS, start=1):
-            if title.casefold() not in existing:
-                item = self.nextcloud_deck.create_stack(resolved_id, title, index * 1000)
-                created.append({"id": item.get("id"), "title": title})
-        return {"ok": True, "board_id": resolved_id, "board_title": str(board.get("title") or board_title), "created_stacks": created, "stacks": [title for _, title in STACKS]}
-
-    def deck_orders_status(self, *, live: bool = True) -> dict[str, Any]:
-        return self.order_service.status(live=live)
-
-    def orders_list(self, *, status: str = "", limit: int = 100) -> dict[str, Any]:
-        return self.order_service.list_orders(status=status, limit=limit)
-
-    def orders_process_event(
-        self, data: dict[str, Any], *, stable_key: str, subject: str = "", sender: str = "",
-        received_at: str = "", source_category: str = "", dry_run: bool = False,
-    ) -> dict[str, Any]:
-        return self.order_service.process_event(
-            data, stable_key=stable_key, subject=subject, sender=sender,
-            received_at=received_at, source_category=source_category, dry_run=dry_run,
-        )
-
-    def orders_sync(self, *, limit: int = 500) -> dict[str, Any]:
-        return self.order_service.sync_pending(limit=limit)
-
-    def orders_due_date_backfill(self, *, limit: int = 500, dry_run: bool = True) -> dict[str, Any]:
-        return self.order_service.backfill_missing_due_dates(limit=limit, dry_run=dry_run)
-
-    def antivirus_doctor(self, *, live_scan: bool = True) -> dict[str, Any]:
-        return self.antivirus.doctor(live_scan=live_scan)
-
-    def antivirus_self_test(self) -> dict[str, Any]:
-        return self.antivirus.self_test()
-
-    def antivirus_scan_path(self, path: str | Path, *, use_cache: bool = True) -> dict[str, Any]:
-        candidate = Path(path).expanduser().resolve()
-        outbox = self.tool_settings.nextcloud.workspace.outbox.expanduser().resolve()
-        try:
-            candidate.relative_to(outbox)
-        except ValueError as exc:
-            raise PermissionError(
-                f"Manueller Agenten-Scan ist nur innerhalb der kontrollierten Outbox erlaubt: {outbox}"
-            ) from exc
-        return self.antivirus.scan_path(candidate, source_type="agent-manual", use_cache=use_cache).to_dict()
-
-    def tools(self) -> list[dict[str, Any]]:
-        return [item.to_dict() for item in build_tool_registry(self.tool_settings)]
 
     @staticmethod
     def _ics_escape(value: str) -> str:
@@ -367,9 +224,7 @@ class PersonalAssistant:
         try:
             parsed = datetime.fromisoformat(raw)
         except ValueError as exc:
-            raise ValueError(
-                "Kalenderzeit muss ISO-8601 sein, z. B. 2026-07-22T14:00:00+02:00"
-            ) from exc
+            raise ValueError("Kalenderzeit muss ISO-8601 sein, z. B. 2026-07-22T14:00:00+02:00") from exc
         if parsed.tzinfo is None:
             parsed = parsed.replace(tzinfo=ZoneInfo(timezone_name))
         return parsed
@@ -380,7 +235,7 @@ class PersonalAssistant:
         if len(raw) == 8 and raw.isdigit():
             return datetime.strptime(raw, "%Y%m%d").replace(tzinfo=ZoneInfo(timezone_name)), True
         if raw.endswith("Z"):
-            return datetime.strptime(raw, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc), False
+            return datetime.strptime(raw, "%Y%m%dT%H%M%SZ").replace(tzinfo=UTC), False
         for pattern in ("%Y%m%dT%H%M%S", "%Y%m%dT%H%M"):
             try:
                 return datetime.strptime(raw, pattern).replace(tzinfo=ZoneInfo(timezone_name)), False
@@ -445,9 +300,7 @@ class PersonalAssistant:
         collections = self.nextcloud_discovery.calendar_collections()
         selected = next((item for item in collections if item.resource_id == resource_id), None)
         if selected is None:
-            raise ValueError(
-                "Unbekannte CalDAV-Ressource; zuerst das passende Discovery-Werkzeug ausfuehren"
-            )
+            raise ValueError("Unbekannte CalDAV-Ressource; zuerst das passende Discovery-Werkzeug ausfuehren")
         if not selected.supports(component):
             label = "VEVENT" if component == "VEVENT" else "VTODO"
             raise ValueError(f"Die ausgewaehlte Ressource unterstuetzt {label} nicht")
@@ -712,12 +565,18 @@ class PersonalAssistant:
         if live and base_ok and resource:
             try:
                 current = next(
-                    (item for item in self.nextcloud_discovery.addressbooks() if item.resource_id == resource.id),
+                    (
+                        item
+                        for item in self.nextcloud_discovery.addressbooks()
+                        if item.resource_id == resource.id
+                    ),
                     None,
                 )
                 if current is None:
                     result["ok"] = False
-                    result["detail"] = "Das konfigurierte Adressbuch wurde bei der Live-Discovery nicht gefunden"
+                    result["detail"] = (
+                        "Das konfigurierte Adressbuch wurde bei der Live-Discovery nicht gefunden"
+                    )
                 else:
                     result["server_can_read"] = current.can_read
                     result["server_can_create"] = current.can_create
@@ -730,7 +589,9 @@ class PersonalAssistant:
                         result["detail"] = "Das konfigurierte Adressbuch erlaubt serverseitig kein Anlegen"
                     if settings.allow_update and not current.can_update:
                         result["ok"] = False
-                        result["detail"] = "Das konfigurierte Adressbuch erlaubt serverseitig kein Aktualisieren"
+                        result["detail"] = (
+                            "Das konfigurierte Adressbuch erlaubt serverseitig kein Aktualisieren"
+                        )
             except Exception as exc:
                 result["ok"] = False
                 result["detail"] = str(exc)
@@ -789,12 +650,14 @@ class PersonalAssistant:
     def _contact_duplicate_report(candidate: ContactCandidate, contacts: list[Any]) -> dict[str, Any]:
         emails = {value.casefold() for value in candidate.emails}
         exact = [
-            contact for contact in contacts
+            contact
+            for contact in contacts
             if emails.intersection({value.casefold() for value in contact.emails})
         ]
         name_key = " ".join(candidate.name.casefold().split())
         same_name = [
-            contact for contact in contacts
+            contact
+            for contact in contacts
             if name_key and " ".join(contact.name.casefold().split()) == name_key and contact not in exact
         ]
         return {
@@ -840,7 +703,10 @@ class PersonalAssistant:
                 "created": False,
                 "candidate": candidate.to_dict(),
                 "duplicates": duplicates,
-                "detail": "Kontakt mit gleichem Namen vorhanden; explizit pruefen oder --allow-name-collision verwenden",
+                "detail": (
+                    "Kontakt mit gleichem Namen vorhanden; explizit pruefen oder "
+                    "--allow-name-collision verwenden"
+                ),
             }
 
         identity_material = "\0".join(
@@ -876,8 +742,7 @@ class PersonalAssistant:
                     "resource_id": settings.resource_id,
                     "explicit_user_create": True,
                     "email_hashes": [
-                        hashlib.sha256(value.encode("utf-8")).hexdigest()
-                        for value in candidate.emails
+                        hashlib.sha256(value.encode("utf-8")).hexdigest() for value in candidate.emails
                     ],
                 },
             )
@@ -969,7 +834,9 @@ class PersonalAssistant:
         if len(matches) != 1:
             raise RuntimeError("Kontakt-UID ist nicht eindeutig; Aktualisierung wurde abgebrochen")
         current = matches[0]
-        if expected_name and " ".join(current.name.casefold().split()) != " ".join(expected_name.casefold().split()):
+        if expected_name and " ".join(current.name.casefold().split()) != " ".join(
+            expected_name.casefold().split()
+        ):
             raise RuntimeError("Kontaktname stimmt nicht mehr mit --expected-name ueberein")
         if expected_email and expected_email.casefold() not in {value.casefold() for value in current.emails}:
             raise RuntimeError("Kontakt-E-Mail stimmt nicht mehr mit --expected-email ueberein")
@@ -978,27 +845,34 @@ class PersonalAssistant:
         if "emails" in changes:
             requested_emails = {value.casefold() for value in changes["emails"]}
             collisions = [
-                item for item in other_contacts
+                item
+                for item in other_contacts
                 if requested_emails.intersection({value.casefold() for value in item.emails})
             ]
             if collisions:
                 return {
                     "ok": False,
                     "updated": False,
-                    "detail": "Mindestens eine neue E-Mail-Adresse ist bereits einem anderen Kontakt zugeordnet",
+                    "detail": (
+                        "Mindestens eine neue E-Mail-Adresse ist bereits einem anderen Kontakt zugeordnet"
+                    ),
                     "collisions": [self._contact_payload(item) for item in collisions],
                 }
         if "name" in changes and not allow_name_collision:
             requested_name = " ".join(str(changes["name"]).casefold().split())
             collisions = [
-                item for item in other_contacts
+                item
+                for item in other_contacts
                 if requested_name and " ".join(item.name.casefold().split()) == requested_name
             ]
             if collisions:
                 return {
                     "ok": False,
                     "updated": False,
-                    "detail": "Der neue Name ist bereits vorhanden; explizit pruefen oder --allow-name-collision verwenden",
+                    "detail": (
+                        "Der neue Name ist bereits vorhanden; explizit pruefen oder "
+                        "--allow-name-collision verwenden"
+                    ),
                     "collisions": [self._contact_payload(item) for item in collisions],
                 }
 
@@ -1083,7 +957,11 @@ class PersonalAssistant:
             name="selected-mail.eml",
             source_type="contact-from-mail",
         )
-        if self.tool_settings.security.antivirus.enabled and self.tool_settings.security.antivirus.fail_closed and not scan.clean:
+        if (
+            self.tool_settings.security.antivirus.enabled
+            and self.tool_settings.security.antivirus.fail_closed
+            and not scan.clean
+        ):
             raise PermissionError(
                 "Kontaktvorschlag durch Virenscanner blockiert: "
                 + (scan.signature or scan.detail or scan.status)
@@ -1133,18 +1011,25 @@ class PersonalAssistant:
         if dry_run:
             return proposal
         if candidate.automated_sender:
-            proposal.update({
-                "ok": False,
-                "created": False,
-                "detail": "Automatischer/no-reply-Absender wird nicht direkt als Kontakt angelegt; contacts create fuer eine bewusste manuelle Anlage verwenden",
-            })
+            proposal.update(
+                {
+                    "ok": False,
+                    "created": False,
+                    "detail": (
+                        "Automatischer/no-reply-Absender wird nicht direkt als Kontakt angelegt; "
+                        "contacts create fuer eine bewusste manuelle Anlage verwenden"
+                    ),
+                }
+            )
             return proposal
         if not candidate.name:
-            proposal.update({
-                "ok": False,
-                "created": False,
-                "detail": "Kein belastbarer Kontaktname erkannt; --name ist erforderlich",
-            })
+            proposal.update(
+                {
+                    "ok": False,
+                    "created": False,
+                    "detail": "Kein belastbarer Kontaktname erkannt; --name ist erforderlich",
+                }
+            )
             return proposal
         created = self._create_contact_candidate(
             candidate,
@@ -1170,6 +1055,7 @@ class PersonalAssistant:
     @staticmethod
     def _calendar_collection(resource: Resource):
         from .connectors.nextcloud.discovery import DiscoveredCollection
+
         return DiscoveredCollection(
             kind=resource.kind,
             href=str(resource.metadata.get("href") or resource.remote_id),
@@ -1238,12 +1124,18 @@ class PersonalAssistant:
             raise ValueError("Kalendersuchbegriff fehlt")
         listed = self.calendar_list(limit=500)
         matches = [
-            event for event in listed["events"]
-            if clean in " ".join([
-                str(event.get("uid") or ""), str(event.get("title") or ""),
-                str(event.get("location") or ""), str(event.get("description") or ""),
-                str(event.get("start") or ""),
-            ]).casefold()
+            event
+            for event in listed["events"]
+            if clean
+            in " ".join(
+                [
+                    str(event.get("uid") or ""),
+                    str(event.get("title") or ""),
+                    str(event.get("location") or ""),
+                    str(event.get("description") or ""),
+                    str(event.get("start") or ""),
+                ]
+            ).casefold()
         ][: max(1, min(int(limit), 100))]
         return {
             "ok": True,
@@ -1285,26 +1177,30 @@ class PersonalAssistant:
                 raise ValueError("Termindauer muss mindestens 5 Minuten betragen")
             end_local = start_local + timedelta(minutes=minutes)
 
-        start_utc = start_local.astimezone(timezone.utc)
-        end_utc = end_local.astimezone(timezone.utc)
-        now = datetime.now(timezone.utc)
+        start_utc = start_local.astimezone(UTC)
+        end_utc = end_local.astimezone(UTC)
+        now = datetime.now(UTC)
         if end_utc <= start_utc:
             raise ValueError("Terminende muss nach dem Beginn liegen")
         if end_utc - start_utc > timedelta(hours=settings.max_duration_hours):
             raise ValueError(f"Termindauer ueberschreitet {settings.max_duration_hours} Stunden")
         if start_utc < now - timedelta(hours=24):
-            raise ValueError("Direktes Kalenderwerkzeug legt keine Termine an, die mehr als 24 Stunden zurueckliegen")
+            raise ValueError(
+                "Direktes Kalenderwerkzeug legt keine Termine an, die mehr als 24 Stunden zurueckliegen"
+            )
         if start_utc > now + timedelta(days=settings.max_future_days):
             raise ValueError(f"Termin liegt mehr als {settings.max_future_days} Tage in der Zukunft")
 
-        normalized = "|".join([
-            settings.resource_id,
-            title,
-            start_utc.isoformat(),
-            end_utc.isoformat(),
-            location.strip(),
-            description.strip(),
-        ])
+        normalized = "|".join(
+            [
+                settings.resource_id,
+                title,
+                start_utc.isoformat(),
+                end_utc.isoformat(),
+                location.strip(),
+                description.strip(),
+            ]
+        )
         event_uid = str(uid or "").strip() or (
             "assistant-" + hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:32] + "@local"
         )
@@ -1356,7 +1252,11 @@ class PersonalAssistant:
                 },
             )
         if plan.status not in {"approved", "completed"}:
-            return {"ok": False, "action": asdict(plan), "detail": "Kalender-ActionPlan ist nicht ausfuehrbar"}
+            return {
+                "ok": False,
+                "action": asdict(plan),
+                "detail": "Kalender-ActionPlan ist nicht ausfuehrbar",
+            }
         result, duplicate = self.actions.execute_calendar_create(plan.id)
         response = {
             "ok": result.status == "completed",
@@ -1412,7 +1312,8 @@ class PersonalAssistant:
         if len(matches) != 1:
             raise ValueError(
                 "Kalendereintrag konnte nicht eindeutig per UID ausgewaehlt werden"
-                if matches else "Kalendereintrag mit dieser UID wurde nicht gefunden"
+                if matches
+                else "Kalendereintrag mit dieser UID wurde nicht gefunden"
             )
         current = matches[0]
         if expected_title and current.summary != expected_title:
@@ -1434,26 +1335,38 @@ class PersonalAssistant:
             clean_location = "" if clear_location else str(location or "").strip()
             if len(clean_location) > 500:
                 raise ValueError("Terminort ist zu lang")
-            replacements["LOCATION"] = (f"LOCATION:{self._ics_escape(clean_location)}",) if clean_location else None
+            replacements["LOCATION"] = (
+                (f"LOCATION:{self._ics_escape(clean_location)}",) if clean_location else None
+            )
             changes["location"] = clean_location
         if clear_description or description is not None:
             clean_description = "" if clear_description else str(description or "").strip()
             if len(clean_description) > 10000:
                 raise ValueError("Terminbeschreibung ist zu lang")
-            replacements["DESCRIPTION"] = (f"DESCRIPTION:{self._ics_escape(clean_description)}",) if clean_description else None
+            replacements["DESCRIPTION"] = (
+                (f"DESCRIPTION:{self._ics_escape(clean_description)}",) if clean_description else None
+            )
             changes["description"] = clean_description
 
         time_change = start is not None or end is not None or duration_minutes is not None
         if time_change:
             try:
-                current_start, current_start_is_date = self._parse_ical_datetime_value(current.starts_at, settings.timezone)
+                current_start, current_start_is_date = self._parse_ical_datetime_value(
+                    current.starts_at, settings.timezone
+                )
             except ValueError as exc:
                 raise ValueError("Bestehender Terminbeginn kann nicht sicher aktualisiert werden") from exc
             current_end = None
             current_end_is_date = current_start_is_date
             if current.ends_at:
-                current_end, current_end_is_date = self._parse_ical_datetime_value(current.ends_at, settings.timezone)
-            new_start = self._parse_calendar_datetime(start, settings.timezone) if start is not None else current_start
+                current_end, current_end_is_date = self._parse_ical_datetime_value(
+                    current.ends_at, settings.timezone
+                )
+            new_start = (
+                self._parse_calendar_datetime(start, settings.timezone)
+                if start is not None
+                else current_start
+            )
             if end is not None:
                 new_end = self._parse_calendar_datetime(end, settings.timezone)
             elif duration_minutes is not None:
@@ -1465,13 +1378,13 @@ class PersonalAssistant:
                 new_end = new_start + (current_end - current_start) if start is not None else current_end
             else:
                 new_end = new_start + timedelta(minutes=settings.default_duration_minutes)
-            start_utc = new_start.astimezone(timezone.utc)
-            end_utc = new_end.astimezone(timezone.utc)
+            start_utc = new_start.astimezone(UTC)
+            end_utc = new_end.astimezone(UTC)
             if end_utc <= start_utc:
                 raise ValueError("Terminende muss nach dem Beginn liegen")
             if end_utc - start_utc > timedelta(hours=settings.max_duration_hours):
                 raise ValueError(f"Termindauer ueberschreitet {settings.max_duration_hours} Stunden")
-            if start_utc > datetime.now(timezone.utc) + timedelta(days=settings.max_future_days):
+            if start_utc > datetime.now(UTC) + timedelta(days=settings.max_future_days):
                 raise ValueError(f"Termin liegt mehr als {settings.max_future_days} Tage in der Zukunft")
             replacements["DTSTART"] = (f"DTSTART:{start_utc.strftime('%Y%m%dT%H%M%SZ')}",)
             replacements["DTEND"] = (f"DTEND:{end_utc.strftime('%Y%m%dT%H%M%SZ')}",)
@@ -1481,7 +1394,7 @@ class PersonalAssistant:
 
         if not changes:
             raise ValueError("Keine Kalender-Aenderung angegeben")
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         props = component_properties(current.raw_ics, "VEVENT", clean_uid)
         try:
             sequence = int(first_value(props, "SEQUENCE", "0") or 0) + 1
@@ -1492,7 +1405,10 @@ class PersonalAssistant:
         replacements["LAST-MODIFIED"] = (f"LAST-MODIFIED:{stamp}",)
         replacements["SEQUENCE"] = (f"SEQUENCE:{sequence}",)
         updated_ics, selection = update_component(
-            current.raw_ics, "VEVENT", clean_uid, replacements,
+            current.raw_ics,
+            "VEVENT",
+            clean_uid,
+            replacements,
             allow_recurring=allow_recurring_series,
         )
         expected_sha256 = hashlib.sha256(updated_ics.encode("utf-8")).hexdigest()
@@ -1599,6 +1515,7 @@ class PersonalAssistant:
     @staticmethod
     def _task_collection(resource: Resource):
         from .connectors.nextcloud.discovery import DiscoveredCollection
+
         return DiscoveredCollection(
             kind=resource.kind,
             href=str(resource.metadata.get("href") or resource.remote_id),
@@ -1655,7 +1572,9 @@ class PersonalAssistant:
         priority = int(priority)
         if priority < 0 or priority > 9:
             raise ValueError("Prioritaet muss zwischen 0 und 9 liegen")
-        cleaned_categories = tuple(dict.fromkeys(" ".join(str(v).split()) for v in categories if str(v).strip()))
+        cleaned_categories = tuple(
+            dict.fromkeys(" ".join(str(v).split()) for v in categories if str(v).strip())
+        )
         if len(cleaned_categories) > 20 or any(len(v) > 100 for v in cleaned_categories):
             raise ValueError("Zu viele oder zu lange Kategorien")
 
@@ -1665,24 +1584,39 @@ class PersonalAssistant:
         start_local: datetime | None = None
         due_is_date = False
         start_is_date = False
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if due:
             due_local, due_is_date = self._parse_task_value(due, settings.timezone)
-            if due_local.astimezone(timezone.utc) > now + timedelta(days=settings.max_future_days):
+            if due_local.astimezone(UTC) > now + timedelta(days=settings.max_future_days):
                 raise ValueError(f"Faelligkeit liegt mehr als {settings.max_future_days} Tage in der Zukunft")
-            due_value = due_local.strftime("%Y%m%d") if due_is_date else due_local.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+            due_value = (
+                due_local.strftime("%Y%m%d")
+                if due_is_date
+                else due_local.astimezone(UTC).strftime("%Y%m%dT%H%M%SZ")
+            )
         if start:
             start_local, start_is_date = self._parse_task_value(start, settings.timezone)
-            start_value = start_local.strftime("%Y%m%d") if start_is_date else start_local.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+            start_value = (
+                start_local.strftime("%Y%m%d")
+                if start_is_date
+                else start_local.astimezone(UTC).strftime("%Y%m%dT%H%M%SZ")
+            )
         if due and start and due_is_date != start_is_date:
             raise ValueError("Start und Faelligkeit muessen beide Datum oder beide Datum/Uhrzeit sein")
         if due_local and start_local and due_local < start_local:
             raise ValueError("Faelligkeit darf nicht vor dem Aufgabenstart liegen")
 
-        normalized = "|".join([
-            settings.resource_id, title, start_value, due_value, description.strip(),
-            str(priority), ",".join(cleaned_categories),
-        ])
+        normalized = "|".join(
+            [
+                settings.resource_id,
+                title,
+                start_value,
+                due_value,
+                description.strip(),
+                str(priority),
+                ",".join(cleaned_categories),
+            ]
+        )
         task_uid = str(uid or "").strip() or (
             "assistant-task-" + hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:32] + "@local"
         )
@@ -1741,7 +1675,11 @@ class PersonalAssistant:
                 },
             )
         if plan.status not in {"approved", "completed"}:
-            return {"ok": False, "action": asdict(plan), "detail": "Aufgaben-ActionPlan ist nicht ausfuehrbar"}
+            return {
+                "ok": False,
+                "action": asdict(plan),
+                "detail": "Aufgaben-ActionPlan ist nicht ausfuehrbar",
+            }
         result, duplicate = self.actions.execute_task_create(plan.id)
         response = {
             "ok": result.status == "completed",
@@ -1807,7 +1745,8 @@ class PersonalAssistant:
         if len(matches) != 1:
             raise ValueError(
                 "Aufgabe konnte nicht eindeutig per UID ausgewaehlt werden"
-                if matches else "Aufgabe mit dieser UID wurde nicht gefunden"
+                if matches
+                else "Aufgabe mit dieser UID wurde nicht gefunden"
             )
         current = matches[0]
         if expected_title and current.title != expected_title:
@@ -1829,7 +1768,9 @@ class PersonalAssistant:
             clean_description = "" if clear_description else str(description or "").strip()
             if len(clean_description) > 10000:
                 raise ValueError("Aufgabenbeschreibung ist zu lang")
-            replacements["DESCRIPTION"] = (f"DESCRIPTION:{self._ics_escape(clean_description)}",) if clean_description else None
+            replacements["DESCRIPTION"] = (
+                (f"DESCRIPTION:{self._ics_escape(clean_description)}",) if clean_description else None
+            )
             changes["description"] = clean_description
         if priority is not None:
             clean_priority = int(priority)
@@ -1838,14 +1779,22 @@ class PersonalAssistant:
             replacements["PRIORITY"] = (f"PRIORITY:{clean_priority}",) if clean_priority else None
             changes["priority"] = clean_priority
         if clear_categories or categories is not None:
-            cleaned_categories = () if clear_categories else tuple(
-                dict.fromkeys(" ".join(str(value).split()) for value in (categories or ()) if str(value).strip())
+            cleaned_categories = (
+                ()
+                if clear_categories
+                else tuple(
+                    dict.fromkeys(
+                        " ".join(str(value).split()) for value in (categories or ()) if str(value).strip()
+                    )
+                )
             )
             if len(cleaned_categories) > 20 or any(len(value) > 100 for value in cleaned_categories):
                 raise ValueError("Zu viele oder zu lange Kategorien")
             replacements["CATEGORIES"] = (
-                "CATEGORIES:" + ",".join(self._ics_escape(value) for value in cleaned_categories),
-            ) if cleaned_categories else None
+                ("CATEGORIES:" + ",".join(self._ics_escape(value) for value in cleaned_categories),)
+                if cleaned_categories
+                else None
+            )
             changes["categories"] = list(cleaned_categories)
 
         due_change = clear_due or due is not None
@@ -1855,9 +1804,13 @@ class PersonalAssistant:
         effective_due_is_date = False
         effective_start_is_date = False
         if current.due:
-            effective_due, effective_due_is_date = self._parse_ical_datetime_value(current.due, settings.timezone)
+            effective_due, effective_due_is_date = self._parse_ical_datetime_value(
+                current.due, settings.timezone
+            )
         if current.start:
-            effective_start, effective_start_is_date = self._parse_ical_datetime_value(current.start, settings.timezone)
+            effective_start, effective_start_is_date = self._parse_ical_datetime_value(
+                current.start, settings.timezone
+            )
         if due_change:
             if clear_due:
                 effective_due = None
@@ -1865,9 +1818,17 @@ class PersonalAssistant:
                 changes["due"] = ""
             else:
                 effective_due, effective_due_is_date = self._parse_task_value(str(due), settings.timezone)
-                if effective_due.astimezone(timezone.utc) > datetime.now(timezone.utc) + timedelta(days=settings.max_future_days):
-                    raise ValueError(f"Faelligkeit liegt mehr als {settings.max_future_days} Tage in der Zukunft")
-                value = effective_due.strftime("%Y%m%d") if effective_due_is_date else effective_due.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+                if effective_due.astimezone(UTC) > datetime.now(UTC) + timedelta(
+                    days=settings.max_future_days
+                ):
+                    raise ValueError(
+                        f"Faelligkeit liegt mehr als {settings.max_future_days} Tage in der Zukunft"
+                    )
+                value = (
+                    effective_due.strftime("%Y%m%d")
+                    if effective_due_is_date
+                    else effective_due.astimezone(UTC).strftime("%Y%m%dT%H%M%SZ")
+                )
                 prefix = "DUE;VALUE=DATE:" if effective_due_is_date else "DUE:"
                 replacements["DUE"] = (prefix + value,)
                 changes["due"] = value
@@ -1877,8 +1838,14 @@ class PersonalAssistant:
                 replacements["DTSTART"] = None
                 changes["start"] = ""
             else:
-                effective_start, effective_start_is_date = self._parse_task_value(str(start), settings.timezone)
-                value = effective_start.strftime("%Y%m%d") if effective_start_is_date else effective_start.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+                effective_start, effective_start_is_date = self._parse_task_value(
+                    str(start), settings.timezone
+                )
+                value = (
+                    effective_start.strftime("%Y%m%d")
+                    if effective_start_is_date
+                    else effective_start.astimezone(UTC).strftime("%Y%m%dT%H%M%SZ")
+                )
                 prefix = "DTSTART;VALUE=DATE:" if effective_start_is_date else "DTSTART:"
                 replacements["DTSTART"] = (prefix + value,)
                 changes["start"] = value
@@ -1902,7 +1869,7 @@ class PersonalAssistant:
             changes["status"] = clean_status
             if clean_status == "COMPLETED":
                 percent = 100 if percent is None else percent
-                completed_stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+                completed_stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
                 replacements["COMPLETED"] = (f"COMPLETED:{completed_stamp}",)
                 changes["completed"] = completed_stamp
             else:
@@ -1916,11 +1883,14 @@ class PersonalAssistant:
 
         if not changes:
             raise ValueError("Keine Aufgaben-Aenderung angegeben")
-        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
         replacements["DTSTAMP"] = (f"DTSTAMP:{stamp}",)
         replacements["LAST-MODIFIED"] = (f"LAST-MODIFIED:{stamp}",)
         updated_ics, selection = update_component(
-            current.raw_ics, "VTODO", clean_uid, replacements,
+            current.raw_ics,
+            "VTODO",
+            clean_uid,
+            replacements,
             allow_recurring=allow_recurring,
         )
         expected_sha256 = hashlib.sha256(updated_ics.encode("utf-8")).hexdigest()
@@ -1969,185 +1939,18 @@ class PersonalAssistant:
             response["detail"] = result.error
         return response
 
-    def list_nextcloud_files(self, path: str = "Assistent", *, max_depth: int = 3) -> dict[str, Any]:
-        requested = self.nextcloud_files.clean_path(path or "")
-        if not requested:
-            raise ValueError("Nextcloud-Pfad darf nicht leer sein")
-        if max_depth < 0 or max_depth > 10:
-            raise ValueError("max_depth muss zwischen 0 und 10 liegen")
-        resource = self.registry.get("nextcloud-files-main")
-        roots = tuple(str(v).strip("/") for v in resource.metadata.get("allowed_roots", []))
-        if not roots:
-            roots = tuple(str(v).strip("/") for v in self.config.nextcloud.allowed_file_roots)
-        if not any(requested == root or requested.startswith(root + "/") for root in roots):
-            raise PermissionError("Pfad liegt ausserhalb der erlaubten Nextcloud-Wurzeln")
-
-        queue: list[tuple[str, int]] = [(requested, 0)]
-        seen: set[str] = set()
-        items: list[dict[str, Any]] = []
-        while queue:
-            folder, depth = queue.pop(0)
-            if folder in seen:
-                continue
-            seen.add(folder)
-            for entry in self.nextcloud_files.list_folder(folder):
-                item = {
-                    "path": entry.path,
-                    "name": entry.name,
-                    "kind": "folder" if entry.is_collection else "file",
-                    "size": entry.size,
-                    "mime_type": entry.content_type,
-                    "modified_at": entry.modified_at,
-                    "etag": entry.etag,
-                }
-                items.append(item)
-                if entry.is_collection and depth < max_depth:
-                    queue.append((entry.path, depth + 1))
-        return {"root": requested, "max_depth": max_depth, "items": items}
-
-    def _workspace(self):
-        workspace = self.tool_settings.nextcloud.workspace
-        if not workspace.enabled:
-            raise PermissionError("Nextcloud-Arbeitsbereich ist deaktiviert")
-        return workspace
-
-    def _workspace_path(self, value: str) -> str:
-        workspace = self._workspace()
-        path = self.nextcloud_files.clean_path(value)
-        root = self.nextcloud_files.clean_path(workspace.root)
-        if not path or not (path == root or path.startswith(root + "/")):
-            raise PermissionError(f"Pfad liegt ausserhalb des Nextcloud-Arbeitsbereichs {root}/")
-        return path
-
-    def _execute_workspace_plan(self, plan) -> dict[str, Any]:
-        if plan.status not in {"approved", "completed"}:
-            return {"ok": False, "action": asdict(plan), "detail": "ActionPlan benoetigt Freigabe"}
-        result, duplicate = self.actions.execute_workspace(plan.id)
-        response = {"ok": result.status == "completed", "duplicate": duplicate, "action": asdict(result)}
-        if result.status == "failed" and result.error:
-            response["detail"] = result.error
-        return response
-
-    def workspace_mkdir(self, path: str) -> dict[str, Any]:
-        workspace = self._workspace()
-        if not workspace.allow_mkdir:
-            raise PermissionError("Ordner anlegen ist fuer den Nextcloud-Arbeitsbereich deaktiviert")
-        remote = self._workspace_path(path)
-        plan = self.actions.plan(
-            "files.mkdir",
-            workspace.resource_id,
-            {"path": remote, "overwrite": False},
-            idempotency_key=f"workspace-mkdir:{workspace.resource_id}:{remote}",
-        )
-        return self._execute_workspace_plan(plan)
-
-    def workspace_upload(self, local_path: str | Path, remote_path: str, *, content_type: str = "") -> dict[str, Any]:
-        workspace = self._workspace()
-        if not workspace.allow_upload:
-            raise PermissionError("Datei-Upload ist fuer den Nextcloud-Arbeitsbereich deaktiviert")
-        local = Path(local_path).expanduser().resolve()
-        outbox = workspace.outbox.expanduser().resolve()
-        try:
-            local.relative_to(outbox)
-        except ValueError as exc:
-            raise PermissionError(f"Lokale Datei muss innerhalb der kontrollierten Outbox liegen: {outbox}") from exc
-        if not local.is_file():
-            raise FileNotFoundError(local)
-        size = local.stat().st_size
-        if size > self.config.search.max_file_bytes:
-            raise ValueError(f"Datei ist groesser als das konfigurierte Limit: {size} Byte")
-        remote = self._workspace_path(remote_path)
-        payload = local.read_bytes()
-        antivirus = getattr(self, "antivirus", None)
-        if antivirus is not None:
-            scan = antivirus.scan_bytes(payload, name=local.name, source_type="workspace-upload")
-            if not scan.clean:
-                raise PermissionError(
-                    "Upload durch Virenscanner blockiert: "
-                    + (scan.signature or scan.detail or scan.status)
-                )
-        digest = hashlib.sha256(payload).hexdigest()
-        mime = content_type or mimetypes.guess_type(local.name)[0] or "application/octet-stream"
-        plan = self.actions.plan(
-            "files.create",
-            workspace.resource_id,
-            {
-                "local_path": str(local),
-                "path": remote,
-                "content_type": mime,
-                "overwrite": False,
-                "sha256": digest,
-                "workspace_tool": True,
-            },
-            idempotency_key=f"workspace-upload:{workspace.resource_id}:{remote}:{digest}",
-        )
-        return self._execute_workspace_plan(plan)
-
-    def workspace_write_text(self, remote_path: str, text: str, *, content_type: str = "text/plain; charset=utf-8") -> dict[str, Any]:
-        workspace = self._workspace()
-        if not workspace.allow_write_text:
-            raise PermissionError("Textdateien anlegen ist fuer den Nextcloud-Arbeitsbereich deaktiviert")
-        data = text.encode("utf-8")
-        if len(data) > self.config.search.max_file_bytes:
-            raise ValueError("Text ist groesser als das konfigurierte Dateilimit")
-        remote = self._workspace_path(remote_path)
-        digest = hashlib.sha256(data).hexdigest()
-        outbox = workspace.outbox.expanduser().resolve()
-        generated = outbox / ".generated"
-        generated.mkdir(parents=True, exist_ok=True)
-        os.chmod(outbox, 0o700)
-        os.chmod(generated, 0o700)
-        staging = generated / f"{digest}.txt"
-        if not staging.exists():
-            tmp = generated / f".{digest}.tmp"
-            tmp.write_bytes(data)
-            os.chmod(tmp, 0o600)
-            os.replace(tmp, staging)
-        plan = self.actions.plan(
-            "files.create",
-            workspace.resource_id,
-            {
-                "local_path": str(staging),
-                "path": remote,
-                "content_type": content_type,
-                "overwrite": False,
-                "sha256": digest,
-                "workspace_tool": True,
-            },
-            idempotency_key=f"workspace-text:{workspace.resource_id}:{remote}:{digest}",
-        )
-        result = self._execute_workspace_plan(plan)
-        if result.get("ok") and staging.exists():
-            staging.unlink()
-        return result
-
-    def workspace_move(self, source: str, destination: str) -> dict[str, Any]:
-        workspace = self._workspace()
-        if not workspace.allow_move:
-            raise PermissionError("Verschieben/Umbenennen ist fuer den Nextcloud-Arbeitsbereich deaktiviert")
-        source_path = self._workspace_path(source)
-        destination_path = self._workspace_path(destination)
-        plan = self.actions.plan(
-            "files.move",
-            workspace.resource_id,
-            {"source": source_path, "destination": destination_path, "overwrite": False},
-            idempotency_key=f"workspace-move:{workspace.resource_id}:{source_path}:{destination_path}",
-        )
-        return self._execute_workspace_plan(plan)
-
     def close(self) -> None:
-        self.order_service.close()
-        self.portfolio.close()
-        self.monitor.close()
-        self.scheduler.close()
-        self.antivirus.close()
-        self.storage.close()
+        for name in ("order_service", "portfolio", "monitor", "scheduler", "antivirus", "storage"):
+            component = getattr(self, name, None)
+            if component is not None:
+                component.close()
 
     def doctor(self, *, live: bool = True) -> dict[str, Any]:
         release = release_report(verify=True)
         result: dict[str, Any] = {
             "version": release["version"],
             "release_verified": bool(release.get("ok")),
+            "runtime": runtime_identity(),
             "database": {"ok": self.storage.integrity() == "ok", "detail": self.storage.integrity()},
             "resources": {
                 "ok": not bool(self.registry.duplicate_ids),
@@ -2159,8 +1962,16 @@ class PersonalAssistant:
                     else []
                 ),
             },
-            "policies": {"ok": True, "path": str(self.policy.path), "denied_actions": sorted(DEFAULT_DENIED_ACTIONS)},
-            "search": {"ok": True, "fts5": self.storage.fts_enabled, "semantic_provider": self.config.search.semantic_provider},
+            "policies": {
+                "ok": True,
+                "path": str(self.policy.path),
+                "denied_actions": sorted(DEFAULT_DENIED_ACTIONS),
+            },
+            "search": {
+                "ok": True,
+                "fts5": self.storage.fts_enabled,
+                "semantic_provider": self.config.search.semantic_provider,
+            },
             "self_management": {
                 "safe_settings": self.config.self_management.allow_safe_setting_changes,
                 "resource_discovery": self.config.self_management.allow_resource_discovery,
@@ -2213,7 +2024,9 @@ class PersonalAssistant:
             result["deck_orders"] = {"ok": False, "detail": str(exc)}
         if self.config.nextcloud.enabled:
             try:
-                result["nextcloud"] = self.nextcloud_discovery.root_health() if live else {"ok": True, "detail": "konfiguriert"}
+                result["nextcloud"] = (
+                    self.nextcloud_discovery.root_health() if live else {"ok": True, "detail": "konfiguriert"}
+                )
             except Exception as exc:
                 result["nextcloud"] = {"ok": False, "detail": str(exc)}
         else:
@@ -2242,30 +2055,37 @@ class PersonalAssistant:
                     kind="file-root",
                     connector="nextcloud",
                     enabled=True,
-                    remote_id=self.config.nextcloud.allowed_file_roots[0] if self.config.nextcloud.allowed_file_roots else "Assistent",
+                    remote_id=self.config.nextcloud.allowed_file_roots[0]
+                    if self.config.nextcloud.allowed_file_roots
+                    else "Assistent",
                     permissions=("read", "create"),
-                    metadata={"allowed_roots": list(self.config.nextcloud.allowed_file_roots), "name": "Nextcloud Dateien"},
+                    metadata={
+                        "allowed_roots": list(self.config.nextcloud.allowed_file_roots),
+                        "name": "Nextcloud Dateien",
+                    },
                 ),
             ]
             for item in collections:
-                discovered_resources.append(Resource(
-                    id=item.resource_id,
-                    kind="calendar",
-                    connector="nextcloud",
-                    enabled=True,
-                    remote_id=item.href,
-                    permissions=("read",) if item.can_read else (),
-                    metadata={
-                        "href": item.href,
-                        "name": item.name,
-                        "description": item.description,
-                        "components": list(item.components),
-                        "discovered_privileges": list(item.privileges),
-                        "server_can_read": item.can_read,
-                        "server_can_create": item.can_create,
-                        "server_can_update": item.can_update,
-                    },
-                ))
+                discovered_resources.append(
+                    Resource(
+                        id=item.resource_id,
+                        kind="calendar",
+                        connector="nextcloud",
+                        enabled=True,
+                        remote_id=item.href,
+                        permissions=("read",) if item.can_read else (),
+                        metadata={
+                            "href": item.href,
+                            "name": item.name,
+                            "description": item.description,
+                            "components": list(item.components),
+                            "discovered_privileges": list(item.privileges),
+                            "server_can_read": item.can_read,
+                            "server_can_create": item.can_create,
+                            "server_can_update": item.can_update,
+                        },
+                    )
+                )
             for item in addressbooks:
                 permissions: list[str] = []
                 if item.can_read:
@@ -2274,23 +2094,25 @@ class PersonalAssistant:
                     permissions.append("create")
                 if item.can_update:
                     permissions.append("update")
-                discovered_resources.append(Resource(
-                    id=item.resource_id,
-                    kind="addressbook",
-                    connector="nextcloud",
-                    enabled=True,
-                    remote_id=item.href,
-                    permissions=tuple(permissions),
-                    metadata={
-                        "href": item.href,
-                        "name": item.name,
-                        "description": item.description,
-                        "discovered_privileges": list(item.privileges),
-                        "server_can_read": item.can_read,
-                        "server_can_create": item.can_create,
-                        "server_can_update": item.can_update,
-                    },
-                ))
+                discovered_resources.append(
+                    Resource(
+                        id=item.resource_id,
+                        kind="addressbook",
+                        connector="nextcloud",
+                        enabled=True,
+                        remote_id=item.href,
+                        permissions=tuple(permissions),
+                        metadata={
+                            "href": item.href,
+                            "name": item.name,
+                            "description": item.description,
+                            "discovered_privileges": list(item.privileges),
+                            "server_can_read": item.can_read,
+                            "server_can_create": item.can_create,
+                            "server_can_update": item.can_update,
+                        },
+                    )
+                )
             resources = _replace_discovered_nextcloud_resources(
                 resources,
                 discovered_resources,
@@ -2307,7 +2129,7 @@ class PersonalAssistant:
         }
 
     def sync_mail(self) -> dict[str, Any]:
-        mail_db = self.config.path.parents[1] / "mail_agent/data/mail_agent.sqlite3"
+        mail_db = state_paths().mail / "mail_agent.sqlite3"
         return {
             "database": self.indexer.index_mail_database(mail_db),
             "snapshots": self.indexer.index_mail_snapshots(),
@@ -2342,6 +2164,8 @@ class PersonalAssistant:
 
     def capabilities(self) -> dict[str, Any]:
         return {
+            "view": "live-capabilities",
+            "configured": True,
             "resources": [asdict(item) for item in self.registry.list()],
             "hard_denied": sorted(DEFAULT_DENIED_ACTIONS),
             "safe_settings": self.settings.list_safe(),

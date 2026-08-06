@@ -8,9 +8,8 @@ import signal
 import socket
 import sqlite3
 import subprocess
-import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -20,7 +19,7 @@ STOP = False
 
 
 def now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def atomic_json(path: Path, payload: dict[str, Any]) -> None:
@@ -40,11 +39,17 @@ def desired(state_path: Path, job: str, default: bool) -> bool:
         return default
 
 
-def config(job: str, workspace: Path) -> tuple[list[str], int, int, bool, dict[str, str]]:
+def config(
+    job: str,
+    workspace: Path,
+    image_root: Path,
+) -> tuple[list[str], int, int, bool, dict[str, str]]:
+    assistant = str(image_root / "scripts/assistant.sh")
+    mail_agent = str(image_root / "scripts/mail-agent.sh")
     if job == "mail":
         return (
             [
-                str(workspace / "scripts/mail-agent.sh"), "run", "--drain",
+                mail_agent, "run", "--drain",
                 "--batch-size", os.environ.get("MAIL_DRAIN_BATCH_SIZE", "20"),
                 "--max-messages", os.environ.get("MAIL_MAX_MESSAGES", "500"),
                 "--max-runtime", os.environ.get("MAIL_MAX_RUNTIME", "2400"),
@@ -56,6 +61,7 @@ def config(job: str, workspace: Path) -> tuple[list[str], int, int, bool, dict[s
             int(os.environ.get("MAIL_INITIAL_DELAY_SECONDS", "120")),
             True,
             {
+                "OPENCLAW_ROLE": "mail-worker",
                 "OPENCLAW_OLLAMA_PRIORITY": "background",
                 "OPENCLAW_OLLAMA_SOURCE": "mail-container-worker",
                 "OPENCLAW_SCHEDULER_SOURCE": "background-worker",
@@ -63,35 +69,44 @@ def config(job: str, workspace: Path) -> tuple[list[str], int, int, bool, dict[s
         )
     if job == "sync":
         return (
-            [str(workspace / "scripts/assistant.sh"), "index", "all"],
+            [assistant, "index", "all"],
             int(os.environ.get("SYNC_INTERVAL_SECONDS", "900")),
             int(os.environ.get("SYNC_INITIAL_DELAY_SECONDS", "300")),
             False,
-            {"OPENCLAW_SCHEDULER_SOURCE": "background-worker"},
+            {
+                "OPENCLAW_ROLE": "sync-worker",
+                "OPENCLAW_SCHEDULER_SOURCE": "background-worker",
+            },
         )
     if job == "supervisor":
         return (
-            [str(workspace / "scripts/assistant.sh"), "jobs", "check", "--target", "all"],
+            [assistant, "jobs", "check", "--target", "all"],
             int(os.environ.get("SUPERVISOR_INTERVAL_SECONDS", "300")),
             int(os.environ.get("SUPERVISOR_INITIAL_DELAY_SECONDS", "180")),
             True,
-            {},
+            {"OPENCLAW_ROLE": "supervisor-worker"},
         )
     if job == "portfolio":
         return (
-            [str(workspace / "scripts/assistant.sh"), "portfolio", "quotes", "refresh"],
+            [assistant, "portfolio", "quotes", "refresh"],
             int(os.environ.get("PORTFOLIO_INTERVAL_SECONDS", "900")),
             int(os.environ.get("PORTFOLIO_INITIAL_DELAY_SECONDS", "240")),
             False,
-            {"OPENCLAW_SCHEDULER_SOURCE": "background-worker"},
+            {
+                "OPENCLAW_ROLE": "portfolio-worker",
+                "OPENCLAW_SCHEDULER_SOURCE": "background-worker",
+            },
         )
     if job == "monitor":
         return (
-            [str(workspace / "scripts/assistant.sh"), "monitor", "record", "--days", "7", "--live"],
+            [assistant, "monitor", "record", "--days", "7", "--live"],
             int(os.environ.get("MONITOR_INTERVAL_SECONDS", "3600")),
             int(os.environ.get("MONITOR_INITIAL_DELAY_SECONDS", "420")),
             True,
-            {"OPENCLAW_SCHEDULER_SOURCE": "background-worker"},
+            {
+                "OPENCLAW_ROLE": "monitor-worker",
+                "OPENCLAW_SCHEDULER_SOURCE": "background-worker",
+            },
         )
     raise ValueError(job)
 
@@ -111,18 +126,37 @@ def main() -> int:
     signal.signal(signal.SIGINT, handler)
 
     workspace = Path(os.environ.get("OPENCLAW_WORKSPACE", "/home/node/.openclaw/workspace")).resolve()
-    status_dir = Path(os.environ.get("OPENCLAW_JOB_STATUS_DIR", workspace / "personal_assistant/data/container_jobs")).resolve()
-    log_dir = Path(os.environ.get("OPENCLAW_LOG_DIR", workspace / "personal_assistant/data/container_logs")).resolve()
-    state_path = workspace / "personal_assistant/data/job_control.json"
+    image_root = Path(os.environ.get("OPENCLAW_IMAGE_ROOT", "/opt/openclaw-agent")).resolve()
+    if not Path(__file__).resolve().is_relative_to(image_root):
+        raise SystemExit(f"Worker-Loop liegt nicht im Imagepfad: {Path(__file__).resolve()}")
+    status_dir = Path(
+        os.environ.get(
+            "OPENCLAW_JOB_STATUS_DIR",
+            workspace / "personal_assistant/data/container_jobs",
+        )
+    ).resolve()
+    log_dir = Path(
+        os.environ.get(
+            "OPENCLAW_LOG_DIR",
+            workspace / "personal_assistant/data/container_logs",
+        )
+    ).resolve()
+    coordination = Path(
+        os.environ.get(
+            "OPENCLAW_COORDINATION_DATA_DIR",
+            workspace / "personal_assistant/data",
+        )
+    ).resolve()
+    state_path = coordination / "job_control.json"
     heartbeat = status_dir / f"{args.job}.json"
     wake = status_dir / f"{args.job}.wake"
     log_path = log_dir / f"{args.job}.log"
     status_dir.mkdir(parents=True, exist_ok=True)
     log_dir.mkdir(parents=True, exist_ok=True)
 
-    command, interval, initial_delay, default_on, extra_env = config(args.job, workspace)
+    command, interval, initial_delay, default_on, extra_env = config(args.job, workspace, image_root)
     scheduler = None if args.job == "supervisor" else AdaptiveWorkScheduler(
-        workspace / "personal_assistant/data/work_scheduler.sqlite3"
+        coordination / "work_scheduler.sqlite3"
     )
     scheduler_owner = f"container:{args.job}:{socket.gethostname()}:{os.getpid()}"
     next_run = time.monotonic() + max(0, initial_delay)
@@ -130,15 +164,17 @@ def main() -> int:
         "job": args.job,
         "state": "starting",
         "updated_at": now(),
-        "result": "success",
-        "last_exit_code": 0,
+        "result": "unknown",
+        "business_status": "starting",
+        "last_exit_code": None,
+        "consecutive_failures": 0,
     }
     atomic_json(heartbeat, status)
 
     while not STOP:
         is_desired = desired(state_path, args.job, default_on)
         if not is_desired:
-            status.update(state="disabled", updated_at=now(), result="success")
+            status.update(state="disabled", updated_at=now(), business_status="disabled")
             atomic_json(heartbeat, status)
             time.sleep(10)
             next_run = time.monotonic() + interval
@@ -149,7 +185,11 @@ def main() -> int:
             next_run = time.monotonic()
 
         if time.monotonic() < next_run:
-            status.update(state="waiting", updated_at=now(), next_run_in_seconds=max(0, int(next_run - time.monotonic())))
+            status.update(
+                state="waiting",
+                updated_at=now(),
+                next_run_in_seconds=max(0, int(next_run - time.monotonic())),
+            )
             atomic_json(heartbeat, status)
             time.sleep(min(15, max(1, next_run - time.monotonic())))
             continue
@@ -165,11 +205,14 @@ def main() -> int:
             queue_aborted = False
             while not STOP:
                 if not desired(state_path, args.job, default_on):
-                    scheduler.cancel_pending(ticket_id, detail="Job wurde waehrend der Wartezeit ausgeschaltet")
+                    scheduler.cancel_pending(
+                        ticket_id,
+                        detail="Job wurde waehrend der Wartezeit ausgeschaltet",
+                    )
                     status.update(
                         state="disabled",
                         updated_at=now(),
-                        result="success",
+                        business_status="disabled",
                         scheduler_ticket=ticket_id,
                     )
                     atomic_json(heartbeat, status)
@@ -267,14 +310,31 @@ def main() -> int:
                 status["scheduler_error"] = "Laufergebnis konnte keiner aktiven Lease zugeordnet werden"
             else:
                 scheduler.prune(keep_days=180)
+        previous_failures = int(status.get("consecutive_failures") or 0)
+        if STOP or lease_lost:
+            business_status = "interrupted"
+            consecutive_failures = previous_failures + 1
+        elif code == 0:
+            business_status = "healthy"
+            consecutive_failures = 0
+        elif code == 1:
+            business_status = "degraded"
+            consecutive_failures = previous_failures + 1
+        else:
+            business_status = "failed"
+            consecutive_failures = previous_failures + 1
         status.update(
             state="waiting" if not STOP else "stopping",
             updated_at=now(),
             last_finished_at=finished,
             last_exit_code=code,
             result="success" if code == 0 else ("degraded" if code == 1 else "failed"),
+            business_status=business_status,
+            consecutive_failures=consecutive_failures,
             pid=None,
         )
+        if code == 0:
+            status["last_success_at"] = finished
         atomic_json(heartbeat, status)
         next_run = time.monotonic() + interval
 

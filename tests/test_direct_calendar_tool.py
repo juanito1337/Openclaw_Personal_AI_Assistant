@@ -3,7 +3,7 @@ from __future__ import annotations
 import tempfile
 import tomllib
 import unittest
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -90,7 +90,7 @@ class DirectCalendarToolTests(unittest.TestCase):
 
     def test_direct_create_builds_utc_ics_and_uses_narrow_approval(self):
         assistant = self.assistant()
-        start = (datetime.now(timezone.utc) + timedelta(days=2)).astimezone().replace(second=0, microsecond=0)
+        start = (datetime.now(UTC) + timedelta(days=2)).astimezone().replace(second=0, microsecond=0)
         result = assistant.calendar_create(
             title="Werkstatttermin",
             start=start.isoformat(),
@@ -110,7 +110,7 @@ class DirectCalendarToolTests(unittest.TestCase):
 
     def test_invalid_interval_is_rejected_before_action_plan(self):
         assistant = self.assistant()
-        start = datetime.now(timezone.utc) + timedelta(days=2)
+        start = datetime.now(UTC) + timedelta(days=2)
         with self.assertRaises(ValueError):
             assistant.calendar_create(
                 title="Falsch",

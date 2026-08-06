@@ -2,15 +2,16 @@ from __future__ import annotations
 
 import tempfile
 import unittest
-from unittest.mock import patch
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from personal_assistant.antivirus import AntivirusResult
 from personal_assistant.cli import parser as cli_parser
 from personal_assistant.connectors.nextcloud.files import NextcloudFiles, RemoteFile
+from personal_assistant.job_control import default_job_specs
 from personal_assistant.models import PolicyDecision
 from personal_assistant.portfolio import (
     EodhdClient,
@@ -21,12 +22,9 @@ from personal_assistant.portfolio import (
     parse_portfolio_performance_xml,
 )
 from personal_assistant.service import PersonalAssistant
-from personal_assistant.tool_settings import PortfolioToolSettings
-from personal_assistant.tool_settings import ToolSettings, load_tool_settings
 from personal_assistant.tool_registry import build_tool_registry
-from personal_assistant.job_control import default_job_specs
+from personal_assistant.tool_settings import PortfolioToolSettings, ToolSettings, load_tool_settings
 from personal_assistant.tool_setup import configure_portfolio_tools
-
 
 ISIN = "DE000BASF111"
 
@@ -235,13 +233,15 @@ class PortfolioParserTests(unittest.TestCase):
         self.assertEqual(free_interval.interval_minutes, 90)
 
     def test_setup_requires_explicit_permission(self) -> None:
-        with tempfile.TemporaryDirectory() as folder:
-            with self.assertRaisesRegex(PermissionError, "approve-permissions"):
-                configure_portfolio_tools(
-                    enable=True,
-                    approve_permissions=False,
-                    path=Path(folder) / "tools.toml",
-                )
+        with (
+            tempfile.TemporaryDirectory() as folder,
+            self.assertRaisesRegex(PermissionError, "approve-permissions"),
+        ):
+            configure_portfolio_tools(
+                enable=True,
+                approve_permissions=False,
+                path=Path(folder) / "tools.toml",
+            )
 
     def test_setup_selects_eodhd_secret_and_fifteen_minute_interval(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
@@ -342,7 +342,7 @@ class PortfolioServiceTests(unittest.TestCase):
         self.xml.write_bytes(xml_fixture())
         self.csv = self.inbox / "depot-export-31.07.2026.csv"
         self.csv.write_bytes(csv_fixture())
-        self.clock = MutableClock(datetime(2026, 7, 29, 10, 0, tzinfo=timezone.utc))
+        self.clock = MutableClock(datetime(2026, 7, 29, 10, 0, tzinfo=UTC))
         self.notifications: list[str] = []
         self.price = Decimal("100")
         self.quote_offset = timedelta()
@@ -535,7 +535,7 @@ class PortfolioServiceTests(unittest.TestCase):
         self.assertFalse(result["critical"])
 
     def test_valuation_converts_usd_quotes_with_eodhd_fx_and_totals_in_eur(self) -> None:
-        self.clock.value = datetime(2026, 8, 3, 10, 0, tzinfo=timezone.utc)
+        self.clock.value = datetime(2026, 8, 3, 10, 0, tzinfo=UTC)
         self.service.import_csv(self.csv.name, dry_run=False)
         self.service.watchlist_add(
             isin=ISIN, name="BASF SE", symbol="BAS", mic="XETR", currency="USD"
@@ -579,7 +579,7 @@ class PortfolioServiceTests(unittest.TestCase):
         self.assertEqual(result["totals"]["EUR"]["gain"], "101.25")
 
     def test_valuation_fails_closed_without_required_fx_rate(self) -> None:
-        self.clock.value = datetime(2026, 8, 3, 10, 0, tzinfo=timezone.utc)
+        self.clock.value = datetime(2026, 8, 3, 10, 0, tzinfo=UTC)
         self.service.import_csv(self.csv.name, dry_run=False)
         self.service.watchlist_add(
             isin=ISIN, name="BASF SE", symbol="BAS", mic="XETR", currency="USD"

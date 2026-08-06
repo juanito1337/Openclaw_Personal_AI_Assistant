@@ -14,10 +14,10 @@ from .tool_settings import (
     DEFAULT_TOOL_SETTINGS,
     DEFAULT_WORKSPACE_OUTBOX,
     CalendarMailToolSettings,
+    DeckOrdersToolSettings,
     DirectCalendarToolSettings,
     DirectContactsToolSettings,
     DirectTasksToolSettings,
-    DeckOrdersToolSettings,
     InvoiceToolSettings,
     MailMoveToolSettings,
     MailToolSettings,
@@ -36,10 +36,7 @@ def _toml_string(value: str) -> str:
 
 def _write_tools(path: Path, settings: ToolSettings) -> Path | None:
     backup: Path | None = None
-    if path.exists():
-        old = path.read_bytes()
-    else:
-        old = b""
+    old = path.read_bytes() if path.exists() else b""
 
     mail = settings.mail
     invoices = mail.invoices
@@ -786,10 +783,14 @@ def configure_deck_orders_tools(
     registry = ResourceRegistry(WORKSPACE_ROOT / "personal_assistant/resources.toml")
     resource_id = "nextcloud-deck-orders"
     required = set()
-    if allow_read: required.add("read")
-    if allow_create: required.add("create")
-    if allow_update: required.add("update")
-    if allow_move: required.add("move")
+    if allow_read:
+        required.add("read")
+    if allow_create:
+        required.add("create")
+    if allow_update:
+        required.add("update")
+    if allow_move:
+        required.add("move")
     if required - {"read"} and not approve_permissions:
         raise PermissionError("Deck-Schreibrechte benoetigen --approve-permissions")
     old = registry.resources.get(resource_id)

@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import tempfile
 import unittest
-from pathlib import Path
 from dataclasses import replace
+from pathlib import Path
 from types import SimpleNamespace
 
 from personal_assistant.cli import parser
@@ -32,11 +32,11 @@ class UpdateClient:
         self.calls = []
         self.conflict = conflict
         self.vcard = (
-            "BEGIN:VCARD\r\nVERSION:3.0\r\nUID:uid-1\r\n"
-            "FN:Max Alt\r\nN:Alt;Max;;;\r\nEMAIL:max@old.example\r\n"
-            "TEL:+49123\r\nADR:;;Musterweg 1;Hamburg;;;Deutschland\r\n"
-            "BDAY:19800101\r\nEND:VCARD\r\n"
-        ).encode()
+            b"BEGIN:VCARD\r\nVERSION:3.0\r\nUID:uid-1\r\n"
+            b"FN:Max Alt\r\nN:Alt;Max;;;\r\nEMAIL:max@old.example\r\n"
+            b"TEL:+49123\r\nADR:;;Musterweg 1;Hamburg;;;Deutschland\r\n"
+            b"BDAY:19800101\r\nEND:VCARD\r\n"
+        )
         self.etag = '"etag-1"'
 
     def request(self, method, path, **kwargs):

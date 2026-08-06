@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+from .source_manifest import MANIFEST_NAME, verify_source_manifest
 
 SCHEMA_VERSION = 1
 
@@ -12,7 +14,12 @@ SCHEMA_VERSION = 1
 def workspace_root(root: Path | str | None = None) -> Path:
     if root is not None:
         return Path(root).expanduser().resolve()
-    return Path(os.environ.get("OPENCLAW_WORKSPACE") or Path(__file__).resolve().parents[1]).expanduser().resolve()
+    selected = (
+        os.environ.get("OPENCLAW_RELEASE_ROOT")
+        or os.environ.get("OPENCLAW_WORKSPACE")
+        or Path(__file__).resolve().parents[1]
+    )
+    return Path(selected).expanduser().resolve()
 
 
 def release_path(root: Path | str | None = None) -> Path:
@@ -77,6 +84,29 @@ def verify_release(root: Path | str | None = None) -> dict[str, Any]:
     for name, result in documents.items():
         if not result.get("ok"):
             issues.append(f"{name}: {result.get('detail')}")
+    version_path = base / "VERSION"
+    try:
+        version_file = version_path.read_text(encoding="utf-8").strip()
+    except OSError as exc:
+        version_file = ""
+        issues.append(f"VERSION ist unlesbar: {exc}")
+    if version and version_file != version:
+        issues.append(
+            f"VERSION ({version_file or '<leer>'}) stimmt nicht mit RELEASE.json ({version}) ueberein"
+        )
+    source_manifest: dict[str, Any]
+    if (base / MANIFEST_NAME).is_file() or (base / ".git").exists():
+        source_report = verify_source_manifest(base)
+        source_manifest = source_report.as_dict()
+        if not source_report.ok:
+            issues.append("SOURCE_MANIFEST.sha256 stimmt nicht mit der Quellmenge ueberein")
+    else:
+        source_manifest = {
+            "ok": None,
+            "manifest": str(base / MANIFEST_NAME),
+            "skipped": True,
+            "detail": "Installierter Runtime-Workspace ohne Quellmanifest",
+        }
     installed_at = manifest.get("installed_at")
     warnings: list[str] = []
     if not installed_at:
@@ -94,6 +124,7 @@ def verify_release(root: Path | str | None = None) -> dict[str, Any]:
         "issues": issues,
         "warnings": warnings,
         "documents": documents,
+        "source_manifest": source_manifest,
     }
 
 
@@ -165,7 +196,7 @@ def release_report(
 def stamp_installation(path: Path | str, *, previous_version: str | None, installation_id: str | None = None) -> dict[str, Any]:
     target = Path(path)
     payload = json.loads(target.read_text(encoding="utf-8"))
-    payload["installed_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    payload["installed_at"] = datetime.now(UTC).isoformat(timespec="seconds")
     current_version = str(payload.get("version") or "")
     if previous_version and previous_version != current_version:
         payload["previous_version"] = previous_version

@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "milestone": "M8",
+  "measured_at": "2026-08-06T12:58:08+00:00",
+  "scope": "temporary local fixture roots; no /srv/openclaw and no remote systems",
+  "minimum_direct_upgrade_version": "3.4.0-r26.1",
+  "results": [
+    {
+      "scenario": "minimum-r26.1",
+      "source_version": "3.4.0-r26.1",
+      "backup_seconds": 0.380925,
+      "restore_seconds": 0.299435,
+      "backup_bytes": 927,
+      "verified_exact_tree": true,
+      "archive_roots": [
+        "config",
+        "secrets",
+        "state"
+      ],
+      "invalid_migration_gate": null,
+      "accepted_operations_lost": 0
+    },
+    {
+      "scenario": "current-r27.2.5",
+      "source_version": "3.4.0-r27.2.5",
+      "backup_seconds": 0.448185,
+      "restore_seconds": 0.31517,
+      "backup_bytes": 608,
+      "verified_exact_tree": true,
+      "archive_roots": [
+        "config",
+        "secrets",
+        "state"
+      ],
+      "invalid_migration_gate": null,
+      "accepted_operations_lost": 0
+    },
+    {
+      "scenario": "failed-upgrade",
+      "source_version": "3.4.0-r27.2.5",
+      "backup_seconds": 0.350452,
+      "restore_seconds": 0.270395,
+      "backup_bytes": 609,
+      "verified_exact_tree": true,
+      "archive_roots": [
+        "config",
+        "secrets",
+        "state"
+      ],
+      "invalid_migration_gate": {
+        "exit_code": 1,
+        "failed_closed": true,
+        "state_unchanged": true
+      },
+      "accepted_operations_lost": 0
+    }
+  ],
+  "rto": {
+    "measured_local_restore_max_seconds": 0.31517,
+    "excludes": [
+      "image pull",
+      "remote snapshot restore",
+      "production health convergence"
+    ]
+  },
+  "rpo": {
+    "accepted_local_operations_lost_in_drill": 0,
+    "contract": "state after the verified snapshot is not recoverable from that snapshot",
+    "remote_without_snapshot": "not recoverable by OpenClaw local rollback"
+  },
+  "tools": {
+    "python": "Python 3.12.3",
+    "sqlite": "3.45.1 2024-01-30 16:01:20 e876e51a0ed5c5b3126f52e532044363a014bc594cfefa87ffb5b82257ccalt1 (64-bit)",
+    "tar": "tar (GNU tar) 1.35",
+    "rsync": "rsync  version 3.2.7  protocol version 31"
+  }
+}
