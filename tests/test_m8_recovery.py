@@ -79,6 +79,9 @@ def _environment(tmp_path: Path) -> tuple[dict[str, str], Path, Path]:
         encoding="utf-8",
     )
     docker.chmod(0o755)
+    chown = fake_bin / "chown"
+    chown.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    chown.chmod(0o755)
     environment = os.environ.copy()
     environment.update(
         {

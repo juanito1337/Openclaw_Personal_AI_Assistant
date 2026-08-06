@@ -4,6 +4,7 @@ import ast
 import importlib
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -65,16 +66,19 @@ class M5ToolContractTests(unittest.TestCase):
 
     def test_top_level_help_matches_characterized_output(self) -> None:
         expected = (GOLDEN / "m5-cli-help.txt").read_text(encoding="utf-8")
-        completed = subprocess.run(
-            [sys.executable, "-m", "personal_assistant", "--help"],
-            cwd=ROOT,
-            check=False,
-            capture_output=True,
-            text=True,
-            env={**os.environ, "COLUMNS": "80", "LINES": "24"},
-        )
-        self.assertEqual(completed.returncode, 0, completed.stderr)
-        self.assertEqual(completed.stdout, expected)
+        characterized = re.sub(r"\s+", " ", expected).strip()
+        for columns in ("80", "200"):
+            with self.subTest(columns=columns):
+                completed = subprocess.run(
+                    [sys.executable, "-m", "personal_assistant", "--help"],
+                    cwd=ROOT,
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    env={**os.environ, "COLUMNS": columns, "LINES": "24"},
+                )
+                self.assertEqual(completed.returncode, 0, completed.stderr)
+                self.assertEqual(re.sub(r"\s+", " ", completed.stdout).strip(), characterized)
 
     def test_static_catalog_is_typed_complete_and_has_real_anchors(self) -> None:
         definitions = tool_definitions()
