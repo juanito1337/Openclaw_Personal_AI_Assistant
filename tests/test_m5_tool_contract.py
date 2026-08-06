@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 import importlib
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -70,6 +71,7 @@ class M5ToolContractTests(unittest.TestCase):
             check=False,
             capture_output=True,
             text=True,
+            env={**os.environ, "COLUMNS": "80", "LINES": "24"},
         )
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertEqual(completed.stdout, expected)
