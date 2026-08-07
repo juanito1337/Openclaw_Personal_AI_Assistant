@@ -42,11 +42,15 @@ jeweiligen SQLite-Datenbank und duerfen nicht einzeln gesichert werden.
 2. `PRAGMA quick_check` aller erkannten SQLite-Dateien,
 3. konsistenter Snapshot ueber SQLite `backup()`, SHA-256 und internes Manifest,
 4. verlustfreie Aufteilung der bisherigen `assistant.sqlite3` in Core und Wissen,
-   `VACUUM` gegen Datenreste sowie erneute Quick-Checks unter Staging,
+   explizites `VACUUM INTO` auf dem State-Dateisystem gegen Datenreste, atomarer
+   Replace sowie erneute Quick-Checks unter Staging,
 5. atomarer Rename nach `v3/`, danach erst globaler Layoutmarker.
 
 Ein Neustart ist idempotent. Ein unvollstaendiges bereits publiziertes Ziel bricht
-fail-closed ab. `runtime_layout restore` akzeptiert nur ein leeres Ziel und eine
+fail-closed ab; bekannte unveroeffentlichte `v3-*`-Stagingreste werden unter der
+Layoutsperre vor einem neuen Versuch und nach Fehlern entfernt. Unerwartete
+Stagingeintraege werden nicht geloescht, sondern blockieren die Migration.
+`runtime_layout restore` akzeptiert nur ein leeres Ziel und eine
 passende SHA-256-Datei, blockiert Pfadtraversal und prueft alle restaurierten
 SQLite-Datenbanken. Der Rueckweg ist damit als Fixture-Restore fuer Layout 1/2 und
 als vollstaendiger Layout-3-Restore getestet; er wird nie automatisch ueber einen

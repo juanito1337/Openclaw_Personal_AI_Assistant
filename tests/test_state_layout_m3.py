@@ -16,6 +16,7 @@ from unittest.mock import patch
 
 from personal_assistant.runtime_layout import (
     LAYOUT_VERSION,
+    _prune_assistant_database,
     backup_state,
     migrate_layout,
     restore_backup,
@@ -201,6 +202,63 @@ class StateLayoutM3Tests(unittest.TestCase):
                     migrate_layout(ROOT, state, workspace)
                 self.assertFalse((state / "v3").exists())
                 self.assertFalse((state / ".layout-migrations/backups").exists())
+
+    def test_database_pruning_compacts_via_atomic_replacement(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            database = Path(folder) / "assistant.sqlite3"
+            connection = sqlite3.connect(database)
+            connection.execute("CREATE TABLE retained(value TEXT)")
+            connection.execute("CREATE TABLE discarded(value BLOB)")
+            connection.executemany(
+                "INSERT INTO discarded(value) VALUES(?)",
+                [(b"x" * 4096,) for _ in range(256)],
+            )
+            connection.execute("INSERT INTO retained(value) VALUES('keep')")
+            connection.commit()
+            connection.close()
+            before = database.stat().st_size
+            os.chmod(database, 0o600)
+
+            _prune_assistant_database(database, ("discarded",))
+
+            connection = sqlite3.connect(database)
+            self.assertEqual(
+                connection.execute("SELECT value FROM retained").fetchone()[0],
+                "keep",
+            )
+            self.assertIsNone(
+                connection.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='discarded'"
+                ).fetchone()
+            )
+            self.assertEqual(connection.execute("PRAGMA quick_check").fetchone()[0], "ok")
+            connection.close()
+            self.assertLess(database.stat().st_size, before)
+            self.assertEqual(database.stat().st_mode & 0o777, 0o600)
+            self.assertEqual(list(database.parent.glob(".*.vacuum-*")), [])
+
+    def test_failed_layout_build_removes_only_staging_and_preserves_source(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            state, workspace = self._state(folder)
+            stale = state / ".layout-migrations/staging/v3-stale-fixture"
+            stale.mkdir(parents=True)
+            (stale / "partial").write_text("discard\n", encoding="utf-8")
+            with (
+                patch(
+                    "personal_assistant.runtime_layout._prune_assistant_database",
+                    side_effect=RuntimeError("injected compaction failure"),
+                ),
+                self.assertRaisesRegex(RuntimeError, "injected compaction failure"),
+            ):
+                migrate_layout(ROOT, state, workspace)
+
+            self.assertFalse((state / "v3").exists())
+            self.assertEqual(list((state / ".layout-migrations/staging").iterdir()), [])
+            source = workspace / "personal_assistant/data/assistant.sqlite3"
+            connection = sqlite3.connect(source)
+            self.assertEqual(connection.execute("PRAGMA quick_check").fetchone()[0], "ok")
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM action_plans").fetchone()[0], 1)
+            connection.close()
 
     def test_actionplan_idempotency_survives_real_multiprocess_contention(self) -> None:
         with tempfile.TemporaryDirectory() as folder:

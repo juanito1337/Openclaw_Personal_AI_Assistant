@@ -31,6 +31,14 @@ Image-Referenzen, Runtime-Typ und optional eine externe Snapshotreferenz. Pruefs
 Tar-Struktur, SQLite-Integritaet und ein Restore in ein temporaeres Verzeichnis
 werden vor der Markierung `verified=true` geprueft.
 
+Vor dem Writerstop muss der persistierte Runtime-Typ mit den beobachteten
+systemd- beziehungsweise Docker-Writern uebereinstimmen. Ein Marker
+`legacy-systemd` bei laufenden Docker-Writern oder aktive Legacy-Writer bei
+`docker` ist ein Integritaetsfehler und bricht vor dem Backup ab. Fehler innerhalb
+der Compose-Hilfsfunktion erben den Rollback-Trap; nach einem verifizierten Backup
+darf deshalb auch ein fehlgeschlagenes `layout-init` keinen halben Kandidaten ohne
+automatischen Rollback zuruecklassen.
+
 `restore-local-state.sh` ist die einzige gemeinsame lokale Restore-Implementierung.
 Sie verlangt `OPENCLAW_RESTORE_OFFLINE=YES`, vorhandene geschuetzte Zielwurzeln,
 ein verifiziertes Backup und erfolgreiche SQLite-Pruefung. Sie ersetzt nur Inhalte

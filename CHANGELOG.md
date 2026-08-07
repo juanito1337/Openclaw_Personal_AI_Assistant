@@ -38,6 +38,12 @@
 - Die Memory-Abnahme protokolliert den aufgebauten Speicherdruck schrittweise und
   erkennt einen runtime-spezifischen SIGKILL nur zusammen mit dem exakten Limit,
   leerem Docker-State-Fehler und unvollstaendiger Allokation als cgroup-Nachweis.
+- Das Deployment gleicht den persistierten Runtime-Typ vor Aenderungen mit
+  tatsaechlich laufenden Docker-/systemd-Writern ab, verifiziert den Writerstop und
+  vererbt den automatischen Rollback auch in Compose-Shellfunktionen.
+- Layoutmigrationen komprimieren getrennte SQLite-Datenbanken explizit auf dem
+  State-Dateisystem, ersetzen sie erst nach Quick-Check atomar und entfernen
+  bekannte unveroeffentlichte Stagingreste nach einem Fehler.
 
 ## Unreleased – M7 Reproduzierbare und attestierte Image-Lieferkette
 

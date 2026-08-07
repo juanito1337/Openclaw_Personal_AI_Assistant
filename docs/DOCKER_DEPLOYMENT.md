@@ -127,6 +127,11 @@ beobachtbar ready.
 ### Getrennter State, Konfiguration und Secrets
 
 `layout-init` migriert den gesamten State einmalig, bevor andere Rollen starten.
+Dabei werden bekannte Reste eines fehlgeschlagenen, noch unveroeffentlichten
+Stagings unter der exklusiven Layoutsperre entfernt. Die SQLite-Aufteilung
+kompaktiert in eine explizite Datei auf demselben State-Dateisystem und ersetzt
+die gepruefte Staging-Datenbank atomar; der begrenzte Container-`/tmp` ist kein
+implizites Migrationsziel.
 Danach werden nur die benoetigten Teilbaeume gemountet:
 
 ```text
@@ -400,7 +405,8 @@ The deployment sequence is deliberately strict:
    source revision for all three immutable target digests,
 2. pull the verified images and check target-image state-layout limits,
 3. abort an incompatible downgrade before stopping the current stack,
-4. stop every writer,
+4. require that `OPENCLAW_CURRENT_RUNTIME` agrees with observed systemd/Docker
+   writers, then stop every writer and verify the Docker writers are stopped,
 5. create an optional external snapshot when a hook is configured,
 6. run SQLite quick checks,
 7. archive state/config/secrets,
@@ -413,7 +419,11 @@ The deployment sequence is deliberately strict:
 13. verify worker health and the current job heartbeat after the workers have
     actually started.
 
-Any failing command triggers `rollback.sh` automatically.
+Any failing command after the verified backup triggers `rollback.sh`
+automatically, including a failure inside the Compose shell helper. A runtime
+identity mismatch fails earlier without stopping or backing up anything; it must
+be resolved explicitly because the deployer does not guess which writer is
+authoritative.
 
 Rollback restores the contents of the existing protected `state`, `config` and
 `secrets` roots in place. It does not require permission to delete the

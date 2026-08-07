@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 SCRIPT_DIR=$(CDPATH='' cd "$(dirname "$0")" && pwd)
 # shellcheck source=docker/scripts/common.sh
@@ -56,6 +56,36 @@ legacy_writer_timers=(
   personal-assistant-portfolio.timer
   personal-assistant-monitor.timer
 )
+container_writer_services=(
+  mail-worker
+  sync-worker
+  supervisor-worker
+  portfolio-worker
+  monitor-worker
+)
+
+running_container_writers() {
+  local service container running
+  for service in "${container_writer_services[@]}"; do
+    container="openclaw-$service"
+    running=$(docker inspect --format '{{.State.Running}}' "$container" 2>/dev/null || true)
+    if [[ "$running" == "true" ]]; then
+      printf '%s\n' "$container"
+    fi
+  done
+}
+
+assert_container_writers_stopped() {
+  local running
+  running=$(running_container_writers)
+  if [[ -n "$running" ]]; then
+    echo "Docker-Writer laufen noch und blockieren Deployment/Backup:" >&2
+    while IFS= read -r container; do
+      printf '  %s\n' "$container" >&2
+    done <<<"$running"
+    return 1
+  fi
+}
 
 validate_legacy_home() {
   local legacy_home=${OPENCLAW_LEGACY_HOME:-}
@@ -80,6 +110,23 @@ assert_legacy_writers_disabled() {
     fi
   done
 }
+
+case "$previous_runtime" in
+  legacy-systemd)
+    if [[ -n "$(running_container_writers)" ]]; then
+      echo "Runtime-Identitaet widerspruechlich: OPENCLAW_CURRENT_RUNTIME=legacy-systemd, aber Docker-Writer laufen." >&2
+      echo "Vor dem Deployment den tatsaechlichen Laufzeitstand explizit wiederherstellen oder korrigieren." >&2
+      exit 2
+    fi
+    ;;
+  docker)
+    assert_legacy_writers_disabled
+    ;;
+  *)
+    echo "Unbekannte OPENCLAW_CURRENT_RUNTIME-Identitaet: $previous_runtime" >&2
+    exit 2
+    ;;
+esac
 
 if [[ "$previous_runtime" == "legacy-systemd" ]] && ! validate_legacy_home; then
   echo "Legacy-Deployment abgebrochen: OPENCLAW_LEGACY_HOME ist nicht startfaehig." >&2
@@ -145,7 +192,8 @@ if [[ "$previous_runtime" == "legacy-systemd" ]]; then
   done
   assert_legacy_writers_disabled
 else
-  compose stop mail-worker sync-worker supervisor-worker portfolio-worker monitor-worker gateway ollama-proxy >/dev/null 2>&1 || true
+  compose stop mail-worker sync-worker supervisor-worker portfolio-worker monitor-worker gateway ollama-proxy
+  assert_container_writers_stopped
 fi
 
 external_reference=""

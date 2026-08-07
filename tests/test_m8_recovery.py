@@ -168,6 +168,107 @@ def _stub(path: Path, body: str) -> None:
     path.chmod(0o755)
 
 
+def test_deploy_rejects_legacy_marker_with_running_docker_writer(tmp_path: Path) -> None:
+    scripts = tmp_path / "deployment/scripts"
+    scripts.mkdir(parents=True)
+    for name in ("deploy.sh", "common.sh"):
+        shutil.copy2(ROOT / "docker/scripts" / name, scripts / name)
+    _stub(scripts / "verify-image-supply-chain.sh", "exit 0\n")
+    (scripts / "check-layout-compatibility.py").write_text(
+        "#!/usr/bin/env python3\nraise SystemExit(0)\n", encoding="utf-8"
+    )
+    backup_called = tmp_path / "backup.called"
+    _stub(scripts / "backup.sh", f"touch {backup_called}\nprintf 'backup-id\\n'\n")
+    _stub(scripts / "rollback.sh", "exit 0\n")
+    _stub(scripts / "smoke-test.sh", "exit 0\n")
+
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    docker_log = tmp_path / "docker.log"
+    _stub(
+        fake_bin / "docker",
+        'printf "%s\\n" "$*" >> "$M8_DOCKER_LOG"\n'
+        'case " $* " in\n'
+        '  *"State.Running"*"openclaw-mail-worker"*) printf "true\\n";;\n'
+        '  *"State.Running"*) printf "false\\n";;\n'
+        'esac\n'
+        "exit 0\n",
+    )
+    _stub(fake_bin / "systemctl", "exit 1\n")
+    env_file = tmp_path / "deployment/.env"
+    env_file.write_text(
+        "OPENCLAW_IMAGE=fixture.invalid/old:runtime\n"
+        "OPENCLAW_PROXY_IMAGE=fixture.invalid/old:proxy\n"
+        "OPENCLAW_MAINTENANCE_IMAGE=fixture.invalid/old:maintenance\n"
+        "OPENCLAW_CURRENT_RUNTIME=legacy-systemd\n"
+        "OPENCLAW_EXPECTED_SOURCE_REVISION=0123456789abcdef0123456789abcdef01234567\n"
+        "OPENCLAW_WRITE_TEST_ENABLED=false\n"
+        "REQUIRE_EXTERNAL_BACKUP_FOR_WRITE_TEST=false\n",
+        encoding="utf-8",
+    )
+    compose_file = tmp_path / "deployment/compose.yaml"
+    compose_file.write_text("services: {}\n", encoding="utf-8")
+    openclaw = tmp_path / "openclaw"
+    for name in ("state", "config", "secrets", "backups/releases"):
+        (openclaw / name).mkdir(parents=True, exist_ok=True)
+    environment = os.environ.copy()
+    environment.update(
+        {
+            "PATH": f"{fake_bin}:{environment['PATH']}",
+            "OPENCLAW_DEPLOY_ENV": str(env_file),
+            "OPENCLAW_COMPOSE_FILE": str(compose_file),
+            "OPENCLAW_ROOT": str(openclaw),
+            "OPENCLAW_STATE_DIR": str(openclaw / "state"),
+            "OPENCLAW_CONFIG_DIR": str(openclaw / "config"),
+            "OPENCLAW_SECRETS_DIR": str(openclaw / "secrets"),
+            "OPENCLAW_BACKUP_DIR": str(openclaw / "backups/releases"),
+            "M8_DOCKER_LOG": str(docker_log),
+        }
+    )
+    result = subprocess.run(
+        [
+            str(scripts / "deploy.sh"),
+            "fixture.invalid/new:runtime",
+            "fixture.invalid/new:proxy",
+            "fixture.invalid/new:maintenance",
+        ],
+        cwd=tmp_path,
+        env=environment,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 2
+    assert "Runtime-Identitaet widerspruechlich" in result.stderr
+    assert not backup_called.exists()
+    assert " stop mail-worker " not in f" {docker_log.read_text(encoding='utf-8')} "
+
+    env_file.write_text(
+        env_file.read_text(encoding="utf-8").replace(
+            "OPENCLAW_CURRENT_RUNTIME=legacy-systemd",
+            "OPENCLAW_CURRENT_RUNTIME=docker",
+        ),
+        encoding="utf-8",
+    )
+    failed_stop = subprocess.run(
+        [
+            str(scripts / "deploy.sh"),
+            "fixture.invalid/new:runtime",
+            "fixture.invalid/new:proxy",
+            "fixture.invalid/new:maintenance",
+        ],
+        cwd=tmp_path,
+        env=environment,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert failed_stop.returncode != 0
+    assert "Docker-Writer laufen noch" in failed_stop.stderr
+    assert not backup_called.exists()
+    assert " stop mail-worker " in f" {docker_log.read_text(encoding='utf-8')} "
+
+
 def test_failed_product_smoke_runs_automatic_rollback_and_surfaces_rollback_failure(
     tmp_path: Path,
 ) -> None:
@@ -189,10 +290,15 @@ def test_failed_product_smoke_runs_automatic_rollback_and_surfaces_rollback_fail
     _stub(
         fake_bin / "docker",
         'if [ "${1:-}" = "compose" ]; then\n'
+        '  if [ "${M8_FAIL_CANDIDATE_UP:-}" = "true" ] && '
+        'printf "%s" " $* " | grep -Fq " up -d ollama-proxy gateway "; then exit 31; fi\n'
         '  case " $* " in *" ps -q "*) printf "m8-id\\n";; esac\n'
-        'elif [ "${1:-}" = "inspect" ]; then printf "running\\n"; fi\n'
+        'elif [ "${1:-}" = "inspect" ]; then\n'
+        '  case " $* " in *"State.Running"*) printf "false\\n";; *) printf "running\\n";; esac\n'
+        'fi\n'
         "exit 0\n",
     )
+    _stub(fake_bin / "systemctl", "exit 1\n")
     env_file = tmp_path / "deployment/.env"
     env_file.write_text(
         "OPENCLAW_IMAGE=fixture.invalid/old:runtime\n"
@@ -235,6 +341,17 @@ def test_failed_product_smoke_runs_automatic_rollback_and_surfaces_rollback_fail
     assert failed_smoke.returncode == 23
     assert "injected smoke failure" in failed_smoke.stderr
     assert rollback_log.read_text(encoding="utf-8").strip() == "m8-backup --automatic"
+
+    rollback_log.unlink()
+    environment["M8_FAIL_CANDIDATE_UP"] = "true"
+    env_file.write_text(env_file.read_text().replace("fixture.invalid/new", "fixture.invalid/old"))
+    failed_compose = subprocess.run(
+        command, cwd=tmp_path, env=environment, text=True, capture_output=True, check=False
+    )
+    assert failed_compose.returncode == 31
+    assert "Deployment fehlgeschlagen (Code 31)" in failed_compose.stderr
+    assert rollback_log.read_text(encoding="utf-8").strip() == "m8-backup --automatic"
+    environment.pop("M8_FAIL_CANDIDATE_UP")
 
     _stub(scripts / "rollback.sh", "exit 9\n")
     env_file.write_text(env_file.read_text().replace("fixture.invalid/new", "fixture.invalid/old"))

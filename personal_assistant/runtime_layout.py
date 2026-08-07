@@ -381,16 +381,45 @@ def _copy_if_present(source: Path, target: Path) -> None:
 
 
 def _prune_assistant_database(path: Path, tables: tuple[str, ...]) -> None:
-    connection = sqlite3.connect(path)
+    compacted = path.with_name(
+        f".{path.name}.vacuum-{os.getpid()}-{time.monotonic_ns()}"
+    )
     try:
-        connection.execute("PRAGMA foreign_keys=OFF")
-        for table in tables:
-            connection.execute(f'DROP TABLE IF EXISTS "{table}"')
-        connection.commit()
-        connection.execute("VACUUM")
+        connection = sqlite3.connect(path)
+        try:
+            connection.execute("PRAGMA foreign_keys=OFF")
+            for table in tables:
+                connection.execute(f'DROP TABLE IF EXISTS "{table}"')
+            connection.commit()
+            # Keep the compacted copy explicitly beside the staged database.
+            # This ties all required capacity to the state filesystem checked
+            # by the migration preflight instead of relying on SQLite's
+            # implicit transient-file placement.
+            connection.execute("VACUUM INTO ?", (str(compacted),))
+        finally:
+            connection.close()
+        _sqlite_integrity(compacted)
+        os.chmod(compacted, path.stat().st_mode & 0o777)
+        compacted.replace(path)
     finally:
-        connection.close()
+        compacted.unlink(missing_ok=True)
     _sqlite_integrity(path)
+
+
+def _clear_v3_staging(state_root: Path) -> None:
+    staging_root = state_root / ".layout-migrations" / "staging"
+    if not staging_root.exists():
+        return
+    for candidate in staging_root.iterdir():
+        if (
+            not candidate.name.startswith("v3-")
+            or candidate.is_symlink()
+            or not candidate.is_dir()
+        ):
+            raise RuntimeError(
+                f"Unerwarteter Eintrag im Layout-Staging; Restore/Pruefung erforderlich: {candidate}"
+            )
+        shutil.rmtree(candidate)
 
 
 def _split_assistant_database(source: Path, stage: Path) -> None:
@@ -690,11 +719,15 @@ def migrate_layout(image_root: Path, state_root: Path, workspace: Path) -> Layou
                     )
             else:
                 _preflight_v3(state_root, workspace)
+                _clear_v3_staging(state_root)
                 backup, backup_digest = _verified_state_backup(
                     state_root, workspace, previous_layout
                 )
-                stage = _build_v3_stage(image_root, state_root, workspace)
-                _publish_v3(state_root, stage)
+                try:
+                    stage = _build_v3_stage(image_root, state_root, workspace)
+                    _publish_v3(state_root, stage)
+                finally:
+                    _clear_v3_staging(state_root)
             for candidate in candidates:
                 if candidate.exists() or candidate.is_symlink():
                     removed.append(_archive_name(candidate, state_root))

@@ -83,7 +83,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-07T11:34:32+02:00",
+      "last_git_change": "2026-08-07T11:52:13+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -911,7 +911,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-07T11:34:32+02:00",
+      "last_git_change": "2026-08-07T11:52:13+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -5035,7 +5035,7 @@
         "docs/DOCKER_DEPLOYMENT.md",
         "docs/architecture/DATA_CATALOG.md"
       ],
-      "line_coverage_percent": 81.05,
+      "line_coverage_percent": 81.37,
       "last_git_change": "2026-08-06T15:45:31+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -5986,7 +5986,7 @@
         "docs/architecture/adr/0008-container-netze-host-ollama.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-07T09:02:35+02:00",
+      "last_git_change": "2026-08-07T11:52:13+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -7289,7 +7289,7 @@
         "docs/architecture/adr/0008-container-netze-host-ollama.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-07T09:02:35+02:00",
+      "last_git_change": "2026-08-07T11:52:13+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
