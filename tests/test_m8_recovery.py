@@ -269,6 +269,129 @@ def test_deploy_rejects_legacy_marker_with_running_docker_writer(tmp_path: Path)
     assert " stop mail-worker " in f" {docker_log.read_text(encoding='utf-8')} "
 
 
+def test_legacy_deploy_disables_enabled_writer_timer_and_restores_it_on_backup_failure(
+    tmp_path: Path,
+) -> None:
+    scripts = tmp_path / "deployment/scripts"
+    scripts.mkdir(parents=True)
+    for name in ("deploy.sh", "common.sh"):
+        shutil.copy2(ROOT / "docker/scripts" / name, scripts / name)
+    _stub(scripts / "verify-image-supply-chain.sh", "exit 0\n")
+    (scripts / "check-layout-compatibility.py").write_text(
+        "#!/usr/bin/env python3\nraise SystemExit(0)\n", encoding="utf-8"
+    )
+    backup_called = tmp_path / "backup.called"
+    _stub(
+        scripts / "backup.sh",
+        'test -f "$M8_SYSTEMCTL_STATE/disabled"\n'
+        f"touch {backup_called}\n"
+        "echo 'injected backup failure' >&2\n"
+        "exit 19\n",
+    )
+    _stub(scripts / "rollback.sh", "exit 0\n")
+    _stub(scripts / "smoke-test.sh", "exit 0\n")
+
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    _stub(
+        fake_bin / "docker",
+        'if [ "${1:-}" = "inspect" ]; then printf "false\\n"; fi\n'
+        "exit 0\n",
+    )
+    systemctl_state = tmp_path / "systemctl-state"
+    systemctl_state.mkdir()
+    systemctl_log = tmp_path / "systemctl.log"
+    systemctl = fake_bin / "systemctl"
+    systemctl.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -u\n"
+        'printf "%s\\n" "$*" >> "$M8_SYSTEMCTL_LOG"\n'
+        'case "$*" in\n'
+        '  "--user show-environment") exit 0;;\n'
+        '  "--user is-enabled --quiet mail-agent.timer")\n'
+        '    test ! -f "$M8_SYSTEMCTL_STATE/disabled"; exit;;\n'
+        '  "--user is-active --quiet mail-agent.timer")\n'
+        '    test ! -f "$M8_SYSTEMCTL_STATE/disabled"; exit;;\n'
+        '  "--user disable --now mail-agent.timer")\n'
+        '    touch "$M8_SYSTEMCTL_STATE/disabled"; exit 0;;\n'
+        '  "--user enable --now mail-agent.timer")\n'
+        '    rm -f "$M8_SYSTEMCTL_STATE/disabled"; '
+        'touch "$M8_SYSTEMCTL_STATE/restored"; exit 0;;\n'
+        '  "--user stop "*) exit 0;;\n'
+        '  "--user is-active --quiet "*) exit 1;;\n'
+        '  "--user is-enabled --quiet "*) exit 1;;\n'
+        "esac\n"
+        "exit 1\n",
+        encoding="utf-8",
+    )
+    systemctl.chmod(0o755)
+
+    env_file = tmp_path / "deployment/.env"
+    env_file.write_text(
+        "OPENCLAW_IMAGE=fixture.invalid/old:runtime\n"
+        "OPENCLAW_PROXY_IMAGE=fixture.invalid/old:proxy\n"
+        "OPENCLAW_MAINTENANCE_IMAGE=fixture.invalid/old:maintenance\n"
+        "OPENCLAW_CURRENT_RUNTIME=legacy-systemd\n"
+        "OPENCLAW_EXPECTED_SOURCE_REVISION=0123456789abcdef0123456789abcdef01234567\n"
+        "OPENCLAW_WRITE_TEST_ENABLED=false\n"
+        "REQUIRE_EXTERNAL_BACKUP_FOR_WRITE_TEST=false\n",
+        encoding="utf-8",
+    )
+    compose_file = tmp_path / "deployment/compose.yaml"
+    compose_file.write_text("services: {}\n", encoding="utf-8")
+    openclaw = tmp_path / "openclaw"
+    for name in ("state", "config", "secrets", "backups/releases"):
+        (openclaw / name).mkdir(parents=True, exist_ok=True)
+    (openclaw / "config/legacy-active-units.txt").write_text(
+        "mail-agent.timer\n", encoding="utf-8"
+    )
+    legacy_home = tmp_path / "legacy"
+    (legacy_home / "workspace/scripts").mkdir(parents=True)
+    (legacy_home / "openclaw.json").write_text("{}\n", encoding="utf-8")
+    _stub(legacy_home / "workspace/scripts/assistant.sh", "exit 0\n")
+    _stub(legacy_home / "workspace/scripts/mail-agent.sh", "exit 0\n")
+
+    environment = os.environ.copy()
+    environment.update(
+        {
+            "PATH": f"{fake_bin}:{environment['PATH']}",
+            "OPENCLAW_DEPLOY_ENV": str(env_file),
+            "OPENCLAW_COMPOSE_FILE": str(compose_file),
+            "OPENCLAW_ROOT": str(openclaw),
+            "OPENCLAW_STATE_DIR": str(openclaw / "state"),
+            "OPENCLAW_CONFIG_DIR": str(openclaw / "config"),
+            "OPENCLAW_SECRETS_DIR": str(openclaw / "secrets"),
+            "OPENCLAW_BACKUP_DIR": str(openclaw / "backups/releases"),
+            "OPENCLAW_LEGACY_HOME": str(legacy_home),
+            "M8_SYSTEMCTL_LOG": str(systemctl_log),
+            "M8_SYSTEMCTL_STATE": str(systemctl_state),
+        }
+    )
+    result = subprocess.run(
+        [
+            str(scripts / "deploy.sh"),
+            "fixture.invalid/new:runtime",
+            "fixture.invalid/new:proxy",
+            "fixture.invalid/new:maintenance",
+        ],
+        cwd=tmp_path,
+        env=environment,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 19
+    assert "injected backup failure" in result.stderr
+    assert "Vorbereitendes Backup fehlgeschlagen" in result.stderr
+    assert backup_called.exists()
+    assert (systemctl_state / "restored").exists()
+    commands = systemctl_log.read_text(encoding="utf-8").splitlines()
+    disabled = commands.index("--user disable --now mail-agent.timer")
+    restored = commands.index("--user enable --now mail-agent.timer")
+    assert disabled < restored
+
+
 def test_failed_product_smoke_runs_automatic_rollback_and_surfaces_rollback_failure(
     tmp_path: Path,
 ) -> None:

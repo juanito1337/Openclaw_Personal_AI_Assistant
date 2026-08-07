@@ -44,6 +44,9 @@
 - Layoutmigrationen komprimieren getrennte SQLite-Datenbanken explizit auf dem
   State-Dateisystem, ersetzen sie erst nach Quick-Check atomar und entfernen
   bekannte unveroeffentlichte Stagingreste nach einem Fehler.
+- Der Uebergang vom Legacy-systemd-Betrieb deaktiviert aktivierte Writer-Timer
+  nun explizit, statt sie nur zu stoppen. Scheitert danach das vorbereitende
+  Backup, wird die zuvor aufgezeichnete Aktivierungsmenge wiederhergestellt.
 
 ## Unreleased – M7 Reproduzierbare und attestierte Image-Lieferkette
 

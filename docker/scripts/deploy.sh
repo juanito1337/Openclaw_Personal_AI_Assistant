@@ -111,6 +111,20 @@ assert_legacy_writers_disabled() {
   done
 }
 
+disable_legacy_writer_timers() {
+  local unit
+  # Stopping a timer does not change its enablement state. Verify the user
+  # systemd manager first, then disable every installed/active legacy writer
+  # timer so the post-stop Single-Writer gate cannot fail on stale enablement.
+  systemctl --user show-environment >/dev/null
+  for unit in "${legacy_writer_timers[@]}"; do
+    if systemctl --user is-enabled --quiet "$unit" \
+      || systemctl --user is-active --quiet "$unit"; then
+      systemctl --user disable --now "$unit"
+    fi
+  done
+}
+
 case "$previous_runtime" in
   legacy-systemd)
     if [[ -n "$(running_container_writers)" ]]; then
@@ -187,6 +201,7 @@ trap restart_previous_on_prebackup_failure ERR
 
 echo "Stoppe alle schreibenden Laufzeiten."
 if [[ "$previous_runtime" == "legacy-systemd" ]]; then
+  disable_legacy_writer_timers
   for unit in "${legacy_units[@]}"; do
     systemctl --user stop "$unit" >/dev/null 2>&1 || true
   done

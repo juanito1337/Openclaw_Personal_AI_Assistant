@@ -5,7 +5,7 @@
 f5f4497dc86e60c67167f691b8246b876d55e049e34d8728f05dc048b1cf4bb9  ./.gitignore
 1b6baf17377ad89b09ac3596ef0092ea0171e85ca6109206f135b84744561150  ./.hadolint.yaml
 0bf412b15d9da318ec69bacbc84438298aaa13c6f0e0e8e04cb1d08fb7154aa9  ./AGENTS.md
-9b08d741d937e007ad6c48ed626be4791d188172a9005b0be41a1bf8d8786031  ./CHANGELOG.md
+51914b375336ede3c683e3e8b78741c49f27d01fc95479a75f130c8509d95163  ./CHANGELOG.md
 1eb23e2a6fd60d65a0a8ee78b4b4e2469583e309366fcaf509081a68b47a99b3  ./CONTRIBUTING.md
 04cc65fd129b754b754a20258f10d4eb0f502097cdc18a4e94e564d2b1c8e3fb  ./Dockerfile
 dd2bd2aa9bed882e4a7942981299d0e87c70ac8ddd50ca67126eca0af0055e94  ./HEARTBEAT.md
@@ -32,7 +32,7 @@ fcf0579731e63ec13b93fe5709e0c7e58005d9924de80dc5cc4e1acb2587df00  ./docker/scrip
 40185832ad2da831a6bfb2f2600d6caea7ce5685b9c427fef9ce2882f6267a5f  ./docker/scripts/build-local.sh
 20f86ad41cbd7ec14fa9bfa6ff1321a1976170cb01fc130437e71c87fba11e6a  ./docker/scripts/check-layout-compatibility.py
 21ab4c0f34432c2ada030d084a8ecab2a59b3fe7cae5c24e8d96e08e1743be32  ./docker/scripts/common.sh
-c4afe39e3aef612d7db8b0df951281c1869db63f3ab593e9d8127a2cc7b69055  ./docker/scripts/deploy.sh
+6a932c55120c5205bb62ecdf3c1aa6fb463c9cd774b51cc3552222eab1f46108  ./docker/scripts/deploy.sh
 a7312a838a1adaff3068bbba567cee98b0872b7760fb573f5ac8cb33ac363173  ./docker/scripts/live-test-branch.sh
 c7d15c803c870a7b2dc920d7c9fe0e1ba508f9dc00487d4a67d66a70e8f44b10  ./docker/scripts/migrate-container-state.py
 4a5c798bb206a14cd9932439a83caee33c362f2062fce548f120c886dc45eaa7  ./docker/scripts/migrate-live.sh
@@ -59,7 +59,7 @@ b087022387907da6202d5ee77ebe6ed52afe7501b2abdb65b3e51fda99f48d0b  ./docs/ARCHITE
 b62ded26d228cd16c05d48df728e7ef6992e85e47cfeb1650c0eba53914efd9f  ./docs/DECK_ORDERS.md
 39526f6e3b3b335b4e13ad001cbcea70771a6fe382288687261be58df610a43f  ./docs/DIRECT_CALENDAR.md
 7661b01aa9b77e7e38f8cc29f2fdf360b62401affd34378a9a64427627f24384  ./docs/DIRECT_TASKS.md
-e8912fbc4c7026c5cccdef3e4586681b6523244c3b2e1073e0c35200059e7302  ./docs/DOCKER_DEPLOYMENT.md
+dd7dee090e9690ce6570c43ded1c231cebaa9cc62c822751acdec145048c9a96  ./docs/DOCKER_DEPLOYMENT.md
 4bbb6806ff27f669699203448b3b0c4283a15a86c48f66cab07b4672e08576ae  ./docs/GIT_REPOSITORY.md
 112b97da7462da4e29bce4241d06f61bd40145fffaf88d4b55c0eab5854c5211  ./docs/INVOICE_OCR_REGISTER.md
 9a26c033769f80812e837b1123fb0f5738a77bc42a9238224386c089005e8ef9  ./docs/JOB_CONTROL.md
@@ -99,7 +99,7 @@ a8a176214a0fc5d155976a3bc68cc279fcd83510c877d91c258f43b0355c0c9c  ./docs/archite
 b0562446280a500eb2723a9bbdb23b9ac128b13bff967415ff34a6c2e36abc35  ./docs/architecture/adr/0012-m8-recovery-und-agentenvertrag.md
 bf0a70a65d594843e319bc0dfc90f322172490914400bfbd80aeca83b03e57e7  ./docs/architecture/adr/README.md
 d27b02d1ed286794ce453b80b4911bcbf476dfb08d005437510e5419f237203c  ./docs/architecture/compatibility-policy.json
-5463b5ea381496f502dcbaf46d876ce6f8e10608e9f624d463b0ce1d20514596  ./docs/architecture/component-inventory.json
+33a788b3bf738b07d87ecf6ba5b4269d52464f4080313ed73b8da574d2e31c8e  ./docs/architecture/component-inventory.json
 1f707ea0d3c63cf76a35d64fd62988a6f59c1c5e73fe7a09fe62fdb7901a919c  ./docs/architecture/image-baseline-m7.json
 b397cdaa70d5dbcd4bfd22ed503433570b67bb978059bd5916e8793d173807c3  ./docs/architecture/legacy-decisions.json
 f3c5e77b8a891d4666b058b4a7d09997b3168924ad20324abde144bf7eff59ca  ./docs/architecture/owners.json
@@ -363,7 +363,7 @@ bc253c8ac81fb10086f30295584573cd3d0dcd919d35102ae79d9cb57f971e04  ./tests/test_l
 f9f231c734ac6ff08c5cbfb053e136cc431ea68a9ce3a1c71e441a32734abe74  ./tests/test_m5_tool_contract.py
 2b05ff33be23e046a5ba83d4c6cfe438c90206895681df36c9e6e034981def01  ./tests/test_m6_legacy_cleanup.py
 ae83eede0598a7c1a6505947ea93b65813a5a496bff06e896bcb6328a94a722c  ./tests/test_m7_supply_chain.py
-dce9881b2eaa429d120c433d3f60e9c230418703fa9ddca8f60a027f1ff25af5  ./tests/test_m8_recovery.py
+1554217995fa63f919a5dfc1d76bba24f5855ad1fba067f618e74828e819ee14  ./tests/test_m8_recovery.py
 04619f56399ea6d89c420529c1b13f355f3db40549d249d96476161571ebcd8c  ./tests/test_m8_skill_contract.py
 26eec7085bea8b9117b8790869378922749dad20058e1ac5fe39415dafe181bc  ./tests/test_mail_agent.py
 7f31b6327813d569695592ce7225c68063259c76e2c3cc8c8b098f513aa8340f  ./tests/test_mail_lock_status.py

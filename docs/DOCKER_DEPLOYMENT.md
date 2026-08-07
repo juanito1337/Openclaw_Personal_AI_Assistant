@@ -406,7 +406,9 @@ The deployment sequence is deliberately strict:
 2. pull the verified images and check target-image state-layout limits,
 3. abort an incompatible downgrade before stopping the current stack,
 4. require that `OPENCLAW_CURRENT_RUNTIME` agrees with observed systemd/Docker
-   writers, then stop every writer and verify the Docker writers are stopped,
+   writers, explicitly disable installed legacy writer timers (stopping alone does
+   not change their enablement), then stop every writer and verify the complete
+   Single-Writer gate,
 5. create an optional external snapshot when a hook is configured,
 6. run SQLite quick checks,
 7. archive state/config/secrets,
@@ -423,7 +425,9 @@ Any failing command after the verified backup triggers `rollback.sh`
 automatically, including a failure inside the Compose shell helper. A runtime
 identity mismatch fails earlier without stopping or backing up anything; it must
 be resolved explicitly because the deployer does not guess which writer is
-authoritative.
+authoritative. If the preparatory backup fails after a legacy shutdown, the
+recorded legacy activation set is enabled again before the deployer returns the
+original error.
 
 Rollback restores the contents of the existing protected `state`, `config` and
 `secrets` roots in place. It does not require permission to delete the
