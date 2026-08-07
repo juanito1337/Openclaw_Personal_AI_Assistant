@@ -47,6 +47,10 @@ Grund, Laufzeitrechte zu lockern oder einen vorhandenen Pfad als fehlend zu meld
 Der oeffentliche M4-Testmarker ist auf seinem read-only Mount explizit fuer die
 abweichende Image-UID lesbar; produktive State-, Config- und Secret-Modi bleiben
 davon unberuehrt.
+Die dynamische Memory-Abnahme akzeptiert genau die beiden cgroup-konformen
+Ergebnisse einer uebergrossen Allokation: Kernel-OOM-Kill oder den kontrolliert
+markierten Python-`MemoryError`. Ein beliebiger Prozessfehler gilt nicht als
+Nachweis fuer ein erzwungenes Limit.
 
 Je Image erzeugt digest-gepinntes Syft eine SPDX-SBOM. Digest-gepinntes Trivy scannt
 kritische Schwachstellen und Secrets. Kritische Befunde werden mit Exitcode 1 ohne

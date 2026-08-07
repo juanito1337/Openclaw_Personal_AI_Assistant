@@ -26,6 +26,8 @@
   read-only Pruefmount, statt CI-Hostzugriff mit einem fehlenden Pfad zu verwechseln.
 - Das M4-Signalfixture macht nur seinen oeffentlichen read-only Layoutmarker fuer
   eine abweichende Image-UID lesbar und prueft diesen Fall als echtes Skriptverhalten.
+- Die Memory-Abnahme unterscheidet Kernel-OOM-Kill, kontrollierten Allocator-
+  `MemoryError` und fachfremde Prozessfehler, ohne die 64-MiB-Grenze zu lockern.
 
 ## Unreleased – M7 Reproduzierbare und attestierte Image-Lieferkette
 

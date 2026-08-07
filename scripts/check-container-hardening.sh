@@ -155,12 +155,28 @@ raise SystemExit("PID limit was not enforced")
   fail "PID-Limit wurde nicht nachweisbar erzwungen"
 fi
 if docker run --name "$oom_container" --memory 64m --memory-swap 64m --network none \
-    --entrypoint python3 "$IMAGE" -c 'bytearray(512 * 1024 * 1024)' >/dev/null 2>&1; then
+    --entrypoint python3 "$IMAGE" -c '
+import sys
+try:
+    allocation = bytearray(512 * 1024 * 1024)
+except MemoryError:
+    print("OPENCLAW_MEMORY_LIMIT_ENFORCED: MemoryError", file=sys.stderr)
+    raise SystemExit(42)
+print(f"memory limit was not enforced: {len(allocation)}", file=sys.stderr)
+' >"$fixture/oom.stdout" 2>"$fixture/oom.stderr"; then
   echo "OOM-Grenze wurde nicht erzwungen" >&2
   exit 1
 fi
-require_equal "true" \
-  "$(docker inspect --format '{{.State.OOMKilled}}' "$oom_container")" \
-  "OOM-Kill-Nachweis"
+oom_memory=$(docker inspect --format '{{.HostConfig.Memory}}' "$oom_container")
+oom_exit=$(docker inspect --format '{{.State.ExitCode}}' "$oom_container")
+oom_killed=$(docker inspect --format '{{.State.OOMKilled}}' "$oom_container")
+require_equal "67108864" "$oom_memory" "Memory-Limit des Allokationstests"
+if [[ "$oom_killed" != "true" ]]; then
+  if [[ "$oom_exit" != "42" ]] ||
+      ! grep -Fq 'OPENCLAW_MEMORY_LIMIT_ENFORCED: MemoryError' "$fixture/oom.stderr"; then
+    cat "$fixture/oom.stdout" "$fixture/oom.stderr" >&2
+    fail "Speicherallokation scheiterte weder durch cgroup OOM-Kill noch kontrollierten MemoryError"
+  fi
+fi
 
 echo "Dynamische M4-Haertung erfolgreich: $IMAGE"

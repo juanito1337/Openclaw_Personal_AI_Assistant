@@ -49,7 +49,7 @@ class ContainerHardeningM4Tests(unittest.TestCase):
             self.assertEqual(service["security_opt"], defaults["security_opt"], role)
             self.assertEqual(service["logging"]["driver"], defaults["logging_driver"], role)
 
-    def test_signal_fixture_is_readable_without_host_uid_ownership(self) -> None:
+    def test_dynamic_fixture_is_uid_portable_and_oom_failure_specific(self) -> None:
         checker = ROOT / "scripts/check-container-hardening.sh"
         fake_docker = r'''#!/usr/bin/env python3
 import os
@@ -68,6 +68,16 @@ if arguments and arguments[0] == "run":
         None,
     )
     if signal_name is None:
+        oom_name = next(
+            (item for item in arguments if item.startswith("openclaw-m4-oom-")),
+            None,
+        )
+        if oom_name is not None:
+            if os.environ.get("FAKE_OOM_MODE") == "unexpected":
+                print("unrelated allocator failure", file=sys.stderr)
+                raise SystemExit(7)
+            print("OPENCLAW_MEMORY_LIMIT_ENFORCED: MemoryError", file=sys.stderr)
+            raise SystemExit(42)
         raise SystemExit(0)
     volume = next(item for item in arguments if item.endswith(":/workspace:ro"))
     workspace = Path(volume.removesuffix(":/workspace:ro"))
@@ -78,7 +88,28 @@ if arguments and arguments[0] == "run":
         print("signal fixture is not readable by a different UID", file=sys.stderr)
         raise SystemExit(92)
     print("signal fixture permissions ok", file=sys.stderr)
-    raise SystemExit(91)
+    raise SystemExit(0)
+if arguments and arguments[0] == "logs":
+    print("READY")
+    raise SystemExit(0)
+if arguments and arguments[0] == "stop":
+    raise SystemExit(0)
+if arguments and arguments[0] == "inspect":
+    template = arguments[arguments.index("--format") + 1]
+    container = arguments[-1]
+    if "PidsLimit" in template:
+        print("32")
+    elif "NanoCpus" in template:
+        print("250000000")
+    elif "HostConfig.Memory" in template:
+        print("67108864")
+    elif "OOMKilled" in template:
+        print("false")
+    elif "ExitCode" in template:
+        print("42" if container.startswith("openclaw-m4-oom-") else "0")
+    raise SystemExit(0)
+if arguments and arguments[0] == "create":
+    raise SystemExit(0)
 if arguments and arguments[0] == "rm":
     raise SystemExit(0)
 if arguments[:2] == ["network", "rm"]:
@@ -100,9 +131,30 @@ raise SystemExit(86)
                 capture_output=True,
                 check=False,
             )
-        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("signal fixture permissions ok", result.stderr)
-        self.assertIn("SIGTERM-Testcontainer konnte nicht gestartet werden", result.stderr)
+        self.assertIn("Dynamische M4-Haertung erfolgreich", result.stdout)
+
+        with tempfile.TemporaryDirectory() as folder:
+            binary = Path(folder) / "docker"
+            binary.write_text(fake_docker, encoding="utf-8")
+            binary.chmod(0o755)
+            environment = os.environ.copy()
+            environment["FAKE_OOM_MODE"] = "unexpected"
+            environment["PATH"] = f"{folder}:{environment['PATH']}"
+            result = subprocess.run(
+                [str(checker), "fixture"],
+                cwd=ROOT,
+                env=environment,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn(
+            "weder durch cgroup OOM-Kill noch kontrollierten MemoryError",
+            result.stderr,
+        )
 
     def test_only_gateway_publishes_loopback_port(self) -> None:
         published = {name: value.get("ports", []) for name, value in self.compose["services"].items()}
