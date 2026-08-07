@@ -19,6 +19,9 @@
 - Releasecheckliste, Single-Writer-Canary und ADR-0012 schliessen die technische
   Roadmap ab. Ein produktives Deployment und ein echter externer Snapshot-Restore
   bleiben separate ausdrueckliche Operationsauftraege.
+- Die Publish-CI trennt Rollen-, Supply-Chain-, M3- und M4-Abnahmen in einzeln
+  benannte Schritte. Dynamische Vertragsfehler nennen die verletzte Invariante;
+  die SIGTERM-Abnahme synchronisiert auf einen nachweisbar installierten Handler.
 
 ## Unreleased – M7 Reproduzierbare und attestierte Image-Lieferkette
 

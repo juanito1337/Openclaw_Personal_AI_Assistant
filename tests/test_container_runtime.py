@@ -15,6 +15,86 @@ from personal_assistant.job_control import CommandResult, JobController
 
 
 class ContainerWorkspaceTests(unittest.TestCase):
+    def test_runtime_check_reports_each_invalid_oci_layout_label(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        checker = root / "scripts/check-container-runtime.sh"
+        fake_docker = r'''#!/usr/bin/env python3
+import os
+import sys
+
+arguments = sys.argv[1:]
+if arguments == ["info"]:
+    raise SystemExit(0)
+if arguments[:2] == ["image", "inspect"]:
+    if "--format" not in arguments:
+        raise SystemExit(0)
+    template = arguments[arguments.index("--format") + 1]
+    if "layout-min" in template:
+        print(os.environ.get("FAKE_LAYOUT_MIN", "1"))
+    elif "layout-max" in template:
+        print(os.environ.get("FAKE_LAYOUT_MAX", "3"))
+    elif "image.revision" in template:
+        print(os.environ.get("FAKE_REVISION", "fixture-revision"))
+    raise SystemExit(0)
+print("unexpected fake docker call: " + " ".join(arguments), file=sys.stderr)
+raise SystemExit(86)
+'''
+        cases = (
+            (
+                {"FAKE_REVISION": ""},
+                "OCI-Label org.opencontainers.image.revision fehlt",
+            ),
+            (
+                {"FAKE_LAYOUT_MIN": "0"},
+                "OCI-Label org.opencontainers.image.openclaw.layout-min in fixture: "
+                "erwartet '1', erhalten '0'",
+            ),
+            (
+                {"FAKE_LAYOUT_MAX": "4"},
+                "OCI-Label org.opencontainers.image.openclaw.layout-max in fixture: "
+                "erwartet '3', erhalten '4'",
+            ),
+        )
+        with tempfile.TemporaryDirectory() as folder:
+            binary = Path(folder) / "docker"
+            binary.write_text(fake_docker, encoding="utf-8")
+            binary.chmod(0o755)
+            for overrides, expected in cases:
+                with self.subTest(expected=expected):
+                    environment = os.environ.copy()
+                    environment.update(overrides)
+                    environment["PATH"] = f"{folder}:{environment['PATH']}"
+                    result = subprocess.run(
+                        [str(checker), "fixture"],
+                        cwd=root,
+                        env=environment,
+                        text=True,
+                        capture_output=True,
+                        check=False,
+                    )
+                    self.assertEqual(result.returncode, 1, result.stderr)
+                    self.assertIn(f"ERROR: M3: {expected}", result.stderr)
+
+    def test_container_publish_workflow_isolates_dynamic_m3_and_m4_steps(self) -> None:
+        workflow = (
+            Path(__file__).resolve().parents[1] / ".github/workflows/container.yml"
+        ).read_text(encoding="utf-8")
+        supply_chain = workflow.index("- name: Generate SBOM/provenance and scan every role")
+        runtime = workflow.index("- name: Verify state isolation and immutable runtime")
+        hardening = workflow.index("- name: Verify role hardening")
+        publish = workflow.index("- name: Rebuild twice and require identical OCI artifacts")
+        self.assertLess(supply_chain, runtime)
+        self.assertLess(runtime, hardening)
+        self.assertLess(hardening, publish)
+        self.assertIn(
+            "run: ./scripts/check-container-runtime.sh openclaw-agent:m7-candidate",
+            workflow[runtime:hardening],
+        )
+        self.assertIn(
+            "run: ./scripts/check-container-hardening.sh openclaw-agent:m7-candidate",
+            workflow[hardening:publish],
+        )
+
     def test_workspace_environment_controls_both_packages(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
             environment = os.environ.copy()

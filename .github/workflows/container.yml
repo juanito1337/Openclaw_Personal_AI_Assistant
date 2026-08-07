@@ -84,16 +84,21 @@ jobs:
           OPENCLAW_SOURCE_REVISION: ${{ github.sha }}
           OPENCLAW_BUILD_CREATED: ${{ steps.refs.outputs.created }}
         run: ./docker/scripts/build-local.sh openclaw-agent:m7-candidate openclaw-agent:m7-candidate-proxy openclaw-agent:m7-candidate-maintenance
-      - name: Verify candidates, secrets, vulnerabilities, SBOM and local provenance
+      - name: Verify role contents and smoke tests
+        run: ./scripts/check-role-images.sh openclaw-agent:m7-candidate openclaw-agent:m7-candidate-proxy openclaw-agent:m7-candidate-maintenance "${GITHUB_SHA}"
+      - name: Verify source secrets and local signature behavior
         run: |
-          ./scripts/check-role-images.sh openclaw-agent:m7-candidate openclaw-agent:m7-candidate-proxy openclaw-agent:m7-candidate-maintenance "${GITHUB_SHA}"
           ./scripts/check-source-secrets.sh
           ./scripts/check-local-signature.sh
+      - name: Generate SBOM/provenance and scan every role
+        run: |
           ./scripts/check-image-supply-chain.sh openclaw-agent:m7-candidate runtime "${GITHUB_SHA}" build/m7/runtime
           ./scripts/check-image-supply-chain.sh openclaw-agent:m7-candidate-proxy proxy "${GITHUB_SHA}" build/m7/proxy
           ./scripts/check-image-supply-chain.sh openclaw-agent:m7-candidate-maintenance maintenance "${GITHUB_SHA}" build/m7/maintenance
-          ./scripts/check-container-runtime.sh openclaw-agent:m7-candidate
-          ./scripts/check-container-hardening.sh openclaw-agent:m7-candidate
+      - name: Verify state isolation and immutable runtime
+        run: ./scripts/check-container-runtime.sh openclaw-agent:m7-candidate
+      - name: Verify role hardening
+        run: ./scripts/check-container-hardening.sh openclaw-agent:m7-candidate
       - name: Rebuild twice and require identical OCI artifacts
         env:
           OPENCLAW_SOURCE_REVISION: ${{ github.sha }}

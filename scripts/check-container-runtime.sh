@@ -4,8 +4,35 @@ umask 077
 
 ROOT=$(CDPATH='' cd "$(dirname "$0")/.." && pwd)
 IMAGE=${1:?Containerimage angeben}
-docker info >/dev/null
-docker image inspect "$IMAGE" >/dev/null
+
+fail() {
+  printf 'ERROR: M3: %s\n' "$*" >&2
+  exit 1
+}
+
+require_equal() {
+  local expected=$1 actual=$2 description=$3
+  [[ "$actual" == "$expected" ]] ||
+    fail "$description: erwartet '$expected', erhalten '$actual'"
+}
+
+require_absent() {
+  local path=$1 description=$2
+  [[ ! -e "$path" && ! -L "$path" ]] || fail "$description: unerwartet vorhanden: $path"
+}
+
+require_file() {
+  local path=$1 description=$2
+  [[ -f "$path" ]] || fail "$description: Datei fehlt: $path"
+}
+
+require_directory() {
+  local path=$1 description=$2
+  [[ -d "$path" ]] || fail "$description: Verzeichnis fehlt: $path"
+}
+
+docker info >/dev/null || fail "Docker-Daemon nicht erreichbar"
+docker image inspect "$IMAGE" >/dev/null || fail "Containerimage nicht vorhanden: $IMAGE"
 
 revision=$(
   docker image inspect \
@@ -22,9 +49,15 @@ layout_max=$(
     --format '{{index .Config.Labels "org.opencontainers.image.openclaw.layout-max"}}' \
     "$IMAGE"
 )
-[[ -n "$revision" && "$revision" != "<no value>" ]]
-[[ "$layout_min" == "1" ]]
-[[ "$layout_max" == "3" ]]
+if [[ -z "$revision" || "$revision" == "<no value>" ]]; then
+  fail "OCI-Label org.opencontainers.image.revision fehlt in $IMAGE"
+fi
+require_equal "1" "$layout_min" \
+  "OCI-Label org.opencontainers.image.openclaw.layout-min in $IMAGE"
+require_equal "3" "$layout_max" \
+  "OCI-Label org.opencontainers.image.openclaw.layout-max in $IMAGE"
+printf 'M3 OCI-Vertrag verifiziert: %s (%s, Layout %s..%s)\n' \
+  "$IMAGE" "$revision" "$layout_min" "$layout_max"
 
 fixture=$(mktemp -d)
 state="$fixture/state"
@@ -44,8 +77,10 @@ config_before=$(sha256sum "$state/workspace/mail_agent/config.toml" | awk '{prin
 # identically even when the caller reached Docker through `sg docker` or CI uses
 # a different host UID.
 chmod -R a+rX "$fixture"
-docker run --rm --user 0:0 --entrypoint /bin/chown \
-  -v "$state:/fixture" "$IMAGE" -R node:node /fixture
+if ! docker run --rm --user 0:0 --entrypoint /bin/chown \
+  -v "$state:/fixture" "$IMAGE" -R node:node /fixture; then
+  fail "Fixture-Eigentuemer konnte nicht auf die Runtime-UID:GID gesetzt werden"
+fi
 
 name_one="openclaw-m3-$RANDOM-1"
 name_two="openclaw-m3-$RANDOM-2"
@@ -91,22 +126,32 @@ if (( parallel_failed != 0 )); then
   echo "Parallele M3-Layoutinitialisierung fehlgeschlagen." >&2
   exit 1
 fi
-docker rm "$name_one" "$name_two" >/dev/null
+docker rm "$name_one" "$name_two" >/dev/null ||
+  fail "erfolgreich beendete parallele Layoutcontainer konnten nicht entfernt werden"
 
-[[ ! -e "$state/tampered-script-ran" ]]
-[[ ! -e "$state/workspace/scripts/assistant.sh" ]]
-[[ "$(readlink "$state/workspace/AGENTS.md")" == "/opt/openclaw-agent/AGENTS.md" ]]
-[[ "$(readlink "$state/workspace/skills/personal-assistant")" == \
-  "/opt/openclaw-agent/skills/personal-assistant" ]]
-[[ "$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["layout"])' \
-  "$state/.container-layout.json")" == "3" ]]
-[[ -f "$state/v3/instance/.layout-version.json" ]]
-[[ -d "$state/v3/domains/mail" ]]
-[[ -d "$state/v3/domains/portfolio" ]]
-[[ -d "$state/v3/domains/knowledge" ]]
-[[ -d "$state/v3/shared/core" ]]
-[[ -d "$state/v3/shared/coordination" ]]
-[[ "$(find "$state/.layout-migrations/backups" -name '*.tar.gz' -type f | wc -l)" == "1" ]]
+require_absent "$state/tampered-script-ran" "Legacy-Skript wurde ausgefuehrt"
+require_absent "$state/workspace/scripts/assistant.sh" "Legacy-Runtime-Skript wurde nicht entfernt"
+require_equal "/opt/openclaw-agent/AGENTS.md" \
+  "$(readlink "$state/workspace/AGENTS.md" 2>/dev/null || true)" \
+  "Release-Link AGENTS.md"
+require_equal "/opt/openclaw-agent/skills/personal-assistant" \
+  "$(readlink "$state/workspace/skills/personal-assistant" 2>/dev/null || true)" \
+  "Release-Link personal-assistant"
+if ! actual_layout=$(python3 -c \
+  'import json,sys; print(json.load(open(sys.argv[1]))["layout"])' \
+  "$state/.container-layout.json"); then
+  fail "Layoutmarker ist nicht als JSON lesbar: $state/.container-layout.json"
+fi
+require_equal "3" "$actual_layout" "publizierte Layoutversion"
+require_file "$state/v3/instance/.layout-version.json" "Instanz-Layoutmarker"
+require_directory "$state/v3/domains/mail" "Mail-Domaene"
+require_directory "$state/v3/domains/portfolio" "Portfolio-Domaene"
+require_directory "$state/v3/domains/knowledge" "Knowledge-Domaene"
+require_directory "$state/v3/shared/core" "gemeinsamer Core-State"
+require_directory "$state/v3/shared/coordination" "gemeinsamer Koordinations-State"
+require_directory "$state/.layout-migrations/backups" "Migrationsbackup-Wurzel"
+backup_count=$(find "$state/.layout-migrations/backups" -name '*.tar.gz' -type f | wc -l)
+require_equal "1" "$backup_count" "Anzahl atomarer Migrationsbackups"
 
 if ! status_json=$(docker run --rm "${runtime_args[@]}" "$IMAGE" \
   /opt/openclaw-agent/scripts/assistant.sh status 2>"$fixture/status.stderr"); then
@@ -114,7 +159,7 @@ if ! status_json=$(docker run --rm "${runtime_args[@]}" "$IMAGE" \
   echo "M3-Statuspruefung im isolierten Container fehlgeschlagen." >&2
   exit 1
 fi
-STATUS_JSON="$status_json" EXPECTED_REVISION="$revision" python3 - <<'PY'
+if ! STATUS_JSON="$status_json" EXPECTED_REVISION="$revision" python3 - <<'PY'
 import json
 import os
 
@@ -129,12 +174,17 @@ assert runtime["module_paths"]["personal_assistant"].startswith("/opt/openclaw-a
 assert runtime["module_paths"]["mail_agent"].startswith("/opt/openclaw-agent/"), runtime
 assert runtime["executable_paths"]["assistant"] == "/opt/openclaw-agent/scripts/assistant.sh"
 PY
+then
+  fail "Status-JSON verletzt den M3-Laufzeitvertrag"
+fi
 
 # A restart with the same image may refresh release-owned links, but it must not
 # rewrite an existing instance configuration.
-docker run --rm "${runtime_args[@]}" "$IMAGE" /bin/true >/dev/null 2>&1
+if ! docker run --rm "${runtime_args[@]}" "$IMAGE" /bin/true >/dev/null 2>&1; then
+  fail "idempotenter Neustart mit bestehendem Layout fehlgeschlagen"
+fi
 config_after=$(sha256sum "$state/workspace/mail_agent/config.toml" | awk '{print $1}')
-[[ "$config_after" == "$config_before" ]]
+require_equal "$config_before" "$config_after" "Hash der bestehenden Instanzkonfiguration"
 
 role_args=(
   --read-only
@@ -149,34 +199,45 @@ role_args=(
 # M3 verifies actual kernel mount boundaries, not only YAML text. Each probe
 # writes only to its fixture-owned roots and confirms unrelated roots are absent
 # or read-only.
-docker run --rm "${role_args[@]}" \
+if ! docker run --rm "${role_args[@]}" \
   -v "$state/v3/domains/portfolio:/var/lib/openclaw/portfolio" \
   -v "$state/v3/shared/coordination:/var/lib/openclaw/coordination" \
   "$IMAGE" /bin/sh -c \
-  'test ! -e /var/lib/openclaw/mail && test ! -e /var/lib/openclaw/knowledge && touch /var/lib/openclaw/portfolio/.m3-probe'
-docker run --rm "${role_args[@]}" \
+  'test ! -e /var/lib/openclaw/mail && test ! -e /var/lib/openclaw/knowledge && touch /var/lib/openclaw/portfolio/.m3-probe'; then
+  fail "Portfolio-Rollenmount verletzt die Domaenengrenze"
+fi
+if ! docker run --rm "${role_args[@]}" \
   -v "$state/v3/domains/mail:/var/lib/openclaw/mail" \
   -v "$state/v3/shared/core:/var/lib/openclaw/core" \
   -v "$state/v3/shared/coordination:/var/lib/openclaw/coordination" \
   "$IMAGE" /bin/sh -c \
-  'test ! -e /var/lib/openclaw/portfolio && test ! -e /var/lib/openclaw/knowledge && touch /var/lib/openclaw/mail/.m3-probe'
-docker run --rm "${role_args[@]}" \
+  'test ! -e /var/lib/openclaw/portfolio && test ! -e /var/lib/openclaw/knowledge && touch /var/lib/openclaw/mail/.m3-probe'; then
+  fail "Mail-Rollenmount verletzt die Domaenengrenze"
+fi
+if ! docker run --rm "${role_args[@]}" \
   -v "$state/v3/domains/monitoring:/var/lib/openclaw/monitoring" \
   -v "$state/v3/domains/knowledge:/var/lib/openclaw/knowledge:ro" \
   -v "$state/v3/shared/core:/var/lib/openclaw/core:ro" \
   -v "$state/v3/shared/coordination:/var/lib/openclaw/coordination" \
   "$IMAGE" /bin/sh -c \
-  'touch /var/lib/openclaw/monitoring/.m3-probe && ! touch /var/lib/openclaw/core/.forbidden 2>/dev/null'
+  'touch /var/lib/openclaw/monitoring/.m3-probe && ! touch /var/lib/openclaw/core/.forbidden 2>/dev/null'; then
+  fail "Monitoring-Rollenmount verletzt Schreib-/Leserechte"
+fi
 
 # Even root cannot change image code when the container root filesystem is
 # read-only. The writable state mount remains available only for instance data.
-docker run --rm --user 0:0 --read-only --entrypoint /bin/sh "$IMAGE" -c \
-  'if touch /opt/openclaw-agent/.m2-write-test 2>/dev/null; then exit 1; fi'
+if ! docker run --rm --user 0:0 --read-only --entrypoint /bin/sh "$IMAGE" -c \
+  'if touch /opt/openclaw-agent/.m2-write-test 2>/dev/null; then exit 1; fi'; then
+  fail "Image-Code ist bei read-only rootfs veraenderbar"
+fi
 
 mkdir -p "$fixture/rootfs"
-artifact_id=$(docker create "$IMAGE")
-docker export "$artifact_id" | tar -x -C "$fixture/rootfs"
-python3 "$ROOT/scripts/check_artifact.py" image-root "$fixture/rootfs"
-docker rm "$artifact_id" >/dev/null
+artifact_id=$(docker create "$IMAGE") || fail "Artefaktcontainer konnte nicht erstellt werden"
+if ! docker export "$artifact_id" | tar -x -C "$fixture/rootfs"; then
+  fail "Image-Dateisystem konnte nicht exportiert werden"
+fi
+python3 "$ROOT/scripts/check_artifact.py" image-root "$fixture/rootfs" ||
+  fail "exportiertes Image verletzt den Artefaktvertrag"
+docker rm "$artifact_id" >/dev/null || fail "Artefaktcontainer konnte nicht entfernt werden"
 artifact_id=""
 echo "Dynamische M3-Containerpruefung erfolgreich: $IMAGE ($revision, Layout 1..3)"

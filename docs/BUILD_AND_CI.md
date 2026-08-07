@@ -36,6 +36,12 @@ notwendige bzw. verbotene Binaries, CLI-/Release-Smoke, M3-State-Isolation und
 M4-Hardening. Der Rootfs-Artefaktscan verwirft Secrets, Konfiguration, Datenbanken,
 Logs, Laufzeitdaten, Tests, Deployment- und Legacy-Dateien.
 
+Rollen-Smoke, Quell-/Signaturpruefung, Supply-Chain-Scan, dynamische M3-Pruefung und
+dynamische M4-Pruefung sind eigene benannte Workflow-Schritte. Die M3-/M4-Skripte
+melden die verletzte Invariante mit Soll-/Istwert; der SIGTERM-Test wartet auf die
+nachweisbare Bereitschaft des Signalhandlers. Ein Abbruch darf daher weder als
+anonymer Sammelschritt noch als timingabhaengiger Erfolg erscheinen.
+
 Je Image erzeugt digest-gepinntes Syft eine SPDX-SBOM. Digest-gepinntes Trivy scannt
 kritische Schwachstellen und Secrets. Kritische Befunde werden mit Exitcode 1 ohne
 `ignore-unfixed` und ohne Ausnahme blockiert. Die exakte Quellmanifestmenge wird
