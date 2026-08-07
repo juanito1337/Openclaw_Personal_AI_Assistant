@@ -36,6 +36,14 @@ if arguments[:2] == ["image", "inspect"]:
     elif "image.revision" in template:
         print(os.environ.get("FAKE_REVISION", "fixture-revision"))
     raise SystemExit(0)
+if arguments and arguments[0] == "run":
+    if "/bin/chown" in arguments or "--name" in arguments:
+        raise SystemExit(0)
+    if any(item.endswith(":/fixture:ro") for item in arguments):
+        print("fixture inspected inside docker", file=sys.stderr)
+        raise SystemExit(73)
+if arguments and arguments[0] == "rm":
+    raise SystemExit(0)
 print("unexpected fake docker call: " + " ".join(arguments), file=sys.stderr)
 raise SystemExit(86)
 '''
@@ -74,6 +82,23 @@ raise SystemExit(86)
                     )
                     self.assertEqual(result.returncode, 1, result.stderr)
                     self.assertIn(f"ERROR: M3: {expected}", result.stderr)
+
+            environment = os.environ.copy()
+            environment["PATH"] = f"{folder}:{environment['PATH']}"
+            result = subprocess.run(
+                [str(checker), "fixture"],
+                cwd=root,
+                env=environment,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertIn("fixture inspected inside docker", result.stderr)
+            self.assertIn(
+                "Layoutnachbedingungen im UID-unabhaengigen Pruefcontainer verletzt",
+                result.stderr,
+            )
 
     def test_container_publish_workflow_isolates_dynamic_m3_and_m4_steps(self) -> None:
         workflow = (

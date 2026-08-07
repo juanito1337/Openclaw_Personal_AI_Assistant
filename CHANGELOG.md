@@ -22,6 +22,8 @@
 - Die Publish-CI trennt Rollen-, Supply-Chain-, M3- und M4-Abnahmen in einzeln
   benannte Schritte. Dynamische Vertragsfehler nennen die verletzte Invariante;
   die SIGTERM-Abnahme synchronisiert auf einen nachweisbar installierten Handler.
+- M3 inspiziert restriktiven containerseitigen State UID-unabhaengig ueber einen
+  read-only Pruefmount, statt CI-Hostzugriff mit einem fehlenden Pfad zu verwechseln.
 
 ## Unreleased – M7 Reproduzierbare und attestierte Image-Lieferkette
 

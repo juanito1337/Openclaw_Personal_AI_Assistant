@@ -16,21 +16,6 @@ require_equal() {
     fail "$description: erwartet '$expected', erhalten '$actual'"
 }
 
-require_absent() {
-  local path=$1 description=$2
-  [[ ! -e "$path" && ! -L "$path" ]] || fail "$description: unerwartet vorhanden: $path"
-}
-
-require_file() {
-  local path=$1 description=$2
-  [[ -f "$path" ]] || fail "$description: Datei fehlt: $path"
-}
-
-require_directory() {
-  local path=$1 description=$2
-  [[ -d "$path" ]] || fail "$description: Verzeichnis fehlt: $path"
-}
-
 docker info >/dev/null || fail "Docker-Daemon nicht erreichbar"
 docker image inspect "$IMAGE" >/dev/null || fail "Containerimage nicht vorhanden: $IMAGE"
 
@@ -129,29 +114,52 @@ fi
 docker rm "$name_one" "$name_two" >/dev/null ||
   fail "erfolgreich beendete parallele Layoutcontainer konnten nicht entfernt werden"
 
-require_absent "$state/tampered-script-ran" "Legacy-Skript wurde ausgefuehrt"
-require_absent "$state/workspace/scripts/assistant.sh" "Legacy-Runtime-Skript wurde nicht entfernt"
-require_equal "/opt/openclaw-agent/AGENTS.md" \
-  "$(readlink "$state/workspace/AGENTS.md" 2>/dev/null || true)" \
+# Container-created directories intentionally belong to the image UID and may be
+# mode 0700. Inspect through a disposable root container instead of weakening
+# those modes or confusing a different CI host UID with a missing path.
+if ! docker run --rm --user 0:0 --network none --read-only \
+  --entrypoint /bin/sh -v "$state:/fixture:ro" "$IMAGE" -c '
+set -eu
+fail() {
+  printf "ERROR: M3 fixture: %s\n" "$*" >&2
+  exit 1
+}
+assert_absent() {
+  [ ! -e "$1" ] && [ ! -L "$1" ] || fail "$2: unerwartet vorhanden: $1"
+}
+assert_file() {
+  [ -f "$1" ] || fail "$2: Datei fehlt: $1"
+}
+assert_directory() {
+  [ -d "$1" ] || fail "$2: Verzeichnis fehlt: $1"
+}
+assert_equal() {
+  [ "$1" = "$2" ] || fail "$3: erwartet $1, erhalten $2"
+}
+assert_absent /fixture/tampered-script-ran "Legacy-Skript wurde ausgefuehrt"
+assert_absent /fixture/workspace/scripts/assistant.sh "Legacy-Runtime-Skript wurde nicht entfernt"
+assert_equal /opt/openclaw-agent/AGENTS.md \
+  "$(readlink /fixture/workspace/AGENTS.md 2>/dev/null || true)" \
   "Release-Link AGENTS.md"
-require_equal "/opt/openclaw-agent/skills/personal-assistant" \
-  "$(readlink "$state/workspace/skills/personal-assistant" 2>/dev/null || true)" \
+assert_equal /opt/openclaw-agent/skills/personal-assistant \
+  "$(readlink /fixture/workspace/skills/personal-assistant 2>/dev/null || true)" \
   "Release-Link personal-assistant"
-if ! actual_layout=$(python3 -c \
-  'import json,sys; print(json.load(open(sys.argv[1]))["layout"])' \
-  "$state/.container-layout.json"); then
-  fail "Layoutmarker ist nicht als JSON lesbar: $state/.container-layout.json"
+actual_layout=$(python3 -P -c \
+  "import json,sys; print(json.load(open(sys.argv[1]))[\"layout\"])" \
+  /fixture/.container-layout.json) || fail "Layoutmarker ist nicht als JSON lesbar"
+assert_equal 3 "$actual_layout" "publizierte Layoutversion"
+assert_file /fixture/v3/instance/.layout-version.json "Instanz-Layoutmarker"
+assert_directory /fixture/v3/domains/mail "Mail-Domaene"
+assert_directory /fixture/v3/domains/portfolio "Portfolio-Domaene"
+assert_directory /fixture/v3/domains/knowledge "Knowledge-Domaene"
+assert_directory /fixture/v3/shared/core "gemeinsamer Core-State"
+assert_directory /fixture/v3/shared/coordination "gemeinsamer Koordinations-State"
+assert_directory /fixture/.layout-migrations/backups "Migrationsbackup-Wurzel"
+backup_count=$(find /fixture/.layout-migrations/backups -name "*.tar.gz" -type f | wc -l)
+assert_equal 1 "$backup_count" "Anzahl atomarer Migrationsbackups"
+'; then
+  fail "Layoutnachbedingungen im UID-unabhaengigen Pruefcontainer verletzt"
 fi
-require_equal "3" "$actual_layout" "publizierte Layoutversion"
-require_file "$state/v3/instance/.layout-version.json" "Instanz-Layoutmarker"
-require_directory "$state/v3/domains/mail" "Mail-Domaene"
-require_directory "$state/v3/domains/portfolio" "Portfolio-Domaene"
-require_directory "$state/v3/domains/knowledge" "Knowledge-Domaene"
-require_directory "$state/v3/shared/core" "gemeinsamer Core-State"
-require_directory "$state/v3/shared/coordination" "gemeinsamer Koordinations-State"
-require_directory "$state/.layout-migrations/backups" "Migrationsbackup-Wurzel"
-backup_count=$(find "$state/.layout-migrations/backups" -name '*.tar.gz' -type f | wc -l)
-require_equal "1" "$backup_count" "Anzahl atomarer Migrationsbackups"
 
 if ! status_json=$(docker run --rm "${runtime_args[@]}" "$IMAGE" \
   /opt/openclaw-agent/scripts/assistant.sh status 2>"$fixture/status.stderr"); then

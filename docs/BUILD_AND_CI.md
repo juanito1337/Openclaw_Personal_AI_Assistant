@@ -41,6 +41,9 @@ dynamische M4-Pruefung sind eigene benannte Workflow-Schritte. Die M3-/M4-Skript
 melden die verletzte Invariante mit Soll-/Istwert; der SIGTERM-Test wartet auf die
 nachweisbare Bereitschaft des Signalhandlers. Ein Abbruch darf daher weder als
 anonymer Sammelschritt noch als timingabhaengiger Erfolg erscheinen.
+Containerseitig restriktiv erzeugte M3-Pfade werden mit einem read-only State-Mount
+im kurzlebigen Pruefcontainer inspiziert. Eine abweichende Host-UID ist damit kein
+Grund, Laufzeitrechte zu lockern oder einen vorhandenen Pfad als fehlend zu melden.
 
 Je Image erzeugt digest-gepinntes Syft eine SPDX-SBOM. Digest-gepinntes Trivy scannt
 kritische Schwachstellen und Secrets. Kritische Befunde werden mit Exitcode 1 ohne
