@@ -158,11 +158,15 @@ if docker run --name "$oom_container" --memory 64m --memory-swap 64m --network n
     --entrypoint python3 "$IMAGE" -c '
 import sys
 try:
-    allocation = bytearray(512 * 1024 * 1024)
+    allocation = []
+    for allocated_mib in range(1, 513):
+        allocation.append(bytearray(1024 * 1024))
+        if allocated_mib % 8 == 0:
+            print(f"OPENCLAW_MEMORY_PRESSURE: {allocated_mib} MiB", flush=True)
 except MemoryError:
     print("OPENCLAW_MEMORY_LIMIT_ENFORCED: MemoryError", file=sys.stderr)
     raise SystemExit(42)
-print(f"memory limit was not enforced: {len(allocation)}", file=sys.stderr)
+print(f"memory limit was not enforced: {len(allocation)} MiB", file=sys.stderr)
 ' >"$fixture/oom.stdout" 2>"$fixture/oom.stderr"; then
   echo "OOM-Grenze wurde nicht erzwungen" >&2
   exit 1
@@ -170,12 +174,26 @@ fi
 oom_memory=$(docker inspect --format '{{.HostConfig.Memory}}' "$oom_container")
 oom_exit=$(docker inspect --format '{{.State.ExitCode}}' "$oom_container")
 oom_killed=$(docker inspect --format '{{.State.OOMKilled}}' "$oom_container")
+oom_error=$(docker inspect --format '{{.State.Error}}' "$oom_container")
+pressure_mib=$(
+  sed -n 's/^OPENCLAW_MEMORY_PRESSURE: \([0-9][0-9]*\) MiB$/\1/p' \
+    "$fixture/oom.stdout" | tail -n 1
+)
 require_equal "67108864" "$oom_memory" "Memory-Limit des Allokationstests"
 if [[ "$oom_killed" != "true" ]]; then
-  if [[ "$oom_exit" != "42" ]] ||
-      ! grep -Fq 'OPENCLAW_MEMORY_LIMIT_ENFORCED: MemoryError' "$fixture/oom.stderr"; then
+  controlled_memory_error=false
+  bounded_sigkill=false
+  if [[ "$oom_exit" == "42" ]] &&
+      grep -Fq 'OPENCLAW_MEMORY_LIMIT_ENFORCED: MemoryError' "$fixture/oom.stderr"; then
+    controlled_memory_error=true
+  fi
+  if [[ "$oom_exit" == "137" && -z "$oom_error" && "$pressure_mib" =~ ^[0-9]+$ ]] &&
+      ((pressure_mib >= 8 && pressure_mib < 512)); then
+    bounded_sigkill=true
+  fi
+  if [[ "$controlled_memory_error" != "true" && "$bounded_sigkill" != "true" ]]; then
     cat "$fixture/oom.stdout" "$fixture/oom.stderr" >&2
-    fail "Speicherallokation scheiterte weder durch cgroup OOM-Kill noch kontrollierten MemoryError"
+    fail "Speicherlimit nicht nachgewiesen: Exit=$oom_exit, OOMKilled=$oom_killed, StateError=${oom_error:-<leer>}, letzter Druck=${pressure_mib:-<fehlend>} MiB"
   fi
 fi
 

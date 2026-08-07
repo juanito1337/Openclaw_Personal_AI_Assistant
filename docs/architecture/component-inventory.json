@@ -83,7 +83,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-07T09:19:50+02:00",
+      "last_git_change": "2026-08-07T11:34:32+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -782,7 +782,7 @@
       ],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-07T09:19:50+02:00",
+      "last_git_change": "2026-08-07T11:34:32+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -911,7 +911,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-07T09:19:50+02:00",
+      "last_git_change": "2026-08-07T11:34:32+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1112,7 +1112,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-06T15:45:31+02:00",
+      "last_git_change": "2026-08-07T11:34:32+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1566,7 +1566,7 @@
         "docs/architecture/owners.json"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-07T09:19:50+02:00",
+      "last_git_change": "2026-08-07T11:34:32+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -5719,7 +5719,7 @@
         "docs/architecture/adr/0007-shared-sqlite-scheduler.md",
         "docs/architecture/state-access.json"
       ],
-      "line_coverage_percent": 85.1,
+      "line_coverage_percent": 84.24,
       "last_git_change": "2026-08-06T15:45:31+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -6416,7 +6416,7 @@
         "docs/architecture/IMAGE_SUPPLY_CHAIN.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-07T09:19:50+02:00",
+      "last_git_change": "2026-08-07T11:34:32+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -7629,7 +7629,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-07T09:19:50+02:00",
+      "last_git_change": "2026-08-07T11:34:32+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"

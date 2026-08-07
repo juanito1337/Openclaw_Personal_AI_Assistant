@@ -35,6 +35,9 @@
 - Das Deployment benoetigt kein unbelegtes Host-Cosign mehr: Signaturen und
   Attestierungen werden mit dem digest-gepinnten, read-only Cosign-Container aus
   dem Supply-Chain-Lock und read-only Registry-Anmeldung geprueft.
+- Die Memory-Abnahme protokolliert den aufgebauten Speicherdruck schrittweise und
+  erkennt einen runtime-spezifischen SIGKILL nur zusammen mit dem exakten Limit,
+  leerem Docker-State-Fehler und unvollstaendiger Allokation als cgroup-Nachweis.
 
 ## Unreleased – M7 Reproduzierbare und attestierte Image-Lieferkette
 

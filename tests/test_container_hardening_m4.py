@@ -76,6 +76,9 @@ if arguments and arguments[0] == "run":
             if os.environ.get("FAKE_OOM_MODE") == "unexpected":
                 print("unrelated allocator failure", file=sys.stderr)
                 raise SystemExit(7)
+            if os.environ.get("FAKE_OOM_MODE") == "sigkill":
+                print("OPENCLAW_MEMORY_PRESSURE: 32 MiB")
+                raise SystemExit(137)
             print("OPENCLAW_MEMORY_LIMIT_ENFORCED: MemoryError", file=sys.stderr)
             raise SystemExit(42)
         raise SystemExit(0)
@@ -105,8 +108,14 @@ if arguments and arguments[0] == "inspect":
         print("67108864")
     elif "OOMKilled" in template:
         print("false")
+    elif "State.Error" in template:
+        print("")
     elif "ExitCode" in template:
-        print("42" if container.startswith("openclaw-m4-oom-") else "0")
+        if container.startswith("openclaw-m4-oom-"):
+            mode = os.environ.get("FAKE_OOM_MODE")
+            print("137" if mode == "sigkill" else "7" if mode == "unexpected" else "42")
+        else:
+            print("0")
     raise SystemExit(0)
 if arguments and arguments[0] == "create":
     raise SystemExit(0)
@@ -140,6 +149,24 @@ raise SystemExit(86)
             binary.write_text(fake_docker, encoding="utf-8")
             binary.chmod(0o755)
             environment = os.environ.copy()
+            environment["FAKE_OOM_MODE"] = "sigkill"
+            environment["PATH"] = f"{folder}:{environment['PATH']}"
+            result = subprocess.run(
+                [str(checker), "fixture"],
+                cwd=ROOT,
+                env=environment,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Dynamische M4-Haertung erfolgreich", result.stdout)
+
+        with tempfile.TemporaryDirectory() as folder:
+            binary = Path(folder) / "docker"
+            binary.write_text(fake_docker, encoding="utf-8")
+            binary.chmod(0o755)
+            environment = os.environ.copy()
             environment["FAKE_OOM_MODE"] = "unexpected"
             environment["PATH"] = f"{folder}:{environment['PATH']}"
             result = subprocess.run(
@@ -151,10 +178,8 @@ raise SystemExit(86)
                 check=False,
             )
         self.assertEqual(result.returncode, 1, result.stderr)
-        self.assertIn(
-            "weder durch cgroup OOM-Kill noch kontrollierten MemoryError",
-            result.stderr,
-        )
+        self.assertIn("Speicherlimit nicht nachgewiesen", result.stderr)
+        self.assertIn("Exit=7", result.stderr)
 
     def test_only_gateway_publishes_loopback_port(self) -> None:
         published = {name: value.get("ports", []) for name, value in self.compose["services"].items()}
