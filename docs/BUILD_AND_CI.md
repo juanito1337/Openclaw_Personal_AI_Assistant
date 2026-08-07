@@ -117,7 +117,10 @@ wird darin nur read-only sichtbar; eine Hostinstallation von Cosign entfaellt.
 Alle Dockerpruefungen verwenden nur neu gebaute Testimages, temporaere Container
 und temporaere Netze. Ein bereits laufender Compose-Stack wird weder gestoppt noch
 neu konfiguriert. Erfolgreiche lokale Signaturtests ersetzen nicht die keyless
-Registry-Signatur des Releaseworkflows.
+Registry-Signatur des Releaseworkflows. Der Rollen-Smoke startet den echten
+Proxy-Entrypoint in einem privaten internen Fixture-Netz und verlangt einen
+erfolgreichen Upstream-Healthcheck; ein bloss importierbares Proxy-Modul reicht
+nicht fuer die Imagefreigabe.
 
 Die gemessenen M7-Werte, Scanner-Versionen und OCI-Archiv-Hashes sind unter
 [`architecture/image-baseline-m7.json`](architecture/image-baseline-m7.json)

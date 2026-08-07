@@ -47,6 +47,10 @@
 - Der Uebergang vom Legacy-systemd-Betrieb deaktiviert aktivierte Writer-Timer
   nun explizit, statt sie nur zu stoppen. Scheitert danach das vorbereitende
   Backup, wird die zuvor aufgezeichnete Aktivierungsmenge wiederhergestellt.
+- Der Ollama-Prioritaetsproxy akzeptiert seinen nicht publizierten Wildcard-
+  Listener ausschliesslich in der Containerrolle; Hostbetrieb und beliebige
+  Nicht-Loopback-Adressen bleiben gesperrt. Der Image-Smoke startet nun den echten
+  Proxy mit einem isolierten Fake-Upstream und prueft dessen Healthcheck.
 
 ## Unreleased – M7 Reproduzierbare und attestierte Image-Lieferkette
 

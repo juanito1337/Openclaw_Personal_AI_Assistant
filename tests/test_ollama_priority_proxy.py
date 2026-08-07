@@ -353,8 +353,42 @@ class ProxyIntegrationTests(unittest.TestCase):
         config = ProxyConfig(upstream_url="http://127.0.0.1:11434", listen_host="0.0.0.0")
         with self.assertRaises(ValueError):
             config.validate()
+        container_config = ProxyConfig(
+            upstream_url="http://127.0.0.1:11434",
+            listen_host="192.0.2.10",
+            container_network_bind=True,
+        )
+        with self.assertRaises(ValueError):
+            container_config.validate()
         with self.assertRaises(ValueError):
             ProxyConfig(upstream_url="http://127.0.0.1:11434/v1").validate()
+
+    def test_proxy_accepts_internal_wildcard_only_for_container_proxy_role(self) -> None:
+        base = {
+            "OLLAMA_PRIORITY_UPSTREAM": "http://host.docker.internal:11434",
+            "OLLAMA_PRIORITY_LISTEN_HOST": "0.0.0.0",
+        }
+        with patch.dict(
+            os.environ,
+            {**base, "OPENCLAW_RUNTIME": "container", "OPENCLAW_ROLE": "ollama-proxy"},
+            clear=True,
+        ):
+            config = ProxyConfig.from_env()
+        self.assertTrue(config.container_network_bind)
+        self.assertEqual(config.listen_host, "0.0.0.0")
+
+        for incomplete_context in (
+            base,
+            {**base, "OPENCLAW_RUNTIME": "container"},
+            {**base, "OPENCLAW_ROLE": "ollama-proxy"},
+            {**base, "OPENCLAW_RUNTIME": "container", "OPENCLAW_ROLE": "gateway"},
+        ):
+            with (
+                self.subTest(environment=incomplete_context),
+                patch.dict(os.environ, incomplete_context, clear=True),
+                self.assertRaisesRegex(ValueError, "nur an Loopback"),
+            ):
+                ProxyConfig.from_env()
 
 
 class PriorityPropagationTests(unittest.TestCase):

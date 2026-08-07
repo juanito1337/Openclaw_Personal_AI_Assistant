@@ -94,6 +94,7 @@ class ProxyConfig:
     background_burst_idle_seconds: float = 5.0
     buffer_bytes: int = 16_384
     connect_timeout_seconds: float = 10.0
+    container_network_bind: bool = False
 
     @classmethod
     def from_env(cls) -> ProxyConfig:
@@ -118,6 +119,10 @@ class ProxyConfig:
             ),
             buffer_bytes=_safe_int(os.environ.get("OLLAMA_PRIORITY_BUFFER_BYTES"), 16_384),
             connect_timeout_seconds=_safe_float(os.environ.get("OLLAMA_PRIORITY_CONNECT_TIMEOUT"), 10.0),
+            container_network_bind=(
+                os.environ.get("OPENCLAW_RUNTIME") == "container"
+                and os.environ.get("OPENCLAW_ROLE") == "ollama-proxy"
+            ),
         )
         config.validate()
         return config
@@ -135,7 +140,8 @@ class ProxyConfig:
             raise ValueError("OLLAMA_PRIORITY_UPSTREAM darf keine Zugangsdaten in der URL enthalten")
         if parsed.query or parsed.fragment or parsed.path not in {"", "/"}:
             raise ValueError("OLLAMA_PRIORITY_UPSTREAM muss auf die Ollama-Basis-URL ohne Unterpfad zeigen")
-        if not _is_loopback_host(self.listen_host):
+        internal_container_bind = self.container_network_bind and self.listen_host == "0.0.0.0"
+        if not _is_loopback_host(self.listen_host) and not internal_container_bind:
             raise ValueError("Der Prioritaetsproxy darf aus Sicherheitsgruenden nur an Loopback binden")
         if not 1 <= self.listen_port <= 65535:
             raise ValueError("OLLAMA_PRIORITY_LISTEN_PORT ist ungueltig")
