@@ -49,6 +49,61 @@ class ContainerHardeningM4Tests(unittest.TestCase):
             self.assertEqual(service["security_opt"], defaults["security_opt"], role)
             self.assertEqual(service["logging"]["driver"], defaults["logging_driver"], role)
 
+    def test_signal_fixture_is_readable_without_host_uid_ownership(self) -> None:
+        checker = ROOT / "scripts/check-container-hardening.sh"
+        fake_docker = r'''#!/usr/bin/env python3
+import os
+import stat
+import sys
+from pathlib import Path
+
+arguments = sys.argv[1:]
+if arguments == ["info"] or arguments[:2] == ["image", "inspect"]:
+    raise SystemExit(0)
+if arguments[:2] == ["network", "create"]:
+    raise SystemExit(0)
+if arguments and arguments[0] == "run":
+    signal_name = next(
+        (item for item in arguments if item.startswith("openclaw-m4-signal-")),
+        None,
+    )
+    if signal_name is None:
+        raise SystemExit(0)
+    volume = next(item for item in arguments if item.endswith(":/workspace:ro"))
+    workspace = Path(volume.removesuffix(":/workspace:ro"))
+    marker = workspace / ".layout-version.json"
+    directory_mode = stat.S_IMODE(workspace.stat().st_mode)
+    marker_mode = stat.S_IMODE(marker.stat().st_mode)
+    if directory_mode & 0o005 != 0o005 or marker_mode & 0o004 != 0o004:
+        print("signal fixture is not readable by a different UID", file=sys.stderr)
+        raise SystemExit(92)
+    print("signal fixture permissions ok", file=sys.stderr)
+    raise SystemExit(91)
+if arguments and arguments[0] == "rm":
+    raise SystemExit(0)
+if arguments[:2] == ["network", "rm"]:
+    raise SystemExit(0)
+print("unexpected fake docker call: " + " ".join(arguments), file=sys.stderr)
+raise SystemExit(86)
+'''
+        with tempfile.TemporaryDirectory() as folder:
+            binary = Path(folder) / "docker"
+            binary.write_text(fake_docker, encoding="utf-8")
+            binary.chmod(0o755)
+            environment = os.environ.copy()
+            environment["PATH"] = f"{folder}:{environment['PATH']}"
+            result = subprocess.run(
+                [str(checker), "fixture"],
+                cwd=ROOT,
+                env=environment,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("signal fixture permissions ok", result.stderr)
+        self.assertIn("SIGTERM-Testcontainer konnte nicht gestartet werden", result.stderr)
+
     def test_only_gateway_publishes_loopback_port(self) -> None:
         published = {name: value.get("ports", []) for name, value in self.compose["services"].items()}
         self.assertEqual(published["gateway"], self.contract["published_ports"]["gateway"])

@@ -44,6 +44,9 @@ anonymer Sammelschritt noch als timingabhaengiger Erfolg erscheinen.
 Containerseitig restriktiv erzeugte M3-Pfade werden mit einem read-only State-Mount
 im kurzlebigen Pruefcontainer inspiziert. Eine abweichende Host-UID ist damit kein
 Grund, Laufzeitrechte zu lockern oder einen vorhandenen Pfad als fehlend zu melden.
+Der oeffentliche M4-Testmarker ist auf seinem read-only Mount explizit fuer die
+abweichende Image-UID lesbar; produktive State-, Config- und Secret-Modi bleiben
+davon unberuehrt.
 
 Je Image erzeugt digest-gepinntes Syft eine SPDX-SBOM. Digest-gepinntes Trivy scannt
 kritische Schwachstellen und Secrets. Kritische Befunde werden mit Exitcode 1 ohne

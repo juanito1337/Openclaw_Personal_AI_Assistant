@@ -30,6 +30,7 @@ oom_container="openclaw-m4-oom-$suffix"
 cleanup() {
   docker rm -f "$server" "$signal_container" "$limits_container" "$oom_container" >/dev/null 2>&1 || true
   docker network rm "$backend" "$foreign" >/dev/null 2>&1 || true
+  chmod -R u+w "$fixture" >/dev/null 2>&1 || true
   rm -rf "$fixture"
 }
 trap cleanup EXIT
@@ -97,6 +98,11 @@ fi
 # Tini/entrypoint must forward SIGTERM and exit within the bounded grace time.
 mkdir -p "$fixture/workspace"
 printf '%s\n' '{"layout": 3}' > "$fixture/workspace/.layout-version.json"
+# The marker is public test metadata on a read-only mount. CI host UID and image
+# UID intentionally differ, so make only this disposable fixture traversable and
+# readable instead of depending on numeric owner equality.
+chmod 0555 "$fixture/workspace"
+chmod 0444 "$fixture/workspace/.layout-version.json"
 if ! docker run -d --name "$signal_container" --network none --read-only --tmpfs /tmp \
   --user 1000:1000 --cap-drop ALL --security-opt no-new-privileges \
   -e OPENCLAW_LAYOUT_MODE=verify -e OPENCLAW_WORKSPACE=/workspace \
