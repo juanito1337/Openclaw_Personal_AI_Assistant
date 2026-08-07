@@ -69,6 +69,14 @@ printf '%s\n' \
   'OLLAMA_PRIORITY_LISTEN_HOST=127.0.0.1' \
   'OLLAMA_PRIORITY_LISTEN_PORT=11435' \
   > "$smoke_root/ollama-priority.env"
+# GitHub's host UID differs from the fixed image UID 1000. These three files
+# contain public fixtures only; make their read-only bind mounts traversable
+# without relaxing any productive config or secret permission.
+chmod 0755 "$smoke_root" "$smoke_root/upstream" "$smoke_root/upstream/api" "$smoke_root/workspace"
+chmod 0444 \
+  "$smoke_root/upstream/api/version" \
+  "$smoke_root/workspace/.layout-version.json" \
+  "$smoke_root/ollama-priority.env"
 docker network create --internal "$smoke_network" >/dev/null
 docker run -d \
   --name "$smoke_upstream" \

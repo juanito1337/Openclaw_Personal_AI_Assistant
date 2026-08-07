@@ -99,7 +99,7 @@ a8a176214a0fc5d155976a3bc68cc279fcd83510c877d91c258f43b0355c0c9c  ./docs/archite
 b0562446280a500eb2723a9bbdb23b9ac128b13bff967415ff34a6c2e36abc35  ./docs/architecture/adr/0012-m8-recovery-und-agentenvertrag.md
 bf0a70a65d594843e319bc0dfc90f322172490914400bfbd80aeca83b03e57e7  ./docs/architecture/adr/README.md
 d27b02d1ed286794ce453b80b4911bcbf476dfb08d005437510e5419f237203c  ./docs/architecture/compatibility-policy.json
-5eb210525084db81d38259aa7677a4dbaa8558fe615f7f5165cf7a71c1be96b3  ./docs/architecture/component-inventory.json
+e31c9ada8a066810f4ecacaab599c9bb02df5cb2d1cf45771d6fff539694010b  ./docs/architecture/component-inventory.json
 1f707ea0d3c63cf76a35d64fd62988a6f59c1c5e73fe7a09fe62fdb7901a919c  ./docs/architecture/image-baseline-m7.json
 b397cdaa70d5dbcd4bfd22ed503433570b67bb978059bd5916e8793d173807c3  ./docs/architecture/legacy-decisions.json
 f3c5e77b8a891d4666b058b4a7d09997b3168924ad20324abde144bf7eff59ca  ./docs/architecture/owners.json
@@ -291,7 +291,7 @@ cbb83b2f1dc6001ed743b775dad292038d5f1b62a81bbd5530daef40125855a1  ./scripts/chec
 123e6644ccdc32dad0bcf72dc74fb5c9b70780366791445267115ce18b1ca3b0  ./scripts/check-mypy.py
 3b4e2a25f867a6de58d00bcb6194064a825799939347ee6c1d041bb64e9f4f06  ./scripts/check-repo.sh
 1cdce82d23edb4ea231a713ac7cee6bdee8fafb5a5631af8102b50383bc3bf73  ./scripts/check-reproducible-images.sh
-068c1c520ecb0c40bd17db113697d9a973c9fc006046e2aa87459a1a5f1f4488  ./scripts/check-role-images.sh
+9715b14e9009eca6f717dc32e9bff1dda3f9a9188d1918e2bbcf83e50fcd8bb1  ./scripts/check-role-images.sh
 e0e89f0e3f7483d33d9f237d81a4e886fca833bd2d5a46f62750e8c0de0bcee4  ./scripts/check-ruff.py
 11cb524dc14207f6114b220303312e75fdc1b062f793ef7bed7488026bc630c6  ./scripts/check-source-secrets.sh
 e102a499c80495fd125e12ad65f7d5b9bc9e89f9f4e99b47fc34aac574d1e9bf  ./scripts/check-wheel.sh
