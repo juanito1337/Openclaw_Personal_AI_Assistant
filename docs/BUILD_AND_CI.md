@@ -17,8 +17,8 @@ ruft `scripts/check-m8-integration.sh` auf und bewahrt
 produktive Konten, Secrets, Mounts oder Netze.
 
 Die Workflows besitzen global `permissions: {}`. Der Testjob darf nur Inhalte
-lesen. Der Releasejob erhaelt nur `contents: read`, `packages: write`,
-`id-token: write` und `attestations: write`. Alle Actions stehen als 40-stellige
+lesen. Der Releasejob erhaelt nur `contents: read`, `packages: write` und
+`id-token: write`. Alle Actions stehen als 40-stellige
 Commit-SHAs im Supply-Chain-Lock; lesbare Versionskommentare sind keine
 Vertrauensanker.
 
@@ -81,12 +81,15 @@ Release-Tags. Nach dem identischen Repositorycheck gilt folgende Reihenfolge:
 3. jeden Target-Digest mit BuildKit-SBOM und `provenance: mode=max` nach GHCR
    publizieren,
 4. jeden Digest keyless mit GitHub-OIDC/Cosign und Rekor signieren,
-5. fuer jeden Digest GitHub-SLSA-Provenance und SPDX-SBOM attestieren,
+5. fuer jeden Digest Registry-native Cosign-Attestierungen mit SLSA-v1-Provenance
+   und SPDX-SBOM publizieren,
 6. Signatur und beide Attestierungen fuer alle drei Rollen unmittelbar verifizieren.
 
 Erst danach zeigt der Workflow einen Deploymentbefehl mit drei unveraenderlichen
-`name@sha256:...`-Referenzen. Tags sind nur Auffindbarkeitshilfen. Das Deployment-
-Gate prueft die attestierten Digests, erwartete Release-ID, Git-Revision und Rolle
+`name@sha256:...`-Referenzen. Tags sind nur Auffindbarkeitshilfen. Die Registry-
+native Form ist auch fuer benutzereigene private GitHub-Repositories verfuegbar und
+benoetigt deshalb weder GitHubs Attestation-API noch `attestations: write`. Das
+Deployment-Gate prueft die attestierten Digests, erwartete Release-ID, Git-Revision und Rolle
 vor jeder Aenderung am laufenden Stack.
 
 ## Lokale Reproduktion

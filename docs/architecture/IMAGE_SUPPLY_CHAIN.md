@@ -52,10 +52,12 @@ Schwachstelle, auch ohne Fix, stoppt die Freigabe.
 Der normale CI-Containerjob baut und prueft alle drei Rollen lokal. Der
 Releaseworkflow baut sie zweimal ohne Cache und exportiert mit normalisierten
 Zeitstempeln bytegleiche OCI-Archive. Er veroeffentlicht anschliessend exakt den
-getesteten Commit mit BuildKit-SBOM und Provenance, haengt zusaetzliche GitHub-
-SPDX-/SLSA-Attestierungen an und signiert jeden unveraenderlichen Digest keyless mit
-GitHub OIDC und Rekor. Die Freigabe prueft danach alle drei Signaturen und beide
-Attestierungstypen erneut.
+getesteten Commit mit BuildKit-SBOM und Provenance, haengt zusaetzliche Registry-
+native SPDX-/SLSA-v1-Cosign-Attestierungen an und signiert jeden unveraenderlichen
+Digest keyless mit GitHub OIDC und Rekor. Die Freigabe prueft danach alle drei
+Signaturen und beide Attestierungstypen erneut. Dieser Pfad ist bewusst unabhaengig
+von GitHubs Attestation-API, die fuer benutzereigene private Repositories nicht
+verfuegbar ist.
 
 Lokale Scanner- und Nachweisaufrufe:
 
@@ -71,8 +73,9 @@ Lokale Scanner- und Nachweisaufrufe:
 Syft erzeugt SPDX-JSON. Trivy scannt jedes Rollenimage auf kritische CVEs und
 Secrets sowie die exakte Quellmanifestmenge auf Secrets. Die lokale Provenance ist
 eine deterministische in-toto/SLSA-Verhaltenspruefung, die Image-ID, Git-Revision,
-Release, Rolle, SBOM-Hash und gepinnte Materialien verknuepft; die veroeffentlichte
-Freigabe verwendet die Registry-Attestierungen von GitHub/BuildKit.
+Release, Rolle, SBOM-Hash und gepinnte Materialien verknuepft. Die veroeffentlichte
+Freigabe verwendet dieselbe gepruefte Provenance als SLSA-v1-Predicate; Cosign
+bindet dessen Subject an den publizierten Registry-Digest.
 
 ## Deployment-Gate
 

@@ -21,7 +21,7 @@ cosign verify \
   --certificate-oidc-issuer "$issuer" \
   "$image" >/dev/null
 cosign verify-attestation \
-  --type slsaprovenance \
+  --type slsaprovenance1 \
   --certificate-identity-regexp "$identity" \
   --certificate-oidc-issuer "$issuer" \
   "$image" >/dev/null

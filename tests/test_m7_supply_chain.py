@@ -31,7 +31,69 @@ class M7SupplyChainTests(unittest.TestCase):
         report = self.module.verify_lock(ROOT)
         self.assertTrue(report["ok"])
         self.assertGreaterEqual(report["base_images"], 2)
-        self.assertGreaterEqual(report["github_actions"], 10)
+        self.assertGreaterEqual(report["github_actions"], 8)
+
+    def test_private_repository_uses_registry_native_attestations(self) -> None:
+        workflow = (ROOT / ".github/workflows/container.yml").read_text(encoding="utf-8")
+        self.assertNotIn("actions/attest-build-provenance", workflow)
+        self.assertNotIn("actions/attest-sbom", workflow)
+        self.assertNotIn("attestations: write", workflow)
+        self.assertIn("./scripts/publish-image-attestations.sh", workflow)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            base = Path(temporary)
+            artifacts = base / "artifacts"
+            binary = base / "bin"
+            binary.mkdir()
+            calls = base / "cosign-calls"
+            fake_cosign = binary / "cosign"
+            fake_cosign.write_text(
+                "#!/bin/sh\n"
+                f"printf '%s\\n' \"$*\" >> {calls}\n",
+                encoding="utf-8",
+            )
+            fake_cosign.chmod(0o755)
+            for role in ("runtime", "proxy", "maintenance"):
+                directory = artifacts / role
+                directory.mkdir(parents=True)
+                (directory / "provenance.json").write_text(
+                    json.dumps({"predicate": {"role": role}}), encoding="utf-8"
+                )
+                (directory / "image.spdx.json").write_text(
+                    json.dumps({"spdxVersion": "SPDX-2.3"}), encoding="utf-8"
+                )
+            digests = ["sha256:" + value * 64 for value in ("a", "b", "c")]
+            environment = os.environ.copy()
+            environment.update(
+                {
+                    "M7_ATTESTATION_ROOT": str(artifacts),
+                    "M7_COSIGN": str(fake_cosign),
+                }
+            )
+            result = subprocess.run(
+                [
+                    "bash",
+                    str(ROOT / "scripts/publish-image-attestations.sh"),
+                    "ghcr.io/example/openclaw",
+                    *digests,
+                ],
+                cwd=ROOT,
+                env=environment,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            invocations = calls.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(len(invocations), 6)
+            for index, role in enumerate(("runtime", "proxy", "maintenance")):
+                provenance = invocations[index * 2]
+                sbom = invocations[index * 2 + 1]
+                self.assertIn("attest --yes --type slsaprovenance1", provenance)
+                self.assertIn(f"{artifacts}/{role}/provenance.predicate.json", provenance)
+                self.assertTrue(provenance.endswith("ghcr.io/example/openclaw@" + digests[index]))
+                self.assertIn("attest --yes --type spdxjson", sbom)
+                self.assertTrue(sbom.endswith("ghcr.io/example/openclaw@" + digests[index]))
 
     def test_mutable_image_reference_is_rejected(self) -> None:
         with self.assertRaises(self.module.ContractError):

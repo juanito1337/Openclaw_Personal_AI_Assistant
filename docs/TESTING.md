@@ -44,7 +44,7 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 458 Tests, darunter mindestens 420 unittest-kompatible Tests
+fordert mindestens 459 Tests, darunter mindestens 421 unittest-kompatible Tests
 (die bisherigen 349 sowie M0-M8-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
@@ -70,6 +70,7 @@ der aktuellen Python-Dateien.
 | Tests nach M7 gesammelt/ausgefuehrt | 448 / 448 (461 JUnit-Faelle inklusive 13 Subtests) |
 | Tests nach M8 gesammelt/ausgefuehrt | 455 / 455 (468 JUnit-Faelle inklusive 13 Subtests) |
 | Tests nach M8-CI-Diagnosehaertung gesammelt/ausgefuehrt | 458 / 458 (JUnit-Zaehler inklusive Subtest-Ereignissen siehe `build/m0-baseline.json`) |
+| Tests nach privatrepository-tauglicher Registry-Attestierung | 459 / 459 (JUnit-Zaehler inklusive Subtest-Ereignissen siehe `build/m0-baseline.json`) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -79,7 +80,7 @@ der aktuellen Python-Dateien.
 | neue M4-Haertungsregressionstests | 11 |
 | neue M5-Tool-/Schichtvertragsregressionstests | 7 |
 | neue M6-Legacy-/Upgrade-Regressionsitems | 14 |
-| neue M7-Lieferketten-Regressionsitems | 20 |
+| neue M7-Lieferketten-Regressionsitems | 21 |
 | neue M8-Recovery-/Skill-Regressionsitems | 7 |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |

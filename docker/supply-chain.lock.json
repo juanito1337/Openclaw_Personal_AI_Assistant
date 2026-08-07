@@ -18,8 +18,6 @@
     "trivy": "aquasec/trivy:0.73.0@sha256:7cced7cae583819fc7806d4cbc0dbbc7cad18b99f7d3e235192e6da8c091045c"
   },
   "github_actions": {
-    "actions/attest-build-provenance": "43d14bc2b83dec42d39ecae14e916627a18bb661",
-    "actions/attest-sbom": "51e74621a501c89df81fc1391c5a8f4cfc9fab2f",
     "actions/checkout": "fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
     "actions/setup-python": "ece7cb06caefa5fff74198d8649806c4678c61a1",
     "actions/upload-artifact": "ea165f8d65b6e75b540449e92b4886f43607fa02",

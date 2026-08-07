@@ -35,7 +35,6 @@ jobs:
   build-scan-sign:
     needs: test
     permissions:
-      attestations: write
       contents: read
       id-token: write
       packages: write
@@ -157,45 +156,14 @@ jobs:
           cosign sign --yes "$REPOSITORY@${{ steps.runtime.outputs.digest }}"
           cosign sign --yes "$REPOSITORY@${{ steps.proxy.outputs.digest }}"
           cosign sign --yes "$REPOSITORY@${{ steps.maintenance.outputs.digest }}"
-      - name: Publish GitHub build provenance attestations
-        uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661 # v3
-        with:
-          subject-name: ${{ steps.refs.outputs.repository }}
-          subject-digest: ${{ steps.runtime.outputs.digest }}
-          push-to-registry: true
-      - name: Publish proxy build provenance attestation
-        uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661 # v3
-        with:
-          subject-name: ${{ steps.refs.outputs.repository }}
-          subject-digest: ${{ steps.proxy.outputs.digest }}
-          push-to-registry: true
-      - name: Publish maintenance build provenance attestation
-        uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661 # v3
-        with:
-          subject-name: ${{ steps.refs.outputs.repository }}
-          subject-digest: ${{ steps.maintenance.outputs.digest }}
-          push-to-registry: true
-      - name: Publish runtime SBOM attestation
-        uses: actions/attest-sbom@51e74621a501c89df81fc1391c5a8f4cfc9fab2f # v3
-        with:
-          subject-name: ${{ steps.refs.outputs.repository }}
-          subject-digest: ${{ steps.runtime.outputs.digest }}
-          sbom-path: build/m7/runtime/image.spdx.json
-          push-to-registry: true
-      - name: Publish proxy SBOM attestation
-        uses: actions/attest-sbom@51e74621a501c89df81fc1391c5a8f4cfc9fab2f # v3
-        with:
-          subject-name: ${{ steps.refs.outputs.repository }}
-          subject-digest: ${{ steps.proxy.outputs.digest }}
-          sbom-path: build/m7/proxy/image.spdx.json
-          push-to-registry: true
-      - name: Publish maintenance SBOM attestation
-        uses: actions/attest-sbom@51e74621a501c89df81fc1391c5a8f4cfc9fab2f # v3
-        with:
-          subject-name: ${{ steps.refs.outputs.repository }}
-          subject-digest: ${{ steps.maintenance.outputs.digest }}
-          sbom-path: build/m7/maintenance/image.spdx.json
-          push-to-registry: true
+      - name: Publish registry-native provenance and SBOM attestations
+        env:
+          REPOSITORY: ${{ steps.refs.outputs.repository }}
+        run: |
+          ./scripts/publish-image-attestations.sh "$REPOSITORY" \
+            "${{ steps.runtime.outputs.digest }}" \
+            "${{ steps.proxy.outputs.digest }}" \
+            "${{ steps.maintenance.outputs.digest }}"
       - name: Verify published signatures
         env:
           REPOSITORY: ${{ steps.refs.outputs.repository }}
@@ -205,11 +173,11 @@ jobs:
           cosign verify --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer" "$REPOSITORY@${{ steps.runtime.outputs.digest }}" >/dev/null
           cosign verify --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer" "$REPOSITORY@${{ steps.proxy.outputs.digest }}" >/dev/null
           cosign verify --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer" "$REPOSITORY@${{ steps.maintenance.outputs.digest }}" >/dev/null
-          cosign verify-attestation --type slsaprovenance --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer" "$REPOSITORY@${{ steps.runtime.outputs.digest }}" >/dev/null
+          cosign verify-attestation --type slsaprovenance1 --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer" "$REPOSITORY@${{ steps.runtime.outputs.digest }}" >/dev/null
           cosign verify-attestation --type spdxjson --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer" "$REPOSITORY@${{ steps.runtime.outputs.digest }}" >/dev/null
-          cosign verify-attestation --type slsaprovenance --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer" "$REPOSITORY@${{ steps.proxy.outputs.digest }}" >/dev/null
+          cosign verify-attestation --type slsaprovenance1 --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer" "$REPOSITORY@${{ steps.proxy.outputs.digest }}" >/dev/null
           cosign verify-attestation --type spdxjson --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer" "$REPOSITORY@${{ steps.proxy.outputs.digest }}" >/dev/null
-          cosign verify-attestation --type slsaprovenance --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer" "$REPOSITORY@${{ steps.maintenance.outputs.digest }}" >/dev/null
+          cosign verify-attestation --type slsaprovenance1 --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer" "$REPOSITORY@${{ steps.maintenance.outputs.digest }}" >/dev/null
           cosign verify-attestation --type spdxjson --certificate-identity-regexp "$identity" --certificate-oidc-issuer "$issuer" "$REPOSITORY@${{ steps.maintenance.outputs.digest }}" >/dev/null
       - name: Smoke-test the published immutable role digests
         env:

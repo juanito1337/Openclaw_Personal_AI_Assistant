@@ -28,6 +28,10 @@
   eine abweichende Image-UID lesbar und prueft diesen Fall als echtes Skriptverhalten.
 - Die Memory-Abnahme unterscheidet Kernel-OOM-Kill, kontrollierten Allocator-
   `MemoryError` und fachfremde Prozessfehler, ohne die 64-MiB-Grenze zu lockern.
+- Die Imagefreigabe publiziert SLSA-v1-Provenance und SPDX-SBOM nun Registry-nativ
+  mit keyless Cosign. Damit bleibt der Attestierungsvertrag auch im privaten,
+  benutzereigenen GitHub-Repository vollstaendig pruefbar, ohne die dort nicht
+  verfuegbare GitHub-Attestation-API oder eine unnoetige Jobberechtigung.
 
 ## Unreleased – M7 Reproduzierbare und attestierte Image-Lieferkette
 

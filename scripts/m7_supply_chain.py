@@ -121,7 +121,6 @@ def verify_lock(root: Path = ROOT) -> dict[str, Any]:
             "container.yml": {
                 "test": {"contents": "read"},
                 "build-scan-sign": {
-                    "attestations": "write",
                     "contents": "read",
                     "id-token": "write",
                     "packages": "write",
