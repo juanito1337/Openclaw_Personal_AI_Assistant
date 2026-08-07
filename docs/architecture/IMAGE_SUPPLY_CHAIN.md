@@ -89,8 +89,11 @@ Image Folgendes erfolgreich sein:
 4. exakter 40-stelliger Git-Commit im OCI-Label,
 5. erwartete Release-ID und Rollenbezeichnung.
 
-Fehlt `cosign`, ist die Referenz veraenderlich, ist das Image unsigniert oder passt
-eine Identitaet nicht, endet der Vorgang vor jeder Laufzeitaenderung. Backups halten
+Kann das digest-gepinnte Cosign-Pruefimage nicht gestartet werden, ist die Referenz
+veraenderlich, ist das Image unsigniert oder passt eine Identitaet nicht, endet der
+Vorgang vor jeder Laufzeitaenderung. Der Verifier nutzt ein read-only Rootfs ohne
+Capabilities und bindet nur die vorhandene Docker-Registry-Konfiguration read-only
+ein; ein separates Host-Cosign ist nicht erforderlich. Backups halten
 alle drei vorherigen Digestreferenzen fest; Rollback stellt denselben Rollensatz
 wieder her. Ein Image-/State-Rollback stellt keine erfolgreichen Remote-Writes
 wieder her.

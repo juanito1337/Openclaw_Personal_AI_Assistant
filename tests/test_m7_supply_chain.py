@@ -264,12 +264,13 @@ class M7SupplyChainTests(unittest.TestCase):
     def fake_tools(self, folder: Path) -> Path:
         binary = folder / "bin"
         binary.mkdir()
-        (binary / "cosign").write_text(
-            '#!/bin/sh\n[ "${FAKE_COSIGN_FAIL:-0}" = 0 ] || exit 1\nexit 0\n',
-            encoding="utf-8",
-        )
         (binary / "docker").write_text(
             "#!/bin/sh\n"
+            'if [ "$1" = run ]; then\n'
+            '  printf \'%s\\n\' "$*" >> "${FAKE_DOCKER_CALLS}"\n'
+            '  [ "${FAKE_COSIGN_FAIL:-0}" = 0 ] || exit 1\n'
+            "  exit 0\n"
+            "fi\n"
             'if [ "$1" = pull ]; then exit 0; fi\n'
             "if [ \"$1 $2\" = 'image inspect' ]; then\n"
             '  case "$4" in\n'
@@ -290,12 +291,15 @@ class M7SupplyChainTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         binary = self.fake_tools(Path(temporary.name))
+        calls = Path(temporary.name) / "docker-calls"
+        self.docker_calls = calls
         expected = "b" * 40
         environment = os.environ.copy()
         environment.update(
             {
                 "PATH": str(binary) + os.pathsep + environment["PATH"],
                 "FAKE_COSIGN_FAIL": "1" if cosign_fail else "0",
+                "FAKE_DOCKER_CALLS": str(calls),
                 "FAKE_REVISION": revision or expected,
                 "FAKE_RELEASE": "3.4.0-r27.2.5",
                 "FAKE_ROLE": "runtime",
@@ -313,6 +317,22 @@ class M7SupplyChainTests(unittest.TestCase):
     def test_signed_matching_image_passes_deployment_gate(self) -> None:
         result = self.run_deploy_verifier()
         self.assertEqual(result.returncode, 0, result.stderr)
+        invocations = self.docker_calls.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(invocations), 3)
+        self.assertTrue(all("run --rm --read-only" in call for call in invocations))
+        self.assertTrue(all("--cap-drop ALL" in call for call in invocations))
+        self.assertTrue(
+            all("--security-opt no-new-privileges:true" in call for call in invocations)
+        )
+        self.assertTrue(
+            all(
+                "ghcr.io/sigstore/cosign/cosign:v3.1.3@sha256:" in call
+                for call in invocations
+            )
+        )
+        self.assertIn(" verify --certificate-identity-regexp ", invocations[0])
+        self.assertIn(" verify-attestation --type slsaprovenance1 ", invocations[1])
+        self.assertIn(" verify-attestation --type spdxjson ", invocations[2])
 
     def test_unsigned_image_fails_deployment_gate(self) -> None:
         result = self.run_deploy_verifier(cosign_fail=True)

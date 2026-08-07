@@ -266,15 +266,16 @@ For the normal GitHub flow, push a release tag such as `r27.2.5`. The
 `container.yml` workflow tests the repository, scans all targets, generates SBOM
 and Provenance, signs all immutable digests and publishes the three images to GHCR.
 The [supply-chain contract](architecture/IMAGE_SUPPLY_CHAIN.md) documents the exact
-checks. The production host needs Docker plus Cosign and logs into the private
-registry once:
-The production host logs into the private registry once:
+checks. The production host needs Docker and logs into the private registry once:
 
 ```bash
 echo "$GITHUB_TOKEN" | docker login ghcr.io -u juanito1337 --password-stdin
 ```
 
 Use a fine-grained token with read access to packages. Do not store it in Git.
+The deployment verifier runs the digest-pinned Cosign image from the supply-chain
+lock with a read-only root filesystem. It mounts only the existing Docker registry
+configuration read-only, so no separately installed host Cosign binary is needed.
 
 Deployment receives three `name@sha256:...` references and the exact 40-character
 commit in `OPENCLAW_EXPECTED_SOURCE_REVISION`. `deploy.sh` verifies signature,

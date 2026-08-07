@@ -32,6 +32,9 @@
   mit keyless Cosign. Damit bleibt der Attestierungsvertrag auch im privaten,
   benutzereigenen GitHub-Repository vollstaendig pruefbar, ohne die dort nicht
   verfuegbare GitHub-Attestation-API oder eine unnoetige Jobberechtigung.
+- Das Deployment benoetigt kein unbelegtes Host-Cosign mehr: Signaturen und
+  Attestierungen werden mit dem digest-gepinnten, read-only Cosign-Container aus
+  dem Supply-Chain-Lock und read-only Registry-Anmeldung geprueft.
 
 ## Unreleased – M7 Reproduzierbare und attestierte Image-Lieferkette
 

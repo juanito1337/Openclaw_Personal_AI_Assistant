@@ -8,24 +8,42 @@ expected_role=${3:?Erwartete Image-Rolle angeben}
 expected_release=${OPENCLAW_EXPECTED_RELEASE:-3.4.0-r27.2.5}
 issuer=${OPENCLAW_SIGNATURE_ISSUER:-https://token.actions.githubusercontent.com}
 identity=${OPENCLAW_SIGNATURE_IDENTITY_REGEXP:-'^https://github.com/juanito1337/Openclaw_Personal_AI_Assistant/.github/workflows/container.yml@refs/(heads/main|heads/test/.+|tags/r.+)$'}
+cosign_image='ghcr.io/sigstore/cosign/cosign:v3.1.3@sha256:9e5c2f2edc34351160407ca3416c61855bdf9403c3c5936e0f0be7fc261611b8'
 
 [[ "$image" =~ @sha256:[0-9a-f]{64}$ ]] || {
   echo "Deployment akzeptiert nur eine unveraenderliche Image-Referenz mit SHA-256-Digest: $image" >&2
   exit 1
 }
 command -v docker >/dev/null || { echo "docker fehlt" >&2; exit 2; }
-command -v cosign >/dev/null || { echo "cosign fehlt; Signaturpruefung ist obligatorisch" >&2; exit 2; }
 
-cosign verify \
+docker_config_root=${DOCKER_CONFIG:-${HOME:-}/.docker}
+docker_config="$docker_config_root/config.json"
+cosign_command=(
+  docker run --rm --read-only
+  --cap-drop ALL
+  --security-opt no-new-privileges:true
+  --user "$(id -u):$(id -g)"
+  --env HOME=/tmp
+  --tmpfs "/tmp:rw,nosuid,nodev,noexec,size=64m,mode=700,uid=$(id -u),gid=$(id -g)"
+)
+if [[ -r "$docker_config" ]]; then
+  cosign_command+=(
+    --env DOCKER_CONFIG=/docker-config
+    --volume "$docker_config:/docker-config/config.json:ro"
+  )
+fi
+cosign_command+=("$cosign_image")
+
+"${cosign_command[@]}" verify \
   --certificate-identity-regexp "$identity" \
   --certificate-oidc-issuer "$issuer" \
   "$image" >/dev/null
-cosign verify-attestation \
+"${cosign_command[@]}" verify-attestation \
   --type slsaprovenance1 \
   --certificate-identity-regexp "$identity" \
   --certificate-oidc-issuer "$issuer" \
   "$image" >/dev/null
-cosign verify-attestation \
+"${cosign_command[@]}" verify-attestation \
   --type spdxjson \
   --certificate-identity-regexp "$identity" \
   --certificate-oidc-issuer "$issuer" \

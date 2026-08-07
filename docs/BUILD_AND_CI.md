@@ -97,6 +97,9 @@ vor jeder Aenderung am laufenden Stack.
 Da der aktuelle VS-Code-Prozess die spaeter hinzugefuegte Dockergruppe eventuell
 nicht geerbt hat, kann ein einmaliger `sg docker -c '...'`-Aufruf erforderlich sein.
 Er veraendert keine Gruppe und keine Produktivcontainer.
+Die Deploymentpruefung verwendet ebenfalls das im Supply-Chain-Lock
+digest-gepinnte Cosign-Containerimage. Die bestehende Docker-Registry-Anmeldung
+wird darin nur read-only sichtbar; eine Hostinstallation von Cosign entfaellt.
 
 ```bash
 ./docker/scripts/build-local.sh <runtime> <proxy> <maintenance>

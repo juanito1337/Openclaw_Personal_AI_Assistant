@@ -144,6 +144,13 @@ def verify_lock(root: Path = ROOT) -> dict[str, Any]:
     for name, reference in base_images.items():
         if str(reference) not in dockerfile:
             errors.append(f"Dockerfile does not use locked base image {name}")
+    deploy_verifier = (root / "docker/scripts/verify-image-supply-chain.sh").read_text(
+        encoding="utf-8"
+    )
+    scanner_images = cast(dict[str, Any], lock.get("scanner_images") or {})
+    cosign_reference = str(scanner_images.get("cosign") or "")
+    if not cosign_reference or cosign_reference not in deploy_verifier:
+        errors.append("deployment verifier does not use the locked Cosign image")
     for key in ("version", "archive_url", "archive_sha256", "sha256_linux_amd64"):
         if str(himalaya.get(key) or "") not in dockerfile:
             errors.append(f"Dockerfile does not use locked Himalaya {key}")
