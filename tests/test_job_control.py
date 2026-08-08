@@ -238,6 +238,43 @@ class JobControlTests(unittest.TestCase):
         codes = {item["code"] for item in report["jobs"][0]["issues"]}
         self.assertIn("health-check-failed", codes)
 
+    def test_container_health_resolves_release_script_outside_workspace(self) -> None:
+        spec = JobSpec(
+            name="supervisor",
+            description="Supervisor",
+            timer_unit="personal-assistant-supervisor.timer",
+            service_unit="personal-assistant-supervisor.service",
+            default_on=True,
+            standard=True,
+            health_command=("scripts/ollama-priority-proxy.sh", "status"),
+            always_health=True,
+        )
+        image_root = self.root / "immutable-image"
+        writable_workspace = self.root / "writable-state" / "workspace"
+        with patch.dict(
+            "os.environ",
+            {
+                "OPENCLAW_RUNTIME": "container",
+                "OPENCLAW_IMAGE_ROOT": str(image_root),
+            },
+            clear=False,
+        ):
+            controller = JobController(
+                state_path=self.root / "container-supervisor-control.json",
+                workspace_root=writable_workspace,
+                unit_dir=self.unit_dir,
+                runner=self.system,
+                specs=(spec,),
+                sleeper=lambda _seconds: None,
+            )
+            health = controller._health(spec)
+        self.assertTrue(health["ok"])
+        self.assertEqual(
+            self.system.commands[-1],
+            [str(image_root / "scripts/ollama-priority-proxy.sh"), "status"],
+        )
+        self.assertNotIn(str(writable_workspace), self.system.commands[-1][0])
+
     def test_supervisor_reports_scheduler_database_failure(self) -> None:
         spec = JobSpec(
             name="supervisor",

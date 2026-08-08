@@ -53,11 +53,25 @@ Die Bezeichnung `calendar.backend = "nextcloud_skill"` bleibt vorlaeufig als
 Konfigurationskompatibilitaet erhalten; Status und Doctor melden den effektiven
 Backendtyp `native-caldav-carddav`.
 
+Release-eigene Supervisor-, Mail-, Sync- und Portfolio-Healthkommandos werden in
+der Containerlaufzeit relativ zu `OPENCLAW_IMAGE_ROOT` aufgeloest. Der persistente
+`OPENCLAW_WORKSPACE` bleibt ausschliesslich Konfigurations- und Zustandswurzel und
+darf nicht wieder als Quelle fuer ausfuehrbare `scripts/` dienen. Lokaler und
+eingefrorener Legacy-Betrieb behalten ihre bisherige Repository-/Workspacewurzel.
+
+Eine konfigurierte Ressourcen-ID, deren exakter DAV-href nicht mehr entdeckt
+wird, wird bewusst nicht anhand des einzigen Treffers, eines aehnlichen Namens
+oder eines Nextcloud-Share-Suffixes umgebogen. Doctor meldet diese Drift; ein
+Operator muss die aktuell entdeckte stabile ID explizit ueber das registrierte
+Setup auswaehlen. Das ist eine Ressourcenauswahl und keine Image-Migration.
+
 ## Verifikation
 
 Regressionstests pruefen die Normalisierung der aktiven v3-Konfiguration bei
 Migration und Neustart, die Unabhaengigkeit von Workspace-Skillcode, exakte
 Ressourcenaufloesung, fail-closed Mehrdeutigkeit und den create-only nativen
-Kalenderaufruf. Der Rollenimage-Smoke prueft zusaetzlich, dass der native Connector
+Kalenderaufruf. Sie pruefen ausserdem, dass Container-Health und Ollama-CLI das
+Proxy-Skript aus dem unveraenderlichen Image und nie aus dem Workspace starten.
+Der Rollenimage-Smoke prueft zusaetzlich, dass der native Connector
 im read-only Image vorhanden ist und kein Nextcloud-Community-Skill im Workspace
 benoetigt wird.

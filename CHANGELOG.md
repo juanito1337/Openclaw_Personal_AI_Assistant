@@ -64,6 +64,11 @@
   CalDAV/CardDAV-Bruecke. Der breite workspace-lokale Nextcloud-Community-Skill
   wird nicht mehr ausgefuehrt; Kalenderauswahl ist exakt und mehrdeutige Auswahl
   bricht vor dem create-only `If-None-Match`-Write ab (ADR-0013).
+- Container-Healthchecks und die Ollama-CLI loesen release-eigene Skripte jetzt
+  aus `OPENCLAW_IMAGE_ROOT` statt aus dem beschreibbaren Workspace auf. Eine
+  veraltete Kalender-Ressourcen-ID bleibt als explizite Konfigurationsdrift
+  sichtbar und wird nicht still auf einen nur vermeintlich passenden Share
+  umgebogen (ADR-0013).
 
 ## Unreleased – M7 Reproduzierbare und attestierte Image-Lieferkette
 

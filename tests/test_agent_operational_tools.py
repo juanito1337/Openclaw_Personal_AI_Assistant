@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import unittest
 from unittest.mock import patch
 
@@ -44,6 +45,25 @@ class AgentOperationalToolTests(unittest.TestCase):
         )
         self.assertEqual(portfolio_setup.interval_minutes, 15)
         self.assertTrue(portfolio_setup.approve_permissions)
+
+    @patch("personal_assistant.cli.subprocess.run")
+    def test_ollama_status_uses_release_script_in_container(self, run) -> None:
+        run.return_value = Completed(0, json.dumps({"ok": True}), "")
+        args = parser().parse_args(["ollama", "status"])
+        with patch.dict(
+            os.environ,
+            {
+                "OPENCLAW_RUNTIME": "container",
+                "OPENCLAW_IMAGE_ROOT": "/opt/openclaw-agent",
+                "OPENCLAW_WORKSPACE": "/home/node/.openclaw/workspace",
+            },
+            clear=False,
+        ):
+            self.assertEqual(_handle_ollama(args), 0)
+        self.assertEqual(
+            run.call_args.args[0],
+            ["/opt/openclaw-agent/scripts/ollama-priority-proxy.sh", "status"],
+        )
 
     @patch("personal_assistant.cli.subprocess.run")
     def test_ollama_restart_restarts_and_verifies(self, run) -> None:

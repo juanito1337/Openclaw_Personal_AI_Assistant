@@ -111,12 +111,12 @@ def _run_json_command(command: list[str], *, timeout: int = 60) -> tuple[int, di
 
 
 def _handle_ollama(args: argparse.Namespace) -> int:
-    workspace = (
-        Path(os.environ.get("OPENCLAW_WORKSPACE") or Path(__file__).resolve().parents[1])
+    code_root = (
+        Path(os.environ.get("OPENCLAW_IMAGE_ROOT") or Path(__file__).resolve().parents[1])
         .expanduser()
         .resolve()
     )
-    script = str(workspace / "scripts/ollama-priority-proxy.sh")
+    script = str(code_root / "scripts/ollama-priority-proxy.sh")
     if args.ollama_command == "status":
         code, payload = _run_json_command([script, "status"], timeout=30)
     elif args.ollama_command == "check":

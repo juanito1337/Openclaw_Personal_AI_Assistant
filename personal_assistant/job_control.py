@@ -147,12 +147,26 @@ class JobController:
         *,
         state_path: Path | None = None,
         workspace_root: Path = WORKSPACE_ROOT,
+        code_root: Path | None = None,
         unit_dir: Path | None = None,
         runner: Runner | None = None,
         specs: Iterable[JobSpec] | None = None,
         sleeper: Sleeper | None = None,
     ) -> None:
         self.workspace_root = Path(workspace_root).expanduser().resolve()
+        self.container_mode = (
+            os.environ.get("OPENCLAW_RUNTIME", "").strip().lower() == "container"
+        )
+        default_code_root = (
+            os.environ.get("OPENCLAW_IMAGE_ROOT")
+            if self.container_mode
+            else self.workspace_root
+        )
+        self.code_root = (
+            Path(code_root or default_code_root or self.workspace_root)
+            .expanduser()
+            .resolve()
+        )
         default_state = DEFAULT_STATE_PATH
         if root := os.environ.get("OPENCLAW_COORDINATION_DATA_DIR"):
             default_state = Path(root).expanduser().resolve() / "job_control.json"
@@ -161,7 +175,6 @@ class JobController:
         self.runner = runner or _default_runner
         self.sleeper = sleeper or time.sleep
         self.specs = {item.name: item for item in (specs or default_job_specs())}
-        self.container_mode = os.environ.get("OPENCLAW_RUNTIME", "").strip().lower() == "container"
         self.legacy_activation_allowed = (
             os.environ.get("OPENCLAW_ENABLE_LEGACY_SYSTEMD", "").strip() == "YES"
         )
@@ -210,7 +223,7 @@ class JobController:
         resolved = list(command)
         for index, value in enumerate(resolved):
             if value.startswith("scripts/"):
-                resolved[index] = str((self.workspace_root / value).resolve())
+                resolved[index] = str((self.code_root / value).resolve())
         if resolved and not Path(resolved[0]).is_absolute() and "/" in resolved[0]:
             resolved[0] = str((self.workspace_root / resolved[0]).resolve())
         return self.runner(resolved, timeout)

@@ -498,6 +498,24 @@ docker compose --env-file .env --profile tools run --rm agent-cli \
   setup mail-move --approve-permissions
 ```
 
+Falls `mail-agent.sh doctor` eine konfigurierte Kalender-Ressourcen-ID meldet,
+die in der aktuellen Discovery nicht mehr vorkommt, wird sie nicht automatisch
+auf einen Kalender mit aehnlichem Namen oder Share-Pfad umgestellt. Zuerst die
+aktuellen IDs read-only ermitteln und danach genau eine davon ausdruecklich fuer
+die Kalender-Mailfunktion auswaehlen:
+
+```bash
+docker compose --env-file .env --profile tools run --rm agent-cli \
+  /opt/openclaw-agent/scripts/assistant.sh nextcloud discover
+docker compose --env-file .env --profile tools run --rm agent-cli \
+  /opt/openclaw-agent/scripts/assistant.sh setup tools \
+  --calendar-resource '<exakte-nextcloud-calendar-id>' \
+  --approve-permissions
+```
+
+Der zweite Befehl veraendert die lokale Toolkonfiguration und darf deshalb erst
+nach bewusster Auswahl der im ersten Befehl ausgegebenen Ressource laufen.
+
 ## 7. Manual rollback
 
 List release backups:
