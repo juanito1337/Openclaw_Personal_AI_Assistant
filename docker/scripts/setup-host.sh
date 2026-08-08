@@ -38,8 +38,12 @@ sudo install -d -m 700 "$TARGET_ROOT/state" "$TARGET_ROOT/config/himalaya" "$TAR
   "$DEPLOYMENT/scripts" "$DEPLOYMENT/hooks"
 sudo cp "$SOURCE_ROOT/compose.yaml" "$DEPLOYMENT/compose.yaml"
 sudo cp "$SOURCE_ROOT/docker/deployment.env.example" "$DEPLOYMENT/.env.example"
+sudo cp "$SOURCE_ROOT/docker/openclaw-plugins/contract.json" \
+  "$DEPLOYMENT/immutable-plugins.json"
 sudo cp "$SOURCE_ROOT/docker/scripts/"*.sh "$DEPLOYMENT/scripts/"
 sudo cp "$SOURCE_ROOT/docker/scripts/"*.py "$DEPLOYMENT/scripts/"
+sudo cp "$SOURCE_ROOT/personal_assistant/immutable_plugins.py" \
+  "$DEPLOYMENT/scripts/immutable_plugins.py"
 sudo cp "$SOURCE_ROOT/docker/hooks/"*.sh "$DEPLOYMENT/hooks/"
 if [[ ! -f "$DEPLOYMENT/.env" ]]; then
   sudo cp "$DEPLOYMENT/.env.example" "$DEPLOYMENT/.env"
@@ -59,6 +63,7 @@ for secret in gateway.env mail-agent.env personal-assistant.env \
     sudo install -m 600 /dev/null "$TARGET_ROOT/secrets/$secret"
   fi
 done
+sudo chmod 600 "$DEPLOYMENT/immutable-plugins.json"
 sudo chmod 700 "$DEPLOYMENT/scripts/"*.sh "$DEPLOYMENT/scripts/"*.py "$DEPLOYMENT/hooks/"*.sh
 sudo chmod 600 "$TARGET_ROOT/secrets/"*
 sudo chown -R "$OWNER":"$OWNER" "$DEPLOYMENT" "$TARGET_ROOT/config" "$TARGET_ROOT/secrets" "$TARGET_ROOT/backups"

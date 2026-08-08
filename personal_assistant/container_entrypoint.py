@@ -257,6 +257,21 @@ def main(argv: list[str] | None = None) -> int:
     else:
         raise ValueError(f"Unbekannter OPENCLAW_LAYOUT_MODE: {layout_mode}")
 
+    if role == "gateway":
+        from personal_assistant.immutable_plugins import (
+            load_contract,
+            synchronize_installed_plugin_index,
+        )
+
+        plugin_contract = load_contract(Path("/usr/share/openclaw/immutable-plugins.json"))
+        gateway_data = Path(environment["OPENCLAW_GATEWAY_DATA_DIR"])
+        plugin_report = synchronize_installed_plugin_index(
+            gateway_data / "state/openclaw.sqlite",
+            plugin_contract,
+        )
+        if plugin_report["registry_rows_changed"]:
+            print(json.dumps({"immutable_plugins": plugin_report}, sort_keys=True), file=sys.stderr)
+
     executable = shutil.which(command[0], path=environment["PATH"]) if "/" not in command[0] else command[0]
     if executable is None:
         raise FileNotFoundError(command[0])
@@ -268,6 +283,6 @@ def main(argv: list[str] | None = None) -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except (OSError, ValueError, json.JSONDecodeError, subprocess.CalledProcessError) as exc:
+    except (OSError, RuntimeError, ValueError, json.JSONDecodeError, subprocess.CalledProcessError) as exc:
         print(f"Container-Initialisierung fehlgeschlagen: {exc}", file=sys.stderr)
         raise SystemExit(2) from exc

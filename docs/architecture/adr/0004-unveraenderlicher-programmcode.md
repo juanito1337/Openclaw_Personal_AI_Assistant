@@ -21,6 +21,13 @@ kontrollierte nicht ausfuehrbare Metadaten. Agentenanweisungen und der
 Personal-Assistant-Skill werden als bei jedem Start erneuerte Links auf das
 read-only Image exponiert.
 
+Offizielle externe OpenClaw-Plugins sind ebenfalls Programmcode. Benoetigte
+Plugins werden mit exakter npm-Lockdatei unter `/opt/openclaw-plugins` in das
+Runtime-Image gebaut und ueber feste Imagepfade geladen. Verwaltete npm-Payloads
+im beschreibbaren Gateway-State sind unzulaessig; unbekannte Legacy-Plugins
+blockieren die Migration, und der Container deaktiviert Pluginmutation mit
+`OPENCLAW_NIX_MODE=1`.
+
 ## Konsequenzen
 
 Layout 2 entfernt zuvor synchronisierten Releasecode nach einer verifizierten lokalen
@@ -32,8 +39,9 @@ akzeptieren Layout 1 und 2.
 ## Verifikation
 
 Gerenderte Commands, read-only RootFS, sichere Python-Pfade, manipulierte
-Workspace-Skripte, Upgrade-/Downgrade-Fixtures, parallele Starts und Revision-Mismatch
-werden lokal und in CI geprueft.
+Workspace-Skripte, Upgrade-/Downgrade-Fixtures, parallele Starts, Revision-Mismatch,
+Plugin-Lockintegritaet, State-Plugin-Negativmigration und echte Runtime-Imports der
+Imageplugins werden lokal und in CI geprueft.
 
 ## Offene Fragen
 

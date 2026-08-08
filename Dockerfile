@@ -25,6 +25,15 @@ COPY docker/entrypoint.sh docker/healthcheck.sh docker/job_loop.py docker/clamav
 
 FROM ${OPENCLAW_BASE_IMAGE} AS openclaw-source
 
+FROM ${NODE_BASE_IMAGE} AS openclaw-plugin-builder
+WORKDIR /plugins
+COPY docker/openclaw-plugins/package.json docker/openclaw-plugins/package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts --legacy-peer-deps --no-audit --no-fund \
+    && test "$(node -p 'require("./node_modules/@openclaw/brave-plugin/package.json").version')" = "2026.7.1" \
+    && test "$(node -p 'require("./node_modules/@openclaw/signal/package.json").version')" = "2026.7.1" \
+    && test -s node_modules/@openclaw/brave-plugin/openclaw.plugin.json \
+    && test -s node_modules/@openclaw/signal/openclaw.plugin.json
+
 FROM ${NODE_BASE_IMAGE} AS himalaya-builder
 ARG HIMALAYA_VERSION
 ARG HIMALAYA_ARCHIVE_SHA256
@@ -93,17 +102,26 @@ RUN apk add --no-cache \
        freshclam=1.4.3-r0
 
 COPY --from=openclaw-source /app /app
+COPY --from=openclaw-plugin-builder /plugins/node_modules /opt/openclaw-plugins/node_modules
 RUN rm -rf /app/node_modules/@vitest/browser \
        /usr/local/share/corepack \
        /usr/local/lib/node_modules/npm/node_modules/tar \
     && cp -a /app/node_modules/tar /usr/local/lib/node_modules/npm/node_modules/tar \
+    && ln -s /app /opt/openclaw-plugins/node_modules/openclaw \
+    && mkdir -p /opt/openclaw-plugins/node_modules/@openclaw/brave-plugin/node_modules \
+                /opt/openclaw-plugins/node_modules/@openclaw/signal/node_modules \
+    && ln -s /app /opt/openclaw-plugins/node_modules/@openclaw/brave-plugin/node_modules/openclaw \
+    && ln -s /app /opt/openclaw-plugins/node_modules/@openclaw/signal/node_modules/openclaw \
     && ln -s /app/openclaw.mjs /usr/local/bin/openclaw \
+    && test "$(node -p 'require("/opt/openclaw-plugins/node_modules/@openclaw/brave-plugin/package.json").version')" = "2026.7.1" \
+    && test "$(node -p 'require("/opt/openclaw-plugins/node_modules/@openclaw/signal/package.json").version')" = "2026.7.1" \
     && test "$(node -p 'require("/usr/local/lib/node_modules/npm/node_modules/tar/package.json").version')" = "7.5.19" \
     && test "$(openclaw --version)" = "OpenClaw 2026.7.1"
 
 COPY --from=himalaya-builder /opt/himalaya/bin/himalaya /usr/local/bin/himalaya
 COPY --from=agent-source / /opt/openclaw-agent
 COPY docker/supply-chain.lock.json /usr/share/openclaw/supply-chain.lock.json
+COPY docker/openclaw-plugins/contract.json /usr/share/openclaw/immutable-plugins.json
 WORKDIR /opt/openclaw-agent
 RUN printf '%s\n' "${OPENCLAW_SOURCE_REVISION}" > /opt/openclaw-agent/SOURCE_REVISION \
     && chmod 0444 /opt/openclaw-agent/SOURCE_REVISION \
@@ -118,6 +136,7 @@ RUN printf '%s\n' "${OPENCLAW_SOURCE_REVISION}" > /opt/openclaw-agent/SOURCE_REV
 
 ENV HOME=/home/node \
     OPENCLAW_RUNTIME=container \
+    OPENCLAW_NIX_MODE=1 \
     OPENCLAW_IMAGE_ROOT=/opt/openclaw-agent \
     OPENCLAW_CODE_ROOT=/opt/openclaw-agent \
     OPENCLAW_RELEASE_ROOT=/opt/openclaw-agent \

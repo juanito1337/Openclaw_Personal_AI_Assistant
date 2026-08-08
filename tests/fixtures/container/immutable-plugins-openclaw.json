@@ -1,0 +1,29 @@
+{
+  "agents": {
+    "defaults": {
+      "workspace": "/home/node/.openclaw/workspace"
+    }
+  },
+  "gateway": {
+    "mode": "local",
+    "auth": {
+      "mode": "token"
+    }
+  },
+  "plugins": {
+    "load": {
+      "paths": [
+        "/opt/openclaw-plugins/node_modules/@openclaw/brave-plugin",
+        "/opt/openclaw-plugins/node_modules/@openclaw/signal"
+      ]
+    },
+    "entries": {
+      "brave": {
+        "enabled": true
+      },
+      "signal": {
+        "enabled": true
+      }
+    }
+  }
+}

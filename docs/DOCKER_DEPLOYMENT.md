@@ -191,6 +191,11 @@ Deployment bei gestoppten Writern erzeugte komplette Releasebackup.
 All container code starts under `/opt/openclaw-agent`; Python uses safe-path mode
 and cannot import packages from the writable workspace. Compose makes the root
 filesystem read-only and runs every role non-root without Linux capabilities.
+Die offiziellen externen Plugins Brave und Signal liegen ebenfalls read-only
+unter `/opt/openclaw-plugins`, sind durch npm-Lockdatei und Supply-Chain-Vertrag
+gepinnt und werden ueber feste `plugins.load.paths` geladen. Ausfuehrbare
+npm-Payloads im Gateway-State sind nicht erlaubt; `OPENCLAW_NIX_MODE=1` sperrt
+Plugininstallation und -update zur Laufzeit.
 Der Entry Point parst nur die fuer die konkrete Rolle fest hinterlegten Env-Dateien
 als begrenzte `KEY=VALUE`-Daten. Shellauswertung, Verzeichnissuche sowie unbekannte
 Schluessel sind gesperrt. PID-/CPU-/RAM-Grenzen, sichere tmpfs-Pfade und lokale
@@ -361,7 +366,7 @@ The migration:
 2. records and disables the old user-level systemd writers,
 3. creates and verifies an untouched migration archive containing the executable workspace,
 4. builds the complete state/config/secret result in a private staging directory,
-5. rewrites active workspace paths to `/home/node/.openclaw/workspace`,
+5. rewrites active State-/Workspacepfade to `/home/node/.openclaw`,
 6. migrates Himalaya `secret-tool` commands to protected files in `/srv/openclaw/secrets`,
 7. preserves an existing gateway token/password or creates one protected token when the legacy gateway used no authentication,
 8. points the mail classifier at the container-owned Ollama priority proxy,
@@ -372,8 +377,15 @@ The migration:
 13. records the verified legacy archive, archive member and SHA-256 for a later automatic rollback,
 14. leaves the original live directory untouched until the Docker deployment is verified.
 
-Historical sessions and trajectories are not rewritten; only active configuration
-files are changed. A repeated migration preserves the previously recorded
+Vor der SQLite-Gesamtpruefung ersetzt die Migration Brave und Signal durch ihre
+read-only Imagepfade, synchronisiert den generierten `installed_plugin_index`
+transaktional auf Version, Integritaet und Pfad des Imagevertrags und entfernt
+ihre alten npm-Projektverzeichnisse nur aus dem Staging. Jedes nicht im
+Imagevertrag enthaltene Plugin stoppt die Migration fail-closed.
+
+Historical sessions and trajectories are not rewritten; only active configuration,
+die generierten Plugin-Metadaten und die ersetzten npm-Payloads im Staging werden
+geaendert. A repeated migration preserves the previously recorded
 legacy-unit activation set even when those units are already disabled.
 
 ## 4. Private Nextcloud CA
@@ -459,8 +471,9 @@ export OPENCLAW_EXPECTED_SOURCE_REVISION="$(git rev-parse HEAD)"
   '<maintenance@sha256:...>'
 ```
 
-`refresh-deployment.sh` updates `compose.yaml`, `.env.example` and deployment
-scripts. It does not overwrite the productive `.env` or active local hooks.
+`refresh-deployment.sh` updates `compose.yaml`, `.env.example`, deployment
+scripts sowie den gepinnten Pluginvertrag und dessen Migrationshelfer. It does
+not overwrite the productive `.env` or active local hooks.
 
 Tool code plus release-owned defaults and baseline policies are read from the
 new image on every update. Persistent `tools.toml` and `policies.toml` files are

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 umask 077
+root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 
 runtime=${1:?Runtime-Image angeben}
 proxy=${2:?Proxy-Image angeben}
@@ -28,6 +29,14 @@ docker run --rm --network none --entrypoint /bin/sh "$runtime" -c '
   command -v tesseract
   command -v clamscan
   test "$(node -p '"'"'require("/usr/local/lib/node_modules/npm/node_modules/tar/package.json").version'"'"')" = 7.5.19
+  test "${OPENCLAW_NIX_MODE:-}" = 1
+  test "$(node -p '"'"'require("/opt/openclaw-plugins/node_modules/@openclaw/brave-plugin/package.json").version'"'"')" = 2026.7.1
+  test "$(node -p '"'"'require("/opt/openclaw-plugins/node_modules/@openclaw/signal/package.json").version'"'"')" = 2026.7.1
+  test "$(readlink /opt/openclaw-plugins/node_modules/openclaw)" = /app
+  test "$(readlink /opt/openclaw-plugins/node_modules/@openclaw/brave-plugin/node_modules/openclaw)" = /app
+  test "$(readlink /opt/openclaw-plugins/node_modules/@openclaw/signal/node_modules/openclaw)" = /app
+  test ! -w /opt/openclaw-plugins/node_modules/@openclaw/brave-plugin
+  test ! -w /opt/openclaw-plugins/node_modules/@openclaw/signal
   test "$(sha256sum /usr/local/bin/himalaya | cut -d" " -f1)" = 9529d2584add1c4343f32524e6f985e7c98d491f3b854747318020eb1ec1df7f
   test ! -e /opt/openclaw-agent/tests
   test ! -e /opt/openclaw-agent/docs
@@ -37,6 +46,97 @@ docker run --rm --network none --entrypoint /bin/sh "$runtime" -c '
 docker run --rm --network none \
   --entrypoint /opt/openclaw-agent/scripts/assistant.sh "$runtime" --help >/dev/null
 docker run --rm --network none --entrypoint /opt/openclaw-agent/scripts/assistant.sh "$runtime" version --verify >/dev/null
+
+plugin_config="$root/tests/fixtures/container/immutable-plugins-openclaw.json"
+for plugin in brave signal; do
+  docker run --rm --network none --read-only \
+    --cap-drop ALL \
+    --security-opt no-new-privileges:true \
+    --tmpfs /tmp:rw,nosuid,nodev,noexec,size=32m,mode=1777 \
+    --tmpfs /home/node/.openclaw:rw,nosuid,nodev,noexec,size=32m,mode=0700,uid=1000,gid=1000 \
+    --mount "type=bind,src=$plugin_config,dst=/home/node/.openclaw/openclaw.json,readonly" \
+    --entrypoint openclaw \
+    "$runtime" plugins inspect "$plugin" --runtime --json >/dev/null
+done
+
+# Reproduce the native-to-container failure path with a legacy generated plugin
+# index. The gateway must rewrite only that index, remain fully offline and
+# become ready without invoking npm or mutating its read-only image payload.
+(
+  gateway_volume="openclaw-plugin-gateway-role-smoke-$$"
+  gateway_container="${gateway_volume}-gateway"
+  # Invoked indirectly by the EXIT trap below.
+  # shellcheck disable=SC2329
+  cleanup_gateway_smoke() {
+    docker rm -f "$gateway_container" >/dev/null 2>&1 || true
+    docker volume rm -f "$gateway_volume" >/dev/null 2>&1 || true
+  }
+  trap cleanup_gateway_smoke EXIT
+  docker volume create "$gateway_volume" >/dev/null
+  docker run --rm --network none \
+    --mount "type=volume,src=$gateway_volume,dst=/home/node/.openclaw" \
+    --mount "type=bind,src=$root/tests/fixtures/container/init-legacy-plugin-index.py,dst=/fixture/init.py,readonly" \
+    --entrypoint python3 \
+    "$runtime" /fixture/init.py
+  docker run -d \
+    --name "$gateway_container" \
+    --network none \
+    --read-only \
+    --cap-drop ALL \
+    --security-opt no-new-privileges:true \
+    --tmpfs /tmp:rw,nosuid,nodev,noexec,size=64m,mode=1777 \
+    --tmpfs /var/lib/openclaw:rw,nosuid,nodev,noexec,size=64m,mode=0700,uid=1000,gid=1000 \
+    --env OPENCLAW_ROLE=gateway \
+    --env OPENCLAW_LAYOUT_MODE=verify \
+    --mount "type=volume,src=$gateway_volume,dst=/home/node/.openclaw" \
+    --mount "type=bind,src=$plugin_config,dst=/home/node/.openclaw/openclaw.json,readonly" \
+    --mount "type=bind,src=$root/tests/fixtures/container/layout-v3.json,dst=/home/node/.openclaw/workspace/.layout-version.json,readonly" \
+    --mount "type=bind,src=$root/tests/fixtures/container/empty.env.example,dst=/run/openclaw-env/mail-agent.env,readonly" \
+    --mount "type=bind,src=$root/tests/fixtures/container/empty.env.example,dst=/run/openclaw-env/personal-assistant.env,readonly" \
+    --mount "type=bind,src=$root/tests/fixtures/container/gateway.env.example,dst=/run/openclaw-env/gateway.env,readonly" \
+    "$runtime" >/dev/null
+  gateway_ready=0
+  for _ in $(seq 1 60); do
+    if docker exec "$gateway_container" \
+      /opt/openclaw-agent/docker/healthcheck.sh gateway >/dev/null 2>&1; then
+      gateway_ready=1
+      break
+    fi
+    if [[ $(docker inspect -f '{{.State.Running}}' "$gateway_container") != true ]]; then
+      break
+    fi
+    sleep 2
+  done
+  if [[ $gateway_ready != 1 ]]; then
+    echo "Immutable Plugin-Gateway wurde nicht bereit." >&2
+    docker top "$gateway_container" -eo pid,args >&2 || true
+    docker logs "$gateway_container" >&2 || true
+    exit 1
+  fi
+  gateway_logs=$(docker logs "$gateway_container" 2>&1)
+  if grep -Eq 'npm view|Failed to update|permission denied|EACCES' <<<"$gateway_logs"; then
+    echo "Gateway versuchte eine unzulaessige Pluginmutation zur Laufzeit." >&2
+    printf '%s\n' "$gateway_logs" >&2
+    exit 1
+  fi
+  docker exec "$gateway_container" python3 -P -c '
+import json
+import sqlite3
+
+connection = sqlite3.connect("/home/node/.openclaw/state/openclaw.sqlite")
+row = connection.execute(
+    "SELECT install_records_json FROM installed_plugin_index WHERE index_key = ?",
+    ("installed-plugin-index",),
+).fetchone()
+assert row is not None
+records = json.loads(row[0])
+assert records["brave"]["installPath"] == "/opt/openclaw-plugins/node_modules/@openclaw/brave-plugin"
+assert records["signal"]["installPath"] == "/opt/openclaw-plugins/node_modules/@openclaw/signal"
+assert records["brave"]["resolvedVersion"] == "2026.7.1"
+assert records["signal"]["resolvedVersion"] == "2026.7.1"
+assert connection.execute("PRAGMA quick_check").fetchone() == ("ok",)
+'
+)
 
 docker run --rm --network none --entrypoint python3 "$proxy" -P -c '
 import personal_assistant.ollama_priority_proxy

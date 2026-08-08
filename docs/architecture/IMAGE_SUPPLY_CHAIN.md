@@ -17,6 +17,13 @@ Layout 3, haben aber nach Messung drei Runtime-Ziele:
 | `proxy-runtime` | Ollama-Prioritaetsproxy | Python-Standardbibliothek, CA, curl und tini; kein OpenClaw, Mail, OCR oder ClamAV |
 | `maintenance-runtime` | ClamAV-Updater | freshclam/clamscan, Healthmodul und tini; kein OpenClaw, Mail, OCR oder Himalaya |
 
+Brave und Signal sind offizielle externe OpenClaw-Plugins und deshalb direkte
+Buildinputs des Runtime-Images. `docker/openclaw-plugins/package.json` pinnt ihre
+Version auf die Core-Version, die npm-Lockdatei sperrt Registry-URL und
+Integritaet, und `docker/supply-chain.lock.json` sperrt zusaetzlich den SHA-256
+der kompletten Lockdatei sowie die beiden Paketintegritaeten. Proxy- und
+Maintenance-Image enthalten diese Plugins nicht.
+
 Der volle Runtime-Schnitt bleibt bewusst gemeinsam: Gateway-Tools und mehrere
 Worker rufen OpenClaw sowie Mail-, OCR- oder Antiviruspfade direkt auf. Eine weitere
 Trennung ohne eigene Prozessschnittstelle wuerde Code duplizieren oder ungetestete

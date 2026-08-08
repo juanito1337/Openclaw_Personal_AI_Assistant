@@ -44,7 +44,7 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 459 Tests, darunter mindestens 421 unittest-kompatible Tests
+fordert mindestens 472 Tests, darunter mindestens 432 unittest-kompatible Tests
 (die bisherigen 349 sowie M0-M8-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
@@ -71,6 +71,7 @@ der aktuellen Python-Dateien.
 | Tests nach M8 gesammelt/ausgefuehrt | 455 / 455 (468 JUnit-Faelle inklusive 13 Subtests) |
 | Tests nach M8-CI-Diagnosehaertung gesammelt/ausgefuehrt | 458 / 458 (JUnit-Zaehler inklusive Subtest-Ereignissen siehe `build/m0-baseline.json`) |
 | Tests nach privatrepository-tauglicher Registry-Attestierung | 459 / 459 (JUnit-Zaehler inklusive Subtest-Ereignissen siehe `build/m0-baseline.json`) |
+| Tests nach der immutable Plugin-/Gatewaykorrektur | 472 / 472 (494 JUnit-Faelle inklusive 22 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -86,18 +87,21 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage (M7) | 43,83 % |
 | Gesamt-Coverage inklusive Branches (M8) | 59,18 % |
 | reine Branch-Coverage (M8) | 43,83 % |
+| Gesamt-Coverage nach der Plugin-/Gatewaykorrektur | 59,34 % |
+| reine Branch-Coverage nach der Plugin-/Gatewaykorrektur | 44,01 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
 | Laufzeit in der frischen M7-Wheel-Testumgebung | 55,56 s |
-| Wheelgroesse | 395.102 Bytes |
+| Wheelgroesse nach der Plugin-/Gatewaykorrektur | 397.870 Bytes |
 | M7-Wheel-Buildzeit | 4,582 s |
 | Container-Imagegroesse des M6-Testimages | 425.555.866 Bytes |
+| Runtime-Imagegroesse mit gepinnten Brave-/Signal-Plugins | 376.600.036 Bytes |
 | sauberer Container-Erstbuild | ca. 411,92 s |
 | M6-Cache-Rebuild | 11 s |
 | Container-CLI-Kaltstart | 1.081 ms |
-| bekannte mypy-Altbefunde | 114 exakt baselinierte Befunde in 24 Dateien; 10 behoben |
-| bekannte Ruff-Altbefunde | 557 exakt baselinierte Befunde; 224 behoben |
+| bekannte mypy-Altbefunde | 112 exakt baselinierte Befunde in 23 Dateien; 12 behoben |
+| bekannte Ruff-Altbefunde | 551 exakt baselinierte Befunde; 230 behoben |
 
 Kritische Sicherheitsmodule im aktuellen M8-Lauf:
 
@@ -110,7 +114,8 @@ Kritische Sicherheitsmodule im aktuellen M8-Lauf:
 | `personal_assistant/antivirus.py` | 63,54 % |
 | `personal_assistant/clamav_health.py` | 75,00 % |
 | `personal_assistant/container_health.py` | 63,77 % |
-| `personal_assistant/container_entrypoint.py` | 39,77 % |
+| `personal_assistant/container_entrypoint.py` | 37,43 % |
+| `personal_assistant/immutable_plugins.py` | 75,34 % |
 | `mail_agent/assistant_bridge.py` | 35,00 % |
 | `personal_assistant/actions.py` | 30,63 % |
 
@@ -382,6 +387,12 @@ Trivy waren gruen:
 Diese lokalen Images sind nicht signierte produktive Releaseartefakte. Das
 Deployment-Gate akzeptiert weiterhin nur die drei unveraenderlichen, attestierten
 Registry-Digests eines freigegebenen Commits.
+
+Die anschliessende immutable Plugin-/Gatewaykorrektur baute ein Wheel mit 397.870
+Bytes in 4,486 s und bestand in der frischen Installationsumgebung 472 Tests plus
+22 Subtests. Das lokale Runtime-Image mit Brave und Signal war 376.600.036 Bytes
+gross; M3, M4, der Offline-Gatewaystart, SBOM, Provenance und Trivy blieben mit
+null kritischen CVEs und null Secret-Befunden gruen.
 
 ## Wheel- und Artefaktpruefung
 

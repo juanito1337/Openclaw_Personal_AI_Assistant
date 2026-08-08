@@ -28,6 +28,7 @@ x-openclaw-common: &openclaw-common
     OPENCLAW_STATE_ROOT: /run/openclaw-state
     OPENCLAW_WORKSPACE: /home/node/.openclaw/workspace
     OPENCLAW_LAYOUT_MODE: verify
+    OPENCLAW_NIX_MODE: "1"
     OPENCLAW_GATEWAY_DATA_DIR: /home/node/.openclaw
     OPENCLAW_MAIL_DATA_DIR: /var/lib/openclaw/mail
     OPENCLAW_CORE_DATA_DIR: /var/lib/openclaw/core

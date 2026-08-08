@@ -51,6 +51,12 @@
   Listener ausschliesslich in der Containerrolle; Hostbetrieb und beliebige
   Nicht-Loopback-Adressen bleiben gesperrt. Der Image-Smoke startet nun den echten
   Proxy mit einem isolierten Fake-Upstream und prueft dessen Healthcheck.
+- Brave und Signal werden versions- und integrity-gepinnt in das signierte
+  Runtime-Image gebaut. Die Legacy-Migration ersetzt ihre Hostpfade durch
+  read-only Imagepfade, synchronisiert den generierten Pluginindex auf den exakten
+  Imagevertrag und entfernt nur im Staging alte ausfuehrbare npm-Payloads;
+  unbekannte State-Plugins brechen fail-closed ab. `OPENCLAW_NIX_MODE=1` sperrt
+  Install und Update zur Laufzeit.
 
 ## Unreleased – M7 Reproduzierbare und attestierte Image-Lieferkette
 

@@ -87,9 +87,7 @@ def verify_lock(root: Path = ROOT) -> dict[str, Any]:
                 split_reference(str(reference))
             except ContractError as exc:
                 errors.append(f"{group}.{name}: {exc}")
-    himalaya = cast(
-        dict[str, Any], lock.get("himalaya") if isinstance(lock.get("himalaya"), dict) else {}
-    )
+    himalaya = cast(dict[str, Any], lock.get("himalaya") if isinstance(lock.get("himalaya"), dict) else {})
     for key in ("archive_sha256", "sha256_linux_amd64"):
         if not re.fullmatch(r"[0-9a-f]{64}", str(himalaya.get(key) or "")):
             errors.append(f"himalaya {key} missing")
@@ -144,9 +142,7 @@ def verify_lock(root: Path = ROOT) -> dict[str, Any]:
     for name, reference in base_images.items():
         if str(reference) not in dockerfile:
             errors.append(f"Dockerfile does not use locked base image {name}")
-    deploy_verifier = (root / "docker/scripts/verify-image-supply-chain.sh").read_text(
-        encoding="utf-8"
-    )
+    deploy_verifier = (root / "docker/scripts/verify-image-supply-chain.sh").read_text(encoding="utf-8")
     scanner_images = cast(dict[str, Any], lock.get("scanner_images") or {})
     cosign_reference = str(scanner_images.get("cosign") or "")
     if not cosign_reference or cosign_reference not in deploy_verifier:
@@ -154,6 +150,68 @@ def verify_lock(root: Path = ROOT) -> dict[str, Any]:
     for key in ("version", "archive_url", "archive_sha256", "sha256_linux_amd64"):
         if str(himalaya.get(key) or "") not in dockerfile:
             errors.append(f"Dockerfile does not use locked Himalaya {key}")
+    plugin_lock = cast(
+        dict[str, Any],
+        lock.get("immutable_openclaw_plugins")
+        if isinstance(lock.get("immutable_openclaw_plugins"), dict)
+        else {},
+    )
+    plugin_package_lock = root / "docker/openclaw-plugins/package-lock.json"
+    expected_lock_digest = str(plugin_lock.get("package_lock_sha256") or "")
+    if not plugin_package_lock.is_file() or sha256_file(plugin_package_lock) != expected_lock_digest:
+        errors.append("immutable OpenClaw plugin package-lock does not match the supply-chain lock")
+    plugin_package_json = load_json(root / "docker/openclaw-plugins/package.json")
+    plugin_runtime_contract = load_json(root / "docker/openclaw-plugins/contract.json")
+    declared_plugins = plugin_package_json.get("dependencies")
+    locked_plugins = plugin_lock.get("packages")
+    if not isinstance(declared_plugins, dict) or not isinstance(locked_plugins, dict):
+        errors.append("immutable OpenClaw plugin declarations are missing")
+    else:
+        expected_dependencies = {
+            name: str(contract.get("version") or "")
+            for name, contract in locked_plugins.items()
+            if isinstance(name, str) and isinstance(contract, dict)
+        }
+        if declared_plugins != expected_dependencies:
+            errors.append("immutable OpenClaw plugin versions differ from package.json")
+        package_lock = load_json(plugin_package_lock)
+        package_entries = package_lock.get("packages")
+        if not isinstance(package_entries, dict):
+            errors.append("immutable OpenClaw package-lock has no package entries")
+        else:
+            for name, contract in locked_plugins.items():
+                entry = package_entries.get(f"node_modules/{name}")
+                if not isinstance(contract, dict) or not isinstance(entry, dict):
+                    errors.append(f"immutable OpenClaw plugin is absent from package-lock: {name}")
+                    continue
+                if entry.get("version") != contract.get("version"):
+                    errors.append(f"immutable OpenClaw plugin version mismatch: {name}")
+                if entry.get("integrity") != contract.get("integrity"):
+                    errors.append(f"immutable OpenClaw plugin integrity mismatch: {name}")
+        runtime_plugins = plugin_runtime_contract.get("plugins")
+        if not isinstance(runtime_plugins, dict):
+            errors.append("immutable OpenClaw runtime plugin contract is missing")
+        else:
+            runtime_by_package = {
+                value.get("package"): value for value in runtime_plugins.values() if isinstance(value, dict)
+            }
+            for name, contract in locked_plugins.items():
+                runtime_contract = runtime_by_package.get(name)
+                if not isinstance(contract, dict) or runtime_contract != {
+                    "package": name,
+                    "version": contract.get("version"),
+                    "integrity": contract.get("integrity"),
+                    "shasum": contract.get("shasum"),
+                    "path": f"/opt/openclaw-plugins/node_modules/{name}",
+                }:
+                    errors.append(f"immutable OpenClaw runtime contract mismatch: {name}")
+    if "COPY --from=openclaw-plugin-builder" not in dockerfile or "OPENCLAW_NIX_MODE=1" not in dockerfile:
+        errors.append("runtime image does not enforce immutable OpenClaw plugins")
+    if "COPY docker/openclaw-plugins/contract.json" not in dockerfile:
+        errors.append("runtime image does not contain the immutable plugin contract")
+    dockerignore = (root / ".dockerignore").read_text(encoding="utf-8").splitlines()
+    if "!docker/openclaw-plugins/package-lock.json" not in dockerignore:
+        errors.append("immutable OpenClaw plugin lock is excluded from the Docker context")
     policy = cast(dict[str, Any], lock.get("vulnerability_policy") or {})
     if policy.get("fail_severities") != ["CRITICAL"]:
         errors.append("critical vulnerabilities are not fail-closed")
@@ -165,6 +223,7 @@ def verify_lock(root: Path = ROOT) -> dict[str, Any]:
         "ok": True,
         "base_images": len(lock["base_images"]),
         "scanner_images": len(lock["scanner_images"]),
+        "immutable_openclaw_plugins": len(plugin_lock.get("packages", {})),
         "github_actions": len(actions),
         "workflows": len(workflows),
     }
@@ -198,12 +257,8 @@ def image_identity(image: str) -> tuple[str, dict[str, str]]:
     image_id = str(payload.get("Id") or "")
     if not DIGEST_RE.fullmatch(image_id):
         raise ContractError(f"image has no immutable local ID: {image}")
-    config = cast(
-        dict[str, Any], payload.get("Config") if isinstance(payload.get("Config"), dict) else {}
-    )
-    labels = cast(
-        dict[str, Any], config.get("Labels") if isinstance(config.get("Labels"), dict) else {}
-    )
+    config = cast(dict[str, Any], payload.get("Config") if isinstance(payload.get("Config"), dict) else {})
+    labels = cast(dict[str, Any], config.get("Labels") if isinstance(config.get("Labels"), dict) else {})
     return image_id, {str(key): str(value) for key, value in labels.items()}
 
 
@@ -237,9 +292,7 @@ def verify_sbom_payload(payload: dict[str, Any]) -> None:
         raise ContractError("SBOM creation metadata missing")
 
 
-def verify_vulnerability_payload(
-    payload: dict[str, Any], policy: dict[str, Any]
-) -> dict[str, Any]:
+def verify_vulnerability_payload(payload: dict[str, Any], policy: dict[str, Any]) -> dict[str, Any]:
     """Apply the locked release policy to a Trivy JSON report."""
     blocked = {str(item).upper() for item in policy.get("fail_severities", [])}
     if not blocked:
@@ -334,9 +387,7 @@ def verify_provenance_payload(
     definition_value = predicate.get("buildDefinition")
     definition = cast(dict[str, Any], definition_value if isinstance(definition_value, dict) else {})
     parameters_value = definition.get("externalParameters")
-    parameters = cast(
-        dict[str, Any], parameters_value if isinstance(parameters_value, dict) else {}
-    )
+    parameters = cast(dict[str, Any], parameters_value if isinstance(parameters_value, dict) else {})
     expected = {"role": role, "revision": revision, "release": version, "sbom_sha256": sbom_sha256}
     for key, value in expected.items():
         if parameters.get(key) != value:
@@ -408,9 +459,7 @@ def main() -> int:
             print(args.output)
             return 0
         elif args.command == "verify-vulnerabilities":
-            report = verify_vulnerability_payload(
-                load_json(args.report), load_lock()["vulnerability_policy"]
-            )
+            report = verify_vulnerability_payload(load_json(args.report), load_lock()["vulnerability_policy"])
         else:
             report = command_verify_artifacts(args)
     except (ContractError, KeyError, OSError, json.JSONDecodeError) as exc:

@@ -19,8 +19,12 @@ fi
 mkdir -p "$DEPLOYMENT/scripts" "$DEPLOYMENT/hooks"
 install -m 600 "$SOURCE_ROOT/compose.yaml" "$DEPLOYMENT/compose.yaml"
 install -m 600 "$SOURCE_ROOT/docker/deployment.env.example" "$DEPLOYMENT/.env.example"
+install -m 600 "$SOURCE_ROOT/docker/openclaw-plugins/contract.json" \
+  "$DEPLOYMENT/immutable-plugins.json"
 install -m 700 "$SOURCE_ROOT/docker/scripts/"*.sh "$DEPLOYMENT/scripts/"
 install -m 700 "$SOURCE_ROOT/docker/scripts/"*.py "$DEPLOYMENT/scripts/"
+install -m 700 "$SOURCE_ROOT/personal_assistant/immutable_plugins.py" \
+  "$DEPLOYMENT/scripts/immutable_plugins.py"
 
 # Only refresh examples. Active local hooks and .env are administrator state and
 # must never be overwritten by a source update.

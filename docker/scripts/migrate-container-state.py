@@ -2,15 +2,32 @@
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
 import os
 import re
 import secrets
 import shlex
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 from urllib.parse import urlsplit
+
+try:
+    immutable_plugins = importlib.import_module("personal_assistant.immutable_plugins")
+except ModuleNotFoundError:
+    # A source checkout is not importable when Python executes this file by its
+    # path. The deployed bundle instead carries the same module beside it.
+    source_root = Path(__file__).resolve().parents[2]
+    sys.path.insert(0, str(source_root))
+    try:
+        immutable_plugins = importlib.import_module("personal_assistant.immutable_plugins")
+    except ModuleNotFoundError:
+        immutable_plugins = importlib.import_module("immutable_plugins")
+
+load_contract = immutable_plugins.load_contract
+synchronize_installed_plugin_index = immutable_plugins.synchronize_installed_plugin_index
 
 NEXTCLOUD_SECTION = """
 [nextcloud]
@@ -33,7 +50,9 @@ contact_cache_file = "mail_agent/data/nextcloud_contacts_cache.json"
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Container-sichere Pfade, Himalaya-Secrets und optionale Nextcloud-Konfiguration migrieren."
+        description=(
+            "Container-sichere Pfade, Himalaya-Secrets und optionale Nextcloud-Konfiguration migrieren."
+        )
     )
     parser.add_argument("--state-dir", type=Path, required=True)
     parser.add_argument("--config-dir", type=Path, required=True)
@@ -44,6 +63,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ensure-gateway-auth", action="store_true")
     parser.add_argument("--normalize-ollama-proxy", action="store_true")
     parser.add_argument("--legacy-gateway-environment-file", type=Path)
+    parser.add_argument("--immutable-plugin-contract", type=Path)
     return parser.parse_args()
 
 
@@ -113,6 +133,104 @@ def rewrite_active_paths(state_dir: Path, old: str, new: str) -> list[str]:
     return changed_files
 
 
+def default_immutable_plugin_contract() -> Path:
+    script_dir = Path(__file__).resolve().parent
+    candidates = (
+        script_dir.parent / "openclaw-plugins/contract.json",
+        script_dir.parent / "immutable-plugins.json",
+    )
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    raise RuntimeError("Immutable OpenClaw-Pluginvertrag fehlt")
+
+
+def ensure_immutable_plugin_config(
+    state_dir: Path,
+    source_state_root: str,
+    contracts: dict[str, dict[str, str]],
+) -> dict[str, object]:
+    path = state_dir / "openclaw.json"
+    if not path.is_file():
+        return {"config_present": False, "changed": False, "paths": []}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise RuntimeError("openclaw.json muss ein JSON-Objekt enthalten")
+    plugins = data.setdefault("plugins", {})
+    if not isinstance(plugins, dict):
+        raise RuntimeError("openclaw.json plugins muss ein JSON-Objekt sein")
+    load = plugins.setdefault("load", {})
+    if not isinstance(load, dict):
+        raise RuntimeError("openclaw.json plugins.load muss ein JSON-Objekt sein")
+    configured_paths = load.setdefault("paths", [])
+    if not isinstance(configured_paths, list) or not all(isinstance(item, str) for item in configured_paths):
+        raise RuntimeError("openclaw.json plugins.load.paths muss eine String-Liste sein")
+
+    immutable_paths = [contract["path"] for contract in contracts.values()]
+    preserved: list[str] = []
+    for configured in configured_paths:
+        if configured == source_state_root or configured.startswith(source_state_root + "/"):
+            continue
+        if configured not in immutable_paths:
+            raise RuntimeError(
+                "openclaw.json enthaelt einen Plugin-Pfad ausserhalb des immutable Imagevertrags"
+            )
+        if configured not in preserved:
+            preserved.append(configured)
+    updated_paths = preserved + [item for item in immutable_paths if item not in preserved]
+    changed = updated_paths != configured_paths
+    if changed:
+        load["paths"] = updated_paths
+        atomic_write(path, json.dumps(data, ensure_ascii=False, indent=2) + "\n")
+    return {"config_present": True, "changed": changed, "paths": immutable_paths}
+
+
+def project_package_names(project: Path) -> set[str]:
+    package_files = list(project.glob("node_modules/*/package.json"))
+    package_files.extend(project.glob("node_modules/@*/*/package.json"))
+    names: set[str] = set()
+    for package_file in sorted(set(package_files)):
+        payload = json.loads(package_file.read_text(encoding="utf-8"))
+        name = payload.get("name") if isinstance(payload, dict) else None
+        if isinstance(name, str) and name.strip():
+            names.add(name.strip())
+    return names
+
+
+def reset_managed_plugin_state(
+    state_dir: Path,
+    contracts: dict[str, dict[str, str]],
+) -> dict[str, object]:
+    database = state_dir / "state/openclaw.sqlite"
+    projects_root = state_dir / "npm/projects"
+    projects = (
+        sorted(path for path in projects_root.iterdir() if path.is_dir()) if projects_root.is_dir() else []
+    )
+    allowed_packages = {contract["package"] for contract in contracts.values()}
+    for project in projects:
+        names = project_package_names(project)
+        if not names or not names.issubset(allowed_packages):
+            raise RuntimeError(
+                f"Ausfuehrbares Plugin-Projekt ist nicht im immutable Imagevertrag enthalten: {project.name}"
+            )
+
+    report = synchronize_installed_plugin_index(database, contracts)
+    if projects and not report["database_present"]:
+        raise RuntimeError("Managed Plugin-Payloads existieren ohne pruefbaren installed_plugin_index")
+    if projects and not report["table_present"]:
+        raise RuntimeError("Managed Plugin-Payloads existieren ohne installed_plugin_index-Tabelle")
+
+    for project in projects:
+        shutil.rmtree(project)
+    if projects_root.is_dir() and not any(projects_root.iterdir()):
+        projects_root.rmdir()
+    npm_root = state_dir / "npm"
+    if npm_root.is_dir() and not any(npm_root.iterdir()):
+        npm_root.rmdir()
+    report["payload_projects_removed"] = len(projects)
+    return report
+
+
 def parse_env_files(*directories: Path) -> dict[str, str]:
     values: dict[str, str] = {}
     for directory in directories:
@@ -171,11 +289,7 @@ def selected_gateway_credential(
     if not available:
         return None
     if configured_mode in {"token", "password"}:
-        expected_key = (
-            "OPENCLAW_GATEWAY_TOKEN"
-            if configured_mode == "token"
-            else "OPENCLAW_GATEWAY_PASSWORD"
-        )
+        expected_key = "OPENCLAW_GATEWAY_TOKEN" if configured_mode == "token" else "OPENCLAW_GATEWAY_PASSWORD"
         expected_value = values.get(expected_key, "").strip()
         if expected_value:
             return expected_key, expected_value, source
@@ -222,7 +336,7 @@ def ensure_gateway_auth(
     config_dir: Path,
     secrets_dir: Path,
     legacy_environment_file: Path | None,
-) -> dict[str, str]:
+) -> dict[str, object]:
     config_path, data = gateway_config(state_dir)
     gateway = data["gateway"]
     assert isinstance(gateway, dict)
@@ -401,7 +515,9 @@ def extract_secret(command: str) -> str:
     )
     if result.returncode != 0:
         detail = result.stderr.strip() or f"Exit-Code {result.returncode}"
-        raise RuntimeError(f"Secret-Befehl fehlgeschlagen ({shlex.join(['/bin/sh', '-c', command])}): {detail}")
+        raise RuntimeError(
+            f"Secret-Befehl fehlgeschlagen ({shlex.join(['/bin/sh', '-c', command])}): {detail}"
+        )
     secret = result.stdout.rstrip("\r\n")
     if not secret:
         raise RuntimeError(f"Secret-Befehl lieferte keinen Wert: {command}")
@@ -450,7 +566,20 @@ def main() -> int:
     if not old or not new or old == new:
         raise SystemExit("Quell- und Ziel-Workspace muessen verschieden und nicht leer sein.")
 
-    path_changes = rewrite_active_paths(args.state_dir, old, new)
+    source_state_root = str(Path(old).parent)
+    target_state_root = str(Path(new).parent)
+    if source_state_root in {"", "/"} or target_state_root in {"", "/"}:
+        raise SystemExit("Quell- und Ziel-State-Root duerfen nicht das Dateisystem-Wurzelverzeichnis sein.")
+
+    plugin_contract_path = args.immutable_plugin_contract or default_immutable_plugin_contract()
+    plugin_contracts = load_contract(plugin_contract_path)
+    immutable_plugin_config = ensure_immutable_plugin_config(
+        args.state_dir,
+        source_state_root,
+        plugin_contracts,
+    )
+    path_changes = rewrite_active_paths(args.state_dir, source_state_root, target_state_root)
+    managed_plugin_state = reset_managed_plugin_state(args.state_dir, plugin_contracts)
     secret_changes = migrate_himalaya_secrets(args.config_dir, args.secrets_dir)
     nextcloud_added = False
     if args.enable_nextcloud_if_configured:
@@ -472,6 +601,9 @@ def main() -> int:
         "source_workspace": old,
         "target_workspace": new,
         "path_changes": path_changes,
+        "immutable_plugin_config": immutable_plugin_config,
+        "immutable_plugin_contract": str(plugin_contract_path),
+        "managed_plugin_state": managed_plugin_state,
         "himalaya_secrets": secret_changes,
         "nextcloud_section_added": nextcloud_added,
         "gateway_auth": gateway_auth,

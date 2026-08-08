@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "openclaw_core_version": "2026.7.1",
+  "plugins": {
+    "brave": {
+      "package": "@openclaw/brave-plugin",
+      "version": "2026.7.1",
+      "integrity": "sha512-7Z+GZ/6K6a8LlkTsWVnAZ1hv8EarORzHQvFHD7ekcg033FGJOXYPEZSbvvE3qR9vM+vnoZplNjMZ7vFMRcvQgw==",
+      "shasum": "55470c1ca206a37dd919ceec78e7534390d8d97e",
+      "path": "/opt/openclaw-plugins/node_modules/@openclaw/brave-plugin"
+    },
+    "signal": {
+      "package": "@openclaw/signal",
+      "version": "2026.7.1",
+      "integrity": "sha512-+sx2zNIpcVw4J4AiqtNulzKRId0tBtBclG5RncUlQ45ac4BZDrbQs4C6GkI2KU9Qzbxd+Fxt/ivalmLxcVbbIA==",
+      "shasum": "505b31f123d1517877456983542427a63b4a8391",
+      "path": "/opt/openclaw-plugins/node_modules/@openclaw/signal"
+    }
+  }
+}

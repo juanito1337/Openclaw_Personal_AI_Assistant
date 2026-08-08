@@ -192,6 +192,11 @@ raise SystemExit(86)
             self.compose["services"]["ollama-proxy"]["extra_hosts"],
         )
 
+    def test_gateway_disables_runtime_plugin_mutation(self) -> None:
+        environment = self.compose["services"]["gateway"]["environment"]
+        self.assertEqual(environment["OPENCLAW_NIX_MODE"], "1")
+        self.assertTrue(self.compose["services"]["gateway"]["read_only"])
+
     def test_roles_mount_exact_env_and_secret_files(self) -> None:
         forbidden_targets = {"/etc/openclaw-agent", "/run/openclaw-secrets"}
         for role, expected in self.contract["roles"].items():

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -49,9 +50,10 @@ class ContainerMigrationTests(unittest.TestCase):
                 encoding="utf-8",
             )
             (config / "himalaya/config.toml").write_text(
-                '[accounts.gmx]\n'
+                "[accounts.gmx]\n"
                 'backend.auth.command = "secret-tool lookup account gmx service himalaya-imap"\n'
-                'message.send.backend.auth.command = "secret-tool lookup account gmx service himalaya-smtp"\n',
+                "message.send.backend.auth.command = "
+                '"secret-tool lookup account gmx service himalaya-smtp"\n',
                 encoding="utf-8",
             )
 
@@ -63,7 +65,7 @@ class ContainerMigrationTests(unittest.TestCase):
                 'case "$*" in\n'
                 '  *himalaya-imap*) printf "imap-password" ;;\n'
                 '  *himalaya-smtp*) printf "smtp-password" ;;\n'
-                '  *) exit 2 ;;\n'
+                "  *) exit 2 ;;\n"
                 "esac\n",
                 encoding="utf-8",
             )
@@ -106,8 +108,12 @@ class ContainerMigrationTests(unittest.TestCase):
             self.assertNotIn("secret-tool", himalaya)
             self.assertIn("cat /run/openclaw-secrets/himalaya-imap-password", himalaya)
             self.assertIn("cat /run/openclaw-secrets/himalaya-smtp-password", himalaya)
-            self.assertEqual((secrets / "himalaya-imap-password").read_text(encoding="utf-8"), "imap-password\n")
-            self.assertEqual((secrets / "himalaya-smtp-password").read_text(encoding="utf-8"), "smtp-password\n")
+            self.assertEqual(
+                (secrets / "himalaya-imap-password").read_text(encoding="utf-8"), "imap-password\n"
+            )
+            self.assertEqual(
+                (secrets / "himalaya-smtp-password").read_text(encoding="utf-8"), "smtp-password\n"
+            )
             self.assertEqual((secrets / "himalaya-imap-password").stat().st_mode & 0o777, 0o600)
 
             second = subprocess.run(command, env=environment, text=True, capture_output=True, check=True)
@@ -115,6 +121,252 @@ class ContainerMigrationTests(unittest.TestCase):
             self.assertEqual(second_report["path_changes"], [])
             self.assertEqual(second_report["himalaya_secrets"], [])
             self.assertFalse(second_report["nextcloud_section_added"])
+
+    def test_moves_managed_plugins_into_immutable_image_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            state = root / "state"
+            config = root / "config"
+            secrets = root / "secrets"
+            (state / "state").mkdir(parents=True)
+            config.mkdir()
+            secrets.mkdir()
+
+            old_root = "/home/jan/.openclaw"
+            (state / "openclaw.json").write_text(
+                json.dumps(
+                    {
+                        "agents": {"defaults": {"workspace": f"{old_root}/workspace"}},
+                        "plugins": {"load": {"paths": [f"{old_root}/npm/projects/old-plugin"]}},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            projects = {
+                "signal": "@openclaw/signal",
+                "brave": "@openclaw/brave-plugin",
+            }
+            install_paths: dict[str, str] = {}
+            for project, package in projects.items():
+                package_path = state / "npm/projects" / project / "node_modules" / package
+                package_path.mkdir(parents=True)
+                (package_path / "package.json").write_text(
+                    json.dumps({"name": package}),
+                    encoding="utf-8",
+                )
+                install_paths[project] = str(package_path).replace(str(state), old_root, 1)
+
+            database = state / "state/openclaw.sqlite"
+            connection = sqlite3.connect(database)
+            connection.execute(
+                "CREATE TABLE installed_plugin_index ("
+                "index_key TEXT PRIMARY KEY, install_records_json TEXT NOT NULL, "
+                "plugins_json TEXT NOT NULL, diagnostics_json TEXT NOT NULL)"
+            )
+            connection.execute(
+                "INSERT INTO installed_plugin_index VALUES (?, ?, ?, ?)",
+                (
+                    "default",
+                    json.dumps(
+                        {
+                            "signal": {
+                                "installPath": install_paths["signal"],
+                                "resolvedName": "@openclaw/signal",
+                            },
+                            "brave": {
+                                "installPath": install_paths["brave"],
+                                "resolvedName": "@openclaw/brave-plugin",
+                            },
+                        }
+                    ),
+                    "[]",
+                    "{}",
+                ),
+            )
+            connection.commit()
+            connection.close()
+
+            command = [
+                sys.executable,
+                str(self.script),
+                "--state-dir",
+                str(state),
+                "--config-dir",
+                str(config),
+                "--secrets-dir",
+                str(secrets),
+                "--source-workspace",
+                f"{old_root}/workspace",
+                "--target-workspace",
+                "/home/node/.openclaw/workspace",
+            ]
+            result = subprocess.run(command, text=True, capture_output=True, check=True)
+            report = json.loads(result.stdout)
+            self.assertEqual(report["managed_plugin_state"]["registry_rows_changed"], 1)
+            self.assertEqual(report["managed_plugin_state"]["managed_records_checked"], 2)
+            self.assertEqual(report["managed_plugin_state"]["managed_records_changed"], 2)
+            self.assertEqual(report["managed_plugin_state"]["payload_projects_removed"], 2)
+
+            connection = sqlite3.connect(database)
+            raw_records = connection.execute(
+                "SELECT install_records_json FROM installed_plugin_index"
+            ).fetchone()
+            self.assertIsNotNone(raw_records)
+            assert raw_records is not None
+            records = json.loads(raw_records[0])
+            self.assertEqual(
+                records["brave"]["installPath"],
+                "/opt/openclaw-plugins/node_modules/@openclaw/brave-plugin",
+            )
+            self.assertEqual(records["brave"]["resolvedVersion"], "2026.7.1")
+            self.assertEqual(
+                records["signal"]["installPath"],
+                "/opt/openclaw-plugins/node_modules/@openclaw/signal",
+            )
+            self.assertEqual(records["signal"]["resolvedVersion"], "2026.7.1")
+            self.assertEqual(connection.execute("PRAGMA quick_check").fetchone(), ("ok",))
+            connection.close()
+            self.assertFalse((state / "npm/projects").exists())
+            migrated = json.loads((state / "openclaw.json").read_text(encoding="utf-8"))
+            self.assertEqual(
+                migrated["plugins"]["load"]["paths"],
+                [
+                    "/opt/openclaw-plugins/node_modules/@openclaw/brave-plugin",
+                    "/opt/openclaw-plugins/node_modules/@openclaw/signal",
+                ],
+            )
+
+            second = subprocess.run(command, text=True, capture_output=True, check=True)
+            second_report = json.loads(second.stdout)
+            self.assertEqual(
+                second_report["managed_plugin_state"]["registry_rows_changed"],
+                0,
+            )
+            self.assertEqual(
+                second_report["managed_plugin_state"]["managed_records_changed"],
+                0,
+            )
+            self.assertFalse(second_report["immutable_plugin_config"]["changed"])
+
+    def test_rejects_plugin_missing_from_immutable_image_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            state = root / "state"
+            config = root / "config"
+            secrets = root / "secrets"
+            (state / "state").mkdir(parents=True)
+            config.mkdir()
+            secrets.mkdir()
+            database = state / "state/openclaw.sqlite"
+            old_root = "/home/jan/.openclaw"
+            (state / "openclaw.json").write_text("{}\n", encoding="utf-8")
+            package_path = state / "npm/projects/calendar/node_modules/@third-party/calendar"
+            package_path.mkdir(parents=True)
+            (package_path / "package.json").write_text(
+                json.dumps({"name": "@third-party/calendar"}),
+                encoding="utf-8",
+            )
+            connection = sqlite3.connect(database)
+            connection.execute(
+                "CREATE TABLE installed_plugin_index ("
+                "index_key TEXT PRIMARY KEY, install_records_json TEXT NOT NULL, "
+                "plugins_json TEXT NOT NULL, diagnostics_json TEXT NOT NULL)"
+            )
+            connection.execute(
+                "INSERT INTO installed_plugin_index VALUES (?, ?, ?, ?)",
+                (
+                    "default",
+                    json.dumps(
+                        {
+                            "calendar": {
+                                "installPath": (
+                                    f"{old_root}/npm/projects/calendar/node_modules/@third-party/calendar"
+                                ),
+                                "resolvedName": "@third-party/calendar",
+                            }
+                        }
+                    ),
+                    "[]",
+                    "{}",
+                ),
+            )
+            connection.commit()
+            connection.close()
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(self.script),
+                    "--state-dir",
+                    str(state),
+                    "--config-dir",
+                    str(config),
+                    "--secrets-dir",
+                    str(secrets),
+                    "--source-workspace",
+                    f"{old_root}/workspace",
+                    "--target-workspace",
+                    "/home/node/.openclaw/workspace",
+                ],
+                text=True,
+                capture_output=True,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("nicht im immutable Imagevertrag", result.stderr)
+            connection = sqlite3.connect(database)
+            raw = connection.execute("SELECT install_records_json FROM installed_plugin_index").fetchone()
+            connection.close()
+            self.assertIsNotNone(raw)
+            assert raw is not None
+            self.assertIn(old_root, raw[0])
+            self.assertTrue(package_path.is_dir())
+
+    def test_rejects_configured_plugin_path_outside_immutable_image_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            state = root / "state"
+            config = root / "config"
+            secrets = root / "secrets"
+            state.mkdir()
+            config.mkdir()
+            secrets.mkdir()
+            original = {
+                "plugins": {
+                    "load": {
+                        "paths": ["/tmp/untrusted-plugin"],
+                    }
+                }
+            }
+            (state / "openclaw.json").write_text(
+                json.dumps(original),
+                encoding="utf-8",
+            )
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(self.script),
+                    "--state-dir",
+                    str(state),
+                    "--config-dir",
+                    str(config),
+                    "--secrets-dir",
+                    str(secrets),
+                    "--source-workspace",
+                    "/home/jan/.openclaw/workspace",
+                    "--target-workspace",
+                    "/home/node/.openclaw/workspace",
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("ausserhalb des immutable Imagevertrags", result.stderr)
+            self.assertEqual(
+                json.loads((state / "openclaw.json").read_text(encoding="utf-8")),
+                original,
+            )
 
     def test_does_not_enable_nextcloud_without_complete_credentials(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
@@ -127,7 +379,9 @@ class ContainerMigrationTests(unittest.TestCase):
             secrets.mkdir()
             mail_config = state / "workspace/mail_agent/config.toml"
             mail_config.write_text("[calendar]\nenabled = true\n", encoding="utf-8")
-            (config / "mail-agent.env").write_text("NEXTCLOUD_URL=https://example.invalid\n", encoding="utf-8")
+            (config / "mail-agent.env").write_text(
+                "NEXTCLOUD_URL=https://example.invalid\n", encoding="utf-8"
+            )
 
             subprocess.run(
                 [
@@ -339,9 +593,7 @@ class ContainerMigrationTests(unittest.TestCase):
             report = json.loads(result.stdout)
             self.assertEqual(report["gateway_auth"]["mode"], "password")
             self.assertEqual(report["gateway_auth"]["source"], "systemd")
-            self.assertTrue(
-                report["gateway_auth"]["replaced_incompatible_existing"]
-            )
+            self.assertTrue(report["gateway_auth"]["replaced_incompatible_existing"])
             self.assertIn(
                 "bestehendes Container-Secret",
                 report["gateway_auth"]["ignored_incompatible_sources"],

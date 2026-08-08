@@ -18,7 +18,7 @@ class ContainerWorkspaceTests(unittest.TestCase):
     def test_runtime_check_reports_each_invalid_oci_layout_label(self) -> None:
         root = Path(__file__).resolve().parents[1]
         checker = root / "scripts/check-container-runtime.sh"
-        fake_docker = r'''#!/usr/bin/env python3
+        fake_docker = r"""#!/usr/bin/env python3
 import os
 import sys
 
@@ -46,7 +46,7 @@ if arguments and arguments[0] == "rm":
     raise SystemExit(0)
 print("unexpected fake docker call: " + " ".join(arguments), file=sys.stderr)
 raise SystemExit(86)
-'''
+"""
         cases = (
             (
                 {"FAKE_REVISION": ""},
@@ -101,9 +101,9 @@ raise SystemExit(86)
             )
 
     def test_container_publish_workflow_isolates_dynamic_m3_and_m4_steps(self) -> None:
-        workflow = (
-            Path(__file__).resolve().parents[1] / ".github/workflows/container.yml"
-        ).read_text(encoding="utf-8")
+        workflow = (Path(__file__).resolve().parents[1] / ".github/workflows/container.yml").read_text(
+            encoding="utf-8"
+        )
         supply_chain = workflow.index("- name: Generate SBOM/provenance and scan every role")
         runtime = workflow.index("- name: Verify state isolation and immutable runtime")
         hardening = workflow.index("- name: Verify role hardening")
@@ -210,9 +210,7 @@ raise SystemExit(86)
                 report = controller.status(target="portfolio")
             self.assertFalse(report["ok"])
             self.assertEqual(report["jobs"][0]["state"], "degraded")
-            self.assertEqual(
-                report["jobs"][0]["issues"][0]["code"], "service-degraded"
-            )
+            self.assertEqual(report["jobs"][0]["issues"][0]["code"], "service-degraded")
 
     def test_clamav_updater_has_its_own_database_healthcheck(self) -> None:
         root = Path(__file__).resolve().parents[1]
@@ -254,13 +252,13 @@ raise SystemExit(86)
         self.assertIn("/opt/openclaw-agent/SOURCE_REVISION", dockerfile)
         self.assertIn('"personal_assistant.runtime_layout"', entrypoint)
         self.assertIn("OPENCLAW_IMAGE_REVISION=${OPENCLAW_SOURCE_REVISION}", dockerfile)
-        self.assertIn('OPENCLAW_SOURCE_REVISION=${{ github.sha }}', workflow)
-        self.assertIn('OPENCLAW_SOURCE_REVISION=$revision', local_build)
+        self.assertIn("OPENCLAW_SOURCE_REVISION=${{ github.sha }}", workflow)
+        self.assertIn("OPENCLAW_SOURCE_REVISION=$revision", local_build)
 
     def test_test_branch_push_builds_sha_tagged_container(self) -> None:
-        workflow = (
-            Path(__file__).resolve().parents[1] / ".github/workflows/container.yml"
-        ).read_text(encoding="utf-8")
+        workflow = (Path(__file__).resolve().parents[1] / ".github/workflows/container.yml").read_text(
+            encoding="utf-8"
+        )
         self.assertIn('- "test/**"', workflow)
         self.assertIn("type=ref,event=branch", workflow)
         self.assertIn("type=sha,prefix=sha-", workflow)
@@ -268,10 +266,9 @@ raise SystemExit(86)
         self.assertIn("cancel-in-progress: true", workflow)
 
     def test_live_test_checks_docker_access_and_exports_exact_revision(self) -> None:
-        helper = (
-            Path(__file__).resolve().parents[1]
-            / "docker/scripts/live-test-branch.sh"
-        ).read_text(encoding="utf-8")
+        helper = (Path(__file__).resolve().parents[1] / "docker/scripts/live-test-branch.sh").read_text(
+            encoding="utf-8"
+        )
 
         self.assertIn("docker info", helper)
         self.assertIn("sg docker -c", helper)
@@ -283,12 +280,45 @@ raise SystemExit(86)
         self.assertIn("@sha256:[0-9a-f]{64}", helper)
         self.assertIn('"$runtime_image" "$proxy_image" "$maintenance_image"', helper)
 
+    def test_deployment_refresh_copies_immutable_plugin_contract_and_helper(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as folder:
+            target = Path(folder) / "openclaw"
+            deployment = target / "deployment"
+            hooks = deployment / "hooks"
+            hooks.mkdir(parents=True)
+            (deployment / ".env").write_text("LOCAL=preserve\n", encoding="utf-8")
+            (hooks / "pre-deploy.sh").write_text("local hook\n", encoding="utf-8")
+
+            environment = os.environ.copy()
+            environment["OPENCLAW_ROOT"] = str(target)
+            subprocess.run(
+                [str(root / "docker/scripts/refresh-deployment.sh")],
+                cwd=root,
+                env=environment,
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+
+            self.assertEqual(
+                (deployment / "immutable-plugins.json").read_bytes(),
+                (root / "docker/openclaw-plugins/contract.json").read_bytes(),
+            )
+            self.assertEqual(
+                (deployment / "scripts/immutable_plugins.py").read_bytes(),
+                (root / "personal_assistant/immutable_plugins.py").read_bytes(),
+            )
+            self.assertEqual((deployment / ".env").read_text(encoding="utf-8"), "LOCAL=preserve\n")
+            self.assertEqual(
+                (hooks / "pre-deploy.sh").read_text(encoding="utf-8"),
+                "local hook\n",
+            )
+
     def test_deploy_verifies_source_revision_and_disables_legacy_writers(self) -> None:
         root = Path(__file__).resolve().parents[1]
         deploy = (root / "docker/scripts/deploy.sh").read_text(encoding="utf-8")
-        verifier = (root / "docker/scripts/verify-image-supply-chain.sh").read_text(
-            encoding="utf-8"
-        )
+        verifier = (root / "docker/scripts/verify-image-supply-chain.sh").read_text(encoding="utf-8")
 
         self.assertIn('"$SCRIPT_DIR/verify-image-supply-chain.sh"', deploy)
         self.assertIn("org.opencontainers.image.revision", verifier)
@@ -300,24 +330,15 @@ raise SystemExit(86)
         root = Path(__file__).resolve().parents[1]
         smoke = (root / "docker/scripts/smoke-test.sh").read_text(encoding="utf-8")
         deploy = (root / "docker/scripts/deploy.sh").read_text(encoding="utf-8")
-        jobs_command = (
-            "/opt/openclaw-agent/scripts/assistant.sh "
-            "jobs status --target all"
-        )
+        jobs_command = "/opt/openclaw-agent/scripts/assistant.sh jobs status --target all"
 
         self.assertNotIn(jobs_command, smoke)
         workers_started = deploy.index(
             "compose up -d mail-worker sync-worker supervisor-worker portfolio-worker monitor-worker"
         )
-        supervisor_healthy = deploy.index(
-            "wait_for_healthy supervisor-worker 180", workers_started
-        )
-        portfolio_healthy = deploy.index(
-            "wait_for_healthy portfolio-worker 180", supervisor_healthy
-        )
-        monitor_healthy = deploy.index(
-            "wait_for_healthy monitor-worker 180", portfolio_healthy
-        )
+        supervisor_healthy = deploy.index("wait_for_healthy supervisor-worker 180", workers_started)
+        portfolio_healthy = deploy.index("wait_for_healthy portfolio-worker 180", supervisor_healthy)
+        monitor_healthy = deploy.index("wait_for_healthy monitor-worker 180", portfolio_healthy)
         jobs_checked = deploy.index(jobs_command, monitor_healthy)
         self.assertLess(workers_started, supervisor_healthy)
         self.assertLess(supervisor_healthy, portfolio_healthy)
@@ -348,9 +369,9 @@ raise SystemExit(86)
         self.assertIn("OnUnitInactiveSec=1h", timer.read_text(encoding="utf-8"))
 
     def test_smoke_test_checks_compose_cli_without_sending(self) -> None:
-        smoke = (
-            Path(__file__).resolve().parents[1] / "docker/scripts/smoke-test.sh"
-        ).read_text(encoding="utf-8")
+        smoke = (Path(__file__).resolve().parents[1] / "docker/scripts/smoke-test.sh").read_text(
+            encoding="utf-8"
+        )
 
         self.assertIn("assistant.sh capabilities", smoke)
         self.assertIn("assistant.sh mail compose-draft --help", smoke)
@@ -367,17 +388,15 @@ raise SystemExit(86)
             'rm -rf "$OPENCLAW_STATE_DIR" "$OPENCLAW_CONFIG_DIR" "$OPENCLAW_SECRETS_DIR"',
             rollback,
         )
-        self.assertIn('OPENCLAW_RESTORE_OFFLINE=YES', rollback)
+        self.assertIn("OPENCLAW_RESTORE_OFFLINE=YES", rollback)
         self.assertIn('tar -xzf "$backup/payload.tar.gz" -C "$restore_root"', restore)
         self.assertIn('rsync -a --delete "$restore_root/state/"', restore)
-        self.assertIn(
-            "setup-host.sh muss die geschuetzte Hoststruktur anlegen", restore
-        )
+        self.assertIn("setup-host.sh muss die geschuetzte Hoststruktur anlegen", restore)
 
     def test_legacy_rollback_never_replaces_the_original_workspace_from_container_state(self) -> None:
-        rollback = (
-            Path(__file__).resolve().parents[1] / "docker/scripts/rollback.sh"
-        ).read_text(encoding="utf-8")
+        rollback = (Path(__file__).resolve().parents[1] / "docker/scripts/rollback.sh").read_text(
+            encoding="utf-8"
+        )
 
         self.assertNotIn(
             'rsync -a --delete "$OPENCLAW_STATE_DIR/" "$legacy_home/"',
@@ -402,22 +421,14 @@ raise SystemExit(86)
         )
 
     def test_live_migration_validates_and_stages_before_publishing_state(self) -> None:
-        migration = (
-            Path(__file__).resolve().parents[1] / "docker/scripts/migrate-live.sh"
-        ).read_text(encoding="utf-8")
+        migration = (Path(__file__).resolve().parents[1] / "docker/scripts/migrate-live.sh").read_text(
+            encoding="utf-8"
+        )
 
-        source_validation = migration.index(
-            '"$SOURCE_HOME/workspace/scripts/assistant.sh"'
-        )
-        stop_units = migration.index(
-            'systemctl --user disable --now "$unit"'
-        )
-        stage_copy = migration.index(
-            'rsync -a --delete "$SOURCE_HOME/" "$stage_state/"'
-        )
-        publish_state = migration.index(
-            'rsync -a --delete "$stage_state/" "$OPENCLAW_STATE_DIR/"'
-        )
+        source_validation = migration.index('"$SOURCE_HOME/workspace/scripts/assistant.sh"')
+        stop_units = migration.index('systemctl --user disable --now "$unit"')
+        stage_copy = migration.index('rsync -a --delete "$SOURCE_HOME/" "$stage_state/"')
+        publish_state = migration.index('rsync -a --delete "$stage_state/" "$OPENCLAW_STATE_DIR/"')
 
         self.assertLess(source_validation, stop_units)
         self.assertLess(stop_units, stage_copy)
@@ -447,9 +458,7 @@ raise SystemExit(86)
     def test_release_backup_links_and_verifies_legacy_migration_archive(self) -> None:
         root = Path(__file__).resolve().parents[1]
         backup = (root / "docker/scripts/backup.sh").read_text(encoding="utf-8")
-        verify = (root / "docker/scripts/verify-backup.sh").read_text(
-            encoding="utf-8"
-        )
+        verify = (root / "docker/scripts/verify-backup.sh").read_text(encoding="utf-8")
 
         self.assertIn('"legacy_migration_backup"', backup)
         self.assertIn('"legacy_migration_member"', backup)
@@ -463,15 +472,11 @@ raise SystemExit(86)
             openclaw_root = temporary / "openclaw"
             for name in ("state", "config", "secrets", "backups/releases"):
                 (openclaw_root / name).mkdir(parents=True)
-            (openclaw_root / "state/data.txt").write_text(
-                "state", encoding="utf-8"
-            )
+            (openclaw_root / "state/data.txt").write_text("state", encoding="utf-8")
 
             legacy_source = temporary / "legacy-source/.openclaw"
             (legacy_source / "workspace/scripts").mkdir(parents=True)
-            (legacy_source / "openclaw.json").write_text(
-                '{"gateway":{"mode":"local"}}\n', encoding="utf-8"
-            )
+            (legacy_source / "openclaw.json").write_text('{"gateway":{"mode":"local"}}\n', encoding="utf-8")
             for name in ("assistant.sh", "mail-agent.sh"):
                 script = legacy_source / "workspace/scripts" / name
                 script.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
@@ -501,13 +506,9 @@ raise SystemExit(86)
                     "OPENCLAW_STATE_DIR": str(openclaw_root / "state"),
                     "OPENCLAW_CONFIG_DIR": str(openclaw_root / "config"),
                     "OPENCLAW_SECRETS_DIR": str(openclaw_root / "secrets"),
-                    "OPENCLAW_BACKUP_DIR": str(
-                        openclaw_root / "backups/releases"
-                    ),
+                    "OPENCLAW_BACKUP_DIR": str(openclaw_root / "backups/releases"),
                     "OPENCLAW_LEGACY_HOME": str(legacy_source),
-                    "OPENCLAW_LEGACY_MIGRATION_BACKUP": str(
-                        migration_archive
-                    ),
+                    "OPENCLAW_LEGACY_MIGRATION_BACKUP": str(migration_archive),
                     "OPENCLAW_LEGACY_MIGRATION_MEMBER": ".openclaw",
                     "OPENCLAW_LEGACY_MIGRATION_SHA256": migration_sha,
                     "PREVIOUS_RUNTIME": "legacy-systemd",
@@ -525,16 +526,10 @@ raise SystemExit(86)
             )
             backup_id = created.stdout.strip().splitlines()[-1]
             backup_dir = openclaw_root / "backups/releases" / backup_id
-            manifest = json.loads(
-                (backup_dir / "manifest.json").read_text(encoding="utf-8")
-            )
+            manifest = json.loads((backup_dir / "manifest.json").read_text(encoding="utf-8"))
 
-            self.assertEqual(
-                manifest["legacy_migration_backup"], str(migration_archive)
-            )
-            self.assertEqual(
-                manifest["legacy_migration_sha256"], migration_sha
-            )
+            self.assertEqual(manifest["legacy_migration_backup"], str(migration_archive))
+            self.assertEqual(manifest["legacy_migration_sha256"], migration_sha)
             subprocess.run(
                 [str(root / "docker/scripts/verify-backup.sh"), str(backup_dir)],
                 cwd=root,

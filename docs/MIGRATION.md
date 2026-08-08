@@ -18,3 +18,21 @@ Einmalskripte nicht aus einem aktuellen Checkout nachladen.
 
 Diese Untergrenze entfernt keine Datenmigration: SQLite-Schemamigrationen,
 Container-State-Migration und verifizierte Legacy-Archive bleiben verpflichtend.
+
+## Externe OpenClaw-Plugins
+
+Ausfuehrbare Plugins duerfen im Containerbetrieb nicht aus dem beschreibbaren
+Gateway-State geladen werden. Der aktuelle Runtime-Imagevertrag enthaelt Brave
+und Signal in den durch `docker/openclaw-plugins/package-lock.json` gesperrten
+Versionen. Die Native-zu-Container-Migration fuegt deren read-only Imagepfade in
+`plugins.load.paths` ein, prueft die bisherigen Datensaetze in
+`installed_plugin_index`, synchronisiert diesen generierten Registrycache
+transaktional auf die exakten Versionen, Integritaetswerte und Imagepfade und
+entfernt die alten npm-Projektkopien ausschliesslich aus dem privaten Staging.
+Originales Legacy-Home und verifiziertes Migrationsarchiv bleiben unveraendert.
+
+Ein weiterer verwalteter oder fremder Plugin-Pfad wird nicht stillschweigend
+uebernommen. Die Migration stoppt vor der Publikation, bis das Plugin mit exakter
+Version und Integritaet in den Image- und Supply-Chain-Vertrag aufgenommen wurde.
+Nach der Migration verhindert `OPENCLAW_NIX_MODE=1` Plugininstallation und
+-update im laufenden Container.

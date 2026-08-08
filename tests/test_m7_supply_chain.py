@@ -31,7 +31,24 @@ class M7SupplyChainTests(unittest.TestCase):
         report = self.module.verify_lock(ROOT)
         self.assertTrue(report["ok"])
         self.assertGreaterEqual(report["base_images"], 2)
+        self.assertEqual(report["immutable_openclaw_plugins"], 2)
         self.assertGreaterEqual(report["github_actions"], 8)
+
+    def test_external_runtime_plugins_are_exactly_locked(self) -> None:
+        lock = self.module.load_lock()["immutable_openclaw_plugins"]
+        package_lock_path = ROOT / "docker/openclaw-plugins/package-lock.json"
+        self.assertEqual(
+            self.module.sha256_file(package_lock_path),
+            lock["package_lock_sha256"],
+        )
+        package_lock = json.loads(package_lock_path.read_text(encoding="utf-8"))
+        for name, contract in lock["packages"].items():
+            installed = package_lock["packages"][f"node_modules/{name}"]
+            self.assertEqual(installed["version"], contract["version"])
+            self.assertEqual(installed["integrity"], contract["integrity"])
+
+        compose = (ROOT / "compose.yaml").read_text(encoding="utf-8")
+        self.assertIn('OPENCLAW_NIX_MODE: "1"', compose)
 
     def test_private_repository_uses_registry_native_attestations(self) -> None:
         workflow = (ROOT / ".github/workflows/container.yml").read_text(encoding="utf-8")
@@ -48,8 +65,7 @@ class M7SupplyChainTests(unittest.TestCase):
             calls = base / "cosign-calls"
             fake_cosign = binary / "cosign"
             fake_cosign.write_text(
-                "#!/bin/sh\n"
-                f"printf '%s\\n' \"$*\" >> {calls}\n",
+                f"#!/bin/sh\nprintf '%s\\n' \"$*\" >> {calls}\n",
                 encoding="utf-8",
             )
             fake_cosign.chmod(0o755)
@@ -121,7 +137,7 @@ class M7SupplyChainTests(unittest.TestCase):
             binary.mkdir()
             calls = base / "docker-calls"
             (binary / "docker").write_text(
-                f'#!/bin/sh\nprintf \'%s\\n\' "$*" >> {calls}\nexit 0\n',
+                f"#!/bin/sh\nprintf '%s\\n' \"$*\" >> {calls}\nexit 0\n",
                 encoding="utf-8",
             )
             fake_python = binary / "python"
@@ -182,9 +198,7 @@ class M7SupplyChainTests(unittest.TestCase):
             ]
         }
         with self.assertRaisesRegex(self.module.ContractError, "CVE-2099-0001:fixture"):
-            self.module.verify_vulnerability_payload(
-                payload, {"fail_severities": ["CRITICAL"]}
-            )
+            self.module.verify_vulnerability_payload(payload, {"fail_severities": ["CRITICAL"]})
 
     def test_workflow_permission_parser_rejects_ambient_permissions(self) -> None:
         with self.assertRaises(self.module.ContractError):
@@ -321,15 +335,8 @@ class M7SupplyChainTests(unittest.TestCase):
         self.assertEqual(len(invocations), 3)
         self.assertTrue(all("run --rm --read-only" in call for call in invocations))
         self.assertTrue(all("--cap-drop ALL" in call for call in invocations))
-        self.assertTrue(
-            all("--security-opt no-new-privileges:true" in call for call in invocations)
-        )
-        self.assertTrue(
-            all(
-                "ghcr.io/sigstore/cosign/cosign:v3.1.3@sha256:" in call
-                for call in invocations
-            )
-        )
+        self.assertTrue(all("--security-opt no-new-privileges:true" in call for call in invocations))
+        self.assertTrue(all("ghcr.io/sigstore/cosign/cosign:v3.1.3@sha256:" in call for call in invocations))
         self.assertIn(" verify --certificate-identity-regexp ", invocations[0])
         self.assertIn(" verify-attestation --type slsaprovenance1 ", invocations[1])
         self.assertIn(" verify-attestation --type spdxjson ", invocations[2])
