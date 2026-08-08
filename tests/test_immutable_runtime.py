@@ -108,6 +108,43 @@ class ImmutableRuntimeTests(unittest.TestCase):
             backups = list((state / ".layout-migrations/backups").glob("*.tar.gz"))
             self.assertEqual(len(backups), 1)
 
+    def test_layout_normalizes_ollama_in_active_v3_instance_and_on_restart(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            state, workspace = self._legacy_fixture(folder)
+            legacy_config = workspace / "mail_agent/config.toml"
+            legacy_config.write_text(
+                '[ollama]\nbase_url = "http://127.0.0.1:11435"\nmodel = "fixture"\n',
+                encoding="utf-8",
+            )
+
+            first = migrate_layout(self.root, state, workspace)
+            active_config = state / "v3/instance/mail_agent/config.toml"
+
+            self.assertTrue(first.changed)
+            self.assertIn(
+                'base_url = "http://ollama-proxy:11435"',
+                active_config.read_text(encoding="utf-8"),
+            )
+            self.assertIn(
+                'base_url = "http://127.0.0.1:11435"',
+                legacy_config.read_text(encoding="utf-8"),
+            )
+
+            active_config.write_text(
+                active_config.read_text(encoding="utf-8").replace(
+                    "http://ollama-proxy:11435",
+                    "http://127.0.0.1:11435",
+                ),
+                encoding="utf-8",
+            )
+            second = migrate_layout(self.root, state, workspace)
+
+            self.assertTrue(second.changed)
+            self.assertIn(
+                'base_url = "http://ollama-proxy:11435"',
+                active_config.read_text(encoding="utf-8"),
+            )
+
     def test_missing_release_document_fails_before_workspace_changes(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
             state, workspace = self._legacy_fixture(folder)

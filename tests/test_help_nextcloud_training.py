@@ -4,7 +4,6 @@ import os
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
-from datetime import UTC, datetime, timedelta
 from io import StringIO
 from pathlib import Path
 from types import SimpleNamespace
@@ -21,6 +20,7 @@ from mail_agent.rules import RuleEngine
 from mail_agent.setup_assistant import configuration_fingerprint, extended_help
 from mail_agent.storage import Storage
 from mail_agent.training import TrainingManager
+from personal_assistant.connectors.nextcloud.discovery import DiscoveredCollection
 
 WORKSPACE = Path(__file__).resolve().parents[1]
 
@@ -73,7 +73,9 @@ class HelpNextcloudTrainingTests(unittest.TestCase):
         self.assertIn("training rule-add", training)
         self.assertIn("Korrektur-Kein-Spam", training)
         self.assertIn("nextcloud setup", nextcloud)
-        self.assertIn("skill-card", nextcloud)
+        self.assertIn("native", nextcloud)
+        self.assertIn("If-None-Match", nextcloud)
+        self.assertNotIn("install-skill --yes", nextcloud)
         self.assertIn("~/.config/mail-agent.env", nextcloud)
 
 
@@ -188,60 +190,32 @@ Kannst du mich bitte zurueckrufen?\r
         self.assertIsNotNone(hard_context.forced)
         self.assertEqual(hard_context.forced.category, "spam")
 
-    def test_skill_review_requires_explicit_approval(self) -> None:
-        payload = '{"schema":"clawhub.skill.verify.v1","ok":true,"decision":"review"}'
-        runner = FakeRunner([
-            CommandResult(["openclaw"], 0, payload, ""),
-            CommandResult(["openclaw"], 0, payload, ""),
-        ])
+    def test_native_connector_never_installs_workspace_code(self) -> None:
+        runner = FakeRunner()
         client = NextcloudSkillClient(self.config, runner)  # type: ignore[arg-type]
-        with patch("mail_agent.nextcloud.shutil.which", return_value="/usr/bin/openclaw"):
-            denied = client.verify_skill()
-            approved = client.verify_skill(allow_review=True)
-        self.assertFalse(denied.ok)
-        self.assertEqual(denied.status, "nextcloud-skill-review-required")
-        self.assertTrue(approved.ok)
-        self.assertEqual(approved.status, "nextcloud-skill-review-approved")
 
+        verified = client.verify_skill()
+        installed = client.install_skill(allow_review=True)
 
-
-    def test_review_install_uses_official_openclaw_risk_acknowledgement(self) -> None:
-        skill_dir = self.root / "review-nextcloud-skill"
-        self.config.nextcloud.skill_dir = skill_dir
-        review_payload = '{"schema":"clawhub.skill.verify.v1","ok":true,"decision":"review"}'
-
-        class InstallingRunner(FakeRunner):
-            def run(inner_self, args, **kwargs):
-                command = [str(item) for item in args]
-                inner_self.calls.append(command)
-                if command[1:3] == ["skills", "verify"]:
-                    return CommandResult(command, 0, review_payload, "")
-                if command[1:3] == ["skills", "install"]:
-                    script = skill_dir / "scripts" / "nextcloud.js"
-                    script.parent.mkdir(parents=True, exist_ok=True)
-                    script.write_text("// installed", encoding="utf-8")
-                    return CommandResult(command, 0, "installed", "")
-                if command[1:3] == ["skills", "check"]:
-                    return CommandResult(command, 0, "ok", "")
-                return CommandResult(command, 1, "", "unexpected")
-
-        runner = InstallingRunner()
-        client = NextcloudSkillClient(self.config, runner)  # type: ignore[arg-type]
-        with patch("mail_agent.nextcloud.shutil.which", return_value="/usr/bin/openclaw"):
-            result = client.install_skill(allow_review=True)
-        self.assertTrue(result.ok)
-        install_call = next(call for call in runner.calls if call[1:3] == ["skills", "install"])
-        self.assertIn("--acknowledge-clawhub-risk", install_call)
+        self.assertTrue(verified.ok)
+        self.assertEqual(verified.status, "nextcloud-native-verified")
+        self.assertTrue(installed.ok)
+        self.assertEqual(installed.status, "nextcloud-native-present")
+        self.assertEqual(runner.calls, [])
 
     def test_addressbooks_are_requested_only_once(self) -> None:
         client = NextcloudSkillClient(self.config, FakeRunner())  # type: ignore[arg-type]
-        with patch.object(client, "_run", return_value=[]) as call:
+        with patch.object(client.discovery, "addressbooks", return_value=[]) as call:
             self.assertEqual(client.list_addressbooks(), [])
-        call.assert_called_once_with(["addressbooks", "list"])
+        call.assert_called_once_with()
 
     def test_workspace_root_does_not_follow_alternate_config_location(self) -> None:
         client = NextcloudSkillClient(self.config, FakeRunner())  # type: ignore[arg-type]
-        self.assertEqual(client.workspace_root, WORKSPACE)
+        self.assertEqual(
+            client.script_path,
+            client.workspace_root / "personal_assistant/connectors/nextcloud/client.py",
+        )
+        self.assertNotEqual(client.workspace_root, self.config.path.parent)
         self.assertTrue(self.config.nextcloud.contacts_prevent_spam)
 
 
@@ -270,49 +244,119 @@ Kannst du mich bitte zurueckrufen?\r
         self.assertTrue(self.config.nextcloud.contacts_prevent_spam)
         self.assertFalse(self.config.nextcloud.trust_contacts_for_calendar)
 
-    def test_enabled_nextcloud_skill_changes_invalidate_dry_run_fingerprint(self) -> None:
-        skill_dir = self.root / "fingerprinted-nextcloud-skill"
-        script = skill_dir / "scripts" / "nextcloud.js"
+    def test_workspace_skill_changes_do_not_affect_native_dry_run_fingerprint(self) -> None:
+        workspace = self.root / "writable-workspace"
+        script = workspace / "personal_assistant/connectors/nextcloud/client.py"
         script.parent.mkdir(parents=True)
         script.write_text("// version one", encoding="utf-8")
         self.config.nextcloud.enabled = True
-        self.config.nextcloud.skill_dir = skill_dir
-        first = configuration_fingerprint(self.config)
-        script.write_text("// version two", encoding="utf-8")
-        second = configuration_fingerprint(self.config)
-        self.assertNotEqual(first, second)
+        with patch("mail_agent.setup_assistant.WORKSPACE_ROOT", workspace):
+            first = configuration_fingerprint(self.config)
+            script.write_text("// version two", encoding="utf-8")
+            second = configuration_fingerprint(self.config)
+        self.assertEqual(first, second)
 
-    def test_existing_skill_is_still_verified_before_use(self) -> None:
-        skill_dir = self.root / "existing-nextcloud-skill"
-        script = skill_dir / "scripts" / "nextcloud.js"
-        script.parent.mkdir(parents=True)
-        script.write_text("// test", encoding="utf-8")
-        self.config.nextcloud.skill_dir = skill_dir
-        payload = '{"schema":"clawhub.skill.verify.v1","ok":true,"decision":"pass"}'
-        runner = FakeRunner([CommandResult(["openclaw"], 0, payload, "")])
-        client = NextcloudSkillClient(self.config, runner)  # type: ignore[arg-type]
-        with patch("mail_agent.nextcloud.shutil.which", return_value="/usr/bin/openclaw"):
-            result = client.install_skill()
-        self.assertTrue(result.ok)
-        self.assertIn("aktuell verifiziert", result.detail)
-        self.assertEqual(runner.calls[0][1:3], ["skills", "verify"])
-
-    def test_calendar_bridge_caps_untrusted_text_arguments(self) -> None:
-        client = NextcloudSkillClient(self.config, FakeRunner())  # type: ignore[arg-type]
-        event = SimpleNamespace(
-            title="T" * 1000,
-            notes="N" * 9000,
-            location="L" * 1000,
+    def test_calendar_bridge_resolves_exact_resource_and_uses_create_only_connector(self) -> None:
+        resource = DiscoveredCollection(
+            kind="calendar",
+            href="/remote.php/dav/calendars/jan/private/",
+            name="Privat",
+            resource_id="nextcloud-calendar-exact",
+            components=("VEVENT",),
+            privileges=("{DAV:}bind",),
+            can_read=True,
+            can_create=True,
         )
-        start = datetime(2026, 7, 18, 10, 0, tzinfo=UTC)
-        normalized = SimpleNamespace(event=event, start=start, end=start + timedelta(hours=1))
-        with patch.object(client, "_run", return_value={"uid": "test-uid"}) as call:
+        client = NextcloudSkillClient(
+            self.config,
+            FakeRunner(),  # type: ignore[arg-type]
+            calendar_resource_id="nextcloud-calendar-exact",
+        )
+        normalized = SimpleNamespace(
+            uid="mail-event@example.test",
+            ics="BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n",
+        )
+        with (
+            patch.object(client.discovery, "calendars", return_value=[resource]),
+            patch.object(
+                client.calendar,
+                "create_event",
+                return_value="/remote.php/dav/calendars/jan/private/mail-event.ics",
+            ) as create,
+        ):
             result = client.create_event(normalized)
         self.assertTrue(result.ok)
-        args = call.call_args.args[0]
-        self.assertEqual(len(args[args.index("--summary") + 1]), 300)
-        self.assertEqual(len(args[args.index("--description") + 1]), 4000)
-        self.assertEqual(len(args[args.index("--location") + 1]), 500)
+        create.assert_called_once_with(resource, normalized.ics, normalized.uid)
+
+    def test_calendar_bridge_fails_closed_on_ambiguous_resource(self) -> None:
+        client = NextcloudSkillClient(self.config, FakeRunner())  # type: ignore[arg-type]
+        resources = [
+            DiscoveredCollection(
+                kind="calendar",
+                href=f"/calendars/{name}/",
+                name=name,
+                resource_id=f"calendar-{name}",
+                can_read=True,
+                can_create=True,
+            )
+            for name in ("a", "b")
+        ]
+        normalized = SimpleNamespace(uid="event", ics="ics")
+        with (
+            patch.object(client.discovery, "calendars", return_value=resources),
+            patch.object(client.calendar, "create_event") as create,
+        ):
+            result = client.create_event(normalized)
+        self.assertFalse(result.ok)
+        self.assertIn("nicht eindeutig", result.detail)
+        create.assert_not_called()
+
+    def test_native_health_accepts_exact_writable_calendar_and_readable_addressbook(self) -> None:
+        self.config.nextcloud.enabled = True
+        client = NextcloudSkillClient(
+            self.config,
+            FakeRunner(),  # type: ignore[arg-type]
+            calendar_resource_id="calendar-exact",
+        )
+        calendars = [
+            {
+                "displayName": "Privat",
+                "href": "/calendars/private/",
+                "resource_id": "calendar-exact",
+                "can_create": True,
+            }
+        ]
+        addressbooks = [
+            {
+                "displayName": "Kontakte",
+                "href": "/addressbooks/contacts/",
+                "resource_id": "addressbook-exact",
+                "can_read": True,
+            }
+        ]
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "NEXTCLOUD_URL": "https://cloud.example.test",
+                    "NEXTCLOUD_USER": "agent",
+                    "NEXTCLOUD_TOKEN": "test-token",
+                },
+                clear=False,
+            ),
+            patch.object(client, "list_calendars", return_value=calendars),
+            patch.object(client, "list_addressbooks", return_value=addressbooks),
+            patch.object(
+                client,
+                "refresh_contact_cache",
+                return_value=(True, "1 Kontaktadresse"),
+            ),
+        ):
+            result = client.health(live=True)
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["backend"], "native-caldav-carddav")
+        self.assertTrue(result["selected_calendar_create_allowed"])
 
     def test_contact_email_extraction_is_normalized(self) -> None:
         contact = {

@@ -95,8 +95,6 @@ send_result_mail = true
 
 [nextcloud]
 enabled = false
-skill_package = "@keithvassallomt/openclaw-nextcloud"
-skill_dir = "skills/openclaw-nextcloud"
 base_url_env = "NEXTCLOUD_URL"
 username_env = "NEXTCLOUD_USER"
 token_env = "NEXTCLOUD_TOKEN"

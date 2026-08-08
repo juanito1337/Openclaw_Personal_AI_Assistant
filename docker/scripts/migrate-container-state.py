@@ -32,8 +32,6 @@ synchronize_installed_plugin_index = immutable_plugins.synchronize_installed_plu
 NEXTCLOUD_SECTION = """
 [nextcloud]
 enabled = true
-skill_package = "@keithvassallomt/openclaw-nextcloud"
-skill_dir = "skills/openclaw-nextcloud"
 base_url_env = "NEXTCLOUD_URL"
 username_env = "NEXTCLOUD_USER"
 token_env = "NEXTCLOUD_TOKEN"

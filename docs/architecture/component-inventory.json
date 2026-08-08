@@ -2,7 +2,7 @@
   "schema_version": 1,
   "inventory_date": "2026-08-06",
   "source_scope": "all Python modules, shell entrypoints, skills, systemd units, migrations and Markdown documents",
-  "component_count": 344,
+  "component_count": 345,
   "classification_values": [
     "active",
     "compatibility",
@@ -1946,6 +1946,27 @@
       "rollback_relevance": "none"
     },
     {
+      "path": "docs/architecture/adr/0013-native-nextcloud-und-aktive-runtime-normalisierung.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Architecture Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/architecture/adr/README.md",
+        "docs/architecture/owners.json"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
       "path": "docs/architecture/adr/README.md",
       "types": [
         "document"
@@ -2806,7 +2827,9 @@
       ],
       "owner": "Mail Domain Maintainers",
       "classification": "active",
-      "productive_callers": [],
+      "productive_callers": [
+        "scripts/check-role-images.sh"
+      ],
       "test_evidence": [
         "tests/ruff-baseline.json",
         "tests/test_agent_tool_architecture.py",
@@ -2881,7 +2904,7 @@
         "docs/architecture/README.md",
         "docs/archive/AUDIT_INITIAL_IMPORT.md"
       ],
-      "line_coverage_percent": 22.94,
+      "line_coverage_percent": 23.28,
       "last_git_change": "2026-08-06T15:45:31+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -2948,7 +2971,7 @@
         "tests/test_r261_ollama_reliability.py"
       ],
       "documentation_evidence": [],
-      "line_coverage_percent": 95.17,
+      "line_coverage_percent": 95.12,
       "last_git_change": "2026-08-06T15:45:31+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -3227,7 +3250,9 @@
       ],
       "owner": "Mail Domain Maintainers",
       "classification": "active",
-      "productive_callers": [],
+      "productive_callers": [
+        "scripts/check-role-images.sh"
+      ],
       "test_evidence": [
         "tests/mypy-baseline.json",
         "tests/ruff-baseline.json",
@@ -3237,7 +3262,7 @@
       "documentation_evidence": [
         "docs/architecture/legacy-decisions.json"
       ],
-      "line_coverage_percent": 41.9,
+      "line_coverage_percent": 55.49,
       "last_git_change": "2026-08-06T15:45:31+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -3257,7 +3282,7 @@
         "tests/ruff-baseline.json"
       ],
       "documentation_evidence": [],
-      "line_coverage_percent": 7.91,
+      "line_coverage_percent": 9.05,
       "last_git_change": "2026-07-28T00:07:47+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -3384,7 +3409,7 @@
       "documentation_evidence": [
         "docs/archive/AUDIT_INITIAL_IMPORT.md"
       ],
-      "line_coverage_percent": 18.64,
+      "line_coverage_percent": 17.46,
       "last_git_change": "2026-08-06T15:45:31+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -3771,7 +3796,9 @@
       ],
       "owner": "Core Maintainers",
       "classification": "active",
-      "productive_callers": [],
+      "productive_callers": [
+        "scripts/check-role-images.sh"
+      ],
       "test_evidence": [
         "tests/ruff-baseline.json"
       ],
@@ -3793,7 +3820,9 @@
       ],
       "owner": "Core Maintainers",
       "classification": "active",
-      "productive_callers": [],
+      "productive_callers": [
+        "scripts/check-role-images.sh"
+      ],
       "test_evidence": [
         "tests/ruff-baseline.json"
       ],
@@ -4146,7 +4175,8 @@
       "owner": "Core Maintainers",
       "classification": "active",
       "productive_callers": [
-        "mail_agent/assistant_bridge.py"
+        "mail_agent/assistant_bridge.py",
+        "mail_agent/nextcloud.py"
       ],
       "test_evidence": [
         "tests/mypy-baseline.json",
@@ -4217,7 +4247,10 @@
       ],
       "owner": "Core Maintainers",
       "classification": "active",
-      "productive_callers": [],
+      "productive_callers": [
+        "mail_agent/nextcloud.py",
+        "scripts/check-role-images.sh"
+      ],
       "test_evidence": [
         "tests/ruff-baseline.json",
         "tests/test_caldav_update_tools.py",
@@ -4241,14 +4274,18 @@
       ],
       "owner": "Core Maintainers",
       "classification": "active",
-      "productive_callers": [],
+      "productive_callers": [
+        "mail_agent/nextcloud.py",
+        "scripts/check-role-images.sh"
+      ],
       "test_evidence": [
         "tests/ruff-baseline.json",
         "tests/test_caldav_update_tools.py",
+        "tests/test_help_nextcloud_training.py",
         "tests/test_personal_assistant_core.py"
       ],
       "documentation_evidence": [],
-      "line_coverage_percent": 31.18,
+      "line_coverage_percent": 36.56,
       "last_git_change": "2026-08-06T15:45:31+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -4263,7 +4300,10 @@
       ],
       "owner": "Core Maintainers",
       "classification": "active",
-      "productive_callers": [],
+      "productive_callers": [
+        "mail_agent/nextcloud.py",
+        "scripts/check-role-images.sh"
+      ],
       "test_evidence": [
         "tests/ruff-baseline.json",
         "tests/test_carddav_contact_tools.py",
@@ -4306,13 +4346,16 @@
       ],
       "owner": "Core Maintainers",
       "classification": "active",
-      "productive_callers": [],
+      "productive_callers": [
+        "mail_agent/nextcloud.py"
+      ],
       "test_evidence": [
         "tests/ruff-baseline.json",
         "tests/test_caldav_discovery_tools.py",
         "tests/test_caldav_update_tools.py",
         "tests/test_carddav_contact_tools.py",
         "tests/test_carddav_contact_update.py",
+        "tests/test_help_nextcloud_training.py",
         "tests/test_personal_assistant_core.py"
       ],
       "documentation_evidence": [],
@@ -4822,7 +4865,7 @@
         "tests/test_ollama_priority_config.py"
       ],
       "documentation_evidence": [],
-      "line_coverage_percent": 66.04,
+      "line_coverage_percent": 66.98,
       "last_git_change": "2026-07-28T00:07:47+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -5067,7 +5110,7 @@
         "docs/DOCKER_DEPLOYMENT.md",
         "docs/architecture/DATA_CATALOG.md"
       ],
-      "line_coverage_percent": 81.37,
+      "line_coverage_percent": 81.24,
       "last_git_change": "2026-08-07T13:59:52+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -5403,7 +5446,9 @@
       ],
       "owner": "Core Maintainers",
       "classification": "active",
-      "productive_callers": [],
+      "productive_callers": [
+        "scripts/check-role-images.sh"
+      ],
       "test_evidence": [
         "tests/ruff-baseline.json"
       ],
@@ -5425,7 +5470,9 @@
       ],
       "owner": "Core Maintainers",
       "classification": "active",
-      "productive_callers": [],
+      "productive_callers": [
+        "scripts/check-role-images.sh"
+      ],
       "test_evidence": [
         "tests/ruff-baseline.json"
       ],
@@ -5751,7 +5798,7 @@
         "docs/architecture/adr/0007-shared-sqlite-scheduler.md",
         "docs/architecture/state-access.json"
       ],
-      "line_coverage_percent": 85.1,
+      "line_coverage_percent": 84.24,
       "last_git_change": "2026-08-06T15:45:31+02:00",
       "runtime_telemetry": {
         "status": "not-collected",

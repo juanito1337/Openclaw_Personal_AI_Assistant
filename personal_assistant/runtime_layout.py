@@ -16,6 +16,8 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+from .ollama_priority_config import read_mail_base_url, set_mail_base_url
+
 LAYOUT_VERSION = 3
 LAYOUT_SCHEMA = 1
 MARKER_NAME = ".container-layout.json"
@@ -59,6 +61,7 @@ V3_DIRECTORIES = (
     "shared/coordination/container_jobs",
     "shared/coordination/container_logs",
 )
+CONTAINER_OLLAMA_BASE_URL = "http://ollama-proxy:11435"
 
 
 @dataclass(slots=True)
@@ -550,6 +553,30 @@ def _publish_v3(state_root: Path, stage: Path) -> None:
     stage.replace(target)
 
 
+def _normalize_container_mail_config(workspace: Path) -> bool:
+    """Enforce the internal proxy endpoint in the active container instance.
+
+    The host-to-container migration already rewrites the legacy workspace.  The
+    v3 layout owns a second, staged copy and is also reused across later image
+    upgrades.  Normalizing that active copy here prevents an old host-loopback
+    URL from surviving either the first publication or a subsequent restart.
+    """
+
+    path = workspace / "mail_agent/config.toml"
+    if not path.is_file():
+        return False
+    text = path.read_text(encoding="utf-8")
+    if not any(
+        line.strip() == "[ollama]" for line in text.splitlines()
+    ):
+        return False
+    current = read_mail_base_url(path)
+    if current == CONTAINER_OLLAMA_BASE_URL:
+        return False
+    set_mail_base_url(path, CONTAINER_OLLAMA_BASE_URL)
+    return True
+
+
 def restore_backup(archive: Path, destination: Path) -> None:
     archive = archive.expanduser().resolve()
     checksum = archive.with_suffix(archive.suffix + ".sha256")
@@ -703,6 +730,7 @@ def migrate_layout(image_root: Path, state_root: Path, workspace: Path) -> Layou
         backup: Path | None = None
         backup_digest: str | None = None
         removed: list[str] = []
+        runtime_config_changed = False
         if previous_layout < LAYOUT_VERSION:
             published = state_root / V3_ROOT_NAME
             published_marker = published / "instance/.layout-version.json"
@@ -732,6 +760,12 @@ def migrate_layout(image_root: Path, state_root: Path, workspace: Path) -> Layou
                 if candidate.exists() or candidate.is_symlink():
                     removed.append(_archive_name(candidate, state_root))
                     _remove(candidate)
+        active_instance = state_root / V3_ROOT_NAME / "instance"
+        if not active_instance.is_dir():
+            raise RuntimeError(
+                f"Aktiver Layout-v3-Instanzbereich fehlt: {active_instance}"
+            )
+        runtime_config_changed = _normalize_container_mail_config(active_instance)
         created_configs = _create_configs(image_root, workspace)
         for directory in (
             workspace / "mail_agent/data",
@@ -767,7 +801,14 @@ def migrate_layout(image_root: Path, state_root: Path, workspace: Path) -> Layou
         removed_runtime_paths=removed,
         release_links=links,
         created_configs=created_configs,
-        changed=bool(backup or removed or created_configs or links_changed or marker_changed),
+        changed=bool(
+            backup
+            or removed
+            or created_configs
+            or links_changed
+            or marker_changed
+            or runtime_config_changed
+        ),
     )
 
 

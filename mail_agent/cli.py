@@ -148,19 +148,34 @@ def build_parser() -> argparse.ArgumentParser:
     help_parser = sub.add_parser("help", help="Ausfuehrliche thematische Hilfe anzeigen")
     help_parser.add_argument("topic", nargs="?", default="overview", help="Hilfethema, z. B. training oder nextcloud")
 
-    nextcloud = sub.add_parser("nextcloud", help="Nextcloud CalDAV/CardDAV und OpenClaw-Skill verwalten")
+    nextcloud = sub.add_parser(
+        "nextcloud",
+        help="Native Nextcloud-CalDAV/CardDAV-Bruecke verwalten",
+    )
     nc_sub = nextcloud.add_subparsers(dest="nextcloud_command", required=True)
-    nc_sub.add_parser("setup", help="Skill, App-Passwort, Kalender und Adressbuch interaktiv einrichten")
+    nc_sub.add_parser(
+        "setup",
+        help="App-Passwort, Kalender und Adressbuch interaktiv einrichten",
+    )
     nc_sub.add_parser("doctor", help="Nextcloud-Verbindung live pruefen")
     nc_sub.add_parser("status", help="Alias fuer 'nextcloud doctor'")
-    nc_sub.add_parser("verify-skill", help="Trust-Entscheidung des OpenClaw-Skill-Registrys pruefen")
-    nc_sub.add_parser("skill-card", help="Vom Registry erzeugte Skill-Card zur manuellen Pruefung anzeigen")
-    nc_install = nc_sub.add_parser("install-skill", help="Verifizierten Nextcloud-Skill installieren")
-    nc_install.add_argument("--yes", action="store_true", help="Installation von Drittcode ausdruecklich bestaetigen")
+    nc_sub.add_parser(
+        "verify-skill",
+        help="Kompatibilitaetsalias: native Release-Bruecke pruefen",
+    )
+    nc_sub.add_parser(
+        "skill-card",
+        help="Kompatibilitaetsalias: eingeschraenkten nativen Vertrag anzeigen",
+    )
+    nc_install = nc_sub.add_parser(
+        "install-skill",
+        help="Kompatibilitaetsalias; es wird kein Drittcode installiert",
+    )
+    nc_install.add_argument("--yes", action="store_true", help=argparse.SUPPRESS)
     nc_install.add_argument(
         "--allow-review",
         action="store_true",
-        help="Nach eigener Skill-Card-Pruefung auch eine Registry-Entscheidung 'review' bewusst freigeben",
+        help=argparse.SUPPRESS,
     )
     nc_sub.add_parser("calendars", help="Verfuegbare Nextcloud-Kalender auflisten")
     nc_sub.add_parser("addressbooks", help="Verfuegbare Nextcloud-Adressbuecher auflisten")
@@ -285,7 +300,7 @@ def _print_config(config: Config) -> None:
             "organize_by_year_month": config.invoices.organize_by_year_month,
         },
         "nextcloud_enabled": config.nextcloud.enabled,
-        "nextcloud_skill": config.nextcloud.skill_package,
+        "nextcloud_backend": "native-caldav-carddav",
         "nextcloud_calendar": config.nextcloud.calendar,
         "nextcloud_addressbook": config.nextcloud.addressbook,
         "nextcloud_contacts_prevent_spam": config.nextcloud.contacts_prevent_spam,
@@ -376,22 +391,6 @@ def _handle_nextcloud(args: argparse.Namespace, config: Config) -> int:
             print(result.detail)
             return 0 if result.ok else 1
         if command == "install-skill":
-            if args.allow_review and not args.yes:
-                print("--allow-review ist nur zusammen mit --yes erlaubt.", file=sys.stderr)
-                return 2
-            prompt = "Der Community-Skill enthaelt ausfuehrbaren Drittcode. Verifizierte Version installieren"
-            if args.allow_review:
-                prompt = (
-                    "Ich habe './scripts/mail-agent.sh nextcloud skill-card' selbst geprueft und moechte "
-                    "die Registry-Entscheidung 'review' fuer diesen Installationslauf freigeben"
-                )
-            if not _confirm(prompt, explicit_yes=args.yes):
-                print(
-                    "Installation nicht bestaetigt. Zuerst: ./scripts/mail-agent.sh nextcloud verify-skill "
-                    "und ./scripts/mail-agent.sh nextcloud skill-card",
-                    file=sys.stderr,
-                )
-                return 2
             result = client.install_skill(allow_review=args.allow_review)
             print(json.dumps(asdict(result), indent=2, ensure_ascii=False))
             return 0 if result.ok else 1
@@ -416,7 +415,10 @@ def _handle_nextcloud(args: argparse.Namespace, config: Config) -> int:
                 "config_backup": str(backup),
                 "calendar_backend": "queue" if config.calendar.backend == "nextcloud_skill" else config.calendar.backend,
                 "contact_cache": asdict(cache_result),
-                "note": "Skill und ~/.config/mail-agent.env wurden nicht geloescht.",
+                "note": (
+                    "Die native Release-Bruecke bleibt unveraendert; "
+                    "~/.config/mail-agent.env wurde nicht geloescht."
+                ),
             }, indent=2, ensure_ascii=False))
             return 0
         try:

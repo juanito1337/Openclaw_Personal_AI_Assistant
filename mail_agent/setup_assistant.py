@@ -47,7 +47,6 @@ def configuration_fingerprint(config: Config) -> str:
 
     digest = hashlib.sha256()
     source_dir = Path(__file__).resolve().parent
-    workspace_root = WORKSPACE_ROOT
     paths = [config.path, config.runtime.rules_file, config.runtime.learning_folders_file, *sorted(source_dir.glob("*.py"))]
     for path in paths:
         digest.update(str(path).encode("utf-8"))
@@ -56,27 +55,13 @@ def configuration_fingerprint(config: Config) -> str:
         except OSError:
             digest.update(b"<missing>")
 
-    # Bind the approval only to the executable Nextcloud bridge and its local
-    # origin metadata. Hashing the complete ClawHub lock or every similarly named
-    # skill caused unrelated workspace changes to invalidate a successful dry-run.
+    # The container-safe Nextcloud bridge is release-owned Python code. Bind its
+    # implementation to the dry-run approval, but deliberately ignore any broad
+    # workspace-installed community skill: mutable workspace code is never an
+    # executable dependency of the current connector.
     if config.nextcloud.enabled:
-        configured_root = config.nextcloud.skill_dir.resolve()
-        script = configured_root / "scripts" / "nextcloud.js"
-        if not script.exists():
-            default_root = (workspace_root / "skills" / "openclaw-nextcloud").resolve()
-            if configured_root == default_root:
-                candidates = sorted((workspace_root / "skills").glob("*/scripts/nextcloud.js"))
-                script = next(
-                    (candidate for candidate in candidates if "nextcloud" in candidate.parent.parent.name.casefold()),
-                    script,
-                )
-        skill_root = script.parent.parent
-        for path in (
-            script,
-            skill_root / ".clawhub" / "origin.json",
-            skill_root / "package.json",
-            skill_root / "package-lock.json",
-        ):
+        native_root = source_dir.parent / "personal_assistant/connectors/nextcloud"
+        for path in sorted(native_root.glob("*.py")):
             digest.update(str(path).encode("utf-8"))
             try:
                 digest.update(path.read_bytes())
@@ -423,9 +408,9 @@ AGENTS.md / HEARTBEAT.md
 skills/personal-assistant/SKILL.md
   Beschreibt den einzigen aktiven Agenten und verweist auf registrierte Assistant-Befehle.
 
-skills/openclaw-nextcloud/
-  Optional lokal installierter Community-Skill. Nicht in Git aufnehmen oder manuell
-  editieren; Installation und Verifizierung ausschließlich über die Mail-Agent-CLI.
+personal_assistant/connectors/nextcloud/
+  Release-eigene, unveränderliche CalDAV/CardDAV-Brücke. Im produktiven Workspace
+  wird kein ausführbarer Nextcloud-Community-Skill benötigt oder geladen.
 """,
         "config": """KONFIGURATION ÄNDERN
 =====================
@@ -439,7 +424,7 @@ Direkt relevante Bereiche in mail_agent/config.toml:
   [thresholds]  spam/relevant/routine/calendar, min_forward_importance
   [forwarding]  Weiterleitung und Originalmail-Anhang
   [calendar]    Bestätigungsmail, Zukunftsprüfung, Backend und Zeitzone
-  [nextcloud]   Skill-Pfad, Kalender, Adressbuch und Kontakt-Signale
+  [nextcloud]   Kalender, Adressbuch und Kontakt-Signale
   [invoices]    Routine-Pflicht, Sicherheitsschwelle und Nextcloud-Zielordner
   [digest]      Tagesübersicht
   [runtime]     Datenbank, Regeln, Log und Lock
@@ -548,20 +533,14 @@ Einrichten:
   ./scripts/mail-agent.sh nextcloud setup
 
 Der Assistent:
-  1. prüft die ClawHub-Trust-Entscheidung,
-  2. installiert @keithvassallomt/openclaw-nextcloud workspace-lokal,
-  3. fragt URL, Benutzer und ein separates App-Passwort mit versteckter Eingabe ab,
-  4. speichert Secrets in ~/.config/mail-agent.env mit Modus 0600,
-  5. lässt Kalender und Adressbuch auswählen,
-  6. aktiviert calendar.backend = "nextcloud_skill",
-  7. speichert lokal nur Kontakt-E-Mail-Adressen als Cache.
+  1. verwendet nur die native, release-eigene CalDAV/CardDAV-Brücke,
+  2. fragt URL, Benutzer und ein separates App-Passwort mit versteckter Eingabe ab,
+  3. speichert Secrets in ~/.config/mail-agent.env mit Modus 0600,
+  4. lässt Kalender und Adressbuch auswählen,
+  5. aktiviert calendar.backend = "nextcloud_skill" als kompatiblen Backendnamen,
+  6. speichert lokal nur Kontakt-E-Mail-Adressen als Cache.
 
 Diagnose und Verwaltung:
-  ./scripts/mail-agent.sh nextcloud verify-skill
-  ./scripts/mail-agent.sh nextcloud skill-card
-  ./scripts/mail-agent.sh nextcloud install-skill --yes
-  # Nur nach eigener Code-/Skill-Card-Pruefung bei Registry-Entscheidung "review":
-  ./scripts/mail-agent.sh nextcloud install-skill --yes --allow-review
   ./scripts/mail-agent.sh nextcloud doctor
   ./scripts/mail-agent.sh nextcloud calendars
   ./scripts/mail-agent.sh nextcloud addressbooks
@@ -575,10 +554,10 @@ Sichere Standardwerte:
   trust_contacts_for_calendar = false
   contact_importance_boost = 1
 
-Der Community-Skill wird nur für Kalender und Kontakte verwendet. Rechnungs-PDFs
-werden über eine getrennte, eingeschränkte WebDAV-Brücke gespeichert. Diese kann nur
-Ordner erzeugen und neue PDF-Dateien mit Überschreibschutz hochladen; sie besitzt im
-Mail-Agent-Code keine Lösch-, Verschiebe- oder Freigabefunktion.
+Die native Brücke kann Kalender und Adressbücher entdecken, Kontakte lesen und neue
+Termine create-only mit If-None-Match anlegen. Sie bietet keine Lösch-, Share- oder
+freie WebDAV-Funktion. Rechnungs-PDFs verwenden weiterhin die getrennte,
+eingeschränkte Upload-Brücke mit Überschreibschutz.
 
 Nach dem Setup prüfen:
   ./scripts/mail-agent.sh nextcloud doctor
@@ -619,25 +598,17 @@ Prüfen:
   ./scripts/mail-agent.sh doctor
   ./scripts/mail-agent.sh run --dry-run --no-digest --limit 20
 """,
-        "openclaw": """OPENCLAW: SKILL ODER PLUGIN?
-============================
+        "openclaw": """OPENCLAW: NATIVE NEXTCLOUD-BRÜCKE
+==================================
 
-Für CalDAV/CardDAV wird der Community-Skill
-  @keithvassallomt/openclaw-nextcloud
-verwendet. Er wird unter skills/openclaw-nextcloud installiert und über eine eng
-begrenzte Python-Brücke angesprochen.
+CalDAV/CardDAV läuft über release-eigenen Python-Code unter
+personal_assistant/connectors/nextcloud. Ein workspace-lokaler Community-Skill oder
+ein Gateway-Plugin ist weder erforderlich noch ausführbar. Damit bleibt der
+Funktionsumfang auf Discovery, Kontaktlesen und create-only Kalender-PUT begrenzt.
 
-  ./scripts/mail-agent.sh nextcloud verify-skill
-  ./scripts/mail-agent.sh nextcloud skill-card
-  ./scripts/mail-agent.sh nextcloud install-skill --yes
-  # Nur nach eigener Code-/Skill-Card-Pruefung bei Registry-Entscheidung "review":
-  ./scripts/mail-agent.sh nextcloud install-skill --yes --allow-review
-  openclaw skills check
-
-Ein OpenClaw-Skill ist hier passender als ein Gateway-Plugin: Der Skill stellt die
-CalDAV-/CardDAV-Befehle bereit, während die Python-Brücke exakt begrenzt, welche davon
-der Mail-Agent automatisch verwenden darf. Nach der Installation mit 'skills check'
-prüfen, ob der Workspace-Skill sichtbar und bereit ist.
+Prüfen:
+  ./scripts/mail-agent.sh nextcloud doctor
+  ./scripts/mail-agent.sh doctor
 """,
         "calendar": """KALENDER-SICHERHEIT
 ====================
@@ -709,8 +680,8 @@ keinen echten Mail-Agent-Prozess zeigt. Andernfalls niemals einen zweiten Lauf s
 - Keine automatische Mailantwort und kein Löschen von Mails.
 - Nextcloud nur über HTTPS und ein widerrufbares App-Passwort.
 - Secrets außerhalb des Workspace in ~/.config/mail-agent.env, Modus 0600.
-- Community-Skill vor Installation verifizieren; Warn-/Review-Entscheidungen nicht
-  automatisch übergehen.
+- Kein ausführbarer Community-Skill im beschreibbaren Workspace; CalDAV/CardDAV
+  kommt ausschließlich aus dem verifizierten Release.
 - CardDAV-Kontakte erzwingen weder Relevanz noch Weiterleitung noch Kalendereintrag.
 - Termin wird erst nach gültiger JA-Antwort erstellt und erneut auf Zukunft geprüft.
 - Rechnungen werden nur als neue PDF-Dateien gespeichert; kein Überschreiben/Löschen.

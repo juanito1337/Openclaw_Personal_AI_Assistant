@@ -37,6 +37,11 @@ docker run --rm --network none --entrypoint /bin/sh "$runtime" -c '
   test "$(readlink /opt/openclaw-plugins/node_modules/@openclaw/signal/node_modules/openclaw)" = /app
   test ! -w /opt/openclaw-plugins/node_modules/@openclaw/brave-plugin
   test ! -w /opt/openclaw-plugins/node_modules/@openclaw/signal
+  python3 -P -c "from mail_agent.nextcloud import NextcloudSkillClient; assert NextcloudSkillClient"
+  test -s /opt/openclaw-agent/personal_assistant/connectors/nextcloud/client.py
+  test -s /opt/openclaw-agent/personal_assistant/connectors/nextcloud/calendar.py
+  test -s /opt/openclaw-agent/personal_assistant/connectors/nextcloud/contacts.py
+  test ! -e /opt/openclaw-agent/skills/openclaw-nextcloud
   test "$(sha256sum /usr/local/bin/himalaya | cut -d" " -f1)" = 9529d2584add1c4343f32524e6f985e7c98d491f3b854747318020eb1ec1df7f
   test ! -e /opt/openclaw-agent/tests
   test ! -e /opt/openclaw-agent/docs

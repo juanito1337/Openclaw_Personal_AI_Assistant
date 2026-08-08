@@ -94,7 +94,12 @@ class MailAgent:
             enabled=not dry_run,
         )
         self.himalaya = HimalayaClient(config, self.runner, dry_run=dry_run)
-        self.nextcloud = NextcloudSkillClient(config, self.runner)
+        self.tool_settings = load_tool_settings()
+        self.nextcloud = NextcloudSkillClient(
+            config,
+            self.runner,
+            calendar_resource_id=self.tool_settings.mail.calendar_mail.calendar_resource_id,
+        )
         self.rules = RuleEngine(
             config.runtime.rules_file,
             self.storage,
@@ -111,7 +116,6 @@ class MailAgent:
             config, self.storage, self.rules, telemetry=self.telemetry
         )
         self.forwarder = Forwarder(config, self.himalaya)
-        self.tool_settings = load_tool_settings()
         self.antivirus = HostAntivirus(self.tool_settings.security.antivirus)
         self.assistant_bridge = PersonalAssistantActionBridge(dry_run=dry_run)
         self.invoices = InvoiceManager(

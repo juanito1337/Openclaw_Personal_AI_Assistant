@@ -57,6 +57,13 @@
   Imagevertrag und entfernt nur im Staging alte ausfuehrbare npm-Payloads;
   unbekannte State-Plugins brechen fail-closed ab. `OPENCLAW_NIX_MODE=1` sperrt
   Install und Update zur Laufzeit.
+- Der Layout-3-Init normalisiert jetzt die aktive Instanzkonfiguration statt nur
+  die spaeter inaktive Legacy-Kopie auf den internen Ollama-Proxy; Migration und
+  Neustart sind durch einen Verhaltensregressionstest abgedeckt.
+- Mail-Kalender und -Kontakte verwenden die native, release-eigene
+  CalDAV/CardDAV-Bruecke. Der breite workspace-lokale Nextcloud-Community-Skill
+  wird nicht mehr ausgefuehrt; Kalenderauswahl ist exakt und mehrdeutige Auswahl
+  bricht vor dem create-only `If-None-Match`-Write ab (ADR-0013).
 
 ## Unreleased – M7 Reproduzierbare und attestierte Image-Lieferkette
 

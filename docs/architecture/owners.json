@@ -21,6 +21,7 @@
     {"path": "docs/architecture/adr/0009-typisierte-domaenen-toolvertraege.md", "owner": "Tool Contract Maintainers"},
     {"path": "docs/architecture/adr/0010-m6-legacy-und-upgradegrenze.md", "owner": "Operations Maintainers"},
     {"path": "docs/architecture/adr/0011-reproduzierbare-rollenimages.md", "owner": "Security Maintainers"},
-    {"path": "docs/architecture/adr/0012-m8-recovery-und-agentenvertrag.md", "owner": "Operations Maintainers"}
+    {"path": "docs/architecture/adr/0012-m8-recovery-und-agentenvertrag.md", "owner": "Operations Maintainers"},
+    {"path": "docs/architecture/adr/0013-native-nextcloud-und-aktive-runtime-normalisierung.md", "owner": "Architecture Maintainers"}
   ]
 }

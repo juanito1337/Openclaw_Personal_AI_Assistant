@@ -96,12 +96,12 @@ def interactive_nextcloud_setup(
     *,
     env_path: Path | None = None,
 ) -> tuple[Config, list[Path]]:
-    """Configure the verified OpenClaw Nextcloud skill for the mail agent."""
+    """Configure the release-owned native Nextcloud bridge for the mail agent."""
 
     print("NEXTCLOUD CALDAV/CARDDAV SETUP")
     print("==============================")
     print(
-        "Der Mail-Agent nutzt den Community-Skill fuer folgende Operationen:\n"
+        "Der Mail-Agent nutzt die native, eingeschraenkte Release-Bruecke fuer:\n"
         "  - Kalender und Adressbuecher auflisten\n"
         "  - Kontakte lesen (CardDAV)\n"
         "  - nach ausdruecklicher JA-Freigabe neue Termine anlegen (CalDAV)\n"
@@ -112,44 +112,9 @@ def interactive_nextcloud_setup(
         "jederzeit widerrufbares App-Passwort nur fuer diesen Agenten.\n"
     )
 
-    node_ok, node_detail = client.node_health()
-    if not node_ok:
-        raise RuntimeError(node_detail)
-    print(f"Node.js: {node_detail}")
-
-    verification = client.verify_skill()
-    allow_review = False
-    if not verification.ok and verification.status == "nextcloud-skill-review-required":
-        print("\nDie Registry verlangt eine manuelle Pruefung dieses Community-Skills.")
-        print("Pruefe in einem zweiten Terminal zuerst:")
-        print("  ./scripts/mail-agent.sh nextcloud skill-card")
-        allow_review = _yes_no(
-            "Ich habe die Skill-Card und den Code selbst geprueft und gebe diese Review-Version bewusst frei",
-            default=False,
-        )
-        if not allow_review:
-            raise RuntimeError(
-                "Installation wegen Review-Entscheidung gestoppt. Nach eigener Pruefung kannst du bewusst "
-                "'./scripts/mail-agent.sh nextcloud install-skill --yes --allow-review' verwenden."
-            )
-    elif not verification.ok:
-        raise RuntimeError("Nextcloud-Skill-Verifizierung fehlgeschlagen: " + verification.detail)
-
-    if not client.script_path.exists():
-        if not _yes_no(
-            f"OpenClaw-Skill {config.nextcloud.skill_package} jetzt workspace-lokal installieren",
-            default=True,
-        ):
-            raise RuntimeError(
-                "Nextcloud-Skill fehlt. Installation spaeter mit "
-                "'./scripts/mail-agent.sh nextcloud install-skill --yes' ausfuehren."
-            )
-        installed = client.install_skill(allow_review=allow_review)
-        if not installed.ok:
-            raise RuntimeError(installed.detail or installed.status)
-        print(f"Skill: {installed.detail}")
-    else:
-        print(f"Skill: vorhanden unter {client.script_path}")
+    if not client.available or not client.script_path.is_file():
+        raise RuntimeError("Native Nextcloud-Bruecke fehlt im verifizierten Release")
+    print(f"Connector: native Release-Bruecke unter {client.script_path}")
 
     env_file = (env_path or default_env_file()).expanduser().resolve()
     current_url, current_user, current_token = client.credentials()

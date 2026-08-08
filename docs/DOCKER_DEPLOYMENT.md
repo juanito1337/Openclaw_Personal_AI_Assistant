@@ -191,6 +191,10 @@ Deployment bei gestoppten Writern erzeugte komplette Releasebackup.
 All container code starts under `/opt/openclaw-agent`; Python uses safe-path mode
 and cannot import packages from the writable workspace. Compose makes the root
 filesystem read-only and runs every role non-root without Linux capabilities.
+Mail-Kalender und -Kontakte verwenden die native, release-eigene
+CalDAV/CardDAV-Bruecke. Ein workspace-lokaler `openclaw-nextcloud`-Community-Skill
+wird weder benoetigt noch ausgefuehrt; Kalenderwrites loesen genau eine konfigurierte
+Ressource auf und verwenden create-only `If-None-Match`.
 Die offiziellen externen Plugins Brave und Signal liegen ebenfalls read-only
 unter `/opt/openclaw-plugins`, sind durch npm-Lockdatei und Supply-Chain-Vertrag
 gepinnt und werden ueber feste `plugins.load.paths` geladen. Ausfuehrbare
@@ -376,6 +380,11 @@ The migration:
 12. prefers credentials matching the explicit gateway authentication mode and safely replaces an incompatible stale container secret in the staged copy,
 13. records the verified legacy archive, archive member and SHA-256 for a later automatic rollback,
 14. leaves the original live directory untouched until the Docker deployment is verified.
+
+Der Layout-3-Init normalisiert zusaetzlich die tatsaechlich publizierte
+`v3/instance/mail_agent/config.toml` auf `http://ollama-proxy:11435`. Diese
+idempotente Pruefung laeuft auch bei spaeteren Containerstarts; die Legacy-Kopie
+bleibt fuer einen Rollback unveraendert.
 
 Vor der SQLite-Gesamtpruefung ersetzt die Migration Brave und Signal durch ihre
 read-only Imagepfade, synchronisiert den generierten `installed_plugin_index`

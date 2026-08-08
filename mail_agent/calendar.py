@@ -629,7 +629,11 @@ class CalendarManager:
         backend = self._select_backend()
         if backend == "nextcloud_skill":
             if self.nextcloud is None:
-                result = OperationResult(False, "nextcloud-calendar-missing", "Nextcloud-Skill-Bruecke ist nicht initialisiert")
+                result = OperationResult(
+                    False,
+                    "nextcloud-calendar-missing",
+                    "Native Nextcloud-Bruecke ist nicht initialisiert",
+                )
             else:
                 result = self.nextcloud.create_event(normalized)
         elif backend == "caldav":
@@ -745,7 +749,7 @@ class CalendarManager:
             return False, backend, "Kein Kalender-Importer gefunden; Termine werden nur als ICS zur Pruefung abgelegt"
         if backend == "nextcloud_skill":
             if self.nextcloud is None:
-                return False, backend, "Nextcloud-Skill-Bruecke ist nicht initialisiert"
+                return False, backend, "Native Nextcloud-Bruecke ist nicht initialisiert"
             health = nextcloud_health if nextcloud_health is not None else self.nextcloud.health(live=True)
             return bool(health.get("ok")), backend, str(health.get("detail") or "Nextcloud-Status unbekannt")
         if backend == "caldav":

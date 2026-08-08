@@ -72,6 +72,7 @@ der aktuellen Python-Dateien.
 | Tests nach M8-CI-Diagnosehaertung gesammelt/ausgefuehrt | 458 / 458 (JUnit-Zaehler inklusive Subtest-Ereignissen siehe `build/m0-baseline.json`) |
 | Tests nach privatrepository-tauglicher Registry-Attestierung | 459 / 459 (JUnit-Zaehler inklusive Subtest-Ereignissen siehe `build/m0-baseline.json`) |
 | Tests nach der immutable Plugin-/Gatewaykorrektur | 472 / 472 (494 JUnit-Faelle inklusive 22 Subtests) |
+| Tests nach nativer Nextcloud- und aktiver Layout-3-Korrektur | 473 / 473 (JUnit-Zaehler inklusive Subtest-Ereignissen siehe `build/m0-baseline.json`) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |

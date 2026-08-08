@@ -161,8 +161,6 @@ class CalendarConfig:
 @dataclass(slots=True)
 class NextcloudConfig:
     enabled: bool = False
-    skill_package: str = "@keithvassallomt/openclaw-nextcloud"
-    skill_dir: Path = field(default_factory=lambda: WORKSPACE_ROOT / "skills/openclaw-nextcloud")
     base_url_env: str = "NEXTCLOUD_URL"
     username_env: str = "NEXTCLOUD_USER"
     token_env: str = "NEXTCLOUD_TOKEN"
@@ -451,7 +449,6 @@ def _validate_config(config: Config) -> None:
         if str(value or "").strip():
             require("@" in parseaddr(str(value))[1], f"calendar.{label} enthaelt keine gueltige Mailadresse")
 
-    safe_text(config.nextcloud.skill_package, "nextcloud.skill_package")
     for field_name, value in (
         ("base_url_env", config.nextcloud.base_url_env),
         ("username_env", config.nextcloud.username_env),
@@ -542,9 +539,14 @@ def load_config(path: str | Path | None = None) -> Config:
     calendar = CalendarConfig(**calendar_data)
 
     nextcloud_data = _section(data, "nextcloud").copy()
-    for key in ("skill_dir", "contact_cache_file"):
-        if key in nextcloud_data:
-            nextcloud_data[key] = _resolve_path(nextcloud_data[key])
+    # Ignore the two former community-skill fields while old installations are
+    # migrated. They no longer select executable code or affect behavior.
+    nextcloud_data.pop("skill_package", None)
+    nextcloud_data.pop("skill_dir", None)
+    if "contact_cache_file" in nextcloud_data:
+        nextcloud_data["contact_cache_file"] = _resolve_path(
+            nextcloud_data["contact_cache_file"]
+        )
     nextcloud = NextcloudConfig(**nextcloud_data)
 
     invoice_data = _section(data, "invoices").copy()

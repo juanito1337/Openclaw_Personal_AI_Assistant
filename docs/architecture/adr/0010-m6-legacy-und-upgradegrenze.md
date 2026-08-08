@@ -34,9 +34,9 @@ Archivnachweis unterstuetzt und wird nicht aus dem aktuellen Checkout rekonstrui
 
 Nextcloud-Dateizugriffe und Rechnungsuploads verwenden ausschliesslich den zentralen
 Connector hinter Policy, ActionPlan, Idempotenz und Audit. Der alte Mail-Dateiclient
-und der doppelte Listen-Wrapper werden entfernt. Mail-Kontakt- und
-Kalendersignale des explizit konfigurierten Community-Skills bleiben eine getrennte
-Kompatibilitaetsfaehigkeit und sind kein Datei-Uploadpfad.
+und der doppelte Listen-Wrapper werden entfernt. Mail-Kontakt- und Kalendersignale
+verwenden dieselben release-eigenen CalDAV/CardDAV-Bausteine; ein breiter,
+workspace-lokaler Community-Skill ist kein Runtime-Bestandteil mehr.
 
 ## Konsequenzen
 
