@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import multiprocessing
@@ -15,6 +16,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from personal_assistant.runtime_layout import (
+    CONTAINER_GATEWAY_WORKSPACE,
     LAYOUT_VERSION,
     _prune_assistant_database,
     backup_state,
@@ -93,6 +95,156 @@ class StateLayoutM3Tests(unittest.TestCase):
         (workspace / "LOCAL_NOTES.md").write_text("keep\n", encoding="utf-8")
         (workspace / "AGENTS.md").symlink_to("/opt/openclaw-agent/AGENTS.md")
         return state, workspace
+
+    def _completed_profile(self, workspace: Path) -> dict[str, bytes]:
+        contents = {
+            "IDENTITY.md": b"# IDENTITY.md\n\n- Name: Ada\n",
+            "SOUL.md": b"# SOUL.md\n\nPraezise und warm.\n",
+            "USER.md": b"# USER.md\n\n- Name: Jan\n",
+            "openclaw-workspace-state.json": (
+                b'{"version":1,"setupCompletedAt":"2026-07-21T06:48:03.443Z"}\n'
+            ),
+        }
+        for name, content in contents.items():
+            (workspace / name).write_bytes(content)
+        return contents
+
+    def _simulate_old_v3_profile_bug(
+        self,
+        state: Path,
+    ) -> tuple[Path, dict[str, bytes]]:
+        active = state / "v3/instance"
+        completed = {
+            name: (active / name).read_bytes()
+            for name in (*("IDENTITY.md", "SOUL.md", "USER.md"),
+                         "openclaw-workspace-state.json")
+        }
+        legacy = active / "local-workspace"
+        legacy.mkdir(parents=True, exist_ok=True)
+        for name, content in completed.items():
+            (legacy / name).write_bytes(content)
+
+        generated = {
+            "IDENTITY.md": b"# IDENTITY.md\n\n- Name:\n",
+            "SOUL.md": b"# SOUL.md\n\nWho are you?\n",
+            "USER.md": b"# USER.md\n\n- Name:\n",
+        }
+        for name, content in generated.items():
+            (active / name).write_bytes(content)
+        (active / "BOOTSTRAP.md").write_text("# BOOTSTRAP.md\n", encoding="utf-8")
+        (active / "openclaw-workspace-state.json").write_text(
+            '{"version":1,"bootstrapSeededAt":"2026-08-09T09:51:05.113Z"}\n',
+            encoding="utf-8",
+        )
+
+        workspace_id = hashlib.sha256(
+            CONTAINER_GATEWAY_WORKSPACE.encode("utf-8")
+        ).hexdigest()
+        attestation = state / f"v3/gateway/workspace-attestations/{workspace_id}.attested"
+        attestation.parent.mkdir(parents=True, exist_ok=True)
+        lines = ["openclaw-workspace-attestation:v1", "2026-08-09T09:51:05.113Z"]
+        for name, content in generated.items():
+            lines.append(f"generated:{name}:{hashlib.sha256(content).hexdigest()}")
+        attestation.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        return active, completed
+
+    def test_initial_layout_keeps_completed_identity_profile_active(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            state, workspace = self._state(folder)
+            expected = self._completed_profile(workspace)
+            (workspace / "TOOLS.md").write_text(
+                "# Legacy TOOLS.md\n\nUnsafe historical commands.\n",
+                encoding="utf-8",
+            )
+
+            migrate_layout(ROOT, state, workspace)
+            active = state / "v3/instance"
+
+            for name, content in expected.items():
+                self.assertEqual((active / name).read_bytes(), content)
+                self.assertFalse((active / "local-workspace" / name).exists())
+            self.assertFalse((active / "TOOLS.md").exists())
+            self.assertTrue((active / "local-workspace/TOOLS.md").is_file())
+
+    def test_existing_v3_recovers_attested_generated_profile_idempotently(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            state, workspace = self._state(folder)
+            self._completed_profile(workspace)
+            migrate_layout(ROOT, state, workspace)
+            active, expected = self._simulate_old_v3_profile_bug(state)
+
+            recovered = migrate_layout(ROOT, state, workspace)
+
+            self.assertTrue(recovered.changed)
+            for name, content in expected.items():
+                self.assertEqual((active / name).read_bytes(), content)
+                self.assertEqual(
+                    (active / "local-workspace" / name).read_bytes(),
+                    content,
+                )
+            self.assertTrue((active / "BOOTSTRAP.md").is_file())
+            self.assertFalse(migrate_layout(ROOT, state, workspace).changed)
+
+    def test_existing_v3_does_not_overwrite_edited_pending_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            state, workspace = self._state(folder)
+            self._completed_profile(workspace)
+            migrate_layout(ROOT, state, workspace)
+            active, _expected = self._simulate_old_v3_profile_bug(state)
+            edited = b"# IDENTITY.md\n\n- Name: User changed this pending profile\n"
+            (active / "IDENTITY.md").write_bytes(edited)
+            state_before = (active / "openclaw-workspace-state.json").read_bytes()
+            soul_before = (active / "SOUL.md").read_bytes()
+
+            with self.assertRaisesRegex(RuntimeError, "wurde veraendert"):
+                migrate_layout(ROOT, state, workspace)
+
+            self.assertEqual((active / "IDENTITY.md").read_bytes(), edited)
+            self.assertEqual((active / "SOUL.md").read_bytes(), soul_before)
+            self.assertEqual(
+                (active / "openclaw-workspace-state.json").read_bytes(),
+                state_before,
+            )
+
+    def test_existing_v3_does_not_overwrite_edited_pending_setup_state(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            state, workspace = self._state(folder)
+            self._completed_profile(workspace)
+            migrate_layout(ROOT, state, workspace)
+            active, _expected = self._simulate_old_v3_profile_bug(state)
+            edited_state = (
+                b'{"version":1,"bootstrapSeededAt":"2026-08-09T09:51:05.113Z",'
+                b'"userNote":"keep"}\n'
+            )
+            (active / "openclaw-workspace-state.json").write_bytes(edited_state)
+            identity_before = (active / "IDENTITY.md").read_bytes()
+
+            with self.assertRaisesRegex(RuntimeError, "kein unveraenderter"):
+                migrate_layout(ROOT, state, workspace)
+
+            self.assertEqual(
+                (active / "openclaw-workspace-state.json").read_bytes(),
+                edited_state,
+            )
+            self.assertEqual((active / "IDENTITY.md").read_bytes(), identity_before)
+
+    def test_existing_v3_keeps_completed_active_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            state, workspace = self._state(folder)
+            self._completed_profile(workspace)
+            migrate_layout(ROOT, state, workspace)
+            active, _expected = self._simulate_old_v3_profile_bug(state)
+            replacement = b"# IDENTITY.md\n\n- Name: Newly completed identity\n"
+            (active / "IDENTITY.md").write_bytes(replacement)
+            (active / "openclaw-workspace-state.json").write_text(
+                '{"version":1,"setupCompletedAt":"2026-08-09T10:15:00Z"}\n',
+                encoding="utf-8",
+            )
+
+            report = migrate_layout(ROOT, state, workspace)
+
+            self.assertFalse(report.changed)
+            self.assertEqual((active / "IDENTITY.md").read_bytes(), replacement)
 
     def test_staged_migration_preserves_databases_and_supports_old_and_new_restore(self) -> None:
         with tempfile.TemporaryDirectory() as folder:

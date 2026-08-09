@@ -22,6 +22,7 @@
     {"path": "docs/architecture/adr/0010-m6-legacy-und-upgradegrenze.md", "owner": "Operations Maintainers"},
     {"path": "docs/architecture/adr/0011-reproduzierbare-rollenimages.md", "owner": "Security Maintainers"},
     {"path": "docs/architecture/adr/0012-m8-recovery-und-agentenvertrag.md", "owner": "Operations Maintainers"},
-    {"path": "docs/architecture/adr/0013-native-nextcloud-und-aktive-runtime-normalisierung.md", "owner": "Architecture Maintainers"}
+    {"path": "docs/architecture/adr/0013-native-nextcloud-und-aktive-runtime-normalisierung.md", "owner": "Architecture Maintainers"},
+    {"path": "docs/architecture/adr/0014-abgeschlossenes-workspace-profil.md", "owner": "Architecture Maintainers"}
   ]
 }

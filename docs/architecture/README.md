@@ -113,7 +113,10 @@ Importgraphen auf Zyklen.
 - Der Agent-Workspace enthaelt Instanzkonfiguration und kontrollierte lokale
   Dokumente. Sessions gehoeren dem Gateway-Teilbaum; fachliche Daten liegen in ihren
   Owner-Teilbaeumen. `AGENTS.md`, `HEARTBEAT.md` und der Runtime-Skill stammen
-  weiterhin aus dem read-only Image.
+  weiterhin aus dem read-only Image. Das abgeschlossene persoenliche Profil aus
+  `IDENTITY.md`, `SOUL.md`, `USER.md` und dem Workspace-Setupstatus bleibt dagegen
+  persistente Instanzkonfiguration; seine attestierungsgebundene Layoutmigration
+  ist in [ADR-0014](adr/0014-abgeschlossenes-workspace-profil.md) festgelegt.
 
 ## Sicherheits- und externe Grenzen
 

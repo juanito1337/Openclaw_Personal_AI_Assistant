@@ -78,6 +78,11 @@
   Loopback-Prioritaetsproxy auf `ollama-proxy:11435`. Abweichende Provider werden
   nicht still ueberschrieben; Migration, Neustart und Idempotenz sind durch echte
   JSON-Verhaltenspruefungen abgedeckt.
+- Abgeschlossene OpenClaw-Profile bleiben mit `IDENTITY.md`, `SOUL.md`, `USER.md`
+  und Setupstatus an der aktiven Layout-3-Instanzwurzel. Bereits falsch
+  quarantinierte Profile werden nur ueber eine passende OpenClaw-SHA-256-
+  Attestierung wiederhergestellt; bearbeitete oder abgeschlossene aktive Profile
+  gewinnen fail-closed (ADR-0014).
 
 ## Unreleased – M7 Reproduzierbare und attestierte Image-Lieferkette
 

@@ -132,6 +132,11 @@ Stagings unter der exklusiven Layoutsperre entfernt. Die SQLite-Aufteilung
 kompaktiert in eine explizite Datei auf demselben State-Dateisystem und ersetzt
 die gepruefte Staging-Datenbank atomar; der begrenzte Container-`/tmp` ist kein
 implizites Migrationsziel.
+Ein bereits abgeschlossenes OpenClaw-Profil aus `IDENTITY.md`, `SOUL.md`,
+`USER.md` und `openclaw-workspace-state.json` bleibt an der aktiven
+Instanzwurzel. ADR-0014 beschreibt die attestierungsgebundene, fail-closed
+Nachmigration fuer Layout-3-Zustaende, die diese Dateien zuvor nur unter
+`local-workspace/` erhalten hatten.
 Danach werden nur die benoetigten Teilbaeume gemountet:
 
 ```text
@@ -389,6 +394,14 @@ idempotente Pruefung laeuft auch bei spaeteren Containerstarts. Sie uebersetzt n
 den bekannten nativen Loopback-Prioritaetsproxy auf Port 11435; andere
 Providerendpunkte brechen fail-closed ab. Die Legacy-Workspace-Kopie bleibt fuer
 einen Rollback unveraendert.
+
+Aus Releases vor ADR-0014 falsch nach `local-workspace/` verschobene
+`IDENTITY.md`, `SOUL.md`, `USER.md` und der abgeschlossene Workspace-Setupstatus
+werden nur dann wieder aktiv, wenn OpenClaws SHA-256-Attestierung jede
+abweichende aktive Datei als automatisch generierte Vorlage belegt. Ein bereits
+abgeschlossener oder bearbeiteter aktiver Setup wird niemals ueberschrieben.
+Historische `TOOLS.md`- und `MEMORY.md`-Anweisungen bleiben zur bewussten Sichtung
+quarantiniert.
 
 Vor der SQLite-Gesamtpruefung ersetzt die Migration Brave und Signal durch ihre
 read-only Imagepfade, synchronisiert den generierten `installed_plugin_index`

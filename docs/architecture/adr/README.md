@@ -19,5 +19,6 @@ verweist mit Status `Superseded` auf den Nachfolger.
 | [0011](0011-reproduzierbare-rollenimages.md) | Accepted | drei minimale Rollenimages mit attestierter Freigabe |
 | [0012](0012-m8-recovery-und-agentenvertrag.md) | Accepted | verifizierte lokale Recovery, Single-Writer-Canary und generierter Skillvertrag |
 | [0013](0013-native-nextcloud-und-aktive-runtime-normalisierung.md) | Accepted | native Nextcloud-Bruecke und Normalisierung der aktiven Layout-3-Konfiguration |
+| [0014](0014-abgeschlossenes-workspace-profil.md) | Accepted | abgeschlossenes Identitaetsprofil bleibt aktive Instanzkonfiguration |
 
 Neue ADRs beginnen mit der [Vorlage](0000-template.md).

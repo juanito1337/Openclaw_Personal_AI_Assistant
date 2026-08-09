@@ -67,6 +67,12 @@ V3_DIRECTORIES = (
     "shared/coordination/container_logs",
 )
 CONTAINER_OLLAMA_BASE_URL = "http://ollama-proxy:11435"
+CONTAINER_GATEWAY_WORKSPACE = "/home/node/.openclaw/workspace"
+WORKSPACE_PROFILE_FILENAMES = ("IDENTITY.md", "SOUL.md", "USER.md")
+WORKSPACE_SETUP_STATE_FILENAME = "openclaw-workspace-state.json"
+WORKSPACE_ATTESTATION_HEADER = "openclaw-workspace-attestation:v1"
+MAX_WORKSPACE_PROFILE_BYTES = 2 * 1024 * 1024
+MAX_WORKSPACE_ATTESTATION_BYTES = 2048
 
 
 @dataclass(slots=True)
@@ -388,6 +394,170 @@ def _copy_if_present(source: Path, target: Path) -> None:
         _consistent_copy(source, target)
 
 
+def _validate_workspace_profile_file(path: Path) -> None:
+    if path.is_symlink() or not path.is_file():
+        raise RuntimeError(f"Workspace-Profildatei muss eine regulaere Datei sein: {path}")
+    if path.stat().st_size > MAX_WORKSPACE_PROFILE_BYTES:
+        raise RuntimeError(f"Workspace-Profildatei ist zu gross: {path}")
+
+
+def _atomic_copy_profile(source: Path, target: Path) -> None:
+    _validate_workspace_profile_file(source)
+    if target.is_symlink() or (target.exists() and not target.is_file()):
+        raise RuntimeError(f"Workspace-Profilziel ist keine regulaere Datei: {target}")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_name(
+        f".{target.name}.profile-{os.getpid()}-{time.monotonic_ns()}"
+    )
+    try:
+        shutil.copy2(source, temporary, follow_symlinks=False)
+        temporary.replace(target)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _read_workspace_setup_state(path: Path) -> dict[str, object] | None:
+    if not path.exists() and not path.is_symlink():
+        return None
+    _validate_workspace_profile_file(path)
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"Workspace-Setupstatus ist ungueltig: {path}: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"Workspace-Setupstatus muss ein JSON-Objekt sein: {path}")
+    return payload
+
+
+def _workspace_setup_completed(payload: dict[str, object]) -> bool:
+    value = payload.get("setupCompletedAt") or payload.get("onboardingCompletedAt")
+    return isinstance(value, str) and bool(value.strip())
+
+
+def _workspace_bootstrap_seeded(payload: dict[str, object]) -> bool:
+    value = payload.get("bootstrapSeededAt")
+    return isinstance(value, str) and bool(value.strip())
+
+
+def _workspace_setup_is_canonical_pending(payload: dict[str, object]) -> bool:
+    version = payload.get("version")
+    return (
+        set(payload) == {"version", "bootstrapSeededAt"}
+        and isinstance(version, int)
+        and not isinstance(version, bool)
+        and version == 1
+        and _workspace_bootstrap_seeded(payload)
+    )
+
+
+def _workspace_attestation_hashes(
+    gateway: Path,
+) -> dict[str, str]:
+    workspace_id = hashlib.sha256(
+        CONTAINER_GATEWAY_WORKSPACE.encode("utf-8")
+    ).hexdigest()
+    path = gateway / "workspace-attestations" / f"{workspace_id}.attested"
+    if not path.is_file() or path.is_symlink():
+        return {}
+    if path.stat().st_size > MAX_WORKSPACE_ATTESTATION_BYTES:
+        raise RuntimeError(f"Workspace-Attestierung ist zu gross: {path}")
+    lines = path.read_text(encoding="utf-8").splitlines()
+    if not lines or lines[0] != WORKSPACE_ATTESTATION_HEADER:
+        raise RuntimeError(f"Workspace-Attestierung ist ungueltig: {path}")
+    hashes: dict[str, str] = {}
+    for line in lines[1:]:
+        if not line.startswith("generated:"):
+            continue
+        _prefix, separator, remainder = line.partition(":")
+        filename, digest_separator, digest = remainder.rpartition(":")
+        if (
+            not separator
+            or not digest_separator
+            or not filename
+            or len(digest) != 64
+            or any(character not in "0123456789abcdef" for character in digest)
+        ):
+            raise RuntimeError(f"Workspace-Attestierung enthaelt einen ungueltigen Eintrag: {path}")
+        if filename in hashes:
+            raise RuntimeError(f"Workspace-Attestierung enthaelt einen doppelten Eintrag: {path}")
+        hashes[filename] = digest
+    return hashes
+
+
+def _promote_completed_legacy_workspace_profile(
+    instance: Path,
+    gateway: Path,
+) -> bool:
+    """Recover a completed profile quarantined by the former layout-v3 rule.
+
+    An already completed active profile always wins. A differing pending file
+    may only be replaced when OpenClaw's workspace attestation proves that its
+    current contents were generated automatically. Legacy sources remain in
+    local-workspace as recovery evidence.
+    """
+
+    legacy = instance / "local-workspace"
+    legacy_state_path = legacy / WORKSPACE_SETUP_STATE_FILENAME
+    legacy_state = _read_workspace_setup_state(legacy_state_path)
+    if legacy_state is None or not _workspace_setup_completed(legacy_state):
+        return False
+
+    active_state_path = instance / WORKSPACE_SETUP_STATE_FILENAME
+    active_state = _read_workspace_setup_state(active_state_path)
+    if active_state is not None and _workspace_setup_completed(active_state):
+        return False
+    if active_state is not None and not _workspace_setup_is_canonical_pending(
+        active_state
+    ):
+        raise RuntimeError(
+            "Aktiver Workspace-Setupstatus ist kein unveraenderter "
+            "OpenClaw-Bootstrapstatus; Legacy-Profil wird nicht automatisch "
+            "daruebergeschrieben"
+        )
+    if active_state is not None and not (instance / "BOOTSTRAP.md").is_file():
+        raise RuntimeError(
+            "Aktiver Bootstrap wurde bereits bearbeitet oder entfernt; "
+            "Legacy-Profil wird nicht automatisch daruebergeschrieben"
+        )
+
+    sources = [
+        legacy / filename
+        for filename in WORKSPACE_PROFILE_FILENAMES
+        if (legacy / filename).exists() or (legacy / filename).is_symlink()
+    ]
+    if not sources:
+        raise RuntimeError(
+            "Abgeschlossener Legacy-Setupstatus existiert ohne Workspace-Profildatei"
+        )
+    for source in [*sources, legacy_state_path]:
+        _validate_workspace_profile_file(source)
+
+    attested = _workspace_attestation_hashes(gateway)
+    replacements: list[tuple[Path, Path]] = []
+    for source in sources:
+        target = instance / source.name
+        if target.is_symlink() or (target.exists() and not target.is_file()):
+            raise RuntimeError(f"Workspace-Profilziel ist keine regulaere Datei: {target}")
+        if target.is_file() and _sha256(target) == _sha256(source):
+            continue
+        if target.is_file() and attested.get(source.name) != _sha256(target):
+            raise RuntimeError(
+                f"Aktive Workspace-Profildatei wurde veraendert; "
+                f"Legacy-Profil wird nicht daruebergeschrieben: {target}"
+            )
+        replacements.append((source, target))
+
+    state_differs = (
+        not active_state_path.is_file()
+        or _sha256(active_state_path) != _sha256(legacy_state_path)
+    )
+    for source, target in replacements:
+        _atomic_copy_profile(source, target)
+    if state_differs:
+        _atomic_copy_profile(legacy_state_path, active_state_path)
+    return bool(replacements or state_differs)
+
+
 def _prune_assistant_database(path: Path, tables: tuple[str, ...]) -> None:
     compacted = path.with_name(
         f".{path.name}.vacuum-{os.getpid()}-{time.monotonic_ns()}"
@@ -489,6 +659,11 @@ def _build_v3_stage(image_root: Path, state_root: Path, workspace: Path) -> Path
             stage / "shared/core/resources.toml",
         )
 
+    for filename in (*WORKSPACE_PROFILE_FILENAMES, WORKSPACE_SETUP_STATE_FILENAME):
+        source = workspace / filename
+        if source.exists() or source.is_symlink():
+            _atomic_copy_profile(source, stage / "instance" / filename)
+
     mail_source = workspace / "mail_agent/data"
     if mail_source.exists():
         _consistent_copy(mail_source, stage / "domains/mail")
@@ -525,6 +700,8 @@ def _build_v3_stage(image_root: Path, state_root: Path, workspace: Path) -> Path
 
     reserved = {
         "scripts", "mail_agent", "personal_assistant", "skills",
+        *WORKSPACE_PROFILE_FILENAMES,
+        WORKSPACE_SETUP_STATE_FILENAME,
         *RELEASE_DOCUMENT_LINKS, *OBSOLETE_RELEASE_DOCUMENTS,
     }
     for child in sorted(workspace.iterdir(), key=lambda item: item.name):
@@ -785,7 +962,14 @@ def migrate_layout(image_root: Path, state_root: Path, workspace: Path) -> Layou
                 f"Aktiver Layout-v3-Instanzbereich fehlt: {active_instance}"
             )
         active_gateway = state_root / V3_ROOT_NAME / "gateway"
-        runtime_config_changed = _normalize_container_mail_config(active_instance)
+        runtime_config_changed = _promote_completed_legacy_workspace_profile(
+            active_instance,
+            active_gateway,
+        )
+        runtime_config_changed = (
+            _normalize_container_mail_config(active_instance)
+            or runtime_config_changed
+        )
         runtime_config_changed = (
             _normalize_container_gateway_config(active_gateway)
             or runtime_config_changed

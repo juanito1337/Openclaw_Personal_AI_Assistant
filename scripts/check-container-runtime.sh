@@ -56,6 +56,15 @@ printf '%s\n' '#!/bin/sh' 'touch /home/node/.openclaw/tampered-script-ran' \
 chmod 700 "$state/workspace/scripts/assistant.sh"
 printf '%s\n' '[mail]' 'account = "m2-fixture"' \
   > "$state/workspace/mail_agent/config.toml"
+printf '%s\n' '# IDENTITY.md' '' '- Name: Ada Fixture' \
+  > "$state/workspace/IDENTITY.md"
+printf '%s\n' '# SOUL.md' '' 'Praezise und warm.' \
+  > "$state/workspace/SOUL.md"
+printf '%s\n' '# USER.md' '' '- Name: Jan Fixture' \
+  > "$state/workspace/USER.md"
+printf '%s\n' \
+  '{"version":1,"setupCompletedAt":"2026-07-21T06:48:03.443Z"}' \
+  > "$state/workspace/openclaw-workspace-state.json"
 config_before=$(sha256sum "$state/workspace/mail_agent/config.toml" | awk '{print $1}')
 # Bind mounts preserve host ownership. Give only this disposable fixture the
 # image's runtime UID:GID so the production ownership preflight is exercised
@@ -149,6 +158,19 @@ actual_layout=$(python3 -P -c \
   /fixture/.container-layout.json) || fail "Layoutmarker ist nicht als JSON lesbar"
 assert_equal 3 "$actual_layout" "publizierte Layoutversion"
 assert_file /fixture/v3/instance/.layout-version.json "Instanz-Layoutmarker"
+assert_file /fixture/v3/instance/IDENTITY.md "aktives Identitaetsprofil"
+assert_file /fixture/v3/instance/SOUL.md "aktives Persoenlichkeitsprofil"
+assert_file /fixture/v3/instance/USER.md "aktives Nutzerprofil"
+assert_file /fixture/v3/instance/openclaw-workspace-state.json "aktiver Setupstatus"
+grep -q -- "- Name: Ada Fixture" /fixture/v3/instance/IDENTITY.md ||
+  fail "aktives Identitaetsprofil wurde nicht bytegetreu migriert"
+grep -q -- '"setupCompletedAt"' \
+  /fixture/v3/instance/openclaw-workspace-state.json ||
+  fail "abgeschlossener Setupstatus wurde nicht aktiv migriert"
+assert_absent /fixture/v3/instance/local-workspace/IDENTITY.md \
+  "Identitaetsprofil wurde faelschlich quarantiniert"
+assert_absent /fixture/v3/instance/local-workspace/openclaw-workspace-state.json \
+  "Setupstatus wurde faelschlich quarantiniert"
 assert_directory /fixture/v3/domains/mail "Mail-Domaene"
 assert_directory /fixture/v3/domains/portfolio "Portfolio-Domaene"
 assert_directory /fixture/v3/domains/knowledge "Knowledge-Domaene"
