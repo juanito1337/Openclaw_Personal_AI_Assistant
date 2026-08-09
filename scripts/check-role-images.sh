@@ -196,6 +196,7 @@ docker run -d \
 docker run -d \
   --name "$smoke_proxy" \
   --network "$smoke_network" \
+  --network-alias ollama-proxy \
   --read-only \
   --cap-drop ALL \
   --security-opt no-new-privileges:true \
@@ -221,6 +222,19 @@ if [[ "$proxy_healthy" != "true" ]]; then
   docker logs "$smoke_proxy" >&2 || true
   exit 1
 fi
+# The supervisor is a client on the private backend network and intentionally
+# has neither the proxy's upstream configuration nor a direct egress route.
+# Its registered status command must therefore query the fixed service endpoint
+# instead of attempting to construct another proxy server configuration.
+docker run --rm \
+  --network "$smoke_network" \
+  --read-only \
+  --cap-drop ALL \
+  --security-opt no-new-privileges:true \
+  --tmpfs /tmp:rw,nosuid,nodev,noexec,size=16m,mode=1777 \
+  --env OPENCLAW_ROLE=supervisor-worker \
+  --entrypoint /opt/openclaw-agent/scripts/assistant.sh \
+  "$runtime" ollama status >/dev/null
 cleanup_proxy_smoke
 trap - EXIT
 

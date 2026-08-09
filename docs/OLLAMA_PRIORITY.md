@@ -48,6 +48,13 @@ Die nicht-geheime Konfiguration liegt in:
 /srv/openclaw/config/ollama-priority.env
 ```
 
+Im Containerstack liest ausschliesslich die Rolle `ollama-proxy` diese
+Serverkonfiguration. `gateway`, `agent-cli` und der egress-lose Supervisor fragen
+den Status read-only ueber den festen privaten Compose-Endpunkt
+`ollama-proxy:11435/healthz` ab. Sie erhalten weder den direkten Ollama-Upstream
+noch dessen Serverkonfiguration. Ein nicht erreichbarer oder nicht gesunder Proxy
+bleibt dabei ein sichtbarer Fehler.
+
 ## Telemetrie
 
 Das Mail-Interface uebernimmt den Response-Header `X-Ollama-Queue-Wait-Ms` in die

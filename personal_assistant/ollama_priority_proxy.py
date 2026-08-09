@@ -46,6 +46,8 @@ _GPU_PATHS = {
     "/v1/embeddings",
     "/v1/responses",
 }
+_CONTAINER_PROXY_HOST = "ollama-proxy"
+_CONTAINER_PROXY_PORT = 11435
 
 
 def _safe_float(value: object, default: float) -> float:
@@ -614,7 +616,10 @@ class PriorityProxyHandler(BaseHTTPRequestHandler):
                 with suppress(BrokenPipeError, ConnectionResetError):
                     self._json_response(
                         504,
-                        {"error": "Ollama-Modelllauf hat das Zeitlimit ueberschritten", "error_type": "upstream_timeout"},
+                        {
+                            "error": "Ollama-Modelllauf hat das Zeitlimit ueberschritten",
+                            "error_type": "upstream_timeout",
+                        },
                         X_Ollama_Queue_Wait_Ms=f"{queue_wait_ms:.3f}",
                     )
         except Exception as exc:
@@ -623,7 +628,11 @@ class PriorityProxyHandler(BaseHTTPRequestHandler):
                 with suppress(BrokenPipeError, ConnectionResetError):
                     self._json_response(
                         502,
-                        {"error": "Ollama-Upstream nicht erreichbar", "error_type": "upstream_error", "detail": str(exc)[:300]},
+                        {
+                            "error": "Ollama-Upstream nicht erreichbar",
+                            "error_type": "upstream_error",
+                            "detail": str(exc)[:300],
+                        },
                         X_Ollama_Queue_Wait_Ms=f"{queue_wait_ms:.3f}",
                     )
         finally:
@@ -725,9 +734,16 @@ def probe_upstream(config: ProxyConfig, *, timeout: float = 5.0) -> tuple[bool, 
 
 
 
-def query_local_status(config: ProxyConfig, *, timeout: float = 5.0) -> tuple[bool, dict[str, object]]:
+def query_status(
+    host: str,
+    port: int,
+    *,
+    timeout: float = 5.0,
+) -> tuple[bool, dict[str, object]]:
     connection = http.client.HTTPConnection(
-        config.listen_host, config.listen_port, timeout=min(timeout, config.connect_timeout_seconds)
+        host,
+        port,
+        timeout=timeout,
     )
     try:
         connection.request("GET", "/healthz", headers={"Connection": "close"})
@@ -745,11 +761,29 @@ def query_local_status(config: ProxyConfig, *, timeout: float = 5.0) -> tuple[bo
     finally:
         connection.close()
 
+
+def query_local_status(config: ProxyConfig, *, timeout: float = 5.0) -> tuple[bool, dict[str, object]]:
+    return query_status(
+        config.listen_host,
+        config.listen_port,
+        timeout=min(timeout, config.connect_timeout_seconds),
+    )
+
+
+def query_container_status(*, timeout: float = 5.0) -> tuple[bool, dict[str, object]]:
+    """Query the fixed private Compose endpoint without loading server secrets."""
+    return query_status(_CONTAINER_PROXY_HOST, _CONTAINER_PROXY_PORT, timeout=timeout)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Lokaler Prioritaetsproxy fuer OpenClaw/Ollama")
     parser.add_argument("--check", action="store_true", help="Upstream pruefen und beenden")
-    parser.add_argument("--status", action="store_true", help="Lokalen Proxyzustand pruefen und beenden")
-    parser.add_argument("--print-config", action="store_true", help="Effektive nicht-geheime Konfiguration ausgeben")
+    parser.add_argument("--status", action="store_true", help="Proxyzustand pruefen und beenden")
+    parser.add_argument(
+        "--print-config",
+        action="store_true",
+        help="Effektive nicht-geheime Konfiguration ausgeben",
+    )
     return parser
 
 
@@ -759,6 +793,19 @@ def main(argv: list[str] | None = None) -> int:
         level=os.environ.get("OLLAMA_PRIORITY_LOG_LEVEL", "INFO").upper(),
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
+
+    # Runtime roles are clients of the private Compose service. In particular,
+    # the egress-less supervisor must not receive the proxy's upstream server
+    # configuration merely to perform its read-only health check.
+    if (
+        args.status
+        and os.environ.get("OPENCLAW_RUNTIME") == "container"
+        and os.environ.get("OPENCLAW_ROLE") != "ollama-proxy"
+    ):
+        ok, payload = query_container_status()
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
+        return 0 if ok else 1
+
     try:
         config = ProxyConfig.from_env()
     except ValueError as exc:

@@ -59,6 +59,14 @@ der Containerlaufzeit relativ zu `OPENCLAW_IMAGE_ROOT` aufgeloest. Der persisten
 darf nicht wieder als Quelle fuer ausfuehrbare `scripts/` dienen. Lokaler und
 eingefrorener Legacy-Betrieb behalten ihre bisherige Repository-/Workspacewurzel.
 
+Der egress-lose Supervisor ist ein Client des internen Ollama-Proxys und kein
+zweiter Proxyserver. Sein read-only Statuscheck fragt deshalb den festen
+Compose-Dienst `ollama-proxy:11435/healthz` ab, ohne
+`OLLAMA_PRIORITY_UPSTREAM` zu laden. Nur die Rolle `ollama-proxy` erhaelt die
+Serverkonfiguration und direkten Egress zum Ollama-Upstream. Ein zusaetzlicher
+Konfigurationsmount oder eine Egress-Erweiterung fuer den Supervisor ist damit
+weder erforderlich noch zulaessig.
+
 Eine konfigurierte Ressourcen-ID, deren exakter DAV-href nicht mehr entdeckt
 wird, wird bewusst nicht anhand des einzigen Treffers, eines aehnlichen Namens
 oder eines Nextcloud-Share-Suffixes umgebogen. Doctor meldet diese Drift; ein
@@ -72,6 +80,8 @@ Migration und Neustart, die Unabhaengigkeit von Workspace-Skillcode, exakte
 Ressourcenaufloesung, fail-closed Mehrdeutigkeit und den create-only nativen
 Kalenderaufruf. Sie pruefen ausserdem, dass Container-Health und Ollama-CLI das
 Proxy-Skript aus dem unveraenderlichen Image und nie aus dem Workspace starten.
-Der Rollenimage-Smoke prueft zusaetzlich, dass der native Connector
+Der Rollenimage-Smoke fuehrt den registrierten Ollama-Status ausserdem aus einer
+Supervisor-Rolle ohne Proxy-Serverkonfiguration gegen das interne Image aus und
+prueft zusaetzlich, dass der native Connector
 im read-only Image vorhanden ist und kein Nextcloud-Community-Skill im Workspace
 benoetigt wird.

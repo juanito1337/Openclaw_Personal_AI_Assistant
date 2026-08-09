@@ -69,6 +69,10 @@
   veraltete Kalender-Ressourcen-ID bleibt als explizite Konfigurationsdrift
   sichtbar und wird nicht still auf einen nur vermeintlich passenden Share
   umgebogen (ADR-0013).
+- Der egress-lose Supervisor prueft den Ollama-Proxy jetzt als Client ueber dessen
+  festen internen Health-Endpunkt. Er benoetigt weder die nur fuer den Proxyserver
+  bestimmte `OLLAMA_PRIORITY_UPSTREAM`-Konfiguration noch zusaetzliche Mounts oder
+  Netzwerkrechte; Unit- und Rollenimage-Smokes bilden den Live-Testfehler nach.
 
 ## Unreleased – M7 Reproduzierbare und attestierte Image-Lieferkette
 
