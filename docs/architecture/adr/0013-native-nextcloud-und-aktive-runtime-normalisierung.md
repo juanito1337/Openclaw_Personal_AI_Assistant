@@ -11,6 +11,9 @@ Der erste signierte M8-Live-Test erreichte Gateway und Ollama-Proxy, scheiterte
 aber im Mail-Doctor. Die Layout-1-Migration normalisierte zwar ihre eigene
 Workspace-Kopie auf `http://ollama-proxy:11435`; Layout 3 publizierte danach eine
 separate Instanzkopie, deren alte Loopback-Adresse ungeprueft aktiv blieb.
+Ein spaeterer Chat-Smoke zeigte dieselbe Luecke in der globalen
+`openclaw.json`: Aus Sicht des Gateway-Containers bezeichnet
+`127.0.0.1:11435` den Gateway selbst und nicht den separaten Ollama-Proxy.
 
 Die Mail-Kontakt- und Kalenderintegration erwartete ausserdem weiterhin den
 breiten Community-Skill `openclaw-nextcloud` im beschreibbaren Workspace. Das
@@ -22,7 +25,12 @@ Delete-, Share- und freie WebDAV-Oberflaechen, die der Mail-Agent nicht benoetig
 
 Layout 3 normalisiert die tatsaechlich publizierte Instanzkonfiguration bei der
 Erstmigration und bei jedem spaeteren Layout-Start idempotent auf den internen
-Ollama-Proxy. Die Legacy-Kopie bleibt fuer Rollbacknachweise unangetastet.
+Ollama-Proxy. Dasselbe gilt fuer die globale Gateway-Konfiguration unter
+`v3/gateway/openclaw.json` und fuer vorhandene
+`v3/gateway/agents/*/agent/models.json`. Nur der bekannte native
+Loopback-Prioritaetsproxy auf Port 11435 wird uebersetzt; ein abweichender
+Providerendpunkt stoppt die Migration fail-closed. Die Legacy-Workspace-Kopie
+bleibt fuer Rollbacknachweise unangetastet.
 
 Mail-Kalender und -Kontakte verwenden die bereits release-eigenen
 `personal_assistant.connectors.nextcloud`-Bausteine. Die Kompatibilitaetsklasse
@@ -76,7 +84,8 @@ Setup auswaehlen. Das ist eine Ressourcenauswahl und keine Image-Migration.
 ## Verifikation
 
 Regressionstests pruefen die Normalisierung der aktiven v3-Konfiguration bei
-Migration und Neustart, die Unabhaengigkeit von Workspace-Skillcode, exakte
+Migration und Neustart einschliesslich globaler sowie agentenspezifischer
+Gateway-Modellkonfiguration, die Unabhaengigkeit von Workspace-Skillcode, exakte
 Ressourcenaufloesung, fail-closed Mehrdeutigkeit und den create-only nativen
 Kalenderaufruf. Sie pruefen ausserdem, dass Container-Health und Ollama-CLI das
 Proxy-Skript aus dem unveraenderlichen Image und nie aus dem Workspace starten.

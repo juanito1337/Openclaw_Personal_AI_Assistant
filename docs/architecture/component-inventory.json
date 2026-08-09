@@ -83,7 +83,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-08T11:13:16+02:00",
+      "last_git_change": "2026-08-09T10:53:05+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1115,7 +1115,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-08T11:13:16+02:00",
+      "last_git_change": "2026-08-08T23:00:41+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1313,7 +1313,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-06T15:45:31+02:00",
+      "last_git_change": "2026-08-09T10:53:05+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1959,7 +1959,7 @@
         "docs/architecture/owners.json"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-08T11:13:16+02:00",
+      "last_git_change": "2026-08-09T10:53:05+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -2948,6 +2948,8 @@
       "owner": "Mail Domain Maintainers",
       "classification": "active",
       "productive_callers": [
+        "docker/scripts/refresh-deployment.sh",
+        "docker/scripts/setup-host.sh",
         "personal_assistant/adapters/mail.py",
         "personal_assistant/mail_source_setup.py",
         "personal_assistant/monitoring.py"
@@ -3759,8 +3761,8 @@
         "docs/architecture/README.md",
         "docs/archive/AUDIT_INITIAL_IMPORT.md"
       ],
-      "line_coverage_percent": 27.25,
-      "last_git_change": "2026-08-06T15:45:31+02:00",
+      "line_coverage_percent": 27.76,
+      "last_git_change": "2026-08-08T23:00:41+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -4175,6 +4177,8 @@
       "owner": "Core Maintainers",
       "classification": "active",
       "productive_callers": [
+        "docker/scripts/refresh-deployment.sh",
+        "docker/scripts/setup-host.sh",
         "mail_agent/assistant_bridge.py",
         "mail_agent/nextcloud.py"
       ],
@@ -4716,8 +4720,8 @@
       "documentation_evidence": [
         "docs/TESTING.md"
       ],
-      "line_coverage_percent": 83.65,
-      "last_git_change": "2026-08-06T15:45:31+02:00",
+      "line_coverage_percent": 83.69,
+      "last_git_change": "2026-08-08T23:00:41+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -4859,9 +4863,14 @@
       ],
       "owner": "Core Maintainers",
       "classification": "active",
-      "productive_callers": [],
+      "productive_callers": [
+        "docker/scripts/migrate-container-state.py",
+        "docker/scripts/refresh-deployment.sh",
+        "docker/scripts/setup-host.sh"
+      ],
       "test_evidence": [
         "tests/ruff-baseline.json",
+        "tests/test_container_runtime.py",
         "tests/test_ollama_priority_config.py"
       ],
       "documentation_evidence": [],
@@ -4892,8 +4901,8 @@
         "tests/test_ollama_priority_proxy.py"
       ],
       "documentation_evidence": [],
-      "line_coverage_percent": 72.53,
-      "last_git_change": "2026-08-07T18:22:24+02:00",
+      "line_coverage_percent": 75.5,
+      "last_git_change": "2026-08-09T10:53:05+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -6294,7 +6303,7 @@
         "docs/architecture/IMAGE_SUPPLY_CHAIN.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-08T11:13:16+02:00",
+      "last_git_change": "2026-08-09T10:53:05+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -7150,7 +7159,7 @@
       ],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-01T14:23:46+02:00",
+      "last_git_change": "2026-08-08T23:00:41+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -7645,7 +7654,7 @@
       ],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-06T15:45:31+02:00",
+      "last_git_change": "2026-08-08T23:00:41+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -8009,7 +8018,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-07T18:22:24+02:00",
+      "last_git_change": "2026-08-09T10:53:05+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"

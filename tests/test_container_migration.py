@@ -419,7 +419,16 @@ class ContainerMigrationTests(unittest.TestCase):
             secrets.mkdir()
 
             (state / "openclaw.json").write_text(
-                json.dumps({"gateway": {"mode": "local"}}),
+                json.dumps(
+                    {
+                        "gateway": {"mode": "local"},
+                        "models": {
+                            "providers": {
+                                "ollama": {"baseUrl": "http://127.0.0.1:11435"}
+                            }
+                        },
+                    }
+                ),
                 encoding="utf-8",
             )
             (workspace / "mail_agent/config.toml").write_text(
@@ -474,6 +483,11 @@ class ContainerMigrationTests(unittest.TestCase):
                 self.assertEqual((secrets / "gateway.env").stat().st_mode & 0o777, 0o600)
             migrated = json.loads((state / "openclaw.json").read_text(encoding="utf-8"))
             self.assertEqual(migrated["gateway"]["auth"]["mode"], "token")
+            self.assertEqual(
+                migrated["models"]["providers"]["ollama"]["baseUrl"],
+                "http://ollama-proxy:11435",
+            )
+            self.assertTrue(report["ollama_proxy"]["gateway_config_changed"])
             self.assertIn(
                 'base_url = "http://ollama-proxy:11435"',
                 (workspace / "mail_agent/config.toml").read_text(encoding="utf-8"),

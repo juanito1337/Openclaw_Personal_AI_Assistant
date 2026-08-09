@@ -309,6 +309,10 @@ raise SystemExit(86)
                 (deployment / "scripts/immutable_plugins.py").read_bytes(),
                 (root / "personal_assistant/immutable_plugins.py").read_bytes(),
             )
+            self.assertEqual(
+                (deployment / "scripts/ollama_priority_config.py").read_bytes(),
+                (root / "personal_assistant/ollama_priority_config.py").read_bytes(),
+            )
             self.assertEqual((deployment / ".env").read_text(encoding="utf-8"), "LOCAL=preserve\n")
             self.assertEqual(
                 (hooks / "pre-deploy.sh").read_text(encoding="utf-8"),

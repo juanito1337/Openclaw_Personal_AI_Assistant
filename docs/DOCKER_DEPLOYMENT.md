@@ -373,7 +373,8 @@ The migration:
 5. rewrites active State-/Workspacepfade to `/home/node/.openclaw`,
 6. migrates Himalaya `secret-tool` commands to protected files in `/srv/openclaw/secrets`,
 7. preserves an existing gateway token/password or creates one protected token when the legacy gateway used no authentication,
-8. points the mail classifier at the container-owned Ollama priority proxy,
+8. points the mail classifier and Gateway model providers at the container-owned
+   Ollama priority proxy,
 9. validates required files and every staged SQLite database before publishing anything below `/srv/openclaw`,
 10. adds the mail-agent Nextcloud section only when all three Nextcloud credentials exist and the section was missing,
 11. creates a verified backup of an existing `/srv/openclaw` state before a remigration publishes its staged result,
@@ -382,9 +383,12 @@ The migration:
 14. leaves the original live directory untouched until the Docker deployment is verified.
 
 Der Layout-3-Init normalisiert zusaetzlich die tatsaechlich publizierte
-`v3/instance/mail_agent/config.toml` auf `http://ollama-proxy:11435`. Diese
-idempotente Pruefung laeuft auch bei spaeteren Containerstarts; die Legacy-Kopie
-bleibt fuer einen Rollback unveraendert.
+`v3/instance/mail_agent/config.toml`, `v3/gateway/openclaw.json` und vorhandene
+`v3/gateway/agents/*/agent/models.json` auf `http://ollama-proxy:11435`. Diese
+idempotente Pruefung laeuft auch bei spaeteren Containerstarts. Sie uebersetzt nur
+den bekannten nativen Loopback-Prioritaetsproxy auf Port 11435; andere
+Providerendpunkte brechen fail-closed ab. Die Legacy-Workspace-Kopie bleibt fuer
+einen Rollback unveraendert.
 
 Vor der SQLite-Gesamtpruefung ersetzt die Migration Brave und Signal durch ihre
 read-only Imagepfade, synchronisiert den generierten `installed_plugin_index`

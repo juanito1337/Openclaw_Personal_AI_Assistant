@@ -12,7 +12,6 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from urllib.parse import urlsplit
 
 try:
     immutable_plugins = importlib.import_module("personal_assistant.immutable_plugins")
@@ -28,6 +27,16 @@ except ModuleNotFoundError:
 
 load_contract = immutable_plugins.load_contract
 synchronize_installed_plugin_index = immutable_plugins.synchronize_installed_plugin_index
+
+try:
+    ollama_priority_config = importlib.import_module(
+        "personal_assistant.ollama_priority_config"
+    )
+except ModuleNotFoundError:
+    ollama_priority_config = importlib.import_module("ollama_priority_config")
+
+normalize_gateway_base_url = ollama_priority_config.normalize_gateway_base_url
+normalize_model_overrides = ollama_priority_config.normalize_model_overrides
 
 NEXTCLOUD_SECTION = """
 [nextcloud]
@@ -455,22 +464,14 @@ def normalize_ollama_proxy(state_dir: Path, config_dir: Path) -> dict[str, objec
         raise RuntimeError("[ollama].base_url fehlt in mail_agent/config.toml")
     if changed:
         atomic_write(path, "".join(rewritten))
-    model_changes: list[str] = []
-    for model_path in sorted((state_dir / "agents").glob("*/agent/models.json")):
-        payload = json.loads(model_path.read_text(encoding="utf-8"))
-        providers = payload.get("providers")
-        ollama = providers.get("ollama") if isinstance(providers, dict) else None
-        if not isinstance(ollama, dict):
-            continue
-        key = "baseUrl" if "baseUrl" in ollama else "base_url"
-        value = str(ollama.get(key) or "")
-        parsed = urlsplit(value)
-        if parsed.hostname not in {"127.0.0.1", "localhost", "::1"} or parsed.port != 11435:
-            continue
-        ollama[key] = expected
-        atomic_write(model_path, json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
-        model_changes.append(str(model_path))
-    return {"changed": changed, "base_url": expected, "model_overrides_changed": model_changes}
+    gateway_changed = normalize_gateway_base_url(state_dir / "openclaw.json", expected)
+    model_changes = normalize_model_overrides(state_dir / "agents", expected)
+    return {
+        "changed": bool(changed or gateway_changed or model_changes),
+        "base_url": expected,
+        "gateway_config_changed": gateway_changed,
+        "model_overrides_changed": model_changes,
+    }
 
 
 def ensure_nextcloud_section(state_dir: Path, config_dir: Path, secrets_dir: Path) -> bool:

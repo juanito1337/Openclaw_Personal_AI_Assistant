@@ -44,6 +44,8 @@ sudo cp "$SOURCE_ROOT/docker/scripts/"*.sh "$DEPLOYMENT/scripts/"
 sudo cp "$SOURCE_ROOT/docker/scripts/"*.py "$DEPLOYMENT/scripts/"
 sudo cp "$SOURCE_ROOT/personal_assistant/immutable_plugins.py" \
   "$DEPLOYMENT/scripts/immutable_plugins.py"
+sudo cp "$SOURCE_ROOT/personal_assistant/ollama_priority_config.py" \
+  "$DEPLOYMENT/scripts/ollama_priority_config.py"
 sudo cp "$SOURCE_ROOT/docker/hooks/"*.sh "$DEPLOYMENT/hooks/"
 if [[ ! -f "$DEPLOYMENT/.env" ]]; then
   sudo cp "$DEPLOYMENT/.env.example" "$DEPLOYMENT/.env"

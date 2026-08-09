@@ -111,6 +111,28 @@ class ImmutableRuntimeTests(unittest.TestCase):
     def test_layout_normalizes_ollama_in_active_v3_instance_and_on_restart(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
             state, workspace = self._legacy_fixture(folder)
+            gateway_config = state / "openclaw.json"
+            gateway_config.write_text(
+                json.dumps(
+                    {
+                        "gateway": {"mode": "local"},
+                        "models": {
+                            "providers": {
+                                "ollama": {"baseUrl": "http://127.0.0.1:11435"}
+                            }
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            model_override = state / "agents/main/agent/models.json"
+            model_override.parent.mkdir(parents=True)
+            model_override.write_text(
+                json.dumps(
+                    {"providers": {"ollama": {"baseUrl": "http://127.0.0.1:11435"}}}
+                ),
+                encoding="utf-8",
+            )
             legacy_config = workspace / "mail_agent/config.toml"
             legacy_config.write_text(
                 '[ollama]\nbase_url = "http://127.0.0.1:11435"\nmodel = "fixture"\n',
@@ -119,6 +141,8 @@ class ImmutableRuntimeTests(unittest.TestCase):
 
             first = migrate_layout(self.root, state, workspace)
             active_config = state / "v3/instance/mail_agent/config.toml"
+            active_gateway = state / "v3/gateway/openclaw.json"
+            active_override = state / "v3/gateway/agents/main/agent/models.json"
 
             self.assertTrue(first.changed)
             self.assertIn(
@@ -129,6 +153,16 @@ class ImmutableRuntimeTests(unittest.TestCase):
                 'base_url = "http://127.0.0.1:11435"',
                 legacy_config.read_text(encoding="utf-8"),
             )
+            self.assertEqual(
+                json.loads(active_gateway.read_text(encoding="utf-8"))["models"]
+                ["providers"]["ollama"]["baseUrl"],
+                "http://ollama-proxy:11435",
+            )
+            self.assertEqual(
+                json.loads(active_override.read_text(encoding="utf-8"))["providers"]
+                ["ollama"]["baseUrl"],
+                "http://ollama-proxy:11435",
+            )
 
             active_config.write_text(
                 active_config.read_text(encoding="utf-8").replace(
@@ -137,6 +171,16 @@ class ImmutableRuntimeTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
+            gateway_payload = json.loads(active_gateway.read_text(encoding="utf-8"))
+            gateway_payload["models"]["providers"]["ollama"]["baseUrl"] = (
+                "http://127.0.0.1:11435"
+            )
+            active_gateway.write_text(json.dumps(gateway_payload), encoding="utf-8")
+            override_payload = json.loads(active_override.read_text(encoding="utf-8"))
+            override_payload["providers"]["ollama"]["baseUrl"] = (
+                "http://127.0.0.1:11435"
+            )
+            active_override.write_text(json.dumps(override_payload), encoding="utf-8")
             second = migrate_layout(self.root, state, workspace)
 
             self.assertTrue(second.changed)
@@ -144,6 +188,19 @@ class ImmutableRuntimeTests(unittest.TestCase):
                 'base_url = "http://ollama-proxy:11435"',
                 active_config.read_text(encoding="utf-8"),
             )
+            self.assertEqual(
+                json.loads(active_gateway.read_text(encoding="utf-8"))["models"]
+                ["providers"]["ollama"]["baseUrl"],
+                "http://ollama-proxy:11435",
+            )
+            self.assertEqual(
+                json.loads(active_override.read_text(encoding="utf-8"))["providers"]
+                ["ollama"]["baseUrl"],
+                "http://ollama-proxy:11435",
+            )
+
+            third = migrate_layout(self.root, state, workspace)
+            self.assertFalse(third.changed)
 
     def test_missing_release_document_fails_before_workspace_changes(self) -> None:
         with tempfile.TemporaryDirectory() as folder:

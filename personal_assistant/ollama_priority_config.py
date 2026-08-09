@@ -97,6 +97,56 @@ def _provider_base_url(payload: Any) -> str | None:
     return str(value).strip() if value else None
 
 
+def _is_loopback_priority_proxy(value: str) -> bool:
+    normalized = normalize_base_url(value)
+    parsed = urlsplit(normalized)
+    return (
+        parsed.hostname in {"127.0.0.1", "localhost", "::1"}
+        and parsed.port == 11435
+    )
+
+
+def _set_provider_base_url(payload: dict[str, Any], new_url: str) -> None:
+    providers = payload["providers"]
+    ollama = providers["ollama"]
+    key = "baseUrl" if "baseUrl" in ollama else "base_url"
+    ollama[key] = new_url
+
+
+def normalize_gateway_base_url(path: Path, new_url: str) -> bool:
+    """Replace a legacy host-loopback proxy URL in active openclaw.json.
+
+    Container migration may only translate the known native priority-proxy
+    endpoint. An unrelated provider URL is configuration drift and fails closed
+    instead of being overwritten silently.
+    """
+
+    path = Path(path)
+    if not path.is_file():
+        return False
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"openclaw.json muss ein JSON-Objekt enthalten: {path}")
+    models = payload.get("models")
+    if not isinstance(models, dict):
+        return False
+    current_value = _provider_base_url(models)
+    if not current_value:
+        return False
+    current = normalize_base_url(current_value)
+    expected = normalize_base_url(new_url)
+    if current == expected:
+        return False
+    if not _is_loopback_priority_proxy(current):
+        raise ValueError(
+            f"Abweichende Ollama-URL in {path}: {current}; erwartet den "
+            f"nativen Loopback-Proxy auf Port 11435 oder {expected}"
+        )
+    _set_provider_base_url(models, expected)
+    _atomic_write(path, json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
+    return True
+
+
 def find_model_overrides(agents_root: Path) -> list[dict[str, str]]:
     root = Path(agents_root).expanduser()
     results: list[dict[str, str]] = []
@@ -125,20 +175,45 @@ def set_model_overrides(agents_root: Path, old_url: str, new_url: str) -> list[s
             continue
         if current != old_normalized:
             raise ValueError(
-                f"Abweichende Ollama-URL in {record['path']}: {current}; erwartet {old_normalized} oder {new_normalized}"
+                f"Abweichende Ollama-URL in {record['path']}: {current}; "
+                f"erwartet {old_normalized} oder {new_normalized}"
             )
         path = Path(record["path"])
         payload = json.loads(path.read_text(encoding="utf-8"))
-        ollama = payload["providers"]["ollama"]
-        key = "baseUrl" if "baseUrl" in ollama else "base_url"
-        ollama[key] = new_normalized
+        _set_provider_base_url(payload, new_normalized)
+        _atomic_write(path, json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
+        changed.append(str(path))
+    return changed
+
+
+def normalize_model_overrides(agents_root: Path, new_url: str) -> list[str]:
+    """Translate known host-loopback model overrides to the container proxy."""
+
+    expected = normalize_base_url(new_url)
+    changed: list[str] = []
+    for record in find_model_overrides(agents_root):
+        if record.get("error"):
+            raise ValueError(f"Ungueltige models.json: {record['path']}: {record['error']}")
+        current = record.get("base_url")
+        if current == expected:
+            continue
+        if current is None or not _is_loopback_priority_proxy(current):
+            raise ValueError(
+                f"Abweichende Ollama-URL in {record['path']}: {current}; erwartet den "
+                f"nativen Loopback-Proxy auf Port 11435 oder {expected}"
+            )
+        path = Path(record["path"])
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        _set_provider_base_url(payload, expected)
         _atomic_write(path, json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
         changed.append(str(path))
     return changed
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Konfigurationshilfe fuer den OpenClaw-Ollama-Prioritaetsproxy")
+    parser = argparse.ArgumentParser(
+        description="Konfigurationshilfe fuer den OpenClaw-Ollama-Prioritaetsproxy"
+    )
     sub = parser.add_subparsers(dest="command", required=True)
     get_mail = sub.add_parser("get-mail")
     get_mail.add_argument("path", type=Path)

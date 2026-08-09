@@ -73,6 +73,11 @@
   festen internen Health-Endpunkt. Er benoetigt weder die nur fuer den Proxyserver
   bestimmte `OLLAMA_PRIORITY_UPSTREAM`-Konfiguration noch zusaetzliche Mounts oder
   Netzwerkrechte; Unit- und Rollenimage-Smokes bilden den Live-Testfehler nach.
+- Die Container-Migration und jeder Layout-3-Start normalisieren nun auch die
+  globale sowie agentenspezifische Gateway-Modellkonfiguration vom nativen
+  Loopback-Prioritaetsproxy auf `ollama-proxy:11435`. Abweichende Provider werden
+  nicht still ueberschrieben; Migration, Neustart und Idempotenz sind durch echte
+  JSON-Verhaltenspruefungen abgedeckt.
 
 ## Unreleased – M7 Reproduzierbare und attestierte Image-Lieferkette
 

@@ -8,6 +8,8 @@ from pathlib import Path
 from personal_assistant.ollama_priority_config import (
     find_model_overrides,
     normalize_base_url,
+    normalize_gateway_base_url,
+    normalize_model_overrides,
     read_mail_base_url,
     set_mail_base_url,
     set_model_overrides,
@@ -26,7 +28,8 @@ class OllamaPriorityConfigTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "config.toml"
             path.write_text(
-                '[ollama]\nbase_url = "http://192.168.2.24:11434" # keep\nmodel = "gemma4:31b"\n\n[other]\nx=1\n',
+                '[ollama]\nbase_url = "http://192.168.2.24:11434" # keep\n'
+                'model = "gemma4:31b"\n\n[other]\nx=1\n',
                 encoding="utf-8",
             )
             self.assertEqual(read_mail_base_url(path), "http://192.168.2.24:11434")
@@ -41,7 +44,16 @@ class OllamaPriorityConfigTests(unittest.TestCase):
             root = Path(tmp)
             path = root / "main/agent/models.json"
             path.parent.mkdir(parents=True)
-            path.write_text(json.dumps({"providers": {"ollama": {"baseUrl": "http://192.168.2.24:11434"}}}), encoding="utf-8")
+            path.write_text(
+                json.dumps(
+                    {
+                        "providers": {
+                            "ollama": {"baseUrl": "http://192.168.2.24:11434"}
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
             records = find_model_overrides(root)
             self.assertEqual(records[0]["base_url"], "http://192.168.2.24:11434")
             changed = set_model_overrides(root, "http://192.168.2.24:11434", "http://127.0.0.1:11435")
@@ -57,6 +69,67 @@ class OllamaPriorityConfigTests(unittest.TestCase):
             path.write_text(json.dumps(payload), encoding="utf-8")
             with self.assertRaises(ValueError):
                 set_model_overrides(root, "http://10.0.0.1:11434", "http://127.0.0.1:11435")
+
+    def test_container_normalization_updates_gateway_and_overrides_idempotently(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            gateway = root / "openclaw.json"
+            agents = root / "agents"
+            model_path = agents / "main/agent/models.json"
+            model_path.parent.mkdir(parents=True)
+            gateway.write_text(
+                json.dumps(
+                    {
+                        "gateway": {"mode": "local"},
+                        "models": {
+                            "providers": {
+                                "ollama": {"baseUrl": "http://127.0.0.1:11435"}
+                            }
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            model_path.write_text(
+                json.dumps(
+                    {"providers": {"ollama": {"baseUrl": "http://localhost:11435"}}}
+                ),
+                encoding="utf-8",
+            )
+
+            expected = "http://ollama-proxy:11435"
+            self.assertTrue(normalize_gateway_base_url(gateway, expected))
+            self.assertEqual(normalize_model_overrides(agents, expected), [str(model_path)])
+            self.assertFalse(normalize_gateway_base_url(gateway, expected))
+            self.assertEqual(normalize_model_overrides(agents, expected), [])
+            payload = json.loads(gateway.read_text(encoding="utf-8"))
+            self.assertEqual(payload["gateway"], {"mode": "local"})
+            self.assertEqual(
+                payload["models"]["providers"]["ollama"]["baseUrl"],
+                expected,
+            )
+
+    def test_container_normalization_rejects_unrelated_provider(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "openclaw.json"
+            path.write_text(
+                json.dumps(
+                    {
+                        "models": {
+                            "providers": {
+                                "ollama": {"baseUrl": "http://other-host:11434"}
+                            }
+                        }
+                    }
+                ),
+                encoding="utf-8",
+            )
+            before = path.read_bytes()
+
+            with self.assertRaisesRegex(ValueError, "Abweichende Ollama-URL"):
+                normalize_gateway_base_url(path, "http://ollama-proxy:11435")
+
+            self.assertEqual(path.read_bytes(), before)
 
 
 if __name__ == "__main__":

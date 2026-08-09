@@ -16,7 +16,12 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from .ollama_priority_config import read_mail_base_url, set_mail_base_url
+from .ollama_priority_config import (
+    normalize_gateway_base_url,
+    normalize_model_overrides,
+    read_mail_base_url,
+    set_mail_base_url,
+)
 
 LAYOUT_VERSION = 3
 LAYOUT_SCHEMA = 1
@@ -577,6 +582,20 @@ def _normalize_container_mail_config(workspace: Path) -> bool:
     return True
 
 
+def _normalize_container_gateway_config(gateway: Path) -> bool:
+    """Enforce the internal proxy in active global and per-agent config."""
+
+    global_changed = normalize_gateway_base_url(
+        gateway / "openclaw.json",
+        CONTAINER_OLLAMA_BASE_URL,
+    )
+    override_changes = normalize_model_overrides(
+        gateway / "agents",
+        CONTAINER_OLLAMA_BASE_URL,
+    )
+    return bool(global_changed or override_changes)
+
+
 def restore_backup(archive: Path, destination: Path) -> None:
     archive = archive.expanduser().resolve()
     checksum = archive.with_suffix(archive.suffix + ".sha256")
@@ -765,7 +784,12 @@ def migrate_layout(image_root: Path, state_root: Path, workspace: Path) -> Layou
             raise RuntimeError(
                 f"Aktiver Layout-v3-Instanzbereich fehlt: {active_instance}"
             )
+        active_gateway = state_root / V3_ROOT_NAME / "gateway"
         runtime_config_changed = _normalize_container_mail_config(active_instance)
+        runtime_config_changed = (
+            _normalize_container_gateway_config(active_gateway)
+            or runtime_config_changed
+        )
         created_configs = _create_configs(image_root, workspace)
         for directory in (
             workspace / "mail_agent/data",
