@@ -52,6 +52,10 @@ class ImmutableRuntimeTests(unittest.TestCase):
             "{}\n", encoding="utf-8"
         )
         (workspace / "LOCAL_NOTES.md").write_text("keep\n", encoding="utf-8")
+        (state / "openclaw.json").write_text(
+            '{"gateway":{"mode":"local"}}\n',
+            encoding="utf-8",
+        )
         return state, workspace
 
     def test_layout_migration_removes_runtime_code_and_preserves_instance_data(self) -> None:
@@ -79,10 +83,19 @@ class ImmutableRuntimeTests(unittest.TestCase):
             self.assertEqual(
                 (workspace / "LOCAL_NOTES.md").read_text(encoding="utf-8"), "keep\n"
             )
-            self.assertEqual(os.readlink(workspace / "AGENTS.md"), str(self.root / "AGENTS.md"))
+            active = state / "v3/instance"
+            self.assertFalse((workspace / "AGENTS.md").exists())
             self.assertEqual(
-                os.readlink(workspace / "skills/personal-assistant"),
-                str(self.root / "skills/personal-assistant"),
+                os.readlink(active / "AGENTS.md"),
+                str(self.root / "AGENTS.md"),
+            )
+            self.assertFalse((active / "skills/personal-assistant").exists())
+            gateway = json.loads(
+                (state / "v3/gateway/openclaw.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                gateway["skills"]["load"]["extraDirs"],
+                ["/opt/openclaw-agent/skills"],
             )
             self.assertIsNotNone(report.backup)
             archive = Path(str(report.backup))

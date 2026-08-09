@@ -94,6 +94,10 @@ class StateLayoutM3Tests(unittest.TestCase):
         core.close()
         (workspace / "LOCAL_NOTES.md").write_text("keep\n", encoding="utf-8")
         (workspace / "AGENTS.md").symlink_to("/opt/openclaw-agent/AGENTS.md")
+        (state / "openclaw.json").write_text(
+            '{"gateway":{"mode":"local"}}\n',
+            encoding="utf-8",
+        )
         return state, workspace
 
     def _completed_profile(self, workspace: Path) -> dict[str, bytes]:
@@ -165,6 +169,109 @@ class StateLayoutM3Tests(unittest.TestCase):
                 self.assertFalse((active / "local-workspace" / name).exists())
             self.assertFalse((active / "TOOLS.md").exists())
             self.assertTrue((active / "local-workspace/TOOLS.md").is_file())
+
+    def test_release_contract_is_published_to_active_v3_workspace(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            state, workspace = self._state(folder)
+
+            first = migrate_layout(ROOT, state, workspace)
+            active = state / "v3/instance"
+
+            self.assertEqual(
+                os.readlink(active / "AGENTS.md"),
+                str(ROOT / "AGENTS.md"),
+            )
+            self.assertEqual(
+                os.readlink(active / "HEARTBEAT.md"),
+                str(ROOT / "HEARTBEAT.md"),
+            )
+            self.assertFalse((active / "skills/personal-assistant").exists())
+            self.assertFalse((workspace / "AGENTS.md").exists())
+            self.assertFalse((workspace / "skills/personal-assistant").exists())
+            gateway = json.loads(
+                (state / "v3/gateway/openclaw.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                gateway["skills"]["load"]["extraDirs"],
+                ["/opt/openclaw-agent/skills"],
+            )
+            self.assertNotIn("skills/personal-assistant", first.release_links)
+            self.assertFalse(migrate_layout(ROOT, state, workspace).changed)
+
+    def test_existing_v3_replaces_generated_agent_contract_with_release_links(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            state, workspace = self._state(folder)
+            migrate_layout(ROOT, state, workspace)
+            active = state / "v3/instance"
+            (active / "AGENTS.md").unlink()
+            (active / "HEARTBEAT.md").unlink()
+            (active / "skills").mkdir()
+            (active / "skills/personal-assistant").symlink_to(
+                ROOT / "skills/personal-assistant",
+                target_is_directory=True,
+            )
+            (active / "AGENTS.md").write_text(
+                "# generic OpenClaw agent instructions\n",
+                encoding="utf-8",
+            )
+            (active / "HEARTBEAT.md").write_text(
+                "# generic OpenClaw heartbeat\n",
+                encoding="utf-8",
+            )
+
+            report = migrate_layout(ROOT, state, workspace)
+
+            self.assertTrue(report.changed)
+            self.assertEqual(os.readlink(active / "AGENTS.md"), str(ROOT / "AGENTS.md"))
+            self.assertFalse((active / "skills/personal-assistant").exists())
+            gateway = json.loads(
+                (state / "v3/gateway/openclaw.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                gateway["skills"]["load"]["extraDirs"],
+                ["/opt/openclaw-agent/skills"],
+            )
+
+    def test_skill_root_preserves_existing_shared_skill_directories(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            state, workspace = self._state(folder)
+            (state / "openclaw.json").write_text(
+                json.dumps(
+                    {
+                        "gateway": {"mode": "local"},
+                        "skills": {"load": {"extraDirs": ["/trusted/shared-skills"]}},
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            migrate_layout(ROOT, state, workspace)
+
+            gateway = json.loads(
+                (state / "v3/gateway/openclaw.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                gateway["skills"]["load"]["extraDirs"],
+                ["/trusted/shared-skills", "/opt/openclaw-agent/skills"],
+            )
+
+    def test_invalid_shared_skill_configuration_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            state, workspace = self._state(folder)
+            (state / "openclaw.json").write_text(
+                json.dumps(
+                    {
+                        "gateway": {"mode": "local"},
+                        "skills": {"load": {"extraDirs": "/untrusted/skills"}},
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(RuntimeError, "extraDirs"):
+                migrate_layout(ROOT, state, workspace)
 
     def test_existing_v3_recovers_attested_generated_profile_idempotently(self) -> None:
         with tempfile.TemporaryDirectory() as folder:

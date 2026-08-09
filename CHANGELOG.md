@@ -83,6 +83,11 @@
   quarantinierte Profile werden nur ueber eine passende OpenClaw-SHA-256-
   Attestierung wiederhergestellt; bearbeitete oder abgeschlossene aktive Profile
   gewinnen fail-closed (ADR-0014).
+- Der release-eigene Agentenvertrag aus `AGENTS.md` und `HEARTBEAT.md` wird in
+  Layout 3 an der tatsaechlich gemounteten Instanzwurzel statt im inaktiven
+  Legacy-Workspace publiziert. Der `personal-assistant`-Skill wird ueber die
+  read-only OpenClaw-Zusatzwurzel `skills.load.extraDirs` registriert. Ein echter
+  OpenClaw-Container-Smoke-Test verlangt, dass der Skill als bereit erkannt wird.
 
 ## Unreleased – M7 Reproduzierbare und attestierte Image-Lieferkette
 

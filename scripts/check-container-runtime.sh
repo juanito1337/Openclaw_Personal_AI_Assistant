@@ -65,6 +65,7 @@ printf '%s\n' '# USER.md' '' '- Name: Jan Fixture' \
 printf '%s\n' \
   '{"version":1,"setupCompletedAt":"2026-07-21T06:48:03.443Z"}' \
   > "$state/workspace/openclaw-workspace-state.json"
+printf '%s\n' '{"gateway":{"mode":"local"}}' > "$state/openclaw.json"
 config_before=$(sha256sum "$state/workspace/mail_agent/config.toml" | awk '{print $1}')
 # Bind mounts preserve host ownership. Give only this disposable fixture the
 # image's runtime UID:GID so the production ownership preflight is exercised
@@ -148,11 +149,20 @@ assert_equal() {
 assert_absent /fixture/tampered-script-ran "Legacy-Skript wurde ausgefuehrt"
 assert_absent /fixture/workspace/scripts/assistant.sh "Legacy-Runtime-Skript wurde nicht entfernt"
 assert_equal /opt/openclaw-agent/AGENTS.md \
-  "$(readlink /fixture/workspace/AGENTS.md 2>/dev/null || true)" \
+  "$(readlink /fixture/v3/instance/AGENTS.md 2>/dev/null || true)" \
   "Release-Link AGENTS.md"
-assert_equal /opt/openclaw-agent/skills/personal-assistant \
-  "$(readlink /fixture/workspace/skills/personal-assistant 2>/dev/null || true)" \
-  "Release-Link personal-assistant"
+assert_absent /fixture/v3/instance/skills/personal-assistant \
+  "Runtime-Skill darf die Workspace-Grenze nicht per Symlink verlassen"
+assert_absent /fixture/workspace/AGENTS.md \
+  "Release-Vertrag wurde in den inaktiven Legacy-Workspace publiziert"
+assert_absent /fixture/workspace/skills/personal-assistant \
+  "Runtime-Skill wurde in den inaktiven Legacy-Workspace publiziert"
+skill_root=$(python3 -P -c \
+  "import json,sys; print(json.load(open(sys.argv[1]))[\"skills\"][\"load\"][\"extraDirs\"][-1])" \
+  /fixture/v3/gateway/openclaw.json) ||
+  fail "OpenClaw-Skillkonfiguration ist nicht als JSON lesbar"
+assert_equal /opt/openclaw-agent/skills "$skill_root" \
+  "read-only OpenClaw-Skillwurzel"
 actual_layout=$(python3 -P -c \
   "import json,sys; print(json.load(open(sys.argv[1]))[\"layout\"])" \
   /fixture/.container-layout.json) || fail "Layoutmarker ist nicht als JSON lesbar"
@@ -183,7 +193,27 @@ assert_equal 1 "$backup_count" "Anzahl atomarer Migrationsbackups"
   fail "Layoutnachbedingungen im UID-unabhaengigen Pruefcontainer verletzt"
 fi
 
-if ! status_json=$(docker run --rm "${runtime_args[@]}" "$IMAGE" \
+verification_args=(
+  --read-only
+  --tmpfs "/tmp:rw,nosuid,nodev,noexec,mode=1777"
+  --network none
+  -e OPENCLAW_LAYOUT_MODE=verify
+  -v "$state/v3/gateway:/home/node/.openclaw"
+  -v "$state/v3/instance:/home/node/.openclaw/workspace:ro"
+  -v "$state/v3/domains/mail:/var/lib/openclaw/mail"
+  -v "$state/v3/domains/orders:/var/lib/openclaw/orders"
+  -v "$state/v3/domains/portfolio:/var/lib/openclaw/portfolio"
+  -v "$state/v3/domains/monitoring:/var/lib/openclaw/monitoring"
+  -v "$state/v3/domains/knowledge:/var/lib/openclaw/knowledge"
+  -v "$state/v3/shared/core:/var/lib/openclaw/core"
+  -v "$state/v3/shared/security:/var/lib/openclaw/security"
+  -v "$state/v3/shared/coordination:/var/lib/openclaw/coordination"
+  -v "$himalaya:/home/node/.config/himalaya:ro"
+  -v "$config:/etc/openclaw-agent:ro"
+  -v "$secrets:/run/openclaw-secrets:ro"
+)
+
+if ! status_json=$(docker run --rm "${verification_args[@]}" "$IMAGE" \
   /opt/openclaw-agent/scripts/assistant.sh status 2>"$fixture/status.stderr"); then
   cat "$fixture/status.stderr" >&2
   echo "M3-Statuspruefung im isolierten Container fehlgeschlagen." >&2
@@ -225,6 +255,17 @@ role_args=(
   -v "$config:/etc/openclaw-agent:ro"
   -v "$secrets:/run/openclaw-secrets:ro"
 )
+
+if ! skill_info=$(docker run --rm "${verification_args[@]}" "$IMAGE" \
+  openclaw skills info personal-assistant 2>"$fixture/skill.stderr"); then
+  cat "$fixture/skill.stderr" >&2
+  fail "OpenClaw erkennt den Personal-Assistant-Skill nicht"
+fi
+if [[ "$skill_info" != *"personal-assistant"* ]] || \
+  [[ "$skill_info" != *"Ready"* && "$skill_info" != *"ready"* ]]; then
+  printf '%s\n' "$skill_info" >&2
+  fail "OpenClaw meldet den Personal-Assistant-Skill nicht als bereit"
+fi
 
 # M3 verifies actual kernel mount boundaries, not only YAML text. Each probe
 # writes only to its fixture-owned roots and confirms unrelated roots are absent

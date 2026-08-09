@@ -137,6 +137,14 @@ Ein bereits abgeschlossenes OpenClaw-Profil aus `IDENTITY.md`, `SOUL.md`,
 Instanzwurzel. ADR-0014 beschreibt die attestierungsgebundene, fail-closed
 Nachmigration fuer Layout-3-Zustaende, die diese Dateien zuvor nur unter
 `local-workspace/` erhalten hatten.
+Die release-eigenen `AGENTS.md` und `HEARTBEAT.md` werden ebenfalls direkt unter
+`v3/instance/` verlinkt. Der unveraenderliche `personal-assistant`-Skill wird
+ueber OpenClaws `skills.load.extraDirs` aus `/opt/openclaw-agent/skills`
+geladen; ein Workspace-Symlink aus dem beschreibbaren State in das Image wird
+von OpenClaw zu Recht nicht als vertrauenswuerdige Skillgrenze akzeptiert. Nur
+diese Instanzwurzel wird als
+`/home/node/.openclaw/workspace` in Gateway und Agent-CLI gemountet; das
+historische `state/workspace` ist kein aktiver Agenten-Workspace.
 Danach werden nur die benoetigten Teilbaeume gemountet:
 
 ```text

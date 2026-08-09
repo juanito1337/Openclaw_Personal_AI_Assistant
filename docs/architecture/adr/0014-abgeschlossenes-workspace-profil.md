@@ -26,7 +26,13 @@ Der Agent fragte deshalb erneut nach Name, Wesen, Vibe und Emoji.
 Instanzkonfiguration. Eine neue Layout-1-zu-3-Migration publiziert diese Dateien
 direkt unter `v3/instance/`; sie werden nicht nach `local-workspace/` verschoben.
 `AGENTS.md`, `HEARTBEAT.md` und der Personal-Assistant-Skill bleiben weiterhin
-release-eigen.
+release-eigen. Die Dokumente werden an der aktiven Wurzel `v3/instance/`
+verlinkt, die im Gateway als `/home/node/.openclaw/workspace` erscheint. Der
+Skill wird als read-only Zusatzwurzel `/opt/openclaw-agent/skills` ueber
+OpenClaws `skills.load.extraDirs` registriert, weil Workspace-Symlinks mit einem
+Realpfad ausserhalb der Workspace-Grenze absichtlich nicht als Skills geladen
+werden. Eine Publikation unter dem nur noch als Migrationsquelle vorhandenen
+`state/workspace` ist unwirksam.
 
 Bereits publizierte Layout-3-Zustaende werden beim naechsten `layout-init`
 idempotent repariert, wenn alle folgenden Bedingungen belegt sind:

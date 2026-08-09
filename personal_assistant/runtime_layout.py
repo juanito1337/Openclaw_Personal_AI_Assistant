@@ -11,7 +11,7 @@ import sqlite3
 import tarfile
 import time
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -48,8 +48,8 @@ CONFIG_TEMPLATES = {
 RELEASE_DOCUMENT_LINKS = {
     "AGENTS.md": "AGENTS.md",
     "HEARTBEAT.md": "HEARTBEAT.md",
-    "skills/personal-assistant": "skills/personal-assistant",
 }
+RELEASE_SKILL_RELATIVE = "skills/personal-assistant"
 OBSOLETE_RELEASE_DOCUMENTS = ("README.md", "CHANGELOG.md", "RELEASE.json", "VERSION")
 V3_ROOT_NAME = "v3"
 V3_DIRECTORIES = (
@@ -68,6 +68,7 @@ V3_DIRECTORIES = (
 )
 CONTAINER_OLLAMA_BASE_URL = "http://ollama-proxy:11435"
 CONTAINER_GATEWAY_WORKSPACE = "/home/node/.openclaw/workspace"
+CONTAINER_SKILL_ROOT = "/opt/openclaw-agent/skills"
 WORKSPACE_PROFILE_FILENAMES = ("IDENTITY.md", "SOUL.md", "USER.md")
 WORKSPACE_SETUP_STATE_FILENAME = "openclaw-workspace-state.json"
 WORKSPACE_ATTESTATION_HEADER = "openclaw-workspace-attestation:v1"
@@ -162,6 +163,9 @@ def _validate_roots(image_root: Path, state_root: Path, workspace: Path) -> None
         target = image_root / source
         if not target.exists():
             raise RuntimeError(f"Erforderliches Release-Dokument fehlt im Image: {target}")
+    skill = image_root / RELEASE_SKILL_RELATIVE / "SKILL.md"
+    if not skill.is_file():
+        raise RuntimeError(f"Erforderlicher Runtime-Skill fehlt im Image: {skill}")
     for source in CONFIG_TEMPLATES.values():
         target = image_root / source
         if not target.is_file():
@@ -196,7 +200,11 @@ def _legacy_runtime_paths(image_root: Path, state_root: Path, workspace: Path) -
         for compiled in target_root.rglob("*.py[co]"):
             if compiled.is_file() or compiled.is_symlink():
                 selected.add(compiled)
-    for link_name in (*RELEASE_DOCUMENT_LINKS, *OBSOLETE_RELEASE_DOCUMENTS):
+    for link_name in (
+        *RELEASE_DOCUMENT_LINKS,
+        RELEASE_SKILL_RELATIVE,
+        *OBSOLETE_RELEASE_DOCUMENTS,
+    ):
         target = workspace / link_name
         if target.exists() or target.is_symlink():
             selected.add(target)
@@ -766,11 +774,80 @@ def _normalize_container_gateway_config(gateway: Path) -> bool:
         gateway / "openclaw.json",
         CONTAINER_OLLAMA_BASE_URL,
     )
+    skills_changed = _normalize_container_skill_root(gateway / "openclaw.json")
     override_changes = normalize_model_overrides(
         gateway / "agents",
         CONTAINER_OLLAMA_BASE_URL,
     )
-    return bool(global_changed or override_changes)
+    return bool(global_changed or skills_changed or override_changes)
+
+
+def _normalize_container_skill_root(path: Path) -> bool:
+    """Expose the immutable image skill through OpenClaw's shared-skill API."""
+
+    if not path.exists() and not path.is_symlink():
+        return False
+    if path.is_symlink() or not path.is_file():
+        raise RuntimeError(f"OpenClaw-Konfiguration muss eine regulaere Datei sein: {path}")
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"openclaw.json muss ein JSON-Objekt enthalten: {path}")
+    skills = payload.get("skills")
+    if skills is None:
+        skills = {}
+        payload["skills"] = skills
+    if not isinstance(skills, dict):
+        raise RuntimeError(f"skills in openclaw.json muss ein Objekt sein: {path}")
+    load = skills.get("load")
+    if load is None:
+        load = {}
+        skills["load"] = load
+    if not isinstance(load, dict):
+        raise RuntimeError(f"skills.load in openclaw.json muss ein Objekt sein: {path}")
+    extra_dirs = load.get("extraDirs")
+    if extra_dirs is None:
+        extra_dirs = []
+    if not isinstance(extra_dirs, list) or not all(
+        isinstance(item, str) and item.strip() for item in extra_dirs
+    ):
+        raise RuntimeError(
+            f"skills.load.extraDirs in openclaw.json muss eine String-Liste sein: {path}"
+        )
+    expected = [
+        *[item for item in extra_dirs if item != CONTAINER_SKILL_ROOT],
+        CONTAINER_SKILL_ROOT,
+    ]
+    if load.get("extraDirs") == expected:
+        return False
+    load["extraDirs"] = expected
+    temporary = path.with_name(
+        f".{path.name}.skills-{os.getpid()}-{time.monotonic_ns()}"
+    )
+    try:
+        temporary.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        os.chmod(temporary, path.stat().st_mode & 0o777)
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return True
+
+
+def _remove_obsolete_workspace_skill_link(instance: Path, image_root: Path) -> bool:
+    link = instance / RELEASE_SKILL_RELATIVE
+    if not link.is_symlink():
+        return False
+    expected = str(image_root / RELEASE_SKILL_RELATIVE)
+    if os.readlink(link) != expected:
+        raise RuntimeError(
+            f"Unerwartetes Ziel fuer veralteten Workspace-Skill-Link: {link}"
+        )
+    link.unlink()
+    with suppress(OSError):
+        link.parent.rmdir()
+    return True
 
 
 def restore_backup(archive: Path, destination: Path) -> None:
@@ -789,6 +866,9 @@ def restore_backup(archive: Path, destination: Path) -> None:
         "workspace/AGENTS.md",
         "workspace/HEARTBEAT.md",
         "workspace/skills/personal-assistant",
+        "v3/instance/AGENTS.md",
+        "v3/instance/HEARTBEAT.md",
+        "v3/instance/skills/personal-assistant",
     }
 
     def restore_filter(
@@ -796,11 +876,11 @@ def restore_backup(archive: Path, destination: Path) -> None:
         path: str,
     ) -> tarfile.TarInfo | None:
         if member.issym() and Path(member.linkname).is_absolute():
-            if member.name in release_links and member.linkname.startswith(
-                "/opt/openclaw-agent/"
-            ):
+            if member.name in release_links:
                 # Release-owned links are recreated by the previous/current
                 # image entrypoint and do not belong in a restored state root.
+                # Drop the exact known member even when an archive was created
+                # from a source checkout with a different absolute image root.
                 return None
             raise RuntimeError(f"Unsicherer absoluter Backup-Link: {member.name}")
         return tarfile.data_filter(member, path)
@@ -967,6 +1047,10 @@ def migrate_layout(image_root: Path, state_root: Path, workspace: Path) -> Layou
             active_gateway,
         )
         runtime_config_changed = (
+            _remove_obsolete_workspace_skill_link(active_instance, image_root)
+            or runtime_config_changed
+        )
+        runtime_config_changed = (
             _normalize_container_mail_config(active_instance)
             or runtime_config_changed
         )
@@ -974,18 +1058,11 @@ def migrate_layout(image_root: Path, state_root: Path, workspace: Path) -> Layou
             _normalize_container_gateway_config(active_gateway)
             or runtime_config_changed
         )
-        created_configs = _create_configs(image_root, workspace)
-        for directory in (
-            workspace / "mail_agent/data",
-            workspace / "personal_assistant/data/container_jobs",
-            workspace / "personal_assistant/data/container_logs",
-            workspace / "skills",
-        ):
-            directory.mkdir(parents=True, exist_ok=True)
+        created_configs = _create_configs(image_root, active_instance)
         links: dict[str, str] = {}
         links_changed = False
         for link_name, target_name in RELEASE_DOCUMENT_LINKS.items():
-            link = workspace / link_name
+            link = active_instance / link_name
             target = image_root / target_name
             links_changed = _install_link(link, target) or links_changed
             links[link_name] = str(target)
