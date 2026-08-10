@@ -11,6 +11,11 @@ For runtime state use registered commands such as `status`, `doctor`, `jobs`,
 [generated tool contract](tool-contract.md). Never inspect or edit the scheduler,
 job-control or monitoring databases as an operational shortcut.
 
+Generic memory and workspace search are not runtime discovery. For a named
+domain, prefer its registered list/search/status tool over `assistant.search`;
+use the broad search only for its documented indexed sources and keep its default
+bounded result path.
+
 ## Jobs and single writer
 
 - `ON`, `OFF` and `FAILED/DEGRADED` are different states. Never report a job as

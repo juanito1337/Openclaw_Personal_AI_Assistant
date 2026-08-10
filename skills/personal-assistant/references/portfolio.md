@@ -13,7 +13,10 @@ folder; list it first and require filename date to match snapshot date. Scan
 fail-closed with ClamAV, dry-run, then require explicit `--yes`. Never guess an
 ISIN-to-symbol/MIC mapping.
 
-For holdings questions use `portfolio holdings`. DKB snapshots preserve
+For every question about Jan's stocks, securities, depot positions or holdings,
+use `portfolio holdings` first. Do not search memory, the writable workspace or
+local files to decide whether a portfolio exists. Only a successful registered
+holdings result may establish that the depot is empty. DKB snapshots preserve
 `entry_price`, `valuation_price`, `absolute_gain`, `relative_gain_percent` and
 `asset_class`; an entry price but no individual purchase date is expected. Empty
 gain values remain unknown. `currency` belongs to snapshot values;

@@ -5,6 +5,11 @@ for `~/.nextcloud` or another local mount, and never expose the central secrets
 file. Start with the registered status/discovery command and let Jan select the
 exact stable `resource_id`; never select the first discovered collection.
 
+For questions about current files, contacts, events or tasks, use the matching
+registered list/search tool before memory, workspace or shell search. A local
+index may supplement an explicitly broad search, but it does not prove that a
+remote object or configured capability is absent.
+
 ## Shared existing-object contract
 
 - List/search current objects, target exactly one UID and use expectation guards

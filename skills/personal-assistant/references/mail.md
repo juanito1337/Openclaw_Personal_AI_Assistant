@@ -6,6 +6,10 @@ writer beside the container mail worker.
 
 ## Read and search
 
+For questions about current mailbox contents use `mail list`, `mail search` and
+`mail read`, not memory, local workspace files or generic shell search. Only a
+successful, complete server-side result may establish that a message is absent.
+
 `mail search` searches server-side across readable folders, including review
 folders, and applies its result limit only after filtering. Inspect `complete`,
 `folder_errors` and `results_may_be_truncated` on every result. For an incomplete

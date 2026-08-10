@@ -2,7 +2,9 @@
 
 ## Invoice OCR and annual register
 
-Use only registered `invoices` commands. Native PDF text is authoritative and read
+Use registered `invoices status`, `invoices list` or `invoices review` first for
+questions about known invoices; memory and workspace search cannot establish an
+empty register. Use only registered `invoices` commands. Native PDF text is authoritative and read
 first; OCR is fallback only when text is unusable or the invoice date remains
 unsafe. The confirmed invoice date comes from the PDF, never only from mail date,
 filename, service/delivery/due date. A safe date controls `YYYY/MM` even when
@@ -18,7 +20,9 @@ booking file.
 
 ## Agent-managed order cards
 
-Use `nextcloud.deck.orders.list` for open orders, delivery, tracking and returns;
+Use `nextcloud.deck.orders.status` and then `nextcloud.deck.orders.list` for open
+orders, delivery, tracking and returns; do not substitute memory or workspace
+search for the configured board and order database.
 use `orders.sync` for stored failed updates. Never invent state, tracking, amount
 or dates. Only agent-managed cards on the configured board may be changed; other
 boards and manual cards are outside scope.

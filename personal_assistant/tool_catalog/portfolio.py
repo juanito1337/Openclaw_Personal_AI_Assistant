@@ -114,7 +114,7 @@ TOOLS: tuple[ToolDefinition, ...] = (
     define(
         id="portfolio.holdings",
         domain="portfolio",
-        description="Letzten unveraenderlich gespeicherten Depot-Snapshot anzeigen",
+        description="Eigene Aktien, Wertpapiere und Depotpositionen aus dem letzten unveraenderlich gespeicherten Snapshot anzeigen",
         command="./scripts/assistant.sh portfolio holdings",
         mode="read",
         writes_external_data=False,

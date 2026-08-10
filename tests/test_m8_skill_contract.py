@@ -47,6 +47,8 @@ def test_skill_trigger_is_short_precise_and_routes_every_domain() -> None:
     assert description is not None
     assert 120 <= len(description.group(1)) <= 360
     assert "Use when Jan asks" in description.group(1)
+    assert "portfolio/stocks/holdings/quotes" in description.group(1)
+    assert "before memory, workspace or shell search" in description.group(1)
     for name in (
         "runtime-security.md",
         "mail.md",
@@ -57,6 +59,47 @@ def test_skill_trigger_is_short_precise_and_routes_every_domain() -> None:
     ):
         assert f"references/{name}" in skill
         assert (SKILL / "references" / name).is_file()
+
+
+def test_skill_routes_registered_domain_reads_before_generic_fallbacks() -> None:
+    skill = (SKILL / "SKILL.md").read_text(encoding="utf-8")
+    references = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in sorted((SKILL / "references").glob("*.md"))
+        if path.name != "tool-contract.md"
+    )
+    normalized_skill = " ".join(skill.split())
+    normalized_references = " ".join(references.split())
+    catalog = {definition.id: definition for definition in tool_definitions()}
+    first_evidence_tools = {
+        "runtime": ("assistant.version", "assistant.status", "assistant.search"),
+        "portfolio": ("portfolio.status", "portfolio.holdings", "portfolio.valuation"),
+        "security": ("security.antivirus.doctor",),
+        "nextcloud": ("nextcloud.list",),
+        "mail": ("mail.list", "mail.search", "mail.read"),
+        "contacts": ("nextcloud.contacts.status", "nextcloud.contacts.list"),
+        "calendar": ("nextcloud.calendar.status", "nextcloud.calendar.list"),
+        "tasks": ("nextcloud.tasks.status", "nextcloud.tasks.list"),
+        "orders": ("nextcloud.deck.orders.status", "nextcloud.deck.orders.list"),
+        "invoices": ("assistant.invoices.status", "assistant.invoices.list"),
+    }
+
+    assert set(first_evidence_tools) == {definition.domain for definition in catalog.values()}
+    for domain, tool_ids in first_evidence_tools.items():
+        for tool_id in tool_ids:
+            assert tool_id in catalog, (domain, tool_id)
+            assert f"`{tool_id}`" in skill, (domain, tool_id)
+
+    assert "they never prove that registered data or a capability is absent" in normalized_skill
+    assert (
+        "Only a successful registered holdings result may establish" in normalized_references
+    )
+    assert (
+        "not memory, local workspace files or generic shell search" in normalized_references
+    )
+    assert "Eigene Aktien, Wertpapiere und Depotpositionen" in catalog[
+        "portfolio.holdings"
+    ].description
 
 
 def test_no_second_agent_skill_or_independent_command_list_remains() -> None:

@@ -88,6 +88,11 @@
   Legacy-Workspace publiziert. Der `personal-assistant`-Skill wird ueber die
   read-only OpenClaw-Zusatzwurzel `skills.load.extraDirs` registriert. Ein echter
   OpenClaw-Container-Smoke-Test verlangt, dass der Skill als bereit erkannt wird.
+- Der Personal-Assistant-Skill erkennt nun auch umgangssprachliche Domaenenfragen
+  wie "meine Aktien" und erzwingt fuer alle registrierten Domaenen den passenden
+  Status-/Listen-/Suchpfad vor Gedächtnis-, Workspace- oder Shell-Suche. Ein
+  gueltig leeres Ergebnis, eine deaktivierte Capability und ein Werkzeugfehler
+  duerfen nicht mehr als derselbe Zustand beantwortet werden.
 
 ## Unreleased – M7 Reproduzierbare und attestierte Image-Lieferkette
 

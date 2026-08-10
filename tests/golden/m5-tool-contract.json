@@ -266,7 +266,7 @@
   {
     "approval": "none",
     "command": "./scripts/assistant.sh portfolio holdings",
-    "description": "Letzten unveraenderlich gespeicherten Depot-Snapshot anzeigen",
+    "description": "Eigene Aktien, Wertpapiere und Depotpositionen aus dem letzten unveraenderlich gespeicherten Snapshot anzeigen",
     "id": "portfolio.holdings",
     "mode": "read",
     "writes_external_data": false
