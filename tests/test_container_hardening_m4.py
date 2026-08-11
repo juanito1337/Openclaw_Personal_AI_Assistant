@@ -197,6 +197,27 @@ raise SystemExit(86)
         self.assertEqual(environment["OPENCLAW_NIX_MODE"], "1")
         self.assertTrue(self.compose["services"]["gateway"]["read_only"])
 
+    def test_gateway_configuration_is_read_only_but_agent_cli_can_run_setup(self) -> None:
+        protected = {
+            "/home/node/.openclaw/workspace/mail_agent",
+            "/home/node/.openclaw/workspace/personal_assistant",
+        }
+        gateway_mounts = {
+            item["target"]: item for item in self.compose["services"]["gateway"]["volumes"]
+        }
+        agent_cli_mounts = {
+            item["target"]: item
+            for item in self.compose["services"]["agent-cli"]["volumes"]
+        }
+
+        self.assertTrue(protected.issubset(gateway_mounts))
+        for target in protected:
+            self.assertTrue(gateway_mounts[target]["read_only"], target)
+            self.assertNotIn(target, agent_cli_mounts)
+        self.assertFalse(
+            agent_cli_mounts["/home/node/.openclaw/workspace"].get("read_only", False)
+        )
+
     def test_roles_mount_exact_env_and_secret_files(self) -> None:
         forbidden_targets = {"/etc/openclaw-agent", "/run/openclaw-secrets"}
         for role, expected in self.contract["roles"].items():

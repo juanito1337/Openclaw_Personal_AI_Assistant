@@ -147,6 +147,56 @@ def normalize_gateway_base_url(path: Path, new_url: str) -> bool:
     return True
 
 
+def ensure_gateway_timeouts(
+    path: Path,
+    *,
+    provider_timeout_seconds: int,
+    agent_timeout_seconds: int,
+) -> bool:
+    """Add explicit slow-provider limits without replacing operator choices."""
+
+    if provider_timeout_seconds <= 0 or agent_timeout_seconds < provider_timeout_seconds:
+        raise ValueError("Agent-Timeout muss positiv und mindestens so gross wie der Provider-Timeout sein")
+    path = Path(path)
+    if not path.is_file():
+        return False
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"openclaw.json muss ein JSON-Objekt enthalten: {path}")
+    models = payload.get("models")
+    if not isinstance(models, dict):
+        return False
+    providers = models.get("providers")
+    if not isinstance(providers, dict):
+        return False
+    ollama = providers.get("ollama")
+    if not isinstance(ollama, dict):
+        return False
+
+    changed = False
+    if "timeoutSeconds" not in ollama:
+        ollama["timeoutSeconds"] = provider_timeout_seconds
+        changed = True
+    agents = payload.get("agents")
+    if agents is None:
+        agents = {}
+        payload["agents"] = agents
+    if not isinstance(agents, dict):
+        raise ValueError(f"agents in openclaw.json muss ein JSON-Objekt sein: {path}")
+    defaults = agents.get("defaults")
+    if defaults is None:
+        defaults = {}
+        agents["defaults"] = defaults
+    if not isinstance(defaults, dict):
+        raise ValueError(f"agents.defaults in openclaw.json muss ein JSON-Objekt sein: {path}")
+    if "timeoutSeconds" not in defaults:
+        defaults["timeoutSeconds"] = agent_timeout_seconds
+        changed = True
+    if changed:
+        _atomic_write(path, json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
+    return changed
+
+
 def find_model_overrides(agents_root: Path) -> list[dict[str, str]]:
     root = Path(agents_root).expanduser()
     results: list[dict[str, str]] = []
@@ -205,6 +255,38 @@ def normalize_model_overrides(agents_root: Path, new_url: str) -> list[str]:
         path = Path(record["path"])
         payload = json.loads(path.read_text(encoding="utf-8"))
         _set_provider_base_url(payload, expected)
+        _atomic_write(path, json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
+        changed.append(str(path))
+    return changed
+
+
+def ensure_model_override_timeouts(
+    agents_root: Path,
+    *,
+    provider_timeout_seconds: int,
+) -> list[str]:
+    """Add the provider timeout to explicit per-agent Ollama catalogs."""
+
+    if provider_timeout_seconds <= 0:
+        raise ValueError("Provider-Timeout muss positiv sein")
+    changed: list[str] = []
+    root = Path(agents_root).expanduser()
+    if not root.exists():
+        return changed
+    for path in sorted(root.glob("*/agent/models.json")):
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ValueError(f"Ungueltige models.json: {path}: {exc}") from exc
+        if not isinstance(payload, dict):
+            raise ValueError(f"Ungueltige models.json: {path}: kein JSON-Objekt")
+        providers = payload.get("providers")
+        if not isinstance(providers, dict):
+            continue
+        ollama = providers.get("ollama")
+        if not isinstance(ollama, dict) or "timeoutSeconds" in ollama:
+            continue
+        ollama["timeoutSeconds"] = provider_timeout_seconds
         _atomic_write(path, json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
         changed.append(str(path))
     return changed

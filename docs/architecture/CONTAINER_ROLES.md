@@ -22,7 +22,7 @@ tragen denselben Release und Commit; Inhalt, Messung und Freigabe beschreibt der
 | --- | --- | --- | --- | --- |
 | `layout-init` | `runtime` | Layoutmigration | gesamter State `rw`; kein E/X | einziger Prozess mit universellem State-Mount; ohne Netzwerk; beendet sich vor allen Rollen |
 | `ollama-proxy` | `proxy-runtime` | In-Memory-Modellqueue | I `ro`, eine Proxy-Envdatei | kein OpenClaw/Mail/OCR/ClamAV, keine Secrets/Fachdaten; einzige Host-Gateway-Ausnahme |
-| `gateway` | `runtime` | Gateway/Sessions und Toolaufrufe | G/I/M/O/P/N/W/C/S/Q `rw`, H/E/X/V `ro` | interaktive Universalrolle; fachliche Rechte bleiben Policy-/Approval-gebunden |
+| `gateway` | `runtime` | Gateway/Sessions und Toolaufrufe | G/M/O/P/N/W/C/S/Q `rw`; I-Profil/Memory `rw`, I-Konfigurationsordner `ro`; H/E/X/V `ro` | interaktive Universalrolle; Konfigurationssetup ausschliesslich ueber `agent-cli`, fachliche Rechte bleiben Policy-/Approval-gebunden |
 | `mail-worker` | `runtime` | Mail, Orders, delegierte ActionPlans | I `ro`, M/O/C/S/Q `rw`, H/E/X/V `ro` | nur Mail-/PA-Secrets; einziger produktiver Mailwriter |
 | `sync-worker` | `runtime` | Index und Syncstatus | I/M/C `ro`, W/Q `rw`, E/X `ro` | nur Nextcloud/Mail-Envdateien; keine Orders-/Portfolio-/Monitoring-DB |
 | `supervisor-worker` | `runtime` | Job-Sollzustand und Heartbeats | I `ro`, Q `rw`, E/X `ro` | nur internes `backend`, keine direkte Egress-Route |
@@ -35,6 +35,13 @@ Alle Rollen laufen mit read-only Rootfs, `cap_drop: ALL`,
 `no-new-privileges`, explizitem Nicht-root-Benutzer, sicherem `tmpfs`, PID-/CPU-/
 RAM-Grenzen und begrenzter lokaler Docker-Logrotation. Root- und Hostnetz-Ausnahmen
 existieren nicht. Details und exakte Zahlen stehen im maschinenlesbaren Vertrag.
+
+Der Gateway-Workspace bleibt fuer Identitaetsprofil, Memory und kontrollierte
+Workspace-Daten beschreibbar. Die verschachtelten Mounts `mail_agent/` und
+`personal_assistant/` ueberlagern ihn jedoch read-only. Damit koennen weder
+OpenClaws Dateiwerkzeuge noch ein Shell-Fallback `tools.toml`, Policies oder
+Subsystemkonfigurationen veraendern. Die kurzlebige, nur explizit gestartete
+`agent-cli`-Rolle behaelt dafuer den notwendigen Schreibmount (ADR-0015).
 
 ## Netzmatrix
 

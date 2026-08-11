@@ -224,8 +224,9 @@ if [[ "$proxy_healthy" != "true" ]]; then
 fi
 # The supervisor is a client on the private backend network and intentionally
 # has neither the proxy's upstream configuration nor a direct egress route.
-# Its registered status command must therefore query the fixed service endpoint
-# instead of attempting to construct another proxy server configuration.
+# Its registered status and live-check commands must therefore query the fixed
+# service endpoint instead of attempting to construct another proxy server
+# configuration.
 docker run --rm \
   --network "$smoke_network" \
   --read-only \
@@ -235,6 +236,15 @@ docker run --rm \
   --env OPENCLAW_ROLE=supervisor-worker \
   --entrypoint /opt/openclaw-agent/scripts/assistant.sh \
   "$runtime" ollama status >/dev/null
+docker run --rm \
+  --network "$smoke_network" \
+  --read-only \
+  --cap-drop ALL \
+  --security-opt no-new-privileges:true \
+  --tmpfs /tmp:rw,nosuid,nodev,noexec,size=16m,mode=1777 \
+  --env OPENCLAW_ROLE=gateway \
+  --entrypoint /opt/openclaw-agent/scripts/assistant.sh \
+  "$runtime" ollama check >/dev/null
 cleanup_proxy_smoke
 trap - EXIT
 

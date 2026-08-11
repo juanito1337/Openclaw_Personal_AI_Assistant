@@ -2,6 +2,26 @@
 
 ## Unreleased – M8 End-to-End-Recovery, Skills und Releaseabschluss
 
+- Container-Runtime-Wurzeln werden vor der alten Workspace-Pfadpruefung
+  aufgeloest. Dadurch blockieren bereits migrierte Pfade unter
+  `/var/lib/openclaw` weder Portfolio noch Doctor und Jobs. Der Agent fuehrt
+  registrierte Portfolio-Mappings, Kurspruefungen und freigegebene Jobaktionen
+  selbst aus, statt Jan `docker exec`-Befehle zu delegieren.
+- Das Gateway ueberlagert die persistenten Mail- und Personal-Assistant-
+  Konfigurationsordner read-only. Werkzeugfehler koennen dadurch nicht mehr per
+  Datei-/Shell-Fallback in `tools.toml` umgangen werden; ausdrueckliche Setups
+  bleiben auf die kurzlebige `agent-cli`-Rolle begrenzt. Layout-Init repariert
+  ausschliesslich die fuenf mount-eigenen Datenpfade und erhaelt alle fachlichen
+  Ressourcen- und Berechtigungswerte (ADR-0015).
+- Layout-Init setzt bei einem vorhandenen Ollama-Provider fehlende explizite
+  Modell-/Agenten-Timeouts auf 1800/3600 Sekunden, ohne Betreiberwerte zu
+  ueberschreiben. Der registrierte Ollama-Livecheck verwendet aus Gateway- und
+  Workerrollen den privaten Proxy-Health-Endpunkt und benoetigt dort keine
+  serverseitige Upstream-Umgebung mehr.
+- Der automatische Rollback normalisiert von Docker als root erzeugte
+  Bind-Mount-Quellpfade vor dem lokalen `rsync`-Restore. Ein fehlgeschlagener
+  Kandidaten-Smoke bleibt dadurch nicht mehr vor dem Neustart des verifizierten
+  vorherigen Stacks stehen.
 - Ein hermetischer, intern vernetzter Compose-Stack prueft Fake-IMAP/SMTP,
   WebDAV/CardDAV/CalDAV, Ollama, Marktdaten, ClamAV-Fixtures, ETag-Konflikt,
   Netzwerkverlust, Containercrash und einen exklusiven Mailwriter ohne produktive
@@ -93,6 +113,14 @@
   Status-/Listen-/Suchpfad vor Gedächtnis-, Workspace- oder Shell-Suche. Ein
   gueltig leeres Ergebnis, eine deaktivierte Capability und ein Werkzeugfehler
   duerfen nicht mehr als derselbe Zustand beantwortet werden.
+- Tool-IDs und CLI-Syntax sind im Skill nun unmissverstaendlich getrennt. Die
+  Intent-Tabelle nennt ausfuehrbare Befehlssuffixe; der generierte Vertrag verbietet
+  gepunktete IDs als `assistant.sh`-Argument und dokumentiert den installierten
+  Container-Launcher explizit.
+- Aktuelle Kursanfragen pruefen nun zuerst die Kursfrische, fuehren bei gueltiger
+  Konfiguration den registrierten Refresh aus und werten erst danach Kurs oder
+  Depotwert aus. Rollen-Worker schreiben ihr CLI-Log in das beschreibbare
+  Koordinationsverzeichnis, statt am schreibgeschuetzten Core-Mount zu scheitern.
 
 ## Unreleased – M7 Reproduzierbare und attestierte Image-Lieferkette
 

@@ -6,10 +6,12 @@ import hashlib
 import io
 import json
 import os
+import re
 import shutil
 import sqlite3
 import tarfile
 import time
+import tomllib
 from collections.abc import Iterator
 from contextlib import contextmanager, suppress
 from dataclasses import asdict, dataclass
@@ -17,6 +19,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from .ollama_priority_config import (
+    ensure_gateway_timeouts,
+    ensure_model_override_timeouts,
     normalize_gateway_base_url,
     normalize_model_overrides,
     read_mail_base_url,
@@ -67,8 +71,17 @@ V3_DIRECTORIES = (
     "shared/coordination/container_logs",
 )
 CONTAINER_OLLAMA_BASE_URL = "http://ollama-proxy:11435"
+CONTAINER_OLLAMA_PROVIDER_TIMEOUT_SECONDS = 1800
+CONTAINER_AGENT_TIMEOUT_SECONDS = 3600
 CONTAINER_GATEWAY_WORKSPACE = "/home/node/.openclaw/workspace"
 CONTAINER_SKILL_ROOT = "/opt/openclaw-agent/skills"
+CONTAINER_TOOL_PATHS = {
+    ("nextcloud.workspace", "outbox"): "/var/lib/openclaw/core/workspace_outbox",
+    ("nextcloud.deck_orders", "database"): "/var/lib/openclaw/orders/orders.sqlite3",
+    ("security.antivirus", "temp_dir"): "/var/lib/openclaw/security/tmp",
+    ("portfolio", "database"): "/var/lib/openclaw/portfolio/portfolio.sqlite3",
+    ("portfolio", "import_root"): "/var/lib/openclaw/portfolio/inbox",
+}
 WORKSPACE_PROFILE_FILENAMES = ("IDENTITY.md", "SOUL.md", "USER.md")
 WORKSPACE_SETUP_STATE_FILENAME = "openclaw-workspace-state.json"
 WORKSPACE_ATTESTATION_HEADER = "openclaw-workspace-attestation:v1"
@@ -767,19 +780,120 @@ def _normalize_container_mail_config(workspace: Path) -> bool:
     return True
 
 
+def _normalize_container_tool_paths(workspace: Path) -> bool:
+    """Repair only mount-owned paths while preserving instance grants.
+
+    Layout-v3 runtime paths are fixed by Compose and are not user-selectable
+    permissions.  Keep every other tools.toml value byte-for-byte so an image
+    update cannot grant a capability or replace a resource selection.
+    """
+
+    path = workspace / "personal_assistant/tools.toml"
+    if not path.exists() and not path.is_symlink():
+        return False
+    if path.is_symlink() or not path.is_file():
+        raise RuntimeError(f"Aktive Toolkonfiguration muss eine regulaere Datei sein: {path}")
+    try:
+        parsed = tomllib.loads(path.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        raise RuntimeError(f"Aktive Toolkonfiguration ist ungueltig: {path}: {exc}") from exc
+
+    required: set[tuple[str, str]] = set()
+    for (section, key), _expected in CONTAINER_TOOL_PATHS.items():
+        current: object = parsed
+        for name in section.split("."):
+            if not isinstance(current, dict) or name not in current:
+                current = None
+                break
+            current = current[name]
+        if isinstance(current, dict) and key in current:
+            if not isinstance(current[key], str):
+                raise RuntimeError(
+                    f"Aktive Toolkonfiguration erwartet String fuer [{section}] {key}: {path}"
+                )
+            required.add((section, key))
+
+    table_pattern = re.compile(r"^\s*\[([^\]]+)]\s*(?:#.*)?(?:\r?\n)?$")
+    assignment_pattern = re.compile(
+        r"^(?P<prefix>\s*(?P<key>[A-Za-z0-9_-]+)\s*=\s*)"
+        r"(?P<value>\"(?:\\.|[^\"\\])*\"|'[^']*')"
+        r"(?P<suffix>\s*(?:#.*)?)(?P<newline>\r?\n)?$"
+    )
+    section = ""
+    found: set[tuple[str, str]] = set()
+    changed = False
+    lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+    for index, line in enumerate(lines):
+        table = table_pattern.match(line)
+        if table:
+            section = table.group(1).strip()
+            continue
+        assignment = assignment_pattern.match(line)
+        if assignment is None:
+            continue
+        identity = (section, assignment.group("key"))
+        if identity not in required:
+            continue
+        if identity in found:
+            raise RuntimeError(f"Doppelter Toolpfad in aktiver Konfiguration: {identity}")
+        found.add(identity)
+        expected = CONTAINER_TOOL_PATHS[identity]
+        if assignment.group("value") in {json.dumps(expected), repr(expected)}:
+            continue
+        lines[index] = (
+            f"{assignment.group('prefix')}{json.dumps(expected)}"
+            f"{assignment.group('suffix')}{assignment.group('newline') or ''}"
+        )
+        changed = True
+
+    missing = required - found
+    if missing:
+        rendered = ", ".join(f"[{section}] {key}" for section, key in sorted(missing))
+        raise RuntimeError(
+            "Aktive Toolpfade koennen nicht sicher normalisiert werden: " + rendered
+        )
+    if not changed:
+        return False
+
+    temporary = path.with_name(f".{path.name}.paths-{os.getpid()}-{time.monotonic_ns()}")
+    try:
+        temporary.write_text("".join(lines), encoding="utf-8")
+        os.chmod(temporary, path.stat().st_mode & 0o777)
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return True
+
+
 def _normalize_container_gateway_config(gateway: Path) -> bool:
     """Enforce the internal proxy in active global and per-agent config."""
 
+    config_path = gateway / "openclaw.json"
     global_changed = normalize_gateway_base_url(
-        gateway / "openclaw.json",
+        config_path,
         CONTAINER_OLLAMA_BASE_URL,
     )
-    skills_changed = _normalize_container_skill_root(gateway / "openclaw.json")
+    timeout_changed = ensure_gateway_timeouts(
+        config_path,
+        provider_timeout_seconds=CONTAINER_OLLAMA_PROVIDER_TIMEOUT_SECONDS,
+        agent_timeout_seconds=CONTAINER_AGENT_TIMEOUT_SECONDS,
+    )
+    skills_changed = _normalize_container_skill_root(config_path)
     override_changes = normalize_model_overrides(
         gateway / "agents",
         CONTAINER_OLLAMA_BASE_URL,
     )
-    return bool(global_changed or skills_changed or override_changes)
+    override_timeout_changes = ensure_model_override_timeouts(
+        gateway / "agents",
+        provider_timeout_seconds=CONTAINER_OLLAMA_PROVIDER_TIMEOUT_SECONDS,
+    )
+    return bool(
+        global_changed
+        or timeout_changed
+        or skills_changed
+        or override_changes
+        or override_timeout_changes
+    )
 
 
 def _normalize_container_skill_root(path: Path) -> bool:
@@ -1052,6 +1166,10 @@ def migrate_layout(image_root: Path, state_root: Path, workspace: Path) -> Layou
         )
         runtime_config_changed = (
             _normalize_container_mail_config(active_instance)
+            or runtime_config_changed
+        )
+        runtime_config_changed = (
+            _normalize_container_tool_paths(active_instance)
             or runtime_config_changed
         )
         runtime_config_changed = (

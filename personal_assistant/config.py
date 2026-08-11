@@ -11,6 +11,9 @@ DEFAULT_CONFIG = WORKSPACE_ROOT / "personal_assistant/config.toml"
 DEFAULT_RESOURCES = WORKSPACE_ROOT / "personal_assistant/resources.toml"
 DEFAULT_POLICIES = WORKSPACE_ROOT / "personal_assistant/policies.toml"
 DEFAULT_SECRETS = Path("~/.config/personal-assistant/secrets.env").expanduser()
+CONTAINER_WORKER_ROLES = frozenset(
+    {"sync-worker", "supervisor-worker", "portfolio-worker", "monitor-worker"}
+)
 
 
 def _resolve(value: str | Path, base: Path = WORKSPACE_ROOT) -> Path:
@@ -84,8 +87,7 @@ class AssistantConfig:
     def ensure_dirs(self) -> None:
         if (
             os.environ.get("OPENCLAW_RUNTIME") == "container"
-            and os.environ.get("OPENCLAW_ROLE")
-            in {"portfolio-worker", "monitor-worker", "sync-worker"}
+            and os.environ.get("OPENCLAW_ROLE") in CONTAINER_WORKER_ROLES
         ):
             # Layout initialization owns container directories. Worker roles
             # must not probe or create directories outside their mounts.
@@ -148,6 +150,15 @@ def load_config(path: str | Path | None = None) -> AssistantConfig:
         runtime.database = core_root / "assistant.sqlite3"
         runtime.log_file = core_root / "assistant.log"
         runtime.resources_file = core_root / "resources.toml"
+    role = os.environ.get("OPENCLAW_ROLE", "").strip()
+    worker_log_data = os.environ.get("OPENCLAW_LOG_DIR", "").strip()
+    if (
+        os.environ.get("OPENCLAW_RUNTIME") == "container"
+        and role in CONTAINER_WORKER_ROLES
+        and worker_log_data
+    ):
+        worker_log_root = Path(worker_log_data).expanduser().resolve()
+        runtime.log_file = worker_log_root / f"assistant-{role}.log"
 
     search_data = _section(data, "search").copy()
     if "mail_snapshot_dir" in search_data:

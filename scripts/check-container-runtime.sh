@@ -65,7 +65,9 @@ printf '%s\n' '# USER.md' '' '- Name: Jan Fixture' \
 printf '%s\n' \
   '{"version":1,"setupCompletedAt":"2026-07-21T06:48:03.443Z"}' \
   > "$state/workspace/openclaw-workspace-state.json"
-printf '%s\n' '{"gateway":{"mode":"local"}}' > "$state/openclaw.json"
+printf '%s\n' \
+  '{"gateway":{"mode":"local"},"models":{"providers":{"ollama":{"baseUrl":"http://127.0.0.1:11435"}}}}' \
+  > "$state/openclaw.json"
 config_before=$(sha256sum "$state/workspace/mail_agent/config.toml" | awk '{print $1}')
 # Bind mounts preserve host ownership. Give only this disposable fixture the
 # image's runtime UID:GID so the production ownership preflight is exercised
@@ -163,6 +165,16 @@ skill_root=$(python3 -P -c \
   fail "OpenClaw-Skillkonfiguration ist nicht als JSON lesbar"
 assert_equal /opt/openclaw-agent/skills "$skill_root" \
   "read-only OpenClaw-Skillwurzel"
+provider_timeout=$(python3 -P -c \
+  "import json,sys; print(json.load(open(sys.argv[1]))[\"models\"][\"providers\"][\"ollama\"][\"timeoutSeconds\"])" \
+  /fixture/v3/gateway/openclaw.json) ||
+  fail "Ollama-Provider-Timeout ist nicht als JSON lesbar"
+assert_equal 1800 "$provider_timeout" "Ollama-Provider-Timeout"
+agent_timeout=$(python3 -P -c \
+  "import json,sys; print(json.load(open(sys.argv[1]))[\"agents\"][\"defaults\"][\"timeoutSeconds\"])" \
+  /fixture/v3/gateway/openclaw.json) ||
+  fail "Agenten-Timeout ist nicht als JSON lesbar"
+assert_equal 3600 "$agent_timeout" "Agenten-Timeout"
 actual_layout=$(python3 -P -c \
   "import json,sys; print(json.load(open(sys.argv[1]))[\"layout\"])" \
   /fixture/.container-layout.json) || fail "Layoutmarker ist nicht als JSON lesbar"

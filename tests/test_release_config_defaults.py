@@ -75,6 +75,59 @@ denied_sources = ["Lokale Pruefung"]
             self.assertTrue(engine.decide("mail-agent", "mail.send").requires_approval)
             self.assertFalse(engine.decide("mail-agent", "mail.delete").allowed)
 
+    def test_container_runtime_roots_precede_legacy_workspace_path_validation(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            tools = root / "tools.toml"
+            tools.write_text(
+                """
+[nextcloud.workspace]
+outbox = "/var/lib/openclaw/core/workspace_outbox"
+
+[nextcloud.deck_orders]
+database = "/var/lib/openclaw/orders/orders.sqlite3"
+
+[security.antivirus]
+temp_dir = "/var/lib/openclaw/security/tmp"
+
+[portfolio]
+database = "/var/lib/openclaw/portfolio/portfolio.sqlite3"
+import_root = "/var/lib/openclaw/portfolio/inbox"
+""".strip()
+                + "\n",
+                encoding="utf-8",
+            )
+            runtime_roots = {
+                "OPENCLAW_CORE_DATA_DIR": str(root / "runtime-core"),
+                "OPENCLAW_ORDERS_DATA_DIR": str(root / "runtime-orders"),
+                "OPENCLAW_SECURITY_DATA_DIR": str(root / "runtime-security"),
+                "OPENCLAW_PORTFOLIO_DATA_DIR": str(root / "runtime-portfolio"),
+            }
+
+            with patch.dict("os.environ", runtime_roots, clear=False):
+                settings = load_tool_settings(tools, defaults_path=root / "missing.toml")
+
+            self.assertEqual(
+                settings.nextcloud.workspace.outbox,
+                root / "runtime-core" / "workspace_outbox",
+            )
+            self.assertEqual(
+                settings.nextcloud.deck_orders.database,
+                root / "runtime-orders" / "orders.sqlite3",
+            )
+            self.assertEqual(
+                settings.security.antivirus.temp_dir,
+                root / "runtime-security" / "tmp",
+            )
+            self.assertEqual(
+                settings.portfolio.database,
+                root / "runtime-portfolio" / "portfolio.sqlite3",
+            )
+            self.assertEqual(
+                settings.portfolio.import_root,
+                root / "runtime-portfolio" / "inbox",
+            )
+
     def test_container_points_to_image_owned_defaults(self) -> None:
         root = Path(__file__).resolve().parents[1]
         dockerfile = (root / "Dockerfile").read_text(encoding="utf-8")

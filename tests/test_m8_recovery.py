@@ -80,7 +80,17 @@ def _environment(tmp_path: Path) -> tuple[dict[str, str], Path, Path]:
     )
     docker.chmod(0o755)
     chown = fake_bin / "chown"
-    chown.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    chown.write_text(
+        "#!/bin/sh\n"
+        "set -eu\n"
+        "printf '%s\\n' \"$*\" >> \"$M8_CHOWN_LOG\"\n"
+        "for argument in \"$@\"; do\n"
+        "  case \"$argument\" in\n"
+        "    \"$OPENCLAW_ROOT\"/*) chmod -R u+rwX \"$argument\" ;;\n"
+        "  esac\n"
+        "done\n",
+        encoding="utf-8",
+    )
     chown.chmod(0o755)
     environment = os.environ.copy()
     environment.update(
@@ -96,6 +106,7 @@ def _environment(tmp_path: Path) -> tuple[dict[str, str], Path, Path]:
             "OPENCLAW_BACKUP_DIR": str(openclaw / "backups/releases"),
             "HIMALAYA_CONFIG_DIR": str(openclaw / "config/himalaya"),
             "M8_DOCKER_LOG": str(docker_log),
+            "M8_CHOWN_LOG": str(tmp_path / "chown.log"),
             "BACKUP_RETENTION_RELEASES": "100",
         }
     )
@@ -161,6 +172,35 @@ def test_failed_external_restore_still_starts_verified_old_local_state(tmp_path:
     deployed = env_file.read_text(encoding="utf-8")
     assert "OPENCLAW_IMAGE=fixture.invalid/openclaw:old\n" in deployed
     assert "OPENCLAW_CURRENT_RUNTIME=docker\n" in deployed
+
+
+def test_rollback_normalizes_runtime_owned_paths_before_restore(tmp_path: Path) -> None:
+    environment, docker_log, _ = _environment(tmp_path)
+    _backup(tmp_path)
+    runtime_created = tmp_path / "openclaw/state/v3/gateway/workspace"
+    runtime_created.mkdir(parents=True)
+    stale = runtime_created / "root-created.txt"
+    stale.write_text("must be replaced\n", encoding="utf-8")
+    stale.chmod(0o400)
+    runtime_created.chmod(0o500)
+
+    result = subprocess.run(
+        [str(ROOT / "docker/scripts/rollback.sh"), "m8-backup", "--automatic"],
+        cwd=ROOT,
+        env=environment,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert not runtime_created.exists()
+    assert (tmp_path / "openclaw/state/release.txt").read_text() == "safe-old-state\n"
+    chown_calls = (tmp_path / "chown.log").read_text(encoding="utf-8").splitlines()
+    assert len(chown_calls) == 2
+    assert all(str(tmp_path / "openclaw/state") in call for call in chown_calls)
+    commands = docker_log.read_text(encoding="utf-8")
+    assert "up -d ollama-proxy gateway" in commands
 
 
 def _stub(path: Path, body: str) -> None:

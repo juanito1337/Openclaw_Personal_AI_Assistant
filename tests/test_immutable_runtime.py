@@ -12,7 +12,12 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import patch
 
-from personal_assistant.config import AssistantConfig, RuntimeConfig, SearchConfig
+from personal_assistant.config import (
+    AssistantConfig,
+    RuntimeConfig,
+    SearchConfig,
+    load_config,
+)
 from personal_assistant.runtime_identity import runtime_identity
 from personal_assistant.runtime_layout import LAYOUT_VERSION, migrate_layout
 
@@ -172,9 +177,24 @@ class ImmutableRuntimeTests(unittest.TestCase):
                 "http://ollama-proxy:11435",
             )
             self.assertEqual(
+                json.loads(active_gateway.read_text(encoding="utf-8"))["models"]
+                ["providers"]["ollama"]["timeoutSeconds"],
+                1800,
+            )
+            self.assertEqual(
+                json.loads(active_gateway.read_text(encoding="utf-8"))["agents"]
+                ["defaults"]["timeoutSeconds"],
+                3600,
+            )
+            self.assertEqual(
                 json.loads(active_override.read_text(encoding="utf-8"))["providers"]
                 ["ollama"]["baseUrl"],
                 "http://ollama-proxy:11435",
+            )
+            self.assertEqual(
+                json.loads(active_override.read_text(encoding="utf-8"))["providers"]
+                ["ollama"]["timeoutSeconds"],
+                1800,
             )
 
             active_config.write_text(
@@ -392,6 +412,39 @@ class ImmutableRuntimeTests(unittest.TestCase):
             self.assertTrue((root / "state").is_dir())
             self.assertTrue((root / "state/search").is_dir())
             self.assertFalse(secret.parent.exists())
+
+    def test_container_workers_log_to_writable_coordination_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            config_file = root / "config.toml"
+            config_file.write_text("[runtime]\n", encoding="utf-8")
+            core = root / "read-only-core"
+            logs = root / "coordination/container_logs"
+            for role in (
+                "sync-worker",
+                "supervisor-worker",
+                "portfolio-worker",
+                "monitor-worker",
+            ):
+                with patch.dict(
+                    os.environ,
+                    {
+                        "OPENCLAW_RUNTIME": "container",
+                        "OPENCLAW_ROLE": role,
+                        "OPENCLAW_CORE_DATA_DIR": str(core),
+                        "OPENCLAW_LOG_DIR": str(logs),
+                    },
+                    clear=False,
+                ):
+                    config = load_config(config_file)
+
+                self.assertEqual(config.runtime.database, core / "assistant.sqlite3")
+                self.assertEqual(config.runtime.resources_file, core / "resources.toml")
+                self.assertEqual(
+                    config.runtime.log_file,
+                    logs / f"assistant-{role}.log",
+                )
+            self.assertFalse(core.exists())
 
     def test_compose_enforces_read_only_image_and_image_commands(self) -> None:
         compose = (self.root / "compose.yaml").read_text(encoding="utf-8")

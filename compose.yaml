@@ -142,6 +142,10 @@ services:
     volumes:
       - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/gateway:/home/node/.openclaw
       - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/instance:/home/node/.openclaw/workspace
+      # The interactive agent may maintain its profile and memory, but instance
+      # configuration is administrator-owned.  Explicit setup uses agent-cli.
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/instance/mail_agent:/home/node/.openclaw/workspace/mail_agent:ro
+      - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/instance/personal_assistant:/home/node/.openclaw/workspace/personal_assistant:ro
       - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/domains/mail:/var/lib/openclaw/mail
       - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/domains/orders:/var/lib/openclaw/orders
       - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/domains/portfolio:/var/lib/openclaw/portfolio

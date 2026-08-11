@@ -268,6 +268,28 @@ class ProxyIntegrationTests(unittest.TestCase):
         self.assertTrue(payload["ok"])
         self.assertNotIn("OLLAMA_PRIORITY_UPSTREAM", os.environ)
 
+    def test_container_client_check_needs_no_proxy_server_configuration(self) -> None:
+        output = StringIO()
+        environment = {
+            "OPENCLAW_RUNTIME": "container",
+            "OPENCLAW_ROLE": "gateway",
+        }
+        with (
+            patch.dict(os.environ, environment, clear=True),
+            patch("personal_assistant.ollama_priority_proxy._CONTAINER_PROXY_HOST", "127.0.0.1"),
+            patch(
+                "personal_assistant.ollama_priority_proxy._CONTAINER_PROXY_PORT",
+                self.proxy.server_port,
+            ),
+            redirect_stdout(output),
+        ):
+            result = proxy_main(["--check"])
+        payload = json.loads(output.getvalue())
+        self.assertEqual(result, 0)
+        self.assertTrue(payload["ok"])
+        self.assertIn("queue", payload)
+        self.assertNotIn("OLLAMA_PRIORITY_UPSTREAM", os.environ)
+
     def test_streaming_passthrough_and_priority_headers(self) -> None:
         request = urllib.request.Request(
             self.base_url + "/api/chat",

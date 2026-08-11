@@ -5,6 +5,10 @@ Release: `3.4.0-r27.2.5`. Quelle: typisierte Tooldefinitionen unter
 `python3 scripts/generate-skill-tool-contract.py` erzeugt diese Datei deterministisch.
 Die statische Liste belegt keine live erteilte Berechtigung; dafuer immer
 `./scripts/assistant.sh tools list` und `./scripts/assistant.sh capabilities` lesen.
+Tool-IDs in der ersten Spalte sind ausschliesslich Bezeichner und niemals CLI-Syntax.
+Vor `exec` immer das exakte Feld `Kommando` verwenden; insbesondere nie
+`assistant.sh <gepunktete-tool-id>` ausfuehren. Im installierten Container nur
+den fuehrenden Launcher durch `/opt/openclaw-agent/scripts/assistant.sh` ersetzen.
 
 ## runtime
 

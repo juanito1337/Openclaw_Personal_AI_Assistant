@@ -6,6 +6,8 @@ import unittest
 from pathlib import Path
 
 from personal_assistant.ollama_priority_config import (
+    ensure_gateway_timeouts,
+    ensure_model_override_timeouts,
     find_model_overrides,
     normalize_base_url,
     normalize_gateway_base_url,
@@ -130,6 +132,73 @@ class OllamaPriorityConfigTests(unittest.TestCase):
                 normalize_gateway_base_url(path, "http://ollama-proxy:11435")
 
             self.assertEqual(path.read_bytes(), before)
+
+    def test_container_timeouts_are_added_without_replacing_operator_values(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            gateway = root / "openclaw.json"
+            override = root / "agents/main/agent/models.json"
+            override.parent.mkdir(parents=True)
+            gateway.write_text(
+                json.dumps(
+                    {
+                        "models": {"providers": {"ollama": {"baseUrl": "http://ollama-proxy:11435"}}},
+                        "agents": {"defaults": {"maxConcurrent": 2}},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            override.write_text(
+                json.dumps({"providers": {"ollama": {"baseUrl": "http://ollama-proxy:11435"}}}),
+                encoding="utf-8",
+            )
+
+            self.assertTrue(
+                ensure_gateway_timeouts(
+                    gateway,
+                    provider_timeout_seconds=1800,
+                    agent_timeout_seconds=3600,
+                )
+            )
+            self.assertEqual(
+                ensure_model_override_timeouts(
+                    root / "agents",
+                    provider_timeout_seconds=1800,
+                ),
+                [str(override)],
+            )
+            payload = json.loads(gateway.read_text(encoding="utf-8"))
+            self.assertEqual(payload["models"]["providers"]["ollama"]["timeoutSeconds"], 1800)
+            self.assertEqual(payload["agents"]["defaults"]["timeoutSeconds"], 3600)
+            self.assertEqual(payload["agents"]["defaults"]["maxConcurrent"], 2)
+            self.assertFalse(
+                ensure_gateway_timeouts(
+                    gateway,
+                    provider_timeout_seconds=1800,
+                    agent_timeout_seconds=3600,
+                )
+            )
+            self.assertEqual(
+                ensure_model_override_timeouts(
+                    root / "agents",
+                    provider_timeout_seconds=1800,
+                ),
+                [],
+            )
+
+            payload["models"]["providers"]["ollama"]["timeoutSeconds"] = 2400
+            payload["agents"]["defaults"]["timeoutSeconds"] = 7200
+            gateway.write_text(json.dumps(payload), encoding="utf-8")
+            self.assertFalse(
+                ensure_gateway_timeouts(
+                    gateway,
+                    provider_timeout_seconds=1800,
+                    agent_timeout_seconds=3600,
+                )
+            )
+            preserved = json.loads(gateway.read_text(encoding="utf-8"))
+            self.assertEqual(preserved["models"]["providers"]["ollama"]["timeoutSeconds"], 2400)
+            self.assertEqual(preserved["agents"]["defaults"]["timeoutSeconds"], 7200)
 
 
 if __name__ == "__main__":

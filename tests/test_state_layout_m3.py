@@ -198,6 +198,63 @@ class StateLayoutM3Tests(unittest.TestCase):
             self.assertNotIn("skills/personal-assistant", first.release_links)
             self.assertFalse(migrate_layout(ROOT, state, workspace).changed)
 
+    def test_active_tool_paths_are_repaired_without_changing_grants(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            state, workspace = self._state(folder)
+            tools = workspace / "personal_assistant/tools.toml"
+            tools.write_text(
+                """
+[nextcloud.workspace]
+outbox = "/home/node/.openclaw/workspace/outbox"
+allow_upload = false
+
+[nextcloud.deck_orders]
+database = "/home/node/.openclaw/workspace/orders.sqlite3"
+allow_create = false
+
+[security.antivirus]
+temp_dir = "/home/node/.openclaw/workspace/tmp"
+fail_closed = true
+
+[portfolio]
+database = "/home/node/.openclaw/workspace/portfolio.sqlite3"
+import_root = "/home/node/.openclaw/workspace/portfolio_inbox"
+enabled = true
+""".lstrip(),
+                encoding="utf-8",
+            )
+
+            migrate_layout(ROOT, state, workspace)
+            active = state / "v3/instance/personal_assistant/tools.toml"
+            content = active.read_text(encoding="utf-8")
+
+            for expected in (
+                "/var/lib/openclaw/core/workspace_outbox",
+                "/var/lib/openclaw/orders/orders.sqlite3",
+                "/var/lib/openclaw/security/tmp",
+                "/var/lib/openclaw/portfolio/portfolio.sqlite3",
+                "/var/lib/openclaw/portfolio/inbox",
+            ):
+                self.assertIn(f'"{expected}"', content)
+            self.assertIn("allow_upload = false", content)
+            self.assertIn("allow_create = false", content)
+            self.assertIn("fail_closed = true", content)
+            self.assertIn("enabled = true", content)
+            self.assertFalse(migrate_layout(ROOT, state, workspace).changed)
+
+    def test_active_tool_configuration_symlink_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            state, workspace = self._state(folder)
+            migrate_layout(ROOT, state, workspace)
+            active = state / "v3/instance/personal_assistant/tools.toml"
+            external = Path(folder) / "untrusted-tools.toml"
+            external.write_text("[portfolio]\nenabled = true\n", encoding="utf-8")
+            active.unlink()
+            active.symlink_to(external)
+
+            with self.assertRaisesRegex(RuntimeError, "regulaere Datei"):
+                migrate_layout(ROOT, state, workspace)
+
     def test_existing_v3_replaces_generated_agent_contract_with_release_links(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
             state, workspace = self._state(folder)

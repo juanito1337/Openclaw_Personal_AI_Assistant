@@ -140,10 +140,18 @@ if [[ -n "$external_reference" ]]; then
   fi
 fi
 
+normalize_local_restore_ownership() {
+  chown -R 1000:1000 "$OPENCLAW_STATE_DIR" "$HIMALAYA_CONFIG_DIR" 2>/dev/null || \
+    sudo chown -R 1000:1000 "$OPENCLAW_STATE_DIR" "$HIMALAYA_CONFIG_DIR"
+}
+
+# Docker can create a missing bind-mount source as root.  Normalize those
+# runtime-created directories before rsync needs to delete or replace them;
+# normalizing only after the restore is too late and leaves every service down.
+normalize_local_restore_ownership
 echo "Stelle lokalen Zustand aus $backup_id wieder her."
 OPENCLAW_RESTORE_OFFLINE=YES "$SCRIPT_DIR/restore-local-state.sh" "$backup"
-chown -R 1000:1000 "$OPENCLAW_STATE_DIR" "$HIMALAYA_CONFIG_DIR" 2>/dev/null || \
-  sudo chown -R 1000:1000 "$OPENCLAW_STATE_DIR" "$HIMALAYA_CONFIG_DIR"
+normalize_local_restore_ownership
 
 if [[ "$previous_runtime" == "legacy-systemd" ]]; then
   legacy_home_ready || {

@@ -403,6 +403,15 @@ den bekannten nativen Loopback-Prioritaetsproxy auf Port 11435; andere
 Providerendpunkte brechen fail-closed ab. Die Legacy-Workspace-Kopie bleibt fuer
 einen Rollback unveraendert.
 
+Bei einer vorhandenen Ollama-Providerdefinition ergaenzt Layout-Init fehlende,
+explizite Laufzeitgrenzen: `models.providers.ollama.timeoutSeconds=1800` und
+`agents.defaults.timeoutSeconds=3600`. Damit deckt der Providervertrag die
+konfigurierte Proxy-Wartezeit plus Upstream-Zeit ab, waehrend der gesamte
+Agentenlauf eine groessere endliche Obergrenze behaelt. Bereits gesetzte
+Betreiberwerte werden nicht ersetzt. `assistant.sh ollama check` fragt aus
+Container-Clientrollen den privaten Proxy-Health-Endpunkt ab; nur die Proxyrolle
+selbst benoetigt ihre geschuetzte Upstream-Konfiguration.
+
 Aus Releases vor ADR-0014 falsch nach `local-workspace/` verschobene
 `IDENTITY.md`, `SOUL.md`, `USER.md` und der abgeschlossene Workspace-Setupstatus
 werden nur dann wieder aktiv, wenn OpenClaws SHA-256-Attestierung jede
@@ -513,7 +522,12 @@ Tool code plus release-owned defaults and baseline policies are read from the
 new image on every update. Persistent `tools.toml` and `policies.toml` files are
 instance overrides; account/resource selections and explicit permission grants
 remain outside the image. New write permissions are never granted by an image
-update. For the direct mail tools, approve the required `read`, `move` and
+update. The gateway mounts both instance configuration directories read-only;
+generic agent file or shell tools cannot patch them after a failed domain call.
+At each layout start the fixed container data paths in `tools.toml` are repaired
+idempotently while resource selections and permission grants remain unchanged.
+Administrative setup therefore runs only in the explicitly selected, short-lived
+`agent-cli` role. For the direct mail tools, approve the required `read`, `move` and
 `forward` permissions once with:
 
 ```bash

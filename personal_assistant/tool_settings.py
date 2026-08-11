@@ -228,6 +228,20 @@ def _clean_workspace_path(value: str | Path, *, field_name: str) -> Path:
     return path
 
 
+def _runtime_path(
+    environment_name: str,
+    suffix: str,
+    configured: str | Path,
+    *,
+    field_name: str,
+) -> Path:
+    """Prefer an entrypoint-owned container root before validating legacy config."""
+    runtime_root = os.environ.get(environment_name, "").strip()
+    if runtime_root:
+        return Path(runtime_root).expanduser().resolve() / suffix
+    return _clean_workspace_path(configured, field_name=field_name)
+
+
 def load_tool_settings(
     path: str | Path | None = None,
     *,
@@ -360,7 +374,12 @@ def load_tool_settings(
         allow_move=bool(deck_orders_data.get("allow_move", True)),
         auto_process_mail=bool(deck_orders_data.get("auto_process_mail", True)),
         min_confidence=max(0.50, min(float(deck_orders_data.get("min_confidence", 0.82)), 1.0)),
-        database=_clean_outbox(deck_orders_data.get("database") or DEFAULT_ORDERS_DB),
+        database=_runtime_path(
+            "OPENCLAW_ORDERS_DATA_DIR",
+            "orders.sqlite3",
+            deck_orders_data.get("database") or DEFAULT_ORDERS_DB,
+            field_name="nextcloud.deck_orders.database",
+        ),
     )
 
     antivirus = AntivirusToolSettings(
@@ -376,7 +395,12 @@ def load_tool_settings(
         cache_hours=max(0, min(int(antivirus_data.get("cache_hours", 24)), 720)),
         max_scan_bytes=max(1024, min(int(antivirus_data.get("max_scan_bytes", 100_000_000)), 1_000_000_000)),
         timeout_seconds=max(5, min(int(antivirus_data.get("timeout_seconds", 120)), 1800)),
-        temp_dir=_clean_outbox(antivirus_data.get("temp_dir") or DEFAULT_ANTIVIRUS_TEMP),
+        temp_dir=_runtime_path(
+            "OPENCLAW_SECURITY_DATA_DIR",
+            "tmp",
+            antivirus_data.get("temp_dir") or DEFAULT_ANTIVIRUS_TEMP,
+            field_name="security.antivirus.temp_dir",
+        ),
     )
     interval_minutes = int(portfolio_data.get("interval_minutes", 15))
     if interval_minutes not in {15, 30, 60, 90, 120}:
@@ -399,11 +423,15 @@ def load_tool_settings(
         raise ValueError("tools.toml: portfolio.api_key_env ist kein gueltiger Variablenname")
     portfolio = PortfolioToolSettings(
         enabled=bool(portfolio_data.get("enabled", False)),
-        database=_clean_workspace_path(
+        database=_runtime_path(
+            "OPENCLAW_PORTFOLIO_DATA_DIR",
+            "portfolio.sqlite3",
             portfolio_data.get("database") or DEFAULT_PORTFOLIO_DB,
             field_name="portfolio.database",
         ),
-        import_root=_clean_workspace_path(
+        import_root=_runtime_path(
+            "OPENCLAW_PORTFOLIO_DATA_DIR",
+            "inbox",
             portfolio_data.get("import_root") or DEFAULT_PORTFOLIO_INBOX,
             field_name="portfolio.import_root",
         ),
@@ -461,27 +489,17 @@ def load_tool_settings(
             str(workspace_data.get("root") or "Assistent"),
             field_name="Workspace-Wurzel",
         ),
-        outbox=_clean_outbox(workspace_data.get("outbox") or DEFAULT_WORKSPACE_OUTBOX),
+        outbox=_runtime_path(
+            "OPENCLAW_CORE_DATA_DIR",
+            "workspace_outbox",
+            workspace_data.get("outbox") or DEFAULT_WORKSPACE_OUTBOX,
+            field_name="nextcloud.workspace.outbox",
+        ),
         allow_mkdir=bool(workspace_data.get("allow_mkdir", True)),
         allow_upload=bool(workspace_data.get("allow_upload", True)),
         allow_write_text=bool(workspace_data.get("allow_write_text", True)),
         allow_move=bool(workspace_data.get("allow_move", True)),
     )
-
-    # Container layout v3 injects role-mounted data roots after the instance
-    # configuration was parsed.  These roots are administrator-owned mount
-    # points, so they intentionally do not pass through the legacy
-    # workspace-only validators above.
-    if orders_root := os.environ.get("OPENCLAW_ORDERS_DATA_DIR"):
-        deck_orders.database = Path(orders_root).expanduser().resolve() / "orders.sqlite3"
-    if security_root := os.environ.get("OPENCLAW_SECURITY_DATA_DIR"):
-        antivirus.temp_dir = Path(security_root).expanduser().resolve() / "tmp"
-    if portfolio_root := os.environ.get("OPENCLAW_PORTFOLIO_DATA_DIR"):
-        root = Path(portfolio_root).expanduser().resolve()
-        portfolio.database = root / "portfolio.sqlite3"
-        portfolio.import_root = root / "inbox"
-    if core_root := os.environ.get("OPENCLAW_CORE_DATA_DIR"):
-        workspace.outbox = Path(core_root).expanduser().resolve() / "workspace_outbox"
 
     if calendar_mail.enabled:
         if not calendar_mail.sender_addresses:

@@ -798,7 +798,7 @@ def main(argv: list[str] | None = None) -> int:
     # the egress-less supervisor must not receive the proxy's upstream server
     # configuration merely to perform its read-only health check.
     if (
-        args.status
+        (args.status or args.check)
         and os.environ.get("OPENCLAW_RUNTIME") == "container"
         and os.environ.get("OPENCLAW_ROLE") != "ollama-proxy"
     ):

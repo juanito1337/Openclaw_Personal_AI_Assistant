@@ -23,17 +23,44 @@ gain values remain unknown. `currency` belongs to snapshot values;
 `quote_currency` belongs to the confirmed market mapping and must not be silently
 replaced by a newer import.
 
-For current value/profit/return use `portfolio valuation`, which performs the
-controlled currency conversion. Never manually combine holdings and quote output,
-and never compare USD and EUR without controlled FX. Missing, stale or invalid
-equity/FX quotes make the result incomplete and must not be summed as a complete
-total.
+`portfolio.holdings` is the Tool-ID, not a command. In the installed container
+execute `/opt/openclaw-agent/scripts/assistant.sh portfolio holdings`; the dotted
+form `/opt/openclaw-agent/scripts/assistant.sh portfolio.holdings` is invalid.
+
+For a request for latest/current prices, value, profit or return, first use
+`portfolio quotes status`. If the registered result is due, stale or missing and
+provider configuration plus mappings are valid, use `portfolio quotes refresh`;
+then use `portfolio valuation`, which performs the controlled currency conversion.
+The ordinary refresh is the registered scheduled-market-data refresh and needs no
+invented `--yes`; `--force` is only for an explicitly requested diagnostic refresh.
+Never manually combine holdings and quote output, and never compare USD and EUR
+without controlled FX. Missing, stale or invalid equity/FX quotes make the result
+incomplete and must not be summed as a complete total.
+
+Run the registered setup, mapping, doctor, refresh, status, valuation and job
+commands yourself; never ask Jan to copy a `docker exec` wrapper. If an instrument
+has no confirmed mapping, first read holdings and watchlist, then present one
+bounded plan containing the exact ISIN, name, symbol, MIC and currency. Wait for
+explicit approval, execute that exact `portfolio watchlist add ... --yes` command,
+and verify the watchlist before refreshing quotes. Then run quote status and
+valuation. On failure run `portfolio doctor` and `jobs check --target all --deep`.
+Enabling the portfolio job is a separate approval: after it is granted, execute
+`jobs on portfolio` yourself and verify with `jobs status --target portfolio
+--deep`. Do not broaden an approval to another ISIN, mapping, job or permission.
 
 For one current price resolve the exact ISIN, then use `portfolio quotes get
 --isin`. Report price, currency, observation time, provider and stale/critical
 flags. `portfolio quotes status` is health metadata and accepts no `--detailed`
 option. Do not inspect SQLite directly, invent switches or substitute web search
 while the registered read tool is available.
+
+If refresh is blocked, stop and report the exact contract failure. A missing
+`PORTFOLIO_EODHD_API_KEY` requires Jan to provision the secret; an unconfirmed
+symbol/MIC/currency requires an explicit mapping choice through the registered
+watchlist command. Never guess either value or claim an old snapshot price is
+current. Never inspect or edit `personal_assistant/tools.toml` to recover from a
+portfolio error. Run the registered doctor and deep job check; protected setup
+changes belong to the explicitly approved `agent-cli` path.
 
 EODHD is the only quote provider. It uses confirmed forms such as `RHM.XETRA`,
 batches at most 20 market/FX symbols and normally returns prices delayed by about
