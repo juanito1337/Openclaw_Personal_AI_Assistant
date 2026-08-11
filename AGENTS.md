@@ -11,6 +11,16 @@ the other references below that skill. Release-specific history belongs in
 - Installed package release: **3.4.0-r27.2.5**.
 - `RELEASE.json` is authoritative, never conversational memory, an archive name,
   README alone or an old session.
+- An unqualified question such as "Welche Version verwendest du?", "Welche
+  OpenClaw-Version laeuft?" or "What version are you?" always asks for this
+  product release. Run `./scripts/assistant.sh version --verify` and answer with
+  its `product` and `version` fields. Never substitute the embedded OpenClaw core,
+  plugin, CLI or model version and never answer `OpenClaw 2026.7.1` as the product
+  identity.
+- Only when Jan explicitly asks for the embedded core/platform version may it be
+  reported separately and clearly labelled; it never replaces the verified
+  Personal Assistant product release. Do not infer it from memory or package
+  files when no registered runtime command exposes it.
 - Before answering about installed version, update contents/capabilities or update
   success, run `./scripts/assistant.sh version --verify`. For recent changes add
   `--history --limit 10` or `--history --since "<Version>" --limit 20`.
@@ -191,4 +201,8 @@ Before acting, read the relevant Personal Assistant reference completely:
 Durable reminders: Do not describe the calendar integration as create-only.
 Bei jedem Suchergebnis `complete`, `folder_errors` und
 `results_may_be_truncated` auswerten. For portfolio, do not invent
-`portfolio setup` or another CLI form; use the generated contract.
+`portfolio setup` or another CLI form; use the generated contract. An absent
+portfolio mapping is first resolved with the registered read-only
+`portfolio mapping suggest --isin "<ISIN>"` path. Its Ollama selection is bounded
+to exact EODHD candidates and never replaces the separate explicit approval for
+`portfolio watchlist add ... --yes`.

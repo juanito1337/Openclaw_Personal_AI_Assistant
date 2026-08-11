@@ -2,6 +2,24 @@
 
 ## Unreleased – M8 End-to-End-Recovery, Skills und Releaseabschluss
 
+- Der neue read-only Befehl `portfolio mapping suggest --isin` sucht die exakte
+  ISIN bei EODHD und laesst Ollama nur einen providerseitig gelieferten
+  Kandidaten samt allowlistetem MIC auswaehlen. Erfundenes Modelloutput wird
+  verworfen; gespeichert wird weiterhin erst nach separater ausdruecklicher
+  Freigabe ueber `portfolio watchlist add ... --yes`.
+
+- Fehlgeschlagene Portfolio-Statusabfragen zeigen Konfigurationsblocker wie einen
+  fehlenden EODHD-Schluessel bereits direkt an. Der Agent muss vor seiner Antwort
+  Doctor und tiefen Jobcheck auswerten, alle unabhaengigen Ursachen nennen und
+  eine konkrete genehmigungspflichtige Mapping-Aktion anbieten. Holdings koennen
+  leere Symbol/MIC-Felder nicht mehr als bestaetigtes Mapping ausgeben.
+
+- Unqualifizierte Versionsfragen werden im Agenten- und Skillvertrag eindeutig
+  auf das verifizierte Produktrelease des OpenClaw Local Personal Assistant
+  geroutet. Die eingebettete OpenClaw-Core-/Plugin-/CLI-Version darf nicht mehr
+  als Produktidentitaet ausgegeben werden; ein CLI-Regressionstest belegt die
+  Release-Antwort aus `RELEASE.json`.
+
 - Container-Runtime-Wurzeln werden vor der alten Workspace-Pfadpruefung
   aufgeloest. Dadurch blockieren bereits migrierte Pfade unter
   `/var/lib/openclaw` weder Portfolio noch Doctor und Jobs. Der Agent fuehrt
@@ -33,7 +51,7 @@
   ein vorhandener Hook zur Laufzeit, startet der verifizierte alte lokale Stand
   trotzdem, waehrend der unklare Remotezustand und Rollbackfehler sichtbar bleiben.
 - `AGENTS.md` ist auf dauerhafte Invarianten konzentriert. Der kurze
-  Personal-Assistant-Skill routet in Domaenenreferenzen; alle 124 Toolbefehle,
+  Personal-Assistant-Skill routet in Domaenenreferenzen; alle 125 Toolbefehle,
   Modi, Wirkungen, Approvals, Version und Testanker werden aus dem typisierten
   Katalog generiert und in CI gegen Drift geprueft.
 - Releasecheckliste, Single-Writer-Canary und ADR-0012 schliessen die technische

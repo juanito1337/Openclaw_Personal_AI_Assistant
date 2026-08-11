@@ -46,7 +46,10 @@ def test_skill_trigger_is_short_precise_and_routes_every_domain() -> None:
     description = re.search(r"^description:\s*(.+)$", frontmatter, re.MULTILINE)
     assert description is not None
     assert 120 <= len(description.group(1)) <= 360
-    assert "Use for Jan's OpenClaw" in description.group(1)
+    assert (
+        "Use for Jan's OpenClaw Personal Assistant product version/release/update/status"
+        in description.group(1)
+    )
     assert "portfolio/stocks/holdings/quotes" in description.group(1)
     assert "not a dotted tool ID" in description.group(1)
     assert "before memory, workspace or shell search" in description.group(1)
@@ -60,6 +63,27 @@ def test_skill_trigger_is_short_precise_and_routes_every_domain() -> None:
     ):
         assert f"references/{name}" in skill
         assert (SKILL / "references" / name).is_file()
+
+
+def test_unqualified_version_question_routes_to_verified_product_release() -> None:
+    skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
+    runtime = " ".join(
+        (SKILL / "references/runtime-security.md").read_text(encoding="utf-8").split()
+    )
+    catalog = {definition.id: definition for definition in tool_definitions()}
+    version_tool = catalog["assistant.version"]
+
+    assert '"Welche Version verwendest du?"' in skill
+    assert '"What version are you?"' in skill
+    assert "OpenClaw Local Personal Assistant product release" in skill
+    assert "Never use `openclaw --version`" in skill
+    assert "never answer `OpenClaw 2026.7.1`" in skill
+    assert "An unqualified version question always means" in runtime
+    assert version_tool.command == "./scripts/assistant.sh version --verify"
+    assert "Produktrelease" in version_tool.description
+    assert (
+        "keine eingebettete Core-, Plugin- oder CLI-Version" in version_tool.description
+    )
 
 
 def test_skill_routes_registered_domain_commands_before_generic_fallbacks() -> None:
@@ -137,6 +161,42 @@ def test_skill_refreshes_stale_quotes_before_claiming_current_prices() -> None:
     assert "use `portfolio quotes refresh`; then use `portfolio valuation`" in portfolio
     assert "`--force` is only for an explicitly requested diagnostic refresh" in portfolio
     assert "Never guess either value or claim an old snapshot price is current" in portfolio
+
+
+def test_failed_portfolio_status_requires_complete_diagnosis_and_next_action() -> None:
+    skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
+    portfolio = " ".join(
+        (SKILL / "references/portfolio.md").read_text(encoding="utf-8").split()
+    )
+
+    for contract in (skill, portfolio):
+        assert "`portfolio doctor`" in contract
+        assert "`jobs check --target all --deep`" in contract
+        assert "`configuration_ok`" in contract
+        assert "`api_key_present`" in contract
+    assert "do not answer from quote status alone" in skill
+    assert "A failure explanation without the next bounded action is incomplete" in skill
+    assert "request one exact mapping approval" in portfolio
+    assert "Secret provisioning remains Jan's host action" in portfolio
+
+
+def test_missing_mapping_uses_provider_bounded_ollama_suggestion() -> None:
+    skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
+    portfolio = " ".join(
+        (SKILL / "references/portfolio.md").read_text(encoding="utf-8").split()
+    )
+    runtime = " ".join(
+        (SKILL / "references/runtime-security.md").read_text(encoding="utf-8").split()
+    )
+
+    command = '`portfolio mapping suggest --isin "<ISIN>"`'
+    assert command in skill
+    assert command in portfolio
+    assert command in runtime
+    assert "select only a returned candidate plus one of its allowlisted MICs" in portfolio
+    assert "reject every symbol, currency, candidate ID or MIC" in portfolio
+    assert "Treat the result as an unstored proposal" in portfolio
+    assert "explicit approval" in portfolio
 
 
 def test_agent_executes_approved_portfolio_workflow_instead_of_delegating_it() -> None:

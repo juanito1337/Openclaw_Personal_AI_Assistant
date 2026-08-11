@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -12,6 +13,22 @@ from personal_assistant.tool_settings import ToolSettings
 
 
 class ReleaseAwarenessTests(unittest.TestCase):
+    def test_registered_cli_reports_product_release_not_embedded_core_version(self) -> None:
+        root = Path(__file__).parents[1]
+        completed = subprocess.run(
+            [str(root / "scripts/assistant.sh"), "version", "--verify"],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        report = json.loads(completed.stdout)
+        self.assertTrue(report["ok"], report)
+        self.assertEqual(report["product"], "OpenClaw Local Personal Assistant")
+        self.assertEqual(report["version"], "3.4.0-r27.2.5")
+        self.assertNotEqual(report["version"], "2026.7.1")
+
     def test_installed_package_manifest_is_consistent(self) -> None:
         report = release_report(verify=True, include_history=True, limit=20)
         self.assertTrue(report["ok"], report)

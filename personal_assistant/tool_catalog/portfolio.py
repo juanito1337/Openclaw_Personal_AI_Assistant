@@ -148,6 +148,18 @@ TOOLS: tuple[ToolDefinition, ...] = (
         test_anchor="tests/test_portfolio_tool.py",
     ),
     define(
+        id="portfolio.mapping.suggest",
+        domain="portfolio",
+        description="Exakte EODHD-ISIN-Treffer abrufen und Ollama nur aus den providerseitig belegten Kandidaten einen bestaetigungspflichtigen Boersenplatzvorschlag auswaehlen lassen",
+        command='./scripts/assistant.sh portfolio mapping suggest --isin "<ISIN>"',
+        mode="read",
+        writes_external_data=False,
+        approval="none",
+        availability="always",
+        documentation_anchor="docs/PORTFOLIO_ADVISOR.md",
+        test_anchor="tests/test_portfolio_tool.py",
+    ),
+    define(
         id="portfolio.watchlist.add",
         domain="portfolio",
         description="Wertpapier mit explizit bestaetigter Boersenplatz-Zuordnung aufnehmen",

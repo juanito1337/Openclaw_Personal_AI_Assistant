@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import tempfile
 import unittest
 from datetime import UTC, datetime, timedelta
@@ -191,6 +192,7 @@ class PortfolioParserTests(unittest.TestCase):
         self.assertIn("portfolio.import.csv.nextcloud.confirm", ids)
         self.assertIn("portfolio.quotes.refresh", ids)
         self.assertIn("portfolio.quotes.get", ids)
+        self.assertIn("portfolio.mapping.suggest", ids)
         self.assertIn("portfolio.valuation", ids)
         self.assertIn("portfolio.analyze", ids)
         self.assertIn("portfolio.job.on", ids)
@@ -222,6 +224,11 @@ class PortfolioParserTests(unittest.TestCase):
             ["portfolio", "quotes", "get", "--isin", ISIN]
         )
         self.assertEqual(quote.isin, ISIN)
+        mapping = cli_parser().parse_args(
+            ["portfolio", "mapping", "suggest", "--isin", ISIN]
+        )
+        self.assertEqual(mapping.mapping_command, "suggest")
+        self.assertEqual(mapping.isin, ISIN)
         valuation = cli_parser().parse_args(["portfolio", "valuation"])
         self.assertEqual(valuation.portfolio_command, "valuation")
         free_interval = cli_parser().parse_args(
@@ -449,6 +456,36 @@ class PortfolioServiceTests(unittest.TestCase):
         )
         self.assertEqual(basf["currency"], "EUR")
         self.assertEqual(basf["quote_currency"], "USD")
+
+    def test_holdings_never_claim_blank_symbol_mapping_is_confirmed(self) -> None:
+        self.service.import_csv(self.csv.name, dry_run=False)
+        with self.service.store.connection:
+            self.service.store.connection.execute(
+                "UPDATE instruments SET mapping_confirmed=1,symbol='',mic='' WHERE isin=?",
+                (ISIN,),
+            )
+        basf = next(
+            item for item in self.service.holdings()["positions"] if item["isin"] == ISIN
+        )
+        self.assertEqual(basf["mapping_confirmed"], 0)
+        self.assertEqual(basf["quote_currency"], "")
+
+    def test_status_exposes_configuration_blockers_before_quote_refresh(self) -> None:
+        with patch.dict(os.environ, {"PORTFOLIO_EODHD_API_KEY": ""}):
+            status = self.service.status()
+            doctor = self.service.doctor()
+        self.assertFalse(status["configuration"]["ok"])
+        self.assertFalse(status["configuration"]["api_key_present"])
+        self.assertTrue(status["configuration"]["provider_ok"])
+        self.assertTrue(status["configuration"]["import_root_present"])
+        self.assertFalse(status["ok"])
+        self.assertFalse(doctor["configuration_ok"])
+        self.assertFalse(doctor["api_key_present"])
+
+        with patch.dict(os.environ, {"PORTFOLIO_EODHD_API_KEY": "configured"}):
+            configured = self.service.status()["configuration"]
+        self.assertTrue(configured["ok"])
+        self.assertTrue(configured["api_key_present"])
 
     def test_new_dkb_snapshot_preserves_confirmed_quote_currency(self) -> None:
         self.service.import_csv(self.csv.name, dry_run=False)

@@ -18,7 +18,10 @@ TOOLS: tuple[ToolDefinition, ...] = (
     define(
         id="assistant.version",
         domain="runtime",
-        description="Installierte OpenClaw-Version und Konsistenz aus der verbindlichen Release-Datei pruefen",
+        description=(
+            "Installiertes OpenClaw-Local-Personal-Assistant-Produktrelease und Konsistenz "
+            "aus RELEASE.json pruefen; keine eingebettete Core-, Plugin- oder CLI-Version"
+        ),
         command="./scripts/assistant.sh version --verify",
         mode="read",
         writes_external_data=False,

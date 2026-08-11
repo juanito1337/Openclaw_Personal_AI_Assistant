@@ -40,6 +40,7 @@ personal_assistant/resources.toml
 personal_assistant/policies.toml
 personal_assistant/tools.toml
 personal_assistant/data
+/srv/
 skills/openclaw-nextcloud
 backups
 /build/

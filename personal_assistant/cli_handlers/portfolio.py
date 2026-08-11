@@ -54,6 +54,12 @@ def handle(args: argparse.Namespace, assistant: Any, emit: Callable[[Any], None]
                 if args.watchlist_command == "add"
                 else assistant.portfolio.watchlist_disable(args.isin)
             )
+    elif command == "mapping":
+        if args.mapping_command != "suggest":
+            raise ValueError(f"Unbekannter Mapping-Befehl: {args.mapping_command}")
+        result = assistant.portfolio.mapping_suggest(args.isin)
+        emit(result)
+        return 0 if result.get("ok") else 1
     elif command == "quotes":
         if args.quotes_command == "status":
             result = assistant.portfolio.health()

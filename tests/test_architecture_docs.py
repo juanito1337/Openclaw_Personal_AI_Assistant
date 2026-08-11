@@ -43,6 +43,16 @@ class ArchitectureDocumentationTests(unittest.TestCase):
             errors = self.checker.validate_links(root)
         self.assertTrue(any("ungueltiger interner Link" in error for error in errors))
 
+    def test_local_srv_runtime_tree_is_not_scanned_as_repository_docs(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "README.md").write_text("# Repository\n", encoding="utf-8")
+            runtime = root / "srv/openclaw/state/v3/instance"
+            runtime.mkdir(parents=True)
+            (runtime / "AGENTS.md").symlink_to("/opt/openclaw-agent/AGENTS.md")
+            active = self.checker.active_markdown_files(root)
+        self.assertEqual(active, [Path("README.md")])
+
     def test_owner_contract_rejects_missing_document(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -42,6 +42,14 @@ def add_commands(sub: Any) -> None:
     watchlist_disable = watchlist_sub.add_parser("disable")
     watchlist_disable.add_argument("--isin", required=True)
     watchlist_disable.add_argument("--yes", action="store_true")
+    mapping = portfolio_sub.add_parser(
+        "mapping", help="EODHD-Kandidaten durch Ollama begrenzt auswaehlen lassen"
+    )
+    mapping_sub = mapping.add_subparsers(dest="mapping_command", required=True)
+    mapping_suggest = mapping_sub.add_parser(
+        "suggest", help="Schreibgeschuetzten Mappingvorschlag fuer eine exakte ISIN erzeugen"
+    )
+    mapping_suggest.add_argument("--isin", required=True)
     quotes = portfolio_sub.add_parser("quotes", help="Kursversorgung pruefen oder aktualisieren")
     quotes_sub = quotes.add_subparsers(dest="quotes_command", required=True)
     quotes_sub.add_parser("status")

@@ -29,6 +29,7 @@ SCHEMA_VERSION = 4
 MAX_IMPORT_BYTES = 25_000_000
 ISIN_RE = re.compile(r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$")
 MIC_RE = re.compile(r"^[A-Z0-9]{4}$")
+MAPPING_SYMBOL_RE = re.compile(r"^[A-Z0-9][A-Z0-9.\-]{0,39}$")
 EODHD_EXCHANGE_BY_MIC = {
     "XETR": "XETRA",
     "XNAS": "US",
@@ -109,6 +110,16 @@ class FxQuote:
 QuoteFetcher = Callable[[dict[str, str]], Quote]
 FxQuoteFetcher = Callable[[str, str], FxQuote]
 EventNotifier = Callable[[str], dict[str, Any]]
+MappingSearcher = Callable[[str], list[dict[str, Any]]]
+MappingSelector = Callable[[dict[str, Any]], dict[str, Any]]
+
+
+SUPPORTED_MICS_BY_EODHD_EXCHANGE: dict[str, tuple[str, ...]] = {
+    "XETRA": ("XETR",),
+    "US": ("XNAS", "XNGS", "XNYS"),
+    "NASDAQ": ("XNAS", "XNGS"),
+    "NYSE": ("XNYS",),
+}
 
 
 def _notify_openclaw(text: str) -> dict[str, Any]:
@@ -132,6 +143,7 @@ def _notify_openclaw(text: str) -> dict[str, Any]:
 
 class EodhdClient:
     endpoint = "https://eodhd.com/api/real-time"
+    search_endpoint = "https://eodhd.com/api/search"
 
     def __init__(self, api_key: str, *, timeout: int = 20) -> None:
         self.api_key = api_key
@@ -266,6 +278,80 @@ class EodhdClient:
         if quote is None:
             raise RuntimeError(f"EODHD lieferte keinen Kurs fuer {self.ticker(instrument)}")
         return quote
+
+    def search_by_isin(self, isin: str, *, limit: int = 25) -> list[dict[str, Any]]:
+        """Return active EODHD search candidates for one exact ISIN."""
+        normalized = isin.strip().upper()
+        if not _valid_isin(normalized):
+            raise ValueError("ISIN ist ungueltig")
+        params = {
+            "api_token": self.api_key,
+            "fmt": "json",
+            "limit": str(max(1, min(int(limit), 100))),
+            "type": "stock",
+        }
+        url = (
+            f"{self.search_endpoint}/{urllib.parse.quote(normalized, safe='')}?"
+            + urllib.parse.urlencode(params)
+        )
+        request = urllib.request.Request(url, headers={"User-Agent": "OpenClaw-Portfolio/1"})
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                raw = response.read(2_000_000)
+        except urllib.error.HTTPError as exc:
+            try:
+                raw = exc.read(64_000)
+            except OSError:
+                raw = b""
+            raise self._provider_error(raw, f"HTTP {exc.code}") from None
+        except urllib.error.URLError as exc:
+            reason = str(getattr(exc, "reason", "Verbindung fehlgeschlagen"))
+            raise self._provider_error(b"", reason) from None
+        except (TimeoutError, OSError) as exc:
+            raise self._provider_error(b"", type(exc).__name__) from None
+        try:
+            payload = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise RuntimeError("EODHD-Suche lieferte kein gueltiges JSON") from exc
+        if isinstance(payload, dict) and (
+            isinstance(payload.get("code"), int)
+            or str(payload.get("status") or "").casefold() == "error"
+        ):
+            raise self._provider_error(raw, "Anbieterfehler")
+        if not isinstance(payload, list):
+            raise RuntimeError("EODHD-Suche lieferte keine Kandidatenliste")
+
+        candidates: list[dict[str, Any]] = []
+        for row in payload:
+            if not isinstance(row, dict):
+                continue
+            row_isin = str(row.get("ISIN") or row.get("isin") or "").strip().upper()
+            if row_isin != normalized:
+                continue
+            symbol = str(row.get("Code") or row.get("code") or "").strip().upper()
+            exchange = str(row.get("Exchange") or row.get("exchange") or "").strip().upper()
+            currency = str(row.get("Currency") or row.get("currency") or "").strip().upper()
+            name = str(row.get("Name") or row.get("name") or "").strip()
+            allowed_mics = SUPPORTED_MICS_BY_EODHD_EXCHANGE.get(exchange, ())
+            if (
+                not MAPPING_SYMBOL_RE.fullmatch(symbol)
+                or len(currency) != 3
+                or not currency.isalpha()
+                or not allowed_mics
+            ):
+                continue
+            candidates.append(
+                {
+                    "isin": normalized,
+                    "name": name or normalized,
+                    "symbol": symbol,
+                    "exchange": exchange,
+                    "currency": currency,
+                    "is_primary": bool(row.get("isPrimary") or row.get("is_primary")),
+                    "allowed_mics": list(allowed_mics),
+                }
+            )
+        return candidates
 
 
 class PortfolioStore:
@@ -434,6 +520,8 @@ class PortfolioService:
         quote_fetcher: QuoteFetcher | None = None,
         fx_quote_fetcher: FxQuoteFetcher | None = None,
         notifier: EventNotifier | None = None,
+        mapping_searcher: MappingSearcher | None = None,
+        mapping_selector: MappingSelector | None = None,
         now: Callable[[], datetime] = _now,
     ) -> None:
         self.settings = settings
@@ -442,6 +530,8 @@ class PortfolioService:
         self._quote_fetcher = quote_fetcher
         self._fx_quote_fetcher = fx_quote_fetcher
         self._notifier = notifier or _notify_openclaw
+        self._mapping_searcher = mapping_searcher
+        self._mapping_selector = mapping_selector
         self._now = now
 
     def close(self) -> None:
@@ -656,8 +746,15 @@ class PortfolioService:
             SELECT p.account,p.isin,p.shares,p.entry_price,p.valuation_price,
                    p.absolute_gain,p.relative_gain_percent,p.asset_class,
                    COALESCE(NULLIF(p.snapshot_currency,''),i.currency) AS currency,
-                   CASE WHEN i.mapping_confirmed=1 THEN i.currency ELSE '' END AS quote_currency,
-                   i.name,i.wkn,i.symbol,i.mic,i.mapping_confirmed
+                   CASE
+                       WHEN i.mapping_confirmed=1 AND i.symbol!='' AND i.mic!=''
+                       THEN i.currency ELSE ''
+                   END AS quote_currency,
+                   i.name,i.wkn,i.symbol,i.mic,
+                   CASE
+                       WHEN i.mapping_confirmed=1 AND i.symbol!='' AND i.mic!=''
+                       THEN 1 ELSE 0
+                   END AS mapping_confirmed
             FROM position_snapshots p JOIN instruments i ON i.isin=p.isin
             WHERE p.import_id=? ORDER BY i.name,p.account
             """,
@@ -682,6 +779,174 @@ class PortfolioService:
             """
         ).fetchall()
         return {"ok": True, "count": len(rows), "items": [dict(row) for row in rows]}
+
+    def mapping_suggest(self, isin: str) -> dict[str, Any]:
+        """Build a read-only, provider-bounded Ollama mapping proposal."""
+        self._require_enabled()
+        normalized = isin.strip().upper()
+        if not _valid_isin(normalized):
+            raise ValueError("ISIN ist ungueltig")
+        row = self.store.connection.execute(
+            """
+            SELECT isin,name,wkn,symbol,mic,currency,mapping_confirmed
+            FROM instruments WHERE isin=?
+            """,
+            (normalized,),
+        ).fetchone()
+        if row is None:
+            raise ValueError("ISIN ist weder im Depot noch in der Watchlist registriert")
+        current = dict(row)
+        if current["mapping_confirmed"] and current["symbol"] and current["mic"]:
+            return {
+                "ok": True,
+                "status": "already-confirmed",
+                "read_only": True,
+                "stored": False,
+                "candidate": {
+                    "isin": normalized,
+                    "name": current["name"],
+                    "symbol": current["symbol"],
+                    "mic": current["mic"],
+                    "currency": current["currency"],
+                    "provider_symbol": EodhdClient.ticker(current),
+                },
+            }
+
+        api_key = os.environ.get(self.settings.api_key_env, "").strip()
+        if not api_key:
+            raise RuntimeError(f"API-Schluessel fehlt in Umgebungsvariable {self.settings.api_key_env}")
+        searcher = self._mapping_searcher
+        if searcher is None:
+            searcher = EodhdClient(
+                api_key,
+                timeout=self.settings.request_timeout_seconds,
+            ).search_by_isin
+        provider_candidates = searcher(normalized)
+        bounded_candidates: list[dict[str, Any]] = []
+        for candidate_id, item in enumerate(provider_candidates, 1):
+            if str(item.get("isin") or "").strip().upper() != normalized:
+                continue
+            symbol = str(item.get("symbol") or "").strip().upper()
+            exchange = str(item.get("exchange") or "").strip().upper()
+            currency = str(item.get("currency") or "").strip().upper()
+            allowed_mics = tuple(
+                mic
+                for mic in (str(value).strip().upper() for value in item.get("allowed_mics") or ())
+                if MIC_RE.fullmatch(mic) and mic in EODHD_EXCHANGE_BY_MIC
+            )
+            if (
+                not MAPPING_SYMBOL_RE.fullmatch(symbol)
+                or len(currency) != 3
+                or not currency.isalpha()
+                or not allowed_mics
+            ):
+                continue
+            bounded_candidates.append(
+                {
+                    "candidate_id": candidate_id,
+                    "isin": normalized,
+                    "name": str(item.get("name") or current["name"]).strip()[:200],
+                    "symbol": symbol,
+                    "exchange": exchange,
+                    "currency": currency,
+                    "is_primary": bool(item.get("is_primary")),
+                    "allowed_mics": list(dict.fromkeys(allowed_mics)),
+                }
+            )
+        if not bounded_candidates:
+            return {
+                "ok": False,
+                "status": "no-provider-candidate",
+                "read_only": True,
+                "stored": False,
+                "isin": normalized,
+                "error": "EODHD lieferte keinen unterstuetzten exakten ISIN-Kandidaten",
+            }
+
+        selector = self._mapping_selector
+        if selector is None:
+            from mail_agent.config import load_config as load_mail_config
+
+            from .portfolio_mapping import OllamaPortfolioMappingSelector
+
+            selector = OllamaPortfolioMappingSelector(load_mail_config().ollama).select
+        selection = selector(
+            {
+                "task": "select-exact-portfolio-market-mapping",
+                "instrument": {
+                    "isin": normalized,
+                    "holding_name": current["name"],
+                    "wkn": current["wkn"],
+                },
+                "candidates": bounded_candidates,
+            }
+        )
+        status = str(selection.get("status") or "").strip().lower()
+        raw_confidence = selection.get("confidence")
+        if isinstance(raw_confidence, bool) or not isinstance(raw_confidence, (int, float)):
+            raise RuntimeError("Ollama lieferte keine gueltige Konfidenz")
+        confidence = float(raw_confidence)
+        if not math.isfinite(confidence) or not 0 <= confidence <= 1:
+            raise RuntimeError("Ollama-Konfidenz liegt ausserhalb von 0 bis 1")
+        if status == "uncertain":
+            return {
+                "ok": False,
+                "status": "uncertain",
+                "read_only": True,
+                "stored": False,
+                "isin": normalized,
+                "provider_candidates": len(bounded_candidates),
+                "ollama": {
+                    "model": str(selection.get("model") or ""),
+                    "confidence": round(confidence, 4),
+                    "reason": str(selection.get("reason") or "")[:240],
+                },
+                "error": "Ollama konnte keinen belastbaren Boersenplatz auswaehlen",
+            }
+        if status != "candidate":
+            raise RuntimeError("Ollama lieferte keinen gueltigen Mappingstatus")
+        raw_selected_id = selection.get("candidate_id")
+        if isinstance(raw_selected_id, bool) or not isinstance(raw_selected_id, int):
+            raise RuntimeError("Ollama lieferte keine gueltige candidate_id")
+        selected_id = raw_selected_id
+        selected = next(
+            (item for item in bounded_candidates if item["candidate_id"] == selected_id),
+            None,
+        )
+        if selected is None:
+            raise RuntimeError("Ollama waehlte keine vorhandene EODHD-candidate_id")
+        mic = str(selection.get("mic") or "").strip().upper()
+        if mic not in selected["allowed_mics"]:
+            raise RuntimeError("Ollama waehlte keinen fuer den EODHD-Kandidaten erlaubten MIC")
+        candidate = {
+            "isin": normalized,
+            "name": selected["name"] or current["name"],
+            "symbol": selected["symbol"],
+            "mic": mic,
+            "currency": selected["currency"],
+            "provider_symbol": EodhdClient.ticker(
+                {"symbol": selected["symbol"], "mic": mic}
+            ),
+            "provider_exchange": selected["exchange"],
+            "provider_primary": selected["is_primary"],
+        }
+        return {
+            "ok": True,
+            "status": "candidate",
+            "read_only": True,
+            "stored": False,
+            "source": "eodhd-search+ollama-selection",
+            "provider_candidates": len(bounded_candidates),
+            "candidate": candidate,
+            "ollama": {
+                "model": str(selection.get("model") or ""),
+                "confidence": round(confidence, 4),
+                "reason": str(selection.get("reason") or "")[:240],
+            },
+            "approval_required": True,
+            "approval": "explicit-user-watchlist-change",
+            "next_tool": "portfolio.watchlist.add",
+        }
 
     def watchlist_add(self, *, isin: str, name: str, symbol: str, mic: str, currency: str) -> dict[str, Any]:
         self._require_enabled()
@@ -1276,8 +1541,10 @@ class PortfolioService:
 
     def status(self) -> dict[str, Any]:
         health = self.health()
+        configuration = self._configuration_status()
+        database_integrity = self.store.integrity()
         return {
-            "ok": bool(health["ok"]),
+            "ok": bool(configuration["ok"] and database_integrity == "ok" and health["ok"]),
             "enabled": self.settings.enabled,
             "database": str(self.store.path),
             "import_root": str(self.settings.import_root),
@@ -1286,22 +1553,38 @@ class PortfolioService:
             "interval_minutes": self.settings.interval_minutes,
             "stale_warning_minutes": self.settings.stale_warning_minutes,
             "stale_critical_minutes": self.settings.stale_critical_minutes,
+            "configuration": configuration,
+            "database_integrity": database_integrity,
             "health": health,
             "holdings": self.holdings(),
             "watchlist": self.watchlist(),
         }
 
-    def doctor(self) -> dict[str, Any]:
-        health = self.health()
+    def _configuration_status(self) -> dict[str, Any]:
         key_present = bool(os.environ.get(self.settings.api_key_env, "").strip())
+        provider_ok = not self.settings.enabled or self.settings.provider == "eodhd"
+        import_root_present = self.settings.import_root.is_dir()
         configuration_ok = not self.settings.enabled or (
-            self.settings.provider == "eodhd" and key_present and self.settings.import_root.is_dir()
+            provider_ok and key_present and import_root_present
         )
         return {
-            "ok": configuration_ok and self.store.integrity() == "ok" and bool(health["ok"]),
-            "configuration_ok": configuration_ok,
+            "ok": configuration_ok,
+            "provider_ok": provider_ok,
             "api_key_present": key_present,
             "api_key_env": self.settings.api_key_env,
+            "import_root_present": import_root_present,
+        }
+
+    def doctor(self) -> dict[str, Any]:
+        health = self.health()
+        configuration = self._configuration_status()
+        return {
+            "ok": configuration["ok"] and self.store.integrity() == "ok" and bool(health["ok"]),
+            "configuration_ok": configuration["ok"],
+            "provider_ok": configuration["provider_ok"],
+            "api_key_present": configuration["api_key_present"],
+            "api_key_env": configuration["api_key_env"],
+            "import_root_present": configuration["import_root_present"],
             "database_integrity": self.store.integrity(),
             "health": health,
         }

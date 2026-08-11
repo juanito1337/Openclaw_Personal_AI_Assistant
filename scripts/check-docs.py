@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from collections import deque
@@ -12,17 +13,26 @@ from urllib.parse import unquote
 LINK_RE = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
 RELEASE_RE = re.compile(r"\b\d+\.\d+\.\d+-r\d+(?:\.\d+)*\b")
 SKIP_PARTS = {".git", ".mypy_cache", ".pytest_cache", ".ruff_cache", ".tools", ".venv", "build"}
+SKIP_ROOTS = {"srv"}
 
 
 def active_markdown_files(root: Path) -> list[Path]:
     result: list[Path] = []
-    for path in root.rglob("*.md"):
-        relative = path.relative_to(root)
-        if any(part in SKIP_PARTS for part in relative.parts):
+    for current, directories, filenames in os.walk(root, topdown=True, followlinks=False):
+        current_path = Path(current)
+        relative_current = current_path.relative_to(root)
+        directories[:] = sorted(
+            name
+            for name in directories
+            if name not in SKIP_PARTS
+            and not (current_path == root and name in SKIP_ROOTS)
+        )
+        if relative_current.parts[:2] == ("docs", "archive"):
+            directories[:] = []
             continue
-        if relative.parts[:2] == ("docs", "archive"):
-            continue
-        result.append(relative)
+        for name in sorted(filenames):
+            if name.endswith(".md"):
+                result.append(relative_current / name)
     return sorted(result)
 
 

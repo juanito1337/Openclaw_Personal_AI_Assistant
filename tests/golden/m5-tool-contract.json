@@ -10,7 +10,7 @@
   {
     "approval": "none",
     "command": "./scripts/assistant.sh version --verify",
-    "description": "Installierte OpenClaw-Version und Konsistenz aus der verbindlichen Release-Datei pruefen",
+    "description": "Installiertes OpenClaw-Local-Personal-Assistant-Produktrelease und Konsistenz aus RELEASE.json pruefen; keine eingebettete Core-, Plugin- oder CLI-Version",
     "id": "assistant.version",
     "mode": "read",
     "writes_external_data": false
@@ -284,6 +284,14 @@
     "command": "./scripts/assistant.sh portfolio watchlist list",
     "description": "Watchlist und bestaetigte ISIN/Symbol/MIC-Zuordnungen anzeigen",
     "id": "portfolio.watchlist",
+    "mode": "read",
+    "writes_external_data": false
+  },
+  {
+    "approval": "none",
+    "command": "./scripts/assistant.sh portfolio mapping suggest --isin \"<ISIN>\"",
+    "description": "Exakte EODHD-ISIN-Treffer abrufen und Ollama nur aus den providerseitig belegten Kandidaten einen bestaetigungspflichtigen Boersenplatzvorschlag auswaehlen lassen",
+    "id": "portfolio.mapping.suggest",
     "mode": "read",
     "writes_external_data": false
   },

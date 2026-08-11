@@ -131,8 +131,9 @@ M0 aber noch keine Refaktorierung aus.
 M5 ersetzt `build_tool_registry` durch eine kleine Projektion, zerlegt Parser und
 Handler des CLI nach Domaenen und trennt Workspace-, Mail-, Portfolio-, Bestell-
 und Sicherheitsdienste als Anwendungs-Mixins. Die Portfolio-Importparser liegen in
-einem eigenen Modul. Die unveraenderten 124 Toolprojektionen stehen in
-`tests/golden/m5-tool-contract.json`; die stabile Top-Level-Hilfe in
+einem eigenen Modul. Die 124 bei M5 charakterisierten und der spaeter registrierte
+read-only Mappingvorschlag ergeben aktuell 125 Toolprojektionen in
+`tests/golden/m5-tool-contract.json`; die stabile Top-Level-Hilfe steht in
 `tests/golden/m5-cli-help.txt`. Aktuelle Modul- und Funktionsgroessen werden
 weiterhin ausschliesslich durch `scripts/quality-baseline.py` gemessen.
 
@@ -368,10 +369,22 @@ Skilldrift wird ohne Textduplikation geprueft:
 .venv/bin/python -m pytest -q tests/test_m8_skill_contract.py
 ```
 
-Der Test gleicht alle 124 Tool-IDs, Commands, Modi, externe Wirkungen, Approvals,
+Der Test gleicht alle 125 Tool-IDs, Commands, Modi, externe Wirkungen, Approvals,
 Release und Testanker gegen die typisierte Registry ab, prueft die kurze
 Triggerbeschreibung und verlangt die domaenenspezifischen Referenzen sowie die
 Abwesenheit des entfernten Zweit-Agent-Skills.
+
+Der Portfolio-Mappingpfad wird ohne produktive Provider- oder Modellzugriffe mit
+kontrollierten EODHD- und Ollama-Antworten geprueft:
+
+```bash
+.venv/bin/python -m pytest -q tests/test_portfolio_mapping.py
+```
+
+Die Regressionen belegen exakte ISIN-Filterung, den Ollama-JSON-Vertrag und die
+Koordinatorheader. Sie pruefen ausserdem, dass erfundene Kandidaten-IDs oder MICs
+fehlschlagen und ein Vorschlag ohne separate Freigabe weder Instrument noch
+Watchlist veraendert.
 
 Die finale lokale M8-Artefaktabnahme baute das Wheel in 2,865 s; es blieb 395.102
 Bytes gross und bestand in der frischen Installationsumgebung 455 Tests plus 13

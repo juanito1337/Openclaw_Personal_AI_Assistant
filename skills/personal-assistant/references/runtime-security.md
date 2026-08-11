@@ -5,6 +5,11 @@
 Before discussing installed version, update success or recent changes, run
 `./scripts/assistant.sh version --verify`. Use its `--history` options for release
 history. A failed verification is an operational integrity error; never guess.
+An unqualified version question always means the OpenClaw Local Personal Assistant
+product release returned as `product` and `version`, not an embedded OpenClaw
+core/plugin/CLI or model version. Report a core/platform version only when it was
+explicitly requested and a registered runtime command provides evidence; label it
+separately and never substitute it for the product release.
 
 For runtime state use registered commands such as `status`, `doctor`, `jobs`,
 `scheduler`, `ollama`, `monitor`, `performance` and `security antivirus` from the
@@ -36,7 +41,10 @@ bounded result path.
 Use only registered `ollama status`, `check`, `queue`, `start` and `restart`
 commands. Start/restart requires an explicit request. Never stop the coordinator
 from inside the agent, silently bypass it or rewrite model URLs. Verify both proxy
-and upstream after recovery.
+and upstream after recovery. A registered domain tool such as `portfolio mapping
+suggest --isin "<ISIN>"` may use Ollama only through this coordinator; its model
+output remains bounded by that domain tool's deterministic validation and approval
+contract.
 
 ## Antivirus
 

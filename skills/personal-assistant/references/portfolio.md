@@ -11,7 +11,10 @@ the configured local inbox. Accept CSV only in the strict DKB depot schema. A
 Nextcloud CSV must be the exact dated file directly below the configured portfolio
 folder; list it first and require filename date to match snapshot date. Scan
 fail-closed with ClamAV, dry-run, then require explicit `--yes`. Never guess an
-ISIN-to-symbol/MIC mapping.
+ISIN-to-symbol/MIC mapping. For an unconfirmed instrument use `portfolio mapping
+suggest --isin "<ISIN>"`: EODHD supplies exact active ISIN candidates and Ollama
+may select only a returned candidate plus one of its allowlisted MICs. Treat the
+result as an unstored proposal, never as confirmation.
 
 For every question about Jan's stocks, securities, depot positions or holdings,
 use `portfolio holdings` first. Do not search memory, the writable workspace or
@@ -39,14 +42,27 @@ incomplete and must not be summed as a complete total.
 
 Run the registered setup, mapping, doctor, refresh, status, valuation and job
 commands yourself; never ask Jan to copy a `docker exec` wrapper. If an instrument
-has no confirmed mapping, first read holdings and watchlist, then present one
-bounded plan containing the exact ISIN, name, symbol, MIC and currency. Wait for
-explicit approval, execute that exact `portfolio watchlist add ... --yes` command,
-and verify the watchlist before refreshing quotes. Then run quote status and
-valuation. On failure run `portfolio doctor` and `jobs check --target all --deep`.
+has no confirmed mapping, first read holdings and watchlist, then run `portfolio
+mapping suggest --isin "<ISIN>"` yourself. The command must call Ollama through
+the coordinator and reject every symbol, currency, candidate ID or MIC that was
+not bounded by the exact EODHD response. Present one bounded plan containing the
+returned exact ISIN, name, symbol, MIC and currency. Wait for explicit approval,
+execute that exact `portfolio watchlist add ... --yes` command, and verify the
+watchlist before refreshing quotes. Then run quote status and valuation. On
+failure run `portfolio doctor` and `jobs check --target all --deep`.
 Enabling the portfolio job is a separate approval: after it is granted, execute
 `jobs on portfolio` yourself and verify with `jobs status --target portfolio
 --deep`. Do not broaden an approval to another ISIN, mapping, job or permission.
+
+When `portfolio status` or `portfolio quotes status` reports `ok: false`,
+`state: failed`, zero coverage or missing/critical holdings, always run
+`portfolio doctor` and `jobs check --target all --deep` before replying. Merge the
+evidence and enumerate all independent blockers; do not report missing mappings as
+the sole cause while `configuration_ok` or `api_key_present` is false. The response
+must end with the next bounded action: request one exact mapping approval when its
+five fields were returned by the registered mapping suggestion; if suggestion is
+uncertain, report that result without guessing. Secret provisioning remains Jan's
+host action and must never expose the key in chat.
 
 For one current price resolve the exact ISIN, then use `portfolio quotes get
 --isin`. Report price, currency, observation time, provider and stale/critical
@@ -57,10 +73,10 @@ while the registered read tool is available.
 If refresh is blocked, stop and report the exact contract failure. A missing
 `PORTFOLIO_EODHD_API_KEY` requires Jan to provision the secret; an unconfirmed
 symbol/MIC/currency requires an explicit mapping choice through the registered
-watchlist command. Never guess either value or claim an old snapshot price is
-current. Never inspect or edit `personal_assistant/tools.toml` to recover from a
-portfolio error. Run the registered doctor and deep job check; protected setup
-changes belong to the explicitly approved `agent-cli` path.
+mapping-suggestion and watchlist commands. Never guess either value or claim an
+old snapshot price is current. Never inspect or edit `personal_assistant/tools.toml`
+to recover from a portfolio error. Run the registered doctor and deep job check;
+protected setup changes belong to the explicitly approved `agent-cli` path.
 
 EODHD is the only quote provider. It uses confirmed forms such as `RHM.XETRA`,
 batches at most 20 market/FX symbols and normally returns prices delayed by about

@@ -1,12 +1,29 @@
 ---
 name: personal-assistant
-description: Use for Jan's OpenClaw version/status, mail, Nextcloud, contacts, calendar, tasks, invoices, orders, portfolio/stocks/holdings/quotes, jobs, Ollama, scheduler, security or monitoring. Execute the exact command from the reference—not a dotted tool ID—before memory, workspace or shell search or any absence claim; obey approvals and conflict guards.
+description: Use for Jan's OpenClaw Personal Assistant product version/release/update/status, mail/groupware, portfolio/stocks/holdings/quotes, jobs, Ollama, scheduler, security and monitoring. Use the exact referenced command—not a dotted tool ID—before memory, workspace or shell search and before claiming absence; obey approvals and conflict guards.
 ---
 
 # Personal Assistant
 
 Release identity: `3.4.0-r27.2.5`. Verify it through the registered version
 command before making an installed-version or update claim.
+
+## Product version is not the embedded core version
+
+Treat every unqualified question addressed to "you", "the agent", "the
+assistant" or "OpenClaw" about its version as a question about the **OpenClaw
+Local Personal Assistant product release**. This includes "Welche Version
+verwendest du?", "Welche OpenClaw-Version laeuft?" and "What version are you?".
+Run `/opt/openclaw-agent/scripts/assistant.sh version --verify` first and answer
+with the returned `product` and `version`. If verification fails, report the
+integrity error and do not guess.
+
+Never use `openclaw --version`, an embedded core/plugin/CLI version, model
+self-description, workspace memory or package metadata as the product identity.
+In particular, never answer `OpenClaw 2026.7.1` as the Personal Assistant release.
+If Jan explicitly asks for the embedded OpenClaw core/platform version, label it
+separately; it never replaces the verified product release and may be claimed only
+when a registered runtime command exposes evidence for it.
 
 OpenClaw is one Personal Assistant. Mail is a registered subsystem, never a
 second autonomous agent. Use this skill only for the local assistant and only
@@ -111,6 +128,7 @@ launcher shown above:
 | Latest/current prices, portfolio value, profit or return | `portfolio quotes status`; if due, stale or missing and configured, `portfolio quotes refresh`; then `portfolio valuation` |
 | One security's latest/current quote | Resolve the exact ISIN, check/refresh as above, then `portfolio quotes get --isin "<ISIN>"` |
 | Portfolio configuration, freshness or failures | `portfolio status`, then `portfolio doctor` on failure |
+| Missing portfolio symbol/MIC mapping | `portfolio mapping suggest --isin "<ISIN>"`; then present the exact returned candidate for approval |
 | Antivirus state, self-test or controlled file scan | `security antivirus doctor`, `security antivirus self-test` or `security antivirus scan ...` |
 
 After a successful call, distinguish a valid empty result from disabled
@@ -119,6 +137,19 @@ the authoritative registered read completed successfully and its domain-specific
 completeness fields permit that conclusion. If no matching live tool is exposed,
 report the unavailable capability from `tools list`/`capabilities`; do not replace
 it with a filesystem or memory search.
+
+For portfolio output with `ok: false`, `state: failed`, missing/critical holdings
+or zero coverage, do not answer from quote status alone. Run `portfolio doctor`
+and `jobs check --target all --deep`, then report every independent blocker. In
+particular, never call missing mappings the sole cause when `configuration_ok` or
+`api_key_present` is false. A failure explanation without the next bounded action
+is incomplete: for an unconfirmed mapping, run the registered read-only
+`portfolio mapping suggest --isin "<ISIN>"` command. It may use Ollama only to
+select from exact EODHD candidates and cannot store the result. Present one
+returned ISIN/name/symbol/MIC/currency plan and request its
+`explicit-user-watchlist-change` approval. After approval, execute the registered
+command yourself and verify it; never silently confirm a mapping or ask Jan to
+run `docker exec`.
 
 ## Invariants for every tool call
 

@@ -123,8 +123,22 @@ separate call with `--yes`. Existing snapshots are never overwritten.
 
 ## Instrument mapping and watchlist
 
-An ISIN alone is insufficient for reliable intraday quotes. Confirm the exact
-provider symbol, ISO 10383 MIC and currency:
+An ISIN alone is insufficient for reliable intraday quotes. Generate a read-only
+proposal first:
+
+```bash
+./scripts/assistant.sh portfolio mapping suggest --isin "DE000BASF111"
+```
+
+The command consumes one bounded EODHD Search API lookup for the exact active
+ISIN. EODHD supplies symbol, exchange, name and currency. Ollama runs through the
+priority coordinator and may select only one returned candidate plus an MIC from
+that candidate's allowlist. Invented candidate IDs, symbols, currencies and MICs
+fail closed. The proposal is not written to the database and always reports that
+explicit approval is still required.
+
+After checking the proposed fields, confirm the exact provider symbol, ISO 10383
+MIC and currency separately:
 
 ```bash
 ./scripts/assistant.sh portfolio watchlist add \
@@ -134,7 +148,8 @@ provider symbol, ISO 10383 MIC and currency:
 ```
 
 An imported holding without a confirmed mapping is a failed required quote, not
-silently guessed. Watchlist changes and alarm changes require explicit `--yes`.
+silently guessed. An uncertain Ollama result remains unmapped. Watchlist changes
+and alarm changes require explicit `--yes`.
 
 ## Quotes, analysis and course marks
 

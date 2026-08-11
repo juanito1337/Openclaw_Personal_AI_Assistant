@@ -17,6 +17,7 @@ credentials.toml
 credentials.json
 
 # Runtime state and private content
+/srv/
 mail_agent/data/**
 !mail_agent/data/forward_payloads/
 !mail_agent/data/forward_payloads/.gitkeep
