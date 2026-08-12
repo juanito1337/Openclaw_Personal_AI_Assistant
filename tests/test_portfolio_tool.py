@@ -463,6 +463,29 @@ class PortfolioServiceTests(unittest.TestCase):
         self.assertEqual(basf["currency"], "EUR")
         self.assertEqual(basf["quote_currency"], "USD")
 
+    def test_watchlist_canonicalizes_london_display_symbol(self) -> None:
+        result = self.service.watchlist_add(
+            isin="GB0002634946",
+            name="BAE Systems plc",
+            symbol="BA.",
+            mic="XLON",
+            currency="GBX",
+        )
+        self.assertEqual(result["symbol"], "BA")
+        item = self.service.watchlist()["items"][0]
+        self.assertEqual(item["symbol"], "BA")
+        self.assertEqual(EodhdClient.ticker(item), "BA.LSE")
+
+    def test_watchlist_rejects_unregistered_provider_mic(self) -> None:
+        with self.assertRaisesRegex(ValueError, "nicht registriert"):
+            self.service.watchlist_add(
+                isin=ISIN,
+                name="BASF SE",
+                symbol="BAS",
+                mic="XXXX",
+                currency="EUR",
+            )
+
     def test_holdings_never_claim_blank_symbol_mapping_is_confirmed(self) -> None:
         self.service.import_csv(self.csv.name, dry_run=False)
         with self.service.store.connection:

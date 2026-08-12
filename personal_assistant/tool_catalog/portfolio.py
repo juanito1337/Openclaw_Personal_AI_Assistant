@@ -150,7 +150,7 @@ TOOLS: tuple[ToolDefinition, ...] = (
     define(
         id="portfolio.mapping.suggest",
         domain="portfolio",
-        description="Exakte EODHD-ISIN-Treffer abrufen und Ollama nur aus den providerseitig belegten Kandidaten einen bestaetigungspflichtigen Boersenplatzvorschlag auswaehlen lassen",
+        description="Exakte EODHD-ISIN-Treffer abrufen, Ollama nur aus providerseitig belegten Kandidaten auswaehlen lassen und die vollstaendige genehmigungspflichtige watchlist-add-Folgeaktion liefern",
         command='./scripts/assistant.sh portfolio mapping suggest --isin "<ISIN>"',
         mode="read",
         writes_external_data=False,
@@ -162,7 +162,7 @@ TOOLS: tuple[ToolDefinition, ...] = (
     define(
         id="portfolio.mapping.discover",
         domain="portfolio",
-        description="Wertpapiername oder Symbol bei EODHD suchen, eine eindeutige providerseitige ISIN ermitteln und daraus einen bestaetigungspflichtigen Mappingvorschlag erzeugen",
+        description="Wertpapiername oder Symbol bei EODHD suchen, eine eindeutige providerseitige ISIN ermitteln und daraus Vorschlag sowie vollstaendige genehmigungspflichtige watchlist-add-Folgeaktion erzeugen",
         command='./scripts/assistant.sh portfolio mapping suggest --query "<Unternehmen-oder-Symbol>"',
         mode="read",
         writes_external_data=False,
@@ -174,7 +174,7 @@ TOOLS: tuple[ToolDefinition, ...] = (
     define(
         id="portfolio.watchlist.add",
         domain="portfolio",
-        description="Wertpapier mit explizit bestaetigter Boersenplatz-Zuordnung aufnehmen",
+        description="Wertpapier nur mit den unveraenderten Feldern einer explizit bestaetigten Mapping-Folgeaktion aufnehmen; portfolio mapping add existiert nicht",
         command='./scripts/assistant.sh portfolio watchlist add --isin "<ISIN>" --name "<Name>" --symbol "<Symbol>" --mic "<MIC>" --currency "<ISO>" --yes',
         mode="local-write",
         writes_external_data=False,

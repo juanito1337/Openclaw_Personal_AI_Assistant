@@ -228,7 +228,9 @@ def test_agent_executes_approved_portfolio_workflow_instead_of_delegating_it() -
     ) in portfolio
     assert "never ask Jan to copy a `docker exec` wrapper" in portfolio
     assert "exact ISIN, name, symbol, MIC and currency" in portfolio
-    assert "execute that exact `portfolio watchlist add ... --yes` command" in portfolio
+    assert "complete `next_action.command` verbatim" in portfolio
+    assert "`portfolio mapping add` is not a command" in portfolio
+    assert "`next_action.command` from that unchanged proposal verbatim" in skill
     assert "`jobs on portfolio` yourself" in portfolio
     assert "`jobs status --target portfolio --deep`" in portfolio
     assert "Do not broaden an approval to another ISIN, mapping, job or permission" in portfolio

@@ -64,8 +64,11 @@ The command must call Ollama through
 the coordinator and reject every symbol, currency, candidate ID or MIC that was
 not bounded by the exact EODHD response. Present one bounded plan containing the
 returned exact ISIN, name, symbol, MIC and currency. Wait for explicit approval,
-execute that exact `portfolio watchlist add ... --yes` command, and verify the
-watchlist before refreshing quotes. Then run quote status and valuation. On
+then execute the proposal's complete `next_action.command` verbatim and verify
+the watchlist before refreshing quotes. Never reconstruct the command from
+`next_tool`: `portfolio mapping add` is not a command, and mapping confirmation
+uses only the returned `portfolio watchlist add ... --yes` command. Then run quote
+status and valuation. On
 failure run `portfolio doctor` and `jobs check --target all --deep`.
 Enabling the portfolio job is a separate approval: after it is granted, execute
 `jobs on portfolio` yourself and verify with `jobs status --target portfolio

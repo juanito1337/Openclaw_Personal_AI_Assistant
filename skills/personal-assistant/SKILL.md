@@ -154,8 +154,11 @@ Both forms may use Ollama only to select from exact EODHD candidates and cannot
 store the result. Present one returned ISIN/name/symbol/MIC/currency plan and
 request its
 `explicit-user-watchlist-change` approval. After approval, execute the registered
-command yourself and verify it; never silently confirm a mapping or ask Jan to
-run `docker exec`.
+`next_action.command` from that unchanged proposal verbatim and verify it. Never
+reconstruct a write command from the Tool-ID. In particular, `portfolio mapping
+add` does not exist and must never be executed; the only confirmation command is
+the returned `portfolio watchlist add ... --yes`. Never silently confirm a
+mapping or ask Jan to run `docker exec`.
 
 ## Invariants for every tool call
 

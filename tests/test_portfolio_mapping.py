@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 import tempfile
 import unittest
 from pathlib import Path
@@ -40,7 +41,7 @@ class EodhdMappingSearchTests(unittest.TestCase):
         urlopen.return_value = Response(
             [
                 {
-                    "Code": "BA",
+                    "Code": "BA.",
                     "Exchange": "LSE",
                     "Name": "BAE Systems plc",
                     "Currency": "GBP",
@@ -56,6 +57,9 @@ class EodhdMappingSearchTests(unittest.TestCase):
         self.assertEqual(result[0]["symbol"], "BA")
         self.assertEqual(result[0]["allowed_mics"], ["XLON"])
         self.assertEqual(EodhdClient.ticker({"symbol": "BA", "mic": "XLON"}), "BA.LSE")
+
+    def test_london_display_ticker_is_canonicalized_for_eodhd(self) -> None:
+        self.assertEqual(EodhdClient.ticker({"symbol": "BA.", "mic": "XLON"}), "BA.LSE")
 
     @patch("personal_assistant.portfolio.urllib.request.urlopen")
     def test_search_by_query_returns_only_valid_provider_identities(self, urlopen) -> None:
@@ -410,6 +414,32 @@ class PortfolioMappingSuggestionTests(unittest.TestCase):
         self.assertEqual(result["candidate"]["provider_symbol"], "BAS.XETRA")
         self.assertEqual(result["candidate"]["provider_venue_source"], "eodhd-search")
         self.assertEqual(result["approval"], "explicit-user-watchlist-change")
+        self.assertEqual(result["next_action"]["tool_id"], "portfolio.watchlist.add")
+        self.assertEqual(
+            result["next_action"]["argv"],
+            [
+                "portfolio",
+                "watchlist",
+                "add",
+                "--isin",
+                ISIN,
+                "--name",
+                "BASF SE",
+                "--symbol",
+                "BAS",
+                "--mic",
+                "XETR",
+                "--currency",
+                "EUR",
+                "--yes",
+            ],
+        )
+        self.assertIn("portfolio watchlist add", result["next_action"]["command"])
+        self.assertNotIn("portfolio mapping add", result["next_action"]["command"])
+        self.assertEqual(
+            shlex.split(result["next_action"]["command"]),
+            ["/opt/openclaw-agent/scripts/assistant.sh", *result["next_action"]["argv"]],
+        )
         candidates = self.requests[0]["candidates"]
         self.assertEqual(candidates[0]["allowed_mics"], ["XETR"])
         self.assertEqual(self.service.watchlist()["count"], 0)

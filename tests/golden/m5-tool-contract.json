@@ -290,7 +290,7 @@
   {
     "approval": "none",
     "command": "./scripts/assistant.sh portfolio mapping suggest --isin \"<ISIN>\"",
-    "description": "Exakte EODHD-ISIN-Treffer abrufen und Ollama nur aus den providerseitig belegten Kandidaten einen bestaetigungspflichtigen Boersenplatzvorschlag auswaehlen lassen",
+    "description": "Exakte EODHD-ISIN-Treffer abrufen, Ollama nur aus providerseitig belegten Kandidaten auswaehlen lassen und die vollstaendige genehmigungspflichtige watchlist-add-Folgeaktion liefern",
     "id": "portfolio.mapping.suggest",
     "mode": "read",
     "writes_external_data": false
@@ -298,7 +298,7 @@
   {
     "approval": "none",
     "command": "./scripts/assistant.sh portfolio mapping suggest --query \"<Unternehmen-oder-Symbol>\"",
-    "description": "Wertpapiername oder Symbol bei EODHD suchen, eine eindeutige providerseitige ISIN ermitteln und daraus einen bestaetigungspflichtigen Mappingvorschlag erzeugen",
+    "description": "Wertpapiername oder Symbol bei EODHD suchen, eine eindeutige providerseitige ISIN ermitteln und daraus Vorschlag sowie vollstaendige genehmigungspflichtige watchlist-add-Folgeaktion erzeugen",
     "id": "portfolio.mapping.discover",
     "mode": "read",
     "writes_external_data": false
@@ -306,7 +306,7 @@
   {
     "approval": "explicit-user-watchlist-change",
     "command": "./scripts/assistant.sh portfolio watchlist add --isin \"<ISIN>\" --name \"<Name>\" --symbol \"<Symbol>\" --mic \"<MIC>\" --currency \"<ISO>\" --yes",
-    "description": "Wertpapier mit explizit bestaetigter Boersenplatz-Zuordnung aufnehmen",
+    "description": "Wertpapier nur mit den unveraenderten Feldern einer explizit bestaetigten Mapping-Folgeaktion aufnehmen; portfolio mapping add existiert nicht",
     "id": "portfolio.watchlist.add",
     "mode": "local-write",
     "writes_external_data": false

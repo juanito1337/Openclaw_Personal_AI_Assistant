@@ -5,6 +5,7 @@ import json
 import math
 import os
 import re
+import shlex
 import sqlite3
 import subprocess
 import time
@@ -38,6 +39,14 @@ EODHD_EXCHANGE_BY_MIC = {
     "XNYS": "US",
 }
 EODHD_BATCH_LIMIT = 20
+
+
+def _canonical_eodhd_symbol(value: object) -> str:
+    """Return the EODHD code component without a display-only trailing dot."""
+    symbol = str(value or "").strip().upper().rstrip(".")
+    if not MAPPING_SYMBOL_RE.fullmatch(symbol):
+        raise ValueError("Boersensymbol ist fuer EODHD ungueltig")
+    return symbol
 
 
 def _now() -> datetime:
@@ -154,10 +163,8 @@ class EodhdClient:
 
     @staticmethod
     def ticker(instrument: dict[str, str]) -> str:
-        symbol = str(instrument.get("symbol") or "").strip().upper()
+        symbol = _canonical_eodhd_symbol(instrument.get("symbol"))
         mic = str(instrument.get("mic") or "").strip().upper()
-        if not symbol:
-            raise ValueError("EODHD-Zuordnung enthaelt kein Symbol")
         exchange = EODHD_EXCHANGE_BY_MIC.get(mic)
         if not exchange:
             raise ValueError(f"EODHD-Boersencode fuer MIC {mic or '<leer>'} ist nicht registriert")
@@ -335,11 +342,13 @@ class EodhdClient:
         normalized_isin: str,
     ) -> tuple[str, str] | None:
         row_isin = str(row.get("ISIN") or row.get("isin") or "").strip().upper()
-        symbol = str(row.get("Code") or row.get("code") or "").strip().upper()
+        try:
+            symbol = _canonical_eodhd_symbol(row.get("Code") or row.get("code"))
+        except ValueError:
+            return None
         currency = str(row.get("Currency") or row.get("currency") or "").strip().upper()
         if (
             row_isin != normalized_isin
-            or not MAPPING_SYMBOL_RE.fullmatch(symbol)
             or len(currency) != 3
             or not currency.isalpha()
         ):
@@ -434,12 +443,14 @@ class EodhdClient:
         seen: set[tuple[str, str, str, str]] = set()
         for row in payload:
             isin = str(row.get("ISIN") or row.get("isin") or "").strip().upper()
-            symbol = str(row.get("Code") or row.get("code") or "").strip().upper()
+            try:
+                symbol = _canonical_eodhd_symbol(row.get("Code") or row.get("code"))
+            except ValueError:
+                continue
             exchange = str(row.get("Exchange") or row.get("exchange") or "").strip().upper()
             currency = str(row.get("Currency") or row.get("currency") or "").strip().upper()
             if (
                 not _valid_isin(isin)
-                or not MAPPING_SYMBOL_RE.fullmatch(symbol)
                 or not re.fullmatch(r"[A-Z0-9]{1,20}", exchange)
                 or len(currency) != 3
                 or not currency.isalpha()
@@ -1162,6 +1173,22 @@ class PortfolioService:
             "provider_primary": selected["is_primary"],
             "provider_venue_source": selected["venue_source"],
         }
+        next_argv = [
+            "portfolio",
+            "watchlist",
+            "add",
+            "--isin",
+            str(candidate["isin"]),
+            "--name",
+            str(candidate["name"]),
+            "--symbol",
+            str(candidate["symbol"]),
+            "--mic",
+            str(candidate["mic"]),
+            "--currency",
+            str(candidate["currency"]),
+            "--yes",
+        ]
         result = {
             "ok": True,
             "status": "candidate",
@@ -1180,6 +1207,14 @@ class PortfolioService:
             "approval_required": True,
             "approval": "explicit-user-watchlist-change",
             "next_tool": "portfolio.watchlist.add",
+            "next_action": {
+                "tool_id": "portfolio.watchlist.add",
+                "approval": "explicit-user-watchlist-change",
+                "argv": next_argv,
+                "command": shlex.join(
+                    ["/opt/openclaw-agent/scripts/assistant.sh", *next_argv]
+                ),
+            },
         }
         if discovery is not None:
             result["source"] = "eodhd-name-search+eodhd-isin-search+ollama-selection"
@@ -1189,15 +1224,15 @@ class PortfolioService:
     def watchlist_add(self, *, isin: str, name: str, symbol: str, mic: str, currency: str) -> dict[str, Any]:
         self._require_enabled()
         isin = isin.strip().upper()
-        symbol = symbol.strip().upper()
+        symbol = _canonical_eodhd_symbol(symbol)
         mic = mic.strip().upper()
         currency = currency.strip().upper()
         if not _valid_isin(isin):
             raise ValueError("ISIN ist ungueltig")
-        if not symbol or len(symbol) > 40:
-            raise ValueError("Boersensymbol fehlt oder ist zu lang")
         if not MIC_RE.fullmatch(mic):
             raise ValueError("MIC muss aus genau vier Buchstaben/Ziffern bestehen")
+        if mic not in EODHD_EXCHANGE_BY_MIC:
+            raise ValueError(f"EODHD-Boersencode fuer MIC {mic} ist nicht registriert")
         if len(currency) != 3 or not currency.isalpha():
             raise ValueError("Waehrung muss ein dreistelliger Code sein")
         now = _iso(self._now())

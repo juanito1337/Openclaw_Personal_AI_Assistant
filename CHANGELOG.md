@@ -2,6 +2,13 @@
 
 ## Unreleased – M8 End-to-End-Recovery, Skills und Releaseabschluss
 
+- Portfolio-Mappingvorschlaege liefern jetzt die vollstaendige, shell-sicher
+  gequotete Folgeaktion `portfolio watchlist add ... --yes`. Der Agent darf diese
+  nach der expliziten Freigabe nur unveraendert ausfuehren und kann nicht mehr den
+  nicht existierenden Befehl `portfolio mapping add` ableiten. Londoner
+  Anzeigesymbole mit abschliessendem Punkt werden fuer EODHD kanonisiert; `BA.`
+  wird korrekt als `BA.LSE` statt `BA..LSE` abgerufen und neu gespeichert.
+
 - Neue Watchlist-Wertpapiere koennen mit `portfolio mapping suggest --query`
   direkt anhand von Firmenname oder Symbol bei EODHD gesucht werden. Der Agent
   muss Jan nicht mehr zuerst nach einer ISIN fragen. Nur eine eindeutige

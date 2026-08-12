@@ -152,7 +152,10 @@ MIC `XNAS`; a verified NYSE result to `XNYS`. Ollama runs through the priority
 coordinator and may select only one returned candidate plus an MIC from that
 candidate's now provider-bounded allowlist. Invented candidate IDs, symbols,
 currencies and MICs fail closed. The proposal is not written to the database and
-always reports that explicit approval is still required.
+always reports that explicit approval is still required. It also returns a
+shell-quoted `next_action.command` containing the exact five candidate fields.
+After approval the agent executes that command unchanged; there is no `portfolio
+mapping add` command.
 
 If exactly one primary US candidate has been confirmed by EODHD's exchange
 filter, only that candidate is sent to Ollama. The structured output schema then
@@ -161,6 +164,8 @@ MIC. This prevents a contradictory `uncertain` result after the model has alread
 identified the provider-confirmed venue, without allowing model-created data.
 
 The supported London home venue maps EODHD `LSE` to ISO 10383 MIC `XLON`.
+London display tickers with a trailing dot, such as `BA.`, are normalized to the
+EODHD code `BA`, resulting in `BA.LSE` rather than the invalid `BA..LSE`.
 After checking the proposed fields, confirm the exact provider symbol, ISO 10383
 MIC and currency separately:
 
