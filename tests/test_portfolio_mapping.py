@@ -8,7 +8,10 @@ from unittest.mock import patch
 
 from mail_agent.config import OllamaConfig
 from personal_assistant.portfolio import EodhdClient, PortfolioService
-from personal_assistant.portfolio_mapping import OllamaPortfolioMappingSelector
+from personal_assistant.portfolio_mapping import (
+    OllamaPortfolioMappingSelector,
+    _selection_schema,
+)
 from personal_assistant.tool_settings import PortfolioToolSettings
 from tests.test_portfolio_tool import ISIN, CleanAntivirus, csv_fixture
 
@@ -165,6 +168,66 @@ class EodhdMappingSearchTests(unittest.TestCase):
 
 
 class OllamaMappingSelectorTests(unittest.TestCase):
+    def test_verified_primary_schema_forbids_contradictory_uncertain_status(self) -> None:
+        schema = _selection_schema(
+            {
+                "selection_policy": "provider-verified-primary",
+                "candidates": [
+                    {
+                        "candidate_id": 7,
+                        "symbol": "GOOGL",
+                        "allowed_mics": ["XNAS"],
+                    }
+                ],
+            }
+        )
+        self.assertEqual(schema["properties"]["status"]["enum"], ["candidate"])
+        self.assertEqual(schema["properties"]["candidate_id"]["enum"], [7])
+        self.assertEqual(schema["properties"]["mic"]["enum"], ["XNAS"])
+
+    def test_selector_sends_verified_primary_constraint_to_ollama(self) -> None:
+        captured: list[object] = []
+
+        def urlopen(request, *, timeout):
+            captured.extend([request, timeout])
+            return Response(
+                {
+                    "message": {
+                        "content": json.dumps(
+                            {
+                                "status": "candidate",
+                                "candidate_id": 7,
+                                "mic": "XNAS",
+                                "confidence": 1.0,
+                                "reason": "Providerbestaetigter NASDAQ-Handelsplatz",
+                            }
+                        )
+                    }
+                }
+            )
+
+        selector = OllamaPortfolioMappingSelector(
+            OllamaConfig(base_url="http://ollama-proxy:11435", model="test-model"),
+            urlopen=urlopen,
+        )
+        selector.select(
+            {
+                "selection_policy": "provider-verified-primary",
+                "candidates": [
+                    {
+                        "candidate_id": 7,
+                        "symbol": "GOOGL",
+                        "allowed_mics": ["XNAS"],
+                    }
+                ],
+            }
+        )
+
+        payload = json.loads(captured[0].data)
+        self.assertEqual(payload["format"]["properties"]["status"]["enum"], ["candidate"])
+        self.assertEqual(payload["format"]["properties"]["candidate_id"]["enum"], [7])
+        self.assertEqual(payload["format"]["properties"]["mic"]["enum"], ["XNAS"])
+
     def test_selector_uses_schema_and_interactive_coordinator_headers(self) -> None:
         captured: list[object] = []
 
@@ -330,6 +393,58 @@ class PortfolioMappingSuggestionTests(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertEqual(result["status"], "uncertain")
         self.assertFalse(result["stored"])
+        self.assertEqual(self.service.watchlist()["count"], 0)
+
+    def test_unique_provider_verified_primary_is_only_candidate_sent_to_ollama(self) -> None:
+        captured: list[dict[str, object]] = []
+
+        self.service._mapping_searcher = lambda isin: [
+            {
+                "isin": ISIN,
+                "name": "BASF SE ADR",
+                "symbol": "BASFY",
+                "exchange": "US",
+                "currency": "USD",
+                "is_primary": False,
+                "allowed_mics": ["XNAS", "XNYS"],
+                "venue_source": "eodhd-search",
+            },
+            {
+                "isin": ISIN,
+                "name": "BASF SE",
+                "symbol": "BAS",
+                "exchange": "NASDAQ",
+                "currency": "USD",
+                "is_primary": True,
+                "allowed_mics": ["XNAS"],
+                "venue_source": "eodhd-search-exchange-filter",
+                "venue_filter": "NASDAQ",
+            },
+        ]
+
+        def selector(request: dict[str, object]) -> dict[str, object]:
+            captured.append(request)
+            candidate = request["candidates"][0]
+            return {
+                "status": "candidate",
+                "candidate_id": candidate["candidate_id"],
+                "mic": "XNAS",
+                "confidence": 1.0,
+                "reason": "Providerbestaetigter primaerer NASDAQ-Handelsplatz",
+                "model": "test-model",
+            }
+
+        self.service._mapping_selector = selector
+        with patch.dict("os.environ", {"PORTFOLIO_EODHD_API_KEY": "configured"}):
+            result = self.service.mapping_suggest(ISIN)
+
+        self.assertEqual(result["status"], "candidate")
+        self.assertEqual(result["provider_candidates"], 2)
+        self.assertEqual(result["selection_candidates"], 1)
+        self.assertEqual(result["selection_policy"], "provider-verified-primary")
+        self.assertEqual(result["candidate"]["mic"], "XNAS")
+        self.assertEqual(captured[0]["selection_policy"], "provider-verified-primary")
+        self.assertEqual(len(captured[0]["candidates"]), 1)
         self.assertEqual(self.service.watchlist()["count"], 0)
 
 

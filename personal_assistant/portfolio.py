@@ -932,6 +932,20 @@ class PortfolioService:
                 "error": "EODHD lieferte keinen unterstuetzten exakten ISIN-Kandidaten",
             }
 
+        verified_primary_candidates = [
+            item
+            for item in bounded_candidates
+            if item["is_primary"]
+            and item["venue_source"] == "eodhd-search-exchange-filter"
+            and len(item["allowed_mics"]) == 1
+        ]
+        if len(verified_primary_candidates) == 1:
+            selection_candidates = verified_primary_candidates
+            selection_policy = "provider-verified-primary"
+        else:
+            selection_candidates = bounded_candidates
+            selection_policy = "ollama-bounded-choice"
+
         selector = self._mapping_selector
         if selector is None:
             from mail_agent.config import load_config as load_mail_config
@@ -942,12 +956,13 @@ class PortfolioService:
         selection = selector(
             {
                 "task": "select-exact-portfolio-market-mapping",
+                "selection_policy": selection_policy,
                 "instrument": {
                     "isin": normalized,
                     "holding_name": current["name"],
                     "wkn": current["wkn"],
                 },
-                "candidates": bounded_candidates,
+                "candidates": selection_candidates,
             }
         )
         status = str(selection.get("status") or "").strip().lower()
@@ -965,6 +980,8 @@ class PortfolioService:
                 "stored": False,
                 "isin": normalized,
                 "provider_candidates": len(bounded_candidates),
+                "selection_candidates": len(selection_candidates),
+                "selection_policy": selection_policy,
                 "ollama": {
                     "model": str(selection.get("model") or ""),
                     "confidence": round(confidence, 4),
@@ -979,7 +996,7 @@ class PortfolioService:
             raise RuntimeError("Ollama lieferte keine gueltige candidate_id")
         selected_id = raw_selected_id
         selected = next(
-            (item for item in bounded_candidates if item["candidate_id"] == selected_id),
+            (item for item in selection_candidates if item["candidate_id"] == selected_id),
             None,
         )
         if selected is None:
@@ -1007,6 +1024,8 @@ class PortfolioService:
             "stored": False,
             "source": "eodhd-search+ollama-selection",
             "provider_candidates": len(bounded_candidates),
+            "selection_candidates": len(selection_candidates),
+            "selection_policy": selection_policy,
             "candidate": candidate,
             "ollama": {
                 "model": str(selection.get("model") or ""),

@@ -8,7 +8,10 @@
   verworfen; gespeichert wird weiterhin erst nach separater ausdruecklicher
   Freigabe ueber `portfolio watchlist add ... --yes`. Kombinierte US-Suchergebnisse
   werden vor dem Ollama-Aufruf mit den serverseitigen EODHD-Filtern fuer NASDAQ
-  und NYSE auf den kanonischen MIC `XNAS` beziehungsweise `XNYS` eingegrenzt.
+  und NYSE auf den kanonischen MIC `XNAS` beziehungsweise `XNYS` eingegrenzt. Ist
+  genau ein primaerer Providerkandidat eindeutig, erhaelt Ollama nur diesen einen
+  Kandidaten und ein darauf begrenztes JSON-Schema; ein inhaltlich bestaetigendes,
+  aber formal `uncertain` gesetztes Modellresultat kann nicht mehr entstehen.
 
 - Fehlgeschlagene Portfolio-Statusabfragen zeigen Konfigurationsblocker wie einen
   fehlenden EODHD-Schluessel bereits direkt an. Der Agent muss vor seiner Antwort

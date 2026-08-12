@@ -24,6 +24,40 @@ MAPPING_SELECTION_SCHEMA: dict[str, Any] = {
 }
 
 
+def _selection_schema(request_data: dict[str, Any]) -> dict[str, Any]:
+    """Constrain a uniquely verified primary candidate directly in Ollama's schema."""
+    candidates = request_data.get("candidates")
+    if request_data.get("selection_policy") != "provider-verified-primary":
+        return MAPPING_SELECTION_SCHEMA
+    if not isinstance(candidates, list) or len(candidates) != 1:
+        return MAPPING_SELECTION_SCHEMA
+    candidate = candidates[0]
+    if not isinstance(candidate, dict):
+        return MAPPING_SELECTION_SCHEMA
+    candidate_id = candidate.get("candidate_id")
+    allowed_mics = candidate.get("allowed_mics")
+    if (
+        isinstance(candidate_id, bool)
+        or not isinstance(candidate_id, int)
+        or not isinstance(allowed_mics, list)
+        or len(allowed_mics) != 1
+        or not isinstance(allowed_mics[0], str)
+    ):
+        return MAPPING_SELECTION_SCHEMA
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "status": {"type": "string", "enum": ["candidate"]},
+            "candidate_id": {"type": "integer", "enum": [candidate_id]},
+            "mic": {"type": "string", "enum": [allowed_mics[0]]},
+            "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+            "reason": {"type": "string", "maxLength": 240},
+        },
+        "required": ["status", "candidate_id", "mic", "confidence", "reason"],
+    }
+
+
 SYSTEM_PROMPT = """Du waehlst vorsichtig eine Boersenplatz-Zuordnung fuer ein Depotinstrument.
 
 Sicherheits- und Qualitaetsregeln:
@@ -33,8 +67,9 @@ Sicherheits- und Qualitaetsregeln:
 - Bevorzuge bei mehreren exakten ISIN-Treffern die primaere, liquide Heimatnotierung.
 - Ein Kandidat mit venue_source=eodhd-search-exchange-filter wurde von EODHD
   serverseitig als NASDAQ oder NYSE bestaetigt. Wenn genau dieser primaere Kandidat
-  nur einen allowed_mics-Wert hat, waehle ihn statt wegen des Handelsplatzes uncertain
-  zu melden.
+  nur einen allowed_mics-Wert hat und selection_policy=provider-verified-primary
+  gesetzt ist, MUSST du status=candidate, seine candidate_id und diesen MIC ausgeben.
+  `uncertain` waere in diesem eindeutig providerbestaetigten Fall widerspruechlich.
 - Erfinde niemals Symbol, Boerse, Waehrung, ISIN oder candidate_id.
 - Wenn die primaere Notierung nicht belastbar bestimmbar ist, setze status auf uncertain,
   candidate_id auf 0 und mic auf eine leere Zeichenkette.
@@ -69,7 +104,7 @@ class OllamaPortfolioMappingSelector:
                     "content": json.dumps(request_data, ensure_ascii=False, sort_keys=True),
                 },
             ],
-            "format": MAPPING_SELECTION_SCHEMA,
+            "format": _selection_schema(request_data),
             "think": False,
             "keep_alive": self.config.keep_alive,
             "options": {

@@ -141,6 +141,12 @@ candidate's now provider-bounded allowlist. Invented candidate IDs, symbols,
 currencies and MICs fail closed. The proposal is not written to the database and
 always reports that explicit approval is still required.
 
+If exactly one primary US candidate has been confirmed by EODHD's exchange
+filter, only that candidate is sent to Ollama. The structured output schema then
+permits only `status=candidate`, its provider candidate ID and its single canonical
+MIC. This prevents a contradictory `uncertain` result after the model has already
+identified the provider-confirmed venue, without allowing model-created data.
+
 After checking the proposed fields, confirm the exact provider symbol, ISO 10383
 MIC and currency separately:
 

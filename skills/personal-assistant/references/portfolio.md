@@ -18,6 +18,10 @@ combined EODHD `US` result the command must first use the provider's server-side
 NASDAQ/NYSE exchange filters to narrow the primary venue to canonical `XNAS` or
 `XNYS`; Ollama must not be asked to invent that distinction. Treat the result as
 an unstored proposal, never as confirmation.
+When exactly one primary candidate is provider-verified this way, pass only that
+candidate to Ollama and constrain its structured response to that candidate ID and
+single MIC. Do not accept a contradictory free-form `uncertain` status, and never
+turn this read-only proposal into stored confirmation without explicit approval.
 
 For every question about Jan's stocks, securities, depot positions or holdings,
 use `portfolio holdings` first. Do not search memory, the writable workspace or
