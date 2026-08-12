@@ -31,6 +31,10 @@ Sicherheits- und Qualitaetsregeln:
 - Waehle ausschliesslich eine vorhandene candidate_id aus der gelieferten Liste.
 - Uebernimm ausschliesslich einen MIC aus allowed_mics genau dieses Kandidaten.
 - Bevorzuge bei mehreren exakten ISIN-Treffern die primaere, liquide Heimatnotierung.
+- Ein Kandidat mit venue_source=eodhd-search-exchange-filter wurde von EODHD
+  serverseitig als NASDAQ oder NYSE bestaetigt. Wenn genau dieser primaere Kandidat
+  nur einen allowed_mics-Wert hat, waehle ihn statt wegen des Handelsplatzes uncertain
+  zu melden.
 - Erfinde niemals Symbol, Boerse, Waehrung, ISIN oder candidate_id.
 - Wenn die primaere Notierung nicht belastbar bestimmbar ist, setze status auf uncertain,
   candidate_id auf 0 und mic auf eine leere Zeichenkette.

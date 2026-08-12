@@ -13,8 +13,11 @@ folder; list it first and require filename date to match snapshot date. Scan
 fail-closed with ClamAV, dry-run, then require explicit `--yes`. Never guess an
 ISIN-to-symbol/MIC mapping. For an unconfirmed instrument use `portfolio mapping
 suggest --isin "<ISIN>"`: EODHD supplies exact active ISIN candidates and Ollama
-may select only a returned candidate plus one of its allowlisted MICs. Treat the
-result as an unstored proposal, never as confirmation.
+may select only a returned candidate plus one of its allowlisted MICs. For a
+combined EODHD `US` result the command must first use the provider's server-side
+NASDAQ/NYSE exchange filters to narrow the primary venue to canonical `XNAS` or
+`XNYS`; Ollama must not be asked to invent that distinction. Treat the result as
+an unstored proposal, never as confirmation.
 
 For every question about Jan's stocks, securities, depot positions or holdings,
 use `portfolio holdings` first. Do not search memory, the writable workspace or

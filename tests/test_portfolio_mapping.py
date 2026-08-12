@@ -12,6 +12,9 @@ from personal_assistant.portfolio_mapping import OllamaPortfolioMappingSelector
 from personal_assistant.tool_settings import PortfolioToolSettings
 from tests.test_portfolio_tool import ISIN, CleanAntivirus, csv_fixture
 
+ALPHABET_ISIN = "US02079K3059"
+LOCKHEED_ISIN = "US5398301094"
+
 
 class Response:
     def __init__(self, payload: object) -> None:
@@ -73,6 +76,92 @@ class EodhdMappingSearchTests(unittest.TestCase):
         request = urlopen.call_args.args[0]
         self.assertIn(f"/search/{ISIN}?", request.full_url)
         self.assertIn("type=stock", request.full_url)
+
+    @patch("personal_assistant.portfolio.urllib.request.urlopen")
+    def test_search_by_isin_resolves_primary_nasdaq_venue(self, urlopen) -> None:
+        urlopen.side_effect = [
+            Response(
+                [
+                    {
+                        "Code": "GOOGL",
+                        "Exchange": "US",
+                        "Name": "Alphabet Inc Class A",
+                        "Currency": "USD",
+                        "ISIN": ALPHABET_ISIN,
+                        "isPrimary": True,
+                    },
+                    {
+                        "Code": "ABEA",
+                        "Exchange": "XETRA",
+                        "Name": "Alphabet Inc Class A",
+                        "Currency": "EUR",
+                        "ISIN": ALPHABET_ISIN,
+                        "isPrimary": False,
+                    },
+                ]
+            ),
+            Response(
+                [
+                    {
+                        "Code": "GOOGL",
+                        "Exchange": "US",
+                        "Name": "Alphabet Inc Class A",
+                        "Currency": "USD",
+                        "ISIN": ALPHABET_ISIN,
+                        "isPrimary": True,
+                    }
+                ]
+            ),
+        ]
+
+        result = EodhdClient("secret-token").search_by_isin(ALPHABET_ISIN)
+
+        primary = next(item for item in result if item["is_primary"])
+        self.assertEqual(primary["exchange"], "NASDAQ")
+        self.assertEqual(primary["allowed_mics"], ["XNAS"])
+        self.assertEqual(primary["venue_source"], "eodhd-search-exchange-filter")
+        self.assertEqual(primary["venue_filter"], "NASDAQ")
+        self.assertEqual(urlopen.call_count, 2)
+        self.assertIn("exchange=NASDAQ", urlopen.call_args_list[1].args[0].full_url)
+
+    @patch("personal_assistant.portfolio.urllib.request.urlopen")
+    def test_search_by_isin_falls_through_to_primary_nyse_venue(self, urlopen) -> None:
+        base = {
+            "Code": "LMT",
+            "Exchange": "US",
+            "Name": "Lockheed Martin",
+            "Currency": "USD",
+            "ISIN": LOCKHEED_ISIN,
+            "isPrimary": True,
+        }
+        urlopen.side_effect = [Response([base]), Response([]), Response([base])]
+
+        result = EodhdClient("secret-token").search_by_isin(LOCKHEED_ISIN)
+
+        self.assertEqual(result[0]["exchange"], "NYSE")
+        self.assertEqual(result[0]["allowed_mics"], ["XNYS"])
+        self.assertEqual(urlopen.call_count, 3)
+        self.assertIn("exchange=NASDAQ", urlopen.call_args_list[1].args[0].full_url)
+        self.assertIn("exchange=NYSE", urlopen.call_args_list[2].args[0].full_url)
+
+    @patch("personal_assistant.portfolio.urllib.request.urlopen")
+    def test_exchange_filter_cannot_verify_a_different_isin(self, urlopen) -> None:
+        base = {
+            "Code": "GOOGL",
+            "Exchange": "US",
+            "Name": "Alphabet Inc Class A",
+            "Currency": "USD",
+            "ISIN": ALPHABET_ISIN,
+            "isPrimary": True,
+        }
+        injected = {**base, "ISIN": "US0378331005"}
+        urlopen.side_effect = [Response([base]), Response([injected]), Response([])]
+
+        result = EodhdClient("secret-token").search_by_isin(ALPHABET_ISIN)
+
+        self.assertEqual(result[0]["exchange"], "US")
+        self.assertEqual(result[0]["allowed_mics"], ["XNAS", "XNYS"])
+        self.assertEqual(result[0]["venue_source"], "eodhd-search")
 
 
 class OllamaMappingSelectorTests(unittest.TestCase):
@@ -189,6 +278,7 @@ class PortfolioMappingSuggestionTests(unittest.TestCase):
         self.assertTrue(result["read_only"])
         self.assertFalse(result["stored"])
         self.assertEqual(result["candidate"]["provider_symbol"], "BAS.XETRA")
+        self.assertEqual(result["candidate"]["provider_venue_source"], "eodhd-search")
         self.assertEqual(result["approval"], "explicit-user-watchlist-change")
         candidates = self.requests[0]["candidates"]
         self.assertEqual(candidates[0]["allowed_mics"], ["XETR"])

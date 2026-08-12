@@ -6,7 +6,9 @@
   ISIN bei EODHD und laesst Ollama nur einen providerseitig gelieferten
   Kandidaten samt allowlistetem MIC auswaehlen. Erfundenes Modelloutput wird
   verworfen; gespeichert wird weiterhin erst nach separater ausdruecklicher
-  Freigabe ueber `portfolio watchlist add ... --yes`.
+  Freigabe ueber `portfolio watchlist add ... --yes`. Kombinierte US-Suchergebnisse
+  werden vor dem Ollama-Aufruf mit den serverseitigen EODHD-Filtern fuer NASDAQ
+  und NYSE auf den kanonischen MIC `XNAS` beziehungsweise `XNYS` eingegrenzt.
 
 - Fehlgeschlagene Portfolio-Statusabfragen zeigen Konfigurationsblocker wie einen
   fehlenden EODHD-Schluessel bereits direkt an. Der Agent muss vor seiner Antwort

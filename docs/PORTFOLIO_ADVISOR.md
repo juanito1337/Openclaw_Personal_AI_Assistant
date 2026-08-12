@@ -130,12 +130,16 @@ proposal first:
 ./scripts/assistant.sh portfolio mapping suggest --isin "DE000BASF111"
 ```
 
-The command consumes one bounded EODHD Search API lookup for the exact active
-ISIN. EODHD supplies symbol, exchange, name and currency. Ollama runs through the
-priority coordinator and may select only one returned candidate plus an MIC from
-that candidate's allowlist. Invented candidate IDs, symbols, currencies and MICs
-fail closed. The proposal is not written to the database and always reports that
-explicit approval is still required.
+The command starts with one bounded EODHD Search API lookup for the exact active
+ISIN. EODHD supplies symbol, exchange, name and currency. Because EODHD reports a
+combined `US` exchange in ordinary search results, a primary US candidate is
+verified through the same provider's server-side `exchange=NASDAQ` and, only when
+needed, `exchange=NYSE` filters. A verified NASDAQ result is narrowed to canonical
+MIC `XNAS`; a verified NYSE result to `XNYS`. Ollama runs through the priority
+coordinator and may select only one returned candidate plus an MIC from that
+candidate's now provider-bounded allowlist. Invented candidate IDs, symbols,
+currencies and MICs fail closed. The proposal is not written to the database and
+always reports that explicit approval is still required.
 
 After checking the proposed fields, confirm the exact provider symbol, ISO 10383
 MIC and currency separately:

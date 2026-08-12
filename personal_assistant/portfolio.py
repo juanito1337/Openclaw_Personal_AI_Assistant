@@ -116,10 +116,11 @@ MappingSelector = Callable[[dict[str, Any]], dict[str, Any]]
 
 SUPPORTED_MICS_BY_EODHD_EXCHANGE: dict[str, tuple[str, ...]] = {
     "XETRA": ("XETR",),
-    "US": ("XNAS", "XNGS", "XNYS"),
-    "NASDAQ": ("XNAS", "XNGS"),
+    "US": ("XNAS", "XNYS"),
+    "NASDAQ": ("XNAS",),
     "NYSE": ("XNYS",),
 }
+US_PRIMARY_VENUE_FILTERS: tuple[str, ...] = ("NASDAQ", "NYSE")
 
 
 def _notify_openclaw(text: str) -> dict[str, Any]:
@@ -279,19 +280,23 @@ class EodhdClient:
             raise RuntimeError(f"EODHD lieferte keinen Kurs fuer {self.ticker(instrument)}")
         return quote
 
-    def search_by_isin(self, isin: str, *, limit: int = 25) -> list[dict[str, Any]]:
-        """Return active EODHD search candidates for one exact ISIN."""
-        normalized = isin.strip().upper()
-        if not _valid_isin(normalized):
-            raise ValueError("ISIN ist ungueltig")
+    def _search_rows(
+        self,
+        query: str,
+        *,
+        limit: int,
+        exchange: str | None = None,
+    ) -> list[dict[str, Any]]:
         params = {
             "api_token": self.api_key,
             "fmt": "json",
             "limit": str(max(1, min(int(limit), 100))),
             "type": "stock",
         }
+        if exchange:
+            params["exchange"] = exchange
         url = (
-            f"{self.search_endpoint}/{urllib.parse.quote(normalized, safe='')}?"
+            f"{self.search_endpoint}/{urllib.parse.quote(query, safe='')}?"
             + urllib.parse.urlencode(params)
         )
         request = urllib.request.Request(url, headers={"User-Agent": "OpenClaw-Portfolio/1"})
@@ -320,25 +325,71 @@ class EodhdClient:
             raise self._provider_error(raw, "Anbieterfehler")
         if not isinstance(payload, list):
             raise RuntimeError("EODHD-Suche lieferte keine Kandidatenliste")
+        return [row for row in payload if isinstance(row, dict)]
+
+    @staticmethod
+    def _exact_search_identity(
+        row: dict[str, Any],
+        normalized_isin: str,
+    ) -> tuple[str, str] | None:
+        row_isin = str(row.get("ISIN") or row.get("isin") or "").strip().upper()
+        symbol = str(row.get("Code") or row.get("code") or "").strip().upper()
+        currency = str(row.get("Currency") or row.get("currency") or "").strip().upper()
+        if (
+            row_isin != normalized_isin
+            or not MAPPING_SYMBOL_RE.fullmatch(symbol)
+            or len(currency) != 3
+            or not currency.isalpha()
+        ):
+            return None
+        return symbol, currency
+
+    def _verified_us_primary_venues(
+        self,
+        normalized_isin: str,
+        candidates: list[dict[str, Any]],
+        *,
+        limit: int,
+    ) -> dict[tuple[str, str], str]:
+        unresolved = {
+            (str(item["symbol"]), str(item["currency"]))
+            for item in candidates
+            if item["exchange"] == "US" and item["is_primary"]
+        }
+        verified: dict[tuple[str, str], str] = {}
+        for venue in US_PRIMARY_VENUE_FILTERS:
+            if not unresolved:
+                break
+            rows = self._search_rows(
+                normalized_isin,
+                limit=limit,
+                exchange=venue,
+            )
+            for row in rows:
+                identity = self._exact_search_identity(row, normalized_isin)
+                if identity not in unresolved:
+                    continue
+                verified[identity] = venue
+                unresolved.remove(identity)
+        return verified
+
+    def search_by_isin(self, isin: str, *, limit: int = 25) -> list[dict[str, Any]]:
+        """Return active EODHD candidates with a provider-verified US venue."""
+        normalized = isin.strip().upper()
+        if not _valid_isin(normalized):
+            raise ValueError("ISIN ist ungueltig")
+        payload = self._search_rows(normalized, limit=limit)
 
         candidates: list[dict[str, Any]] = []
         for row in payload:
-            if not isinstance(row, dict):
+            identity = self._exact_search_identity(row, normalized)
+            if identity is None:
                 continue
-            row_isin = str(row.get("ISIN") or row.get("isin") or "").strip().upper()
-            if row_isin != normalized:
-                continue
-            symbol = str(row.get("Code") or row.get("code") or "").strip().upper()
+            symbol, currency = identity
             exchange = str(row.get("Exchange") or row.get("exchange") or "").strip().upper()
-            currency = str(row.get("Currency") or row.get("currency") or "").strip().upper()
             name = str(row.get("Name") or row.get("name") or "").strip()
             allowed_mics = SUPPORTED_MICS_BY_EODHD_EXCHANGE.get(exchange, ())
-            if (
-                not MAPPING_SYMBOL_RE.fullmatch(symbol)
-                or len(currency) != 3
-                or not currency.isalpha()
-                or not allowed_mics
-            ):
+            if not allowed_mics:
                 continue
             candidates.append(
                 {
@@ -349,8 +400,24 @@ class EodhdClient:
                     "currency": currency,
                     "is_primary": bool(row.get("isPrimary") or row.get("is_primary")),
                     "allowed_mics": list(allowed_mics),
+                    "venue_source": "eodhd-search",
                 }
             )
+
+        verified_venues = self._verified_us_primary_venues(
+            normalized,
+            candidates,
+            limit=limit,
+        )
+        for candidate in candidates:
+            identity = (str(candidate["symbol"]), str(candidate["currency"]))
+            venue = verified_venues.get(identity)
+            if candidate["exchange"] != "US" or venue is None:
+                continue
+            candidate["exchange"] = venue
+            candidate["allowed_mics"] = list(SUPPORTED_MICS_BY_EODHD_EXCHANGE[venue])
+            candidate["venue_source"] = "eodhd-search-exchange-filter"
+            candidate["venue_filter"] = venue
         return candidates
 
 
@@ -851,6 +918,8 @@ class PortfolioService:
                     "currency": currency,
                     "is_primary": bool(item.get("is_primary")),
                     "allowed_mics": list(dict.fromkeys(allowed_mics)),
+                    "venue_source": str(item.get("venue_source") or "eodhd-search")[:80],
+                    "venue_filter": str(item.get("venue_filter") or "")[:20],
                 }
             )
         if not bounded_candidates:
@@ -929,6 +998,7 @@ class PortfolioService:
             ),
             "provider_exchange": selected["exchange"],
             "provider_primary": selected["is_primary"],
+            "provider_venue_source": selected["venue_source"],
         }
         return {
             "ok": True,
@@ -1784,7 +1854,11 @@ class PortfolioService:
                         "quote_currency": conversion["quote_currency"],
                         "provider_rate": self._rounded(conversion["provider_rate"], "0.00000001"),
                         "conversion_rate": self._rounded(conversion["rate"], "0.00000001"),
-                        "conversion": f"1 {quote_currency} = {self._rounded(conversion['rate'], '0.00000001')} {snapshot_currency}",
+                        "conversion": (
+                            f"1 {quote_currency} = "
+                            f"{self._rounded(conversion['rate'], '0.00000001')} "
+                            f"{snapshot_currency}"
+                        ),
                         "observed_at": conversion["observed_at"],
                         "received_at": conversion["received_at"],
                         "provider": conversion["provider"],
@@ -1849,7 +1923,10 @@ class PortfolioService:
             "totals": rendered_totals,
             "fx_quotes": list(fx_used.values()),
             "failures": failures,
-            "method": "Aktueller EODHD-Kurs, bei Fremdwaehrung mit zeitgestempeltem EODHD-FX-Kurs in die DKB-Snapshotwaehrung umgerechnet",
+            "method": (
+                "Aktueller EODHD-Kurs, bei Fremdwaehrung mit zeitgestempeltem "
+                "EODHD-FX-Kurs in die DKB-Snapshotwaehrung umgerechnet"
+            ),
             "estimated": True,
         }
 
