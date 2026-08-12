@@ -31,6 +31,7 @@ ISIN_RE = re.compile(r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$")
 MIC_RE = re.compile(r"^[A-Z0-9]{4}$")
 MAPPING_SYMBOL_RE = re.compile(r"^[A-Z0-9][A-Z0-9.\-]{0,39}$")
 EODHD_EXCHANGE_BY_MIC = {
+    "XLON": "LSE",
     "XETR": "XETRA",
     "XNAS": "US",
     "XNGS": "US",
@@ -115,6 +116,7 @@ MappingSelector = Callable[[dict[str, Any]], dict[str, Any]]
 
 
 SUPPORTED_MICS_BY_EODHD_EXCHANGE: dict[str, tuple[str, ...]] = {
+    "LSE": ("XLON",),
     "XETRA": ("XETR",),
     "US": ("XNAS", "XNYS"),
     "NASDAQ": ("XNAS",),
@@ -420,6 +422,45 @@ class EodhdClient:
             candidate["venue_filter"] = venue
         return candidates
 
+    def search_by_query(self, query: str, *, limit: int = 25) -> list[dict[str, Any]]:
+        """Return provider-supplied stock identities for a bounded name/ticker query."""
+        if any(ord(character) < 32 for character in query):
+            raise ValueError("Wertpapiersuche enthaelt ungueltige Steuerzeichen")
+        normalized_query = " ".join(query.split())
+        if len(normalized_query) < 2 or len(normalized_query) > 120:
+            raise ValueError("Wertpapiersuche benoetigt 2 bis 120 Zeichen")
+        payload = self._search_rows(normalized_query, limit=limit)
+        candidates: list[dict[str, Any]] = []
+        seen: set[tuple[str, str, str, str]] = set()
+        for row in payload:
+            isin = str(row.get("ISIN") or row.get("isin") or "").strip().upper()
+            symbol = str(row.get("Code") or row.get("code") or "").strip().upper()
+            exchange = str(row.get("Exchange") or row.get("exchange") or "").strip().upper()
+            currency = str(row.get("Currency") or row.get("currency") or "").strip().upper()
+            if (
+                not _valid_isin(isin)
+                or not MAPPING_SYMBOL_RE.fullmatch(symbol)
+                or not re.fullmatch(r"[A-Z0-9]{1,20}", exchange)
+                or len(currency) != 3
+                or not currency.isalpha()
+            ):
+                continue
+            identity = (isin, symbol, exchange, currency)
+            if identity in seen:
+                continue
+            seen.add(identity)
+            candidates.append(
+                {
+                    "isin": isin,
+                    "name": str(row.get("Name") or row.get("name") or isin).strip()[:200],
+                    "symbol": symbol,
+                    "exchange": exchange,
+                    "currency": currency,
+                    "is_primary": bool(row.get("isPrimary") or row.get("is_primary")),
+                }
+            )
+        return candidates
+
 
 class PortfolioStore:
     def __init__(self, path: Path) -> None:
@@ -588,6 +629,7 @@ class PortfolioService:
         fx_quote_fetcher: FxQuoteFetcher | None = None,
         notifier: EventNotifier | None = None,
         mapping_searcher: MappingSearcher | None = None,
+        mapping_query_searcher: MappingSearcher | None = None,
         mapping_selector: MappingSelector | None = None,
         now: Callable[[], datetime] = _now,
     ) -> None:
@@ -598,6 +640,7 @@ class PortfolioService:
         self._fx_quote_fetcher = fx_quote_fetcher
         self._notifier = notifier or _notify_openclaw
         self._mapping_searcher = mapping_searcher
+        self._mapping_query_searcher = mapping_query_searcher
         self._mapping_selector = mapping_selector
         self._now = now
 
@@ -847,11 +890,99 @@ class PortfolioService:
         ).fetchall()
         return {"ok": True, "count": len(rows), "items": [dict(row) for row in rows]}
 
-    def mapping_suggest(self, isin: str) -> dict[str, Any]:
+    def mapping_suggest(self, isin: str = "", *, query: str = "") -> dict[str, Any]:
         """Build a read-only, provider-bounded Ollama mapping proposal."""
         self._require_enabled()
         normalized = isin.strip().upper()
-        if not _valid_isin(normalized):
+        if any(ord(character) < 32 for character in query):
+            raise ValueError("Wertpapiersuche enthaelt ungueltige Steuerzeichen")
+        normalized_query = " ".join(query.split())
+        if bool(normalized) == bool(normalized_query):
+            raise ValueError("Genau eine ISIN oder Suchanfrage ist erforderlich")
+        discovery: dict[str, Any] | None = None
+        api_key = os.environ.get(self.settings.api_key_env, "").strip()
+        if normalized_query:
+            if len(normalized_query) < 2 or len(normalized_query) > 120:
+                raise ValueError("Wertpapiersuche benoetigt 2 bis 120 Zeichen")
+            if not api_key:
+                raise RuntimeError(
+                    f"API-Schluessel fehlt in Umgebungsvariable {self.settings.api_key_env}"
+                )
+            query_searcher = self._mapping_query_searcher
+            if query_searcher is None:
+                query_searcher = EodhdClient(
+                    api_key,
+                    timeout=self.settings.request_timeout_seconds,
+                ).search_by_query
+            raw_discovery = query_searcher(normalized_query)
+            discovery_candidates: list[dict[str, Any]] = []
+            for item in raw_discovery:
+                candidate_isin = str(item.get("isin") or "").strip().upper()
+                symbol = str(item.get("symbol") or "").strip().upper()
+                exchange = str(item.get("exchange") or "").strip().upper()
+                currency = str(item.get("currency") or "").strip().upper()
+                if (
+                    not _valid_isin(candidate_isin)
+                    or not MAPPING_SYMBOL_RE.fullmatch(symbol)
+                    or not re.fullmatch(r"[A-Z0-9]{1,20}", exchange)
+                    or len(currency) != 3
+                    or not currency.isalpha()
+                ):
+                    continue
+                discovery_candidates.append(
+                    {
+                        "isin": candidate_isin,
+                        "name": str(item.get("name") or candidate_isin).strip()[:200],
+                        "symbol": symbol,
+                        "exchange": exchange,
+                        "currency": currency,
+                        "is_primary": bool(item.get("is_primary")),
+                    }
+                )
+            if not discovery_candidates:
+                return {
+                    "ok": False,
+                    "status": "no-provider-candidate",
+                    "read_only": True,
+                    "stored": False,
+                    "query": normalized_query,
+                    "error": "EODHD lieferte keine gueltige Wertpapieridentitaet",
+                }
+            distinct_isins = sorted({item["isin"] for item in discovery_candidates})
+            primary_isins = sorted(
+                {item["isin"] for item in discovery_candidates if item["is_primary"]}
+            )
+            if len(primary_isins) == 1:
+                normalized = primary_isins[0]
+                discovery_policy = "unique-provider-primary-isin"
+            elif len(distinct_isins) == 1:
+                normalized = distinct_isins[0]
+                discovery_policy = "unique-provider-isin"
+            else:
+                return {
+                    "ok": False,
+                    "status": "ambiguous-query",
+                    "read_only": True,
+                    "stored": False,
+                    "query": normalized_query,
+                    "provider_candidates": len(discovery_candidates),
+                    "candidates": discovery_candidates[:20],
+                    "error": "EODHD lieferte mehrere nicht eindeutig aufloesbare ISINs",
+                }
+            selected_discovery = next(
+                item
+                for item in discovery_candidates
+                if item["isin"] == normalized
+                and (item["is_primary"] or len(primary_isins) != 1)
+            )
+            discovery = {
+                "query": normalized_query,
+                "provider_candidates": len(discovery_candidates),
+                "selection_policy": discovery_policy,
+                "selected_isin": normalized,
+                "name": selected_discovery["name"],
+            }
+        elif not _valid_isin(normalized):
             raise ValueError("ISIN ist ungueltig")
         row = self.store.connection.execute(
             """
@@ -860,11 +991,21 @@ class PortfolioService:
             """,
             (normalized,),
         ).fetchone()
-        if row is None:
-            raise ValueError("ISIN ist weder im Depot noch in der Watchlist registriert")
-        current = dict(row)
+        current = (
+            dict(row)
+            if row is not None
+            else {
+                "isin": normalized,
+                "name": str((discovery or {}).get("name") or normalized),
+                "wkn": "",
+                "symbol": "",
+                "mic": "",
+                "currency": "",
+                "mapping_confirmed": 0,
+            }
+        )
         if current["mapping_confirmed"] and current["symbol"] and current["mic"]:
-            return {
+            result = {
                 "ok": True,
                 "status": "already-confirmed",
                 "read_only": True,
@@ -875,11 +1016,15 @@ class PortfolioService:
                     "symbol": current["symbol"],
                     "mic": current["mic"],
                     "currency": current["currency"],
-                    "provider_symbol": EodhdClient.ticker(current),
+                    "provider_symbol": EodhdClient.ticker(
+                        {"symbol": str(current["symbol"]), "mic": str(current["mic"])}
+                    ),
                 },
             }
+            if discovery is not None:
+                result["discovery"] = discovery
+            return result
 
-        api_key = os.environ.get(self.settings.api_key_env, "").strip()
         if not api_key:
             raise RuntimeError(f"API-Schluessel fehlt in Umgebungsvariable {self.settings.api_key_env}")
         searcher = self._mapping_searcher
@@ -1017,7 +1162,7 @@ class PortfolioService:
             "provider_primary": selected["is_primary"],
             "provider_venue_source": selected["venue_source"],
         }
-        return {
+        result = {
             "ok": True,
             "status": "candidate",
             "read_only": True,
@@ -1036,6 +1181,10 @@ class PortfolioService:
             "approval": "explicit-user-watchlist-change",
             "next_tool": "portfolio.watchlist.add",
         }
+        if discovery is not None:
+            result["source"] = "eodhd-name-search+eodhd-isin-search+ollama-selection"
+            result["discovery"] = discovery
+        return result
 
     def watchlist_add(self, *, isin: str, name: str, symbol: str, mic: str, currency: str) -> dict[str, Any]:
         self._require_enabled()

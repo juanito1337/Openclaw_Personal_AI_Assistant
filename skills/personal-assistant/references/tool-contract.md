@@ -56,6 +56,7 @@ den fuehrenden Launcher durch `/opt/openclaw-agent/scripts/assistant.sh` ersetze
 | `portfolio.valuation` | `read` | nein | `none` | `always` | `./scripts/assistant.sh portfolio valuation` | `tests/test_portfolio_tool.py` |
 | `portfolio.watchlist` | `read` | nein | `none` | `always` | `./scripts/assistant.sh portfolio watchlist list` | `tests/test_portfolio_tool.py` |
 | `portfolio.mapping.suggest` | `read` | nein | `none` | `always` | `./scripts/assistant.sh portfolio mapping suggest --isin "<ISIN>"` | `tests/test_portfolio_tool.py` |
+| `portfolio.mapping.discover` | `read` | nein | `none` | `always` | `./scripts/assistant.sh portfolio mapping suggest --query "<Unternehmen-oder-Symbol>"` | `tests/test_portfolio_tool.py` |
 | `portfolio.watchlist.add` | `local-write` | nein | `explicit-user-watchlist-change` | `always` | `./scripts/assistant.sh portfolio watchlist add --isin "<ISIN>" --name "<Name>" --symbol "<Symbol>" --mic "<MIC>" --currency "<ISO>" --yes` | `tests/test_portfolio_tool.py` |
 | `portfolio.watchlist.disable` | `local-write` | nein | `explicit-user-watchlist-change` | `always` | `./scripts/assistant.sh portfolio watchlist disable --isin "<ISIN>" --yes` | `tests/test_portfolio_tool.py` |
 | `portfolio.quotes.status` | `read` | nein | `none` | `always` | `./scripts/assistant.sh portfolio quotes status` | `tests/test_portfolio_tool.py` |

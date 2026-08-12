@@ -199,6 +199,20 @@ def test_missing_mapping_uses_provider_bounded_ollama_suggestion() -> None:
     assert "explicit approval" in portfolio
 
 
+def test_new_watchlist_security_is_discovered_before_asking_for_isin() -> None:
+    skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
+    portfolio = " ".join(
+        (SKILL / "references/portfolio.md").read_text(encoding="utf-8").split()
+    )
+
+    command = '`portfolio mapping suggest --query "<Unternehmen-oder-Symbol>"`'
+    assert command in skill
+    assert command in portfolio
+    assert "Do not ask Jan for the ISIN before this registered lookup was attempted" in portfolio
+    assert "multiple distinct identities fail closed" in portfolio
+    assert "Name search and proposal remain read-only" in portfolio
+
+
 def test_agent_executes_approved_portfolio_workflow_instead_of_delegating_it() -> None:
     skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
     portfolio = " ".join(

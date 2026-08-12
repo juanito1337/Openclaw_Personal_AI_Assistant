@@ -57,7 +57,7 @@ def handle(args: argparse.Namespace, assistant: Any, emit: Callable[[Any], None]
     elif command == "mapping":
         if args.mapping_command != "suggest":
             raise ValueError(f"Unbekannter Mapping-Befehl: {args.mapping_command}")
-        result = assistant.portfolio.mapping_suggest(args.isin)
+        result = assistant.portfolio.mapping_suggest(args.isin or "", query=args.query or "")
         emit(result)
         return 0 if result.get("ok") else 1
     elif command == "quotes":

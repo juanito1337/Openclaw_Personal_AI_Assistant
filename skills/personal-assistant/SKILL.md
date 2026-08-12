@@ -128,6 +128,7 @@ launcher shown above:
 | Latest/current prices, portfolio value, profit or return | `portfolio quotes status`; if due, stale or missing and configured, `portfolio quotes refresh`; then `portfolio valuation` |
 | One security's latest/current quote | Resolve the exact ISIN, check/refresh as above, then `portfolio quotes get --isin "<ISIN>"` |
 | Portfolio configuration, freshness or failures | `portfolio status`, then `portfolio doctor` on failure |
+| Add a new watchlist security by company name or symbol | `portfolio mapping suggest --query "<Unternehmen-oder-Symbol>"`; present the returned candidate for approval |
 | Missing portfolio symbol/MIC mapping | `portfolio mapping suggest --isin "<ISIN>"`; then present the exact returned candidate for approval |
 | Antivirus state, self-test or controlled file scan | `security antivirus doctor`, `security antivirus self-test` or `security antivirus scan ...` |
 
@@ -144,9 +145,14 @@ and `jobs check --target all --deep`, then report every independent blocker. In
 particular, never call missing mappings the sole cause when `configuration_ok` or
 `api_key_present` is false. A failure explanation without the next bounded action
 is incomplete: for an unconfirmed mapping, run the registered read-only
-`portfolio mapping suggest --isin "<ISIN>"` command. It may use Ollama only to
-select from exact EODHD candidates and cannot store the result. Present one
-returned ISIN/name/symbol/MIC/currency plan and request its
+`portfolio mapping suggest --isin "<ISIN>"` command. For a new watchlist request
+without an ISIN, use `portfolio mapping suggest --query
+"<Unternehmen-oder-Symbol>"`; never ask Jan to supply an identifier before this
+registered provider lookup was attempted. The query path accepts only one unique
+provider-supplied primary ISIN and then applies the same exact-ISIN mapping gate.
+Both forms may use Ollama only to select from exact EODHD candidates and cannot
+store the result. Present one returned ISIN/name/symbol/MIC/currency plan and
+request its
 `explicit-user-watchlist-change` approval. After approval, execute the registered
 command yourself and verify it; never silently confirm a mapping or ask Jan to
 run `docker exec`.

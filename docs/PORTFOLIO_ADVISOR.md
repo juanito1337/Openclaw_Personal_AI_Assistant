@@ -130,6 +130,19 @@ proposal first:
 ./scripts/assistant.sh portfolio mapping suggest --isin "DE000BASF111"
 ```
 
+For a new watchlist security, the agent can discover the ISIN from a company name
+or ticker without asking the user to research it:
+
+```bash
+./scripts/assistant.sh portfolio mapping suggest --query "BAE Systems"
+```
+
+The provider-name search accepts only a single unique provider identity (preferring
+one uniquely marked primary ISIN). Ambiguous names fail closed and return bounded
+candidates for disambiguation. No instrument or watchlist row is written. The
+selected ISIN is verified by a second exact-ISIN provider search before Ollama is
+allowed to choose a venue.
+
 The command starts with one bounded EODHD Search API lookup for the exact active
 ISIN. EODHD supplies symbol, exchange, name and currency. Because EODHD reports a
 combined `US` exchange in ordinary search results, a primary US candidate is
@@ -147,6 +160,7 @@ permits only `status=candidate`, its provider candidate ID and its single canoni
 MIC. This prevents a contradictory `uncertain` result after the model has already
 identified the provider-confirmed venue, without allowing model-created data.
 
+The supported London home venue maps EODHD `LSE` to ISO 10383 MIC `XLON`.
 After checking the proposed fields, confirm the exact provider symbol, ISO 10383
 MIC and currency separately:
 

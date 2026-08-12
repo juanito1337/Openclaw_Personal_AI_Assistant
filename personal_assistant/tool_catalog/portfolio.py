@@ -160,6 +160,18 @@ TOOLS: tuple[ToolDefinition, ...] = (
         test_anchor="tests/test_portfolio_tool.py",
     ),
     define(
+        id="portfolio.mapping.discover",
+        domain="portfolio",
+        description="Wertpapiername oder Symbol bei EODHD suchen, eine eindeutige providerseitige ISIN ermitteln und daraus einen bestaetigungspflichtigen Mappingvorschlag erzeugen",
+        command='./scripts/assistant.sh portfolio mapping suggest --query "<Unternehmen-oder-Symbol>"',
+        mode="read",
+        writes_external_data=False,
+        approval="none",
+        availability="always",
+        documentation_anchor="docs/PORTFOLIO_ADVISOR.md",
+        test_anchor="tests/test_portfolio_tool.py",
+    ),
+    define(
         id="portfolio.watchlist.add",
         domain="portfolio",
         description="Wertpapier mit explizit bestaetigter Boersenplatz-Zuordnung aufnehmen",

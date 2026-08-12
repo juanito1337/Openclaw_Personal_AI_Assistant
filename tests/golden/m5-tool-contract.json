@@ -296,6 +296,14 @@
     "writes_external_data": false
   },
   {
+    "approval": "none",
+    "command": "./scripts/assistant.sh portfolio mapping suggest --query \"<Unternehmen-oder-Symbol>\"",
+    "description": "Wertpapiername oder Symbol bei EODHD suchen, eine eindeutige providerseitige ISIN ermitteln und daraus einen bestaetigungspflichtigen Mappingvorschlag erzeugen",
+    "id": "portfolio.mapping.discover",
+    "mode": "read",
+    "writes_external_data": false
+  },
+  {
     "approval": "explicit-user-watchlist-change",
     "command": "./scripts/assistant.sh portfolio watchlist add --isin \"<ISIN>\" --name \"<Name>\" --symbol \"<Symbol>\" --mic \"<MIC>\" --currency \"<ISO>\" --yes",
     "description": "Wertpapier mit explizit bestaetigter Boersenplatz-Zuordnung aufnehmen",

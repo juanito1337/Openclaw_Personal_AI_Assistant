@@ -193,6 +193,7 @@ class PortfolioParserTests(unittest.TestCase):
         self.assertIn("portfolio.quotes.refresh", ids)
         self.assertIn("portfolio.quotes.get", ids)
         self.assertIn("portfolio.mapping.suggest", ids)
+        self.assertIn("portfolio.mapping.discover", ids)
         self.assertIn("portfolio.valuation", ids)
         self.assertIn("portfolio.analyze", ids)
         self.assertIn("portfolio.job.on", ids)
@@ -229,6 +230,11 @@ class PortfolioParserTests(unittest.TestCase):
         )
         self.assertEqual(mapping.mapping_command, "suggest")
         self.assertEqual(mapping.isin, ISIN)
+        discovery = cli_parser().parse_args(
+            ["portfolio", "mapping", "suggest", "--query", "BAE Systems"]
+        )
+        self.assertEqual(discovery.query, "BAE Systems")
+        self.assertIsNone(discovery.isin)
         valuation = cli_parser().parse_args(["portfolio", "valuation"])
         self.assertEqual(valuation.portfolio_command, "valuation")
         free_interval = cli_parser().parse_args(

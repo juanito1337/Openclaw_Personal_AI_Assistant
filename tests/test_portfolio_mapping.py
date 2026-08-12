@@ -17,6 +17,7 @@ from tests.test_portfolio_tool import ISIN, CleanAntivirus, csv_fixture
 
 ALPHABET_ISIN = "US02079K3059"
 LOCKHEED_ISIN = "US5398301094"
+BAE_ISIN = "GB0002634946"
 
 
 class Response:
@@ -34,6 +35,72 @@ class Response:
 
 
 class EodhdMappingSearchTests(unittest.TestCase):
+    @patch("personal_assistant.portfolio.urllib.request.urlopen")
+    def test_search_by_isin_supports_london_home_venue(self, urlopen) -> None:
+        urlopen.return_value = Response(
+            [
+                {
+                    "Code": "BA",
+                    "Exchange": "LSE",
+                    "Name": "BAE Systems plc",
+                    "Currency": "GBP",
+                    "ISIN": BAE_ISIN,
+                    "isPrimary": True,
+                }
+            ]
+        )
+
+        result = EodhdClient("secret-token").search_by_isin(BAE_ISIN)
+
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["symbol"], "BA")
+        self.assertEqual(result[0]["allowed_mics"], ["XLON"])
+        self.assertEqual(EodhdClient.ticker({"symbol": "BA", "mic": "XLON"}), "BA.LSE")
+
+    @patch("personal_assistant.portfolio.urllib.request.urlopen")
+    def test_search_by_query_returns_only_valid_provider_identities(self, urlopen) -> None:
+        urlopen.return_value = Response(
+            [
+                {
+                    "Code": "BA",
+                    "Exchange": "LSE",
+                    "Name": "BAE Systems plc",
+                    "Currency": "GBP",
+                    "ISIN": BAE_ISIN,
+                    "isPrimary": True,
+                },
+                {
+                    "Code": "BSP",
+                    "Exchange": "XETRA",
+                    "Name": "BAE Systems plc",
+                    "Currency": "EUR",
+                    "ISIN": BAE_ISIN,
+                    "isPrimary": False,
+                },
+                {
+                    "Code": "BAD;VALUE",
+                    "Exchange": "LSE",
+                    "Name": "Injected",
+                    "Currency": "GBP",
+                    "ISIN": BAE_ISIN,
+                    "isPrimary": False,
+                },
+            ]
+        )
+
+        result = EodhdClient("secret-token").search_by_query("BAE Systems")
+
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0]["isin"], BAE_ISIN)
+        self.assertEqual(result[0]["symbol"], "BA")
+        request = urlopen.call_args.args[0]
+        self.assertIn("/search/BAE%20Systems?", request.full_url)
+        self.assertIn("type=stock", request.full_url)
+
+    def test_search_by_query_rejects_control_characters(self) -> None:
+        with self.assertRaisesRegex(ValueError, "Steuerzeichen"):
+            EodhdClient("secret-token").search_by_query("BAE\nSystems")
+
     @patch("personal_assistant.portfolio.urllib.request.urlopen")
     def test_search_by_isin_keeps_only_exact_supported_candidates(self, urlopen) -> None:
         urlopen.return_value = Response(
@@ -445,6 +512,127 @@ class PortfolioMappingSuggestionTests(unittest.TestCase):
         self.assertEqual(result["candidate"]["mic"], "XNAS")
         self.assertEqual(captured[0]["selection_policy"], "provider-verified-primary")
         self.assertEqual(len(captured[0]["candidates"]), 1)
+        self.assertEqual(self.service.watchlist()["count"], 0)
+
+    def test_unregistered_exact_isin_can_produce_read_only_proposal(self) -> None:
+        self.service._mapping_searcher = lambda isin: [
+            {
+                "isin": BAE_ISIN,
+                "name": "BAE Systems plc",
+                "symbol": "BA",
+                "exchange": "LSE",
+                "currency": "GBP",
+                "is_primary": True,
+                "allowed_mics": ["XLON"],
+                "venue_source": "eodhd-search",
+            }
+        ]
+        self.service._mapping_selector = lambda request: {
+            "status": "candidate",
+            "candidate_id": 1,
+            "mic": "XLON",
+            "confidence": 0.99,
+            "reason": "Primaere Londoner Notierung",
+            "model": "test-model",
+        }
+
+        with patch.dict("os.environ", {"PORTFOLIO_EODHD_API_KEY": "configured"}):
+            result = self.service.mapping_suggest(BAE_ISIN)
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["candidate"]["isin"], BAE_ISIN)
+        self.assertEqual(result["candidate"]["mic"], "XLON")
+        self.assertEqual(result["candidate"]["provider_symbol"], "BA.LSE")
+        self.assertEqual(self.service.watchlist()["count"], 0)
+
+    def test_name_query_discovers_isin_then_builds_bounded_proposal(self) -> None:
+        self.service._mapping_query_searcher = lambda query: [
+            {
+                "isin": BAE_ISIN,
+                "name": "BAE Systems plc",
+                "symbol": "BA",
+                "exchange": "LSE",
+                "currency": "GBP",
+                "is_primary": True,
+            },
+            {
+                "isin": BAE_ISIN,
+                "name": "BAE Systems plc",
+                "symbol": "BSP",
+                "exchange": "XETRA",
+                "currency": "EUR",
+                "is_primary": False,
+            },
+        ]
+        self.service._mapping_searcher = lambda isin: [
+            {
+                "isin": BAE_ISIN,
+                "name": "BAE Systems plc",
+                "symbol": "BA",
+                "exchange": "LSE",
+                "currency": "GBP",
+                "is_primary": True,
+                "allowed_mics": ["XLON"],
+                "venue_source": "eodhd-search",
+            }
+        ]
+        self.service._mapping_selector = lambda request: {
+            "status": "candidate",
+            "candidate_id": 1,
+            "mic": "XLON",
+            "confidence": 1.0,
+            "reason": "Exakte primaere Provideridentitaet",
+            "model": "test-model",
+        }
+
+        with patch.dict("os.environ", {"PORTFOLIO_EODHD_API_KEY": "configured"}):
+            result = self.service.mapping_suggest(query="BAE Systems")
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["discovery"]["selected_isin"], BAE_ISIN)
+        self.assertEqual(
+            result["discovery"]["selection_policy"],
+            "unique-provider-primary-isin",
+        )
+        self.assertEqual(result["candidate"]["symbol"], "BA")
+        self.assertTrue(result["approval_required"])
+        self.assertFalse(result["stored"])
+        self.assertEqual(self.service.watchlist()["count"], 0)
+
+    def test_ambiguous_name_query_fails_closed_before_ollama(self) -> None:
+        selector_called = False
+
+        def selector(request: dict[str, object]) -> dict[str, object]:
+            nonlocal selector_called
+            selector_called = True
+            return {}
+
+        self.service._mapping_query_searcher = lambda query: [
+            {
+                "isin": BAE_ISIN,
+                "name": "BAE Systems plc",
+                "symbol": "BA",
+                "exchange": "LSE",
+                "currency": "GBP",
+                "is_primary": True,
+            },
+            {
+                "isin": ISIN,
+                "name": "Different BAE Holding",
+                "symbol": "BAS",
+                "exchange": "XETRA",
+                "currency": "EUR",
+                "is_primary": True,
+            },
+        ]
+        self.service._mapping_selector = selector
+
+        with patch.dict("os.environ", {"PORTFOLIO_EODHD_API_KEY": "configured"}):
+            result = self.service.mapping_suggest(query="BAE")
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["status"], "ambiguous-query")
+        self.assertFalse(selector_called)
         self.assertEqual(self.service.watchlist()["count"], 0)
 
 

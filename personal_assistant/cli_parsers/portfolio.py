@@ -47,9 +47,11 @@ def add_commands(sub: Any) -> None:
     )
     mapping_sub = mapping.add_subparsers(dest="mapping_command", required=True)
     mapping_suggest = mapping_sub.add_parser(
-        "suggest", help="Schreibgeschuetzten Mappingvorschlag fuer eine exakte ISIN erzeugen"
+        "suggest", help="Schreibgeschuetzten Mappingvorschlag fuer ISIN oder Wertpapiername erzeugen"
     )
-    mapping_suggest.add_argument("--isin", required=True)
+    mapping_source = mapping_suggest.add_mutually_exclusive_group(required=True)
+    mapping_source.add_argument("--isin")
+    mapping_source.add_argument("--query")
     quotes = portfolio_sub.add_parser("quotes", help="Kursversorgung pruefen oder aktualisieren")
     quotes_sub = quotes.add_subparsers(dest="quotes_command", required=True)
     quotes_sub.add_parser("status")

@@ -39,6 +39,7 @@ TOOL_ORDER: tuple[str, ...] = (
     "portfolio.valuation",
     "portfolio.watchlist",
     "portfolio.mapping.suggest",
+    "portfolio.mapping.discover",
     "portfolio.watchlist.add",
     "portfolio.watchlist.disable",
     "portfolio.quotes.status",

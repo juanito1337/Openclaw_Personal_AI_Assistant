@@ -2,6 +2,15 @@
 
 ## Unreleased – M8 End-to-End-Recovery, Skills und Releaseabschluss
 
+- Neue Watchlist-Wertpapiere koennen mit `portfolio mapping suggest --query`
+  direkt anhand von Firmenname oder Symbol bei EODHD gesucht werden. Der Agent
+  muss Jan nicht mehr zuerst nach einer ISIN fragen. Nur eine eindeutige
+  providerseitige Identitaet wird weiterverarbeitet; mehrdeutige Treffer bleiben
+  read-only und fail-closed. Die gefundene ISIN durchlaeuft weiterhin exakte
+  EODHD-Verifikation, MIC-Allowlist, begrenzte Ollama-Auswahl und eine separate
+  ausdrueckliche Freigabe. `LSE`/`XLON` ist fuer Londoner Heimatnotierungen
+  registriert.
+
 - Der neue read-only Befehl `portfolio mapping suggest --isin` sucht die exakte
   ISIN bei EODHD und laesst Ollama nur einen providerseitig gelieferten
   Kandidaten samt allowlistetem MIC auswaehlen. Erfundenes Modelloutput wird

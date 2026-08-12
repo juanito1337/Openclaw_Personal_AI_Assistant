@@ -23,6 +23,14 @@ candidate to Ollama and constrain its structured response to that candidate ID a
 single MIC. Do not accept a contradictory free-form `uncertain` status, and never
 turn this read-only proposal into stored confirmation without explicit approval.
 
+For a new watchlist request where Jan gives only a company name or ticker, first
+use `portfolio mapping suggest --query "<Unternehmen-oder-Symbol>"`. Do not ask
+Jan for the ISIN before this registered lookup was attempted. EODHD must supply a
+single unique primary ISIN (or a single unique ISIN when no primary flag exists);
+multiple distinct identities fail closed and are shown for disambiguation. The
+selected provider ISIN then passes through the same exact-ISIN search, MIC
+allowlist and bounded Ollama selection. Name search and proposal remain read-only.
+
 For every question about Jan's stocks, securities, depot positions or holdings,
 use `portfolio holdings` first. Do not search memory, the writable workspace or
 local files to decide whether a portfolio exists. Only a successful registered
@@ -50,7 +58,9 @@ incomplete and must not be summed as a complete total.
 Run the registered setup, mapping, doctor, refresh, status, valuation and job
 commands yourself; never ask Jan to copy a `docker exec` wrapper. If an instrument
 has no confirmed mapping, first read holdings and watchlist, then run `portfolio
-mapping suggest --isin "<ISIN>"` yourself. The command must call Ollama through
+mapping suggest --isin "<ISIN>"` yourself. For a new watchlist security without
+an ISIN, run `portfolio mapping suggest --query "<Unternehmen-oder-Symbol>"`.
+The command must call Ollama through
 the coordinator and reject every symbol, currency, candidate ID or MIC that was
 not bounded by the exact EODHD response. Present one bounded plan containing the
 returned exact ISIN, name, symbol, MIC and currency. Wait for explicit approval,
