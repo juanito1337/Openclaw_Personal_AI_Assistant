@@ -28,6 +28,7 @@ from .portfolio_research import (
     RESEARCH_STRATEGIES,
     EodhdResearchClient,
     ResearchProvider,
+    ResearchProviderError,
     analyze_research_payload,
     research_models,
 )
@@ -1913,6 +1914,7 @@ class PortfolioService:
 
     def research_status(self) -> dict[str, Any]:
         api_key_present = bool(os.environ.get(self.settings.api_key_env, "").strip())
+        database_integrity = self.store.integrity()
         last_run = self.store.connection.execute(
             """
             SELECT id,created_at,kind,strategy,status,candidate_count,error
@@ -1922,22 +1924,46 @@ class PortfolioService:
         successful = self.store.connection.execute(
             "SELECT created_at FROM research_runs WHERE status='success' ORDER BY created_at DESC LIMIT 1"
         ).fetchone()
+        configuration_ok = bool(
+            self.settings.enabled
+            and self.settings.provider == "eodhd"
+            and api_key_present
+            and database_integrity == "ok"
+        )
+        last_status = str(last_run["status"] or "") if last_run else ""
+        if not configuration_ok:
+            state = "misconfigured"
+        elif not last_run:
+            state = "unverified"
+        elif last_status == "success":
+            state = "healthy"
+        elif last_status == "partial":
+            state = "degraded"
+        else:
+            state = "failed"
+        last_error = str(last_run["error"] or "") if last_run else ""
+        entitlement_state = (
+            "denied"
+            if state == "failed" and ("HTTP 402" in last_error or "HTTP 403" in last_error)
+            else "verified"
+            if state == "healthy"
+            else "unverified"
+        )
         return {
-            "ok": bool(
-                self.settings.enabled
-                and self.settings.provider == "eodhd"
-                and api_key_present
-                and self.store.integrity() == "ok"
-            ),
+            "ok": state == "healthy",
+            "state": state,
+            "configuration_ok": configuration_ok,
             "enabled": self.settings.enabled,
             "provider": self.settings.provider,
             "api_key_present": api_key_present,
             "api_key_env": self.settings.api_key_env,
-            "database_integrity": self.store.integrity(),
+            "database_integrity": database_integrity,
             "models": research_models(),
             "entitlement": {
+                "state": entitlement_state,
                 "required_endpoints": ["screener", "v1.1/fundamentals", "eod"],
                 "verified_by_successful_run": successful is not None,
+                "currently_verified": state == "healthy",
                 "last_verified_at": successful["created_at"] if successful else None,
             },
             "last_run": dict(last_run) if last_run else None,
@@ -2022,7 +2048,14 @@ class PortfolioService:
                     model_version,
                     status,
                     len(analyses),
-                    "; ".join(item["error"] for item in failures)[:1000],
+                    "; ".join(
+                        (
+                            f"{item.get('endpoint')}: {item['error']}"
+                            if item.get("endpoint")
+                            else item["error"]
+                        )
+                        for item in failures
+                    )[:1000],
                 ),
             )
             for rank, analysis in enumerate(analyses, start=1):
@@ -2057,6 +2090,15 @@ class PortfolioService:
                 stored.append(rendered)
         return run_id, stored
 
+    @staticmethod
+    def _research_failure(exc: RuntimeError | ValueError, *, ticker: str = "") -> dict[str, Any]:
+        if isinstance(exc, ResearchProviderError):
+            return exc.render(ticker=ticker)
+        result = {"error": str(exc)}
+        if ticker:
+            result["ticker"] = ticker
+        return result
+
     def research_analyze(self, isin: str, *, strategy: str = "auto") -> dict[str, Any]:
         profile = self.philosophy_show()
         selected_strategy = self._research_strategy(strategy, profile)
@@ -2076,7 +2118,7 @@ class PortfolioService:
             analysis["profile_fit"] = self._research_profile_fit(analysis, profile)
             analyses = [analysis]
         except (RuntimeError, ValueError) as exc:
-            failures = [{"ticker": ticker, "error": str(exc)}]
+            failures = [self._research_failure(exc, ticker=ticker)]
             analyses = []
         run_id, stored = self._store_research_run(
             kind="analysis",
@@ -2150,12 +2192,47 @@ class PortfolioService:
         profile = self.philosophy_show()
         selected_strategy = self._research_strategy(strategy, profile)
         client = self._research_client()
-        provider_rows = client.screen(
-            strategy=selected_strategy,
-            exchange=exchange,
-            sector=sector,
-            limit=min(30, max(limit * 3, 10)),
-        )
+        request = {
+            "strategy": selected_strategy,
+            "exchange": exchange.strip().upper(),
+            "sector": " ".join(sector.split())[:80],
+            "limit": limit,
+        }
+        try:
+            provider_rows = client.screen(
+                strategy=selected_strategy,
+                exchange=exchange,
+                sector=sector,
+                limit=min(30, max(limit * 3, 10)),
+            )
+        except (RuntimeError, ValueError) as exc:
+            screen_failures = [self._research_failure(exc)]
+            run_id, _ = self._store_research_run(
+                kind="screen",
+                strategy=selected_strategy,
+                request=request,
+                analyses=[],
+                failures=screen_failures,
+            )
+            return {
+                "ok": False,
+                "decision": "abstain",
+                "research_run_id": run_id,
+                "provider": "eodhd",
+                "strategy": selected_strategy,
+                "model_version": research_models()["model_version"],
+                "provider_candidates": 0,
+                "analyzed": 0,
+                "suggestion_count": 0,
+                "suggestions": [],
+                "candidates": [],
+                "failures": screen_failures,
+                "profile": profile,
+                "disclaimer": (
+                    "Keine Analyse ohne belegte EODHD-Providerdaten; "
+                    "keine Kauf-/Verkaufsempfehlung oder Orderfreigabe."
+                ),
+            }
         known = {
             str(row[0]).upper()
             for row in self.store.connection.execute(
@@ -2188,7 +2265,7 @@ class PortfolioService:
                 analysis["profile_fit"] = self._research_profile_fit(analysis, profile)
                 analyses.append(analysis)
             except (RuntimeError, ValueError) as exc:
-                failures.append({"ticker": ticker, "error": str(exc)})
+                failures.append(self._research_failure(exc, ticker=ticker))
             if len(analyses) >= limit * 2:
                 break
         analyses.sort(
@@ -2203,12 +2280,7 @@ class PortfolioService:
         run_id, stored = self._store_research_run(
             kind="screen",
             strategy=selected_strategy,
-            request={
-                "strategy": selected_strategy,
-                "exchange": exchange.strip().upper(),
-                "sector": " ".join(sector.split())[:80],
-                "limit": limit,
-            },
+            request=request,
             analyses=analyses,
             failures=failures,
         )

@@ -244,6 +244,19 @@ scorecard. It does not ask an LLM to invent facts or decide the numerical score.
 The configured EODHD tariff must permit all three endpoints; a successful run is
 the runtime entitlement proof.
 
+An EODHD end-of-day subscription that supplies quotes does not by itself prove
+access to the separate Screener and Fundamentals APIs. HTTP 402 or 403 from one
+of these endpoints is recorded as a non-retryable
+`provider-entitlement-denied` failure. The command returns a structured
+`decision=abstain`, identifies the denied endpoint and stores the failed run in
+the append-only audit history. It never substitutes an exchange-symbol list,
+Ollama memory or price-only momentum for the missing fundamental evidence.
+Check the current EODHD subscription before retrying; no API key needs to be
+changed when the quote tools already authenticate successfully.
+`portfolio research status` remains `unverified` before the first complete run,
+becomes `healthy` only after all required endpoints succeeded and reports
+`failed` plus `entitlement.state=denied` after a current HTTP 402/403 failure.
+
 ```bash
 ./scripts/assistant.sh portfolio research status
 ./scripts/assistant.sh portfolio research models

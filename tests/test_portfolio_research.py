@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import unittest
 import urllib.error
@@ -9,12 +10,14 @@ from decimal import Decimal
 from email.message import Message
 from pathlib import Path
 from typing import Any, cast
+from unittest.mock import patch
 
 from personal_assistant.cli import parser as cli_parser
 from personal_assistant.portfolio import PortfolioService
 from personal_assistant.portfolio_research import (
     RESEARCH_MODEL_VERSION,
     EodhdResearchClient,
+    ResearchProviderError,
     analyze_research_payload,
     research_models,
 )
@@ -197,6 +200,26 @@ class EodhdResearchClientTests(unittest.TestCase):
             client.history("AAPL.US", from_date=date(2025, 1, 1))
         self.assertNotIn("top-secret", str(raised.exception))
 
+    def test_forbidden_screener_is_classified_as_non_retryable_entitlement_failure(self) -> None:
+        def urlopen(request, timeout):
+            raise urllib.error.HTTPError(
+                request.full_url,
+                403,
+                "forbidden",
+                Message(),
+                None,
+            )
+
+        client = EodhdResearchClient("top-secret", urlopen=urlopen)
+        with self.assertRaises(ResearchProviderError) as raised:
+            client.screen(strategy="quality-value", exchange="US", limit=5)
+        rendered = raised.exception.render()
+        self.assertEqual(rendered["endpoint"], "screener")
+        self.assertEqual(rendered["status_code"], 403)
+        self.assertEqual(rendered["category"], "provider-entitlement-denied")
+        self.assertFalse(rendered["retryable"])
+        self.assertNotIn("top-secret", json.dumps(rendered))
+
     def test_ticker_validation_blocks_path_and_query_injection(self) -> None:
         for value in ("../../secret", "AAPL.US?api_token=x", "AAPL..US", ""):
             with self.subTest(value=value), self.assertRaises(ValueError):
@@ -295,6 +318,8 @@ class DeterministicResearchTests(unittest.TestCase):
 
 class PortfolioResearchServiceTests(unittest.TestCase):
     def setUp(self) -> None:
+        self.environment = patch.dict(os.environ, {"PORTFOLIO_EODHD_API_KEY": "test-secret"})
+        self.environment.start()
         self.temporary = tempfile.TemporaryDirectory()
         root = Path(self.temporary.name)
         self.settings = PortfolioToolSettings(
@@ -315,8 +340,13 @@ class PortfolioResearchServiceTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.service.close()
         self.temporary.cleanup()
+        self.environment.stop()
 
     def test_screen_ranks_candidates_and_persists_auditable_evidence(self) -> None:
+        initial = self.service.research_status()
+        self.assertFalse(initial["ok"])
+        self.assertTrue(initial["configuration_ok"])
+        self.assertEqual(initial["state"], "unverified")
         result = self.service.research_screen(strategy="quality-value", limit=2)
         self.assertTrue(result["ok"])
         self.assertEqual(result["analyzed"], 2)
@@ -325,6 +355,42 @@ class PortfolioResearchServiceTests(unittest.TestCase):
         history = self.service.research_history()
         self.assertEqual(history["count"], 1)
         self.assertEqual(history["runs"][0]["model_version"], RESEARCH_MODEL_VERSION)
+        status = self.service.research_status()
+        self.assertTrue(status["ok"])
+        self.assertEqual(status["state"], "healthy")
+        self.assertEqual(status["entitlement"]["state"], "verified")
+
+    def test_screen_provider_entitlement_failure_abstains_and_is_audited(self) -> None:
+        class DeniedProvider(FakeResearchProvider):
+            def screen(self, **kwargs):
+                raise ResearchProviderError(
+                    "HTTP 403",
+                    endpoint="screener",
+                    status_code=403,
+                )
+
+        self.service.close()
+        self.service = PortfolioService(
+            self.settings,
+            CleanAntivirus(),  # type: ignore[arg-type]
+            research_provider=DeniedProvider(),
+            now=self.clock,
+        )
+        result = self.service.research_screen(strategy="quality-value", exchange="US", limit=5)
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["decision"], "abstain")
+        self.assertEqual(result["provider_candidates"], 0)
+        self.assertEqual(result["failures"][0]["endpoint"], "screener")
+        self.assertEqual(result["failures"][0]["category"], "provider-entitlement-denied")
+        self.assertFalse(result["failures"][0]["retryable"])
+        history = self.service.research_history()
+        self.assertEqual(history["runs"][0]["status"], "failed")
+        self.assertIn("screener", history["runs"][0]["error"])
+        self.assertIn("HTTP 403", history["runs"][0]["error"])
+        status = self.service.research_status()
+        self.assertFalse(status["ok"])
+        self.assertEqual(status["state"], "failed")
+        self.assertEqual(status["entitlement"]["state"], "denied")
 
     def test_screen_excludes_existing_watchlist_identity(self) -> None:
         self.service.watchlist_add(

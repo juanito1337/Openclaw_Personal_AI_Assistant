@@ -149,6 +149,14 @@ incomplete mandatory pillars, excluded profile sectors or `decision=abstain`
 must never be presented as suggestions. Report partial provider failures and the
 tariff/endpoint limitation without filling the gap from memory.
 
+HTTP 402 or 403 from Screener or Fundamentals is a non-retryable provider
+entitlement failure, not permission to fall back to model knowledge, a generic
+symbol list or price-only analysis. Preserve the structured endpoint, status,
+category and required action returned by the tool, state that the result is
+`abstain`, and do not automatically retry. If ordinary EOD quotes still work,
+do not claim that the API key is missing or ask Jan to replace it; the denied
+research dataset must be enabled in the EODHD subscription.
+
 The investment philosophy is a separate append-only user contract. Read it with
 `portfolio philosophy show`; if no confirmed profile exists, label the research
 as generic and ask Jan whether he wants to approve one complete profile proposal.

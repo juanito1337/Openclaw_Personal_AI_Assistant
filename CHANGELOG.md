@@ -15,6 +15,12 @@
   EUR-Bewertung und belegte Sektordaten ausgegeben; automatische Profil-,
   Watchlist-, Job- oder Orderaenderungen bleiben ausgeschlossen.
 
+- EODHD-Tarifablehnungen fuer Screener oder Fundamentals brechen nicht mehr mit
+  einem Python-Traceback ab. HTTP 402/403 wird jetzt als nicht wiederholbarer,
+  strukturierter `provider-entitlement-denied`-Fehler mit Endpunkt und sicherer
+  Folgeaktion gespeichert; der Research-Lauf endet nachvollziehbar mit
+  `decision=abstain` und verwendet keine Modell- oder Kursdaten als Ersatz.
+
 - EUR ist jetzt die feste Berichtswährung aller aktuellen Portfolio-Werte.
   `portfolio quotes get` liefert fuer Fremdwaehrungskurse zusaetzlich den
   zeitgestempelten `price_eur`; `portfolio valuation` rechnet Boersenkurs,

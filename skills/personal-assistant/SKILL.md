@@ -163,6 +163,13 @@ add` does not exist and must never be executed; the only confirmation command is
 the returned `portfolio watchlist add ... --yes`. Never silently confirm a
 mapping or ask Jan to run `docker exec`.
 
+For portfolio research, treat HTTP 402/403 from EODHD Screener or Fundamentals
+as the structured, non-retryable `provider-entitlement-denied` result returned
+by the tool. Report `decision=abstain` and the exact denied endpoint. Never hide
+it with model knowledge, generic ticker lists, price-only analysis or automatic
+retries, and do not misdiagnose a missing key when registered quote calls still
+authenticate successfully.
+
 ## Invariants for every tool call
 
 1. Resolve the exact tool and current live capability; a disabled configuration

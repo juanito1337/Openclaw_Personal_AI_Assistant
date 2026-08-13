@@ -22,6 +22,52 @@ RESEARCH_STRATEGIES = (
     "quality-growth",
     "dividend-quality",
 )
+
+
+class ResearchProviderError(RuntimeError):
+    """A redacted provider failure with machine-readable access semantics."""
+
+    def __init__(
+        self,
+        detail: str,
+        *,
+        endpoint: str,
+        status_code: int | None = None,
+    ) -> None:
+        super().__init__(f"EODHD-Researchfehler: {detail}")
+        self.endpoint = endpoint
+        self.status_code = status_code
+
+    @property
+    def category(self) -> str:
+        if self.status_code in {402, 403}:
+            return "provider-entitlement-denied"
+        if self.status_code == 401:
+            return "provider-authentication-failed"
+        if self.status_code is not None and 400 <= self.status_code < 500:
+            return "provider-request-rejected"
+        return "provider-unavailable"
+
+    @property
+    def retryable(self) -> bool:
+        return self.status_code is None or self.status_code >= 500
+
+    def render(self, *, ticker: str = "") -> dict[str, Any]:
+        result: dict[str, Any] = {
+            "endpoint": self.endpoint,
+            "error": str(self),
+            "category": self.category,
+            "status_code": self.status_code,
+            "retryable": self.retryable,
+        }
+        if ticker:
+            result["ticker"] = ticker
+        if self.category == "provider-entitlement-denied":
+            result["required_action"] = (
+                "EODHD-Tarifzugriff fuer den genannten Endpunkt pruefen; "
+                "keine automatische Wiederholung oder Ersatzdaten verwenden"
+            )
+        return result
 STRATEGY_WEIGHTS: dict[str, dict[str, int]] = {
     "balanced": {
         "quality": 25,
@@ -198,7 +244,22 @@ class EodhdResearchClient:
             raise ValueError("EODHD-Research-Ticker ist ungueltig")
         return ticker
 
-    def _provider_error(self, raw: bytes, fallback: str) -> RuntimeError:
+    @staticmethod
+    def _public_endpoint(path: str) -> str:
+        if path.startswith("v1.1/fundamentals/"):
+            return "v1.1/fundamentals"
+        if path.startswith("eod/"):
+            return "eod"
+        return path.split("/", 1)[0]
+
+    def _provider_error(
+        self,
+        raw: bytes,
+        fallback: str,
+        *,
+        path: str,
+        status_code: int | None = None,
+    ) -> ResearchProviderError:
         detail = ""
         try:
             payload = json.loads(raw.decode("utf-8"))
@@ -207,7 +268,11 @@ class EodhdResearchClient:
         except (UnicodeDecodeError, json.JSONDecodeError):
             detail = ""
         safe = (detail or fallback).replace(self.api_key, "<redacted>")[:300]
-        return RuntimeError(f"EODHD-Researchfehler: {safe}")
+        return ResearchProviderError(
+            safe,
+            endpoint=self._public_endpoint(path),
+            status_code=status_code,
+        )
 
     def _get_json(
         self,
@@ -229,12 +294,17 @@ class EodhdResearchClient:
                 raw = exc.read(64_000)
             except OSError:
                 raw = b""
-            raise self._provider_error(raw, f"HTTP {exc.code}") from None
+            raise self._provider_error(
+                raw,
+                f"HTTP {exc.code}",
+                path=path,
+                status_code=exc.code,
+            ) from None
         except urllib.error.URLError as exc:
             detail = str(getattr(exc, "reason", "Verbindung fehlgeschlagen"))
-            raise self._provider_error(b"", detail) from None
+            raise self._provider_error(b"", detail, path=path) from None
         except (TimeoutError, OSError) as exc:
-            raise self._provider_error(b"", type(exc).__name__) from None
+            raise self._provider_error(b"", type(exc).__name__, path=path) from None
         if len(raw) > max_bytes:
             raise RuntimeError("EODHD-Researchantwort ueberschreitet das Groessenlimit")
         try:
@@ -244,7 +314,13 @@ class EodhdResearchClient:
         if isinstance(payload, dict) and (
             isinstance(payload.get("code"), int) or str(payload.get("status") or "").casefold() == "error"
         ):
-            raise self._provider_error(raw, "Anbieterfehler")
+            status_code = payload.get("code") if isinstance(payload.get("code"), int) else None
+            raise self._provider_error(
+                raw,
+                "Anbieterfehler",
+                path=path,
+                status_code=status_code,
+            )
         return payload
 
     def screen(
