@@ -166,6 +166,10 @@ identified the provider-confirmed venue, without allowing model-created data.
 The supported London home venue maps EODHD `LSE` to ISO 10383 MIC `XLON`.
 London display tickers with a trailing dot, such as `BA.`, are normalized to the
 EODHD code `BA`, resulting in `BA.LSE` rather than the invalid `BA..LSE`.
+EODHD returns London sterling OHLC values in pence even though its mapping currency
+is `GBP`. The provider adapter scales these values by `0.01` before storage, so a
+raw `2270` is exposed and valued as `22.70 GBP`. A refresh upserts an identical
+provider timestamp so previously stored unscaled values are repaired safely.
 After checking the proposed fields, confirm the exact provider symbol, ISO 10383
 MIC and currency separately:
 

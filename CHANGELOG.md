@@ -2,6 +2,11 @@
 
 ## Unreleased – M8 End-to-End-Recovery, Skills und Releaseabschluss
 
+- Londoner EODHD-Kurse mit GBP-Mapping werden vor Speicherung von Pence in Pfund
+  normalisiert. BAE Systems `2270` GBX erscheint damit als `22.70 GBP`; ein
+  erneuter Abruf repariert auch einen bereits unter demselben Providerzeitstempel
+  gespeicherten unskalierten Kurs.
+
 - Portfolio-Mappingvorschlaege liefern jetzt die vollstaendige, shell-sicher
   gequotete Folgeaktion `portfolio watchlist add ... --yes`. Der Agent darf diese
   nach der expliziten Freigabe nur unveraendert ausfuehren und kann nicht mehr den

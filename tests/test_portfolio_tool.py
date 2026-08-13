@@ -337,6 +337,39 @@ class PortfolioParserTests(unittest.TestCase):
         self.assertEqual(quotes["US88160R1014"].currency, "USD")
         self.assertEqual(fx_quotes[("EUR", "USD")].rate, Decimal("1.16"))
 
+    @patch("personal_assistant.portfolio.urllib.request.urlopen")
+    def test_eodhd_normalizes_london_pence_to_sterling(self, urlopen) -> None:
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self, limit):
+                return (
+                    b'{"code":"BA.LSE","timestamp":1786577940,"open":2250,'
+                    b'"high":2290,"low":2240,"close":2270,"volume":1234}'
+                )
+
+        urlopen.return_value = Response()
+        quotes, _ = EodhdClient("top-secret").fetch_market_data(
+            [{
+                "isin": "GB0002634946",
+                "symbol": "BA.",
+                "mic": "XLON",
+                "currency": "GBP",
+            }]
+        )
+
+        quote = quotes["GB0002634946"]
+        self.assertEqual(quote.price, Decimal("22.70"))
+        self.assertEqual(quote.currency, "GBP")
+        self.assertEqual(quote.open, Decimal("22.50"))
+        self.assertEqual(quote.high, Decimal("22.90"))
+        self.assertEqual(quote.low, Decimal("22.40"))
+        self.assertEqual(quote.volume, Decimal("1234"))
+
     def test_eodhd_errors_never_expose_api_key(self) -> None:
         error = EodhdClient("top-secret")._provider_error(
             b'{"message":"invalid top-secret"}', "fallback top-secret"
@@ -599,6 +632,36 @@ class PortfolioServiceTests(unittest.TestCase):
         self.assertEqual(result["provider"], "test-provider")
         self.assertEqual(result["provider_symbol"], "BAS.XETRA")
         self.assertFalse(result["critical"])
+
+    def test_refresh_repairs_same_timestamp_quote_after_unit_normalization(self) -> None:
+        bae_isin = "GB0002634946"
+        self.service.watchlist_add(
+            isin=bae_isin,
+            name="BAE Systems PLC",
+            symbol="BA.",
+            mic="XLON",
+            currency="GBP",
+        )
+        price = Decimal("2270")
+
+        def fetch(instrument: dict[str, str]) -> Quote:
+            return Quote(
+                symbol=instrument["symbol"],
+                price=price,
+                currency="GBP",
+                observed_at=self.clock().isoformat(),
+                provider="eodhd",
+            )
+
+        self.service._quote_fetcher = fetch
+        self.assertTrue(self.service.refresh_quotes(force=True)["ok"])
+        self.assertEqual(self.service.latest_quote(bae_isin)["price"], "2270")
+
+        price = Decimal("22.70")
+        self.assertTrue(self.service.refresh_quotes(force=True)["ok"])
+        repaired = self.service.latest_quote(bae_isin)
+        self.assertEqual(repaired["price"], "22.70")
+        self.assertEqual(repaired["currency"], "GBP")
 
     def test_valuation_converts_usd_quotes_with_eodhd_fx_and_totals_in_eur(self) -> None:
         self.clock.value = datetime(2026, 8, 3, 10, 0, tzinfo=UTC)

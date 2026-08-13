@@ -39,6 +39,11 @@ EODHD_EXCHANGE_BY_MIC = {
     "XNYS": "US",
 }
 EODHD_BATCH_LIMIT = 20
+EODHD_MINOR_UNIT_SCALES: dict[tuple[str, str], Decimal] = {
+    # EODHD labels London sterling instruments as GBP while returning the
+    # exchange price in GBX (pence). Store major currency units consistently.
+    ("XLON", "GBP"): Decimal("0.01"),
+}
 
 
 def _canonical_eodhd_symbol(value: object) -> str:
@@ -47,6 +52,16 @@ def _canonical_eodhd_symbol(value: object) -> str:
     if not MAPPING_SYMBOL_RE.fullmatch(symbol):
         raise ValueError("Boersensymbol ist fuer EODHD ungueltig")
     return symbol
+
+
+def _eodhd_price_scale(instrument: dict[str, str]) -> Decimal:
+    mic = str(instrument.get("mic") or "").strip().upper()
+    currency = str(instrument.get("currency") or "").strip().upper()
+    return EODHD_MINOR_UNIT_SCALES.get((mic, currency), Decimal("1"))
+
+
+def _scaled_eodhd_price(value: object, instrument: dict[str, str]) -> Decimal:
+    return _decimal(value) * _eodhd_price_scale(instrument)
 
 
 def _now() -> datetime:
@@ -260,13 +275,25 @@ class EodhdClient:
             if item is not None:
                 quotes[str(item["isin"])] = Quote(
                     symbol=str(item["symbol"]),
-                    price=_decimal(price_text),
+                    price=_scaled_eodhd_price(price_text, item),
                     currency=str(item.get("currency") or "").upper(),
                     observed_at=observed,
                     provider="eodhd",
-                    open=_decimal(row["open"]) if row.get("open") not in {None, ""} else None,
-                    high=_decimal(row["high"]) if row.get("high") not in {None, ""} else None,
-                    low=_decimal(row["low"]) if row.get("low") not in {None, ""} else None,
+                    open=(
+                        _scaled_eodhd_price(row["open"], item)
+                        if row.get("open") not in {None, ""}
+                        else None
+                    ),
+                    high=(
+                        _scaled_eodhd_price(row["high"], item)
+                        if row.get("high") not in {None, ""}
+                        else None
+                    ),
+                    low=(
+                        _scaled_eodhd_price(row["low"], item)
+                        if row.get("low") not in {None, ""}
+                        else None
+                    ),
                     volume=_decimal(row["volume"]) if row.get("volume") not in {None, ""} else None,
                 )
             elif pair is not None:
@@ -1566,10 +1593,20 @@ class PortfolioService:
                 with self.store.connection:
                     self.store.connection.execute(
                         """
-                        INSERT OR IGNORE INTO quotes(
+                        INSERT INTO quotes(
                             isin,provider,price,currency,observed_at,received_at,delay_seconds,
                             open,high,low,volume,market_open
                         ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
+                        ON CONFLICT(isin,provider,observed_at) DO UPDATE SET
+                            price=excluded.price,
+                            currency=excluded.currency,
+                            received_at=excluded.received_at,
+                            delay_seconds=excluded.delay_seconds,
+                            open=excluded.open,
+                            high=excluded.high,
+                            low=excluded.low,
+                            volume=excluded.volume,
+                            market_open=excluded.market_open
                         """,
                         (
                             item["isin"],

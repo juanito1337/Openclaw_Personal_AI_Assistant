@@ -103,3 +103,6 @@ batches at most 20 market/FX symbols and normally returns prices delayed by abou
 15–20 minutes. Never call them exchange-real-time, fall back to another provider
 or expose the API key. A missing/critically stale held-position quote blocks fresh
 analysis and requires portfolio doctor plus deep job checks.
+EODHD returns London sterling prices in the exchange minor unit GBX while labeling
+the mapping GBP. The registered quote tool normalizes these values to major units;
+report `22.70 GBP`, never the raw provider value as `2270 GBP`.
