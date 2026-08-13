@@ -2,6 +2,19 @@
 
 ## Unreleased – M8 End-to-End-Recovery, Skills und Releaseabschluss
 
+- Providergebundene Aktiensuche kombiniert einen allowlist-begrenzten EODHD-
+  Screener mit EODHD-Fundamental- und EOD-Historie. Vier versionierte,
+  deterministische Mehrfaktormodelle legen Kennzahlen, Gewichte, Datenabdeckung,
+  Blocker und Urteilsgrenzen offen; unvollstaendige oder alte Evidenz endet mit
+  `abstain` statt einem erfundenen Vorschlag. Ollama darf Ergebnisse erklaeren,
+  aber weder Fakten noch Scores oder Kandidaten erzeugen.
+- Eine append-only Investmentphilosophie speichert nur ausdruecklich bestaetigte
+  Profilversionen. Begruendetes Feedback ist an reale Research-Kandidaten gebunden
+  und erzeugt lediglich gekennzeichnete Lernbeobachtungen mit Stichprobengroesse.
+  Kritik und Lob werden nur gegen bestaetigte Konzentrationsgrenzen, vollstaendige
+  EUR-Bewertung und belegte Sektordaten ausgegeben; automatische Profil-,
+  Watchlist-, Job- oder Orderaenderungen bleiben ausgeschlossen.
+
 - EUR ist jetzt die feste Berichtswährung aller aktuellen Portfolio-Werte.
   `portfolio quotes get` liefert fuer Fremdwaehrungskurse zusaetzlich den
   zeitgestempelten `price_eur`; `portfolio valuation` rechnet Boersenkurs,
@@ -86,7 +99,7 @@
   ein vorhandener Hook zur Laufzeit, startet der verifizierte alte lokale Stand
   trotzdem, waehrend der unklare Remotezustand und Rollbackfehler sichtbar bleiben.
 - `AGENTS.md` ist auf dauerhafte Invarianten konzentriert. Der kurze
-  Personal-Assistant-Skill routet in Domaenenreferenzen; alle 125 Toolbefehle,
+  Personal-Assistant-Skill routet in Domaenenreferenzen; alle 136 Toolbefehle,
   Modi, Wirkungen, Approvals, Version und Testanker werden aus dem typisierten
   Katalog generiert und in CI gegen Drift geprueft.
 - Releasecheckliste, Single-Writer-Canary und ADR-0012 schliessen die technische

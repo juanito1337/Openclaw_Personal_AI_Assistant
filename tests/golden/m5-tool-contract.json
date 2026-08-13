@@ -361,6 +361,86 @@
   },
   {
     "approval": "none",
+    "command": "./scripts/assistant.sh portfolio research status",
+    "description": "EODHD-Researchkonfiguration, Tarifnachweis, Modelle und letzten Lauf anzeigen",
+    "id": "portfolio.research.status",
+    "mode": "read",
+    "writes_external_data": false
+  },
+  {
+    "approval": "none",
+    "command": "./scripts/assistant.sh portfolio research models",
+    "description": "Versionierte Analysemodelle, Kennzahlgewichte, Mindestabdeckung und Urteilsgrenzen anzeigen",
+    "id": "portfolio.research.models",
+    "mode": "read",
+    "writes_external_data": false
+  },
+  {
+    "approval": "provider-research-cache-local-only",
+    "command": "./scripts/assistant.sh portfolio research screen --strategy \"<auto|balanced|quality-value|quality-growth|dividend-quality>\" --exchange \"<Boerse-optional>\" --sector \"<Sektor-optional>\" --limit 5",
+    "description": "Neue EODHD-Aktien mit allowlist-gefiltertem Screener suchen, Fundamental- und EOD-Daten deterministisch bewerten und den belegten Lauf lokal protokollieren",
+    "id": "portfolio.research.screen",
+    "mode": "local-write",
+    "writes_external_data": false
+  },
+  {
+    "approval": "provider-research-cache-local-only",
+    "command": "./scripts/assistant.sh portfolio research analyze --isin \"<ISIN>\" --strategy \"<auto|balanced|quality-value|quality-growth|dividend-quality>\"",
+    "description": "Eine exakte ISIN anhand providergebundener EODHD-Fundamental- und EOD-Historie mit dem versionierten Mehrfaktormodell analysieren",
+    "id": "portfolio.research.analyze",
+    "mode": "local-write",
+    "writes_external_data": false
+  },
+  {
+    "approval": "none",
+    "command": "./scripts/assistant.sh portfolio research history --limit 20",
+    "description": "Lokal protokollierte Research-Laeufe samt Modellversion und Fehlerstatus anzeigen",
+    "id": "portfolio.research.history",
+    "mode": "read",
+    "writes_external_data": false
+  },
+  {
+    "approval": "none",
+    "command": "./scripts/assistant.sh portfolio philosophy show",
+    "description": "Letzte ausdruecklich bestaetigte Version der persoenlichen Investmentphilosophie anzeigen",
+    "id": "portfolio.philosophy.show",
+    "mode": "read",
+    "writes_external_data": false
+  },
+  {
+    "approval": "none",
+    "command": "./scripts/assistant.sh portfolio philosophy review",
+    "description": "Depotkonzentration und Lernsignale nur gegen bestaetigte Profilgrenzen und belegte EUR-/Research-Daten kritisch pruefen",
+    "id": "portfolio.philosophy.review",
+    "mode": "read",
+    "writes_external_data": false
+  },
+  {
+    "approval": "none",
+    "command": "./scripts/assistant.sh portfolio philosophy history --limit 20",
+    "description": "Append-only Historie der bestaetigten Investmentprofil-Versionen anzeigen",
+    "id": "portfolio.philosophy.history",
+    "mode": "read",
+    "writes_external_data": false
+  },
+  {
+    "approval": "explicit-user-investment-profile-change",
+    "command": "./scripts/assistant.sh portfolio philosophy set --risk-tolerance \"<conservative|balanced|growth>\" --horizon-years <1-50> --strategy \"<balanced|quality-value|quality-growth|dividend-quality>\" --max-position-pct \"<Prozent>\" --max-sector-pct \"<Prozent>\" --preferred-sectors \"<Kommaliste>\" --excluded-sectors \"<Kommaliste>\" --notes \"<Notiz>\" --yes",
+    "description": "Eine vollstaendige neue Investmentprofil-Version nach ausdruecklicher Bestaetigung append-only speichern; Beobachtungen duerfen sie nie automatisch aendern",
+    "id": "portfolio.philosophy.set",
+    "mode": "local-write",
+    "writes_external_data": false
+  },
+  {
+    "approval": "explicit-user-investment-feedback",
+    "command": "./scripts/assistant.sh portfolio philosophy feedback --candidate-id \"<Research-Kandidaten-ID>\" --decision \"<interested|rejected|watch|bought|sold>\" --reason \"<Begruendung>\" --yes",
+    "description": "Begruendetes Nutzerfeedback zu einer gespeicherten Research-Kandidaten-ID append-only erfassen, ohne das deklarierte Profil automatisch zu aendern",
+    "id": "portfolio.philosophy.feedback",
+    "mode": "local-write",
+    "writes_external_data": false
+  },
+  {
+    "approval": "none",
     "command": "./scripts/assistant.sh portfolio alerts list",
     "description": "Kursmarken und deduplizierte Uebertrittsereignisse anzeigen",
     "id": "portfolio.alerts",

@@ -1,6 +1,6 @@
 ---
 name: personal-assistant
-description: Use for Jan's OpenClaw Personal Assistant product version/release/update/status, mail/groupware, portfolio/stocks/holdings/quotes, jobs, Ollama, scheduler, security and monitoring. Use the exact referenced command—not a dotted tool ID—before memory, workspace or shell search and before claiming absence; obey approvals and conflict guards.
+description: Use for Jan's OpenClaw Personal Assistant product version/release/update/status, mail/groupware, portfolio/stocks/holdings/quotes/research/investment philosophy, and runtime operations. Use the exact referenced command—not a dotted tool ID—before memory, workspace or shell search; obey approvals and conflict guards.
 ---
 
 # Personal Assistant
@@ -128,6 +128,9 @@ launcher shown above:
 | Latest/current prices, portfolio value, profit or return | `portfolio quotes status`; if due, stale or missing and configured, `portfolio quotes refresh`; then `portfolio valuation`; report its EUR values only |
 | One security's latest/current quote | Resolve the exact ISIN, check/refresh as above, then `portfolio quotes get --isin "<ISIN>"`; report `price_eur`, not an unconverted foreign amount |
 | Portfolio configuration, freshness or failures | `portfolio status`, then `portfolio doctor` on failure |
+| Search and explain new stock candidates | `portfolio research status`, then `portfolio philosophy show`, `portfolio research models` and `portfolio research screen ...` |
+| Analyze one exact security from provider facts | `portfolio research analyze --isin "<ISIN>" --strategy "<Modell>"` |
+| Review investment philosophy, concentration or prior feedback | `portfolio philosophy show`, then `portfolio philosophy review` and, if requested, `portfolio philosophy history` |
 | Add a new watchlist security by company name or symbol | `portfolio mapping suggest --query "<Unternehmen-oder-Symbol>"`; present the returned candidate for approval |
 | Missing portfolio symbol/MIC mapping | `portfolio mapping suggest --isin "<ISIN>"`; then present the exact returned candidate for approval |
 | Antivirus state, self-test or controlled file scan | `security antivirus doctor`, `security antivirus self-test` or `security antivirus scan ...` |

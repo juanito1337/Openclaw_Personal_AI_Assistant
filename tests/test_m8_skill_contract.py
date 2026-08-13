@@ -67,9 +67,7 @@ def test_skill_trigger_is_short_precise_and_routes_every_domain() -> None:
 
 def test_unqualified_version_question_routes_to_verified_product_release() -> None:
     skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
-    runtime = " ".join(
-        (SKILL / "references/runtime-security.md").read_text(encoding="utf-8").split()
-    )
+    runtime = " ".join((SKILL / "references/runtime-security.md").read_text(encoding="utf-8").split())
     catalog = {definition.id: definition for definition in tool_definitions()}
     version_tool = catalog["assistant.version"]
 
@@ -81,9 +79,7 @@ def test_unqualified_version_question_routes_to_verified_product_release() -> No
     assert "An unqualified version question always means" in runtime
     assert version_tool.command == "./scripts/assistant.sh version --verify"
     assert "Produktrelease" in version_tool.description
-    assert (
-        "keine eingebettete Core-, Plugin- oder CLI-Version" in version_tool.description
-    )
+    assert "keine eingebettete Core-, Plugin- oder CLI-Version" in version_tool.description
 
 
 def test_skill_routes_registered_domain_commands_before_generic_fallbacks() -> None:
@@ -121,15 +117,9 @@ def test_skill_routes_registered_domain_commands_before_generic_fallbacks() -> N
             assert f"`{command_suffix}`" in skill, (domain, command_suffix)
 
     assert "they never prove that registered data or a capability is absent" in normalized_skill
-    assert (
-        "Only a successful registered holdings result may establish" in normalized_references
-    )
-    assert (
-        "not memory, local workspace files or generic shell search" in normalized_references
-    )
-    assert "Eigene Aktien, Wertpapiere und Depotpositionen" in catalog[
-        "portfolio.holdings"
-    ].description
+    assert "Only a successful registered holdings result may establish" in normalized_references
+    assert "not memory, local workspace files or generic shell search" in normalized_references
+    assert "Eigene Aktien, Wertpapiere und Depotpositionen" in catalog["portfolio.holdings"].description
 
 
 def test_skill_distinguishes_tool_ids_from_executable_commands() -> None:
@@ -148,9 +138,7 @@ def test_skill_distinguishes_tool_ids_from_executable_commands() -> None:
 
 def test_skill_refreshes_stale_quotes_before_claiming_current_prices() -> None:
     skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
-    portfolio = " ".join(
-        (SKILL / "references/portfolio.md").read_text(encoding="utf-8").split()
-    )
+    portfolio = " ".join((SKILL / "references/portfolio.md").read_text(encoding="utf-8").split())
 
     expected_refresh_flow = (
         "`portfolio quotes status`; if due, stale or missing and configured, "
@@ -165,17 +153,12 @@ def test_skill_refreshes_stale_quotes_before_claiming_current_prices() -> None:
 
 def test_skill_requires_current_portfolio_values_to_be_reported_in_eur() -> None:
     skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
-    portfolio = " ".join(
-        (SKILL / "references/portfolio.md").read_text(encoding="utf-8").split()
-    )
+    portfolio = " ".join((SKILL / "references/portfolio.md").read_text(encoding="utf-8").split())
 
     assert "report its EUR values only" in skill
     assert "report `price_eur`, not an unconverted foreign amount" in skill
     assert "Treat EUR as the mandatory reporting currency" in portfolio
-    assert (
-        "Report `price_eur` from `portfolio quotes get`, and report `current_price_eur`"
-        in portfolio
-    )
+    assert "Report `price_eur` from `portfolio quotes get`, and report `current_price_eur`" in portfolio
     assert "Never calculate a conversion in the model" in portfolio
     assert "The native `price` and `currency` are source context" in portfolio
     assert "every required `EUR<currency>.FOREX` pair" in portfolio
@@ -183,9 +166,7 @@ def test_skill_requires_current_portfolio_values_to_be_reported_in_eur() -> None
 
 def test_failed_portfolio_status_requires_complete_diagnosis_and_next_action() -> None:
     skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
-    portfolio = " ".join(
-        (SKILL / "references/portfolio.md").read_text(encoding="utf-8").split()
-    )
+    portfolio = " ".join((SKILL / "references/portfolio.md").read_text(encoding="utf-8").split())
 
     for contract in (skill, portfolio):
         assert "`portfolio doctor`" in contract
@@ -200,12 +181,8 @@ def test_failed_portfolio_status_requires_complete_diagnosis_and_next_action() -
 
 def test_missing_mapping_uses_provider_bounded_ollama_suggestion() -> None:
     skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
-    portfolio = " ".join(
-        (SKILL / "references/portfolio.md").read_text(encoding="utf-8").split()
-    )
-    runtime = " ".join(
-        (SKILL / "references/runtime-security.md").read_text(encoding="utf-8").split()
-    )
+    portfolio = " ".join((SKILL / "references/portfolio.md").read_text(encoding="utf-8").split())
+    runtime = " ".join((SKILL / "references/runtime-security.md").read_text(encoding="utf-8").split())
 
     command = '`portfolio mapping suggest --isin "<ISIN>"`'
     assert command in skill
@@ -219,9 +196,7 @@ def test_missing_mapping_uses_provider_bounded_ollama_suggestion() -> None:
 
 def test_new_watchlist_security_is_discovered_before_asking_for_isin() -> None:
     skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
-    portfolio = " ".join(
-        (SKILL / "references/portfolio.md").read_text(encoding="utf-8").split()
-    )
+    portfolio = " ".join((SKILL / "references/portfolio.md").read_text(encoding="utf-8").split())
 
     command = '`portfolio mapping suggest --query "<Unternehmen-oder-Symbol>"`'
     assert command in skill
@@ -233,16 +208,13 @@ def test_new_watchlist_security_is_discovered_before_asking_for_isin() -> None:
 
 def test_agent_executes_approved_portfolio_workflow_instead_of_delegating_it() -> None:
     skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
-    portfolio = " ".join(
-        (SKILL / "references/portfolio.md").read_text(encoding="utf-8").split()
-    )
+    portfolio = " ".join((SKILL / "references/portfolio.md").read_text(encoding="utf-8").split())
 
     assert "Execute registered assistant commands yourself" in skill
     assert "Never delegate them to Jan as `docker exec` or shell instructions" in skill
     assert "present one bounded action and wait" in skill
     assert (
-        "Run the registered setup, mapping, doctor, refresh, status, valuation and job "
-        "commands yourself"
+        "Run the registered setup, mapping, doctor, refresh, status, valuation and job commands yourself"
     ) in portfolio
     assert "never ask Jan to copy a `docker exec` wrapper" in portfolio
     assert "exact ISIN, name, symbol, MIC and currency" in portfolio
@@ -256,9 +228,7 @@ def test_agent_executes_approved_portfolio_workflow_instead_of_delegating_it() -
 
 def test_skill_forbids_configuration_patch_fallback_after_tool_failure() -> None:
     skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
-    portfolio = " ".join(
-        (SKILL / "references/portfolio.md").read_text(encoding="utf-8").split()
-    )
+    portfolio = " ".join((SKILL / "references/portfolio.md").read_text(encoding="utf-8").split())
 
     assert "Runtime configuration is administrator-owned" in skill
     for tool_name in ("`read`", "`write`", "`edit`", "`apply_patch`"):
@@ -272,6 +242,32 @@ def test_skill_forbids_configuration_patch_fallback_after_tool_failure() -> None
     assert "Do not try `--help`, workspace file discovery or configuration edits" in skill
     assert "Never inspect or edit `personal_assistant/tools.toml`" in portfolio
     assert "explicitly approved `agent-cli` path" in portfolio
+
+
+def test_research_skill_requires_provider_evidence_and_preserves_profile_authority() -> None:
+    skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
+    portfolio = " ".join((SKILL / "references/portfolio.md").read_text(encoding="utf-8").split())
+    catalog = {definition.id: definition for definition in tool_definitions()}
+
+    assert "portfolio/stocks/holdings/quotes/research/investment philosophy" in skill
+    for command in (
+        "`portfolio research status`",
+        "`portfolio philosophy show`",
+        "`portfolio research models`",
+        "`portfolio research screen`",
+        '`portfolio research analyze --isin "<ISIN>" --strategy "<Modell>"`',
+    ):
+        assert command in portfolio
+    assert "Scores, coverage, pillars, verdicts, strengths, risks and blockers" in portfolio
+    assert "must never supply a missing fact, alter a metric or score" in portfolio
+    assert "turn `decision=abstain` into a candidate" in portfolio
+    assert "`research-candidate` means only that the fixed research threshold was met" in portfolio
+    assert "it never mutates the declared profile" in portfolio
+    assert "Praise and criticism may be stated only" in portfolio
+    assert catalog["portfolio.research.screen"].mode == "local-write"
+    assert not catalog["portfolio.research.screen"].writes_external_data
+    assert catalog["portfolio.philosophy.set"].approval == ("explicit-user-investment-profile-change")
+    assert catalog["portfolio.philosophy.feedback"].approval == ("explicit-user-investment-feedback")
 
 
 def test_no_second_agent_skill_or_independent_command_list_remains() -> None:

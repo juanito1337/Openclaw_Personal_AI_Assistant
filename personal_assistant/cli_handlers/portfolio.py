@@ -77,6 +77,55 @@ def handle(args: argparse.Namespace, assistant: Any, emit: Callable[[Any], None]
         result = assistant.portfolio.analyze(args.isin, limit=args.limit)
         emit(result)
         return 0 if result.get("ok") else 1
+    elif command == "research":
+        if args.research_command == "status":
+            result = assistant.portfolio.research_status()
+        elif args.research_command == "models":
+            result = assistant.portfolio.research_models()
+        elif args.research_command == "history":
+            result = assistant.portfolio.research_history(limit=args.limit)
+        elif args.research_command == "screen":
+            result = assistant.portfolio.research_screen(
+                strategy=args.strategy,
+                exchange=args.exchange,
+                sector=args.sector,
+                limit=args.limit,
+            )
+        else:
+            result = assistant.portfolio.research_analyze(
+                args.isin,
+                strategy=args.strategy,
+            )
+        emit(result)
+        return 0 if result.get("ok") else 1
+    elif command == "philosophy":
+        if args.philosophy_command == "show":
+            result = assistant.portfolio.philosophy_show()
+        elif args.philosophy_command == "history":
+            result = assistant.portfolio.philosophy_history(limit=args.limit)
+        elif args.philosophy_command == "review":
+            result = assistant.portfolio.philosophy_review()
+        elif args.philosophy_command == "set":
+            if not args.yes:
+                raise PermissionError("Investmentprofil-Aenderung benoetigt --yes")
+            result = assistant.portfolio.philosophy_set(
+                risk_tolerance=args.risk_tolerance,
+                horizon_years=args.horizon_years,
+                strategy=args.strategy,
+                max_position_pct=Decimal(args.max_position_pct),
+                max_sector_pct=Decimal(args.max_sector_pct),
+                preferred_sectors=args.preferred_sectors.split(","),
+                excluded_sectors=args.excluded_sectors.split(","),
+                notes=args.notes,
+            )
+        else:
+            if not args.yes:
+                raise PermissionError("Investment-Rueckmeldung benoetigt --yes")
+            result = assistant.portfolio.philosophy_feedback(
+                candidate_id=args.candidate_id,
+                decision=args.decision,
+                reason=args.reason,
+            )
     elif command == "alerts":
         if args.portfolio_alerts_command == "list":
             result = assistant.portfolio.alerts()

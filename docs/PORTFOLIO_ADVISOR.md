@@ -236,6 +236,88 @@ new crossing can trigger, and a cooldown prevents rapid repeats. A new event is
 stored locally and queues an immediate OpenClaw system event. This is an
 informational signal, not an order instruction.
 
+## Provider-backed stock research
+
+The research path searches EODHD's screener, fetches EODHD fundamentals and daily
+EOD history for each bounded candidate, then applies a deterministic versioned
+scorecard. It does not ask an LLM to invent facts or decide the numerical score.
+The configured EODHD tariff must permit all three endpoints; a successful run is
+the runtime entitlement proof.
+
+```bash
+./scripts/assistant.sh portfolio research status
+./scripts/assistant.sh portfolio research models
+./scripts/assistant.sh portfolio research screen \
+  --strategy "quality-value" --exchange "US" --limit 5
+./scripts/assistant.sh portfolio research analyze \
+  --isin "US0378331005" --strategy "balanced"
+./scripts/assistant.sh portfolio research history --limit 20
+```
+
+The allowlisted screener starts with market capitalization of at least one
+billion, positive earnings per share and 200-day average volume above 100,000.
+The dividend strategy additionally requires a positive dividend yield. Exchange
+and sector filters are optional bounded provider filters; the result is not a
+complete survey of every listed company.
+
+Model version `2026-08-13.1` publishes its full weights through `research models`:
+
+| Strategy | Quality | Value | Growth | Momentum | Risk | Dividend |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| balanced | 25 | 20 | 20 | 15 | 20 | 0 |
+| quality-value | 30 | 35 | 10 | 10 | 15 | 0 |
+| quality-growth | 30 | 10 | 30 | 15 | 15 | 0 |
+| dividend-quality | 30 | 15 | 10 | 10 | 15 | 20 |
+
+The scorecard reports the original provider values and per-metric rationale for
+profitability, free cash flow, valuation, growth, 12-month trend, SMA200, RSI,
+beta, annualized volatility, maximum drawdown, explicit debt/equity and dividend
+quality. It requires at least 200 valid daily observations, an EOD observation no
+older than seven calendar days, at least 70% of model-relevant metrics and at
+least 50% coverage in both quality and risk. Missing explicit debt fields remain
+missing; total liabilities are not relabeled as debt. A failed gate returns
+`decision=abstain`, a null total score and explicit blockers.
+
+Scores at or above 70 are labeled `research-candidate`, 55 to below 70 `watch`
+and lower complete scores `not-prioritized`. These are transparent research
+labels, not buy/sell signals, suitability advice or target prices. Current
+holdings and enabled watchlist identities are excluded from new-stock
+suggestions. Every run and candidate is stored append-only in the portfolio
+database with provider, timestamps, model version, exact evidence and failures.
+
+## Versioned investment philosophy and feedback
+
+Personalized screening requires an explicitly confirmed profile. Without one,
+`--strategy auto` uses the neutral `balanced` model and marks profile fit as
+unknown. A full new profile version is created only by an approved command:
+
+```bash
+./scripts/assistant.sh portfolio philosophy show
+./scripts/assistant.sh portfolio philosophy set \
+  --risk-tolerance "balanced" --horizon-years 10 \
+  --strategy "quality-value" --max-position-pct "20" \
+  --max-sector-pct "35" --preferred-sectors "Technology,Industrials" \
+  --excluded-sectors "Tobacco" --notes "Long-term quality and valuation" --yes
+./scripts/assistant.sh portfolio philosophy history --limit 20
+```
+
+Research feedback is attached to an actual stored `candidate_id`; it is never
+accepted as an unbound memory statement:
+
+```bash
+./scripts/assistant.sh portfolio philosophy feedback \
+  --candidate-id "<ID-aus-dem-Research-Lauf>" --decision "interested" \
+  --reason "Qualitaet und Bewertung passen zu meinem langfristigen Profil" --yes
+./scripts/assistant.sh portfolio philosophy review
+```
+
+Feedback and profile versions are append-only. Inferred sector preferences expose
+sample size and low/medium/high confidence but never modify the declared profile.
+The review praises or criticizes only against confirmed maximum position/sector
+limits, excluded sectors, complete EUR valuation and at least 80% sector evidence.
+When those facts are missing it returns limitations instead of a subjective
+judgment. Research never changes a watchlist, enables a job or places an order.
+
 ## Job and monitoring integration
 
 The packaged worker checks every 15 minutes and refreshes only when the configured

@@ -66,6 +66,69 @@ def add_commands(sub: Any) -> None:
     )
     portfolio_analyze.add_argument("--isin", required=True)
     portfolio_analyze.add_argument("--limit", type=int, default=500)
+    research = portfolio_sub.add_parser(
+        "research", help="EODHD-Research, Aktiensuche und erklaerbares Ranking"
+    )
+    research_sub = research.add_subparsers(dest="research_command", required=True)
+    research_sub.add_parser("status", help="Research-Konfiguration und letzten Lauf anzeigen")
+    research_sub.add_parser("models", help="Versionierte Analysemodelle und Gewichte anzeigen")
+    research_history = research_sub.add_parser("history", help="Research-Laeufe anzeigen")
+    research_history.add_argument("--limit", type=int, default=20)
+    research_screen = research_sub.add_parser(
+        "screen", help="Neue Aktien mit EODHD suchen und deterministisch bewerten"
+    )
+    research_screen.add_argument(
+        "--strategy",
+        choices=("auto", "balanced", "quality-value", "quality-growth", "dividend-quality"),
+        default="auto",
+    )
+    research_screen.add_argument("--exchange", default="")
+    research_screen.add_argument("--sector", default="")
+    research_screen.add_argument("--limit", type=int, default=5)
+    research_analyze = research_sub.add_parser(
+        "analyze", help="Eine exakte ISIN mit EODHD-Fundamental- und EOD-Daten analysieren"
+    )
+    research_analyze.add_argument("--isin", required=True)
+    research_analyze.add_argument(
+        "--strategy",
+        choices=("auto", "balanced", "quality-value", "quality-growth", "dividend-quality"),
+        default="auto",
+    )
+    philosophy = portfolio_sub.add_parser(
+        "philosophy", help="Versioniertes Investmentprofil und belegtes Feedback verwalten"
+    )
+    philosophy_sub = philosophy.add_subparsers(dest="philosophy_command", required=True)
+    philosophy_sub.add_parser("show", help="Aktuell bestaetigtes Investmentprofil anzeigen")
+    philosophy_sub.add_parser("review", help="Profiltreue und Konzentrationsregeln pruefen")
+    philosophy_history = philosophy_sub.add_parser("history", help="Profilversionen anzeigen")
+    philosophy_history.add_argument("--limit", type=int, default=20)
+    philosophy_set = philosophy_sub.add_parser(
+        "set", help="Vollstaendige neue Investmentprofil-Version bestaetigen"
+    )
+    philosophy_set.add_argument(
+        "--risk-tolerance", required=True, choices=("conservative", "balanced", "growth")
+    )
+    philosophy_set.add_argument("--horizon-years", required=True, type=int)
+    philosophy_set.add_argument(
+        "--strategy",
+        required=True,
+        choices=("balanced", "quality-value", "quality-growth", "dividend-quality"),
+    )
+    philosophy_set.add_argument("--max-position-pct", required=True)
+    philosophy_set.add_argument("--max-sector-pct", required=True)
+    philosophy_set.add_argument("--preferred-sectors", default="")
+    philosophy_set.add_argument("--excluded-sectors", default="")
+    philosophy_set.add_argument("--notes", default="")
+    philosophy_set.add_argument("--yes", action="store_true")
+    philosophy_feedback = philosophy_sub.add_parser(
+        "feedback", help="Begruendete Rueckmeldung zu einem gespeicherten Research-Kandidaten"
+    )
+    philosophy_feedback.add_argument("--candidate-id", required=True)
+    philosophy_feedback.add_argument(
+        "--decision", required=True, choices=("interested", "rejected", "watch", "bought", "sold")
+    )
+    philosophy_feedback.add_argument("--reason", required=True)
+    philosophy_feedback.add_argument("--yes", action="store_true")
     portfolio_alerts = portfolio_sub.add_parser("alerts", help="Kursmarken verwalten")
     portfolio_alerts_sub = portfolio_alerts.add_subparsers(dest="portfolio_alerts_command", required=True)
     portfolio_alerts_sub.add_parser("list")

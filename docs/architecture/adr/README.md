@@ -21,5 +21,6 @@ verweist mit Status `Superseded` auf den Nachfolger.
 | [0013](0013-native-nextcloud-und-aktive-runtime-normalisierung.md) | Accepted | native Nextcloud-Bruecke und Normalisierung der aktiven Layout-3-Konfiguration |
 | [0014](0014-abgeschlossenes-workspace-profil.md) | Accepted | abgeschlossenes Identitaetsprofil bleibt aktive Instanzkonfiguration |
 | [0015](0015-geschuetzte-gateway-konfiguration.md) | Accepted | Gateway-Konfiguration read-only; Setup nur in kurzlebiger Adminrolle |
+| [0016](0016-providergebundenes-portfolio-research.md) | Accepted | EODHD-belegtes Research, deterministische Scores und freigegebene Profilversionen |
 
 Neue ADRs beginnen mit der [Vorlage](0000-template.md).

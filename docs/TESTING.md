@@ -131,9 +131,9 @@ M0 aber noch keine Refaktorierung aus.
 M5 ersetzt `build_tool_registry` durch eine kleine Projektion, zerlegt Parser und
 Handler des CLI nach Domaenen und trennt Workspace-, Mail-, Portfolio-, Bestell-
 und Sicherheitsdienste als Anwendungs-Mixins. Die Portfolio-Importparser liegen in
-einem eigenen Modul. Die 124 bei M5 charakterisierten und der spaeter registrierte
-read-only Mappingvorschlaege per ISIN oder Wertpapiername ergeben aktuell 126
-Toolprojektionen in
+einem eigenen Modul. Die 124 bei M5 charakterisierten Werkzeuge, zwei spaeter
+registrierte read-only Mappingvorschlaege und zehn Research-/Philosophiewerkzeuge
+ergeben aktuell 136 Toolprojektionen in
 `tests/golden/m5-tool-contract.json`; die stabile Top-Level-Hilfe steht in
 `tests/golden/m5-cli-help.txt`. Aktuelle Modul- und Funktionsgroessen werden
 weiterhin ausschliesslich durch `scripts/quality-baseline.py` gemessen.
@@ -370,7 +370,7 @@ Skilldrift wird ohne Textduplikation geprueft:
 .venv/bin/python -m pytest -q tests/test_m8_skill_contract.py
 ```
 
-Der Test gleicht alle 126 Tool-IDs, Commands, Modi, externe Wirkungen, Approvals,
+Der Test gleicht alle 136 Tool-IDs, Commands, Modi, externe Wirkungen, Approvals,
 Release und Testanker gegen die typisierte Registry ab, prueft die kurze
 Triggerbeschreibung und verlangt die domaenenspezifischen Referenzen sowie die
 Abwesenheit des entfernten Zweit-Agent-Skills.
@@ -380,6 +380,16 @@ kontrollierten EODHD- und Ollama-Antworten geprueft:
 
 ```bash
 .venv/bin/python -m pytest -q tests/test_portfolio_mapping.py
+```
+
+Providergebundene Research- und Investmentprofilregressionen verwenden
+vollstaendige kontrollierte EODHD-Fundamental-/EOD-Fixtures und einen injizierten
+Screener. Sie pruefen deterministische Wiederholbarkeit, Identitaetsbindung,
+Secret-Redaktion, Mindestdaten/Enthaltung, Ranking, Ausschluss bestehender Werte,
+append-only Profil-/Feedbackhistorie und fehlende automatische Profilmutation:
+
+```bash
+.venv/bin/python -m pytest -q tests/test_portfolio_research.py
 ```
 
 Die Regressionen belegen exakte ISIN-Filterung, den Ollama-JSON-Vertrag und die

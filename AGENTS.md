@@ -205,4 +205,8 @@ Bei jedem Suchergebnis `complete`, `folder_errors` und
 portfolio mapping is first resolved with the registered read-only
 `portfolio mapping suggest --isin "<ISIN>"` path. Its Ollama selection is bounded
 to exact EODHD candidates and never replaces the separate explicit approval for
-`portfolio watchlist add ... --yes`.
+`portfolio watchlist add ... --yes`. Portfolio research scores are deterministic
+projections of cited provider fields: Ollama or other prose may explain them but
+may never create facts, change scores or turn `abstain` into a suggestion.
+Investment-profile observations remain labelled inferences and never change the
+confirmed append-only profile without explicit approval.

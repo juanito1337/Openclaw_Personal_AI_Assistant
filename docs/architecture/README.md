@@ -150,6 +150,15 @@ ein eigenes SHA-256-Manifest und kann ohne
 `OPENCLAW_ENABLE_LEGACY_SYSTEMD=YES` nicht durch seinen Intervallhelfer aktiviert
 werden.
 
+Portfolio-Research verwendet EODHD als einzige Faktenquelle und ein
+quellcodeversioniertes deterministisches Mehrfaktormodell. Research- und
+Profilhistorie bleiben beim Portfolio-Datenowner in dessen SQLite-Datenbank.
+Sprachmodelle duerfen die belegten Ergebnisse erklaeren, aber weder Fakten noch
+Scores ergaenzen. Die bestaetigte Investmentphilosophie ist append-only und wird
+durch beobachtetes Feedback nie automatisch veraendert; die Entscheidung und
+Enthaltungsgrenzen stehen in
+[ADR-0016](adr/0016-providergebundenes-portfolio-research.md).
+
 ## Weiterentwicklung
 
 Neue Komponenten und Tools folgen den [Erweiterungsregeln](EXTENDING.md), den

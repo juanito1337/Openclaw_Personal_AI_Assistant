@@ -24,9 +24,16 @@ from zoneinfo import ZoneInfo
 
 from .antivirus import HostAntivirus
 from .portfolio_import import parse_dkb_portfolio_csv, parse_portfolio_performance_xml
+from .portfolio_research import (
+    RESEARCH_STRATEGIES,
+    EodhdResearchClient,
+    ResearchProvider,
+    analyze_research_payload,
+    research_models,
+)
 from .tool_settings import PortfolioToolSettings
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 MAX_IMPORT_BYTES = 25_000_000
 ISIN_RE = re.compile(r"^[A-Z]{2}[A-Z0-9]{9}[0-9]$")
 MIC_RE = re.compile(r"^[A-Z0-9]{4}$")
@@ -281,20 +288,12 @@ class EodhdClient:
                     observed_at=observed,
                     provider="eodhd",
                     open=(
-                        _scaled_eodhd_price(row["open"], item)
-                        if row.get("open") not in {None, ""}
-                        else None
+                        _scaled_eodhd_price(row["open"], item) if row.get("open") not in {None, ""} else None
                     ),
                     high=(
-                        _scaled_eodhd_price(row["high"], item)
-                        if row.get("high") not in {None, ""}
-                        else None
+                        _scaled_eodhd_price(row["high"], item) if row.get("high") not in {None, ""} else None
                     ),
-                    low=(
-                        _scaled_eodhd_price(row["low"], item)
-                        if row.get("low") not in {None, ""}
-                        else None
-                    ),
+                    low=(_scaled_eodhd_price(row["low"], item) if row.get("low") not in {None, ""} else None),
                     volume=_decimal(row["volume"]) if row.get("volume") not in {None, ""} else None,
                 )
             elif pair is not None:
@@ -332,10 +331,7 @@ class EodhdClient:
         }
         if exchange:
             params["exchange"] = exchange
-        url = (
-            f"{self.search_endpoint}/{urllib.parse.quote(query, safe='')}?"
-            + urllib.parse.urlencode(params)
-        )
+        url = f"{self.search_endpoint}/{urllib.parse.quote(query, safe='')}?" + urllib.parse.urlencode(params)
         request = urllib.request.Request(url, headers={"User-Agent": "OpenClaw-Portfolio/1"})
         try:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:
@@ -356,8 +352,7 @@ class EodhdClient:
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise RuntimeError("EODHD-Suche lieferte kein gueltiges JSON") from exc
         if isinstance(payload, dict) and (
-            isinstance(payload.get("code"), int)
-            or str(payload.get("status") or "").casefold() == "error"
+            isinstance(payload.get("code"), int) or str(payload.get("status") or "").casefold() == "error"
         ):
             raise self._provider_error(raw, "Anbieterfehler")
         if not isinstance(payload, list):
@@ -375,11 +370,7 @@ class EodhdClient:
         except ValueError:
             return None
         currency = str(row.get("Currency") or row.get("currency") or "").strip().upper()
-        if (
-            row_isin != normalized_isin
-            or len(currency) != 3
-            or not currency.isalpha()
-        ):
+        if row_isin != normalized_isin or len(currency) != 3 or not currency.isalpha():
             return None
         return symbol, currency
 
@@ -621,6 +612,62 @@ class PortfolioStore:
                 created_at TEXT NOT NULL,
                 acknowledged INTEGER NOT NULL DEFAULT 0
             );
+            CREATE TABLE IF NOT EXISTS research_runs (
+                id TEXT PRIMARY KEY,
+                created_at TEXT NOT NULL,
+                kind TEXT NOT NULL CHECK(kind IN ('screen','analysis')),
+                strategy TEXT NOT NULL,
+                request_json TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                model_version TEXT NOT NULL,
+                status TEXT NOT NULL,
+                candidate_count INTEGER NOT NULL,
+                error TEXT NOT NULL DEFAULT ''
+            );
+            CREATE INDEX IF NOT EXISTS idx_research_runs_created
+                ON research_runs(created_at DESC);
+            CREATE TABLE IF NOT EXISTS research_candidates (
+                id TEXT PRIMARY KEY,
+                run_id TEXT NOT NULL REFERENCES research_runs(id),
+                rank INTEGER NOT NULL,
+                isin TEXT NOT NULL,
+                ticker TEXT NOT NULL,
+                name TEXT NOT NULL,
+                sector TEXT NOT NULL,
+                industry TEXT NOT NULL,
+                strategy TEXT NOT NULL,
+                score TEXT,
+                metric_coverage TEXT NOT NULL,
+                verdict TEXT NOT NULL,
+                eligible INTEGER NOT NULL,
+                analysis_json TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_research_candidates_isin
+                ON research_candidates(isin, created_at DESC);
+            CREATE TABLE IF NOT EXISTS investment_profiles (
+                version INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at TEXT NOT NULL,
+                risk_tolerance TEXT NOT NULL,
+                horizon_years INTEGER NOT NULL,
+                strategy TEXT NOT NULL,
+                max_position_pct TEXT NOT NULL,
+                max_sector_pct TEXT NOT NULL,
+                preferred_sectors_json TEXT NOT NULL,
+                excluded_sectors_json TEXT NOT NULL,
+                notes TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS investment_feedback (
+                id TEXT PRIMARY KEY,
+                candidate_id TEXT NOT NULL REFERENCES research_candidates(id),
+                decision TEXT NOT NULL CHECK(
+                    decision IN ('interested','rejected','watch','bought','sold')
+                ),
+                reason TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_investment_feedback_created
+                ON investment_feedback(created_at DESC);
             """
         )
         quote_columns = {
@@ -670,6 +717,7 @@ class PortfolioService:
         mapping_searcher: MappingSearcher | None = None,
         mapping_query_searcher: MappingSearcher | None = None,
         mapping_selector: MappingSelector | None = None,
+        research_provider: ResearchProvider | None = None,
         now: Callable[[], datetime] = _now,
     ) -> None:
         self.settings = settings
@@ -681,6 +729,7 @@ class PortfolioService:
         self._mapping_searcher = mapping_searcher
         self._mapping_query_searcher = mapping_query_searcher
         self._mapping_selector = mapping_selector
+        self._research_provider = research_provider
         self._now = now
 
     def close(self) -> None:
@@ -944,9 +993,7 @@ class PortfolioService:
             if len(normalized_query) < 2 or len(normalized_query) > 120:
                 raise ValueError("Wertpapiersuche benoetigt 2 bis 120 Zeichen")
             if not api_key:
-                raise RuntimeError(
-                    f"API-Schluessel fehlt in Umgebungsvariable {self.settings.api_key_env}"
-                )
+                raise RuntimeError(f"API-Schluessel fehlt in Umgebungsvariable {self.settings.api_key_env}")
             query_searcher = self._mapping_query_searcher
             if query_searcher is None:
                 query_searcher = EodhdClient(
@@ -988,9 +1035,7 @@ class PortfolioService:
                     "error": "EODHD lieferte keine gueltige Wertpapieridentitaet",
                 }
             distinct_isins = sorted({item["isin"] for item in discovery_candidates})
-            primary_isins = sorted(
-                {item["isin"] for item in discovery_candidates if item["is_primary"]}
-            )
+            primary_isins = sorted({item["isin"] for item in discovery_candidates if item["is_primary"]})
             if len(primary_isins) == 1:
                 normalized = primary_isins[0]
                 discovery_policy = "unique-provider-primary-isin"
@@ -1011,8 +1056,7 @@ class PortfolioService:
             selected_discovery = next(
                 item
                 for item in discovery_candidates
-                if item["isin"] == normalized
-                and (item["is_primary"] or len(primary_isins) != 1)
+                if item["isin"] == normalized and (item["is_primary"] or len(primary_isins) != 1)
             )
             discovery = {
                 "query": normalized_query,
@@ -1194,9 +1238,7 @@ class PortfolioService:
             "symbol": selected["symbol"],
             "mic": mic,
             "currency": selected["currency"],
-            "provider_symbol": EodhdClient.ticker(
-                {"symbol": selected["symbol"], "mic": mic}
-            ),
+            "provider_symbol": EodhdClient.ticker({"symbol": selected["symbol"], "mic": mic}),
             "provider_exchange": selected["exchange"],
             "provider_primary": selected["is_primary"],
             "provider_venue_source": selected["venue_source"],
@@ -1239,9 +1281,7 @@ class PortfolioService:
                 "tool_id": "portfolio.watchlist.add",
                 "approval": "explicit-user-watchlist-change",
                 "argv": next_argv,
-                "command": shlex.join(
-                    ["/opt/openclaw-agent/scripts/assistant.sh", *next_argv]
-                ),
+                "command": shlex.join(["/opt/openclaw-agent/scripts/assistant.sh", *next_argv]),
             },
         }
         if discovery is not None:
@@ -1854,6 +1894,664 @@ class PortfolioService:
             "database_integrity": self.store.integrity(),
         }
 
+    def _research_client(self) -> ResearchProvider:
+        self._require_enabled()
+        if self.settings.provider != "eodhd":
+            raise RuntimeError("EODHD-Research ist nicht konfiguriert")
+        if self._research_provider is not None:
+            return self._research_provider
+        api_key = os.environ.get(self.settings.api_key_env, "").strip()
+        if not api_key:
+            raise RuntimeError(f"API-Schluessel fehlt in Umgebungsvariable {self.settings.api_key_env}")
+        return EodhdResearchClient(
+            api_key,
+            timeout=self.settings.request_timeout_seconds,
+        )
+
+    def research_models(self) -> dict[str, Any]:
+        return research_models()
+
+    def research_status(self) -> dict[str, Any]:
+        api_key_present = bool(os.environ.get(self.settings.api_key_env, "").strip())
+        last_run = self.store.connection.execute(
+            """
+            SELECT id,created_at,kind,strategy,status,candidate_count,error
+            FROM research_runs ORDER BY created_at DESC,id DESC LIMIT 1
+            """
+        ).fetchone()
+        successful = self.store.connection.execute(
+            "SELECT created_at FROM research_runs WHERE status='success' ORDER BY created_at DESC LIMIT 1"
+        ).fetchone()
+        return {
+            "ok": bool(
+                self.settings.enabled
+                and self.settings.provider == "eodhd"
+                and api_key_present
+                and self.store.integrity() == "ok"
+            ),
+            "enabled": self.settings.enabled,
+            "provider": self.settings.provider,
+            "api_key_present": api_key_present,
+            "api_key_env": self.settings.api_key_env,
+            "database_integrity": self.store.integrity(),
+            "models": research_models(),
+            "entitlement": {
+                "required_endpoints": ["screener", "v1.1/fundamentals", "eod"],
+                "verified_by_successful_run": successful is not None,
+                "last_verified_at": successful["created_at"] if successful else None,
+            },
+            "last_run": dict(last_run) if last_run else None,
+            "profile": self.philosophy_show(),
+        }
+
+    def _research_ticker_for_isin(self, isin: str) -> str:
+        normalized = isin.strip().upper()
+        if not _valid_isin(normalized):
+            raise ValueError("ISIN ist ungueltig")
+        row = self.store.connection.execute(
+            """
+            SELECT isin,symbol,mic,currency,mapping_confirmed
+            FROM instruments WHERE isin=?
+            """,
+            (normalized,),
+        ).fetchone()
+        if row and row["mapping_confirmed"] and row["symbol"] and row["mic"]:
+            return EodhdClient.ticker(dict(row))
+        api_key = os.environ.get(self.settings.api_key_env, "").strip()
+        searcher = self._mapping_searcher
+        if searcher is None:
+            if not api_key:
+                raise RuntimeError(f"API-Schluessel fehlt in Umgebungsvariable {self.settings.api_key_env}")
+            searcher = EodhdClient(
+                api_key,
+                timeout=self.settings.request_timeout_seconds,
+            ).search_by_isin
+        candidates = searcher(normalized)
+        primary = [
+            item
+            for item in candidates
+            if bool(item.get("is_primary")) and str(item.get("venue_source") or "").startswith("eodhd-search")
+        ]
+        selected = primary if len(primary) == 1 else candidates if len(candidates) == 1 else []
+        if len(selected) != 1:
+            raise RuntimeError(
+                "EODHD konnte fuer die Research-Analyse keine eindeutige Primaernotierung belegen"
+            )
+        item = selected[0]
+        symbol = _canonical_eodhd_symbol(item.get("symbol"))
+        exchange = str(item.get("exchange") or "").strip().upper()
+        suffix = {
+            "NASDAQ": "US",
+            "NYSE": "US",
+            "US": "US",
+            "XETRA": "XETRA",
+            "LSE": "LSE",
+        }.get(exchange)
+        if not suffix:
+            raise RuntimeError("EODHD-Research unterstuetzt diese Primaernotierung noch nicht")
+        return f"{symbol}.{suffix}"
+
+    def _store_research_run(
+        self,
+        *,
+        kind: str,
+        strategy: str,
+        request: dict[str, Any],
+        analyses: list[dict[str, Any]],
+        failures: list[dict[str, str]],
+    ) -> tuple[str, list[dict[str, Any]]]:
+        run_id = str(uuid.uuid4())
+        created_at = _iso(self._now())
+        status = "success" if analyses and not failures else "partial" if analyses else "failed"
+        model_version = str(research_models()["model_version"])
+        stored: list[dict[str, Any]] = []
+        with self.store.connection:
+            self.store.connection.execute(
+                """
+                INSERT INTO research_runs(
+                    id,created_at,kind,strategy,request_json,provider,model_version,
+                    status,candidate_count,error
+                ) VALUES(?,?,?,?,?,'eodhd',?,?,?,?)
+                """,
+                (
+                    run_id,
+                    created_at,
+                    kind,
+                    strategy,
+                    json.dumps(request, ensure_ascii=False, sort_keys=True),
+                    model_version,
+                    status,
+                    len(analyses),
+                    "; ".join(item["error"] for item in failures)[:1000],
+                ),
+            )
+            for rank, analysis in enumerate(analyses, start=1):
+                identity = analysis["identity"]
+                candidate_id = str(uuid.uuid4())
+                rendered = {**analysis, "candidate_id": candidate_id, "research_run_id": run_id}
+                self.store.connection.execute(
+                    """
+                    INSERT INTO research_candidates(
+                        id,run_id,rank,isin,ticker,name,sector,industry,strategy,score,
+                        metric_coverage,verdict,eligible,analysis_json,created_at
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    """,
+                    (
+                        candidate_id,
+                        run_id,
+                        rank,
+                        str(identity.get("isin") or ""),
+                        str(identity.get("ticker") or ""),
+                        str(identity.get("name") or "")[:200],
+                        str(identity.get("sector") or "")[:100],
+                        str(identity.get("industry") or "")[:120],
+                        strategy,
+                        "" if analysis.get("score") is None else str(analysis["score"]),
+                        str(analysis.get("metric_coverage") or 0),
+                        str(analysis.get("verdict") or "abstain"),
+                        int(bool(analysis.get("profile_fit", {}).get("eligible", True))),
+                        json.dumps(rendered, ensure_ascii=False, sort_keys=True),
+                        created_at,
+                    ),
+                )
+                stored.append(rendered)
+        return run_id, stored
+
+    def research_analyze(self, isin: str, *, strategy: str = "auto") -> dict[str, Any]:
+        profile = self.philosophy_show()
+        selected_strategy = self._research_strategy(strategy, profile)
+        ticker = self._research_ticker_for_isin(isin)
+        client = self._research_client()
+        from_date = self._now().date() - timedelta(days=550)
+        failures: list[dict[str, str]] = []
+        try:
+            analysis = analyze_research_payload(
+                client.fundamentals(ticker),
+                client.history(ticker, from_date=from_date),
+                strategy=selected_strategy,
+                expected_ticker=ticker,
+                expected_isin=isin,
+                now=self._now(),
+            )
+            analysis["profile_fit"] = self._research_profile_fit(analysis, profile)
+            analyses = [analysis]
+        except (RuntimeError, ValueError) as exc:
+            failures = [{"ticker": ticker, "error": str(exc)}]
+            analyses = []
+        run_id, stored = self._store_research_run(
+            kind="analysis",
+            strategy=selected_strategy,
+            request={"isin": isin.strip().upper(), "ticker": ticker},
+            analyses=analyses,
+            failures=failures,
+        )
+        if not stored:
+            return {
+                "ok": False,
+                "decision": "abstain",
+                "research_run_id": run_id,
+                "strategy": selected_strategy,
+                "failures": failures,
+            }
+        return stored[0]
+
+    @staticmethod
+    def _research_strategy(strategy: str, profile: dict[str, Any]) -> str:
+        normalized = strategy.strip().casefold()
+        if normalized == "auto":
+            configured = profile.get("profile") if profile.get("configured") else None
+            normalized = str((configured or {}).get("strategy") or "balanced")
+        if normalized not in RESEARCH_STRATEGIES:
+            raise ValueError("Research-Modell ist ungueltig")
+        return normalized
+
+    @staticmethod
+    def _research_profile_fit(
+        analysis: dict[str, Any],
+        profile_result: dict[str, Any],
+    ) -> dict[str, Any]:
+        if not profile_result.get("configured"):
+            return {
+                "configured": False,
+                "eligible": True,
+                "alignment": "unknown",
+                "reasons": ["Noch kein ausdruecklich bestaetigtes Investmentprofil vorhanden"],
+            }
+        profile = profile_result["profile"]
+        sector = str(analysis.get("identity", {}).get("sector") or "").casefold()
+        excluded = {str(item).casefold() for item in profile.get("excluded_sectors", [])}
+        preferred = {str(item).casefold() for item in profile.get("preferred_sectors", [])}
+        reasons: list[str] = []
+        eligible = not sector or sector not in excluded
+        if sector in excluded:
+            reasons.append("Sektor ist im bestaetigten Investmentprofil ausgeschlossen")
+        if preferred and sector in preferred:
+            reasons.append("Sektor entspricht einer ausdruecklich bevorzugten Branche")
+        if not reasons:
+            reasons.append("Keine ausdrueckliche Sektorabweichung zum Profil erkannt")
+        return {
+            "configured": True,
+            "profile_version": profile["version"],
+            "eligible": eligible,
+            "alignment": "excluded" if not eligible else "preferred" if sector in preferred else "neutral",
+            "reasons": reasons,
+        }
+
+    def research_screen(
+        self,
+        *,
+        strategy: str = "auto",
+        exchange: str = "",
+        sector: str = "",
+        limit: int = 5,
+    ) -> dict[str, Any]:
+        if limit < 1 or limit > 10:
+            raise ValueError("Research-Screener-Limit muss zwischen 1 und 10 liegen")
+        profile = self.philosophy_show()
+        selected_strategy = self._research_strategy(strategy, profile)
+        client = self._research_client()
+        provider_rows = client.screen(
+            strategy=selected_strategy,
+            exchange=exchange,
+            sector=sector,
+            limit=min(30, max(limit * 3, 10)),
+        )
+        known = {
+            str(row[0]).upper()
+            for row in self.store.connection.execute(
+                """
+                SELECT DISTINCT i.isin FROM instruments i
+                LEFT JOIN watchlist w ON w.isin=i.isin
+                WHERE w.enabled=1 OR i.isin IN (
+                    SELECT isin FROM position_snapshots
+                    WHERE import_id=(SELECT MAX(id) FROM imports)
+                )
+                """
+            ).fetchall()
+        }
+        analyses: list[dict[str, Any]] = []
+        failures: list[dict[str, str]] = []
+        from_date = self._now().date() - timedelta(days=550)
+        for row in provider_rows:
+            ticker = str(row.get("ticker") or "")
+            try:
+                analysis = analyze_research_payload(
+                    client.fundamentals(ticker),
+                    client.history(ticker, from_date=from_date),
+                    strategy=selected_strategy,
+                    expected_ticker=ticker,
+                    now=self._now(),
+                )
+                if str(analysis["identity"].get("isin") or "").upper() in known:
+                    continue
+                analysis["screen_evidence"] = row
+                analysis["profile_fit"] = self._research_profile_fit(analysis, profile)
+                analyses.append(analysis)
+            except (RuntimeError, ValueError) as exc:
+                failures.append({"ticker": ticker, "error": str(exc)})
+            if len(analyses) >= limit * 2:
+                break
+        analyses.sort(
+            key=lambda item: (
+                not bool(item.get("ok")),
+                not bool(item.get("profile_fit", {}).get("eligible", True)),
+                -float(item.get("score") or -1),
+                str(item.get("identity", {}).get("ticker") or ""),
+            )
+        )
+        analyses = analyses[:limit]
+        run_id, stored = self._store_research_run(
+            kind="screen",
+            strategy=selected_strategy,
+            request={
+                "strategy": selected_strategy,
+                "exchange": exchange.strip().upper(),
+                "sector": " ".join(sector.split())[:80],
+                "limit": limit,
+            },
+            analyses=analyses,
+            failures=failures,
+        )
+        suggestions = [
+            item
+            for item in stored
+            if item.get("verdict") == "research-candidate"
+            and item.get("profile_fit", {}).get("eligible", True)
+        ]
+        return {
+            "ok": bool(stored),
+            "decision": "informational" if stored else "abstain",
+            "research_run_id": run_id,
+            "provider": "eodhd",
+            "strategy": selected_strategy,
+            "model_version": research_models()["model_version"],
+            "provider_candidates": len(provider_rows),
+            "analyzed": len(stored),
+            "suggestion_count": len(suggestions),
+            "suggestions": suggestions,
+            "candidates": stored,
+            "failures": failures,
+            "profile": profile,
+            "disclaimer": (
+                "Erklaerbare Research-Kandidaten; keine Kauf-/Verkaufsempfehlung oder Orderfreigabe."
+            ),
+        }
+
+    def research_history(self, *, limit: int = 20) -> dict[str, Any]:
+        rows = self.store.connection.execute(
+            """
+            SELECT id,created_at,kind,strategy,provider,model_version,status,
+                   candidate_count,error
+            FROM research_runs ORDER BY created_at DESC,id DESC LIMIT ?
+            """,
+            (max(1, min(int(limit), 100)),),
+        ).fetchall()
+        return {"ok": True, "count": len(rows), "runs": [dict(row) for row in rows]}
+
+    @staticmethod
+    def _sector_list(values: list[str]) -> list[str]:
+        result: list[str] = []
+        seen: set[str] = set()
+        for value in values:
+            cleaned = " ".join(str(value or "").split())[:100]
+            key = cleaned.casefold()
+            if cleaned and key not in seen:
+                result.append(cleaned)
+                seen.add(key)
+        return result[:20]
+
+    def philosophy_show(self) -> dict[str, Any]:
+        row = self.store.connection.execute(
+            "SELECT * FROM investment_profiles ORDER BY version DESC LIMIT 1"
+        ).fetchone()
+        if not row:
+            return {
+                "ok": True,
+                "configured": False,
+                "profile": None,
+                "learning_policy": "Beobachtungen aendern das deklarierte Profil niemals automatisch.",
+            }
+        profile = dict(row)
+        profile["preferred_sectors"] = json.loads(profile.pop("preferred_sectors_json"))
+        profile["excluded_sectors"] = json.loads(profile.pop("excluded_sectors_json"))
+        return {
+            "ok": True,
+            "configured": True,
+            "profile": profile,
+            "learning_policy": "Beobachtungen aendern das deklarierte Profil niemals automatisch.",
+        }
+
+    def philosophy_set(
+        self,
+        *,
+        risk_tolerance: str,
+        horizon_years: int,
+        strategy: str,
+        max_position_pct: Decimal,
+        max_sector_pct: Decimal,
+        preferred_sectors: list[str],
+        excluded_sectors: list[str],
+        notes: str = "",
+    ) -> dict[str, Any]:
+        self._require_enabled()
+        risk = risk_tolerance.strip().casefold()
+        if risk not in {"conservative", "balanced", "growth"}:
+            raise ValueError("Risikotoleranz muss conservative, balanced oder growth sein")
+        strategy = strategy.strip().casefold()
+        if strategy not in RESEARCH_STRATEGIES:
+            raise ValueError("Investmentstil ist ungueltig")
+        if horizon_years < 1 or horizon_years > 50:
+            raise ValueError("Anlagehorizont muss zwischen 1 und 50 Jahren liegen")
+        if not Decimal("1") <= max_position_pct <= Decimal("100"):
+            raise ValueError("Maximale Positionsgroesse muss zwischen 1 und 100 Prozent liegen")
+        if not Decimal("1") <= max_sector_pct <= Decimal("100"):
+            raise ValueError("Maximale Sektorquote muss zwischen 1 und 100 Prozent liegen")
+        preferred = self._sector_list(preferred_sectors)
+        excluded = self._sector_list(excluded_sectors)
+        overlap = {item.casefold() for item in preferred} & {item.casefold() for item in excluded}
+        if overlap:
+            raise ValueError("Ein Sektor darf nicht zugleich bevorzugt und ausgeschlossen sein")
+        notes = " ".join(notes.split())[:1000]
+        with self.store.connection:
+            cursor = self.store.connection.execute(
+                """
+                INSERT INTO investment_profiles(
+                    created_at,risk_tolerance,horizon_years,strategy,max_position_pct,
+                    max_sector_pct,preferred_sectors_json,excluded_sectors_json,notes
+                ) VALUES(?,?,?,?,?,?,?,?,?)
+                """,
+                (
+                    _iso(self._now()),
+                    risk,
+                    horizon_years,
+                    strategy,
+                    str(max_position_pct),
+                    str(max_sector_pct),
+                    json.dumps(preferred, ensure_ascii=False),
+                    json.dumps(excluded, ensure_ascii=False),
+                    notes,
+                ),
+            )
+        result = self.philosophy_show()
+        if cursor.lastrowid is None:
+            raise RuntimeError("Anlageprofil konnte nicht versioniert werden")
+        result["new_version"] = int(cursor.lastrowid)
+        result["append_only"] = True
+        return result
+
+    def philosophy_history(self, *, limit: int = 20) -> dict[str, Any]:
+        rows = self.store.connection.execute(
+            "SELECT * FROM investment_profiles ORDER BY version DESC LIMIT ?",
+            (max(1, min(int(limit), 100)),),
+        ).fetchall()
+        versions: list[dict[str, Any]] = []
+        for row in rows:
+            item = dict(row)
+            item["preferred_sectors"] = json.loads(item.pop("preferred_sectors_json"))
+            item["excluded_sectors"] = json.loads(item.pop("excluded_sectors_json"))
+            versions.append(item)
+        return {"ok": True, "count": len(versions), "versions": versions}
+
+    def philosophy_feedback(
+        self,
+        *,
+        candidate_id: str,
+        decision: str,
+        reason: str,
+    ) -> dict[str, Any]:
+        self._require_enabled()
+        decision = decision.strip().casefold()
+        if decision not in {"interested", "rejected", "watch", "bought", "sold"}:
+            raise ValueError("Unbekannte Investment-Rueckmeldung")
+        candidate = self.store.connection.execute(
+            """
+            SELECT id,isin,ticker,name,sector,strategy,verdict,created_at
+            FROM research_candidates WHERE id=?
+            """,
+            (candidate_id.strip(),),
+        ).fetchone()
+        if not candidate:
+            raise ValueError("Research-Kandidat ist unbekannt")
+        reason = " ".join(reason.split())[:500]
+        if not reason:
+            raise ValueError("Rueckmeldung benoetigt eine kurze Begruendung")
+        feedback_id = str(uuid.uuid4())
+        created_at = _iso(self._now())
+        with self.store.connection:
+            self.store.connection.execute(
+                """
+                INSERT INTO investment_feedback(id,candidate_id,decision,reason,created_at)
+                VALUES(?,?,?,?,?)
+                """,
+                (feedback_id, candidate_id.strip(), decision, reason, created_at),
+            )
+        return {
+            "ok": True,
+            "feedback_id": feedback_id,
+            "candidate": dict(candidate),
+            "decision": decision,
+            "reason": reason,
+            "created_at": created_at,
+            "declared_profile_changed": False,
+        }
+
+    def philosophy_review(self) -> dict[str, Any]:
+        profile_result = self.philosophy_show()
+        praise: list[dict[str, Any]] = []
+        critique: list[dict[str, Any]] = []
+        limitations: list[str] = []
+        valuation = self.valuation()
+        concentration: dict[str, Any] = {
+            "valuation_complete": bool(valuation.get("ok")),
+            "positions": [],
+            "sectors": [],
+        }
+        if not profile_result.get("configured"):
+            limitations.append(
+                "Kein bestaetigtes Investmentprofil; keine persoenliche Grenzwertkritik moeglich"
+            )
+        if not valuation.get("ok"):
+            limitations.append("Aktuelle EUR-Bewertung ist unvollstaendig; Konzentration wird nicht bewertet")
+        if profile_result.get("configured") and valuation.get("ok"):
+            profile = profile_result["profile"]
+            positions = valuation.get("positions", [])
+            total = sum(Decimal(str(item["current_value"])) for item in positions)
+            rendered_positions: list[dict[str, Any]] = []
+            for item in positions:
+                value = Decimal(str(item["current_value"]))
+                percentage = value / total * Decimal("100") if total else Decimal("0")
+                rendered_positions.append(
+                    {
+                        "isin": item["isin"],
+                        "name": item["name"],
+                        "value_eur": item["current_value"],
+                        "percentage": self._rounded(percentage),
+                    }
+                )
+            rendered_positions.sort(key=lambda item: Decimal(item["percentage"]), reverse=True)
+            concentration["positions"] = rendered_positions
+            max_position = Decimal(str(profile["max_position_pct"]))
+            if rendered_positions and Decimal(rendered_positions[0]["percentage"]) > max_position:
+                critique.append(
+                    {
+                        "rule": "max-position-pct",
+                        "evidence": rendered_positions[0],
+                        "message": "Groesste Position ueberschreitet die selbst gesetzte Obergrenze.",
+                    }
+                )
+            elif rendered_positions:
+                praise.append(
+                    {
+                        "rule": "max-position-pct",
+                        "evidence": rendered_positions[0],
+                        "message": "Groesste Position liegt innerhalb der selbst gesetzten Obergrenze.",
+                    }
+                )
+            sector_rows = self.store.connection.execute(
+                """
+                SELECT c.isin,c.sector FROM research_candidates c
+                JOIN (
+                    SELECT isin,MAX(created_at) AS latest
+                    FROM research_candidates GROUP BY isin
+                ) latest ON latest.isin=c.isin AND latest.latest=c.created_at
+                """
+            ).fetchall()
+            sectors_by_isin = {str(row["isin"]): str(row["sector"]) for row in sector_rows if row["sector"]}
+            sector_values: dict[str, Decimal] = {}
+            covered = Decimal("0")
+            for item in positions:
+                sector_name = sectors_by_isin.get(str(item["isin"]))
+                if not sector_name:
+                    continue
+                value = Decimal(str(item["current_value"]))
+                sector_values[sector_name] = sector_values.get(sector_name, Decimal("0")) + value
+                covered += value
+            sector_coverage = covered / total if total else Decimal("0")
+            concentration["sector_coverage"] = self._rounded(sector_coverage * Decimal("100"))
+            if sector_coverage < Decimal("0.8"):
+                limitations.append("Sektorabdeckung der gehaltenen Positionen liegt unter 80 Prozent")
+            else:
+                maximum = Decimal(str(profile["max_sector_pct"]))
+                excluded = {str(item).casefold() for item in profile["excluded_sectors"]}
+                for name, value in sorted(sector_values.items(), key=lambda item: item[1], reverse=True):
+                    percentage = value / total * Decimal("100") if total else Decimal("0")
+                    evidence = {"sector": name, "percentage": self._rounded(percentage)}
+                    concentration["sectors"].append(evidence)
+                    if name.casefold() in excluded:
+                        critique.append(
+                            {
+                                "rule": "excluded-sector",
+                                "evidence": evidence,
+                                "message": (
+                                    "Gehaltene Position widerspricht einem ausdruecklich "
+                                    "ausgeschlossenen Sektor."
+                                ),
+                            }
+                        )
+                    if percentage > maximum:
+                        critique.append(
+                            {
+                                "rule": "max-sector-pct",
+                                "evidence": evidence,
+                                "message": "Sektorgewicht ueberschreitet die selbst gesetzte Obergrenze.",
+                            }
+                        )
+                if not any(item["rule"] == "max-sector-pct" for item in critique):
+                    praise.append(
+                        {
+                            "rule": "max-sector-pct",
+                            "evidence": {"limit": str(maximum)},
+                            "message": (
+                                "Alle ausreichend belegten Sektorgewichte liegen innerhalb der Obergrenze."
+                            ),
+                        }
+                    )
+        feedback_rows = self.store.connection.execute(
+            """
+            SELECT f.decision,c.sector,c.strategy
+            FROM investment_feedback f
+            JOIN research_candidates c ON c.id=f.candidate_id
+            ORDER BY f.created_at
+            """
+        ).fetchall()
+        sector_feedback: dict[str, dict[str, int]] = {}
+        for row in feedback_rows:
+            sector_name = str(row["sector"] or "Unbekannt")
+            bucket = sector_feedback.setdefault(sector_name, {"positive": 0, "negative": 0})
+            if row["decision"] in {"interested", "watch", "bought"}:
+                bucket["positive"] += 1
+            elif row["decision"] == "rejected":
+                bucket["negative"] += 1
+        samples = len(feedback_rows)
+        inferred = [
+            {
+                "sector": sector_name,
+                **counts,
+                "sample_size": counts["positive"] + counts["negative"],
+            }
+            for sector_name, counts in sorted(sector_feedback.items())
+            if counts["positive"] + counts["negative"] >= 2
+        ]
+        confidence = "high" if samples >= 15 else "medium" if samples >= 5 else "low"
+        return {
+            "ok": True,
+            "profile": profile_result,
+            "concentration": concentration,
+            "praise": praise,
+            "critique": critique,
+            "learning": {
+                "feedback_samples": samples,
+                "confidence": confidence,
+                "inferred_sector_preferences": inferred,
+                "automatic_profile_changes": False,
+            },
+            "limitations": limitations,
+            "method": (
+                "Kritik und Lob nur gegen ausdruecklich bestaetigte Grenzwerte und belegte EUR-/Sektordaten."
+            ),
+            "disclaimer": "Verhaltens- und Portfolioreflexion; keine individuelle Anlageberatung.",
+        }
+
     def status(self) -> dict[str, Any]:
         health = self.health()
         configuration = self._configuration_status()
@@ -1879,9 +2577,7 @@ class PortfolioService:
         key_present = bool(os.environ.get(self.settings.api_key_env, "").strip())
         provider_ok = not self.settings.enabled or self.settings.provider == "eodhd"
         import_root_present = self.settings.import_root.is_dir()
-        configuration_ok = not self.settings.enabled or (
-            provider_ok and key_present and import_root_present
-        )
+        configuration_ok = not self.settings.enabled or (provider_ok and key_present and import_root_present)
         return {
             "ok": configuration_ok,
             "provider_ok": provider_ok,
@@ -2079,8 +2775,7 @@ class PortfolioService:
             "provider_rate": self._rounded(conversion["provider_rate"], "0.00000001"),
             "conversion_rate": self._rounded(conversion["rate"], "0.00000001"),
             "conversion": (
-                f"1 {source_currency} = "
-                f"{self._rounded(conversion['rate'], '0.00000001')} {target_currency}"
+                f"1 {source_currency} = {self._rounded(conversion['rate'], '0.00000001')} {target_currency}"
             ),
             "observed_at": conversion["observed_at"],
             "received_at": conversion["received_at"],
