@@ -163,6 +163,24 @@ def test_skill_refreshes_stale_quotes_before_claiming_current_prices() -> None:
     assert "Never guess either value or claim an old snapshot price is current" in portfolio
 
 
+def test_skill_requires_current_portfolio_values_to_be_reported_in_eur() -> None:
+    skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
+    portfolio = " ".join(
+        (SKILL / "references/portfolio.md").read_text(encoding="utf-8").split()
+    )
+
+    assert "report its EUR values only" in skill
+    assert "report `price_eur`, not an unconverted foreign amount" in skill
+    assert "Treat EUR as the mandatory reporting currency" in portfolio
+    assert (
+        "Report `price_eur` from `portfolio quotes get`, and report `current_price_eur`"
+        in portfolio
+    )
+    assert "Never calculate a conversion in the model" in portfolio
+    assert "The native `price` and `currency` are source context" in portfolio
+    assert "every required `EUR<currency>.FOREX` pair" in portfolio
+
+
 def test_failed_portfolio_status_requires_complete_diagnosis_and_next_action() -> None:
     skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
     portfolio = " ".join(

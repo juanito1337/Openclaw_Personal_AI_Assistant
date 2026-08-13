@@ -126,7 +126,7 @@ TOOLS: tuple[ToolDefinition, ...] = (
     define(
         id="portfolio.valuation",
         domain="portfolio",
-        description="Aktuellen Depotwert und Gewinn deterministisch aus gespeicherten EODHD-Aktienkursen und zeitgestempelten EODHD-Wechselkursen berechnen; bei fehlender Umrechnung fail-closed",
+        description="Aktuellen Depotwert, Einstand und Gewinn deterministisch immer in EUR aus gespeicherten EODHD-Aktienkursen und zeitgestempelten EODHD-Wechselkursen berechnen; bei fehlender Umrechnung fail-closed",
         command="./scripts/assistant.sh portfolio valuation",
         mode="read",
         writes_external_data=False,
@@ -210,7 +210,7 @@ TOOLS: tuple[ToolDefinition, ...] = (
     define(
         id="portfolio.quotes.get",
         domain="portfolio",
-        description="Letzten gespeicherten Kurswert, Waehrung, Quelle und Zeitstempel fuer eine exakte ISIN anzeigen",
+        description="Letzten gespeicherten Kurswert samt verpflichtendem aktuellem EUR-Wert, FX-Nachweis, Quelle und Zeitstempel fuer eine exakte ISIN anzeigen",
         command='./scripts/assistant.sh portfolio quotes get --isin "<ISIN>"',
         mode="read",
         writes_external_data=False,

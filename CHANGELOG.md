@@ -2,6 +2,15 @@
 
 ## Unreleased – M8 End-to-End-Recovery, Skills und Releaseabschluss
 
+- EUR ist jetzt die feste Berichtswährung aller aktuellen Portfolio-Werte.
+  `portfolio quotes get` liefert fuer Fremdwaehrungskurse zusaetzlich den
+  zeitgestempelten `price_eur`; `portfolio valuation` rechnet Boersenkurs,
+  gegebenenfalls fremdwaehrigen Einstieg, Positionswert, Einstand und Gewinn
+  deterministisch in EUR um und erzeugt nur noch eine EUR-Gesamtsumme. Benoetigte
+  EUR-FX-Paare werden auch fuer aktivierte Watchlist-Werte aktualisiert. Fehlende
+  oder kritisch alte Wechselkurse bleiben fail-closed und verhindern eine
+  scheinbar vollstaendige Bewertung.
+
 - Londoner EODHD-Kurse mit GBP-Mapping werden vor Speicherung von Pence in Pfund
   normalisiert. BAE Systems `2270` GBX erscheint damit als `22.70 GBP`; ein
   erneuter Abruf repariert auch einen bereits unter demselben Providerzeitstempel

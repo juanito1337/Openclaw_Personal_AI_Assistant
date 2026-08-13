@@ -39,6 +39,7 @@ EODHD_EXCHANGE_BY_MIC = {
     "XNYS": "US",
 }
 EODHD_BATCH_LIMIT = 20
+PORTFOLIO_REPORTING_CURRENCY = "EUR"
 EODHD_MINOR_UNIT_SCALES: dict[tuple[str, str], Decimal] = {
     # EODHD labels London sterling instruments as GBP while returning the
     # exchange price in GBX (pence). Store major currency units consistently.
@@ -1322,21 +1323,25 @@ class PortfolioService:
         return [{**dict(row), "held": row["isin"] in held} for row in rows]
 
     def _required_fx_pairs(self) -> list[tuple[str, str]]:
-        pairs: set[tuple[str, str]] = set()
+        currencies: set[str] = set()
         for item in self.holdings().get("positions", []):
+            if _decimal(item.get("shares")) == 0:
+                continue
             snapshot_currency = str(item.get("currency") or "").strip().upper()
             quote_currency = str(item.get("quote_currency") or "").strip().upper()
-            if (
-                _decimal(item.get("shares")) != 0
-                and snapshot_currency
-                and quote_currency
-                and snapshot_currency != quote_currency
-            ):
-                # EODHD EURUSD means USD per one EUR. Keeping the snapshot
-                # currency as the base makes the later conversion explicit:
-                # an amount in USD is divided by EURUSD to obtain EUR.
-                pairs.add((snapshot_currency, quote_currency))
-        return sorted(pairs)
+            currencies.update(currency for currency in (snapshot_currency, quote_currency) if currency)
+        currencies.update(
+            str(item.get("currency") or "").strip().upper()
+            for item in self._targets()
+            if item.get("mapping_confirmed") and item.get("currency")
+        )
+        # EODHD EURUSD means USD per one EUR. Using EUR as the base gives one
+        # deterministic reporting contract: divide a USD amount by EURUSD.
+        return sorted(
+            (PORTFOLIO_REPORTING_CURRENCY, currency)
+            for currency in currencies
+            if currency != PORTFOLIO_REPORTING_CURRENCY
+        )
 
     def _fetch_quotes(
         self,
@@ -1911,7 +1916,7 @@ class PortfolioService:
         return [dict(row) for row in reversed(rows)]
 
     def latest_quote(self, isin: str) -> dict[str, Any]:
-        """Return one stored quote without turning a price lookup into analysis."""
+        """Return one stored quote plus its fail-closed current EUR value."""
         isin = isin.strip().upper()
         health_item = next(
             (item for item in self.health().get("instruments", []) if item["isin"] == isin),
@@ -1933,15 +1938,39 @@ class PortfolioService:
                 "critical": True,
             }
         quote = series[-1]
+        quote_currency = str(quote["currency"] or "").strip().upper()
+        conversion_error = None
+        price_eur = None
+        fx_detail = None
+        try:
+            if not quote_currency:
+                raise ValueError("Kurswaehrung fehlt")
+            conversion = self._fx_conversion(
+                source_currency=quote_currency,
+                target_currency=PORTFOLIO_REPORTING_CURRENCY,
+            )
+            price_eur = self._rounded(_decimal(quote["close"]) * conversion["rate"], "0.000001")
+            if conversion["provider_symbol"] is not None:
+                fx_detail = self._render_fx_detail(
+                    source_currency=quote_currency,
+                    target_currency=PORTFOLIO_REPORTING_CURRENCY,
+                    conversion=conversion,
+                )
+        except (ValueError, InvalidOperation, ZeroDivisionError) as exc:
+            conversion_error = str(exc)
         return {
-            "ok": not bool(health_item["critical"]),
+            "ok": not bool(health_item["critical"]) and conversion_error is None,
             "isin": isin,
             "name": str(instrument["name"] if instrument else isin),
             "symbol": str(instrument["symbol"] if instrument else ""),
             "mic": str(instrument["mic"] if instrument else ""),
             "provider_symbol": health_item.get("provider_symbol"),
             "price": quote["close"],
-            "currency": quote["currency"],
+            "currency": quote_currency,
+            "price_eur": price_eur,
+            "reporting_currency": PORTFOLIO_REPORTING_CURRENCY,
+            "fx": fx_detail,
+            "conversion_error": conversion_error,
             "observed_at": quote["observed_at"],
             "received_at": quote["received_at"],
             "provider": quote["provider"],
@@ -2036,8 +2065,32 @@ class PortfolioService:
             "age_seconds": age_seconds,
         }
 
+    def _render_fx_detail(
+        self,
+        *,
+        source_currency: str,
+        target_currency: str,
+        conversion: dict[str, Any],
+    ) -> dict[str, Any]:
+        return {
+            "provider_symbol": conversion["provider_symbol"],
+            "base_currency": conversion["base_currency"],
+            "quote_currency": conversion["quote_currency"],
+            "provider_rate": self._rounded(conversion["provider_rate"], "0.00000001"),
+            "conversion_rate": self._rounded(conversion["rate"], "0.00000001"),
+            "conversion": (
+                f"1 {source_currency} = "
+                f"{self._rounded(conversion['rate'], '0.00000001')} {target_currency}"
+            ),
+            "observed_at": conversion["observed_at"],
+            "received_at": conversion["received_at"],
+            "provider": conversion["provider"],
+            "inverted": bool(conversion["inverted"]),
+            "age_seconds": conversion.get("age_seconds"),
+        }
+
     def valuation(self) -> dict[str, Any]:
-        """Value the latest holdings without ever mixing unconverted currencies."""
+        """Value every latest holding in EUR without mixing currencies."""
         holdings = self.holdings()
         health_by_isin = {str(item["isin"]): item for item in self.health().get("instruments", [])}
         positions: list[dict[str, Any]] = []
@@ -2076,35 +2129,37 @@ class PortfolioService:
                 if quote_observed is None:
                     raise ValueError("Aktienkurs hat keinen gueltigen Quellzeitstempel")
                 quote_price = _decimal(quote["price"])
-                conversion = self._fx_conversion(
+                quote_conversion = self._fx_conversion(
                     source_currency=quote_currency,
-                    target_currency=snapshot_currency,
+                    target_currency=PORTFOLIO_REPORTING_CURRENCY,
                 )
-                converted_price = quote_price * conversion["rate"]
+                entry_conversion = self._fx_conversion(
+                    source_currency=snapshot_currency,
+                    target_currency=PORTFOLIO_REPORTING_CURRENCY,
+                )
+                converted_price = quote_price * quote_conversion["rate"]
                 entry_price = _decimal(entry_text)
-                cost_basis = shares * entry_price
+                entry_price_eur = entry_price * entry_conversion["rate"]
+                cost_basis = shares * entry_price_eur
                 current_value = shares * converted_price
                 gain = current_value - cost_basis
                 gain_percent = gain / cost_basis * Decimal("100") if cost_basis != 0 else None
                 fx_detail = None
-                if conversion["provider_symbol"] is not None:
-                    fx_detail = {
-                        "provider_symbol": conversion["provider_symbol"],
-                        "base_currency": conversion["base_currency"],
-                        "quote_currency": conversion["quote_currency"],
-                        "provider_rate": self._rounded(conversion["provider_rate"], "0.00000001"),
-                        "conversion_rate": self._rounded(conversion["rate"], "0.00000001"),
-                        "conversion": (
-                            f"1 {quote_currency} = "
-                            f"{self._rounded(conversion['rate'], '0.00000001')} "
-                            f"{snapshot_currency}"
-                        ),
-                        "observed_at": conversion["observed_at"],
-                        "received_at": conversion["received_at"],
-                        "provider": conversion["provider"],
-                        "inverted": bool(conversion["inverted"]),
-                    }
-                    fx_used[str(conversion["provider_symbol"])] = fx_detail
+                if quote_conversion["provider_symbol"] is not None:
+                    fx_detail = self._render_fx_detail(
+                        source_currency=quote_currency,
+                        target_currency=PORTFOLIO_REPORTING_CURRENCY,
+                        conversion=quote_conversion,
+                    )
+                    fx_used[str(quote_conversion["provider_symbol"])] = fx_detail
+                entry_fx_detail = None
+                if entry_conversion["provider_symbol"] is not None:
+                    entry_fx_detail = self._render_fx_detail(
+                        source_currency=snapshot_currency,
+                        target_currency=PORTFOLIO_REPORTING_CURRENCY,
+                        conversion=entry_conversion,
+                    )
+                    fx_used[str(entry_conversion["provider_symbol"])] = entry_fx_detail
                 positions.append(
                     {
                         "account": item["account"],
@@ -2113,10 +2168,12 @@ class PortfolioService:
                         "shares": str(shares),
                         "entry_price": self._rounded(entry_price),
                         "entry_currency": snapshot_currency,
+                        "entry_price_eur": self._rounded(entry_price_eur, "0.000001"),
                         "current_price": str(quote_price),
                         "quote_currency": quote_currency,
                         "current_price_converted": self._rounded(converted_price, "0.000001"),
-                        "valuation_currency": snapshot_currency,
+                        "current_price_eur": self._rounded(converted_price, "0.000001"),
+                        "valuation_currency": PORTFOLIO_REPORTING_CURRENCY,
                         "cost_basis": self._rounded(cost_basis),
                         "current_value": self._rounded(current_value),
                         "gain": self._rounded(gain),
@@ -2125,10 +2182,11 @@ class PortfolioService:
                         "quote_received_at": str(quote["received_at"]),
                         "quote_provider": str(quote["provider"]),
                         "fx": fx_detail,
+                        "entry_fx": entry_fx_detail,
                     }
                 )
                 bucket = totals.setdefault(
-                    snapshot_currency,
+                    PORTFOLIO_REPORTING_CURRENCY,
                     {"cost_basis": Decimal("0"), "current_value": Decimal("0"), "gain": Decimal("0")},
                 )
                 bucket["cost_basis"] += cost_basis
@@ -2161,11 +2219,12 @@ class PortfolioService:
             "positions_valued": len(positions),
             "positions": positions,
             "totals": rendered_totals,
+            "reporting_currency": PORTFOLIO_REPORTING_CURRENCY,
             "fx_quotes": list(fx_used.values()),
             "failures": failures,
             "method": (
-                "Aktueller EODHD-Kurs, bei Fremdwaehrung mit zeitgestempeltem "
-                "EODHD-FX-Kurs in die DKB-Snapshotwaehrung umgerechnet"
+                "Aktueller EODHD-Kurs und Einstiegskurs, bei Fremdwaehrung mit "
+                "zeitgestempeltem EODHD-FX-Kurs immer in EUR umgerechnet"
             ),
             "estimated": True,
         }
@@ -2212,6 +2271,20 @@ class PortfolioService:
                 "as_of": series[-1]["observed_at"],
                 "series": series,
             }
+        euro_quote = self.latest_quote(isin)
+        if euro_quote.get("conversion_error"):
+            return {
+                "ok": False,
+                "decision": "abstain",
+                "isin": isin,
+                "reason": f"Aktueller EUR-Wert nicht verfuegbar: {euro_quote['conversion_error']}",
+                "as_of": series[-1]["observed_at"],
+                "last_price": series[-1]["close"],
+                "currency": series[-1]["currency"],
+                "last_price_eur": None,
+                "reporting_currency": PORTFOLIO_REPORTING_CURRENCY,
+                "series": series,
+            }
         values = [float(row["close"]) for row in series]
         sma20 = self._sma(values, 20)
         sma50 = self._sma(values, 50)
@@ -2242,6 +2315,9 @@ class PortfolioService:
             "points": len(series),
             "last_price": values[-1],
             "currency": series[-1]["currency"],
+            "last_price_eur": euro_quote["price_eur"],
+            "reporting_currency": PORTFOLIO_REPORTING_CURRENCY,
+            "fx": euro_quote["fx"],
             "indicators": {
                 "trend": trend,
                 "sma20": sma20,

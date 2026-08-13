@@ -125,8 +125,8 @@ launcher shown above:
 | Invoices | `invoices status`, then `invoices list ...` or `invoices review ...` |
 | Orders, deliveries or returns | `orders status`, then `orders list ...` |
 | Stocks, securities, depot positions or holdings | `portfolio holdings` |
-| Latest/current prices, portfolio value, profit or return | `portfolio quotes status`; if due, stale or missing and configured, `portfolio quotes refresh`; then `portfolio valuation` |
-| One security's latest/current quote | Resolve the exact ISIN, check/refresh as above, then `portfolio quotes get --isin "<ISIN>"` |
+| Latest/current prices, portfolio value, profit or return | `portfolio quotes status`; if due, stale or missing and configured, `portfolio quotes refresh`; then `portfolio valuation`; report its EUR values only |
+| One security's latest/current quote | Resolve the exact ISIN, check/refresh as above, then `portfolio quotes get --isin "<ISIN>"`; report `price_eur`, not an unconverted foreign amount |
 | Portfolio configuration, freshness or failures | `portfolio status`, then `portfolio doctor` on failure |
 | Add a new watchlist security by company name or symbol | `portfolio mapping suggest --query "<Unternehmen-oder-Symbol>"`; present the returned candidate for approval |
 | Missing portfolio symbol/MIC mapping | `portfolio mapping suggest --isin "<ISIN>"`; then present the exact returned candidate for approval |

@@ -274,7 +274,7 @@
   {
     "approval": "none",
     "command": "./scripts/assistant.sh portfolio valuation",
-    "description": "Aktuellen Depotwert und Gewinn deterministisch aus gespeicherten EODHD-Aktienkursen und zeitgestempelten EODHD-Wechselkursen berechnen; bei fehlender Umrechnung fail-closed",
+    "description": "Aktuellen Depotwert, Einstand und Gewinn deterministisch immer in EUR aus gespeicherten EODHD-Aktienkursen und zeitgestempelten EODHD-Wechselkursen berechnen; bei fehlender Umrechnung fail-closed",
     "id": "portfolio.valuation",
     "mode": "read",
     "writes_external_data": false
@@ -330,7 +330,7 @@
   {
     "approval": "none",
     "command": "./scripts/assistant.sh portfolio quotes get --isin \"<ISIN>\"",
-    "description": "Letzten gespeicherten Kurswert, Waehrung, Quelle und Zeitstempel fuer eine exakte ISIN anzeigen",
+    "description": "Letzten gespeicherten Kurswert samt verpflichtendem aktuellem EUR-Wert, FX-Nachweis, Quelle und Zeitstempel fuer eine exakte ISIN anzeigen",
     "id": "portfolio.quotes.get",
     "mode": "read",
     "writes_external_data": false

@@ -54,6 +54,15 @@ invented `--yes`; `--force` is only for an explicitly requested diagnostic refre
 Never manually combine holdings and quote output, and never compare USD and EUR
 without controlled FX. Missing, stale or invalid equity/FX quotes make the result
 incomplete and must not be summed as a complete total.
+Treat EUR as the mandatory reporting currency for every current monetary value.
+Report `price_eur` from `portfolio quotes get`, and report `current_price_eur`,
+position values, cost basis, gain and totals only from the EUR fields returned by
+`portfolio valuation`.
+Native GBP/USD or another exchange currency may be included only as labeled
+source context beside the EUR value. Never calculate a conversion in the model.
+If `conversion_error` is non-empty, `price_eur` is null, or valuation is
+`incomplete`, stop and report the FX failure instead of presenting the native
+amount as the requested current value.
 
 Run the registered setup, mapping, doctor, refresh, status, valuation and job
 commands yourself; never ask Jan to copy a `docker exec` wrapper. If an instrument
@@ -85,10 +94,11 @@ uncertain, report that result without guessing. Secret provisioning remains Jan'
 host action and must never expose the key in chat.
 
 For one current price resolve the exact ISIN, then use `portfolio quotes get
---isin`. Report price, currency, observation time, provider and stale/critical
-flags. `portfolio quotes status` is health metadata and accepts no `--detailed`
-option. Do not inspect SQLite directly, invent switches or substitute web search
-while the registered read tool is available.
+--isin`. Report `price_eur`, reporting currency EUR, observation time, provider,
+FX observation and stale/critical flags. The native `price` and `currency` are
+source context, never the sole answer for a non-EUR instrument. `portfolio quotes
+status` is health metadata and accepts no `--detailed` option. Do not inspect SQLite directly,
+invent switches or substitute web search while the registered read tool is available.
 
 If refresh is blocked, stop and report the exact contract failure. A missing
 `PORTFOLIO_EODHD_API_KEY` requires Jan to provision the secret; an unconfirmed
@@ -100,9 +110,11 @@ protected setup changes belong to the explicitly approved `agent-cli` path.
 
 EODHD is the only quote provider. It uses confirmed forms such as `RHM.XETRA`,
 batches at most 20 market/FX symbols and normally returns prices delayed by about
-15–20 minutes. Never call them exchange-real-time, fall back to another provider
-or expose the API key. A missing/critically stale held-position quote blocks fresh
-analysis and requires portfolio doctor plus deep job checks.
+15–20 minutes. The refresh obtains every required `EUR<currency>.FOREX` pair for
+held positions and enabled watchlist entries. Never call them exchange-real-time,
+fall back to another provider or expose the API key. A missing/critically stale
+held-position or required EUR-FX quote blocks fresh analysis and requires
+portfolio doctor plus deep job checks.
 EODHD returns London sterling prices in the exchange minor unit GBX while labeling
 the mapping GBP. The registered quote tool normalizes these values to major units;
 report `22.70 GBP`, never the raw provider value as `2270 GBP`.

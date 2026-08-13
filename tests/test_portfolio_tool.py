@@ -629,6 +629,10 @@ class PortfolioServiceTests(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertEqual(result["price"], "123.45")
         self.assertEqual(result["currency"], "EUR")
+        self.assertEqual(result["price_eur"], "123.450000")
+        self.assertEqual(result["reporting_currency"], "EUR")
+        self.assertIsNone(result["fx"])
+        self.assertIsNone(result["conversion_error"])
         self.assertEqual(result["provider"], "test-provider")
         self.assertEqual(result["provider_symbol"], "BAS.XETRA")
         self.assertFalse(result["critical"])
@@ -654,6 +658,12 @@ class PortfolioServiceTests(unittest.TestCase):
             )
 
         self.service._quote_fetcher = fetch
+        self.service._fx_quote_fetcher = lambda base, quote: FxQuote(
+            base_currency=base,
+            quote_currency=quote,
+            rate=Decimal("0.80"),
+            observed_at=self.clock().isoformat(),
+        )
         self.assertTrue(self.service.refresh_quotes(force=True)["ok"])
         self.assertEqual(self.service.latest_quote(bae_isin)["price"], "2270")
 
@@ -662,6 +672,74 @@ class PortfolioServiceTests(unittest.TestCase):
         repaired = self.service.latest_quote(bae_isin)
         self.assertEqual(repaired["price"], "22.70")
         self.assertEqual(repaired["currency"], "GBP")
+        self.assertEqual(repaired["price_eur"], "28.375000")
+        self.assertEqual(repaired["fx"]["provider_symbol"], "EURGBP.FOREX")
+
+    def test_watchlist_quote_fetches_current_fx_and_reports_eur(self) -> None:
+        bae_isin = "GB0002634946"
+        self.service.watchlist_add(
+            isin=bae_isin,
+            name="BAE Systems PLC",
+            symbol="BA.",
+            mic="XLON",
+            currency="GBP",
+        )
+        requested_pairs: list[tuple[str, str]] = []
+        self.service._quote_fetcher = lambda instrument: Quote(
+            symbol=instrument["symbol"],
+            price=Decimal("22.70"),
+            currency="GBP",
+            observed_at=self.clock().isoformat(),
+            provider="eodhd",
+        )
+
+        def fetch_fx(base: str, quote: str) -> FxQuote:
+            requested_pairs.append((base, quote))
+            return FxQuote(
+                base_currency=base,
+                quote_currency=quote,
+                rate=Decimal("0.80"),
+                observed_at=self.clock().isoformat(),
+            )
+
+        self.service._fx_quote_fetcher = fetch_fx
+        refreshed = self.service.refresh_quotes(force=True)
+        self.assertTrue(refreshed["ok"])
+        self.assertEqual(requested_pairs, [("EUR", "GBP")])
+        self.assertEqual(refreshed["fx_expected"], 1)
+        result = self.service.latest_quote(bae_isin)
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["price"], "22.70")
+        self.assertEqual(result["currency"], "GBP")
+        self.assertEqual(result["price_eur"], "28.375000")
+        self.assertEqual(result["reporting_currency"], "EUR")
+        self.assertEqual(result["fx"]["conversion"], "1 GBP = 1.25000000 EUR")
+
+    def test_foreign_watchlist_quote_fails_closed_without_eur_fx(self) -> None:
+        bae_isin = "GB0002634946"
+        self.service.watchlist_add(
+            isin=bae_isin,
+            name="BAE Systems PLC",
+            symbol="BA.",
+            mic="XLON",
+            currency="GBP",
+        )
+        self.service._quote_fetcher = lambda instrument: Quote(
+            symbol=instrument["symbol"],
+            price=Decimal("22.70"),
+            currency="GBP",
+            observed_at=self.clock().isoformat(),
+            provider="eodhd",
+        )
+        refreshed = self.service.refresh_quotes(force=True)
+        self.assertFalse(refreshed["ok"])
+        self.assertEqual(refreshed["fx_expected"], 1)
+        self.assertEqual(refreshed["fx_received"], 0)
+
+        result = self.service.latest_quote(bae_isin)
+        self.assertFalse(result["ok"])
+        self.assertIsNone(result["price_eur"])
+        self.assertIn("Wechselkurs", result["conversion_error"])
 
     def test_valuation_converts_usd_quotes_with_eodhd_fx_and_totals_in_eur(self) -> None:
         self.clock.value = datetime(2026, 8, 3, 10, 0, tzinfo=UTC)
@@ -700,12 +778,83 @@ class PortfolioServiceTests(unittest.TestCase):
         self.assertEqual(basf["current_price"], "60")
         self.assertEqual(basf["quote_currency"], "USD")
         self.assertEqual(basf["current_price_converted"], "50.000000")
+        self.assertEqual(basf["current_price_eur"], "50.000000")
+        self.assertEqual(basf["entry_price_eur"], "45.100000")
+        self.assertEqual(basf["valuation_currency"], "EUR")
         self.assertEqual(basf["gain"], "61.25")
         self.assertEqual(basf["fx"]["provider_symbol"], "EURUSD.FOREX")
         self.assertEqual(basf["fx"]["conversion"], "1 USD = 0.83333333 EUR")
         self.assertEqual(result["totals"]["EUR"]["cost_basis"], "923.75")
         self.assertEqual(result["totals"]["EUR"]["current_value"], "1025.00")
         self.assertEqual(result["totals"]["EUR"]["gain"], "101.25")
+        self.assertEqual(result["reporting_currency"], "EUR")
+
+    def test_valuation_converts_snapshot_and_quote_currencies_to_eur(self) -> None:
+        self.clock.value = datetime(2026, 8, 3, 10, 0, tzinfo=UTC)
+        imported = self.service.import_csv(self.csv.name, dry_run=False)
+        with self.service.store.connection:
+            self.service.store.connection.execute(
+                "DELETE FROM position_snapshots WHERE import_id=? AND isin!=?",
+                (imported["import_id"], ISIN),
+            )
+            self.service.store.connection.execute(
+                """
+                UPDATE position_snapshots
+                SET entry_price='40.00', snapshot_currency='GBP'
+                WHERE import_id=? AND isin=?
+                """,
+                (imported["import_id"], ISIN),
+            )
+        self.service.watchlist_add(
+            isin=ISIN,
+            name="BASF SE",
+            symbol="BAS",
+            mic="XETR",
+            currency="USD",
+        )
+        self.service._quote_fetcher = lambda instrument: Quote(
+            symbol=instrument["symbol"],
+            price=Decimal("60"),
+            currency="USD",
+            observed_at=self.clock().isoformat(),
+            provider="eodhd",
+        )
+        rates = {("EUR", "GBP"): Decimal("0.80"), ("EUR", "USD"): Decimal("1.20")}
+        requested_pairs: list[tuple[str, str]] = []
+
+        def fetch_fx(base: str, quote: str) -> FxQuote:
+            requested_pairs.append((base, quote))
+            return FxQuote(
+                base_currency=base,
+                quote_currency=quote,
+                rate=rates[(base, quote)],
+                observed_at=self.clock().isoformat(),
+            )
+
+        self.service._fx_quote_fetcher = fetch_fx
+        refreshed = self.service.refresh_quotes(force=True)
+        self.assertTrue(refreshed["ok"])
+        self.assertEqual(requested_pairs, [("EUR", "GBP"), ("EUR", "USD")])
+        self.assertEqual(refreshed["fx_expected"], 2)
+
+        result = self.service.valuation()
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["reporting_currency"], "EUR")
+        self.assertEqual(set(result["totals"]), {"EUR"})
+        position = result["positions"][0]
+        self.assertEqual(position["entry_price"], "40.00")
+        self.assertEqual(position["entry_currency"], "GBP")
+        self.assertEqual(position["entry_price_eur"], "50.000000")
+        self.assertEqual(position["current_price"], "60")
+        self.assertEqual(position["quote_currency"], "USD")
+        self.assertEqual(position["current_price_converted"], "50.000000")
+        self.assertEqual(position["current_price_eur"], "50.000000")
+        self.assertEqual(position["valuation_currency"], "EUR")
+        self.assertEqual(position["entry_fx"]["provider_symbol"], "EURGBP.FOREX")
+        self.assertEqual(position["fx"]["provider_symbol"], "EURUSD.FOREX")
+        self.assertEqual(result["totals"]["EUR"]["cost_basis"], "625.00")
+        self.assertEqual(result["totals"]["EUR"]["current_value"], "625.00")
+        self.assertEqual(result["totals"]["EUR"]["gain"], "0.00")
 
     def test_valuation_fails_closed_without_required_fx_rate(self) -> None:
         self.clock.value = datetime(2026, 8, 3, 10, 0, tzinfo=UTC)
@@ -762,6 +911,16 @@ class PortfolioServiceTests(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertEqual(result["decision"], "abstain")
         self.assertIn("kritisch veraltet", result["reason"])
+
+    def test_analysis_exposes_latest_value_in_eur(self) -> None:
+        self._prepare()
+        self.price = Decimal("123.45")
+        self.assertTrue(self.service.refresh_quotes(force=True)["ok"])
+        result = self.service.analyze(ISIN)
+        self.assertEqual(result["last_price"], 123.45)
+        self.assertEqual(result["currency"], "EUR")
+        self.assertEqual(result["last_price_eur"], "123.450000")
+        self.assertEqual(result["reporting_currency"], "EUR")
 
     def test_price_alert_notifies_once_per_crossing(self) -> None:
         self._prepare()

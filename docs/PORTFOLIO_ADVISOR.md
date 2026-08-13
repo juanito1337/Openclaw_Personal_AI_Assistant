@@ -198,25 +198,38 @@ and alarm changes require explicit `--yes`.
 ./scripts/assistant.sh portfolio alerts list
 ```
 
-Use `quotes get` for one stored price including currency, provider, source time
-and freshness. `quotes status` reports coverage/health and accepts no
+Use `quotes get` for one stored price including native exchange currency,
+`price_eur`, the exact FX observation, provider, source time and freshness. EUR
+is the mandatory reporting currency; a foreign native price is retained only for
+traceability and is never the sole reported current value. A missing or critically
+stale FX quote sets `price_eur` to null and makes the result fail closed. `quotes
+status` reports coverage/health and accepts no
 `--detailed` option. Analysis uses stored numeric OHLCV observations, not chart screenshots. It
 reports SMA20/50/200 and RSI14 only when enough observations exist. A critically stale or
 missing required quote returns `decision=abstain`; it cannot produce a fresh
-trend claim. Outside the configured market window, the last observation remains
-explicitly timestamped and is not falsely described as a live quote.
+trend claim. Its latest monetary value is also exposed in EUR; historical
+indicator series remain in their explicitly labeled exchange currency. Outside
+the configured market window, the last observation remains explicitly timestamped
+and is not falsely described as a live quote.
 
-`portfolio valuation` is the only supported current depot-gain calculation. A
-refresh requests each required pair, such as `EURUSD.FOREX`, in the same
+`portfolio valuation` is the only supported current depot-gain calculation. Its
+fixed reporting currency is EUR regardless of the snapshot or exchange currency.
+A refresh requests every required pair, such as `EURUSD.FOREX` or
+`EURGBP.FOREX`, for held positions and enabled watchlist entries in the same
 at-most-20-symbol EODHD Live/Delayed batch as the equity quotes and stores rate,
 source time and receipt time separately. For a USD equity in an EUR DKB
 snapshot, EODHD's `EURUSD` value is USD per EUR, so the implementation divides
-the USD amount by that rate. The command exposes the original quote, converted
-unit price, position value, cost basis, gain and the exact FX observation. If
-any required quote or FX rate is missing, critically stale or has an invalid
-source timestamp, it returns `incomplete` and deliberately omits totals rather
-than summing mixed currencies. Equity and FX observations remain separately
-timestamped because their markets and provider delays can differ legitimately.
+the USD amount by that rate. Both a foreign native quote and a foreign snapshot
+entry price are converted with current, timestamped FX observations. The command
+exposes their original currencies, EUR unit values, position value, cost basis,
+gain and each exact FX observation. The explicit unit fields are `entry_price_eur`
+and `current_price_eur`; `valuation_currency` is always `EUR`. Totals contain one
+`EUR` bucket only. If any
+required quote or FX rate is missing, critically stale or has an invalid source
+timestamp, it returns `incomplete` and deliberately omits totals rather than
+summing or presenting mixed currencies. Equity and FX observations remain
+separately timestamped because their markets and provider delays can differ
+legitimately.
 
 Course marks trigger once per crossing. A rule must clear its hysteresis before a
 new crossing can trigger, and a cooldown prevents rapid repeats. A new event is
