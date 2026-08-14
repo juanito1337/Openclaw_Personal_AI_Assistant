@@ -15,7 +15,7 @@ Drei-Szenarien-Recovery-Drill gegen temporaere Roots aus. Der Docker-Containerjo
 ruft `scripts/check-m8-integration.sh` auf und bewahrt
 `build/m8-integration.json`; keine Fixture publiziert Hostports oder nutzt
 produktive Konten, Secrets, Mounts oder Netze.
-M9 hebt denselben Collection-Vertrag auf 606 pytest-Items an und ergaenzt
+M9 hebt denselben Collection-Vertrag auf 610 pytest-Items an und ergaenzt
 Verhaltensregressionen fuer Review-Taxonomie, exakte Einzelkorrektur,
 Walk-forward-Lernen, Kalenderdiagnose und atomare Mail-Suchprojektion. Die
 SQLite/WAL-Nebenlaeufigkeit wird mit temporaeren Datenbanken und offenem Writer

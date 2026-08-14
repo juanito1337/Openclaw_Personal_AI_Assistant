@@ -53,7 +53,9 @@ def run_external(args: argparse.Namespace) -> int:
             ]
     elif args.mail_command == "folders":
         command += ["folders", args.folders_command]
-        if args.folders_command == "apply" and args.yes:
+        if args.folders_command == "activate-relevant":
+            command += ["--relevant", args.relevant]
+        if args.folders_command in {"apply", "activate-relevant"} and args.yes:
             command.append("--yes")
     elif args.mail_command == "learning":
         command += ["training", args.learning_command]

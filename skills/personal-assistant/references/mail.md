@@ -48,7 +48,13 @@ remains separate. Existing mail is never bulk-migrated.
 Use `mail folders plan` before activation. An older configuration without
 `folders.relevant` remains readable but productive triage is blocked. Set the
 folder explicitly and run `mail folders apply --yes` only after Jan approves the
-reported plan. This may create configured folders but never moves existing mail.
+reported plan. For the first M9 container rollout, the bounded command `mail
+folders activate-relevant --relevant "Agent/Relevant" --yes` may combine exactly
+this local setting with create-only creation of that one target while every mail
+writer is stopped and the verified deployment backup already exists. It rejects
+a different existing target, never creates other configured folders and never
+moves existing mail. A remotely created empty folder is not deleted by a later
+local rollback and must be reported as a possible residual external change.
 
 The mail doctor reports a configured calendar that is absent from current
 discovery as `configured-calendar-missing`, including the exact resource ID and

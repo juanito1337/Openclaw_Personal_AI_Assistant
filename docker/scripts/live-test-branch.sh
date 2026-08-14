@@ -5,6 +5,38 @@ umask 077
 SOURCE_ROOT=$(CDPATH='' cd "$(dirname "$0")/../.." && pwd)
 cd "$SOURCE_ROOT"
 
+relevant_folder=""
+activation_approved=false
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --activate-relevant-folder)
+      [[ $# -ge 2 ]] || {
+        echo "--activate-relevant-folder benoetigt einen exakten IMAP-Ordner." >&2
+        exit 2
+      }
+      relevant_folder=$2
+      shift 2
+      ;;
+    --yes)
+      activation_approved=true
+      shift
+      ;;
+    *)
+      echo "Unbekannte Option: $1" >&2
+      echo "Aufruf: $0 [--activate-relevant-folder Agent/Relevant --yes]" >&2
+      exit 2
+      ;;
+  esac
+done
+if [[ -n "$relevant_folder" && "$activation_approved" != "true" ]]; then
+  echo "Die kombinierte Konfigurations- und IMAP-Ordneraktivierung braucht --yes." >&2
+  exit 2
+fi
+if [[ -z "$relevant_folder" && "$activation_approved" == "true" ]]; then
+  echo "--yes ist nur zusammen mit --activate-relevant-folder erlaubt." >&2
+  exit 2
+fi
+
 if [[ ${EUID:-$(id -u)} -eq 0 ]]; then
   echo "Bitte als normaler Benutzer mit Docker-Rechten ausfuehren, nicht mit sudo/root." >&2
   exit 2
@@ -77,5 +109,7 @@ maintenance_image=$(resolve_digest "$repository:$image_tag-maintenance")
 echo "Deploye den signierten Test-Rollensatz fuer: $image_tag"
 echo "Das normale Deployment stoppt den bisherigen Writer und erstellt vor Schreibtests ein verifiziertes lokales Backup."
 export OPENCLAW_EXPECTED_SOURCE_REVISION="$local_revision"
+export OPENCLAW_MAIL_RELEVANT_FOLDER="$relevant_folder"
+export OPENCLAW_MAIL_RELEVANT_FOLDER_APPROVED="$activation_approved"
 exec /srv/openclaw/deployment/scripts/deploy.sh \
   "$runtime_image" "$proxy_image" "$maintenance_image"

@@ -600,6 +600,14 @@
     "writes_external_data": true
   },
   {
+    "approval": "explicit-user-configure-and-create-relevant-folder",
+    "command": "./scripts/assistant.sh mail folders activate-relevant --relevant \"Agent/Relevant\" --yes",
+    "description": "Genau einen Relevant-Zielordner unter dem bestehenden Agent-Wurzelordner konfigurieren und nach ausdruecklicher Freigabe create-only anlegen; keine Mails verschieben",
+    "id": "mail.folders.activate-relevant",
+    "mode": "write",
+    "writes_external_data": true
+  },
+  {
     "approval": "none",
     "command": "./scripts/assistant.sh mail learning status",
     "description": "Korrekturlernen, gemischte Absender, Musterkonflikte und Lernordner anzeigen",

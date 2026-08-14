@@ -77,6 +77,7 @@ TOOL_ORDER: tuple[str, ...] = (
     "mail.review.correct",
     "mail.folders.plan",
     "mail.folders.apply",
+    "mail.folders.activate-relevant",
     "mail.learning.status",
     "mail.learning.feedback",
     "mail.learning.not-spam",

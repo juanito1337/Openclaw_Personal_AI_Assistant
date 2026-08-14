@@ -523,3 +523,100 @@ def test_failed_product_smoke_runs_automatic_rollback_and_surfaces_rollback_fail
     )
     assert failed_rollback.returncode == 70
     assert "Rollback meldet einen Fehler" in failed_rollback.stderr
+
+
+def test_deploy_activates_relevant_folder_only_after_backup_and_before_smoke(
+    tmp_path: Path,
+) -> None:
+    scripts = tmp_path / "deployment/scripts"
+    scripts.mkdir(parents=True)
+    for name in ("deploy.sh", "common.sh"):
+        shutil.copy2(ROOT / "docker/scripts" / name, scripts / name)
+    events = tmp_path / "events.log"
+    _stub(scripts / "verify-image-supply-chain.sh", "exit 0\n")
+    (scripts / "check-layout-compatibility.py").write_text(
+        "#!/usr/bin/env python3\nraise SystemExit(0)\n", encoding="utf-8"
+    )
+    _stub(scripts / "backup.sh", 'printf "backup\\n" >> "$M9_EVENTS"\nprintf "m9-backup\\n"\n')
+    _stub(scripts / "smoke-test.sh", 'printf "smoke\\n" >> "$M9_EVENTS"\nexit 29\n')
+    _stub(
+        scripts / "rollback.sh",
+        'printf "rollback:%s\\n" "$*" >> "$M9_EVENTS"\nexit 0\n',
+    )
+
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    _stub(
+        fake_bin / "docker",
+        'printf "docker:%s\\n" "$*" >> "$M9_EVENTS"\n'
+        'if [ "${1:-}" = "compose" ]; then\n'
+        '  case " $* " in *" ps -q "*) printf "m9-id\\n";; esac\n'
+        'elif [ "${1:-}" = "inspect" ]; then\n'
+        '  case " $* " in *"State.Running"*) printf "false\\n";; *) printf "running\\n";; esac\n'
+        'fi\n'
+        "exit 0\n",
+    )
+    _stub(fake_bin / "systemctl", "exit 1\n")
+    env_file = tmp_path / "deployment/.env"
+    env_file.write_text(
+        "OPENCLAW_IMAGE=fixture.invalid/old:runtime\n"
+        "OPENCLAW_PROXY_IMAGE=fixture.invalid/old:proxy\n"
+        "OPENCLAW_MAINTENANCE_IMAGE=fixture.invalid/old:maintenance\n"
+        "OPENCLAW_CURRENT_RUNTIME=docker\n"
+        "OPENCLAW_WRITE_TEST_ENABLED=false\n"
+        "REQUIRE_EXTERNAL_BACKUP_FOR_WRITE_TEST=false\n",
+        encoding="utf-8",
+    )
+    compose_file = tmp_path / "deployment/compose.yaml"
+    compose_file.write_text("services: {}\n", encoding="utf-8")
+    openclaw = tmp_path / "openclaw"
+    for name in ("state", "config", "secrets", "backups/releases"):
+        (openclaw / name).mkdir(parents=True, exist_ok=True)
+    environment = os.environ.copy()
+    environment.update(
+        {
+            "PATH": f"{fake_bin}:{environment['PATH']}",
+            "OPENCLAW_DEPLOY_ENV": str(env_file),
+            "OPENCLAW_COMPOSE_FILE": str(compose_file),
+            "OPENCLAW_ROOT": str(openclaw),
+            "OPENCLAW_STATE_DIR": str(openclaw / "state"),
+            "OPENCLAW_CONFIG_DIR": str(openclaw / "config"),
+            "OPENCLAW_SECRETS_DIR": str(openclaw / "secrets"),
+            "OPENCLAW_BACKUP_DIR": str(openclaw / "backups/releases"),
+            "OPENCLAW_EXPECTED_SOURCE_REVISION": "0123456789abcdef0123456789abcdef01234567",
+            "OPENCLAW_MAIL_RELEVANT_FOLDER": "Agent/Relevant",
+            "OPENCLAW_MAIL_RELEVANT_FOLDER_APPROVED": "true",
+            "M9_EVENTS": str(events),
+        }
+    )
+    command = [
+        str(scripts / "deploy.sh"),
+        "fixture.invalid/new:runtime",
+        "fixture.invalid/new:proxy",
+        "fixture.invalid/new:maintenance",
+    ]
+
+    result = subprocess.run(
+        command, cwd=tmp_path, env=environment, text=True, capture_output=True, check=False
+    )
+
+    assert result.returncode == 29
+    lines = events.read_text(encoding="utf-8").splitlines()
+    backup_index = lines.index("backup")
+    activation_index = next(
+        index
+        for index, line in enumerate(lines)
+        if "mail folders activate-relevant --relevant Agent/Relevant --yes" in line
+    )
+    smoke_index = lines.index("smoke")
+    rollback_index = lines.index("rollback:m9-backup --automatic")
+    assert backup_index < activation_index < smoke_index < rollback_index
+
+    before = lines.count("backup")
+    environment["OPENCLAW_MAIL_RELEVANT_FOLDER_APPROVED"] = "false"
+    rejected = subprocess.run(
+        command, cwd=tmp_path, env=environment, text=True, capture_output=True, check=False
+    )
+    assert rejected.returncode == 2
+    assert "ausdrueckliche Freigabe" in rejected.stderr
+    assert events.read_text(encoding="utf-8").splitlines().count("backup") == before

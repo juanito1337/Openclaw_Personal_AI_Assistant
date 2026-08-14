@@ -67,7 +67,7 @@ Spam-Weiterleitungsrisiken in der damaligen Walk-forward-Stichprobe. Eine spaete
 Messung ist nur mit demselben Zeitfenster und derselben Auswertungssemantik
 vergleichbar.
 
-## 3. Deployment und getrennte Ordnerfreigabe
+## 3. Deployment und explizite Erstaktivierung
 
 Das signierte Image wird ausschliesslich mit dem normalen Deploymentskript und
 drei unveraenderlichen Digests aktiviert. Der Ablauf prueft Attestierungen,
@@ -75,18 +75,29 @@ Single-Writer, SQLite-Integritaet und ein extrahierbares SHA-256-verifiziertes
 lokales Backup, bevor ein Writer startet; bei einem fehlgeschlagenen Smoke wird
 automatisch der vorherige lokale Stand restauriert.
 
-Nach erfolgreichem Deployment wird `mail folders plan` erneut gelesen. Nur wenn
-der Plan exakt die erwarteten konfigurierten Ordner nennt und Jan diese eine
-Aktion ausdruecklich freigibt, darf ausgefuehrt werden:
+Eine bestehende Konfiguration ohne `folders.relevant` kann den Produktsmoke noch
+nicht bestehen. Die erste M9-Aktivierung darf deshalb nicht erst nach dem
+Deployment erfolgen. Nach Jans ausdruecklicher Freigabe wird sie mit dem
+Test-Deployment genau im gesicherten Fenster nach Backup und Writer-Stopp, aber
+vor dem Produktsmoke ausgefuehrt:
 
 ```bash
-run_openclaw mail folders apply --yes
+sg docker -c './docker/scripts/live-test-branch.sh \
+  --activate-relevant-folder Agent/Relevant --yes'
 ```
 
-Dieser Schritt darf fehlende konfigurierte Ordner anlegen, verschiebt aber keine
-bestehende Mail. Ein fehlender Kalender wird separat mit `calendar discover`
-read-only untersucht; Ressourcenauswahl oder Rechteaenderung gehoeren nicht zum
-M9-Canary.
+Der intern registrierte Befehl `mail folders activate-relevant` setzt nur dieses
+eine Konfigurationsfeld, blockiert einen abweichenden vorhandenen Zielwert und
+legt create-only nur diesen Zielpfad an. Er verschiebt keine bestehende Mail. Ein
+spaeterer lokaler Rollback stellt die alte Konfiguration wieder her, loescht den
+neu angelegten IMAP-Ordner jedoch niemals automatisch; ohne externen Restore-Hook
+kann dieser leere Ordner bestehen bleiben. Nach erfolgreichem Deployment muss
+`run_openclaw mail folders plan` den aktivierten und vorhandenen Zielordner
+bestaetigen. Bei bereits aktivierter Konfiguration bleibt der normale Aufruf ohne
+Aktivierungsoption korrekt.
+
+Ein fehlender Kalender wird separat mit `calendar discover` read-only untersucht;
+Ressourcenauswahl oder Rechteaenderung gehoeren nicht zum M9-Canary.
 
 ## 4. Canary fuer neue Mail
 

@@ -44,7 +44,7 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 606 Tests, darunter mindestens 554 unittest-kompatible Tests
+fordert mindestens 610 Tests, darunter mindestens 557 unittest-kompatible Tests
 (die bisherigen 349 sowie M0-M9-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
@@ -73,7 +73,7 @@ der aktuellen Python-Dateien.
 | Tests nach privatrepository-tauglicher Registry-Attestierung | 459 / 459 (JUnit-Zaehler inklusive Subtest-Ereignissen siehe `build/m0-baseline.json`) |
 | Tests nach der immutable Plugin-/Gatewaykorrektur | 472 / 472 (494 JUnit-Faelle inklusive 22 Subtests) |
 | Tests nach nativer Nextcloud- und aktiver Layout-3-Korrektur | 473 / 473 (JUnit-Zaehler inklusive Subtest-Ereignissen siehe `build/m0-baseline.json`) |
-| Tests nach M9 gesammelt/ausgefuehrt | 606 / 606 (639 JUnit-Faelle inklusive 33 Subtests) |
+| Tests nach M9 gesammelt/ausgefuehrt | 610 / 610 (643 JUnit-Faelle inklusive 33 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -91,8 +91,8 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage (M8) | 43,83 % |
 | Gesamt-Coverage nach der Plugin-/Gatewaykorrektur | 59,34 % |
 | reine Branch-Coverage nach der Plugin-/Gatewaykorrektur | 44,01 % |
-| Gesamt-Coverage inklusive Branches nach M9 | 61,88 % |
-| reine Branch-Coverage nach M9 | 46,96 % |
+| Gesamt-Coverage inklusive Branches nach M9 | 62,03 % |
+| reine Branch-Coverage nach M9 | 47,12 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -444,16 +444,16 @@ Modellfehlern. Fuer die Suchprojektion bleibt ein echter WAL-Writer mit
 aufrufen. Crash vor Manifestpublikation, Korruption, Alter und die letzte
 vollstaendige Generation werden als Verhalten und nicht als Textsuche geprueft.
 
-Der finale M9-Repositorylauf sammelte und bestand 606 pytest-Items. JUnit meldete
-einschliesslich Subtests 639 Faelle. Die Branch-einbezogene Gesamt-Coverage lag bei
-61,88 Prozent, die reine Branch-Coverage bei 46,96 Prozent. Das neue
+Der finale M9-Repositorylauf sammelte und bestand 610 pytest-Items. JUnit meldete
+einschliesslich Subtests 643 Faelle. Die Branch-einbezogene Gesamt-Coverage lag bei
+62,03 Prozent, die reine Branch-Coverage bei 47,12 Prozent. Das neue
 `mail_projection`-Modul erreichte 74,40 Prozent, der Mail-Projektionswriter 90,79
 Prozent. Diese Werte sind reproduzierbare Beobachtungen und keine nachtraeglich
 gesetzten fachlichen Erfolgsgrenzen.
 
 Der isolierte M9-Wheellauf baute das Artefakt in 1,899 Sekunden mit 442.024 Bytes,
 bestand den Secret-/Laufzeitdatenscan, installierte es in eine frische Umgebung
-und fuehrte dort erneut alle 606 pytest-Items erfolgreich aus.
+und fuehrte dort erneut alle 610 pytest-Items erfolgreich aus.
 
 ## Wheel- und Artefaktpruefung
 

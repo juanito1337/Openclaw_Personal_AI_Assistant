@@ -100,6 +100,18 @@ TOOLS: tuple[ToolDefinition, ...] = (
         test_anchor="tests/test_mail_review_m9.py",
     ),
     define(
+        id="mail.folders.activate-relevant",
+        domain="mail",
+        description="Genau einen Relevant-Zielordner unter dem bestehenden Agent-Wurzelordner konfigurieren und nach ausdruecklicher Freigabe create-only anlegen; keine Mails verschieben",
+        command='./scripts/assistant.sh mail folders activate-relevant --relevant "Agent/Relevant" --yes',
+        mode="write",
+        writes_external_data=True,
+        approval="explicit-user-configure-and-create-relevant-folder",
+        availability="always",
+        documentation_anchor="skills/personal-assistant/references/mail.md",
+        test_anchor="tests/test_mail_review_m9.py",
+    ),
+    define(
         id="mail.learning.status",
         domain="mail",
         description="Korrekturlernen, gemischte Absender, Musterkonflikte und Lernordner anzeigen",

@@ -86,7 +86,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-13T18:10:57+02:00",
+      "last_git_change": "2026-08-14T03:27:15+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -185,7 +185,7 @@
         "docs/archive/README.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-14T02:01:58+02:00",
+      "last_git_change": "2026-08-14T03:27:15+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -530,6 +530,7 @@
       ],
       "documentation_evidence": [
         "docs/DOCKER_DEPLOYMENT.md",
+        "docs/MAIL_QUALITY_ROLLOUT.md",
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
@@ -922,7 +923,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-07T18:22:24+02:00",
+      "last_git_change": "2026-08-14T03:27:15+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1224,7 +1225,7 @@
         "docs/ROADMAP.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-14T03:19:56+02:00",
+      "last_git_change": "2026-08-14T03:27:15+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1244,7 +1245,7 @@
         "README.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-08-14T03:27:15+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1519,7 +1520,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-13T17:14:41+02:00",
+      "last_git_change": "2026-08-14T03:27:15+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"

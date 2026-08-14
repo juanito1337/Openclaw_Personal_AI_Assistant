@@ -7,6 +7,7 @@ from unittest.mock import Mock
 
 from mail_agent.app import MailAgent, RunSummary
 from mail_agent.cli import (
+    _activate_relevant_folder,
     _productive_checks_with_folder_self_heal,
 )
 from mail_agent.cli import (
@@ -261,6 +262,63 @@ class ExistingMailReviewRouteTests(unittest.TestCase):
         self.assertIs(result, checks)
         self.assertTrue(result["folders"]["explicit_activation_required"])
         agent.setup.assert_not_called()
+
+    def test_explicit_relevant_activation_changes_config_and_creates_only_target(self) -> None:
+        legacy_text = self.config.path.read_text(encoding="utf-8").replace(
+            'relevant = "Agent/Relevant"\n',
+            "",
+        )
+        self.config.path.write_text(legacy_text, encoding="utf-8")
+        agent = object.__new__(MailAgent)
+        agent.config = load_config(self.config.path)
+        agent.himalaya = Mock()
+        agent.himalaya.ensure_folders.return_value = [
+            OperationResult(True, "exists", destination="Agent"),
+            OperationResult(True, "created", destination="Agent/Relevant"),
+        ]
+        agent.himalaya.list_folders.return_value = (
+            ["INBOX", "Agent", "Agent/Pruefen", "Agent/Relevant"],
+            "",
+        )
+
+        result = _activate_relevant_folder(agent, "Agent/Relevant")
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["moves_performed"], 0)
+        self.assertTrue(result["external_change_may_persist_after_rollback"])
+        self.assertEqual(load_config(self.config.path).folders.relevant, "Agent/Relevant")
+        agent.himalaya.ensure_folders.assert_called_once_with(["Agent/Relevant"])
+
+    def test_relevant_activation_rejects_existing_different_target(self) -> None:
+        agent = object.__new__(MailAgent)
+        agent.config = self.config
+        agent.himalaya = Mock()
+
+        with self.assertRaisesRegex(RuntimeError, "Konfigurationskonflikt"):
+            _activate_relevant_folder(agent, "Agent/Andere-Ablage")
+
+        agent.himalaya.ensure_folders.assert_not_called()
+
+    def test_failed_relevant_activation_restores_local_configuration(self) -> None:
+        original = self.config.path.read_text(encoding="utf-8").replace(
+            'relevant = "Agent/Relevant"\n',
+            "",
+        )
+        self.config.path.write_text(original, encoding="utf-8")
+        agent = object.__new__(MailAgent)
+        agent.config = load_config(self.config.path)
+        agent.himalaya = Mock()
+        agent.himalaya.ensure_folders.return_value = [
+            OperationResult(False, "create-failed", "IMAP verweigert", "Agent/Relevant")
+        ]
+        agent.himalaya.list_folders.return_value = (["INBOX", "Agent/Pruefen"], "")
+
+        result = _activate_relevant_folder(agent, "Agent/Relevant")
+
+        self.assertFalse(result["ok"])
+        self.assertTrue(result["configuration_restored"])
+        self.assertEqual(self.config.path.read_text(encoding="utf-8"), original)
+        self.assertEqual(agent.config.folders.relevant, "")
 
 
 class FakeReviewClient:
@@ -646,6 +704,18 @@ class ReviewReadOnlyToolTests(unittest.TestCase):
         self.assertEqual(parsed_assistant.review_command, "status")
         folder_plan = build_assistant_parser().parse_args(["mail", "folders", "plan"])
         self.assertEqual(folder_plan.folders_command, "plan")
+        folder_activation = build_assistant_parser().parse_args(
+            [
+                "mail",
+                "folders",
+                "activate-relevant",
+                "--relevant",
+                "Agent/Relevant",
+                "--yes",
+            ]
+        )
+        self.assertEqual(folder_activation.relevant, "Agent/Relevant")
+        self.assertTrue(folder_activation.yes)
         correction = build_assistant_parser().parse_args(
             [
                 "mail",
@@ -674,6 +744,7 @@ class ReviewReadOnlyToolTests(unittest.TestCase):
                 "mail.review.correct",
                 "mail.folders.plan",
                 "mail.folders.apply",
+                "mail.folders.activate-relevant",
             }
             - tools.keys(),
             set(),
@@ -683,3 +754,7 @@ class ReviewReadOnlyToolTests(unittest.TestCase):
         self.assertEqual(tools["mail.review.correct"].approval, "explicit-user-review-correction")
         self.assertEqual(tools["mail.folders.apply"].mode, "write")
         self.assertTrue(tools["mail.folders.apply"].writes_external_data)
+        self.assertEqual(
+            tools["mail.folders.activate-relevant"].approval,
+            "explicit-user-configure-and-create-relevant-folder",
+        )

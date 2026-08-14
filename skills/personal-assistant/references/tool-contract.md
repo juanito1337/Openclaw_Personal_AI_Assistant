@@ -114,6 +114,7 @@ den fuehrenden Launcher durch `/opt/openclaw-agent/scripts/assistant.sh` ersetze
 | `mail.review.correct` | `write` | ja | `explicit-user-review-correction` | `mail-move` | `./scripts/assistant.sh mail review correct --source "Agent/Pruefen" --message-id "<ID>" --expected-subject "<Betreff>" --verdict "<relevant\|routine\|spam>" --yes` | `tests/test_mail_review_m9.py` |
 | `mail.folders.plan` | `read` | nein | `none` | `always` | `./scripts/assistant.sh mail folders plan` | `tests/test_mail_review_m9.py` |
 | `mail.folders.apply` | `write` | ja | `explicit-user-create-configured-mail-folders` | `always` | `./scripts/assistant.sh mail folders apply --yes` | `tests/test_mail_review_m9.py` |
+| `mail.folders.activate-relevant` | `write` | ja | `explicit-user-configure-and-create-relevant-folder` | `always` | `./scripts/assistant.sh mail folders activate-relevant --relevant "Agent/Relevant" --yes` | `tests/test_mail_review_m9.py` |
 | `mail.learning.status` | `read` | nein | `none` | `always` | `./scripts/assistant.sh mail learning status` | `tests/test_agent_tool_architecture.py` |
 | `mail.learning.feedback` | `read` | nein | `none` | `always` | `./scripts/assistant.sh mail learning feedback --limit 50` | `tests/test_agent_tool_architecture.py` |
 | `mail.learning.not-spam` | `read` | nein | `none` | `always` | `./scripts/assistant.sh mail learning not-spam --limit 100` | `tests/test_agent_tool_architecture.py` |

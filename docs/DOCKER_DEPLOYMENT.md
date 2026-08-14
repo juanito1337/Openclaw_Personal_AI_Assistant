@@ -564,6 +564,26 @@ docker compose --env-file .env --profile tools run --rm agent-cli \
 Der zweite Befehl veraendert die lokale Toolkonfiguration und darf deshalb erst
 nach bewusster Auswahl der im ersten Befehl ausgegebenen Ressource laufen.
 
+### Erste M9-Mailordner-Aktivierung
+
+Eine vor M9 bestehende Mailkonfiguration besitzt noch kein `folders.relevant`.
+Der Produktsmoke blockiert diesen Zustand absichtlich, damit kein Writer mit
+einem still gewaehlten Ziel startet. Nach ausdruecklicher Freigabe kann der
+Test-Branch den exakten Zielordner innerhalb des bereits gesicherten
+Writer-Stopp-Fensters konfigurieren und create-only anlegen:
+
+```bash
+sg docker -c './docker/scripts/live-test-branch.sh \
+  --activate-relevant-folder Agent/Relevant --yes'
+```
+
+Der Ablauf lehnt einen abweichenden bereits konfigurierten Zielordner ab, legt
+keine weiteren fehlenden Ordner an und verschiebt keine Mail. Ein lokal
+erfolgreicher Rollback loescht den eventuell bereits erzeugten externen
+IMAP-Ordner nicht; dafuer ist ein verifizierter externer Restore-Hook erforderlich.
+Nach erfolgreicher Erstaktivierung wird der normale Deploymentaufruf ohne diese
+Option verwendet.
+
 ## 7. Manual rollback
 
 List release backups:

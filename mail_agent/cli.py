@@ -4,6 +4,7 @@ import argparse
 import json
 import logging
 import os
+import shutil
 import sys
 from dataclasses import asdict
 from datetime import datetime
@@ -122,6 +123,12 @@ def build_parser() -> argparse.ArgumentParser:
     folders_sub.add_parser("plan", help="Fehlende konfigurierte Ordner read-only anzeigen")
     folders_apply = folders_sub.add_parser("apply", help="Fehlende konfigurierte Ordner anlegen")
     folders_apply.add_argument("--yes", action="store_true")
+    folders_activate = folders_sub.add_parser(
+        "activate-relevant",
+        help="Genau einen Relevant-Zielordner konfigurieren und explizit anlegen",
+    )
+    folders_activate.add_argument("--relevant", required=True)
+    folders_activate.add_argument("--yes", action="store_true")
     performance = sub.add_parser("performance", help="Privacy-sichere Laufzeitmessungen anzeigen")
     performance.add_argument("--limit", type=int, default=20, help="Anzahl der letzten Laeufe (1-500)")
     performance.add_argument("--raw", action="store_true", help="Unverdichtete Telemetrie-Datensaetze anzeigen")
@@ -296,6 +303,74 @@ def _productive_checks_with_folder_self_heal(agent: MailAgent) -> dict[str, obje
     }
     print(json.dumps(repair_report, ensure_ascii=False), file=sys.stderr)
     return agent.doctor()
+
+
+def _activate_relevant_folder(agent: MailAgent, requested_folder: str) -> dict[str, object]:
+    """Configure and create exactly one relevant-mail target after approval.
+
+    The caller must hold the productive mail lock.  A different existing target
+    is a configuration conflict, and a failed or uncertain IMAP create restores
+    the previous local configuration.  A remotely created folder is deliberately
+    never deleted during compensation.
+    """
+
+    target = str(requested_folder or "").strip()
+    if not target or "\r" in target or "\n" in target:
+        raise ValueError("Relevant-Ordner darf nicht leer sein oder Zeilenumbrueche enthalten")
+    if target.startswith("/") or target.endswith("/") or "//" in target:
+        raise ValueError("Relevant-Ordner muss ein normalisierter relativer IMAP-Pfad sein")
+    review_root = str(agent.config.folders.review or "").strip().split("/", 1)[0]
+    if not review_root or not target.casefold().startswith((review_root + "/").casefold()):
+        raise ValueError(
+            "Relevant-Ordner muss unter demselben Agent-Wurzelordner wie folders.review liegen"
+        )
+
+    current = str(agent.config.folders.relevant or "").strip()
+    if current and current.casefold() != target.casefold():
+        raise RuntimeError(
+            f"Konfigurationskonflikt: folders.relevant ist bereits auf {current!r} gesetzt"
+        )
+
+    backup: Path | None = None
+    configuration_changed = not current
+    if configuration_changed:
+        backup = update_toml_values(agent.config.path, {("folders", "relevant"): target})
+        try:
+            agent.config = load_config(agent.config.path)
+        except Exception:
+            shutil.copy2(backup, agent.config.path)
+            agent.config = load_config(agent.config.path)
+            raise
+
+    results = agent.himalaya.ensure_folders([target])
+    created = [item.destination for item in results if item.ok and item.status == "created"]
+    failed = [item for item in results if not item.ok]
+    folders, folder_error = agent.himalaya.list_folders()
+    target_present = target.casefold() in {item.casefold() for item in folders}
+    ok = not failed and not folder_error and target_present
+    if not ok and backup is not None:
+        shutil.copy2(backup, agent.config.path)
+        agent.config = load_config(agent.config.path)
+
+    payload: dict[str, object] = {
+        "ok": ok,
+        "target": target,
+        "configuration_changed": configuration_changed,
+        "configuration_restored": bool(not ok and backup is not None),
+        "backup": str(backup) if backup is not None else "",
+        "results": [asdict(item) for item in results],
+        "target_present": target_present,
+        "folder_error": folder_error,
+        "moves_performed": 0,
+        "external_change_may_persist_after_rollback": bool(created),
+    }
+    if not ok:
+        payload["error"] = (
+            folder_error
+            or "; ".join(item.detail or item.status for item in failed)
+            or "Relevant-Ordner konnte nach der Erstellung nicht verifiziert werden"
+        )
+    return payload
 
 
 def _print_config(config: Config) -> None:
@@ -1263,6 +1338,33 @@ def main(argv: list[str] | None = None) -> int:
             if args.folders_command == "plan":
                 print(json.dumps(plan, indent=2, ensure_ascii=False))
                 return 0 if plan.get("ok") else 1
+            if args.folders_command == "activate-relevant":
+                if not args.yes:
+                    print(
+                        json.dumps(
+                            {
+                                "ok": False,
+                                "error": "Explizite Freigabe mit --yes fehlt",
+                                "requested_relevant_folder": args.relevant,
+                            },
+                            indent=2,
+                            ensure_ascii=False,
+                        )
+                    )
+                    return 2
+                try:
+                    with ProcessLock(config.runtime.lock_file):
+                        payload = _activate_relevant_folder(agent, args.relevant)
+                        if payload.get("ok"):
+                            invalidate_dry_run(
+                                agent.config,
+                                f"Relevant-Ordner aktiviert: {payload['target']}",
+                            )
+                except (ProcessLockError, ValueError, RuntimeError, OSError) as exc:
+                    print(json.dumps({"ok": False, "error": str(exc)}, indent=2, ensure_ascii=False))
+                    return 2
+                print(json.dumps(payload, indent=2, ensure_ascii=False))
+                return 0 if payload.get("ok") else 1
             if not args.yes:
                 print(
                     json.dumps(

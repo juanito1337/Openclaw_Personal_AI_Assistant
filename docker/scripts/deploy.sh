@@ -34,12 +34,26 @@ previous_proxy_image=${OPENCLAW_PROXY_IMAGE:-$previous_image}
 previous_maintenance_image=${OPENCLAW_MAINTENANCE_IMAGE:-$previous_image}
 previous_runtime=${OPENCLAW_CURRENT_RUNTIME:-docker}
 expected_source_revision=${OPENCLAW_EXPECTED_SOURCE_REVISION:-}
+mail_relevant_folder=${OPENCLAW_MAIL_RELEVANT_FOLDER:-}
+mail_relevant_approved=${OPENCLAW_MAIL_RELEVANT_FOLDER_APPROVED:-false}
 [[ -n "$previous_image" ]] || { echo "OPENCLAW_IMAGE fehlt in $ENV_FILE" >&2; exit 2; }
 [[ "$target_image" != "$previous_image" ]] || echo "Hinweis: Zielimage entspricht dem aktuell eingetragenen Image."
 [[ "$expected_source_revision" =~ ^[0-9a-f]{40}$ ]] || {
   echo "OPENCLAW_EXPECTED_SOURCE_REVISION muss fuer M7 den exakten 40-stelligen Git-Commit enthalten." >&2
   exit 2
 }
+if [[ -n "$mail_relevant_folder" && "$mail_relevant_approved" != "true" ]]; then
+  echo "OPENCLAW_MAIL_RELEVANT_FOLDER braucht die ausdrueckliche Freigabe OPENCLAW_MAIL_RELEVANT_FOLDER_APPROVED=true." >&2
+  exit 2
+fi
+if [[ -z "$mail_relevant_folder" && "$mail_relevant_approved" == "true" ]]; then
+  echo "OPENCLAW_MAIL_RELEVANT_FOLDER_APPROVED=true ist ohne Zielordner ungueltig." >&2
+  exit 2
+fi
+if [[ "$mail_relevant_folder" == *$'\n'* || "$mail_relevant_folder" == *$'\r'* ]]; then
+  echo "OPENCLAW_MAIL_RELEVANT_FOLDER darf keine Zeilenumbrueche enthalten." >&2
+  exit 2
+fi
 
 legacy_units=(
   mail-agent.timer mail-agent.service
@@ -258,6 +272,13 @@ compose --profile tools run --rm --no-deps agent-cli \
   'actual=$(tr -d "\r\n" </opt/openclaw-agent/SOURCE_REVISION); test "$actual" = "$1"' \
   source-revision-check "$expected_source_revision"
 echo "Laufende Workspace-Quellrevision verifiziert: $expected_source_revision"
+if [[ -n "$mail_relevant_folder" ]]; then
+  echo "Aktiviere den explizit freigegebenen Relevant-Ordner im gesicherten Writer-Stopp-Fenster: $mail_relevant_folder"
+  echo "Ein create-only angelegter IMAP-Ordner wird bei einem spaeteren lokalen Rollback nicht automatisch geloescht."
+  compose --profile tools run --rm --no-deps agent-cli \
+    /opt/openclaw-agent/scripts/assistant.sh mail folders activate-relevant \
+    --relevant "$mail_relevant_folder" --yes
+fi
 "$SCRIPT_DIR/smoke-test.sh" "$write_test"
 compose --profile maintenance up -d clamav-update
 wait_for_healthy clamav-update 180

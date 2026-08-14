@@ -100,6 +100,12 @@ def add_commands(sub: Any) -> None:
     folders_sub.add_parser("plan", help="Fehlende konfigurierte Ordner read-only anzeigen")
     folders_apply = folders_sub.add_parser("apply", help="Fehlende konfigurierte Ordner anlegen")
     folders_apply.add_argument("--yes", action="store_true")
+    folders_activate = folders_sub.add_parser(
+        "activate-relevant",
+        help="Genau einen Relevant-Zielordner konfigurieren und explizit anlegen",
+    )
+    folders_activate.add_argument("--relevant", required=True)
+    folders_activate.add_argument("--yes", action="store_true")
     mail_dry = mail_sub.add_parser("dry-run")
     mail_dry.add_argument("--limit", type=int, default=20)
     mail_run = mail_sub.add_parser("run")
