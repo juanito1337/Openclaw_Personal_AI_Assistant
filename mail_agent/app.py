@@ -30,9 +30,41 @@ from .parser import parse_eml
 from .review import ReviewReason
 from .review_service import ReviewService
 from .rules import RuleEngine
-from .search_snapshot import SearchSnapshotWriter
+from .search_snapshot import (
+    PROJECTION_MANIFEST,
+    SearchProjectionError,
+    SearchSnapshotWriter,
+    load_search_projection,
+)
 from .storage import Storage
 from .telemetry import PerformanceTelemetry
+
+
+def calendar_doctor_payload(
+    *,
+    ok: bool,
+    backend: str,
+    detail: str,
+    nextcloud_health: dict[str, object],
+) -> dict[str, object]:
+    payload: dict[str, object] = {"ok": ok, "backend": backend, "detail": detail}
+    if backend == "nextcloud_skill" and nextcloud_health.get("selected_calendar_found") is False:
+        payload.update(
+            {
+                "problem": "configured-calendar-missing",
+                "resource": str(nextcloud_health.get("calendar") or ""),
+                "selection_required": True,
+                "automatic_change": False,
+                "allowed_next_step": {
+                    "tool": "nextcloud.calendar.discover",
+                    "command": "./scripts/assistant.sh calendar discover",
+                    "mode": "read",
+                    "changes_configuration": False,
+                    "expands_permissions": False,
+                },
+            }
+        )
+    return payload
 
 
 @dataclass(slots=True)
@@ -299,6 +331,17 @@ class MailAgent:
         if digest_result.status not in {"digest-not-due", "digest-already-sent", "digest-empty", "digest-disabled"}:
             summary.add(None, digest_result, "digest")
 
+    def _refresh_search_projection(self, summary: RunSummary) -> None:
+        if self.dry_run:
+            return
+        writer = getattr(self, "search_snapshots", None)
+        if writer is None:
+            return
+        try:
+            writer.refresh()
+        except Exception as exc:
+            summary.errors.append(f"Mail-Suchprojektion konnte nicht veroeffentlicht werden: {exc}")
+
     def run(self, limit: int = 20, include_digest: bool = True) -> RunSummary:
         summary = RunSummary()
         self._start_telemetry("run-dry" if self.dry_run else "run")
@@ -317,6 +360,7 @@ class MailAgent:
                     self._append_digest(summary)
             return summary
         finally:
+            self._refresh_search_projection(summary)
             summary.classifier = self.classifier.metrics_snapshot()
             self._finish_telemetry(summary)
 
@@ -351,6 +395,7 @@ class MailAgent:
                 remaining -= max(0, summary.processed - before)
             return summary
         finally:
+            self._refresh_search_projection(summary)
             summary.classifier = self.classifier.metrics_snapshot()
             self._finish_telemetry(summary)
 
@@ -492,6 +537,7 @@ class MailAgent:
             deadline_clearer = getattr(self.classifier, "clear_runtime_deadline", None)
             if callable(deadline_clearer):
                 deadline_clearer()
+            self._refresh_search_projection(summary)
             self._finish_telemetry(summary)
 
     def _process_feedback(self, summary: RunSummary, limit: int) -> None:
@@ -1064,6 +1110,20 @@ class MailAgent:
                 and classification.importance >= thresholds.min_forward_importance
             )
             if not calendar_result.ok:
+                if calendar_result.status in {"no-event", "invalid-event"}:
+                    self.storage.record_review(
+                        message.stable_key,
+                        ReviewReason.APPOINTMENT_REVIEW,
+                        classification,
+                        threshold=self.config.thresholds.calendar,
+                    )
+                    return self._move(
+                        message,
+                        source_folder,
+                        self.config.folders.appointment_review,
+                        "appointment-review",
+                        calendar_result.detail or calendar_result.status,
+                    )
                 detail = f"Terminverarbeitung fehlgeschlagen: {calendar_result.detail or calendar_result.status}"
                 return self._move(message, source_folder, self.config.folders.error, "error", detail)
             forward_result = self._forward_once(message, classification) if can_forward else OperationResult(True, "not-forwarded")
@@ -1387,7 +1447,11 @@ class MailAgent:
             calendar_result = self.calendar.process(
                 message, classification, trusted_sender=trusted_sender
             )
-            dest = self.config.folders.appointment_review if calendar_result.ok else self.config.folders.error
+            dest = (
+                self.config.folders.appointment_review
+                if calendar_result.ok or calendar_result.status in {"no-event", "invalid-event"}
+                else self.config.folders.error
+            )
             detail += "; " + (calendar_result.detail or calendar_result.status)
             path = calendar_result.path
         else:
@@ -1396,7 +1460,32 @@ class MailAgent:
 
     def import_order_snapshots(self, *, limit: int = 500) -> dict[str, Any]:
         root = self.config.runtime.database.parent / "search_documents"
-        paths = sorted(root.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True)[:max(1, limit)]
+        manifest = root / PROJECTION_MANIFEST
+        if manifest.exists():
+            try:
+                projection = load_search_projection(root)
+            except SearchProjectionError as exc:
+                return {
+                    "ok": False,
+                    "processed": 0,
+                    "detected": 0,
+                    "results": [],
+                    "error": str(exc),
+                }
+            paths = [
+                path
+                for path, _payload in sorted(
+                    projection.records,
+                    key=lambda item: str(item[1]["indexed_source_at"]),
+                    reverse=True,
+                )
+            ][: max(1, limit)]
+        else:
+            paths = sorted(
+                (path for path in root.glob("*.json") if path.name != PROJECTION_MANIFEST),
+                key=lambda item: item.stat().st_mtime,
+                reverse=True,
+            )[: max(1, limit)]
         messages: list[ParsedMessage] = []
         for path in paths:
             try:
@@ -1526,7 +1615,12 @@ class MailAgent:
         calendar_ok, backend, calendar_detail = self.calendar.health(
             nextcloud_health=nextcloud_health if self.config.nextcloud.enabled else None
         )
-        checks["calendar"] = {"ok": calendar_ok, "backend": backend, "detail": calendar_detail}
+        checks["calendar"] = calendar_doctor_payload(
+            ok=calendar_ok,
+            backend=backend,
+            detail=calendar_detail,
+            nextcloud_health=nextcloud_health,
+        )
         learning_items = [item.to_dict() for item in self.learning_folders.list()]
         checks["learning"] = {
             "ok": True,

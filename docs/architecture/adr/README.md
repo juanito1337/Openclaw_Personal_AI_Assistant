@@ -22,5 +22,6 @@ verweist mit Status `Superseded` auf den Nachfolger.
 | [0014](0014-abgeschlossenes-workspace-profil.md) | Accepted | abgeschlossenes Identitaetsprofil bleibt aktive Instanzkonfiguration |
 | [0015](0015-geschuetzte-gateway-konfiguration.md) | Accepted | Gateway-Konfiguration read-only; Setup nur in kurzlebiger Adminrolle |
 | [0016](0016-providergebundenes-portfolio-research.md) | Accepted | EODHD-belegtes Research, deterministische Scores und freigegebene Profilversionen |
+| [0017](0017-mail-suchprojektion-statt-wal-leser.md) | Accepted | atomare Mail-Suchprojektion statt SQLite/WAL-Zugriff des Sync-Workers |
 
 Neue ADRs beginnen mit der [Vorlage](0000-template.md).

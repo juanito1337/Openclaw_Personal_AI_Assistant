@@ -25,6 +25,7 @@
     {"path": "docs/architecture/adr/0013-native-nextcloud-und-aktive-runtime-normalisierung.md", "owner": "Architecture Maintainers"},
     {"path": "docs/architecture/adr/0014-abgeschlossenes-workspace-profil.md", "owner": "Architecture Maintainers"},
     {"path": "docs/architecture/adr/0015-geschuetzte-gateway-konfiguration.md", "owner": "Security Maintainers"},
-    {"path": "docs/architecture/adr/0016-providergebundenes-portfolio-research.md", "owner": "Data Maintainers"}
+    {"path": "docs/architecture/adr/0016-providergebundenes-portfolio-research.md", "owner": "Data Maintainers"},
+    {"path": "docs/architecture/adr/0017-mail-suchprojektion-statt-wal-leser.md", "owner": "Data Maintainers"}
   ]
 }

@@ -181,16 +181,25 @@ Die exakte `ro`/`rw`-Zuordnung steht in der
 getestet. Ein Fachworker sieht keine unbeteiligte Datenbank beschreibbar.
 
 ```text
-mail-worker        -> mail_agent/data/mail_agent.sqlite3
+mail-worker        -> mail_agent/data/mail_agent.sqlite3 and published mail search projection
 portfolio-worker   -> personal_assistant/data/portfolio.sqlite3
 monitor-worker     -> personal_assistant/data/monitoring.sqlite3
 supervisor-worker  -> job heartbeats, alerts and scheduler state
-sync-worker        -> local search index and source caches
+sync-worker        -> local search index and validated read-only source projections
 ```
 
 They are not five copies of the data. Persistent state exists once on the host
 and survives container replacement. Release-owned code and skills come from the
 image; instance configuration and runtime data remain outside it.
+
+Der Mailworker ist alleiniger Owner der Mail-SQLite und veroeffentlicht fuer den
+Sync-Worker unter `domains/mail/search_documents` unveraenderliche Datensaetze mit
+einem atomar ersetzten `_projection.json`-Manifest. Der Sync-Worker validiert die
+vollstaendige Generation, Pruefsummen und Aktualitaet vor einem Indexwrite und
+oeffnet `mail_agent.sqlite3`, `-wal` oder `-shm` nicht. Der bestehende Mail-Mount
+bleibt `ro`; dafuer werden weder Schreibrechte noch ein zweiter Datenowner
+eingefuehrt. Eine fehlende, veraltete oder korrupte Projektion bleibt als
+Sync-Fehler mit der letzten vollstaendigen Generation sichtbar.
 
 Layout 3 fuehrt vor jeder Veraenderung Schreibbarkeits-, UID-, Freiplatz- und
 SQLite-Checks aus. Es erzeugt ueber SQLite `backup()` einen SHA-256-verifizierten

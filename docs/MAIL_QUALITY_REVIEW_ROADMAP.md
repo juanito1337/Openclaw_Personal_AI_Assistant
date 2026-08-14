@@ -364,6 +364,13 @@ Konfidenzschwellen. Stoppe nach M9.5.
 
 ## M9.6 – Kalender- und Mailindex-Abhaengigkeiten
 
+Umsetzungsstand: implementiert auf dem Entwicklungsbranch. Der Mail-Owner
+veroeffentlicht unveraenderliche Suchdatensaetze samt atomarem Manifest,
+Quellgeneration und SHA-256-Pruefsummen. Der Sync-Worker validiert die gesamte
+Generation vor dem ersten Indexwrite und oeffnet die Mail-SQLite nicht mehr. Ein
+fehlender konfigurierter Kalender liefert einen read-only Discovery-Schritt;
+ungueltige Termindaten bleiben fachliche Terminpruefung statt Infrastrukturfehler.
+
 ### Scope
 
 - Einen verschwundenen konfigurierten Kalender als eindeutigen, handlungsfaehigen

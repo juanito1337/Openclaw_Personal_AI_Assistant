@@ -10,7 +10,7 @@ jeweiligen SQLite-Datenbank und duerfen nicht einzeln gesichert werden.
 | --- | --- | --- | --- |
 | `instance/` | Instanzadministrator | TOML-Konfiguration und kontrollierte lokale Dokumente; Layoutmarker Schema 1 | in jedem Releasebackup; Worker `ro`, nur Gateway/CLI `rw`; keine Secrets |
 | `gateway/` | OpenClaw Runtime | Gatewaykonfiguration, Sessions und Agentenkontext | Releasebackup; nur Gateway/CLI `rw`; Aufbewahrung nach Runtimevertrag |
-| `domains/mail/` | `mail_agent.storage` | `mail_agent.sqlite3` plus Schema-Migration vor Learning/Produktivlauf | SQLite-Backup-API/Quick-Check; Mail-Prozesslock; Korrekturhistorie nie zur Reparatur loeschen |
+| `domains/mail/` | `mail_agent.storage` | `mail_agent.sqlite3` plus Schema-Migration vor Learning/Produktivlauf; vollstaendige `search_documents`-Leseprojektion | SQLite-Backup-API/Quick-Check; Mail-Prozesslock; Korrekturhistorie nie zur Reparatur loeschen; Projektionsmanifest atomar |
 | `domains/orders/` | `personal_assistant.orders` | `orders.sqlite3` | SQLite-Backup-API; Remote-Nachbedingung vor Retry; Historie erhalten |
 | `domains/portfolio/` | `personal_assistant.portfolio` | `portfolio.sqlite3`, kontrolliertes `inbox/` | SQLite-Backup-API; Portfolio-Owner `rw`, Monitor `ro`; Imports/Quotes dauerhaft |
 | `domains/monitoring/` | `personal_assistant.monitoring` | `monitoring.sqlite3` | SQLite-Backup-API; nur technische Metriken; Retention durch Monitorvertrag |
@@ -25,7 +25,8 @@ jeweiligen SQLite-Datenbank und duerfen nicht einzeln gesichert werden.
 | --- | --- | --- | --- |
 | `shared/core/assistant.sqlite3` | Gateway/CLI, Sync, Mail-ActionBridge | Core, Monitor `ro` | ActionPlan, Status und Audit laufen in Transaktionen; `idempotency_key` bleibt eindeutig |
 | `domains/knowledge/knowledge.sqlite3` | Gateway/CLI, Sync | Suche, Monitor `ro` | Dokumente, Chunks, FTS und Sync-Cursor bilden einen eigenen konsistenten SQLite-Satz |
-| `domains/mail/mail_agent.sqlite3` | Mailworker oder explizite Mail-CLI | Mail, Sync/Monitor `ro` | genau ein produktiver Remote-Mailwriter; lokale DB darf parallel gelesen werden |
+| `domains/mail/mail_agent.sqlite3` | Mailworker oder explizite Mail-CLI | Mail, Monitor `ro` | genau ein produktiver Remote-Mailwriter; der Sync-Worker oeffnet diese SQLite/WAL-Domaene nicht |
+| `domains/mail/search_documents/_projection.json` und referenzierte Datensaetze | Mailworker | Sync `ro`, Mail `ro` | atomarer Manifest-Replace; vollstaendige Generation, eindeutige Stable-Keys, SHA-256 und Quellzeitpunkte werden vor dem ersten Indexwrite validiert |
 | `domains/orders/orders.sqlite3` | Mailworker/Orders-CLI | Orders | lokale Idempotenz ersetzt keine Remote-Nachbedingung |
 | `domains/portfolio/portfolio.sqlite3` | Portfolioworker/CLI | Monitor `ro` | ein Schemaowner, WAL, Pflichtdaten fail-closed |
 | `domains/monitoring/monitoring.sqlite3` | Monitorworker/CLI | Monitor | keine Mailinhalte oder Credentials |

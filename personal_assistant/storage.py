@@ -223,6 +223,12 @@ class AssistantStorage:
         )
         self.knowledge_connection.commit()
 
+    def get_sync_state(self, resource_id: str, scope: str) -> sqlite3.Row | None:
+        return self.knowledge_connection.execute(
+            "SELECT * FROM sync_state WHERE resource_id=? AND scope=?",
+            (resource_id, scope),
+        ).fetchone()
+
     def get_document(self, resource_id: str, source_id: str) -> sqlite3.Row | None:
         return self.knowledge_connection.execute(
             "SELECT * FROM documents WHERE resource_id=? AND source_id=?", (resource_id, source_id)

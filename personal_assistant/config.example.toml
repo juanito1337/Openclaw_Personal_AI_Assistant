@@ -16,6 +16,7 @@ default_limit = 20
 nextcloud_max_depth = 6
 nextcloud_max_items = 2000
 mail_snapshot_dir = "mail_agent/data/search_documents"
+mail_projection_max_age_seconds = 7200
 # Optional extension point. No embedding model is forced in 3.4.0.
 semantic_provider = "disabled"
 

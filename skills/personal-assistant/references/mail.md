@@ -50,6 +50,23 @@ Use `mail folders plan` before activation. An older configuration without
 folder explicitly and run `mail folders apply --yes` only after Jan approves the
 reported plan. This may create configured folders but never moves existing mail.
 
+The mail doctor reports a configured calendar that is absent from current
+discovery as `configured-calendar-missing`, including the exact resource ID and
+the registered read-only next step `calendar discover`. Discovery never selects a
+replacement, changes configuration or expands permissions. Invalid or incomplete
+appointment data is not a successful calendar import and goes to the configured
+appointment-review folder with `appointment-review`; protocol or infrastructure
+failures remain distinct error-folder cases.
+
+The mail worker owns the search source and publishes immutable JSON records plus
+an atomically replaced `_projection.json` manifest. The manifest binds every
+record by stable key, source timestamp and SHA-256 to one complete generation.
+The sync worker reads this projection from the mail mount read-only and never
+opens `mail_agent.sqlite3`. Missing, stale, partial or corrupt generations are
+reported fail-closed before an index write; status includes projection age and
+the last complete source generation. Do not bypass this contract with a generic
+SQLite copy or by granting the sync worker mail write access.
+
 ## Draft and send contract
 
 - Always produce the complete reply with `mail reply-draft` before a reply send.

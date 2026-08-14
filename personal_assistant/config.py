@@ -49,6 +49,7 @@ class SearchConfig:
     mail_snapshot_dir: Path = field(
         default_factory=lambda: WORKSPACE_ROOT / "mail_agent/data/search_documents"
     )
+    mail_projection_max_age_seconds: int = 7200
     semantic_provider: str = "disabled"
 
 
@@ -108,6 +109,8 @@ def _validate(config: AssistantConfig) -> None:
         errors.append("search.chunk_chars muss zwischen 500 und 20000 liegen")
     if not 0 <= config.search.chunk_overlap_chars < config.search.chunk_chars:
         errors.append("search.chunk_overlap_chars muss kleiner als chunk_chars sein")
+    if config.search.mail_projection_max_age_seconds < 60:
+        errors.append("search.mail_projection_max_age_seconds muss mindestens 60 sein")
     if config.search.max_file_bytes < 1024:
         errors.append("search.max_file_bytes muss mindestens 1024 sein")
     if config.search.default_limit < 1 or config.search.default_limit > 200:

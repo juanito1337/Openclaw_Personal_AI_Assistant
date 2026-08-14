@@ -2129,10 +2129,22 @@ class PersonalAssistant(
         }
 
     def sync_mail(self) -> dict[str, Any]:
-        mail_db = state_paths().mail / "mail_agent.sqlite3"
+        projection = self.indexer.index_mail_snapshots()
+        if self.role == "sync-worker":
+            database: dict[str, Any] = {
+                "seen": 0,
+                "indexed": 0,
+                "unchanged": 0,
+                "skipped": "sync-worker-uses-mail-owner-projection",
+                "mail_database_access": "none",
+            }
+        else:
+            mail_db = state_paths().mail / "mail_agent.sqlite3"
+            database = self.indexer.index_mail_database(mail_db)
         return {
-            "database": self.indexer.index_mail_database(mail_db),
-            "snapshots": self.indexer.index_mail_snapshots(),
+            "database": database,
+            "projection": projection,
+            "snapshots": projection,
         }
 
     def sync_nextcloud(self) -> dict[str, Any]:

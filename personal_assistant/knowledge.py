@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import AssistantConfig
+from .contracts.mail_projection import SearchProjectionError, load_search_projection
 from .extractors import chunks, extract_text, sha256_bytes
 from .storage import AssistantStorage
 
@@ -66,20 +67,60 @@ class KnowledgeIndexer:
             stats["indexed"] += 1
         return stats
 
-    def index_mail_snapshots(self) -> dict[str, int]:
-        stats = {"seen": 0, "indexed": 0, "unchanged": 0, "invalid": 0}
+    def _mail_projection_failure(self, state: str, detail: str) -> dict[str, Any]:
+        previous = self.storage.get_sync_state("mail-agent", "projection")
+        last_generation = str(previous["cursor"] or "") if previous else ""
+        status_detail = {
+            "state": state,
+            "error": detail,
+            "last_complete_source_generation": last_generation,
+        }
+        self.storage.set_sync_state(
+            "mail-agent",
+            "projection",
+            cursor=last_generation,
+            status=state,
+            detail=json.dumps(status_detail, ensure_ascii=False),
+        )
+        return {
+            "seen": 0,
+            "indexed": 0,
+            "unchanged": 0,
+            "published": False,
+            **status_detail,
+        }
+
+    def index_mail_snapshots(self) -> dict[str, Any]:
         root = self.config.search.mail_snapshot_dir
         if not root.exists():
-            return stats
-        for path in sorted(root.glob("*.json")):
+            return self._mail_projection_failure(
+                "missing", "Mail-Suchprojektionsverzeichnis fehlt"
+            )
+        try:
+            projection = load_search_projection(
+                root,
+                max_age_seconds=self.config.search.mail_projection_max_age_seconds,
+            )
+        except SearchProjectionError as exc:
+            state = "stale" if "veraltet" in str(exc).casefold() else "invalid"
+            return self._mail_projection_failure(state, str(exc))
+
+        # Validate the complete source generation before the first knowledge
+        # write; incomplete or corrupt projections never become index input.
+        stats: dict[str, Any] = {
+            "seen": 0,
+            "indexed": 0,
+            "unchanged": 0,
+            "published": False,
+            "state": "validated",
+            "source_generation": projection.generation,
+            "generated_at": projection.generated_at,
+            "age_seconds": projection.age_seconds,
+        }
+        for _path, payload in projection.records:
             stats["seen"] += 1
-            try:
-                payload = json.loads(path.read_text(encoding="utf-8"))
-                source_id = str(payload["stable_key"])
-                modified = str(payload.get("indexed_source_at") or path.stat().st_mtime_ns)
-            except (OSError, ValueError, KeyError, json.JSONDecodeError):
-                stats["invalid"] += 1
-                continue
+            source_id = str(payload["stable_key"])
+            modified = str(payload["indexed_source_at"])
             existing = self.storage.get_document("mail-agent", source_id)
             if existing and str(existing["modified_at"] or "") == modified:
                 stats["unchanged"] += 1
@@ -105,6 +146,28 @@ class KnowledgeIndexer:
                 chunks=chunks(text, size=self.config.search.chunk_chars, overlap=self.config.search.chunk_overlap_chars),
             )
             stats["indexed"] += 1
+        detail = {
+            "state": "complete",
+            "source_generation": projection.generation,
+            "generated_at": projection.generated_at,
+            "age_seconds": projection.age_seconds,
+            "record_count": len(projection.records),
+        }
+        self.storage.set_sync_state(
+            "mail-agent",
+            "projection",
+            cursor=projection.generation,
+            etag=projection.generation,
+            status="ok",
+            detail=json.dumps(detail, ensure_ascii=False),
+        )
+        stats.update(
+            {
+                "published": True,
+                "state": "complete",
+                "last_complete_source_generation": projection.generation,
+            }
+        )
         return stats
 
     def index_binary_document(
