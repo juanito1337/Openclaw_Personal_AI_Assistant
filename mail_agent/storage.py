@@ -18,6 +18,7 @@ FINAL_STATUSES = {
     "spam",
     "routine",
     "forwarded",
+    "relevant",
     "review",
     "appointment-review",
     "error",

@@ -229,6 +229,12 @@ keine Ordnerstruktur und verschiebe keine Mail. Stoppe nach M9.2.
 
 ## M9.3 – Getrennte Ablage statt Sammelordner
 
+Umsetzungsstand: implementiert auf dem Entwicklungsbranch. Sicher relevante,
+nicht weitergeleitete Nachrichten erhalten den konfigurierbaren Zielordner
+`Agent/Relevant`; alte Konfigurationen bleiben lesbar, blockieren produktives
+Routing jedoch bis zur expliziten Planung und Ordnerfreigabe. Es erfolgt keine
+historische Umsortierung.
+
 ### Scope
 
 - Einen konfigurierbaren Zielordner `Agent/Relevant` fuer sicher relevante, aber

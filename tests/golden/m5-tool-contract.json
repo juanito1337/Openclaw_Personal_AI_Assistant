@@ -577,6 +577,22 @@
   },
   {
     "approval": "none",
+    "command": "./scripts/assistant.sh mail folders plan",
+    "description": "Konfigurierte und fehlende Agent-Mailordner einschliesslich der expliziten Relevant-Aktivierung read-only anzeigen",
+    "id": "mail.folders.plan",
+    "mode": "read",
+    "writes_external_data": false
+  },
+  {
+    "approval": "explicit-user-create-configured-mail-folders",
+    "command": "./scripts/assistant.sh mail folders apply --yes",
+    "description": "Fehlende konfigurierte Agent-Mailordner nach ausdruecklicher Freigabe anlegen; keine Mails verschieben",
+    "id": "mail.folders.apply",
+    "mode": "write",
+    "writes_external_data": true
+  },
+  {
+    "approval": "none",
     "command": "./scripts/assistant.sh mail learning status",
     "description": "Korrekturlernen, gemischte Absender, Musterkonflikte und Lernordner anzeigen",
     "id": "mail.learning.status",

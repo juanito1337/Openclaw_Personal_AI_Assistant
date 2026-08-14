@@ -5,8 +5,13 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock
 
-from mail_agent.app import MailAgent
-from mail_agent.cli import build_parser as build_mail_parser
+from mail_agent.app import MailAgent, RunSummary
+from mail_agent.cli import (
+    _productive_checks_with_folder_self_heal,
+)
+from mail_agent.cli import (
+    build_parser as build_mail_parser,
+)
 from mail_agent.config import load_config
 from mail_agent.models import Classification, Envelope, OperationResult
 from mail_agent.parser import parse_eml
@@ -95,6 +100,38 @@ class ExistingMailReviewRouteTests(unittest.TestCase):
     def _route(self, classification: Classification) -> OperationResult:
         return self.agent._dry_route(self.message, classification)
 
+    def _productive_route(self, classification: Classification) -> tuple[OperationResult, dict]:
+        class MovingClient:
+            @staticmethod
+            def move_message(source, destination, message_id):
+                return OperationResult(True, "moved", destination=destination)
+
+        agent = object.__new__(MailAgent)
+        agent.config = self.config
+        agent.dry_run = False
+        agent.storage = Storage(self.config.runtime.database)
+        agent.storage.connection.execute("DELETE FROM actions")
+        agent.storage.connection.execute("DELETE FROM messages")
+        agent.storage.connection.commit()
+        agent.telemetry = None
+        agent.himalaya = MovingClient()
+        agent._process_order_event = lambda *_args, **_kwargs: OperationResult(  # type: ignore[method-assign]
+            True, "order-not-detected"
+        )
+        agent.invoices = Mock()
+        agent.invoices.process.return_value = OperationResult(True, "not-an-invoice")
+        agent.rules = Mock()
+        agent.rules.is_trusted_sender.return_value = False
+        agent.calendar = Mock()
+        agent.calendar.process.return_value = OperationResult(True, "pending-review")
+        agent.notifier = Mock()
+        try:
+            result = agent._route(self.message, classification, "INBOX")
+            row = dict(agent.storage.get_message(self.message.stable_key))
+            return result, row
+        finally:
+            agent.storage.close()
+
     def test_uncertain_classification_routes_to_general_review(self) -> None:
         result = self._route(Classification("uncertain", 0.60, 5, False, "Unklar"))
         self.assertEqual(result.destination, self.config.folders.review)
@@ -115,13 +152,13 @@ class ExistingMailReviewRouteTests(unittest.TestCase):
         result = self._route(Classification("routine", 0.89, 2, False, "Unsichere Routine"))
         self.assertEqual(result.destination, self.config.folders.review)
 
-    def test_relevant_without_forward_gate_routes_to_general_review(self) -> None:
+    def test_relevant_without_forward_gate_routes_to_relevant_folder(self) -> None:
         result = self._route(Classification("relevant", 0.99, 9, False, "Relevant"))
-        self.assertEqual(result.destination, self.config.folders.review)
+        self.assertEqual(result.destination, self.config.folders.relevant)
 
-    def test_relevant_below_importance_gate_routes_to_general_review(self) -> None:
+    def test_relevant_below_importance_gate_routes_to_relevant_folder(self) -> None:
         result = self._route(Classification("relevant", 0.99, 6, True, "Nicht dringend"))
-        self.assertEqual(result.destination, self.config.folders.review)
+        self.assertEqual(result.destination, self.config.folders.relevant)
 
     def test_invoice_review_routes_to_general_review(self) -> None:
         self.agent.invoices.process.return_value = OperationResult(
@@ -147,6 +184,77 @@ class ExistingMailReviewRouteTests(unittest.TestCase):
         )
         result = self._route(Classification("appointment", 0.99, 8, True, "Termin"))
         self.assertEqual(result.destination, self.config.folders.error)
+
+    def test_productive_relevant_route_matches_dry_run_and_records_reason(self) -> None:
+        classification = Classification("relevant", 0.99, 9, False, "Relevant")
+        dry = self._route(classification)
+        result, row = self._productive_route(classification)
+        self.assertEqual(result.destination, dry.destination)
+        self.assertEqual(result.status, "relevant")
+        self.assertEqual(row["review_reason"], "relevant-not-forwarded")
+        self.assertEqual(row["destination_folder"], self.config.folders.relevant)
+
+    def test_productive_uncertain_and_threshold_routes_record_exact_reasons(self) -> None:
+        cases = (
+            (
+                Classification("uncertain", 0.60, 5, False, "Unklar"),
+                "classification-uncertain",
+            ),
+            (
+                Classification("uncertain", 0.69, 5, False, "Blockiert", source="legitimacy-guard"),
+                "safety-blocked",
+            ),
+            (Classification("spam", 0.94, 1, False, "Knapp"), "spam-below-threshold"),
+            (Classification("routine", 0.89, 3, False, "Knapp"), "routine-below-threshold"),
+        )
+        for classification, expected in cases:
+            with self.subTest(expected=expected):
+                result, row = self._productive_route(classification)
+                self.assertEqual(result.destination, self.config.folders.review)
+                self.assertEqual(row["review_reason"], expected)
+
+    def test_legacy_config_loads_but_productive_run_requires_explicit_activation(self) -> None:
+        legacy_path = Path(self.temp.name) / "legacy.toml"
+        config_text = self.config.path.read_text(encoding="utf-8").replace(
+            'relevant = "Agent/Relevant"\n',
+            "",
+        )
+        legacy_path.write_text(config_text, encoding="utf-8")
+        legacy = load_config(legacy_path)
+        self.assertEqual(legacy.folders.relevant, "")
+        agent = object.__new__(MailAgent)
+        agent.config = legacy
+        summary = RunSummary()
+        self.assertFalse(agent._prepare_run(summary))
+        self.assertIn("aktiviert", summary.errors[0])
+
+    def test_folder_plan_is_read_only_and_reports_missing_relevant_folder(self) -> None:
+        agent = object.__new__(MailAgent)
+        agent.config = self.config
+        agent.learning_folders = Mock()
+        agent.learning_folders.active_folders.return_value = []
+        agent.himalaya = Mock()
+        agent.himalaya.list_folders.return_value = (["INBOX", self.config.folders.review], "")
+        plan = agent.folder_plan()
+        self.assertTrue(plan["read_only"])
+        self.assertFalse(plan["activation_required"])
+        self.assertIn(self.config.folders.relevant, plan["missing"])
+        agent.himalaya.ensure_folders.assert_not_called()
+
+    def test_productive_preflight_never_auto_creates_new_relevant_folder(self) -> None:
+        agent = Mock()
+        agent.config.folders.relevant = self.config.folders.relevant
+        checks = {
+            "folders": {
+                "ok": False,
+                "missing": [self.config.folders.relevant],
+            }
+        }
+        agent.doctor.return_value = checks
+        result = _productive_checks_with_folder_self_heal(agent)
+        self.assertIs(result, checks)
+        self.assertTrue(result["folders"]["explicit_activation_required"])
+        agent.setup.assert_not_called()
 
 
 class FakeReviewClient:
@@ -312,12 +420,23 @@ class ReviewReadOnlyToolTests(unittest.TestCase):
             ["mail", "review", "status", "--days", "7"]
         )
         self.assertEqual(parsed_assistant.review_command, "status")
+        folder_plan = build_assistant_parser().parse_args(["mail", "folders", "plan"])
+        self.assertEqual(folder_plan.folders_command, "plan")
         settings = ToolSettings(path=Path(self.temp.name) / "tools.toml")
         settings.mail.move.enabled = True
         tools = {item.id: item for item in build_tool_registry(settings)}
         self.assertEqual(
-            {"mail.review.status", "mail.review.list", "mail.review.suggest"} - tools.keys(),
+            {
+                "mail.review.status",
+                "mail.review.list",
+                "mail.review.suggest",
+                "mail.folders.plan",
+                "mail.folders.apply",
+            }
+            - tools.keys(),
             set(),
         )
         self.assertEqual(tools["mail.review.suggest"].mode, "read")
         self.assertFalse(tools["mail.review.suggest"].writes_external_data)
+        self.assertEqual(tools["mail.folders.apply"].mode, "write")
+        self.assertTrue(tools["mail.folders.apply"].writes_external_data)

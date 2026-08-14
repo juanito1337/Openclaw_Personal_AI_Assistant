@@ -117,6 +117,11 @@ def build_parser() -> argparse.ArgumentParser:
     review_suggest.add_argument("--folder", required=True)
     review_suggest.add_argument("--message-id", required=True)
     review_suggest.add_argument("--expected-subject", required=True)
+    folders = sub.add_parser("folders", help="Konfigurierte Mailordner planen oder explizit anlegen")
+    folders_sub = folders.add_subparsers(dest="folders_command", required=True)
+    folders_sub.add_parser("plan", help="Fehlende konfigurierte Ordner read-only anzeigen")
+    folders_apply = folders_sub.add_parser("apply", help="Fehlende konfigurierte Ordner anlegen")
+    folders_apply.add_argument("--yes", action="store_true")
     performance = sub.add_parser("performance", help="Privacy-sichere Laufzeitmessungen anzeigen")
     performance.add_argument("--limit", type=int, default=20, help="Anzahl der letzten Laeufe (1-500)")
     performance.add_argument("--raw", action="store_true", help="Unverdichtete Telemetrie-Datensaetze anzeigen")
@@ -262,6 +267,21 @@ def _productive_checks_with_folder_self_heal(agent: MailAgent) -> dict[str, obje
     folders = checks.get("folders")
     missing = list(folders.get("missing") or []) if isinstance(folders, dict) else []
     if not missing:
+        return checks
+    config = getattr(agent, "config", None)
+    configured_folders = getattr(config, "folders", None)
+    relevant = str(getattr(configured_folders, "relevant", "") or "").strip()
+    if relevant and relevant.casefold() in {str(item).casefold() for item in missing}:
+        logging.getLogger(__name__).warning(
+            "Neuer Relevant-Ordner fehlt; automatische Erstellung bleibt bis zur expliziten "
+            "Freigabe mit 'mail folders apply --yes' blockiert."
+        )
+        if isinstance(folders, dict):
+            folders["explicit_activation_required"] = True
+            folders["activation_command"] = (
+                "./scripts/assistant.sh mail folders plan; danach nach Freigabe "
+                "./scripts/assistant.sh mail folders apply --yes"
+            )
         return checks
 
     logging.getLogger(__name__).warning(
@@ -1238,6 +1258,30 @@ def main(argv: list[str] | None = None) -> int:
                 return 2
             print(json.dumps(result, indent=2, ensure_ascii=False))
             return 0 if result.get("ok") else 1
+        if args.command == "folders":
+            plan = agent.folder_plan()
+            if args.folders_command == "plan":
+                print(json.dumps(plan, indent=2, ensure_ascii=False))
+                return 0 if plan.get("ok") else 1
+            if not args.yes:
+                print(
+                    json.dumps(
+                        {"ok": False, "error": "Explizite Freigabe mit --yes fehlt", "plan": plan},
+                        indent=2,
+                        ensure_ascii=False,
+                    )
+                )
+                return 2
+            if plan.get("activation_required"):
+                print(json.dumps(plan, indent=2, ensure_ascii=False))
+                return 2
+            results = agent.setup()
+            payload = {
+                "ok": all(item.ok for item in results),
+                "results": [asdict(item) for item in results],
+            }
+            print(json.dumps(payload, indent=2, ensure_ascii=False))
+            return 0 if payload["ok"] else 1
     finally:
         agent.close()
     return 0

@@ -27,6 +27,7 @@ from .models import Classification, Envelope, OperationResult, ParsedMessage
 from .nextcloud import NextcloudSkillClient
 from .notifier import Notifier
 from .parser import parse_eml
+from .review import ReviewReason
 from .review_service import ReviewService
 from .rules import RuleEngine
 from .search_snapshot import SearchSnapshotWriter
@@ -186,7 +187,31 @@ class MailAgent:
     def setup(self) -> list[OperationResult]:
         return self.himalaya.ensure_folders(self._required_folders())
 
+    def folder_plan(self) -> dict[str, object]:
+        folders, error = self.himalaya.list_folders()
+        existing = {folder.casefold() for folder in folders}
+        configured = self._required_folders()
+        missing = [folder for folder in configured if folder.casefold() not in existing]
+        activation_required = not bool(self.config.folders.relevant.strip())
+        return {
+            "ok": not error and not activation_required,
+            "read_only": True,
+            "configured": configured,
+            "missing": missing,
+            "folder_error": error,
+            "relevant_folder": self.config.folders.relevant,
+            "activation_required": activation_required,
+            "apply_requires_explicit_approval": True,
+            "apply_tool": "mail.folders.apply" if not activation_required else None,
+        }
+
     def _prepare_run(self, summary: RunSummary) -> bool:
+        if not self.config.folders.relevant.strip():
+            summary.errors.append(
+                "Neuer Zielordner fuer relevante, nicht weitergeleitete Mail ist noch nicht "
+                "aktiviert; folders.relevant setzen und Mail-Setup ausdruecklich ausfuehren."
+            )
+            return False
         folders, folder_error = self.himalaya.list_folders()
         if folder_error:
             summary.errors.append(f"Ordner-Preflight fehlgeschlagen: {folder_error}")
@@ -726,6 +751,11 @@ class MailAgent:
                         path=invoice_result.path,
                     )
                 self.storage.upsert_message(message, classification, status="classified")
+                self.storage.record_review(
+                    message.stable_key,
+                    ReviewReason.INVOICE_REVIEW,
+                    classification,
+                )
                 return self._move(
                     message, source_folder, self.config.folders.review, "review", invoice_result.detail
                 )
@@ -745,6 +775,11 @@ class MailAgent:
                 if self.dry_run:
                     return OperationResult(True, "dry-run-quarantine-invoice-review", invoice_result.detail, destination=self.config.folders.review, path=invoice_result.path)
                 self.storage.upsert_message(message, classification, status="classified")
+                self.storage.record_review(
+                    message.stable_key,
+                    ReviewReason.INVOICE_REVIEW,
+                    classification,
+                )
                 return self._move(message, source_folder, self.config.folders.review, "review", invoice_result.detail)
             if invoice_result.status in {
                 "invoice-archived", "invoice-duplicate", "would-archive-invoice",
@@ -966,14 +1001,32 @@ class MailAgent:
 
         if classification.category == "spam":
             destination = self.config.folders.spam if force or classification.confidence >= thresholds.spam else self.config.folders.review
+            if destination == self.config.folders.review:
+                self.storage.record_review(
+                    message.stable_key,
+                    ReviewReason.SPAM_BELOW_THRESHOLD,
+                    classification,
+                    threshold=thresholds.spam,
+                )
             return self._move(message, source_folder, destination, "spam" if destination == self.config.folders.spam else "review")
 
         if classification.category == "routine":
             destination = self.config.folders.routine if force or classification.confidence >= thresholds.routine else self.config.folders.review
             if destination == self.config.folders.review:
+                self.storage.record_review(
+                    message.stable_key,
+                    ReviewReason.ROUTINE_BELOW_THRESHOLD,
+                    classification,
+                    threshold=thresholds.routine,
+                )
                 return self._move(message, source_folder, destination, "review")
             invoice_result = self.invoices.process(message, classification)
             if invoice_result.status == "invoice-review-required":
+                self.storage.record_review(
+                    message.stable_key,
+                    ReviewReason.INVOICE_REVIEW,
+                    classification,
+                )
                 return self._move(
                     message, source_folder, self.config.folders.review, "review", invoice_result.detail
                 )
@@ -981,6 +1034,11 @@ class MailAgent:
                 detail = "Rechnungsarchivierung fehlgeschlagen: " + (invoice_result.detail or invoice_result.status)
                 return self._move(message, source_folder, self.config.folders.error, "error", detail)
             if invoice_result.status in {"invoice-archived-review-required", "invoice-duplicate-review-required"}:
+                self.storage.record_review(
+                    message.stable_key,
+                    ReviewReason.INVOICE_REVIEW,
+                    classification,
+                )
                 return self._move(message, source_folder, self.config.folders.review, "review", invoice_result.detail)
             invoice_detail = (
                 invoice_result.detail
@@ -1026,6 +1084,12 @@ class MailAgent:
             else:
                 destination = self.config.folders.appointment_review
                 status = "appointment-review"
+                self.storage.record_review(
+                    message.stable_key,
+                    ReviewReason.APPOINTMENT_REVIEW,
+                    classification,
+                    threshold=thresholds.calendar,
+                )
             detail = calendar_result.detail
             return self._move(message, source_folder, destination, status, detail, forwarded=can_forward)
 
@@ -1036,7 +1100,18 @@ class MailAgent:
                 and classification.importance >= thresholds.min_forward_importance
             )
             if not can_forward:
-                return self._move(message, source_folder, self.config.folders.review, "review")
+                self.storage.record_review(
+                    message.stable_key,
+                    ReviewReason.RELEVANT_NOT_FORWARDED,
+                    classification,
+                    threshold=thresholds.relevant,
+                )
+                return self._move(
+                    message,
+                    source_folder,
+                    self.config.folders.relevant,
+                    "relevant",
+                )
             forward_result = self._forward_once(message, classification)
             if not forward_result.ok:
                 detail = f"Weiterleitung fehlgeschlagen: {forward_result.detail}"
@@ -1057,6 +1132,12 @@ class MailAgent:
                 forwarded=True,
             )
 
+        reason = (
+            ReviewReason.SAFETY_BLOCKED
+            if classification.source == "legitimacy-guard"
+            else ReviewReason.CLASSIFICATION_UNCERTAIN
+        )
+        self.storage.record_review(message.stable_key, reason, classification)
         return self._move(message, source_folder, self.config.folders.review, "review")
 
     def _handle_calendar_command_mail(
@@ -1071,7 +1152,15 @@ class MailAgent:
         if result is None:
             return None
         if self.dry_run:
-            destination = self.config.folders.routine if result.ok else self.config.folders.review
+            if result.status == "calendar-command-sender-rejected":
+                destination = self.config.folders.review
+            elif result.status in {
+                "calendar-command-no-event",
+                "calendar-command-invalid-event",
+            }:
+                destination = self.config.folders.appointment_review
+            else:
+                destination = self.config.folders.routine if result.ok else self.config.folders.error
             return OperationResult(
                 True,
                 "dry-run-calendar-command",
@@ -1086,7 +1175,32 @@ class MailAgent:
             "calendar-command-invalid-event",
         }
         if result.status in review_statuses:
-            return self._move(message, source_folder, self.config.folders.review, "review", result.detail)
+            if result.status == "calendar-command-sender-rejected":
+                self.storage.record_review(
+                    message.stable_key,
+                    ReviewReason.SAFETY_BLOCKED,
+                    classification,
+                )
+                return self._move(
+                    message,
+                    source_folder,
+                    self.config.folders.review,
+                    "review",
+                    result.detail,
+                )
+            self.storage.record_review(
+                message.stable_key,
+                ReviewReason.APPOINTMENT_REVIEW,
+                classification,
+                threshold=self.config.thresholds.calendar,
+            )
+            return self._move(
+                message,
+                source_folder,
+                self.config.folders.appointment_review,
+                "appointment-review",
+                result.detail,
+            )
         if not result.ok:
             return self._move(message, source_folder, self.config.folders.error, "error", result.detail)
         return self._move(message, source_folder, self.config.folders.routine, "routine", result.detail)
@@ -1107,7 +1221,12 @@ class MailAgent:
             source="calendar-approval",
         )
         if self.dry_run:
-            destination = self.config.folders.routine if result.ok else self.config.folders.review
+            if result.ok:
+                destination = self.config.folders.routine
+            elif result.status in {"approval-create-failed", "approval-event-invalid"}:
+                destination = self.config.folders.error
+            else:
+                destination = self.config.folders.appointment_review
             return OperationResult(
                 True,
                 "dry-run",
@@ -1126,6 +1245,15 @@ class MailAgent:
             else self.config.folders.review
         )
         status = "error" if destination == self.config.folders.error else "review"
+        if status == "review":
+            self.storage.record_review(
+                message.stable_key,
+                ReviewReason.APPOINTMENT_REVIEW,
+                classification,
+                threshold=self.config.thresholds.calendar,
+            )
+            destination = self.config.folders.appointment_review
+            status = "appointment-review"
         return self._move(message, source_folder, destination, status, result.detail)
 
     def _forward_once(self, message: ParsedMessage, classification: Classification) -> OperationResult:
@@ -1194,6 +1322,7 @@ class MailAgent:
             self.config.folders.routine: "routine",
             self.config.folders.forwarded: "forwarded",
             self.config.folders.review: "review",
+            self.config.folders.relevant: "relevant",
             self.config.folders.appointment_review: "appointment-review",
             self.config.folders.error: "error",
         }
@@ -1250,7 +1379,7 @@ class MailAgent:
                 classification.forward
                 and classification.confidence >= thresholds.relevant
                 and classification.importance >= thresholds.min_forward_importance
-            ) else self.config.folders.review
+            ) else self.config.folders.relevant
         elif classification.category == "appointment":
             trusted_sender = self.rules.is_trusted_sender(
                 message, self.config.calendar.trust_feedback_count
@@ -1313,7 +1442,22 @@ class MailAgent:
             folders, error = self.himalaya.list_folders()
             existing = {folder.casefold() for folder in folders}
             missing = [folder for folder in self._required_folders() if folder.casefold() not in existing]
-            checks["folders"] = {"ok": not error and not missing, "count": len(folders), "error": error, "missing": missing}
+            relevant_activation_required = not bool(self.config.folders.relevant.strip())
+            checks["folders"] = {
+                "ok": not error and not missing and not relevant_activation_required,
+                "count": len(folders),
+                "error": error,
+                "missing": missing,
+                "relevant_folder": self.config.folders.relevant,
+                "activation_required": relevant_activation_required,
+                "activation_command": (
+                    "Konfiguration folders.relevant setzen; danach zuerst "
+                    "./scripts/assistant.sh mail folders plan und nach Freigabe "
+                    "./scripts/assistant.sh mail folders apply --yes ausfuehren"
+                    if relevant_activation_required
+                    else ""
+                ),
+            }
             missing_sources = [
                 folder for folder in self.config.mailbox.all_source_folders()
                 if folder.casefold() not in existing

@@ -50,7 +50,12 @@ set -eu
 state="${FAKE_STATE_DIR:?}"
 
 if [ "$1" = "folder" ] && [ "$2" = "list" ]; then
-  printf '%s\n' '["INBOX","Spam","Agent/Spam","Agent/Routine","Agent/Weitergeleitet","Agent/Pruefen","Agent/Korrektur-Kein-Spam","Agent/Korrektur-Unwichtig","Agent/Korrektur-Wichtig","Agent/Korrektur-Wichtig/Korrektur-Rechnungen","Agent/Korrektur-Spam","Agent/Termin-Pruefen","Agent/Virusverdacht","Agent/Fehler"]'
+  printf '%s\n' \
+    '["INBOX","Spam","Agent/Spam","Agent/Routine","Agent/Weitergeleitet",'\
+    '"Agent/Pruefen","Agent/Relevant","Agent/Korrektur-Kein-Spam",'\
+    '"Agent/Korrektur-Unwichtig","Agent/Korrektur-Wichtig",'\
+    '"Agent/Korrektur-Wichtig/Korrektur-Rechnungen","Agent/Korrektur-Spam",'\
+    '"Agent/Termin-Pruefen","Agent/Virusverdacht","Agent/Fehler"]'
   exit 0
 fi
 
@@ -162,6 +167,7 @@ spam = "Agent/Spam"
 routine = "Agent/Routine"
 forwarded = "Agent/Weitergeleitet"
 review = "Agent/Pruefen"
+relevant = "Agent/Relevant"
 feedback_not_spam = "Agent/Korrektur-Kein-Spam"
 feedback_unimportant = "Agent/Korrektur-Unwichtig"
 feedback_important = "Agent/Korrektur-Wichtig"

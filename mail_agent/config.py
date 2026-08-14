@@ -46,6 +46,7 @@ class FolderConfig:
     routine: str = "Agent/Routine"
     forwarded: str = "Agent/Weitergeleitet"
     review: str = "Agent/Pruefen"
+    relevant: str = ""
     feedback_not_spam: str = "Agent/Korrektur-Kein-Spam"
     feedback_unimportant: str = "Agent/Korrektur-Unwichtig"
     feedback_important: str = "Agent/Korrektur-Wichtig"
@@ -55,11 +56,12 @@ class FolderConfig:
     malware: str = "Agent/Virusverdacht"
 
     def all(self) -> list[str]:
-        return list(dict.fromkeys([
+        return list(dict.fromkeys(item for item in [
             self.spam,
             self.routine,
             self.forwarded,
             self.review,
+            self.relevant,
             self.feedback_not_spam,
             self.feedback_unimportant,
             self.feedback_important,
@@ -67,7 +69,7 @@ class FolderConfig:
             self.appointment_review,
             self.error,
             self.malware,
-        ]))
+        ] if item))
 
 
 @dataclass(slots=True)
@@ -305,6 +307,9 @@ def _validate_config(config: Config) -> None:
         ("error", config.folders.error),
     ):
         folder_values.append(safe_text(folder, f"folders.{field_name}"))
+    relevant_folder = str(config.folders.relevant or "").strip()
+    if relevant_folder:
+        folder_values.append(safe_text(relevant_folder, "folders.relevant"))
     folded = [item.casefold() for item in folder_values]
     require(len(folded) == len(set(folded)), "Alle Agent-Ordner muessen unterschiedliche Namen haben")
     require(source_folder.casefold() not in set(folded), "mailbox.source_folder darf kein Agent-Zielordner sein")

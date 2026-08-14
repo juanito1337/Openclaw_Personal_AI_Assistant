@@ -35,6 +35,17 @@ suggestion is not approval for a correction. Until the dedicated correction tool
 is registered, report the proposed correction to Jan without attempting a generic
 move or editing the database.
 
+Safe relevant mail that does not satisfy the forwarding gate belongs in the
+configured `folders.relevant` target (normally `Agent/Relevant`), not in the
+general review folder. `Agent/Pruefen` remains for classification uncertainty,
+threshold cases, invoice review and explicit safety blocks; appointment review
+remains separate. Existing mail is never bulk-migrated.
+
+Use `mail folders plan` before activation. An older configuration without
+`folders.relevant` remains readable but productive triage is blocked. Set the
+folder explicitly and run `mail folders apply --yes` only after Jan approves the
+reported plan. This may create configured folders but never moves existing mail.
+
 ## Draft and send contract
 
 - Always produce the complete reply with `mail reply-draft` before a reply send.

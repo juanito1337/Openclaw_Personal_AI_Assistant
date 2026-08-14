@@ -84,6 +84,13 @@ def add_commands(sub: Any) -> None:
     review_suggest.add_argument("--folder", required=True)
     review_suggest.add_argument("--message-id", required=True)
     review_suggest.add_argument("--expected-subject", required=True)
+    mail_folders = mail_sub.add_parser(
+        "folders", help="Konfigurierte Mailordner planen oder explizit anlegen"
+    )
+    folders_sub = mail_folders.add_subparsers(dest="folders_command", required=True)
+    folders_sub.add_parser("plan", help="Fehlende konfigurierte Ordner read-only anzeigen")
+    folders_apply = folders_sub.add_parser("apply", help="Fehlende konfigurierte Ordner anlegen")
+    folders_apply.add_argument("--yes", action="store_true")
     mail_dry = mail_sub.add_parser("dry-run")
     mail_dry.add_argument("--limit", type=int, default=20)
     mail_run = mail_sub.add_parser("run")
