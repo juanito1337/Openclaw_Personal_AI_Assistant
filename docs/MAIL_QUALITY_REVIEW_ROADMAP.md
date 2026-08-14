@@ -85,6 +85,10 @@ veraltet. Der Mail-Writer selbst ist aktiv und gesund.
 
 ## M9.0 – Baseline und Review-Taxonomie
 
+Umsetzungsstand: implementiert auf dem Entwicklungsbranch. Die Taxonomie liegt in
+`mail_agent/review.py`; Charakterisierungstests frieren die bisherigen
+Review-/Fehlerrouten ein, ohne Routing oder Persistenz zu veraendern.
+
 ### Scope
 
 - Die oben genannten Betriebswerte mit dokumentierten, registrierten Befehlen
@@ -105,6 +109,27 @@ veraltet. Der Mail-Writer selbst ist aktiv und gesund.
   werden.
 - Baseline-Befehle und ihre Datenschutzgrenzen sind dokumentiert.
 - Vollstaendiger Repository-Check bleibt gruen.
+
+### Reproduzierbare Baseline-Befehle
+
+Die produktiven Messwerte werden ausschliesslich ueber registrierte Werkzeuge in
+der Diagnose-Rolle gelesen. Die Befehle veraendern weder IMAP-Nachrichten noch
+Klassifikationsfeedback; `monitor status --live` kann ausschliesslich technische
+Monitoring-Telemetrie aktualisieren.
+
+```bash
+./scripts/assistant.sh mail status
+./scripts/assistant.sh mail learning status
+./scripts/assistant.sh mail learning evaluate --limit 5000
+./scripts/assistant.sh performance mail --limit 20
+./scripts/assistant.sh monitor status --days 7 --live
+```
+
+`mail learning evaluate` liest keine Bodies oder Anhaenge und gibt weder rohe
+Betreffe noch Absenderadressen aus. `mail status` kann dagegen operative
+Fehlermetadaten enthalten und darf deshalb nicht als CI-Artefakt oder oeffentliche
+Fixture gespeichert werden. Die Werte in der Baseline-Tabelle wurden nur
+aggregiert uebernommen.
 
 ### Arbeitsprompt
 

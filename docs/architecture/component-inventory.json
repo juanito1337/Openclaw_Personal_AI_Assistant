@@ -2,7 +2,7 @@
   "schema_version": 1,
   "inventory_date": "2026-08-06",
   "source_scope": "all Python modules, shell entrypoints, skills, systemd units, migrations and Markdown documents",
-  "component_count": 353,
+  "component_count": 355,
   "classification_values": [
     "active",
     "compatibility",
@@ -185,7 +185,7 @@
         "docs/archive/README.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-13T17:14:41+02:00",
+      "last_git_change": "2026-08-14T02:01:58+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1224,7 +1224,7 @@
         "docs/ROADMAP.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-08-14T02:01:58+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1409,7 +1409,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-06T15:45:31+02:00",
+      "last_git_change": "2026-08-14T02:01:58+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -2855,7 +2855,8 @@
         "tests/test_drain_mode.py",
         "tests/test_invoices_calendar_approval.py",
         "tests/test_mail_agent.py",
-        "tests/test_mail_quarantine_sources.py"
+        "tests/test_mail_quarantine_sources.py",
+        "tests/test_mail_review_m9.py"
       ],
       "documentation_evidence": [
         "docs/TESTING.md",
@@ -3067,6 +3068,7 @@
         "tests/test_m6_legacy_cleanup.py",
         "tests/test_mail_agent.py",
         "tests/test_mail_quarantine_sources.py",
+        "tests/test_mail_review_m9.py",
         "tests/test_not_spam_learning.py",
         "tests/test_portfolio_mapping.py",
         "tests/test_r261_ollama_reliability.py"
@@ -3330,6 +3332,7 @@
         "tests/test_mail_agent.py",
         "tests/test_mail_move_tool.py",
         "tests/test_mail_quarantine_sources.py",
+        "tests/test_mail_review_m9.py",
         "tests/test_mail_search_snapshot.py",
         "tests/test_not_spam_learning.py",
         "tests/test_parser_legacy_headers.py",
@@ -3429,6 +3432,7 @@
         "tests/test_learning_patterns.py",
         "tests/test_learning_quality.py",
         "tests/test_mail_agent.py",
+        "tests/test_mail_review_m9.py",
         "tests/test_not_spam_learning.py",
         "tests/test_parser_legacy_headers.py",
         "tests/test_r261_ollama_reliability.py"
@@ -3436,6 +3440,28 @@
       "documentation_evidence": [],
       "line_coverage_percent": 65.65,
       "last_git_change": "2026-08-06T15:45:31+02:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "mail_agent/review.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Mail Domain Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [
+        "tests/test_mail_review_m9.py"
+      ],
+      "documentation_evidence": [
+        "docs/MAIL_QUALITY_REVIEW_ROADMAP.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -5961,7 +5987,7 @@
         "docs/architecture/adr/0007-shared-sqlite-scheduler.md",
         "docs/architecture/state-access.json"
       ],
-      "line_coverage_percent": 84.24,
+      "line_coverage_percent": 85.1,
       "last_git_change": "2026-08-06T15:45:31+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -6046,6 +6072,7 @@
         "docs/INVOICE_OCR_REGISTER.md",
         "docs/JOB_CONTROL.md",
         "docs/MAIL_MOVE.md",
+        "docs/MAIL_QUALITY_REVIEW_ROADMAP.md",
         "docs/MONITORING.md",
         "docs/NEXTCLOUD.md",
         "docs/OLLAMA_PRIORITY.md",
@@ -8039,6 +8066,24 @@
       "documentation_evidence": [],
       "line_coverage_percent": null,
       "last_git_change": "2026-08-06T15:45:31+02:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "tests/test_mail_review_m9.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
