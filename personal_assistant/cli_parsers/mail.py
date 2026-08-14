@@ -69,6 +69,21 @@ def add_commands(sub: Any) -> None:
     mail_sub.add_parser("status")
     mail_sub.add_parser("doctor")
     mail_sub.add_parser("guide")
+    mail_review = mail_sub.add_parser(
+        "review", help="Review-Gruende und Einzelfaelle read-only untersuchen"
+    )
+    review_sub = mail_review.add_subparsers(dest="review_command", required=True)
+    review_status = review_sub.add_parser("status", help="Review-Gruende aggregiert anzeigen")
+    review_status.add_argument("--days", type=int, default=7)
+    review_list = review_sub.add_parser("list", help="Review-Metadaten nach Grund anzeigen")
+    review_list.add_argument("--reason", required=True)
+    review_list.add_argument("--limit", type=int, default=50)
+    review_suggest = review_sub.add_parser(
+        "suggest", help="Genau eine Mail read-only neu einschaetzen"
+    )
+    review_suggest.add_argument("--folder", required=True)
+    review_suggest.add_argument("--message-id", required=True)
+    review_suggest.add_argument("--expected-subject", required=True)
     mail_dry = mail_sub.add_parser("dry-run")
     mail_dry.add_argument("--limit", type=int, default=20)
     mail_run = mail_sub.add_parser("run")

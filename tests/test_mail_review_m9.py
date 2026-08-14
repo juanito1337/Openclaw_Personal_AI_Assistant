@@ -6,10 +6,17 @@ from pathlib import Path
 from unittest.mock import Mock
 
 from mail_agent.app import MailAgent
+from mail_agent.cli import build_parser as build_mail_parser
 from mail_agent.config import load_config
 from mail_agent.models import Classification, Envelope, OperationResult
 from mail_agent.parser import parse_eml
 from mail_agent.review import REVIEW_REASON_VALUES, ReviewReason, parse_review_reason
+from mail_agent.review_service import ReviewService
+from mail_agent.rules import RuleContext
+from mail_agent.storage import Storage
+from personal_assistant.cli import parser as build_assistant_parser
+from personal_assistant.tool_registry import build_tool_registry
+from personal_assistant.tool_settings import ToolSettings
 
 SAMPLE = b"""From: Service <service@example.test>\r
 To: Jan <jan@example.test>\r
@@ -140,3 +147,177 @@ class ExistingMailReviewRouteTests(unittest.TestCase):
         )
         result = self._route(Classification("appointment", 0.99, 8, True, "Termin"))
         self.assertEqual(result.destination, self.config.folders.error)
+
+
+class FakeReviewClient:
+    def __init__(self) -> None:
+        self.folders = ["INBOX", "Agent/Pruefen"]
+        self.envelope = Envelope(
+            "42",
+            "Statusinformation 1234",
+            "Service",
+            "service@example.test",
+            "2026-08-14",
+        )
+        self.export_calls: list[tuple[str, str]] = []
+        self.move_calls: list[tuple[str, str, str]] = []
+
+    def list_folders(self):
+        return list(self.folders), ""
+
+    def list_envelopes(self, folder, limit=200):
+        if folder == "Agent/Pruefen":
+            return [self.envelope][:limit], ""
+        return [], ""
+
+    def export_message(self, folder, message_id, destination):
+        self.export_calls.append((folder, message_id))
+        destination.write_bytes(SAMPLE)
+        return OperationResult(True, "exported", path=str(destination))
+
+    def move_message(self, source, destination, message_id):
+        self.move_calls.append((source, destination, message_id))
+        return OperationResult(True, "moved", destination=destination)
+
+
+class StaticReviewClassifier:
+    def __init__(self, result: Classification) -> None:
+        self.result = result
+        self.calls = 0
+
+    def classify(self, _message):
+        self.calls += 1
+        return self.result
+
+
+class StaticReviewRules:
+    def __init__(self, context: RuleContext | None = None) -> None:
+        self.context = context or RuleContext()
+
+    def evaluate(self, _message):
+        return self.context
+
+
+class ReviewReadOnlyToolTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temp = tempfile.TemporaryDirectory()
+        self.storage = Storage(Path(self.temp.name) / "mail.sqlite3")
+        self.message = parse_eml(SAMPLE, Envelope("42"), "Agent/Pruefen")
+        original = Classification("routine", 0.89, 3, False, "Knapp unter Schwelle", source="model")
+        self.storage.upsert_message(self.message, original, status="review")
+        self.storage.record_review(
+            self.message.stable_key,
+            ReviewReason.ROUTINE_BELOW_THRESHOLD,
+            original,
+            threshold=0.90,
+        )
+        self.client = FakeReviewClient()
+
+    def tearDown(self) -> None:
+        self.storage.close()
+        self.temp.cleanup()
+
+    def _service(
+        self,
+        classification: Classification | None = None,
+        context: RuleContext | None = None,
+    ) -> ReviewService:
+        return ReviewService(
+            self.storage,
+            StaticReviewRules(context),  # type: ignore[arg-type]
+            StaticReviewClassifier(  # type: ignore[arg-type]
+                classification
+                or Classification("routine", 0.97, 3, False, "Konsistentes Muster", source="feedback-pattern")
+            ),
+            self.client,  # type: ignore[arg-type]
+        )
+
+    def test_status_and_list_are_content_free_and_typed(self) -> None:
+        status = self._service().status(days=7)
+        self.assertEqual(status["reasons"], {"routine-below-threshold": 1})
+        self.assertEqual(status["confidence_bands"], {"0.70-0.89": 1})
+        self.assertNotIn("Statusinformation", str(status))
+        listed = self._service().list("routine-below-threshold", limit=50)
+        self.assertEqual(listed["messages"][0]["mailbox_id"], "42")
+        self.assertNotIn("body_text", listed["messages"][0])
+        self.assertNotIn("attachments", listed["messages"][0])
+        self.assertTrue(listed["complete"])
+        self.assertEqual(listed["folder_errors"], [])
+        with self.assertRaises(ValueError):
+            self._service().list("free-text", limit=50)
+
+    def test_suggestion_exposes_original_evidence_and_no_side_effects(self) -> None:
+        feedback_before = self.storage.connection.execute("SELECT COUNT(*) FROM feedback").fetchone()[0]
+        result = self._service(
+            context=RuleContext(
+                notes=["Gemischter Absender; keine automatische Entscheidung."],
+                prevent_spam=True,
+            )
+        ).suggest("Agent/Pruefen", "42", "Statusinformation 1234")
+        feedback_after = self.storage.connection.execute("SELECT COUNT(*) FROM feedback").fetchone()[0]
+        self.assertTrue(result["ok"])
+        self.assertTrue(result["read_only"])
+        self.assertEqual(result["original_decision"]["review_reason"], "routine-below-threshold")
+        self.assertEqual(result["current_decision"]["source"], "feedback-pattern")
+        self.assertTrue(result["uncertainty"]["conflict_or_mixed_sender"])
+        self.assertEqual(result["next_step"], "request-explicit-review-correction")
+        self.assertIsNone(result["next_tool"])
+        self.assertEqual(feedback_before, feedback_after)
+        self.assertEqual(self.client.move_calls, [])
+        self.assertEqual(self.client.export_calls, [("Agent/Pruefen", "42")])
+
+    def test_identity_guards_fail_before_classification(self) -> None:
+        service = self._service()
+        with self.assertRaises(ValueError):
+            service.suggest("NichtDa", "42", "Statusinformation 1234")
+        with self.assertRaises(ValueError):
+            service.suggest("Agent/Pruefen", "999", "Statusinformation 1234")
+        with self.assertRaises(PermissionError):
+            service.suggest("Agent/Pruefen", "42", "Falscher Betreff")
+        self.assertEqual(self.client.export_calls, [])
+
+    def test_model_timeout_fallback_abstains(self) -> None:
+        result = self._service(
+            Classification(
+                "uncertain",
+                0.0,
+                5,
+                False,
+                "Lokales Modell nicht verfuegbar; Timeout",
+                source="fallback",
+            )
+        ).suggest("Agent/Pruefen", "42", "Statusinformation 1234")
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["status"], "abstain")
+        self.assertTrue(result["uncertainty"]["model_failure"])
+
+    def test_cli_and_typed_catalog_expose_same_review_commands(self) -> None:
+        for argv in (
+            ["review", "status", "--days", "7"],
+            ["review", "list", "--reason", "unknown-legacy", "--limit", "10"],
+            [
+                "review",
+                "suggest",
+                "--folder",
+                "Agent/Pruefen",
+                "--message-id",
+                "42",
+                "--expected-subject",
+                "Statusinformation 1234",
+            ],
+        ):
+            parsed = build_mail_parser().parse_args(argv)
+            self.assertEqual(parsed.command, "review")
+        parsed_assistant = build_assistant_parser().parse_args(
+            ["mail", "review", "status", "--days", "7"]
+        )
+        self.assertEqual(parsed_assistant.review_command, "status")
+        settings = ToolSettings(path=Path(self.temp.name) / "tools.toml")
+        settings.mail.move.enabled = True
+        tools = {item.id: item for item in build_tool_registry(settings)}
+        self.assertEqual(
+            {"mail.review.status", "mail.review.list", "mail.review.suggest"} - tools.keys(),
+            set(),
+        )
+        self.assertEqual(tools["mail.review.suggest"].mode, "read")
+        self.assertFalse(tools["mail.review.suggest"].writes_external_data)

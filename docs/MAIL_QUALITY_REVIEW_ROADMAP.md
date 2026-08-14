@@ -186,6 +186,11 @@ Dokumentation und stoppe nach M9.1.
 
 ## M9.2 – Read-only Review-Diagnose und Vorschlaege
 
+Umsetzungsstand: implementiert auf dem Entwicklungsbranch. Drei typisierte
+Werkzeuge liefern inhaltsfreie Aggregate, begrenzte Review-Metadaten und eine
+exakt identifizierte read-only Neueinschaetzung. Bis M9.4 wird kein nicht
+registriertes Korrekturwerkzeug behauptet oder ausgefuehrt.
+
 ### Scope
 
 - Registrierte Werkzeuge einfuehren:

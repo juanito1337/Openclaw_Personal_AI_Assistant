@@ -108,6 +108,9 @@ den fuehrenden Launcher durch `/opt/openclaw-agent/scripts/assistant.sh` ersetze
 |---|---|---:|---|---|---|---|
 | `mail.status` | `read` | nein | `none` | `always` | `./scripts/assistant.sh mail status` | `tests/test_agent_tool_architecture.py` |
 | `mail.doctor` | `read` | nein | `none` | `always` | `./scripts/assistant.sh mail doctor` | `tests/test_agent_tool_architecture.py` |
+| `mail.review.status` | `read` | nein | `none` | `always` | `./scripts/assistant.sh mail review status --days 7` | `tests/test_mail_review_m9.py` |
+| `mail.review.list` | `read` | nein | `none` | `always` | `./scripts/assistant.sh mail review list --reason "<Grund>" --limit 50` | `tests/test_mail_review_m9.py` |
+| `mail.review.suggest` | `read` | nein | `none` | `mail-move` | `./scripts/assistant.sh mail review suggest --folder "<Ordner>" --message-id "<ID>" --expected-subject "<Betreff>"` | `tests/test_mail_review_m9.py` |
 | `mail.learning.status` | `read` | nein | `none` | `always` | `./scripts/assistant.sh mail learning status` | `tests/test_agent_tool_architecture.py` |
 | `mail.learning.feedback` | `read` | nein | `none` | `always` | `./scripts/assistant.sh mail learning feedback --limit 50` | `tests/test_agent_tool_architecture.py` |
 | `mail.learning.not-spam` | `read` | nein | `none` | `always` | `./scripts/assistant.sh mail learning not-spam --limit 100` | `tests/test_agent_tool_architecture.py` |

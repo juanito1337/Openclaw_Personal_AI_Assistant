@@ -27,6 +27,7 @@ from .models import Classification, Envelope, OperationResult, ParsedMessage
 from .nextcloud import NextcloudSkillClient
 from .notifier import Notifier
 from .parser import parse_eml
+from .review_service import ReviewService
 from .rules import RuleEngine
 from .search_snapshot import SearchSnapshotWriter
 from .storage import Storage
@@ -115,6 +116,7 @@ class MailAgent:
         self.classifier = OllamaClassifier(
             config, self.storage, self.rules, telemetry=self.telemetry
         )
+        self.review = ReviewService(self.storage, self.rules, self.classifier, self.himalaya)
         self.forwarder = Forwarder(config, self.himalaya)
         self.antivirus = HostAntivirus(self.tool_settings.security.antivirus)
         self.assistant_bridge = PersonalAssistantActionBridge(dry_run=dry_run)

@@ -553,6 +553,30 @@
   },
   {
     "approval": "none",
+    "command": "./scripts/assistant.sh mail review status --days 7",
+    "description": "Typisierte Review-Gruende, Quellen, Konfidenzbaender und Datenqualitaet ohne Mailinhalte aggregieren",
+    "id": "mail.review.status",
+    "mode": "read",
+    "writes_external_data": false
+  },
+  {
+    "approval": "none",
+    "command": "./scripts/assistant.sh mail review list --reason \"<Grund>\" --limit 50",
+    "description": "Aktuelle Review-Metadaten nach einem geschlossenen typisierten Grund auflisten; keine Bodies oder Anhaenge",
+    "id": "mail.review.list",
+    "mode": "read",
+    "writes_external_data": false
+  },
+  {
+    "approval": "none",
+    "command": "./scripts/assistant.sh mail review suggest --folder \"<Ordner>\" --message-id \"<ID>\" --expected-subject \"<Betreff>\"",
+    "description": "Eine exakt ausgewaehlte Review-Mail read-only neu klassifizieren und Evidenz, Unsicherheit sowie naechsten erlaubten Schritt anzeigen",
+    "id": "mail.review.suggest",
+    "mode": "read",
+    "writes_external_data": false
+  },
+  {
+    "approval": "none",
     "command": "./scripts/assistant.sh mail learning status",
     "description": "Korrekturlernen, gemischte Absender, Musterkonflikte und Lernordner anzeigen",
     "id": "mail.learning.status",

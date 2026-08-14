@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -466,6 +466,106 @@ class Storage:
             )
             if cursor.rowcount != 1:
                 raise KeyError(f"Mailzustand nicht gefunden: {stable_key}")
+
+    @staticmethod
+    def _review_confidence_band(value: float | int | None) -> str:
+        if value is None:
+            return "unknown"
+        confidence = float(value)
+        if confidence < 0.70:
+            return "0.00-0.69"
+        if confidence < 0.90:
+            return "0.70-0.89"
+        if confidence < 0.95:
+            return "0.90-0.94"
+        return "0.95-1.00"
+
+    def review_status(self, *, days: int = 7) -> dict[str, Any]:
+        """Return content-free aggregates for typed review decisions."""
+
+        bounded_days = max(1, min(int(days), 3650))
+        cutoff = (datetime.now(UTC) - timedelta(days=bounded_days)).isoformat(timespec="seconds")
+        rows = self.connection.execute(
+            """
+            SELECT review_reason, review_source, review_confidence,
+                   review_category, review_threshold
+            FROM messages
+            WHERE review_reason IS NOT NULL
+              AND review_reason != ''
+              AND COALESCE(review_captured_at, updated_at) >= ?
+            """,
+            (cutoff,),
+        ).fetchall()
+        reasons: dict[str, int] = {}
+        sources: dict[str, int] = {}
+        confidence_bands: dict[str, int] = {}
+        categories: dict[str, int] = {}
+        missing_snapshot = 0
+        for row in rows:
+            reason = parse_review_reason(str(row["review_reason"])).value
+            reasons[reason] = reasons.get(reason, 0) + 1
+            source = str(row["review_source"] or "unknown")
+            sources[source] = sources.get(source, 0) + 1
+            category = str(row["review_category"] or "unknown")
+            categories[category] = categories.get(category, 0) + 1
+            band = self._review_confidence_band(row["review_confidence"])
+            confidence_bands[band] = confidence_bands.get(band, 0) + 1
+            if row["review_confidence"] is None or not row["review_source"]:
+                missing_snapshot += 1
+        return {
+            "ok": True,
+            "read_only": True,
+            "days": bounded_days,
+            "cutoff": cutoff,
+            "count": len(rows),
+            "reasons": dict(sorted(reasons.items())),
+            "sources": dict(sorted(sources.items())),
+            "categories": dict(sorted(categories.items())),
+            "confidence_bands": dict(sorted(confidence_bands.items())),
+            "data_quality": {
+                "typed_reasons": len(rows),
+                "unknown_legacy": reasons.get(ReviewReason.UNKNOWN_LEGACY.value, 0),
+                "missing_original_snapshot": missing_snapshot,
+            },
+            "complete": True,
+            "folder_errors": [],
+            "results_may_be_truncated": False,
+        }
+
+    def review_items(self, reason: str | ReviewReason, *, limit: int = 50) -> dict[str, Any]:
+        """List bounded review metadata without bodies, attachments or free-text reasons."""
+
+        parsed_reason = parse_review_reason(reason)
+        bounded_limit = max(1, min(int(limit), 200))
+        total = int(
+            self.connection.execute(
+                "SELECT COUNT(*) FROM messages WHERE review_reason = ?",
+                (parsed_reason.value,),
+            ).fetchone()[0]
+        )
+        rows = self.connection.execute(
+            """
+            SELECT mailbox_id, last_folder, subject, sender_name, sender_addr,
+                   received_at, review_reason, review_category, review_confidence,
+                   review_source, review_threshold, review_captured_at
+            FROM messages
+            WHERE review_reason = ?
+            ORDER BY COALESCE(review_captured_at, updated_at) DESC, stable_key DESC
+            LIMIT ?
+            """,
+            (parsed_reason.value, bounded_limit),
+        ).fetchall()
+        return {
+            "ok": True,
+            "read_only": True,
+            "reason": parsed_reason.value,
+            "count": len(rows),
+            "total": total,
+            "messages": [dict(row) for row in rows],
+            "complete": True,
+            "folder_errors": [],
+            "results_may_be_truncated": total > len(rows),
+        }
 
     @staticmethod
     def _json_dict(value: Any) -> dict[str, Any]:

@@ -36,6 +36,21 @@ def run_external(args: argparse.Namespace) -> int:
         command += ["spam-review", "--limit", str(max(1, args.limit))]
         if args.dry_run:
             command.append("--dry-run")
+    elif args.mail_command == "review":
+        command += ["review", args.review_command]
+        if args.review_command == "status":
+            command += ["--days", str(max(1, args.days))]
+        elif args.review_command == "list":
+            command += ["--reason", args.reason, "--limit", str(max(1, args.limit))]
+        elif args.review_command == "suggest":
+            command += [
+                "--folder",
+                args.folder,
+                "--message-id",
+                args.message_id,
+                "--expected-subject",
+                args.expected_subject,
+            ]
     elif args.mail_command == "learning":
         command += ["training", args.learning_command]
         if args.learning_command in {"feedback", "not-spam", "mixed-senders", "conflicts", "evaluate"}:

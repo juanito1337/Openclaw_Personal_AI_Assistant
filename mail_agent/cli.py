@@ -104,6 +104,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("doctor", help="Himalaya, Ollama, Ordner, Kalender und Nextcloud pruefen")
     sub.add_parser("status", help="Lokalen Verarbeitungsstatus anzeigen")
+    review = sub.add_parser("review", help="Review-Gruende und Einzelfaelle read-only untersuchen")
+    review_sub = review.add_subparsers(dest="review_command", required=True)
+    review_status = review_sub.add_parser("status", help="Review-Gruende aggregiert anzeigen")
+    review_status.add_argument("--days", type=int, default=7)
+    review_list = review_sub.add_parser("list", help="Review-Metadaten nach typisiertem Grund anzeigen")
+    review_list.add_argument("--reason", required=True)
+    review_list.add_argument("--limit", type=int, default=50)
+    review_suggest = review_sub.add_parser(
+        "suggest", help="Genau eine Mail read-only und evidenzbasiert neu einschaetzen"
+    )
+    review_suggest.add_argument("--folder", required=True)
+    review_suggest.add_argument("--message-id", required=True)
+    review_suggest.add_argument("--expected-subject", required=True)
     performance = sub.add_parser("performance", help="Privacy-sichere Laufzeitmessungen anzeigen")
     performance.add_argument("--limit", type=int, default=20, help="Anzahl der letzten Laeufe (1-500)")
     performance.add_argument("--raw", action="store_true", help="Unverdichtete Telemetrie-Datensaetze anzeigen")
@@ -1204,6 +1217,27 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "status":
             print(json.dumps(agent.status(), indent=2, ensure_ascii=False))
             return 0
+        if args.command == "review":
+            try:
+                if args.review_command == "status":
+                    result = agent.review.status(days=args.days)
+                elif args.review_command == "list":
+                    result = agent.review.list(args.reason, limit=args.limit)
+                elif args.review_command == "suggest":
+                    if not agent.tool_settings.mail.move.enabled:
+                        raise PermissionError("Direktes Mail-Lesewerkzeug ist deaktiviert")
+                    result = agent.review.suggest(
+                        args.folder,
+                        args.message_id,
+                        args.expected_subject,
+                    )
+                else:
+                    raise ValueError(f"Unbekannter Review-Befehl: {args.review_command}")
+            except (ValueError, KeyError, PermissionError, RuntimeError) as exc:
+                print(json.dumps({"ok": False, "error": str(exc)}, indent=2, ensure_ascii=False))
+                return 2
+            print(json.dumps(result, indent=2, ensure_ascii=False))
+            return 0 if result.get("ok") else 1
     finally:
         agent.close()
     return 0
