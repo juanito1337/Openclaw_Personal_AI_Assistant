@@ -12,6 +12,7 @@ from typing import Any
 from mail_agent.command import CommandRunner
 from mail_agent.config import load_config as load_mail_config
 from mail_agent.himalaya import HimalayaClient
+from mail_agent.learning import LearningFolderRegistry
 from mail_agent.models import Envelope, ParsedMessage
 from mail_agent.parser import parse_eml
 from mail_agent.utils import clean_single_line
@@ -555,7 +556,218 @@ class MailMoveService:
             "action": asdict(completed),
         }
 
+    def review_correct(
+        self,
+        *,
+        source: str,
+        message_id: str,
+        expected_subject: str,
+        verdict: str,
+        label: str = "",
+        approved: bool = False,
+    ) -> dict[str, Any]:
+        """Move exactly one review mail to an allowlisted correction folder."""
+
+        if not approved:
+            raise PermissionError("Review-Korrektur erfordert die ausdrueckliche Freigabe --yes")
+        if not self.settings.enabled:
+            raise PermissionError("Direktes Mail-Werkzeug ist deaktiviert")
+        selected_id = str(message_id or "").strip()
+        selected_subject = str(expected_subject or "").strip()
+        selected_verdict = str(verdict or "").strip().casefold()
+        if not selected_id or not selected_subject:
+            raise ValueError("Mailbox-ID und erwarteter Betreff sind erforderlich")
+        destination_fields = {
+            "relevant": "feedback_important",
+            "routine": "feedback_unimportant",
+            "spam": "feedback_spam",
+        }
+        if selected_verdict not in destination_fields:
+            raise ValueError("Urteil muss relevant, routine oder spam sein")
+
+        client = self._client()
+        config = getattr(client, "config", None)
+        if config is None or not hasattr(config, "folders"):
+            config = load_mail_config()
+        configured_source = str(config.folders.review).strip()
+        if source.strip().casefold() != configured_source.casefold():
+            raise PermissionError(
+                "Review-Korrektur ist nur aus dem konfigurierten allgemeinen Review-Ordner erlaubt"
+            )
+        destination = str(
+            getattr(config.folders, destination_fields[selected_verdict])
+        ).strip()
+        selected_label = str(label or "").strip().casefold()
+        if selected_label:
+            matches = [
+                item
+                for item in LearningFolderRegistry(config).list(active_only=True)
+                if item.verdict == selected_verdict and item.label.casefold() == selected_label
+            ]
+            if len(matches) != 1:
+                raise ValueError(
+                    "Label ist fuer dieses Urteil nicht eindeutig als aktiver Korrekturordner registriert"
+                )
+            destination = matches[0].folder
+
+        folders, error = client.list_folders()
+        if error:
+            raise RuntimeError(error)
+        folder_map = self._folder_map(folders)
+        source_real = folder_map.get(configured_source.casefold())
+        destination_real = folder_map.get(destination.casefold())
+        if not source_real:
+            raise ValueError(f"Review-Quellordner nicht gefunden: {configured_source}")
+        if not destination_real:
+            raise ValueError(f"Korrektur-Zielordner nicht gefunden: {destination}")
+
+        decision = self.policy.decide(
+            self.settings.resource_id,
+            "mail.move",
+            {
+                "source": source_real,
+                "destination": destination_real,
+                "message_id": selected_id,
+                "review_correction": True,
+                "verdict": selected_verdict,
+            },
+        )
+        if not decision.allowed:
+            raise PermissionError(decision.reason)
+        key = self._review_correction_key(
+            source_real,
+            destination_real,
+            selected_id,
+            selected_subject,
+            selected_verdict,
+        )
+        envelopes, error = client.list_envelopes(source_real, limit=200)
+        if error:
+            raise RuntimeError(error)
+        envelope = next((item for item in envelopes if str(item.mailbox_id) == selected_id), None)
+        if envelope is None:
+            previous = next(
+                (
+                    item
+                    for item in self.storage.list_actions(limit=200)
+                    if item.idempotency_key == key
+                ),
+                None,
+            )
+            if previous is not None and previous.status == "completed":
+                return {
+                    "ok": True,
+                    "duplicate": True,
+                    "source": source_real,
+                    "destination": destination_real,
+                    "message_id": selected_id,
+                    "verdict": selected_verdict,
+                    "action": asdict(previous),
+                }
+            if previous is not None and previous.status == "failed":
+                return {
+                    "ok": False,
+                    "duplicate": True,
+                    "retry_blocked": True,
+                    "detail": previous.error or "Vorheriger Move ist fehlgeschlagen oder unklar",
+                    "action": asdict(previous),
+                }
+            raise ValueError("Mail-ID wurde im angegebenen Review-Ordner nicht gefunden")
+        if envelope.subject.strip() != selected_subject:
+            raise PermissionError("Betreff stimmt nicht mit der erwarteten Mail ueberein")
+
+        payload = {
+            "source": source_real,
+            "destination": destination_real,
+            "message_id": selected_id,
+            "subject": envelope.subject,
+            "verdict": selected_verdict,
+            "label": selected_label,
+            "review_correction": True,
+        }
+        plan = self.storage.create_action(
+            idempotency_key=key,
+            action_type="mail.review.correct",
+            resource_id=self.settings.resource_id,
+            payload=payload,
+            requires_approval=True,
+        )
+        if plan.status == "completed":
+            return {
+                "ok": True,
+                "duplicate": True,
+                **payload,
+                "action": asdict(plan),
+            }
+        if plan.status == "failed":
+            return {
+                "ok": False,
+                "duplicate": True,
+                "retry_blocked": True,
+                "detail": plan.error,
+                "action": asdict(plan),
+            }
+        if plan.status != "proposed" or not plan.requires_approval:
+            raise PermissionError(f"Review-Korrektur ist nicht freigabefaehig: {plan.status}")
+        plan = self.storage.update_action(plan.id, "approved")
+        self.storage.audit(
+            "mail.review.correct.approved",
+            {"id": plan.id, "verdict": selected_verdict},
+            resource_id=plan.resource_id,
+            actor="user",
+        )
+        result = client.move_message(source_real, destination_real, selected_id)
+        if not result.ok:
+            failed = self.storage.update_action(plan.id, "failed", result.detail or result.status)
+            self.storage.audit(
+                "mail.review.correct.failed",
+                {"id": plan.id, "status": result.status},
+                resource_id=plan.resource_id,
+            )
+            return {
+                "ok": False,
+                "duplicate": False,
+                "retry_blocked": True,
+                "uncertain": result.status in {"delivery-uncertain", "move-uncertain"},
+                "detail": result.detail or result.status,
+                "action": asdict(failed),
+            }
+        completed = self.storage.update_action(plan.id, "completed")
+        self.storage.audit(
+            "mail.review.correct.completed",
+            payload,
+            resource_id=plan.resource_id,
+            actor="user",
+        )
+        return {
+            "ok": True,
+            "duplicate": False,
+            **payload,
+            "action": asdict(completed),
+            "feedback_recorded": False,
+            "feedback_contract": "next-mail-worker-run-from-correction-folder",
+        }
+
     @staticmethod
     def _key(source: str, destination: str, message_id: str, subject: str) -> str:
         material = "\0".join((source.casefold(), destination.casefold(), str(message_id), subject.strip()))
         return "mail-move:" + hashlib.sha256(material.encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _review_correction_key(
+        source: str,
+        destination: str,
+        message_id: str,
+        subject: str,
+        verdict: str,
+    ) -> str:
+        material = "\0".join(
+            (
+                source.casefold(),
+                destination.casefold(),
+                str(message_id),
+                subject.strip(),
+                verdict,
+            )
+        )
+        return "mail-review-correct:" + hashlib.sha256(material.encode("utf-8")).hexdigest()

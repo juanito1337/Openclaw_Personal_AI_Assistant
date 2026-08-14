@@ -469,7 +469,16 @@ def main(argv: list[str] | None = None) -> int:
         "compose-send",
         "move",
     }
-    if args.command == "mail" and args.mail_command not in direct_mail_commands:
+    direct_review_correction = bool(
+        args.command == "mail"
+        and args.mail_command == "review"
+        and getattr(args, "review_command", "") == "correct"
+    )
+    if (
+        args.command == "mail"
+        and args.mail_command not in direct_mail_commands
+        and not direct_review_correction
+    ):
         return run_mail_external(args)
 
     if args.command == "setup" and args.setup_command == "nextcloud":

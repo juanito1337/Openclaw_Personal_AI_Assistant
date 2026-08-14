@@ -188,8 +188,8 @@ Dokumentation und stoppe nach M9.1.
 
 Umsetzungsstand: implementiert auf dem Entwicklungsbranch. Drei typisierte
 Werkzeuge liefern inhaltsfreie Aggregate, begrenzte Review-Metadaten und eine
-exakt identifizierte read-only Neueinschaetzung. Bis M9.4 wird kein nicht
-registriertes Korrekturwerkzeug behauptet oder ausgefuehrt.
+exakt identifizierte read-only Neueinschaetzung. Das in M9.4 registrierte
+Korrekturwerkzeug bleibt ein davon getrennter, explizit freizugebender Schritt.
 
 ### Scope
 
@@ -271,6 +271,12 @@ Dokumentiere den spaeteren expliziten Aktivierungsschritt und stoppe nach M9.3.
 ```
 
 ## M9.4 – Explizite Einzelkorrektur aus Review
+
+Umsetzungsstand: implementiert auf dem Entwicklungsbranch. Das Werkzeug akzeptiert
+genau eine aktuelle Mail aus dem konfigurierten allgemeinen Review-Ordner, leitet
+das Ziel ausschliesslich aus dem typisierten Urteil und optional einem bereits
+aktiven Label ab und blockiert fehlgeschlagene oder unklare Moves gegen
+automatische Wiederholung.
 
 ### Scope
 

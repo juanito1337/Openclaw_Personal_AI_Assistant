@@ -50,3 +50,22 @@ class MailApplicationMixin:
             expected_subject=expected_subject,
             dry_run=dry_run,
         )
+
+    def mail_correct_review(
+        self,
+        *,
+        source: str,
+        message_id: str,
+        expected_subject: str,
+        verdict: str,
+        label: str = "",
+        approved: bool = False,
+    ) -> dict[str, Any]:
+        return self.mail_move_service.review_correct(
+            source=source,
+            message_id=message_id,
+            expected_subject=expected_subject,
+            verdict=verdict,
+            label=label,
+            approved=approved,
+        )

@@ -84,6 +84,15 @@ def add_commands(sub: Any) -> None:
     review_suggest.add_argument("--folder", required=True)
     review_suggest.add_argument("--message-id", required=True)
     review_suggest.add_argument("--expected-subject", required=True)
+    review_correct = review_sub.add_parser(
+        "correct", help="Genau eine Review-Mail nach ausdruecklicher Freigabe korrigieren"
+    )
+    review_correct.add_argument("--source", required=True)
+    review_correct.add_argument("--message-id", required=True)
+    review_correct.add_argument("--expected-subject", required=True)
+    review_correct.add_argument("--verdict", required=True, choices=("relevant", "routine", "spam"))
+    review_correct.add_argument("--label", default="")
+    review_correct.add_argument("--yes", action="store_true")
     mail_folders = mail_sub.add_parser(
         "folders", help="Konfigurierte Mailordner planen oder explizit anlegen"
     )

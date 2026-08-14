@@ -64,6 +64,18 @@ TOOLS: tuple[ToolDefinition, ...] = (
         test_anchor="tests/test_mail_review_m9.py",
     ),
     define(
+        id="mail.review.correct",
+        domain="mail",
+        description="Genau eine exakt ausgewaehlte Mail aus dem allgemeinen Review-Ordner nach ausdruecklicher Freigabe in einen allowlisteten Korrekturordner bewegen",
+        command='./scripts/assistant.sh mail review correct --source "Agent/Pruefen" --message-id "<ID>" --expected-subject "<Betreff>" --verdict "<relevant|routine|spam>" --yes',
+        mode="write",
+        writes_external_data=True,
+        approval="explicit-user-review-correction",
+        availability="mail-move",
+        documentation_anchor="skills/personal-assistant/references/mail.md",
+        test_anchor="tests/test_mail_review_m9.py",
+    ),
+    define(
         id="mail.folders.plan",
         domain="mail",
         description="Konfigurierte und fehlende Agent-Mailordner einschliesslich der expliziten Relevant-Aktivierung read-only anzeigen",

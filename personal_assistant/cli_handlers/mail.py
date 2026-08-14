@@ -83,7 +83,16 @@ def run_external(args: argparse.Namespace) -> int:
 
 def handle(args: argparse.Namespace, assistant: Any, emit: Callable[[Any], None]) -> int:
     command = args.mail_command
-    if command == "move-status":
+    if command == "review" and args.review_command == "correct":
+        result = assistant.mail_correct_review(
+            source=args.source,
+            message_id=args.message_id,
+            expected_subject=args.expected_subject,
+            verdict=args.verdict,
+            label=args.label,
+            approved=args.yes,
+        )
+    elif command == "move-status":
         result = assistant.mail_move_status()
     elif command == "list":
         result = assistant.mail_list_messages(args.folder, limit=args.limit)

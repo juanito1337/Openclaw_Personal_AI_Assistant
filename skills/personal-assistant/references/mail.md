@@ -31,9 +31,13 @@ reports the immutable original decision, current evidence and uncertainty, and
 must abstain after a model failure. It never stores feedback, moves or sends mail.
 
 Always inspect `complete`, `folder_errors` and `results_may_be_truncated`. A
-suggestion is not approval for a correction. Until the dedicated correction tool
-is registered, report the proposed correction to Jan without attempting a generic
-move or editing the database.
+suggestion is not approval for a correction. Present the exact source, mailbox ID,
+subject, verdict and optional already registered label. Only after Jan explicitly
+approves that unchanged single correction may `mail review correct ... --yes` run.
+Its source is the configured general review folder and its destination is derived
+from `relevant`, `routine` or `spam`; there is no free target, bulk or delete mode.
+Feedback is captured later by the mail worker from the correction folder, never
+claimed by the move itself. A failed or uncertain move is not retried automatically.
 
 Safe relevant mail that does not satisfy the forwarding gate belongs in the
 configured `folders.relevant` target (normally `Agent/Relevant`), not in the

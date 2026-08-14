@@ -165,7 +165,7 @@ class BatchClassifierTests(unittest.TestCase):
         finally:
             agent.close()
 
-        self.assertEqual(summary.processed, 5)
+        self.assertEqual(summary.processed, 5, summary.to_dict())
         self.assertEqual(summary.errors, [])
         self.assertEqual(summary.classifier["batch_requests"], 1)
         self.assertEqual(summary.classifier["single_requests"], 0)

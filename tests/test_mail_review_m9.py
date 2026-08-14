@@ -13,6 +13,7 @@ from mail_agent.cli import (
     build_parser as build_mail_parser,
 )
 from mail_agent.config import load_config
+from mail_agent.learning import LearningFolderRegistry
 from mail_agent.models import Classification, Envelope, OperationResult
 from mail_agent.parser import parse_eml
 from mail_agent.review import REVIEW_REASON_VALUES, ReviewReason, parse_review_reason
@@ -20,8 +21,13 @@ from mail_agent.review_service import ReviewService
 from mail_agent.rules import RuleContext
 from mail_agent.storage import Storage
 from personal_assistant.cli import parser as build_assistant_parser
+from personal_assistant.mail_move import MailMoveService
+from personal_assistant.models import Resource
+from personal_assistant.policy import PolicyEngine
+from personal_assistant.registry import ResourceRegistry
+from personal_assistant.storage import AssistantStorage
 from personal_assistant.tool_registry import build_tool_registry
-from personal_assistant.tool_settings import ToolSettings
+from personal_assistant.tool_settings import MailMoveToolSettings, ToolSettings
 
 SAMPLE = b"""From: Service <service@example.test>\r
 To: Jan <jan@example.test>\r
@@ -306,10 +312,71 @@ class StaticReviewRules:
         return self.context
 
 
+class FakeCorrectionClient:
+    def __init__(self, config) -> None:
+        self.config = config
+        self.folders = [config.mailbox.source_folder, *config.folders.all()]
+        self.messages = {
+            config.folders.review: [
+                Envelope(
+                    "42",
+                    "Statusinformation 1234",
+                    "Service",
+                    "service@example.test",
+                    "2026-08-14",
+                )
+            ]
+        }
+        self.move_calls: list[tuple[str, str, str]] = []
+        self.move_result = OperationResult(True, "moved")
+        self.list_error = ""
+
+    def list_folders(self):
+        return list(self.folders), ""
+
+    def list_envelopes(self, folder, limit=200):
+        return list(self.messages.get(folder, []))[:limit], self.list_error
+
+    def move_message(self, source, destination, message_id):
+        self.move_calls.append((source, destination, message_id))
+        if not self.move_result.ok:
+            return self.move_result
+        envelope = next(
+            (item for item in self.messages.get(source, []) if item.mailbox_id == message_id),
+            None,
+        )
+        if envelope is None:
+            return OperationResult(False, "move-failed", "missing")
+        self.messages[source].remove(envelope)
+        self.messages.setdefault(destination, []).append(envelope)
+        return OperationResult(True, "moved", destination=destination)
+
+
 class ReviewReadOnlyToolTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
-        self.storage = Storage(Path(self.temp.name) / "mail.sqlite3")
+        root = Path(self.temp.name)
+        source = Path(__file__).parents[1] / "mail_agent/config.example.toml"
+        config_text = source.read_text(encoding="utf-8")
+        config_text = config_text.replace("mail_agent/data/", str(root / "data") + "/")
+        config_text = config_text.replace(
+            'rules_file = "mail_agent/rules.toml"',
+            f'rules_file = "{root / "rules.toml"}"',
+        )
+        config_text = config_text.replace(
+            'learning_folders_file = "mail_agent/learning_folders.json"',
+            f'learning_folders_file = "{root / "learning_folders.json"}"',
+        )
+        config_path = root / "config.toml"
+        config_path.write_text(config_text, encoding="utf-8")
+        (root / "rules.toml").write_text(
+            "[spam]\naddresses=[]\ndomains=[]\nsender_names=[]\nsubject_phrases=[]\n"
+            "[important]\naddresses=[]\ndomains=[]\n"
+            "[routine]\naddresses=[]\ndomains=[]\n",
+            encoding="utf-8",
+        )
+        self.config = load_config(config_path)
+        self.storage = Storage(self.config.runtime.database)
         self.message = parse_eml(SAMPLE, Envelope("42"), "Agent/Pruefen")
         original = Classification("routine", 0.89, 3, False, "Knapp unter Schwelle", source="model")
         self.storage.upsert_message(self.message, original, status="review")
@@ -340,6 +407,26 @@ class ReviewReadOnlyToolTests(unittest.TestCase):
             self.client,  # type: ignore[arg-type]
         )
 
+    def _correction_service(self):
+        registry = ResourceRegistry(Path(self.temp.name) / "resources.toml")
+        registry.resources["mail-agent"] = Resource(
+            id="mail-agent",
+            kind="tool",
+            connector="local",
+            permissions=("read", "move"),
+        )
+        assistant_storage = AssistantStorage(Path(self.temp.name) / "assistant.sqlite3")
+        policy = PolicyEngine(Path(self.temp.name) / "policies.toml", registry)
+        client = FakeCorrectionClient(self.config)
+        service = MailMoveService(
+            MailMoveToolSettings(enabled=True),
+            registry,
+            policy,
+            assistant_storage,
+            client,  # type: ignore[arg-type]
+        )
+        return service, assistant_storage, client
+
     def test_status_and_list_are_content_free_and_typed(self) -> None:
         status = self._service().status(days=7)
         self.assertEqual(status["reasons"], {"routine-below-threshold": 1})
@@ -369,7 +456,7 @@ class ReviewReadOnlyToolTests(unittest.TestCase):
         self.assertEqual(result["current_decision"]["source"], "feedback-pattern")
         self.assertTrue(result["uncertainty"]["conflict_or_mixed_sender"])
         self.assertEqual(result["next_step"], "request-explicit-review-correction")
-        self.assertIsNone(result["next_tool"])
+        self.assertEqual(result["next_tool"], "mail.review.correct")
         self.assertEqual(feedback_before, feedback_after)
         self.assertEqual(self.client.move_calls, [])
         self.assertEqual(self.client.export_calls, [("Agent/Pruefen", "42")])
@@ -399,6 +486,143 @@ class ReviewReadOnlyToolTests(unittest.TestCase):
         self.assertEqual(result["status"], "abstain")
         self.assertTrue(result["uncertainty"]["model_failure"])
 
+    def test_review_correction_requires_exact_identity_source_verdict_and_approval(self) -> None:
+        service, assistant_storage, client = self._correction_service()
+        try:
+            base = {
+                "source": self.config.folders.review,
+                "message_id": "42",
+                "expected_subject": "Statusinformation 1234",
+                "verdict": "routine",
+            }
+            with self.assertRaises(PermissionError):
+                service.review_correct(**base)
+            with self.assertRaises(PermissionError):
+                service.review_correct(**{**base, "source": "INBOX"}, approved=True)
+            with self.assertRaises(PermissionError):
+                service.review_correct(**{**base, "expected_subject": "Falsch"}, approved=True)
+            with self.assertRaises(ValueError):
+                service.review_correct(**{**base, "verdict": "not_spam"}, approved=True)
+            with self.assertRaises(ValueError):
+                service.review_correct(**base, label="frei-erfunden", approved=True)
+            with self.assertRaises(ValueError):
+                service.review_correct(**{**base, "message_id": "999"}, approved=True)
+            with self.assertRaises(PermissionError):
+                service.move(
+                    source=self.config.folders.review,
+                    destination=self.config.folders.feedback_unimportant,
+                    message_id="42",
+                    expected_subject="Statusinformation 1234",
+                )
+            self.assertEqual(client.move_calls, [])
+        finally:
+            assistant_storage.close()
+
+    def test_review_correction_moves_once_then_worker_records_feedback_once(self) -> None:
+        service, assistant_storage, client = self._correction_service()
+        try:
+            arguments = {
+                "source": self.config.folders.review,
+                "message_id": "42",
+                "expected_subject": "Statusinformation 1234",
+                "verdict": "routine",
+                "approved": True,
+            }
+            result = service.review_correct(**arguments)
+            self.assertTrue(result["ok"])
+            self.assertFalse(result["feedback_recorded"])
+            repeated = service.review_correct(**arguments)
+            self.assertTrue(repeated["duplicate"])
+            self.assertEqual(len(client.move_calls), 1)
+
+            agent = object.__new__(MailAgent)
+            agent.config = self.config
+            agent.storage = self.storage
+            agent.himalaya = client
+            agent.learning_folders = LearningFolderRegistry(self.config)
+            agent.dry_run = False
+            agent.telemetry = None
+            agent.log = Mock()
+            agent._load_message = (  # type: ignore[method-assign]
+                lambda folder, envelope, _summary: parse_eml(SAMPLE, envelope, folder)
+            )
+            agent._route = (  # type: ignore[method-assign]
+                lambda message, _classification, folder, force=False: client.move_message(
+                    folder,
+                    self.config.folders.routine,
+                    message.mailbox_id,
+                )
+            )
+            summary = RunSummary()
+            agent._process_feedback(summary, limit=10)
+            agent._process_feedback(RunSummary(), limit=10)
+            count = self.storage.connection.execute(
+                "SELECT COUNT(*) FROM feedback WHERE stable_key = ? AND verdict = 'routine'",
+                (self.message.stable_key,),
+            ).fetchone()[0]
+            self.assertEqual(count, 1)
+        finally:
+            assistant_storage.close()
+
+    def test_uncertain_move_is_not_reported_successful_or_retried(self) -> None:
+        service, assistant_storage, client = self._correction_service()
+        client.move_result = OperationResult(False, "move-uncertain", "Serverstatus unklar")
+        try:
+            arguments = {
+                "source": self.config.folders.review,
+                "message_id": "42",
+                "expected_subject": "Statusinformation 1234",
+                "verdict": "spam",
+                "approved": True,
+            }
+            result = service.review_correct(**arguments)
+            self.assertFalse(result["ok"])
+            self.assertTrue(result["uncertain"])
+            repeated = service.review_correct(**arguments)
+            self.assertFalse(repeated["ok"])
+            self.assertTrue(repeated["retry_blocked"])
+            self.assertEqual(len(client.move_calls), 1)
+        finally:
+            assistant_storage.close()
+
+    def test_imap_list_error_blocks_review_correction(self) -> None:
+        service, assistant_storage, client = self._correction_service()
+        client.list_error = "IMAP-Liste fehlgeschlagen"
+        try:
+            with self.assertRaisesRegex(RuntimeError, "IMAP-Liste"):
+                service.review_correct(
+                    source=self.config.folders.review,
+                    message_id="42",
+                    expected_subject="Statusinformation 1234",
+                    verdict="routine",
+                    approved=True,
+                )
+            self.assertEqual(client.move_calls, [])
+        finally:
+            assistant_storage.close()
+
+    def test_optional_label_can_only_select_registered_active_folder(self) -> None:
+        item = LearningFolderRegistry(self.config).create(
+            parent="routine",
+            name="Bestellungen",
+            label="orders",
+        )
+        service, assistant_storage, client = self._correction_service()
+        client.folders.append(item.folder)
+        try:
+            result = service.review_correct(
+                source=self.config.folders.review,
+                message_id="42",
+                expected_subject="Statusinformation 1234",
+                verdict="routine",
+                label="orders",
+                approved=True,
+            )
+            self.assertTrue(result["ok"])
+            self.assertEqual(result["destination"], item.folder)
+        finally:
+            assistant_storage.close()
+
     def test_cli_and_typed_catalog_expose_same_review_commands(self) -> None:
         for argv in (
             ["review", "status", "--days", "7"],
@@ -422,6 +646,23 @@ class ReviewReadOnlyToolTests(unittest.TestCase):
         self.assertEqual(parsed_assistant.review_command, "status")
         folder_plan = build_assistant_parser().parse_args(["mail", "folders", "plan"])
         self.assertEqual(folder_plan.folders_command, "plan")
+        correction = build_assistant_parser().parse_args(
+            [
+                "mail",
+                "review",
+                "correct",
+                "--source",
+                "Agent/Pruefen",
+                "--message-id",
+                "42",
+                "--expected-subject",
+                "Statusinformation 1234",
+                "--verdict",
+                "routine",
+                "--yes",
+            ]
+        )
+        self.assertTrue(correction.yes)
         settings = ToolSettings(path=Path(self.temp.name) / "tools.toml")
         settings.mail.move.enabled = True
         tools = {item.id: item for item in build_tool_registry(settings)}
@@ -430,6 +671,7 @@ class ReviewReadOnlyToolTests(unittest.TestCase):
                 "mail.review.status",
                 "mail.review.list",
                 "mail.review.suggest",
+                "mail.review.correct",
                 "mail.folders.plan",
                 "mail.folders.apply",
             }
@@ -438,5 +680,6 @@ class ReviewReadOnlyToolTests(unittest.TestCase):
         )
         self.assertEqual(tools["mail.review.suggest"].mode, "read")
         self.assertFalse(tools["mail.review.suggest"].writes_external_data)
+        self.assertEqual(tools["mail.review.correct"].approval, "explicit-user-review-correction")
         self.assertEqual(tools["mail.folders.apply"].mode, "write")
         self.assertTrue(tools["mail.folders.apply"].writes_external_data)

@@ -133,6 +133,6 @@ class ReviewService:
             "results_may_be_truncated": False,
             "approval_required": True,
             "next_step": "request-explicit-review-correction",
-            "next_tool": None,
-            "correction_available": False,
+            "next_tool": "mail.review.correct",
+            "correction_available": True,
         }

@@ -576,6 +576,14 @@
     "writes_external_data": false
   },
   {
+    "approval": "explicit-user-review-correction",
+    "command": "./scripts/assistant.sh mail review correct --source \"Agent/Pruefen\" --message-id \"<ID>\" --expected-subject \"<Betreff>\" --verdict \"<relevant|routine|spam>\" --yes",
+    "description": "Genau eine exakt ausgewaehlte Mail aus dem allgemeinen Review-Ordner nach ausdruecklicher Freigabe in einen allowlisteten Korrekturordner bewegen",
+    "id": "mail.review.correct",
+    "mode": "write",
+    "writes_external_data": true
+  },
+  {
     "approval": "none",
     "command": "./scripts/assistant.sh mail folders plan",
     "description": "Konfigurierte und fehlende Agent-Mailordner einschliesslich der expliziten Relevant-Aktivierung read-only anzeigen",

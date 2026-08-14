@@ -111,6 +111,7 @@ den fuehrenden Launcher durch `/opt/openclaw-agent/scripts/assistant.sh` ersetze
 | `mail.review.status` | `read` | nein | `none` | `always` | `./scripts/assistant.sh mail review status --days 7` | `tests/test_mail_review_m9.py` |
 | `mail.review.list` | `read` | nein | `none` | `always` | `./scripts/assistant.sh mail review list --reason "<Grund>" --limit 50` | `tests/test_mail_review_m9.py` |
 | `mail.review.suggest` | `read` | nein | `none` | `mail-move` | `./scripts/assistant.sh mail review suggest --folder "<Ordner>" --message-id "<ID>" --expected-subject "<Betreff>"` | `tests/test_mail_review_m9.py` |
+| `mail.review.correct` | `write` | ja | `explicit-user-review-correction` | `mail-move` | `./scripts/assistant.sh mail review correct --source "Agent/Pruefen" --message-id "<ID>" --expected-subject "<Betreff>" --verdict "<relevant\|routine\|spam>" --yes` | `tests/test_mail_review_m9.py` |
 | `mail.folders.plan` | `read` | nein | `none` | `always` | `./scripts/assistant.sh mail folders plan` | `tests/test_mail_review_m9.py` |
 | `mail.folders.apply` | `write` | ja | `explicit-user-create-configured-mail-folders` | `always` | `./scripts/assistant.sh mail folders apply --yes` | `tests/test_mail_review_m9.py` |
 | `mail.learning.status` | `read` | nein | `none` | `always` | `./scripts/assistant.sh mail learning status` | `tests/test_agent_tool_architecture.py` |
