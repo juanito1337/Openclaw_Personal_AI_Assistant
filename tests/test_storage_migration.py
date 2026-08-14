@@ -54,6 +54,7 @@ class StorageMigrationTests(unittest.TestCase):
                 self.assertTrue(
                     {
                         "subject_pattern", "correction_folder", "label", "feature_json",
+                        "pattern_version",
                         "original_category", "original_confidence", "original_reason",
                         "original_source", "original_rule_decision",
                         "original_classification_json", "original_captured_at",
@@ -71,10 +72,12 @@ class StorageMigrationTests(unittest.TestCase):
                     } <= message_columns
                 )
                 row = storage.connection.execute(
-                    "SELECT subject_pattern, correction_folder FROM feedback WHERE stable_key=?",
+                    "SELECT subject_pattern, pattern_version, correction_folder "
+                    "FROM feedback WHERE stable_key=?",
                     ("legacy-key",),
                 ).fetchone()
                 self.assertEqual(row["subject_pattern"], "status <num>")
+                self.assertEqual(row["pattern_version"], 1)
                 self.assertEqual(row["correction_folder"], "Agent/Korrektur-Unwichtig")
                 valid = storage.connection.execute(
                     "SELECT original_snapshot_valid FROM feedback WHERE stable_key=?",
@@ -86,6 +89,7 @@ class StorageMigrationTests(unittest.TestCase):
                     for item in storage.connection.execute("PRAGMA index_list(feedback)").fetchall()
                 }
                 self.assertIn("idx_feedback_subject_pattern", indexes)
+                self.assertIn("idx_feedback_pattern_version", indexes)
                 self.assertEqual(
                     storage.connection.execute("PRAGMA quick_check").fetchone()[0],
                     "ok",

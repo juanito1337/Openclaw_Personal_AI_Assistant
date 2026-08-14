@@ -160,6 +160,18 @@ TOOLS: tuple[ToolDefinition, ...] = (
         test_anchor="tests/test_agent_tool_architecture.py",
     ),
     define(
+        id="mail.learning.feedback-forget",
+        domain="mail",
+        description="Genau einen zuvor angezeigten widerspruechlichen Korrekturbeleg entfernen",
+        command="./scripts/assistant.sh mail learning forget-feedback --id <ID> --yes",
+        mode="local-write",
+        writes_external_data=False,
+        approval="explicit-user-feedback-delete",
+        availability="always",
+        documentation_anchor="skills/personal-assistant/SKILL.md",
+        test_anchor="tests/test_learning_patterns.py",
+    ),
+    define(
         id="mail.learning.evaluate",
         domain="mail",
         description="Lernqualitaet chronologisch gegen die alte Absenderlogik und gespeicherte Klassifikationen auswerten",

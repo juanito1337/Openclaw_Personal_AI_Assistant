@@ -11,11 +11,80 @@ from typing import Any
 
 _TAG_RE = re.compile(r"<[^>]+>")
 _WS_RE = re.compile(r"\s+")
+SUBJECT_PATTERN_VERSION_LEGACY = 1
+SUBJECT_PATTERN_VERSION_CURRENT = 2
+SUBJECT_PATTERN_VERSIONS = frozenset(
+    {SUBJECT_PATTERN_VERSION_LEGACY, SUBJECT_PATTERN_VERSION_CURRENT}
+)
+
+# Version 1 is deliberately frozen. Persisted legacy corrections must keep their
+# original matching semantics even when the current normalizer evolves.
+_V1_NUMBER_RE = re.compile(r"\b\d{2,}\b")
+_V1_DATE_RE = re.compile(r"\b(?:\d{1,2}[./-]){2}\d{2,4}\b|\b\d{4}-\d{2}-\d{2}\b")
+_V1_CURRENCY_RE = re.compile(
+    r"(?<!\w)\d+(?:[.,]\d{1,2})?\s*(?:eur|usd|gbp|€|\$|£)\b", re.IGNORECASE
+)
+_V1_ORDER_TOKEN_RE = re.compile(
+    r"\b(?=[a-z0-9-]{8,}\b)(?=[a-z0-9-]*\d)[a-z0-9]+(?:-[a-z0-9]+)+\b",
+    re.IGNORECASE,
+)
+_V1_LONG_TOKEN_RE = re.compile(r"\b[a-f0-9]{10,}\b", re.IGNORECASE)
+
+_UUID_RE = re.compile(
+    r"\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b",
+    re.IGNORECASE,
+)
+_DATE_NUMERIC_RE = re.compile(
+    r"\b(?:\d{1,2}[./-]){2}\d{2,4}\b|\b\d{4}-\d{2}-\d{2}\b"
+)
+_MONTH = (
+    r"jan(?:uary|uar)?|feb(?:ruary|ruar)?|mar(?:ch|z|\u00e4rz)?|apr(?:il)?|may|mai|"
+    r"jun(?:e|i)?|jul(?:y|i)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|okt(?:ober)?|"
+    r"nov(?:ember)?|dec(?:ember)?|dez(?:ember)?"
+)
+_DATE_TEXT_RE = re.compile(
+    rf"\b(?:{_MONTH})\s+\d{{1,2}}(?:st|nd|rd|th)?(?:,?\s+\d{{4}})?\b|"
+    rf"\b\d{{1,2}}(?:st|nd|rd|th)?\s+(?:{_MONTH})(?:\s+\d{{4}})?\b",
+    re.IGNORECASE,
+)
+_TIME_RE = re.compile(
+    r"\b(?:[01]?\d|2[0-3])[:.]\d{2}(?:\s*(?:uhr|am|pm))?\b|"
+    r"\b(?:0?[1-9]|1[0-2])\s*(?:am|pm)\b",
+    re.IGNORECASE,
+)
+_AMOUNT_RE = re.compile(
+    r"(?<!\w)(?:(?:eur|usd|gbp)\s*|[€$£]\s*)"
+    r"\d{1,3}(?:[.,\s]\d{3})*(?:[.,]\d{1,2})?(?!\w)|"
+    r"(?<!\w)\d{1,3}(?:[.,\s]\d{3})*(?:[.,]\d{1,2})?\s*(?:eur|usd|gbp|€|\$|£)(?!\w)",
+    re.IGNORECASE,
+)
+_INVOICE_ID_RE = re.compile(
+    r"\b(?:invoice(?:\s*(?:number|no\.?))?|rechnung(?:s?(?:nummer|nr\.?)|\s*nr\.?)?)"
+    r"\s*[:#-]?\s*"
+    r"(?=[a-z0-9./_-]{4,}\b)(?=[a-z0-9./_-]*\d)[a-z0-9][a-z0-9./_-]*\b",
+    re.IGNORECASE,
+)
+_ORDER_ID_RE = re.compile(
+    r"\b(?:order(?:\s*(?:number|no\.?))?|bestell(?:ung(?:snummer)?|nummer))"
+    r"\s*[:#-]?\s*"
+    r"(?=[a-z0-9./_-]{4,}\b)(?=[a-z0-9./_-]*\d)[a-z0-9][a-z0-9./_-]*\b",
+    re.IGNORECASE,
+)
+_TRACKING_ID_RE = re.compile(
+    r"\b(?:tracking(?:\s*(?:code|id|number|no\.?))?|"
+    r"sendung(?:s(?:nummer|id)|\s*(?:nummer|id))?|"
+    r"shipment(?:\s*(?:code|id|number|no\.?))?)\s*[:#-]?\s*"
+    r"(?=[a-z0-9./_-]{6,}\b)(?=[a-z0-9./_-]*\d)[a-z0-9][a-z0-9./_-]*\b",
+    re.IGNORECASE,
+)
+_GENERIC_TOKEN_RE = re.compile(
+    r"\b(?=[a-z0-9_-]{8,}\b)(?=[a-z0-9_-]*\d)(?=[a-z0-9_-]*[a-z])"
+    r"[a-z0-9]+(?:[-_][a-z0-9]+)+\b",
+    re.IGNORECASE,
+)
+_LONG_HEX_RE = re.compile(r"\b(?=[a-f0-9]{10,}\b)(?=[a-f0-9]*\d)[a-f0-9]+\b", re.IGNORECASE)
+_LONG_NUMERIC_ID_RE = re.compile(r"\b\d{6,}\b")
 _NUMBER_RE = re.compile(r"\b\d{2,}\b")
-_DATE_RE = re.compile(r"\b(?:\d{1,2}[./-]){2}\d{2,4}\b|\b\d{4}-\d{2}-\d{2}\b")
-_CURRENCY_RE = re.compile(r"(?<!\w)\d+(?:[.,]\d{1,2})?\s*(?:eur|usd|gbp|€|\$|£)\b", re.IGNORECASE)
-_ORDER_TOKEN_RE = re.compile(r"\b(?=[a-z0-9-]{8,}\b)(?=[a-z0-9-]*\d)[a-z0-9]+(?:-[a-z0-9]+)+\b", re.IGNORECASE)
-_LONG_TOKEN_RE = re.compile(r"\b[a-f0-9]{10,}\b", re.IGNORECASE)
 _PREFIX_RE = re.compile(r"^(?:(?:re|fw|fwd|aw|wg)\s*:\s*)+", re.IGNORECASE)
 
 
@@ -54,20 +123,57 @@ def html_to_text(value: str) -> str:
     return "\n".join(line for line in lines if line)
 
 
-def normalize_subject_pattern(subject: str) -> str:
-    """Return a privacy-safe semantic subject pattern for correction learning."""
+def normalize_subject_pattern_v1(subject: str) -> str:
+    """Return the frozen legacy pattern used by already persisted corrections."""
     # Subprocess output may contain surrogate-escaped bytes when a remote mail
     # header is not valid UTF-8. SQLite rejects such strings, so normalize them
     # deterministically before matching or persistence.
     clean = utf8_clean(subject)
     value = _PREFIX_RE.sub("", clean).strip().lower()
-    value = _DATE_RE.sub("<date>", value)
-    value = _CURRENCY_RE.sub("<amount>", value)
-    value = _ORDER_TOKEN_RE.sub("<id>", value)
-    value = _LONG_TOKEN_RE.sub("<token>", value)
+    value = _V1_DATE_RE.sub("<date>", value)
+    value = _V1_CURRENCY_RE.sub("<amount>", value)
+    value = _V1_ORDER_TOKEN_RE.sub("<id>", value)
+    value = _V1_LONG_TOKEN_RE.sub("<token>", value)
+    value = _V1_NUMBER_RE.sub("<n>", value)
+    value = _WS_RE.sub(" ", value)
+    return value[:500]
+
+
+def normalize_subject_pattern_v2(subject: str) -> str:
+    """Normalize volatile subject values into typed, deterministic placeholders."""
+    clean = utf8_clean(subject)
+    value = _PREFIX_RE.sub("", clean).strip().lower()
+    value = _UUID_RE.sub("<uuid>", value)
+    value = _DATE_NUMERIC_RE.sub("<date>", value)
+    value = _DATE_TEXT_RE.sub("<date>", value)
+    value = _TIME_RE.sub("<time>", value)
+    value = _AMOUNT_RE.sub("<amount>", value)
+    value = _INVOICE_ID_RE.sub("invoice <invoice-id>", value)
+    value = _ORDER_ID_RE.sub("order <order-id>", value)
+    value = _TRACKING_ID_RE.sub("tracking <tracking-id>", value)
+    value = _GENERIC_TOKEN_RE.sub("<token>", value)
+    value = _LONG_HEX_RE.sub("<token>", value)
+    value = _LONG_NUMERIC_ID_RE.sub("<id>", value)
     value = _NUMBER_RE.sub("<n>", value)
     value = _WS_RE.sub(" ", value)
     return value[:500]
+
+
+def normalize_subject_pattern(subject: str, *, version: int = SUBJECT_PATTERN_VERSION_CURRENT) -> str:
+    """Return a versioned privacy-safe semantic subject pattern."""
+    if int(version) == SUBJECT_PATTERN_VERSION_LEGACY:
+        return normalize_subject_pattern_v1(subject)
+    if int(version) == SUBJECT_PATTERN_VERSION_CURRENT:
+        return normalize_subject_pattern_v2(subject)
+    raise ValueError(f"Nicht unterstuetzte Betreffmusterversion: {version}")
+
+
+def subject_patterns(subject: str) -> dict[int, str]:
+    """Return every supported representation for version-aware legacy matching."""
+    return {
+        version: normalize_subject_pattern(subject, version=version)
+        for version in sorted(SUBJECT_PATTERN_VERSIONS)
+    }
 
 
 def normalize_subject(subject: str) -> str:

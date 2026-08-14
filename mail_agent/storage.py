@@ -9,9 +9,17 @@ from typing import Any
 from .learning import message_feature_metadata
 from .models import Classification, ParsedMessage
 from .review import REVIEW_REASON_VALUES, ReviewReason, parse_review_reason
-from .utils import normalize_subject, normalize_subject_pattern, now_utc_iso
+from .utils import (
+    SUBJECT_PATTERN_VERSION_CURRENT,
+    SUBJECT_PATTERN_VERSION_LEGACY,
+    SUBJECT_PATTERN_VERSIONS,
+    normalize_subject,
+    normalize_subject_pattern,
+    now_utc_iso,
+    subject_patterns,
+)
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 FINAL_STATUSES = {
@@ -36,10 +44,31 @@ class Storage:
         self.connection.execute("PRAGMA journal_mode=WAL")
         self.connection.execute("PRAGMA foreign_keys=ON")
         self.connection.execute("PRAGMA busy_timeout=5000")
-        self._migrate()
+        self._pattern_gate_cache: tuple[tuple[int, int], dict[str, Any]] | None = None
+        try:
+            self._migrate()
+        except Exception:
+            self.connection.close()
+            raise
 
     def close(self) -> None:
         self.connection.close()
+
+    def pattern_activation_status(self) -> dict[str, Any]:
+        """Return the cached v1/v2 safety gate for deterministic runtime matching."""
+        state = self.connection.execute(
+            "SELECT COUNT(*) AS count, COALESCE(MAX(id), 0) AS newest FROM feedback"
+        ).fetchone()
+        cache_key = (int(state["count"] or 0), int(state["newest"] or 0))
+        if self._pattern_gate_cache and self._pattern_gate_cache[0] == cache_key:
+            return dict(self._pattern_gate_cache[1])
+        # Local import avoids a module cycle; the analyzer never calls this method.
+        from .learning_quality import LearningQualityAnalyzer
+
+        report = LearningQualityAnalyzer(self).report(limit=100000)
+        gate = dict(report["evaluation"]["subject_pattern_versions"]["activation_gate"])
+        self._pattern_gate_cache = (cache_key, gate)
+        return dict(gate)
 
     def _migrate(self) -> None:
         current_version = int(self.connection.execute("PRAGMA user_version").fetchone()[0])
@@ -92,6 +121,7 @@ class Storage:
                 subject TEXT,
                 subject_signature TEXT,
                 subject_pattern TEXT,
+                pattern_version INTEGER NOT NULL DEFAULT 1,
                 source_folder TEXT,
                 correction_folder TEXT,
                 label TEXT,
@@ -211,6 +241,7 @@ class Storage:
         }
         for column, declaration in (
             ("subject_pattern", "TEXT"),
+            ("pattern_version", "INTEGER NOT NULL DEFAULT 1"),
             ("correction_folder", "TEXT"),
             ("label", "TEXT"),
             ("feature_json", "TEXT"),
@@ -229,6 +260,22 @@ class Storage:
             "UPDATE feedback SET subject_pattern = subject_signature "
             "WHERE COALESCE(subject_pattern, '') = ''"
         )
+        # Existing rows were produced by the frozen v1 implementation. Never
+        # recompute them with current code or silently change their semantics.
+        self.connection.execute(
+            "UPDATE feedback SET pattern_version = ? WHERE pattern_version IS NULL",
+            (SUBJECT_PATTERN_VERSION_LEGACY,),
+        )
+        invalid_pattern_versions = [
+            int(row[0])
+            for row in self.connection.execute(
+                "SELECT DISTINCT pattern_version FROM feedback"
+            ).fetchall()
+            if int(row[0]) not in SUBJECT_PATTERN_VERSIONS
+        ]
+        if invalid_pattern_versions:
+            values = ", ".join(str(value) for value in sorted(invalid_pattern_versions))
+            raise RuntimeError(f"Datenbank enthaelt unbekannte Betreffmusterversionen: {values}")
         self.connection.execute(
             "UPDATE feedback SET correction_folder = source_folder "
             "WHERE COALESCE(correction_folder, '') = ''"
@@ -318,6 +365,10 @@ class Storage:
         )
         self.connection.execute(
             "CREATE INDEX IF NOT EXISTS idx_feedback_subject_pattern ON feedback(subject_pattern)"
+        )
+        self.connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_feedback_pattern_version "
+            "ON feedback(pattern_version, subject_pattern)"
         )
         self.connection.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
         self.connection.commit()
@@ -635,7 +686,8 @@ class Storage:
     ) -> None:
         # A correction is the current truth for this exact message. The original
         # automated decision is captured once and then preserved across reversals.
-        subject_pattern = normalize_subject_pattern(message.subject)
+        pattern_version = SUBJECT_PATTERN_VERSION_CURRENT
+        subject_pattern = normalize_subject_pattern(message.subject, version=pattern_version)
         features = message_feature_metadata(message)
         original = self._original_feedback_snapshot(message.stable_key)
         with self.connection:
@@ -644,12 +696,13 @@ class Storage:
                 """
                 INSERT INTO feedback (
                     stable_key, verdict, sender_addr, sender_domain, subject,
-                    subject_signature, subject_pattern, source_folder, correction_folder,
+                    subject_signature, subject_pattern, pattern_version,
+                    source_folder, correction_folder,
                     label, feature_json, original_category, original_confidence,
                     original_reason, original_source, original_rule_decision,
                     original_classification_json, original_captured_at, original_snapshot_valid,
                     created_at, metadata_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     message.stable_key,
@@ -659,6 +712,7 @@ class Storage:
                     message.subject,
                     normalize_subject(message.subject),
                     subject_pattern,
+                    pattern_version,
                     source_folder,
                     source_folder,
                     (label or "").strip().casefold()[:80],
@@ -714,13 +768,18 @@ class Storage:
 
     def pattern_feedback_decision(self, message: ParsedMessage) -> dict[str, Any]:
         sender = (message.sender_addr or "").strip().lower()
-        pattern = normalize_subject_pattern(message.subject)
+        patterns = subject_patterns(message.subject)
+        pattern = patterns[SUBJECT_PATTERN_VERSION_CURRENT]
+        activation = self.pattern_activation_status()
+        current_enabled = int(bool(activation.get("allowed")))
         if not sender or not pattern:
             return {
                 "verdict": None,
                 "count": 0,
                 "conflict": False,
                 "pattern": pattern,
+                "pattern_version": SUBJECT_PATTERN_VERSION_CURRENT,
+                "pattern_activation": activation,
                 "prevent_spam": False,
                 "counts": {},
                 "not_spam": {"count": 0, "origin": "", "source_folder": ""},
@@ -730,12 +789,22 @@ class Storage:
             SELECT verdict, COUNT(*) AS count, MAX(id) AS newest
             FROM feedback
             WHERE lower(sender_addr) = ?
-              AND COALESCE(NULLIF(subject_pattern, ''), subject_signature) = ?
+              AND (? = 1 OR pattern_version != ?)
+              AND ((pattern_version = ? AND COALESCE(NULLIF(subject_pattern, ''), subject_signature) = ?)
+                OR (pattern_version = ? AND COALESCE(NULLIF(subject_pattern, ''), subject_signature) = ?))
               AND verdict IN ('spam', 'routine', 'relevant', 'not_spam')
             GROUP BY verdict
             ORDER BY newest DESC
             """,
-            (sender, pattern),
+            (
+                sender,
+                current_enabled,
+                SUBJECT_PATTERN_VERSION_CURRENT,
+                SUBJECT_PATTERN_VERSION_LEGACY,
+                patterns[SUBJECT_PATTERN_VERSION_LEGACY],
+                SUBJECT_PATTERN_VERSION_CURRENT,
+                patterns[SUBJECT_PATTERN_VERSION_CURRENT],
+            ),
         ).fetchall()
         counts = {str(row["verdict"]): int(row["count"]) for row in rows}
         not_spam_count = int(counts.get("not_spam", 0))
@@ -746,12 +815,22 @@ class Storage:
                 SELECT id, source_folder, correction_folder, metadata_json, created_at
                 FROM feedback
                 WHERE lower(sender_addr) = ?
-                  AND COALESCE(NULLIF(subject_pattern, ''), subject_signature) = ?
+                  AND (? = 1 OR pattern_version != ?)
+                  AND ((pattern_version = ? AND COALESCE(NULLIF(subject_pattern, ''), subject_signature) = ?)
+                    OR (pattern_version = ? AND COALESCE(NULLIF(subject_pattern, ''), subject_signature) = ?))
                   AND verdict = 'not_spam'
                 ORDER BY id DESC
                 LIMIT 1
                 """,
-                (sender, pattern),
+                (
+                    sender,
+                    current_enabled,
+                    SUBJECT_PATTERN_VERSION_CURRENT,
+                    SUBJECT_PATTERN_VERSION_LEGACY,
+                    patterns[SUBJECT_PATTERN_VERSION_LEGACY],
+                    SUBJECT_PATTERN_VERSION_CURRENT,
+                    patterns[SUBJECT_PATTERN_VERSION_CURRENT],
+                ),
             ).fetchone()
         metadata = self._json_dict(not_spam_row["metadata_json"]) if not_spam_row else {}
         not_spam = {
@@ -768,6 +847,8 @@ class Storage:
             "count": 0,
             "conflict": False,
             "pattern": pattern,
+            "pattern_version": SUBJECT_PATTERN_VERSION_CURRENT,
+            "pattern_activation": activation,
             "counts": counts,
             "prevent_spam": bool(not_spam_count),
             "not_spam": not_spam,
@@ -795,7 +876,9 @@ class Storage:
         return result
 
     def find_feedback(self, message: ParsedMessage, limit: int = 12) -> list[dict[str, Any]]:
-        pattern = normalize_subject_pattern(message.subject)
+        patterns = subject_patterns(message.subject)
+        activation = self.pattern_activation_status()
+        current_enabled = int(bool(activation.get("allowed")))
         sender = (message.sender_addr or "").strip().lower()
         domain = (message.sender_domain or "").strip().lower()
         current_features = message_feature_metadata(message)
@@ -803,18 +886,30 @@ class Storage:
             """
             SELECT id, verdict, sender_addr, sender_domain, subject, subject_signature,
                    COALESCE(NULLIF(subject_pattern, ''), subject_signature) AS subject_pattern,
+                   pattern_version,
                    source_folder, correction_folder, label, feature_json,
                    original_category, original_confidence, original_source, original_captured_at,
                    COALESCE(original_snapshot_valid, 0) AS original_snapshot_valid, created_at
             FROM feedback
-            WHERE (sender_addr != '' AND lower(sender_addr) = ?)
+            WHERE (? = 1 OR pattern_version != ?)
+              AND ((sender_addr != '' AND lower(sender_addr) = ?)
                OR (sender_domain != '' AND lower(sender_domain) = ?)
-               OR (COALESCE(NULLIF(subject_pattern, ''), subject_signature) != ''
-                   AND COALESCE(NULLIF(subject_pattern, ''), subject_signature) = ?)
+               OR (COALESCE(NULLIF(subject_pattern, ''), subject_signature) != '' AND (
+                    (pattern_version = ? AND COALESCE(NULLIF(subject_pattern, ''), subject_signature) = ?)
+                 OR (pattern_version = ? AND COALESCE(NULLIF(subject_pattern, ''), subject_signature) = ?))))
             ORDER BY id DESC
             LIMIT 250
             """,
-            (sender, domain, pattern),
+            (
+                current_enabled,
+                SUBJECT_PATTERN_VERSION_CURRENT,
+                sender,
+                domain,
+                SUBJECT_PATTERN_VERSION_LEGACY,
+                patterns[SUBJECT_PATTERN_VERSION_LEGACY],
+                SUBJECT_PATTERN_VERSION_CURRENT,
+                patterns[SUBJECT_PATTERN_VERSION_CURRENT],
+            ),
         ).fetchall()
         profile = self.sender_feedback_profile(sender)
         ranked: list[dict[str, Any]] = []
@@ -823,6 +918,9 @@ class Storage:
             item_sender = str(item.get("sender_addr") or "").lower()
             item_domain = str(item.get("sender_domain") or "").lower()
             item_pattern = str(item.get("subject_pattern") or "")
+            item_pattern_version = int(
+                item.get("pattern_version") or SUBJECT_PATTERN_VERSION_LEGACY
+            )
             score = 0
             reasons: list[str] = []
             if sender and item_sender == sender:
@@ -831,7 +929,7 @@ class Storage:
             if domain and item_domain == domain:
                 score += 10
                 reasons.append("same-domain")
-            if pattern and item_pattern == pattern:
+            if item_pattern and item_pattern == patterns.get(item_pattern_version, ""):
                 score += 70
                 reasons.append("same-subject-pattern")
             old_features = self._json_dict(item.get("feature_json"))
@@ -925,6 +1023,7 @@ class Storage:
             """
             SELECT id, stable_key, verdict, sender_addr, sender_domain, subject,
                    subject_signature, COALESCE(NULLIF(subject_pattern, ''), subject_signature) AS subject_pattern,
+                   pattern_version,
                    source_folder, correction_folder, label, feature_json,
                    original_category, original_confidence, original_source, original_captured_at,
                    COALESCE(original_snapshot_valid, 0) AS original_snapshot_valid, created_at
@@ -974,6 +1073,7 @@ class Storage:
             """
             SELECT lower(sender_addr) AS sender_addr,
                    COALESCE(NULLIF(subject_pattern, ''), subject_signature) AS subject_pattern,
+                   pattern_version,
                    COUNT(*) AS total, COUNT(DISTINCT verdict) AS verdict_count,
                    GROUP_CONCAT(DISTINCT verdict) AS verdicts,
                    GROUP_CONCAT(id) AS feedback_ids
@@ -981,7 +1081,8 @@ class Storage:
             WHERE verdict IN ('spam','routine','relevant')
               AND COALESCE(sender_addr, '') != ''
               AND COALESCE(NULLIF(subject_pattern, ''), subject_signature) != ''
-            GROUP BY lower(sender_addr), COALESCE(NULLIF(subject_pattern, ''), subject_signature)
+            GROUP BY lower(sender_addr), pattern_version,
+                     COALESCE(NULLIF(subject_pattern, ''), subject_signature)
             HAVING verdict_count > 1
             ORDER BY total DESC, sender_addr, subject_pattern
             LIMIT ?
@@ -993,7 +1094,9 @@ class Storage:
         for row in rows:
             item = dict(row)
             item["conflict_id"] = self._conflict_id(
-                str(item.get("sender_addr") or ""), str(item.get("subject_pattern") or "")
+                str(item.get("sender_addr") or ""),
+                f"v{int(item.get('pattern_version') or SUBJECT_PATTERN_VERSION_LEGACY)}:"
+                + str(item.get("subject_pattern") or ""),
             )
             item["feedback_ids"] = [
                 int(value) for value in str(item.get("feedback_ids") or "").split(",") if value.isdigit()

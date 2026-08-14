@@ -174,7 +174,8 @@ class LearningQualityTests(unittest.TestCase):
         self.assertFalse(payload["privacy"]["contains_mail_bodies"])
         self.assertFalse(payload["privacy"]["contains_email_addresses"])
         self.assertEqual(len(payload["records"][0]["sender"]), 24)
-        self.assertEqual(payload["schema_version"], 2)
+        self.assertEqual(payload["schema_version"], 3)
+        self.assertEqual(payload["records"][0]["pattern_version"], 2)
         self.assertTrue(payload["records"][0]["original_decision_available"])
         self.assertNotIn("Test", raw)
 

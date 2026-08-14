@@ -53,7 +53,7 @@ class MailAgentTests(unittest.TestCase):
 
     def test_database_schema_version_is_recorded(self) -> None:
         version = self.storage.connection.execute("PRAGMA user_version").fetchone()[0]
-        self.assertEqual(version, 2)
+        self.assertEqual(version, 3)
 
     def test_parser_uses_message_id_as_stable_key(self) -> None:
         message = parse_eml(SAMPLE, Envelope("42"), "INBOX")

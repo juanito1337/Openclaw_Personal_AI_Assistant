@@ -73,6 +73,10 @@ def run_external(args: argparse.Namespace) -> int:
             command += ["--folder", args.folder]
             if args.yes:
                 command.append("--yes")
+        elif args.learning_command == "forget-feedback":
+            command += [str(args.id)]
+            if args.yes:
+                command.append("--yes")
     else:
         raise ValueError(f"Unbekanntes Mail-Werkzeug: {args.mail_command}")
     environment = os.environ.copy()

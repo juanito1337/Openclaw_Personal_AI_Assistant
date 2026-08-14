@@ -317,6 +317,13 @@ Fake-IMAP. Stoppe nach M9.4.
 
 ## M9.5 – Musternormalisierung und sichere Lernabdeckung
 
+Umsetzungsstand: implementiert auf dem Entwicklungsbranch. Persistierte Altbelege
+bleiben unveraendert Version 1; neue Belege tragen Version 2. Die chronologische
+Auswertung berichtet beide Varianten und der Laufzeitpfad verwendet Version 2 nur,
+wenn weder `relevant_missed` noch `spam_forward_risk` gegenueber Version 1 steigt.
+Konflikte bleiben read-only erklaerbar; nur eine explizit ausgewaehlte Feedback-ID
+kann nach `--yes` lokal entfernt werden.
+
 ### Scope
 
 - Wechselnde Datumswerte, Uhrzeiten, Betragswerte, Bestell-/Rechnungsnummern,

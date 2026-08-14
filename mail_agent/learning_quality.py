@@ -9,7 +9,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .utils import now_utc_iso
+from .utils import (
+    SUBJECT_PATTERN_VERSION_CURRENT,
+    SUBJECT_PATTERN_VERSION_LEGACY,
+    normalize_subject_pattern,
+    now_utc_iso,
+)
 
 _CATEGORY_VERDICTS = {"spam", "routine", "relevant"}
 
@@ -115,7 +120,9 @@ class LearningQualityAnalyzer:
             """
             SELECT f.id, f.stable_key, f.verdict, lower(COALESCE(f.sender_addr, '')) AS sender_addr,
                    lower(COALESCE(f.sender_domain, '')) AS sender_domain,
+                   COALESCE(f.subject, '') AS subject,
                    COALESCE(NULLIF(f.subject_pattern, ''), f.subject_signature, '') AS subject_pattern,
+                   COALESCE(f.pattern_version, 1) AS pattern_version,
                    COALESCE(f.label, '') AS label, COALESCE(f.feature_json, '') AS feature_json,
                    f.created_at, f.original_category, f.original_confidence,
                    COALESCE(f.original_source, '') AS original_source,
@@ -145,20 +152,39 @@ class LearningQualityAnalyzer:
         minimum = 1 if verdict == "relevant" else 2
         return verdict if count >= minimum else None
 
+    @classmethod
+    def _pattern_metrics(cls, rows: list[dict[str, Any]], *, version: int) -> PredictorMetrics:
+        """Evaluate one normalizer chronologically without testing a row on itself."""
+        history: dict[tuple[str, str], Counter[str]] = defaultdict(Counter)
+        metrics = PredictorMetrics()
+        for row in rows:
+            verdict = str(row.get("verdict") or "")
+            if verdict not in _CATEGORY_VERDICTS:
+                continue
+            sender = str(row.get("sender_addr") or "")
+            pattern = normalize_subject_pattern(str(row.get("subject") or ""), version=version)
+            prediction = (
+                cls._safe_pattern_prediction(history[(sender, pattern)])
+                if sender and pattern
+                else None
+            )
+            metrics.observe(verdict, prediction)
+            if sender and pattern:
+                history[(sender, pattern)][verdict] += 1
+        return metrics
+
     def report(self, *, limit: int = 5000) -> dict[str, Any]:
         rows = self._rows(limit)
         category_rows = [row for row in rows if str(row.get("verdict") or "") in _CATEGORY_VERDICTS]
 
         sender_history: dict[str, Counter[str]] = defaultdict(Counter)
-        pattern_history: dict[tuple[str, str], Counter[str]] = defaultdict(Counter)
         sender_only = PredictorMetrics()
-        pattern = PredictorMetrics()
         stored_decision = PredictorMetrics()
 
         verdict_distribution: Counter[str] = Counter()
         label_distribution: Counter[str] = Counter()
         original_source_distribution: Counter[str] = Counter()
-        pattern_counts: Counter[tuple[str, str]] = Counter()
+        pattern_counts: Counter[tuple[int, str, str]] = Counter()
         usable_rows = 0
         feature_rows = 0
         original_snapshot_rows = 0
@@ -178,15 +204,10 @@ class LearningQualityAnalyzer:
             subject_pattern = str(row.get("subject_pattern") or "")
             if sender and subject_pattern:
                 usable_rows += 1
-                pattern_counts[(sender, subject_pattern)] += 1
+                pattern_counts[(int(row.get("pattern_version") or 1), sender, subject_pattern)] += 1
 
             baseline_prediction = self._consistent_prediction(sender_history[sender], minimum=2) if sender else None
-            pattern_prediction = (
-                self._safe_pattern_prediction(pattern_history[(sender, subject_pattern)])
-                if sender and subject_pattern else None
-            )
             sender_only.observe(verdict, baseline_prediction)
-            pattern.observe(verdict, pattern_prediction)
 
             if int(row.get("original_snapshot_valid") or 0) == 1:
                 original_snapshot_rows += 1
@@ -196,8 +217,12 @@ class LearningQualityAnalyzer:
 
             if sender:
                 sender_history[sender][verdict] += 1
-            if sender and subject_pattern:
-                pattern_history[(sender, subject_pattern)][verdict] += 1
+        legacy_pattern = self._pattern_metrics(
+            category_rows, version=SUBJECT_PATTERN_VERSION_LEGACY
+        ).to_dict()
+        current_pattern = self._pattern_metrics(
+            category_rows, version=SUBJECT_PATTERN_VERSION_CURRENT
+        ).to_dict()
 
         repeated_patterns = sum(1 for count in pattern_counts.values() if count >= 2)
         singleton_patterns = sum(1 for count in pattern_counts.values() if count == 1)
@@ -205,7 +230,7 @@ class LearningQualityAnalyzer:
         conflicts = self.storage.pattern_conflicts(limit=100000)
 
         baseline_data = sender_only.to_dict()
-        pattern_data = pattern.to_dict()
+        pattern_data = current_pattern
         stored_data = stored_decision.to_dict()
         stored_data["available"] = original_snapshot_rows > 0
         stored_data["legacy_rows_without_snapshot"] = len(category_rows) - original_snapshot_rows
@@ -219,6 +244,45 @@ class LearningQualityAnalyzer:
             ),
             "relevant_missed_delta": pattern_data["relevant_missed"] - baseline_data["relevant_missed"],
             "spam_forward_risk_delta": pattern_data["spam_forward_risk"] - baseline_data["spam_forward_risk"],
+        }
+        pattern_version_comparison = {
+            "baseline_version": SUBJECT_PATTERN_VERSION_LEGACY,
+            "candidate_version": SUBJECT_PATTERN_VERSION_CURRENT,
+            "sample": len(category_rows),
+            "version_1": legacy_pattern,
+            "version_2": current_pattern,
+            "coverage_delta_percentage_points": round(
+                current_pattern["coverage_percent"] - legacy_pattern["coverage_percent"], 2
+            ),
+            "accuracy_delta_percentage_points": round(
+                current_pattern["accuracy_percent"] - legacy_pattern["accuracy_percent"], 2
+            ),
+            "relevant_missed_delta": (
+                current_pattern["relevant_missed"] - legacy_pattern["relevant_missed"]
+            ),
+            "spam_forward_risk_delta": (
+                current_pattern["spam_forward_risk"] - legacy_pattern["spam_forward_risk"]
+            ),
+        }
+        activation_allowed = bool(
+            current_pattern["relevant_missed"] <= legacy_pattern["relevant_missed"]
+            and current_pattern["spam_forward_risk"] <= legacy_pattern["spam_forward_risk"]
+        )
+        activation_gate = {
+            "allowed": activation_allowed,
+            "candidate_version": SUBJECT_PATTERN_VERSION_CURRENT,
+            "baseline_version": SUBJECT_PATTERN_VERSION_LEGACY,
+            "reason": (
+                "candidate-does-not-worsen-safety-errors"
+                if activation_allowed
+                else "candidate-worsens-safety-errors"
+            ),
+            "relevant_missed_not_worse": (
+                current_pattern["relevant_missed"] <= legacy_pattern["relevant_missed"]
+            ),
+            "spam_forward_risk_not_worse": (
+                current_pattern["spam_forward_risk"] <= legacy_pattern["spam_forward_risk"]
+            ),
         }
 
         recommendations: list[str] = []
@@ -276,10 +340,20 @@ class LearningQualityAnalyzer:
                 "self_test_leakage": False,
                 "sender_only_baseline": baseline_data,
                 "pattern_learning": pattern_data,
+                "subject_pattern_versions": {
+                    "method": "chronological-walk-forward",
+                    "self_test_leakage": False,
+                    "comparison": pattern_version_comparison,
+                    "activation_gate": activation_gate,
+                },
                 "stored_original_decision": stored_data,
                 "notes": [
                     "Sender-only predicts only after two older, mutually consistent sender corrections.",
                     "Pattern learning requires two older consistent routine/spam corrections; one older relevant correction may protect important mail.",
+                    (
+                        "Version 1 and version 2 are recomputed independently from raw stored "
+                        "subjects; persisted legacy patterns are never rewritten."
+                    ),
                     "Original decisions are measured only from immutable snapshots captured before a user correction; legacy rows abstain.",
                 ],
             },
@@ -311,6 +385,7 @@ class LearningQualityAnalyzer:
                 "sender": self._pseudonym(key, row.get("sender_addr")),
                 "sender_domain": self._pseudonym(key, row.get("sender_domain")),
                 "subject_pattern": self._pseudonym(key, row.get("subject_pattern")),
+                "pattern_version": int(row.get("pattern_version") or 1),
                 "verdict": str(row.get("verdict") or ""),
                 "label": str(row.get("label") or "")[:80],
                 "features": features,
@@ -322,7 +397,7 @@ class LearningQualityAnalyzer:
             })
 
         payload = {
-            "schema_version": 2,
+            "schema_version": 3,
             "created_at": now_utc_iso(),
             "privacy": {
                 "pseudonymization": "per-export keyed HMAC; key is not stored",

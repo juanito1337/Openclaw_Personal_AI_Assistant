@@ -640,6 +640,14 @@
     "writes_external_data": false
   },
   {
+    "approval": "explicit-user-feedback-delete",
+    "command": "./scripts/assistant.sh mail learning forget-feedback --id <ID> --yes",
+    "description": "Genau einen zuvor angezeigten widerspruechlichen Korrekturbeleg entfernen",
+    "id": "mail.learning.feedback-forget",
+    "mode": "local-write",
+    "writes_external_data": false
+  },
+  {
     "approval": "none",
     "command": "./scripts/assistant.sh mail learning evaluate --limit 5000",
     "description": "Lernqualitaet chronologisch gegen die alte Absenderlogik und gespeicherte Klassifikationen auswerten",

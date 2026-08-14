@@ -180,6 +180,11 @@ def add_commands(sub: Any) -> None:
     )
     learning_conflicts.add_argument("--limit", type=int, default=100)
     learning_conflicts.add_argument("--id", default="", help="Optional genau eine conflict_id anzeigen")
+    learning_forget = learning_sub.add_parser(
+        "forget-feedback", help="Genau einen Korrekturbeleg nach expliziter Freigabe entfernen"
+    )
+    learning_forget.add_argument("--id", type=int, required=True, help="Exakte ID aus conflicts/feedback")
+    learning_forget.add_argument("--yes", action="store_true")
     learning_evaluate = learning_sub.add_parser(
         "evaluate", help="Lernqualitaet und Basisvergleich aggregiert auswerten"
     )

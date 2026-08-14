@@ -119,6 +119,7 @@ den fuehrenden Launcher durch `/opt/openclaw-agent/scripts/assistant.sh` ersetze
 | `mail.learning.not-spam` | `read` | nein | `none` | `always` | `./scripts/assistant.sh mail learning not-spam --limit 100` | `tests/test_agent_tool_architecture.py` |
 | `mail.learning.mixed-senders` | `read` | nein | `none` | `always` | `./scripts/assistant.sh mail learning mixed-senders --limit 100` | `tests/test_agent_tool_architecture.py` |
 | `mail.learning.conflicts` | `read` | nein | `none` | `always` | `./scripts/assistant.sh mail learning conflicts --limit 100` | `tests/test_agent_tool_architecture.py` |
+| `mail.learning.feedback-forget` | `local-write` | nein | `explicit-user-feedback-delete` | `always` | `./scripts/assistant.sh mail learning forget-feedback --id <ID> --yes` | `tests/test_learning_patterns.py` |
 | `mail.learning.evaluate` | `read` | nein | `none` | `always` | `./scripts/assistant.sh mail learning evaluate --limit 5000` | `tests/test_agent_tool_architecture.py` |
 | `mail.learning.dataset-export` | `local-write` | nein | `learning-dataset-local-only` | `always` | `./scripts/assistant.sh mail learning dataset-export --output "mail_agent/data/learning_dataset.json" --limit 5000` | `tests/test_agent_tool_architecture.py` |
 | `mail.learning.folder-list` | `read` | nein | `none` | `always` | `./scripts/assistant.sh mail learning folder-list` | `tests/test_agent_tool_architecture.py` |

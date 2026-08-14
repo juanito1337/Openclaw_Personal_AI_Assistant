@@ -172,11 +172,77 @@ class LearningPatternTests(unittest.TestCase):
         raw = mail_parser().parse_args(["training", "conflicts", "--id", "abc123", "--limit", "5"])
         self.assertEqual(raw.id, "abc123")
 
+    def test_one_feedback_row_can_only_be_forgotten_after_explicit_approval(self) -> None:
+        item = message(
+            sender="cleanup@example.test",
+            subject="Status 1001",
+            message_id="cleanup@example.test",
+        )
+        self.storage.record_feedback(item, "routine", "Agent/Korrektur-Unwichtig")
+        feedback_id = int(
+            self.storage.connection.execute(
+                "SELECT id FROM feedback WHERE stable_key=?", (item.stable_key,)
+            ).fetchone()[0]
+        )
+        parsed = assistant_parser().parse_args(
+            ["mail", "learning", "forget-feedback", "--id", str(feedback_id), "--yes"]
+        )
+        self.assertEqual(parsed.id, feedback_id)
+        self.assertTrue(parsed.yes)
+
+        environment = os.environ.copy()
+        environment["PYTHONPATH"] = str(WORKSPACE)
+        base = [
+            sys.executable,
+            "-m",
+            "mail_agent",
+            "--config",
+            str(self.config_path),
+            "training",
+            "forget-feedback",
+            str(feedback_id),
+        ]
+        blocked = subprocess.run(
+            base,
+            cwd=WORKSPACE,
+            env=environment,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(blocked.returncode, 2)
+        self.assertEqual(
+            self.storage.connection.execute(
+                "SELECT COUNT(*) FROM feedback WHERE id=?", (feedback_id,)
+            ).fetchone()[0],
+            1,
+        )
+
+        approved = subprocess.run(
+            [*base, "--yes"],
+            cwd=WORKSPACE,
+            env=environment,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(approved.returncode, 0, approved.stderr + approved.stdout)
+        payload = json.loads(approved.stdout)
+        self.assertEqual(payload["feedback_id"], feedback_id)
+        self.assertEqual(payload["deleted_feedback_rows"], 1)
+        self.assertEqual(
+            self.storage.connection.execute(
+                "SELECT COUNT(*) FROM feedback WHERE id=?", (feedback_id,)
+            ).fetchone()[0],
+            0,
+        )
+
     def test_agent_registry_exposes_learning_tools(self) -> None:
         ids = {tool.id for tool in build_tool_registry(ToolSettings(path=Path("test-tools.toml")))}
         self.assertIn("mail.learning.status", ids)
         self.assertIn("mail.learning.folder-create", ids)
         self.assertIn("mail.learning.conflicts", ids)
+        self.assertIn("mail.learning.feedback-forget", ids)
 
     def test_folder_cli_creates_and_disables_mapping_without_deleting_imap_folder(self) -> None:
         fake = self.root / "himalaya"

@@ -71,6 +71,20 @@ protect a later match. Mixed senders and conflicts abstain to model/review logic
 Only configured correction folders create feedback. Dynamic correction folders
 are one level below their roots and require explicit creation/disable approval.
 
+Subject-pattern version 1 remains frozen for existing evidence. New evidence uses
+typed version 2 placeholders for dates, times, amounts, invoice/order/tracking
+identifiers, UUIDs and long IDs. `mail learning evaluate` compares both versions
+chronologically without letting a correction predict itself. Version 2 matching
+is automatically excluded whenever it would increase `relevant_missed` or
+`spam_forward_risk` over version 1. This gate never creates sender/domain rules or
+lowers classification thresholds.
+
+Inspect conflicts read-only with `mail learning conflicts --id <CONFLICT_ID>`.
+Only after Jan explicitly selects one displayed feedback ID may
+`mail learning forget-feedback --id <ID> --yes` remove that single local evidence
+row. It does not delete or move any mail and invalidates the productive dry-run;
+there is no automatic or bulk conflict cleanup.
+
 Before claiming improvement run `mail learning evaluate` and report sample size,
 coverage, accuracy and safety errors. Fewer than 50 category corrections are a
 small evidence base. Dataset export is a local write requiring an explicit request

@@ -82,6 +82,7 @@ TOOL_ORDER: tuple[str, ...] = (
     "mail.learning.not-spam",
     "mail.learning.mixed-senders",
     "mail.learning.conflicts",
+    "mail.learning.feedback-forget",
     "mail.learning.evaluate",
     "mail.learning.dataset-export",
     "mail.learning.folder-list",
