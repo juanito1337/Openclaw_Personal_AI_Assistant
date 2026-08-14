@@ -1,6 +1,6 @@
 # Build- und CI-Nachweise
 
-Stand: M8, 2026-08-06. Der detaillierte Sicherheitsvertrag steht unter
+Stand: M9, 2026-08-14. Der detaillierte Sicherheitsvertrag steht unter
 [`architecture/IMAGE_SUPPLY_CHAIN.md`](architecture/IMAGE_SUPPLY_CHAIN.md).
 
 ## Gemeinsame Qualitaetspruefung
@@ -15,6 +15,12 @@ Drei-Szenarien-Recovery-Drill gegen temporaere Roots aus. Der Docker-Containerjo
 ruft `scripts/check-m8-integration.sh` auf und bewahrt
 `build/m8-integration.json`; keine Fixture publiziert Hostports oder nutzt
 produktive Konten, Secrets, Mounts oder Netze.
+M9 hebt denselben Collection-Vertrag auf 606 pytest-Items an und ergaenzt
+Verhaltensregressionen fuer Review-Taxonomie, exakte Einzelkorrektur,
+Walk-forward-Lernen, Kalenderdiagnose und atomare Mail-Suchprojektion. Die
+SQLite/WAL-Nebenlaeufigkeit wird mit temporaeren Datenbanken und offenem Writer
+getestet; die Dockerintegration bleibt der isolierte M8-Protokollstack und
+beruehrt keinen laufenden Compose-Stack.
 
 Die Workflows besitzen global `permissions: {}`. Der Testjob darf nur Inhalte
 lesen. Der Releasejob erhaelt nur `contents: read`, `packages: write` und

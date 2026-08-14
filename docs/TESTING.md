@@ -1,6 +1,6 @@
 # Tests, Qualitaetsbaseline und Container-Runtime
 
-Stand: 2026-08-06, fortgeschrieben bis M8. Sie startet keine produktiven Dienste und
+Stand: 2026-08-14, fortgeschrieben bis M9. Sie startet keine produktiven Dienste und
 verwendet weder `/srv/openclaw` noch produktive Zugangsdaten.
 
 ## Einheitlicher lokaler und CI-Prueflauf
@@ -44,14 +44,14 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 472 Tests, darunter mindestens 432 unittest-kompatible Tests
-(die bisherigen 349 sowie M0-M8-Regressionstests),
+fordert mindestens 606 Tests, darunter mindestens 554 unittest-kompatible Tests
+(die bisherigen 349 sowie M0-M9-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
 nach dem Sammeln mit einem Fehler ab. Neue Tests duerfen die Zahl erhoehen; die
 Baseline wird erst nach einem vollstaendigen gruenen Lauf bewusst angehoben.
 
-## M0-Ausgangswerte und aktueller M8-Teststand
+## M0-Ausgangswerte und aktueller M9-Teststand
 
 Gemessen auf Linux x86_64 mit Python 3.12.3. Die Werte sind Beobachtungen und noch
 keine willkuerlichen Mindestquoten. `scripts/quality-baseline.py` erzeugt sie nach
@@ -73,6 +73,7 @@ der aktuellen Python-Dateien.
 | Tests nach privatrepository-tauglicher Registry-Attestierung | 459 / 459 (JUnit-Zaehler inklusive Subtest-Ereignissen siehe `build/m0-baseline.json`) |
 | Tests nach der immutable Plugin-/Gatewaykorrektur | 472 / 472 (494 JUnit-Faelle inklusive 22 Subtests) |
 | Tests nach nativer Nextcloud- und aktiver Layout-3-Korrektur | 473 / 473 (JUnit-Zaehler inklusive Subtest-Ereignissen siehe `build/m0-baseline.json`) |
+| Tests nach M9 gesammelt/ausgefuehrt | 606 / 606 (639 JUnit-Faelle inklusive 33 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -90,6 +91,8 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage (M8) | 43,83 % |
 | Gesamt-Coverage nach der Plugin-/Gatewaykorrektur | 59,34 % |
 | reine Branch-Coverage nach der Plugin-/Gatewaykorrektur | 44,01 % |
+| Gesamt-Coverage inklusive Branches nach M9 | 61,88 % |
+| reine Branch-Coverage nach M9 | 46,96 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -101,8 +104,8 @@ der aktuellen Python-Dateien.
 | sauberer Container-Erstbuild | ca. 411,92 s |
 | M6-Cache-Rebuild | 11 s |
 | Container-CLI-Kaltstart | 1.081 ms |
-| bekannte mypy-Altbefunde | 112 exakt baselinierte Befunde in 23 Dateien; 12 behoben |
-| bekannte Ruff-Altbefunde | 551 exakt baselinierte Befunde; 230 behoben |
+| bekannte mypy-Altbefunde | 111 exakt baselinierte Befunde in 22 Dateien; 13 behoben |
+| bekannte Ruff-Altbefunde | 521 exakt baselinierte Befunde; 260 behoben |
 
 Kritische Sicherheitsmodule im aktuellen M8-Lauf:
 
@@ -418,6 +421,39 @@ Bytes in 4,486 s und bestand in der frischen Installationsumgebung 472 Tests plu
 22 Subtests. Das lokale Runtime-Image mit Brave und Signal war 376.600.036 Bytes
 gross; M3, M4, der Offline-Gatewaystart, SBOM, Provenance und Trivy blieben mit
 null kritischen CVEs und null Secret-Befunden gruen.
+
+## M9-Mailqualitaet und Suchprojektion
+
+Die M9-Regressionspakete laufen im gemeinsamen Testpfad und koennen zusaetzlich
+zielgerichtet ohne produktive Konten ausgefuehrt werden:
+
+```bash
+.venv/bin/python -m pytest -q \
+  tests/test_mail_review_m9.py \
+  tests/test_subject_patterns_m95.py \
+  tests/test_mail_projection_m96.py \
+  tests/test_mail_search_snapshot.py
+```
+
+Die Tests verwenden Fake-IMAP-Adapter, kontrollierte Ollama-Antworten, temporaere
+SQLite-Datenbanken und synthetische Nachrichten. Sie pruefen typisierte
+Reviewgruende, read-only Vorschlaege, exakte Einzelkorrektur, getrenntes Routing,
+chronologisches Lernen ohne Selbsttreffer sowie Enthaltung bei Konflikten und
+Modellfehlern. Fuer die Suchprojektion bleibt ein echter WAL-Writer mit
+`BEGIN IMMEDIATE` offen; der Sync-Worker darf die Mail-Datenbank trotzdem nicht
+aufrufen. Crash vor Manifestpublikation, Korruption, Alter und die letzte
+vollstaendige Generation werden als Verhalten und nicht als Textsuche geprueft.
+
+Der finale M9-Repositorylauf sammelte und bestand 606 pytest-Items. JUnit meldete
+einschliesslich Subtests 639 Faelle. Die Branch-einbezogene Gesamt-Coverage lag bei
+61,88 Prozent, die reine Branch-Coverage bei 46,96 Prozent. Das neue
+`mail_projection`-Modul erreichte 74,40 Prozent, der Mail-Projektionswriter 90,79
+Prozent. Diese Werte sind reproduzierbare Beobachtungen und keine nachtraeglich
+gesetzten fachlichen Erfolgsgrenzen.
+
+Der isolierte M9-Wheellauf baute das Artefakt in 1,899 Sekunden mit 442.024 Bytes,
+bestand den Secret-/Laufzeitdatenscan, installierte es in eine frische Umgebung
+und fuehrte dort erneut alle 606 pytest-Items erfolgreich aus.
 
 ## Wheel- und Artefaktpruefung
 

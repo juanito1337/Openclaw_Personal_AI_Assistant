@@ -2,7 +2,7 @@
 
 Stand: 2026-08-14  
 Arbeitsbranch: `development/mail-quality-review-triage`  
-Status: Planung; keine produktive Aktivierung
+Status: Entwicklungsumsetzung M9.0 bis M9.7 abgeschlossen; keine produktive Aktivierung
 
 ## Ziel
 
@@ -406,6 +406,14 @@ Produktivkonfiguration und stoppe nach M9.6.
 ```
 
 ## M9.7 – Gesamt-Abnahme und kontrollierter Rollout
+
+Umsetzungsstand: implementiert auf dem Entwicklungsbranch. Der zentrale
+Repository- und Wheelpfad prueft 606 Tests aus derselben Collection; die
+Collection-Untergrenze ist auf 606 insgesamt, 554 unittest-kompatible und 13 freie
+Rechnungs-pytest-Tests angehoben. README, Changelog, Test-/Buildanleitung und der
+separate Rolloutvertrag sind aktualisiert. Die produktive Aktivierung,
+Ordnerfreigabe und sieben Tage Nachmessung bleiben ausdruecklich ausserhalb der
+Entwicklungsabnahme.
 
 ### Scope
 

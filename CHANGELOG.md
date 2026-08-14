@@ -1,5 +1,36 @@
 # Changelog
 
+## Unreleased – M9 Mail-Qualitaet und Review-Triage
+
+- Jeder neue Reviewfall erhaelt einen migrationssicheren Grund aus einer
+  geschlossenen Taxonomie. Originalentscheidung, Konfidenz, Quelle und
+  Schwellenergebnis bleiben nachvollziehbar; uneindeutige Altdaten werden nicht
+  nachtraeglich erfunden.
+- Registrierte read-only Werkzeuge liefern inhaltsfreie Review-Aggregate,
+  begrenzte Metadaten und eine evidenzgebundene Neueinschaetzung genau einer Mail.
+  Die einzige Korrekturaktion verlangt aktuellen Ordner, Mailbox-ID, erwarteten
+  Betreff, festes Urteil und ausdrueckliche Freigabe; Bulk, freies Ziel, Loeschen
+  und Versand bleiben ausgeschlossen.
+- Sicher relevante, nicht weitergeleitete neue Nachrichten werden fachlich von
+  allgemeiner Unsicherheit getrennt. `Agent/Relevant` wird nur nach Vorschau und
+  expliziter Ordnerfreigabe verwendet; der historische Reviewbestand wird nicht
+  automatisch verschoben.
+- Versionierte Betreffnormalisierung erkennt wechselnde Datums-, Zeit-, Betrags-,
+  Rechnungs-, Bestell-, Tracking- und Lang-ID-Anteile. Walk-forward-Auswertung
+  verhindert Eigenvorhersage; Version 2 wird automatisch ausgeschlossen, sobald
+  sie verpasste relevante Mail oder Spam-Weiterleitungsrisiko verschlechtert.
+- Der Mailworker veroeffentlicht eine checksumgebundene, atomare Suchprojektion.
+  Der Sync-Worker validiert die vollstaendige und aktuelle Quellgeneration vor
+  dem ersten Indexwrite und oeffnet die Mail-SQLite/WAL-Domaene nicht mehr.
+- Fehlende konfigurierte Kalender liefern einen exakten, read-only
+  Discovery-Schritt ohne automatische Auswahl oder Rechteaenderung. Ungueltige
+  Termindaten bleiben als fachliche Terminpruefung von Infrastrukturfehlern
+  getrennt.
+- 606 pytest-Items, davon 554 unittest-kompatibel und 13 zuvor separat
+  ausgelassene freie Rechnungs-Tests, bilden die neue Collection-Untergrenze.
+  Der Gesamtcheck misst 61,88 Prozent Branch-einbezogene Coverage und meldet
+  keine neuen Ruff- oder mypy-Befunde.
+
 ## Unreleased – M8 End-to-End-Recovery, Skills und Releaseabschluss
 
 - Providergebundene Aktiensuche kombiniert einen allowlist-begrenzten EODHD-
