@@ -4,6 +4,9 @@ Diese Datei beschreibt die fachliche Produktentwicklung. Die priorisierte techni
 Modernisierung des Docker-Stacks, einschliesslich eigenstaendiger Entwicklungs-Prompts
 und Milestone-Tests, steht in
 [`CONTAINER_ARCHITECTURE_ROADMAP.md`](CONTAINER_ARCHITECTURE_ROADMAP.md).
+Der anschliessende Qualitaetsmilestone fuer nachvollziehbare Mail-Prueffaelle,
+kontrollierte Einzelkorrekturen und messbares Lernen steht in
+[`MAIL_QUALITY_REVIEW_ROADMAP.md`](MAIL_QUALITY_REVIEW_ROADMAP.md).
 
 ## 3.4.x foundation
 

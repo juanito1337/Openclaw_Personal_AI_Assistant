@@ -24,6 +24,7 @@ Zustand, Instanzkonfiguration und Secrets bleiben ausserhalb des Images unter
 | Trust Boundaries und Schwachstellenprozess | [Sicherheit](SECURITY.md) |
 | Architekturentscheidungen | [ADR-Index](docs/architecture/adr/README.md) |
 | Geplante Container-Milestones | [Container-Roadmap](docs/CONTAINER_ARCHITECTURE_ROADMAP.md) |
+| Geplanter Mail-Qualitaetsmilestone | [M9 Mail-Qualitaet und Review-Triage](docs/MAIL_QUALITY_REVIEW_ROADMAP.md) |
 | Chronologische Aenderungen | [Changelog](CHANGELOG.md) |
 
 Historische Architektur-, Git- und Releasebeschreibungen liegen klar als nicht
