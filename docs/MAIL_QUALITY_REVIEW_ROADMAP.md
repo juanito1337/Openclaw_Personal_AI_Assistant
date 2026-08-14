@@ -148,6 +148,11 @@ nach M9.0.
 
 ## M9.1 – Persistenter Review-Grund und sichere Migration
 
+Umsetzungsstand: implementiert auf dem Entwicklungsbranch. Das additive
+SQLite-Schema 2 bewahrt Altzeilen, validiert die geschlossene Taxonomie und haelt
+die erste technische Review-Entscheidung in inhaltsfreien Feldern unveraenderlich
+fest. Nicht eindeutig ableitbare Altfaelle werden `unknown-legacy`.
+
 ### Scope
 
 - `review_reason` getrennt von Kategorie, Status und Freitextgrund speichern.

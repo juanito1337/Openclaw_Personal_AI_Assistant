@@ -8,9 +8,10 @@ from typing import Any
 
 from .learning import message_feature_metadata
 from .models import Classification, ParsedMessage
+from .review import REVIEW_REASON_VALUES, ReviewReason, parse_review_reason
 from .utils import normalize_subject, normalize_subject_pattern, now_utc_iso
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 FINAL_STATUSES = {
@@ -68,6 +69,12 @@ class Storage:
                 status TEXT,
                 destination_folder TEXT,
                 classification_json TEXT,
+                review_reason TEXT,
+                review_category TEXT,
+                review_confidence REAL,
+                review_source TEXT,
+                review_threshold REAL,
+                review_captured_at TEXT,
                 first_seen_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
                 forwarded_at TEXT,
@@ -225,6 +232,63 @@ class Storage:
             "UPDATE feedback SET correction_folder = source_folder "
             "WHERE COALESCE(correction_folder, '') = ''"
         )
+        message_columns = {
+            str(row[1]) for row in self.connection.execute("PRAGMA table_info(messages)").fetchall()
+        }
+        for column, declaration in (
+            ("review_reason", "TEXT"),
+            ("review_category", "TEXT"),
+            ("review_confidence", "REAL"),
+            ("review_source", "TEXT"),
+            ("review_threshold", "REAL"),
+            ("review_captured_at", "TEXT"),
+        ):
+            if column not in message_columns:
+                self.connection.execute(f"ALTER TABLE messages ADD COLUMN {column} {declaration}")
+        # Only facts that are unambiguous in the legacy row are backfilled.  A
+        # generic review status may also have been caused by an invoice or another
+        # safety gate, so it deliberately remains unknown.
+        self.connection.execute(
+            """
+            UPDATE messages
+            SET review_reason = CASE
+                    WHEN status = 'appointment-review' THEN ?
+                    WHEN status = 'review' AND category = 'uncertain' THEN ?
+                    WHEN status = 'review' THEN ?
+                    ELSE review_reason
+                END,
+                review_category = CASE
+                    WHEN status IN ('review', 'appointment-review')
+                    THEN COALESCE(review_category, category)
+                    ELSE review_category
+                END,
+                review_confidence = CASE
+                    WHEN status IN ('review', 'appointment-review')
+                    THEN COALESCE(review_confidence, confidence)
+                    ELSE review_confidence
+                END
+            WHERE COALESCE(review_reason, '') = ''
+              AND status IN ('review', 'appointment-review')
+            """,
+            (
+                ReviewReason.APPOINTMENT_REVIEW.value,
+                ReviewReason.CLASSIFICATION_UNCERTAIN.value,
+                ReviewReason.UNKNOWN_LEGACY.value,
+            ),
+        )
+        invalid_review_reasons = [
+            str(row[0])
+            for row in self.connection.execute(
+                """
+                SELECT DISTINCT review_reason FROM messages
+                WHERE COALESCE(review_reason, '') != ''
+                """
+            ).fetchall()
+            if str(row[0]) not in REVIEW_REASON_VALUES
+        ]
+        if invalid_review_reasons:
+            values = ", ".join(sorted(invalid_review_reasons))
+            raise RuntimeError(f"Datenbank enthaelt unbekannte Review-Gruende: {values}")
         invoice_columns = {
             str(row[1]) for row in self.connection.execute("PRAGMA table_info(invoices)").fetchall()
         }
@@ -358,6 +422,50 @@ class Storage:
         values.append(stable_key)
         self.connection.execute(f"UPDATE messages SET {', '.join(fields)} WHERE stable_key = ?", values)
         self.connection.commit()
+
+    def record_review(
+        self,
+        stable_key: str,
+        reason: str | ReviewReason,
+        classification: Classification,
+        *,
+        threshold: float | None = None,
+    ) -> None:
+        """Capture the first technical review decision without mail content."""
+
+        parsed_reason = parse_review_reason(reason)
+        if classification.category not in {"spam", "routine", "relevant", "appointment", "uncertain"}:
+            raise ValueError(f"Ungueltige Review-Kategorie: {classification.category}")
+        confidence = float(classification.confidence)
+        if not 0.0 <= confidence <= 1.0:
+            raise ValueError("Review-Konfidenz muss zwischen 0 und 1 liegen")
+        if threshold is not None and not 0.0 <= float(threshold) <= 1.0:
+            raise ValueError("Review-Schwelle muss zwischen 0 und 1 liegen")
+        source = str(classification.source or "").strip()[:160]
+        with self.connection:
+            cursor = self.connection.execute(
+                """
+                UPDATE messages
+                SET review_reason = COALESCE(review_reason, ?),
+                    review_category = COALESCE(review_category, ?),
+                    review_confidence = COALESCE(review_confidence, ?),
+                    review_source = COALESCE(review_source, ?),
+                    review_threshold = COALESCE(review_threshold, ?),
+                    review_captured_at = COALESCE(review_captured_at, ?)
+                WHERE stable_key = ?
+                """,
+                (
+                    parsed_reason.value,
+                    classification.category,
+                    confidence,
+                    source,
+                    float(threshold) if threshold is not None else None,
+                    now_utc_iso(),
+                    stable_key,
+                ),
+            )
+            if cursor.rowcount != 1:
+                raise KeyError(f"Mailzustand nicht gefunden: {stable_key}")
 
     @staticmethod
     def _json_dict(value: Any) -> dict[str, Any]:

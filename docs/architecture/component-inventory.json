@@ -1224,7 +1224,7 @@
         "docs/ROADMAP.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-14T02:01:58+02:00",
+      "last_git_change": "2026-08-14T02:11:05+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -2862,7 +2862,7 @@
         "docs/TESTING.md",
         "docs/archive/AUDIT_INITIAL_IMPORT.md"
       ],
-      "line_coverage_percent": 50.76,
+      "line_coverage_percent": 51.75,
       "last_git_change": "2026-08-08T11:13:16+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -3336,7 +3336,8 @@
         "tests/test_mail_search_snapshot.py",
         "tests/test_not_spam_learning.py",
         "tests/test_parser_legacy_headers.py",
-        "tests/test_r261_ollama_reliability.py"
+        "tests/test_r261_ollama_reliability.py",
+        "tests/test_storage_migration.py"
       ],
       "documentation_evidence": [],
       "line_coverage_percent": 84.13,
@@ -3435,7 +3436,8 @@
         "tests/test_mail_review_m9.py",
         "tests/test_not_spam_learning.py",
         "tests/test_parser_legacy_headers.py",
-        "tests/test_r261_ollama_reliability.py"
+        "tests/test_r261_ollama_reliability.py",
+        "tests/test_storage_migration.py"
       ],
       "documentation_evidence": [],
       "line_coverage_percent": 65.65,
@@ -3455,13 +3457,14 @@
       "classification": "active",
       "productive_callers": [],
       "test_evidence": [
-        "tests/test_mail_review_m9.py"
+        "tests/test_mail_review_m9.py",
+        "tests/test_storage_migration.py"
       ],
       "documentation_evidence": [
         "docs/MAIL_QUALITY_REVIEW_ROADMAP.md"
       ],
-      "line_coverage_percent": null,
-      "last_git_change": null,
+      "line_coverage_percent": 92.31,
+      "last_git_change": "2026-08-14T02:11:05+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -5987,7 +5990,7 @@
         "docs/architecture/adr/0007-shared-sqlite-scheduler.md",
         "docs/architecture/state-access.json"
       ],
-      "line_coverage_percent": 85.1,
+      "line_coverage_percent": 84.24,
       "last_git_change": "2026-08-06T15:45:31+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -8083,7 +8086,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-08-14T02:11:05+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
