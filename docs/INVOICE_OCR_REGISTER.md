@@ -19,7 +19,28 @@ Es wird keine dauerhafte lokale CSV-Kopie gefuehrt. Kurzlebige, geschuetzte Acti
 3. OCR mit `pdftoppm` und Tesseract ist nur der Fallback, wenn die Textschicht unbrauchbar ist oder das Rechnungsdatum nicht sicher erkannt wurde.
 4. Native Textwerte bleiben vorrangig. OCR darf fehlende oder sehr schwache Felder ergaenzen, aber keine guten Textwerte still ersetzen.
 5. Widersprechen sich native Textschicht und OCR bei Rechnungsdatum, Rechnungsnummer oder Bruttobetrag mit hoher Konfidenz, wird das betroffene Feld geleert und als `Pruefen` gekennzeichnet.
-6. Rechnungsdaten werden unter anderem an `Rechnungsdatum`, `Datum der Rechnung`, `Rechnung vom`, `Datum`, `Invoice date`, `Belegdatum` und `Ausstellungsdatum` erkannt. Leistungs-, Liefer-, Bestell- und Faelligkeitsdaten sind ausdruecklich ausgeschlossen.
+6. Rechnungsnummer und Rechnungsdatum entstehen aus typisierten Kandidaten mit
+   Quelle, Rohwert, normalisiertem Wert, begrenztem Evidenztyp, Konfidenz und
+   Ausschlussgrund. Die Evidenzzeile ist auf 300 Zeichen begrenzt.
+7. Nummernanker sind unter anderem `Rechnungsnummer`, `Rechnung Nr.`, `Invoice
+   Number`, `Invoice No.` und `Beleg-Nr.`. Der Wert muss auf derselben oder exakt
+   der naechsten unbeschrifteten Zeile stehen. Unicode, Bindestrich,
+   Schraegstrich, alphanumerische Werte und typische OCR-Zeichenabstaende werden
+   deterministisch normalisiert.
+8. Kunden-, Bestell-, Liefer-, Vertrags-, Telefon-, Steuer- und
+   Trackingnummern sowie IBAN werden als eigene ausgeschlossene Rollen erfasst.
+   Ein datumsfoermiger Wert hinter `Rechnung NR.` bleibt sichtbarer, aber
+   ausgeschlossener Nummernkandidat.
+9. Rechnungsdaten werden unter anderem an `Rechnungsdatum`, `Datum der
+   Rechnung`, `Rechnung vom`, `Datum`, `Invoice date`, `Belegdatum` und
+   `Ausstellungsdatum` erkannt. Leistungs-, Liefer-, Bestell-, Zahlungs- und
+   Faelligkeitsdaten sind typisiert ausgeschlossen. Mehrere gleich plausible
+   Rechnungsnummern oder Rechnungsdaten fuehren fail-closed zu `review`.
+
+Der physische PDF-Dateiname darf nur einen bereits beschriftet aus PDF- oder
+OCR-Text extrahierten Rechnungsnummernkandidaten stuetzen. Eine unbeschriftete
+Nummer im Dateinamen erzeugt keinen Feldwert und keine Bestaetigung. M10.2 fuehrt
+keine Datenbankmigration und keine Neubewertung historischer Zeilen aus.
 
 Es wird kein fehlender Dokumentwert aus dem E-Mail-Eingangsdatum geraten. Das Eingangsdatum bleibt ein separates Registerfeld und ist nur der sichere Ablage-Fallback, wenn das Rechnungsdatum selbst nicht belastbar ist.
 

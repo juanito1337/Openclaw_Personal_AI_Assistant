@@ -95,7 +95,12 @@ def evaluate(corpus_path: Path = DEFAULT_CORPUS) -> dict[str, Any]:
 
     for case in corpus["cases"]:
         text = "\n\f\n".join(str(page) for page in case["pages"])
-        metadata = parse_invoice_text(text, _message(case), method="synthetic-text")
+        metadata = parse_invoice_text(
+            text,
+            _message(case),
+            method="synthetic-text",
+            document_name=str(case.get("document_name") or ""),
+        )
         actual = {
             field: str(getattr(metadata, field).value or "")
             for field in EVALUATED_FIELDS

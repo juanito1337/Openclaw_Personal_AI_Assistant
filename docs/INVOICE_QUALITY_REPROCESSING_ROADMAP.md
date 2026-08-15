@@ -2,7 +2,7 @@
 
 Stand: 2026-08-15
 Empfohlener Arbeitsbranch: `development/invoice-quality-reprocessing-m10`
-Status: M10.0 und M10.1 implementiert; kein Produktivlauf freigegeben
+Status: M10.0 bis M10.2 implementiert; kein Produktivlauf freigegeben
 
 ## Ziel
 
@@ -256,6 +256,10 @@ stoppe nach M10.1. Beginne nicht mit M10.2.
 ```
 
 ## M10.2 – Belegte Rechnungsnummern und sichere Datumsfelder
+
+Status: implementiert und lokal gegen den sanitisierten M10.2-Korpus abgenommen.
+Es wurden weder SQLite-Schema noch Backfill-Auswahl, Register oder Nextcloud
+veraendert. M10.3 ist nicht Bestandteil dieser Umsetzung.
 
 ### Scope
 

@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "corpus_id": "m10.2-synthetic-number-date-v1",
+  "before_source_revision": "b8aa79418540ff4e44a46feba2fbc579ccbf5693",
+  "before": {
+    "invoice_number": {
+      "expected": 8,
+      "predicted": 4,
+      "correct": 4,
+      "precision": 1.0,
+      "coverage": 0.5
+    },
+    "invoice_date": {
+      "expected": 11,
+      "predicted": 11,
+      "correct": 11,
+      "precision": 1.0,
+      "coverage": 1.0
+    },
+    "confirmed": 3,
+    "review": 9,
+    "false_confirmed": 0
+  },
+  "measurement": ".venv/bin/python scripts/evaluate_invoice_quality.py --corpus tests/fixtures/invoices/m102_number_date_corpus.json",
+  "scope": "Synthetic M10.2 number/date corpus only; no production data or reprocessing."
+}

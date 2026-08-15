@@ -10,6 +10,18 @@ unsafe. The confirmed invoice date comes from the PDF, never only from mail date
 filename, service/delivery/due date. A safe date controls `YYYY/MM` even when
 optional fields are absent; only an unsafe date routes the PDF to review.
 
+Invoice number and invoice date are selected only from typed candidates. Each
+candidate retains its document/OCR source, bounded evidence type, raw and
+normalized value, confidence and an explicit exclusion reason. Supported German
+and English number labels include `Rechnungsnummer`, `Rechnung Nr.`, `Invoice
+Number`, `Invoice No.`, `Beleg-Nr.` and documented variants on the same or one
+bounded following line. Customer, order, delivery, contract, phone, tax,
+tracking and IBAN fields are never invoice-number evidence. Service, delivery,
+order, payment and due dates are never invoice-date evidence. Conflicting
+invoice labels remain review. A physical PDF filename may raise confidence only
+when it repeats an already labeled document value; a filename-only number is
+stored as excluded support and must never be presented as confirmed metadata.
+
 The sole productive register is the managed Nextcloud
 `<invoice-root>/<YYYY>/Rechnungen_<YYYY>.csv`. Never create a durable local copy.
 Its narrow replacement path requires ETag, SHA and schema validation. Use

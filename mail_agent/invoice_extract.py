@@ -6,6 +6,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import unicodedata
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime
@@ -20,22 +21,98 @@ _AMOUNT_TOKEN = re.compile(
     r"(?<![\dA-Za-z])(?:EUR\s*|€\s*)?(-?\d{1,3}(?:[.\s]\d{3})*(?:,\d{2})|-?\d+(?:[.,]\d{2}))(?:\s*(EUR|€))?(?!\d)",
     re.IGNORECASE,
 )
-_INVOICE_NUMBER = re.compile(
-    r"(?:rechnungs(?:nummer|nr\.?|\s*nr\.?)|invoice\s*(?:number|no\.?|#)|belegnummer|faktura(?:nummer|nr\.?)?)"
-    r"\s*[:#]?\s*([A-Z0-9][A-Z0-9._/\-]{2,50})",
-    re.IGNORECASE,
-)
 _VAT_ID = re.compile(r"\b(?:DE\s*)?\d{9}\b", re.IGNORECASE)
 
-_DATE_ANCHORS = (
-    "rechnungsdatum", "datum der rechnung", "rechnung vom", "rechnung erstellt am",
-    "invoice date", "invoice issued", "document date", "belegdatum", "ausstellungsdatum", "datum",
+_INVOICE_NUMBER_LABELS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"\brechnungsnummer\b", re.IGNORECASE),
+    re.compile(r"\brechnungs?[-\s]*(?:nr|no)\.?\b", re.IGNORECASE),
+    re.compile(r"\binvoice\s*(?:number|no\.?|#|id)\b", re.IGNORECASE),
+    re.compile(r"\bbeleg[-\s]*(?:nummer|nr\.?)\b", re.IGNORECASE),
+    re.compile(r"\bfaktura[-\s]*(?:nummer|nr\.?)\b", re.IGNORECASE),
 )
-_DATE_NEGATIVE = (
-    "leistungsdatum", "lieferdatum", "faellig", "fällig", "zahlungsziel", "bestelldatum",
-    "lieferzeitraum", "datum der leistung", "datum der lieferung", "datum der bestellung",
-    "due date", "service date", "delivery date", "order date",
+_NON_INVOICE_NUMBER_LABELS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    (
+        "customer-number",
+        re.compile(
+            r"\b(?:kunden(?:nummer|[-\s]*nr\.?)|customer\s*(?:number|no\.?|id))\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "order-number",
+        re.compile(
+            r"\b(?:bestell(?:nummer|[-\s]*nr\.?)|order\s*(?:number|no\.?)|purchase\s*order)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "delivery-number",
+        re.compile(
+            r"\b(?:lieferschein(?:nummer|[-\s]*nr\.?)|delivery\s*(?:number|no\.?))\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "contract-number",
+        re.compile(
+            r"\b(?:vertrags(?:nummer|[-\s]*nr\.?)|contract\s*(?:number|no\.?))\b",
+            re.IGNORECASE,
+        ),
+    ),
+    ("phone-number", re.compile(r"\b(?:telefon|telephone|phone|tel\.?)\b", re.IGNORECASE)),
+    (
+        "tax-number",
+        re.compile(
+            r"\b(?:ust[-\s]*id|umsatzsteuer[-\s]*id|vat\s*id|steuernummer|tax\s*(?:number|no\.?))\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "tracking-number",
+        re.compile(
+            r"\b(?:sendungsnummer|tracking\s*(?:number|no\.?))\b",
+            re.IGNORECASE,
+        ),
+    ),
+    ("iban", re.compile(r"\biban\b", re.IGNORECASE)),
 )
+_OCR_SPACED_WORD = re.compile(r"(?<!\w)(?:[^\W\d_]\s+){2,}[^\W\d_](?!\w)", re.UNICODE)
+
+_INVOICE_DATE_LABELS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"\brechnungsdatum\b", re.IGNORECASE),
+    re.compile(r"\bdatum\s+der\s+rechnung\b", re.IGNORECASE),
+    re.compile(r"\brechnung\s+(?:vom|erstellt\s+am)\b", re.IGNORECASE),
+    re.compile(r"\binvoice\s+(?:date|issued(?:\s+on)?)\b", re.IGNORECASE),
+    re.compile(r"\bdocument\s+date\b", re.IGNORECASE),
+    re.compile(r"\b(?:belegdatum|ausstellungsdatum)\b", re.IGNORECASE),
+    re.compile(r"^\s*datum\s*(?=[:\-]|$)", re.IGNORECASE),
+)
+_NON_INVOICE_DATE_LABELS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    (
+        "service-date",
+        re.compile(
+            r"\b(?:leistungsdatum|datum\s+der\s+leistung|service\s+date)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "delivery-date",
+        re.compile(
+            r"\b(?:lieferdatum|datum\s+der\s+lieferung|delivery\s+date)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    ("order-date", re.compile(r"\b(?:bestelldatum|datum\s+der\s+bestellung|order\s+date)\b", re.IGNORECASE)),
+    ("payment-date", re.compile(r"\b(?:zahlungsdatum|payment\s+date)\b", re.IGNORECASE)),
+    (
+        "due-date",
+        re.compile(
+            r"\b(?:f(?:a|ä|ae)llig(?:\s+am)?|zahlbar\s+bis|zahlungsziel|due\s+date|payment\s+due)\b",
+            re.IGNORECASE,
+        ),
+    ),
+)
+
 _GROSS_ANCHORS = (
     "rechnungsbetrag", "gesamtbetrag", "endbetrag", "zahlbetrag", "zu zahlen", "bruttobetrag",
     "gesamtsumme", "summe brutto", "grand total", "total amount", "amount due", "invoice total",
@@ -89,6 +166,19 @@ class FieldValue:
 
 
 @dataclass(slots=True)
+class FieldCandidate:
+    field: str
+    role: str
+    raw_value: str
+    normalized_value: str
+    source: str
+    evidence_type: str
+    evidence: str
+    confidence: float
+    excluded_reason: str = ""
+
+
+@dataclass(slots=True)
 class InvoiceMetadata:
     invoice_date: FieldValue = field(default_factory=FieldValue)
     invoice_number: FieldValue = field(default_factory=FieldValue)
@@ -104,6 +194,7 @@ class InvoiceMetadata:
     method: str = "none"
     text_quality: float = 0.0
     issues: list[str] = field(default_factory=list)
+    field_candidates: list[FieldCandidate] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -122,6 +213,11 @@ class InvoiceMetadata:
 
 def _clean_line(value: str) -> str:
     return re.sub(r"\s+", " ", value or "").strip()
+
+
+def _normalize_ocr_spacing(value: str) -> str:
+    normalized = unicodedata.normalize("NFKC", value or "")
+    return _OCR_SPACED_WORD.sub(lambda match: re.sub(r"\s+", "", match.group(0)), normalized)
 
 
 def _parse_date(value: str) -> date | None:
@@ -172,7 +268,8 @@ def _received_date(message: ParsedMessage) -> date:
 
 
 def _lines(text: str) -> list[str]:
-    return [_clean_line(line) for line in (text or "").replace("\x00", " ").splitlines() if _clean_line(line)]
+    normalized = _normalize_ocr_spacing((text or "").replace("\x00", " "))
+    return [_clean_line(line) for line in normalized.splitlines() if _clean_line(line)]
 
 
 def _date_field(
@@ -221,6 +318,111 @@ def _date_field(
     return FieldValue(best[1].isoformat(), best[0], best[2])
 
 
+def _date_role(line: str) -> tuple[str, re.Match[str] | None]:
+    for role, pattern in _NON_INVOICE_DATE_LABELS:
+        match = pattern.search(line)
+        if match:
+            return role, match
+    for pattern in _INVOICE_DATE_LABELS:
+        match = pattern.search(line)
+        if match:
+            return "invoice-date", match
+    return "", None
+
+
+def _invoice_date_field(
+    lines: list[str], *, received: date, source: str
+) -> tuple[FieldValue, list[FieldCandidate]]:
+    candidates: list[FieldCandidate] = []
+    accepted: list[tuple[float, date, str, FieldCandidate]] = []
+    observed: set[tuple[int, str]] = set()
+    for index, line in enumerate(lines):
+        role, label_match = _date_role(line)
+        if not role or label_match is None:
+            continue
+        search_lines = [(index, line, 0)]
+        if not _DATE_TOKEN.search(line) and index + 1 < len(lines):
+            next_role, _ = _date_role(lines[index + 1])
+            if not next_role:
+                search_lines.append((index + 1, lines[index + 1], 1))
+        for candidate_index, candidate_line, distance in search_lines:
+            for match in _DATE_TOKEN.finditer(candidate_line):
+                raw = match.group(1)
+                parsed = _parse_date(raw)
+                if not parsed:
+                    continue
+                observed.add((candidate_index, raw))
+                score = 0.96 if distance == 0 else 0.88
+                delta = (parsed - received).days
+                if delta > 14:
+                    score -= 0.25
+                if delta < -3650:
+                    score -= 0.25
+                excluded = "" if role == "invoice-date" else f"not-invoice-date:{role}"
+                candidate = FieldCandidate(
+                    field="invoice_date",
+                    role=role,
+                    raw_value=raw,
+                    normalized_value=parsed.isoformat(),
+                    source=source,
+                    evidence_type="labeled-same-line" if distance == 0 else "labeled-next-line",
+                    evidence=line[:300],
+                    confidence=max(0.0, score),
+                    excluded_reason=excluded,
+                )
+                candidates.append(candidate)
+                if not excluded:
+                    accepted.append((candidate.confidence, parsed, line[:300], candidate))
+
+    for index, line in enumerate(lines):
+        for match in _DATE_TOKEN.finditer(line):
+            raw = match.group(1)
+            if (index, raw) in observed:
+                continue
+            parsed = _parse_date(raw)
+            if parsed:
+                candidates.append(
+                    FieldCandidate(
+                        field="invoice_date",
+                        role="unlabeled-date",
+                        raw_value=raw,
+                        normalized_value=parsed.isoformat(),
+                        source=source,
+                        evidence_type="unlabeled-document-value",
+                        evidence=line[:300],
+                        confidence=0.35,
+                        excluded_reason="missing-invoice-date-label",
+                    )
+                )
+
+    if not accepted:
+        unlabelled = [
+            candidate
+            for candidate in candidates
+            if candidate.role == "unlabeled-date"
+        ]
+        if unlabelled:
+            first = unlabelled[0]
+            return (
+                FieldValue(first.normalized_value, first.confidence, first.evidence),
+                candidates,
+            )
+        return FieldValue(), candidates
+    accepted.sort(key=lambda item: item[0], reverse=True)
+    best = accepted[0]
+    high_values = {
+        item[1]
+        for item in accepted
+        if item[0] >= best[0] - 0.05 and item[0] >= 0.75
+    }
+    if len(high_values) > 1:
+        for _, value, _, candidate in accepted:
+            if value in high_values:
+                candidate.excluded_reason = "conflicting-invoice-date"
+        return FieldValue("", 0.3, "Mehrere gleich plausible Rechnungsdaten"), candidates
+    return FieldValue(best[1].isoformat(), best[0], best[2]), candidates
+
+
 def _amount_field(lines: list[str], anchors: Iterable[str]) -> FieldValue:
     candidates: list[tuple[float, int, str, str]] = []
     for index, line in enumerate(lines):
@@ -257,21 +459,141 @@ def _amount_field(lines: list[str], anchors: Iterable[str]) -> FieldValue:
     return FieldValue(_format_amount(best[1]), confidence, best[3])
 
 
-def _invoice_number_field(lines: list[str]) -> FieldValue:
-    found: list[tuple[str, str]] = []
-    for line in lines:
-        match = _INVOICE_NUMBER.search(line)
-        if match:
-            value = match.group(1).strip(" .,:;#")
-            if len(value) >= 3:
-                found.append((value, line[:300]))
-    unique = {value.casefold(): (value, evidence) for value, evidence in found}
-    if len(unique) == 1:
-        value, evidence = next(iter(unique.values()))
-        return FieldValue(value, 0.94, evidence)
+def _normalize_invoice_number(value: str) -> str:
+    normalized = unicodedata.normalize("NFKC", value or "")
+    normalized = normalized.replace("–", "-").replace("—", "-").replace("−", "-")
+    return re.sub(r"\s+", "", normalized).strip(" .,:;#")
+
+
+def _number_value(line: str, label_end: int) -> tuple[str, str]:
+    remainder = line[label_end:].lstrip(" .,:;#-")
+    if not remainder:
+        return "", ""
+    raw = re.split(r"[|;,]", remainder, maxsplit=1)[0].strip()
+    if not raw:
+        return "", ""
+    if all(character.isalnum() or character in " ._/-–—−" for character in raw):
+        return raw[:100], _normalize_invoice_number(raw[:100])
+    token = raw.split(maxsplit=1)[0]
+    return token[:100], _normalize_invoice_number(token[:100])
+
+
+def _number_exclusion(value: str) -> str:
+    if not value:
+        return "missing-value"
+    if _parse_date(value):
+        return "value-is-date"
+    if len(value) < 3 or len(value) > 64:
+        return "invalid-length"
+    if not any(character.isdigit() for character in value):
+        return "value-has-no-digit"
+    if not all(character.isalnum() or character in "._/-" for character in value):
+        return "invalid-characters"
+    compact = re.sub(r"[._/-]", "", value).upper()
+    if re.fullmatch(r"[A-Z]{2}\d{13,32}", compact):
+        return "value-is-iban"
+    if re.fullmatch(r"(?:DE)?\d{9}", compact):
+        return "value-is-vat-id"
+    return ""
+
+
+def _has_number_label(line: str) -> bool:
+    return any(pattern.search(line) for pattern in _INVOICE_NUMBER_LABELS) or any(
+        pattern.search(line) for _, pattern in _NON_INVOICE_NUMBER_LABELS
+    )
+
+
+def _invoice_number_field(
+    lines: list[str], *, source: str, document_name: str = ""
+) -> tuple[FieldValue, list[FieldCandidate]]:
+    candidates: list[FieldCandidate] = []
+    accepted: list[FieldCandidate] = []
+    for index, line in enumerate(lines):
+        matched_positive = False
+        for pattern in _INVOICE_NUMBER_LABELS:
+            label_match = pattern.search(line)
+            if not label_match:
+                continue
+            matched_positive = True
+            raw, normalized = _number_value(line, label_match.end())
+            distance = 0
+            if not normalized and index + 1 < len(lines) and not _has_number_label(lines[index + 1]):
+                raw, normalized = _number_value(lines[index + 1], 0)
+                distance = 1
+            excluded = _number_exclusion(normalized)
+            candidate = FieldCandidate(
+                field="invoice_number",
+                role="invoice-number",
+                raw_value=raw,
+                normalized_value=normalized,
+                source=source,
+                evidence_type="labeled-same-line" if distance == 0 else "labeled-next-line",
+                evidence=line[:300],
+                confidence=0.94 if distance == 0 else 0.88,
+                excluded_reason=excluded,
+            )
+            candidates.append(candidate)
+            if not excluded:
+                accepted.append(candidate)
+            break
+        if matched_positive:
+            continue
+        for role, pattern in _NON_INVOICE_NUMBER_LABELS:
+            label_match = pattern.search(line)
+            if not label_match:
+                continue
+            raw, normalized = _number_value(line, label_match.end())
+            candidates.append(
+                FieldCandidate(
+                    field="invoice_number",
+                    role=role,
+                    raw_value=raw,
+                    normalized_value=normalized,
+                    source=source,
+                    evidence_type="excluded-labeled-value",
+                    evidence=line[:300],
+                    confidence=0.0,
+                    excluded_reason=f"not-invoice-number:{role}",
+                )
+            )
+            break
+
+    unique = {candidate.normalized_value.casefold() for candidate in accepted}
     if len(unique) > 1:
-        return FieldValue("", 0.35, "Mehrere Rechnungsnummern erkannt")
-    return FieldValue()
+        for candidate in accepted:
+            candidate.excluded_reason = "conflicting-invoice-number"
+        result = FieldValue("", 0.35, "Mehrere Rechnungsnummern erkannt")
+    elif len(unique) == 1:
+        selected = accepted[0]
+        result = FieldValue(selected.normalized_value, selected.confidence, selected.evidence)
+    else:
+        result = FieldValue()
+
+    filename = Path(document_name).name[:300] if document_name else ""
+    stem = Path(filename).stem if filename else ""
+    filename_normalized = _normalize_invoice_number(stem)
+    if filename_normalized and any(character.isdigit() for character in filename_normalized):
+        supported = bool(
+            result.value
+            and result.value.casefold() in filename_normalized.casefold()
+        )
+        candidates.append(
+            FieldCandidate(
+                field="invoice_number",
+                role="invoice-number",
+                raw_value=stem[:100],
+                normalized_value=result.value if supported else filename_normalized[:100],
+                source="filename",
+                evidence_type="supporting-filename-match" if supported else "filename-only",
+                evidence=filename,
+                confidence=0.97 if supported else 0.2,
+                excluded_reason="" if supported else "filename-support-only",
+            )
+        )
+        if supported:
+            result.confidence = 0.97
+            result.evidence = f"{result.evidence} / Dateiname stimmt ueberein"[:300]
+    return result, candidates
 
 
 def _supplier_field(lines: list[str], message: ParsedMessage) -> FieldValue:
@@ -380,15 +702,27 @@ def _finalize_metadata(metadata: InvoiceMetadata) -> InvoiceMetadata:
     return metadata
 
 
-def parse_invoice_text(text: str, message: ParsedMessage, *, method: str) -> InvoiceMetadata:
+def parse_invoice_text(
+    text: str,
+    message: ParsedMessage,
+    *,
+    method: str,
+    document_name: str = "",
+) -> InvoiceMetadata:
     lines = _lines(text)
     received = _received_date(message)
     alpha = sum(ch.isalnum() for ch in text)
     quality = min(1.0, alpha / 500.0) if text else 0.0
     metadata = InvoiceMetadata(method=method, text_quality=quality)
-    metadata.invoice_date = _date_field(lines, _DATE_ANCHORS, received=received, negative=_DATE_NEGATIVE)
+    metadata.invoice_date, date_candidates = _invoice_date_field(
+        lines, received=received, source=method
+    )
     metadata.due_date = _date_field(lines, _DUE_ANCHORS, received=received, require_anchor=True)
-    metadata.invoice_number = _invoice_number_field(lines)
+    metadata.invoice_number, number_candidates = _invoice_number_field(
+        lines, source=method, document_name=document_name
+    )
+    metadata.field_candidates.extend(date_candidates)
+    metadata.field_candidates.extend(number_candidates)
     metadata.gross_amount = _amount_field(lines, _GROSS_ANCHORS)
     metadata.net_amount = _amount_field(lines, _NET_ANCHORS)
     metadata.tax_amount = _amount_field(lines, _TAX_ANCHORS)
@@ -485,12 +819,39 @@ def _choose(native: InvoiceMetadata, ocr: InvoiceMetadata | None) -> InvoiceMeta
         "currency",
         "due_date",
     ):
-        left: FieldValue = getattr(chosen, name)
-        right: FieldValue = getattr(ocr, name)
-        if (not left.value or left.confidence < 0.55) and right.value and right.confidence > left.confidence:
-            setattr(chosen, name, copy.deepcopy(right))
+        chosen_value: FieldValue = getattr(chosen, name)
+        ocr_value: FieldValue = getattr(ocr, name)
+        if (
+            (not chosen_value.value or chosen_value.confidence < 0.55)
+            and ocr_value.value
+            and ocr_value.confidence > chosen_value.confidence
+        ):
+            setattr(chosen, name, copy.deepcopy(ocr_value))
     chosen.method = "text+ocr-fallback"
     chosen.text_quality = max(native.text_quality, ocr.text_quality)
+    known_candidates = {
+        (
+            item.field,
+            item.role,
+            item.normalized_value,
+            item.source,
+            item.evidence_type,
+            item.excluded_reason,
+        )
+        for item in chosen.field_candidates
+    }
+    for candidate in ocr.field_candidates:
+        identity = (
+            candidate.field,
+            candidate.role,
+            candidate.normalized_value,
+            candidate.source,
+            candidate.evidence_type,
+            candidate.excluded_reason,
+        )
+        if identity not in known_candidates:
+            chosen.field_candidates.append(copy.deepcopy(candidate))
+            known_candidates.add(identity)
     chosen.issues.extend(issue for issue in ocr.issues if issue not in chosen.issues)
     labels = {
         "invoice_date": "Rechnungsdatum",
@@ -560,14 +921,18 @@ class InvoiceExtractor:
             },
         }
 
-    def extract(self, data: bytes, message: ParsedMessage) -> InvoiceMetadata:
+    def extract(
+        self, data: bytes, message: ParsedMessage, *, filename: str = ""
+    ) -> InvoiceMetadata:
         if not self.config.metadata_enabled:
             return InvoiceMetadata(status="review", method="disabled", issues=["Metadatenextraktion ist deaktiviert"])
         with tempfile.TemporaryDirectory(prefix="invoice-extract-") as temp:
             pdf_path = Path(temp) / "invoice.pdf"
             pdf_path.write_bytes(data)
             native_text, native_error = extract_native_text(pdf_path, timeout=self.config.text_timeout_seconds)
-            native = parse_invoice_text(native_text, message, method="text")
+            native = parse_invoice_text(
+                native_text, message, method="text", document_name=filename
+            )
             if native_error:
                 native.issues.append(native_error)
             # OCR is intentionally only a fallback. Missing optional accounting
@@ -580,7 +945,9 @@ class InvoiceExtractor:
             if need_ocr:
                 ocr_text, ocr_error = extract_ocr_text(pdf_path, config=self.config)
                 if ocr_text:
-                    ocr = parse_invoice_text(ocr_text, message, method="ocr")
+                    ocr = parse_invoice_text(
+                        ocr_text, message, method="ocr", document_name=filename
+                    )
                 elif ocr_error:
                     native.issues.append(ocr_error)
             selected = _choose(native, ocr)

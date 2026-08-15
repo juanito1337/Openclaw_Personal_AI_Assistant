@@ -13,8 +13,18 @@
   Konflikt, SHA-Abweichung, Schemafehler und fehlgeschlagenen Remote-Upload
   abgesichert. Alte `--nextcloud`-Aufrufe bleiben kompatibel, erteilen aber keine
   Schreibfreigabe.
-- 626 pytest-Items, davon mindestens 573 unittest-kompatibel, sichern M10.1 mit
-  62,69 Prozent Branch-einbezogener Gesamt-Coverage ab.
+- M10.2 ersetzt untypisierte Rechnungsnummern- und Rechnungsdatums-Treffer durch
+  belegte Kandidaten mit Quelle, Normalisierung, Evidenztyp und Ausschlussgrund.
+  Kunden-, Bestell-, Liefer-, Vertrags-, Telefon-, Steuer-, Tracking- und
+  IBAN-Felder sowie Leistungs-, Liefer-, Bestell-, Zahlungs- und
+  Faelligkeitsdaten werden explizit getrennt; Konflikte bleiben `review`.
+- Ein Dateiname kann nur einen bereits beschrifteten Dokumentwert stuetzen.
+  Dateinamen allein, datumsfoermige Rechnungsnummern und unbeschriftete Zahlen
+  bestaetigen kein Feld. Ein neuer sanitiserter 12-Faelle-Korpus steigert die
+  Nummernabdeckung von 0,50 auf 1,00 bei unveraendert 1,00 Praezision und null
+  False-confirmed.
+- 637 pytest-Items, davon mindestens 584 unittest-kompatibel, sichern M10.2 mit
+  62,92 Prozent Branch-einbezogener Gesamt-Coverage ab.
 
 ## Unreleased – M9 Mail-Qualitaet und Review-Triage
 

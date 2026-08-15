@@ -1,6 +1,6 @@
 # Tests, Qualitaetsbaseline und Container-Runtime
 
-Stand: 2026-08-15, fortgeschrieben bis M10.1. Sie startet keine produktiven Dienste und
+Stand: 2026-08-15, fortgeschrieben bis M10.2. Sie startet keine produktiven Dienste und
 verwendet weder `/srv/openclaw` noch produktive Zugangsdaten.
 
 ## Einheitlicher lokaler und CI-Prueflauf
@@ -44,14 +44,14 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 626 Tests, darunter mindestens 573 unittest-kompatible Tests
-(die bisherigen 349 sowie M0-M10.1-Regressionstests),
+fordert mindestens 637 Tests, darunter mindestens 584 unittest-kompatible Tests
+(die bisherigen 349 sowie M0-M10.2-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
 nach dem Sammeln mit einem Fehler ab. Neue Tests duerfen die Zahl erhoehen; die
 Baseline wird erst nach einem vollstaendigen gruenen Lauf bewusst angehoben.
 
-## M0-Ausgangswerte und aktueller M10.1-Teststand
+## M0-Ausgangswerte und aktueller M10.2-Teststand
 
 Gemessen auf Linux x86_64 mit Python 3.12.3. Die Werte sind Beobachtungen und noch
 keine willkuerlichen Mindestquoten. `scripts/quality-baseline.py` erzeugt sie nach
@@ -76,6 +76,7 @@ der aktuellen Python-Dateien.
 | Tests nach M9 gesammelt/ausgefuehrt | 610 / 610 (643 JUnit-Faelle inklusive 33 Subtests) |
 | Tests nach M10.0 gesammelt/ausgefuehrt | 616 / 616 (649 JUnit-Faelle inklusive 33 Subtests) |
 | Tests nach M10.1 gesammelt/ausgefuehrt | 626 / 626 (664 JUnit-Faelle inklusive 38 Subtests) |
+| Tests nach M10.2 gesammelt/ausgefuehrt | 637 / 637 (678 JUnit-Faelle inklusive 41 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -89,6 +90,7 @@ der aktuellen Python-Dateien.
 | neue M8-Recovery-/Skill-Regressionsitems | 7 |
 | neue M10.0-Rechnungsqualitaets-Regressionsitems | 6 |
 | neue M10.1-Wirkungsvertrags-Regressionsitems | 10 |
+| neue M10.2-Nummern-/Datums-Regressionsitems | 11 |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |
 | Gesamt-Coverage inklusive Branches (M8) | 59,18 % |
@@ -101,6 +103,8 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach M10.0 | 47,37 % |
 | Gesamt-Coverage inklusive Branches nach M10.1 | 62,69 % |
 | reine Branch-Coverage nach M10.1 | 47,91 % |
+| Gesamt-Coverage inklusive Branches nach M10.2 | 62,92 % |
+| reine Branch-Coverage nach M10.2 | 48,32 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -114,8 +118,8 @@ der aktuellen Python-Dateien.
 | sauberer Container-Erstbuild | ca. 411,92 s |
 | M6-Cache-Rebuild | 11 s |
 | Container-CLI-Kaltstart | 1.081 ms |
-| bekannte mypy-Altbefunde | 111 exakt baselinierte Befunde in 22 Dateien; 13 behoben |
-| bekannte Ruff-Altbefunde | 521 exakt baselinierte Befunde; 260 behoben |
+| bekannte mypy-Altbefunde | 109 exakt baselinierte Befunde in 21 Dateien; 15 behoben |
+| bekannte Ruff-Altbefunde | 519 exakt baselinierte Befunde; 262 behoben |
 
 ## M10.0-Rechnungsqualitaet
 
@@ -153,6 +157,28 @@ Live-Projektion und Capability-Ausgabe als `write` erscheinen. Die
 Registergrenze prueft einen erfolgreichen `If-Match`-PUT sowie negative Pfade fuer
 HTTP 412, falschen SHA-256, falsches CSV-Schema und allgemeinen Remote-Fehler.
 Keine Fixture verbindet sich mit einem produktiven Nextcloud-Server.
+
+## M10.2-Belegte Rechnungsnummern und Datumsrollen
+
+M10.2 prueft den typisierten Kandidatenvertrag fuer Rechnungsnummer und
+Rechnungsdatum ausschliesslich mit erfundenen Dokumenttexten und Dateinamen:
+
+```bash
+.venv/bin/python scripts/evaluate_invoice_quality.py \
+  --corpus tests/fixtures/invoices/m102_number_date_corpus.json \
+  --baseline tests/fixtures/invoices/m102_number_date_baseline.json \
+  --verify
+.venv/bin/python -m pytest -q tests/test_invoice_number_date_m102.py
+```
+
+Die elf Tests enthalten positive und negative Golden-Faelle fuer deutsche und
+englische Anker, Unicode, Bindestrich, Schraegstrich, OCR-Abstaende, begrenzten
+Folgezeilenkontext, Dateiname als reine Stuetzung sowie Nummern- und
+Datumskonflikte. Sie pruefen die Kandidatenobjekte und das resultierende Verhalten,
+nicht Quelltextfragmente. Der direkte Vorher-/Nachher-Vergleich steht in
+[`INVOICE_QUALITY_BASELINE_M10.md`](INVOICE_QUALITY_BASELINE_M10.md). Der alte
+M10.0-Bericht bleibt weiterhin separat reproduzierbar. Weder der Test noch der
+Evaluator oeffnet SQLite, Nextcloud, `/srv/openclaw` oder produktive PDFs.
 
 Kritische Sicherheitsmodule im aktuellen M8-Lauf:
 

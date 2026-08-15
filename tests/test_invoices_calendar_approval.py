@@ -178,7 +178,7 @@ class InvoiceCalendarApprovalTests(unittest.TestCase):
         bridge = FakeAssistantBridge()
         settings = InvoiceToolSettings(enabled=True, folder="Assistent/Rechnungen")
         manager = InvoiceManager(self.config, self.storage, bridge, settings)
-        manager.extractor.extract = lambda _data, _message: InvoiceMetadata(
+        manager.extractor.extract = lambda _data, _message, **_kwargs: InvoiceMetadata(
             invoice_date=FieldValue("2026-07-15", 0.96, "Rechnungsdatum"),
             invoice_number=FieldValue("4711", 0.94, "Rechnungsnummer"),
             supplier=FieldValue("Lieferant", 0.90, "Rechnungssteller"),
@@ -214,7 +214,7 @@ class InvoiceCalendarApprovalTests(unittest.TestCase):
         bridge = FakeAssistantBridge()
         settings = InvoiceToolSettings(enabled=True, folder="Assistent/Rechnungen")
         manager = InvoiceManager(self.config, self.storage, bridge, settings)
-        manager.extractor.extract = lambda _data, _message: InvoiceMetadata(
+        manager.extractor.extract = lambda _data, _message, **_kwargs: InvoiceMetadata(
             invoice_date=FieldValue("2026-05-09", 0.96, "Rechnungsdatum"),
             supplier=FieldValue("Lieferant GmbH", 0.90, "Firmenkopf"),
             category=FieldValue("Ungeklärt", 0.25, "Keine Regel"),

@@ -130,3 +130,51 @@ beobachtetes Verhalten ein; er erklaert sie nicht zur gewuenschten Semantik.
 Die vollstaendige maschinenlesbare Erwartung liegt in
 `tests/fixtures/invoices/m10_extractor_baseline.json`. Der Verifier vergleicht den
 gesamten Bericht strukturell und fehlschlaegt bei jeder unbemerkten Abweichung.
+
+## M10.2 – Rechnungsnummern und Datumsrollen
+
+M10.2 ergaenzt den unveraenderten M10.0-Korpus um einen zweiten, ausschliesslich
+synthetischen 12-Faelle-Korpus. Er umfasst deutsche und englische Anker,
+Unicode, Bindestriche, Schraegstriche, alphanumerische Werte, OCR-Abstaende,
+einzeilige und begrenzt zweizeilige Felder, Dateinamen-Evidenz, Nummern- und
+Datumskonflikte sowie negative Kunden-, Bestell-, Liefer-, Vertrags-, Telefon-,
+Steuer-, Tracking- und IBAN-Felder. Alle Werte sind erfunden; Adressen verwenden
+weiterhin `example.invalid`.
+
+```bash
+.venv/bin/python scripts/evaluate_invoice_quality.py \
+  --corpus tests/fixtures/invoices/m102_number_date_corpus.json \
+  --baseline tests/fixtures/invoices/m102_number_date_baseline.json \
+  --verify
+
+.venv/bin/python -m pytest -q tests/test_invoice_number_date_m102.py
+```
+
+Der Vorher-Wert wurde vor der Extraktoraenderung auf Commit
+`b8aa79418540ff4e44a46feba2fbc579ccbf5693` mit demselben Korpus und demselben
+Evaluator gemessen. Die kompakten Werte sind versioniert unter
+`tests/fixtures/invoices/m102_number_date_comparison.json`; der vollstaendige
+Sollbericht nach M10.2 liegt in `m102_number_date_baseline.json`.
+
+| Messwert auf dem M10.2-Korpus | Vor M10.2 | Nach M10.2 |
+| --- | ---: | ---: |
+| synthetische Faelle | 12 | 12 |
+| Rechnungsnummer erwartet | 8 | 8 |
+| Rechnungsnummer vorhergesagt | 4 | 8 |
+| Rechnungsnummer korrekt | 4 | 8 |
+| Rechnungsnummer-Praezision | 1,0000 | 1,0000 |
+| Rechnungsnummer-Abdeckung | 0,5000 | 1,0000 |
+| Rechnungsdatum erwartet/vorhergesagt/korrekt | 11 / 11 / 11 | 11 / 11 / 11 |
+| Rechnungsdatum-Praezision | 1,0000 | 1,0000 |
+| Rechnungsdatum-Abdeckung | 1,0000 | 1,0000 |
+| `confirmed` | 3 | 7 |
+| `review` | 9 | 5 |
+| False-confirmed | 0 | 0 |
+
+Der Anstieg bestaetigter Faelle stammt ausschliesslich aus zuvor nicht erkannten,
+aber beschrifteten Nummernfeldern. Dateinamen allein, Nummern anderer Rollen,
+datumsfoermige Nummernwerte sowie widerspruechliche Rechnungsnummern oder
+Rechnungsdaten bleiben `review`. M10.2 veraendert weder SQLite-Schema noch
+Backfill-Auswahl, Nextcloud-PDFs oder Jahresregister und fuehrt kein Reprocessing
+aus. Der bekannte M10.0-Fehler bei mehreren Betraegen bleibt bis M10.3 bewusst
+sichtbar.

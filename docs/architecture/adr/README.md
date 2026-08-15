@@ -23,5 +23,6 @@ verweist mit Status `Superseded` auf den Nachfolger.
 | [0015](0015-geschuetzte-gateway-konfiguration.md) | Accepted | Gateway-Konfiguration read-only; Setup nur in kurzlebiger Adminrolle |
 | [0016](0016-providergebundenes-portfolio-research.md) | Accepted | EODHD-belegtes Research, deterministische Scores und freigegebene Profilversionen |
 | [0017](0017-mail-suchprojektion-statt-wal-leser.md) | Accepted | atomare Mail-Suchprojektion statt SQLite/WAL-Zugriff des Sync-Workers |
+| [0018](0018-belegte-rechnungsnummern-und-datumsrollen.md) | Accepted | belegte Rechnungsnummern und getrennte Datumsrollen |
 
 Neue ADRs beginnen mit der [Vorlage](0000-template.md).

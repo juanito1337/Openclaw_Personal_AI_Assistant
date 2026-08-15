@@ -1,6 +1,6 @@
 # Build- und CI-Nachweise
 
-Stand: M10.1, 2026-08-15. Der detaillierte Sicherheitsvertrag steht unter
+Stand: M10.2, 2026-08-15. Der detaillierte Sicherheitsvertrag steht unter
 [`architecture/IMAGE_SUPPLY_CHAIN.md`](architecture/IMAGE_SUPPLY_CHAIN.md).
 
 ## Gemeinsame Qualitaetspruefung
@@ -33,9 +33,14 @@ Wirkungsvertrag von Export, Backfill und Korrektur. Ausschliesslich synthetische
 WebDAV-Antworten pruefen `If-Match`, `If-None-Match`, HTTP 412, SHA- und
 Schemaschutz sowie Remote-Fehler. Die neuen Vorschau- und Freigabepfade verwenden
 weder Produktivdaten noch einen erreichbaren Nextcloud-Server.
-Der Collection-Vertrag steigt damit auf 626 pytest-Items, darunter mindestens
-573 unittest-kompatible Tests und weiterhin mindestens 13 freie
-Rechnungs-pytest-Tests.
+M10.2 ergaenzt einen zweiten, vollstaendig synthetischen Nummern-/Datumskorpus
+und Verhaltenspruefungen fuer typisierte Kandidaten, begrenzten Kontext,
+explizite Ausschlussrollen, Konflikte und Dateinamen als reine Stuetzung. Der
+Evaluator verifiziert M10.0 und M10.2 gegen getrennte versionierte Baselines;
+weder lokaler Check noch CI benoetigen dafuer produktive PDFs, SQLite,
+Nextcloud, `/srv/openclaw` oder Secrets. Der Collection-Vertrag steigt damit auf
+637 pytest-Items, darunter mindestens 584 unittest-kompatible Tests und
+weiterhin mindestens 13 freie Rechnungs-pytest-Tests.
 
 Die Workflows besitzen global `permissions: {}`. Der Testjob darf nur Inhalte
 lesen. Der Releasejob erhaelt nur `contents: read`, `packages: write` und

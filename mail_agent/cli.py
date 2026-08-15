@@ -993,7 +993,15 @@ def _handle_invoices(args: argparse.Namespace, config: Config) -> int:
                         if scan.error and tools.security.antivirus.fail_closed:
                             raise RuntimeError("Virenscan fehlgeschlagen: " + (scan.detail or scan.status))
                         message = _row_message(row)
-                        metadata = extractor.extract(data, message)
+                        metadata = extractor.extract(
+                            data,
+                            message,
+                            filename=str(
+                                item.get("original_filename")
+                                or Path(remote_path).name
+                                or "invoice.pdf"
+                            ),
+                        )
                         target_year = int(metadata.invoice_date.value[:4]) if metadata.invoice_date.value else year
                         processed.append({
                             "attachment_hash": attachment_hash,

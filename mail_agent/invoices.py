@@ -205,7 +205,9 @@ class InvoiceManager:
             if existing and str(existing["status"] or "") in {"uploaded", "duplicate"}:
                 metadata: InvoiceMetadata | None = None
                 if not str(existing["extraction_status"] or ""):
-                    metadata = self.extractor.extract(attachment.data, message)
+                    metadata = self.extractor.extract(
+                        attachment.data, message, filename=attachment.filename
+                    )
                     record = self._metadata_record(message, metadata)
                     if not self.dry_run:
                         self.storage.update_invoice_extraction(attachment.sha256, **record)
@@ -237,7 +239,9 @@ class InvoiceManager:
                     metadata_review_required.append(remote_path)
                 continue
 
-            metadata = self.extractor.extract(attachment.data, message)
+            metadata = self.extractor.extract(
+                attachment.data, message, filename=attachment.filename
+            )
             remote_folder = self._target_folder(message, metadata)
             remote_path = f"{remote_folder}/{self._target_filename(message, attachment, metadata)}"
             result = self.bridge.archive_invoice(

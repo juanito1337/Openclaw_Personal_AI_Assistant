@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "corpus_id": "m10.2-synthetic-number-date-v1",
+  "privacy": "Fully synthetic fixtures. Names, numbers, dates and filenames are invented; example.invalid is reserved for documentation.",
+  "cases": [
+    {
+      "case_id": "de-rechnung-nr-unicode",
+      "language": "de",
+      "document_type": "synthetic-pdf-text",
+      "features": ["invoice-number", "german-label", "unicode", "slash", "hyphen"],
+      "message": {"subject": "Synthetischer Beleg", "sender_name": "M102 Fiktivhandel GmbH", "sender_addr": "one@example.invalid", "received_at": "Fri, 16 Jan 2026 09:00:00 +0100"},
+      "pages": ["M102 Fiktivhandel GmbH\nRechnung Nr.: RÄ-2026/001\nRechnungsdatum: 15.01.2026\nGesamtbetrag: 119,00 EUR"],
+      "expected": {"invoice_date": "2026-01-15", "invoice_number": "RÄ-2026/001", "supplier": "M102 Fiktivhandel GmbH", "gross_amount": "119.00", "net_amount": "", "tax_amount": "", "currency": "EUR", "due_date": ""}
+    },
+    {
+      "case_id": "en-invoice-no-alphanumeric",
+      "language": "en",
+      "document_type": "synthetic-pdf-text",
+      "features": ["invoice-number", "english-label", "slash", "alphanumeric"],
+      "message": {"subject": "Synthetic document", "sender_name": "M102 Fictional Systems Ltd", "sender_addr": "two@example.invalid", "received_at": "Wed, 11 Feb 2026 10:00:00 +0000"},
+      "pages": ["M102 Fictional Systems Ltd\nInvoice No. EN-A/42\nInvoice Date: 2026-02-10\nGrand Total: 120.00 EUR"],
+      "expected": {"invoice_date": "2026-02-10", "invoice_number": "EN-A/42", "supplier": "M102 Fictional Systems Ltd", "gross_amount": "120.00", "net_amount": "", "tax_amount": "", "currency": "EUR", "due_date": ""}
+    },
+    {
+      "case_id": "de-ocr-spacing",
+      "language": "de",
+      "document_type": "synthetic-ocr-text",
+      "features": ["invoice-number", "ocr-spacing", "german-label"],
+      "message": {"subject": "Synthetischer OCR-Beleg", "sender_name": "M102 Fiktivscan GmbH", "sender_addr": "three@example.invalid", "received_at": "Tue, 03 Mar 2026 08:00:00 +0100"},
+      "pages": ["M102 Fiktivscan GmbH\nR e c h n u n g s n u m m e r : O C R - 2 0 2 6 / 0 3\nR e c h n u n g s d a t u m : 02.03.2026\nGesamtbetrag: 121,00 EUR"],
+      "expected": {"invoice_date": "2026-03-02", "invoice_number": "OCR-2026/03", "supplier": "M102 Fiktivscan GmbH", "gross_amount": "121.00", "net_amount": "", "tax_amount": "", "currency": "EUR", "due_date": ""}
+    },
+    {
+      "case_id": "de-filename-supports-label",
+      "language": "de",
+      "document_type": "synthetic-pdf-text",
+      "document_name": "Rechnung_SYN-FILE-004.pdf",
+      "features": ["invoice-number", "filename-support", "labeled-document-value"],
+      "message": {"subject": "Synthetischer Dateibeleg", "sender_name": "M102 Fiktivdatei GmbH", "sender_addr": "four@example.invalid", "received_at": "Mon, 13 Apr 2026 09:00:00 +0200"},
+      "pages": ["M102 Fiktivdatei GmbH\nRechnungsnummer: SYN-FILE-004\nRechnungsdatum: 10.04.2026\nGesamtbetrag: 122,00 EUR"],
+      "expected": {"invoice_date": "2026-04-10", "invoice_number": "SYN-FILE-004", "supplier": "M102 Fiktivdatei GmbH", "gross_amount": "122.00", "net_amount": "", "tax_amount": "", "currency": "EUR", "due_date": ""}
+    },
+    {
+      "case_id": "de-filename-only",
+      "language": "de",
+      "document_type": "synthetic-pdf-text",
+      "document_name": "SYN-ONLY-005.pdf",
+      "features": ["filename-only", "review-expected"],
+      "message": {"subject": "Synthetischer Dateibeleg", "sender_name": "M102 Fiktivablage GmbH", "sender_addr": "five@example.invalid", "received_at": "Wed, 06 May 2026 12:00:00 +0200"},
+      "pages": ["M102 Fiktivablage GmbH\nRechnungsdatum: 05.05.2026\nGesamtbetrag: 123,00 EUR"],
+      "expected": {"invoice_date": "2026-05-05", "invoice_number": "", "supplier": "M102 Fiktivablage GmbH", "gross_amount": "123.00", "net_amount": "", "tax_amount": "", "currency": "EUR", "due_date": ""}
+    },
+    {
+      "case_id": "de-non-invoice-identifiers",
+      "language": "de",
+      "document_type": "synthetic-pdf-text",
+      "features": ["negative-number-labels", "iban", "vat-id", "phone", "review-expected"],
+      "message": {"subject": "Synthetischer Nummerntest", "sender_name": "M102 Fiktivkennung GmbH", "sender_addr": "six@example.invalid", "received_at": "Mon, 08 Jun 2026 15:00:00 +0200"},
+      "pages": ["M102 Fiktivkennung GmbH\nKundennummer: K-10001\nBestellnummer: B-20002\nLieferscheinnummer: L-30003\nVertragsnummer: V-40004\nTelefon: +49 30 555000\nUSt-ID: DE123456789\nIBAN: DE00 0000 0000 0000 0000 00\nSendungsnummer: T-50005\nRechnungsdatum: 08.06.2026\nGesamtbetrag: 124,00 EUR"],
+      "expected": {"invoice_date": "2026-06-08", "invoice_number": "", "supplier": "M102 Fiktivkennung GmbH", "gross_amount": "124.00", "net_amount": "", "tax_amount": "", "currency": "EUR", "due_date": ""}
+    },
+    {
+      "case_id": "de-distinct-date-roles",
+      "language": "de",
+      "document_type": "synthetic-pdf-text",
+      "features": ["invoice-date", "service-date", "delivery-date", "order-date", "payment-date", "due-date"],
+      "message": {"subject": "Synthetischer Datumstest", "sender_name": "M102 Fiktivdatum GmbH", "sender_addr": "seven@example.invalid", "received_at": "Fri, 10 Jul 2026 11:00:00 +0200"},
+      "pages": ["M102 Fiktivdatum GmbH\nRechnungsnummer: SYN-DATE-007\nBestelldatum: 01.07.2026\nLeistungsdatum: 02.07.2026\nLieferdatum: 03.07.2026\nZahlungsdatum: 04.07.2026\nRechnungsdatum: 09.07.2026\nFaellig am: 08.08.2026\nGesamtbetrag: 125,00 EUR"],
+      "expected": {"invoice_date": "2026-07-09", "invoice_number": "SYN-DATE-007", "supplier": "M102 Fiktivdatum GmbH", "gross_amount": "125.00", "net_amount": "", "tax_amount": "", "currency": "EUR", "due_date": "2026-08-08"}
+    },
+    {
+      "case_id": "en-conflicting-invoice-dates",
+      "language": "en",
+      "document_type": "synthetic-pdf-text",
+      "features": ["invoice-date-conflict", "review-expected"],
+      "message": {"subject": "Synthetic date conflict", "sender_name": "M102 Fictional Dates Ltd", "sender_addr": "eight@example.invalid", "received_at": "Fri, 14 Aug 2026 08:00:00 +0000"},
+      "pages": ["M102 Fictional Dates Ltd\nInvoice No: SYN-CONFLICT-008\nInvoice Date: 2026-08-12\nDocument Date: 2026-08-13\nGrand Total: 126.00 EUR"],
+      "expected": {"invoice_date": "", "invoice_number": "SYN-CONFLICT-008", "supplier": "M102 Fictional Dates Ltd", "gross_amount": "126.00", "net_amount": "", "tax_amount": "", "currency": "EUR", "due_date": ""}
+    },
+    {
+      "case_id": "de-conflicting-invoice-numbers",
+      "language": "de",
+      "document_type": "synthetic-pdf-text",
+      "features": ["invoice-number-conflict", "review-expected"],
+      "message": {"subject": "Synthetischer Nummernkonflikt", "sender_name": "M102 Fiktivkonflikt GmbH", "sender_addr": "nine@example.invalid", "received_at": "Tue, 15 Sep 2026 09:00:00 +0200"},
+      "pages": ["M102 Fiktivkonflikt GmbH\nRechnungsnummer: SYN-A-009\nInvoice No: SYN-B-009\nRechnungsdatum: 14.09.2026\nGesamtbetrag: 127,00 EUR"],
+      "expected": {"invoice_date": "2026-09-14", "invoice_number": "", "supplier": "M102 Fiktivkonflikt GmbH", "gross_amount": "127.00", "net_amount": "", "tax_amount": "", "currency": "EUR", "due_date": ""}
+    },
+    {
+      "case_id": "de-number-looking-like-date",
+      "language": "de",
+      "document_type": "synthetic-pdf-text",
+      "features": ["invoice-number-date-value", "excluded-candidate", "review-expected"],
+      "message": {"subject": "Synthetischer Datumswert", "sender_name": "M102 Fiktivwert GmbH", "sender_addr": "ten@example.invalid", "received_at": "Fri, 16 Oct 2026 09:00:00 +0200"},
+      "pages": ["M102 Fiktivwert GmbH\nRechnung NR. 15.10.2026\nRechnungsdatum: 16.10.2026\nGesamtbetrag: 128,00 EUR"],
+      "expected": {"invoice_date": "2026-10-16", "invoice_number": "", "supplier": "M102 Fiktivwert GmbH", "gross_amount": "128.00", "net_amount": "", "tax_amount": "", "currency": "EUR", "due_date": ""}
+    },
+    {
+      "case_id": "en-next-line-value",
+      "language": "en",
+      "document_type": "synthetic-ocr-text",
+      "features": ["invoice-number", "bounded-next-line", "english-label"],
+      "message": {"subject": "Synthetic wrapped field", "sender_name": "M102 Fictional Wrap Ltd", "sender_addr": "eleven@example.invalid", "received_at": "Tue, 17 Nov 2026 10:00:00 +0000"},
+      "pages": ["M102 Fictional Wrap Ltd\nInvoice Number:\nEN-NEXT/011\nInvoice Date:\n2026-11-16\nGrand Total: 129.00 EUR"],
+      "expected": {"invoice_date": "2026-11-16", "invoice_number": "EN-NEXT/011", "supplier": "M102 Fictional Wrap Ltd", "gross_amount": "129.00", "net_amount": "", "tax_amount": "", "currency": "EUR", "due_date": ""}
+    },
+    {
+      "case_id": "de-beleg-nr-and-english-negative-dates",
+      "language": "de",
+      "document_type": "synthetic-pdf-text",
+      "features": ["invoice-number", "beleg-number", "service-date", "delivery-date", "order-date", "due-date"],
+      "message": {"subject": "Synthetic mixed labels", "sender_name": "M102 Fiktivmix GmbH", "sender_addr": "twelve@example.invalid", "received_at": "Tue, 15 Dec 2026 10:00:00 +0100"},
+      "pages": ["M102 Fiktivmix GmbH\nBeleg-Nr.: BE-012/26\nService Date: 2026-12-01\nDelivery Date: 2026-12-02\nOrder Date: 2026-12-03\nInvoice Date: 2026-12-14\nDue Date: 2027-01-13\nGesamtbetrag: 130,00 EUR"],
+      "expected": {"invoice_date": "2026-12-14", "invoice_number": "BE-012/26", "supplier": "M102 Fiktivmix GmbH", "gross_amount": "130.00", "net_amount": "", "tax_amount": "", "currency": "EUR", "due_date": "2027-01-13"}
+    }
+  ]
+}
