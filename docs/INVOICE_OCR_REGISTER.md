@@ -99,10 +99,35 @@ Kann die Jahres-CSV nicht aktualisiert werden, ist die Rechnungsverarbeitung nic
 ./scripts/assistant.sh invoices status
 ./scripts/assistant.sh invoices list --year 2026 --limit 100
 ./scripts/assistant.sh invoices review --limit 100
+./scripts/assistant.sh invoices export --year 2026 --dry-run
 ./scripts/assistant.sh invoices export --year 2026 --yes
 ```
 
-`invoices export` schreibt keine lokale Datei. Der Befehl erzeugt ausschliesslich die feste Datei `Rechnungen_2026.csv` im Nextcloud-Jahresordner neu. Die alte Option `--nextcloud` wird nur noch aus Kompatibilitaetsgruenden akzeptiert.
+`invoices export --dry-run` rendert die CSV nur im Speicher. Es schreibt weder
+eine lokale Datei noch SQLite oder Nextcloud. Erst `--yes` gibt das bedingte
+Anlegen oder Ersetzen der festen Datei `Rechnungen_2026.csv` im
+Nextcloud-Jahresordner frei. Ein Aufruf ohne `--dry-run` und ohne `--yes` endet
+fail-closed vor einer Schreibwirkung. Die alte Option `--nextcloud` wird nur noch
+aus Kompatibilitaetsgruenden akzeptiert; sie ist keine Freigabe und aendert diese
+Grenze nicht.
+
+### Wirkungsvertrag
+
+| Pfad | SQLite | Nextcloud-PDF | verwaltetes Jahresregister | Freigabe |
+| --- | --- | --- | --- | --- |
+| `invoices export ... --dry-run` | unveraendert | unveraendert | unveraendert; nur In-Memory-Vorschau | keine |
+| `invoices export ... --yes` | unveraendert | unveraendert | bedingtes Anlegen/Ersetzen | ausdrueckliches `--yes` |
+| `invoices backfill ... --dry-run` | unveraendert | nur gelesen, nie ersetzt | unveraendert | keine |
+| `invoices backfill ... --yes` | Extraktionszeilen werden einzeln aktualisiert | nur gelesen, nie ersetzt | betroffene Jahre werden bedingt ersetzt | ausdrueckliches `--yes` |
+| `invoices correct ... --yes` | genau der adressierte Hash wird aktualisiert | unveraendert | altes und neues Jahr werden bedingt ersetzt | ausdrueckliches `--yes` |
+| konfigurierter Mail-Rechnungslauf | Archiv-/Metadatenstatus wird aktualisiert | create-only | zugehoeriges Jahr wird bedingt synchronisiert | zuvor freigegebene Workflow-/Ressourcenkonfiguration |
+
+Die SQLite-Aenderungen von produktivem Backfill und Korrektur werden vor der
+anschliessenden Nextcloud-Synchronisation gespeichert. Beide Systeme bilden keine
+gemeinsame Transaktion. Schlaegt die Registeraktualisierung fehl, meldet der
+Befehl einen Fehler; er behauptet keine automatische Ruecknahme der lokalen
+Aenderung. Ein erneuter produktiver Lauf benoetigt weiterhin ausdrueckliche
+Freigabe und den dokumentierten Backup-Vertrag.
 
 Metadaten duerfen nur nach ausdruecklichem Auftrag korrigiert werden:
 
@@ -119,7 +144,9 @@ Metadaten duerfen nur nach ausdruecklichem Auftrag korrigiert werden:
   --yes
 ```
 
-Nach einer Korrektur werden alle betroffenen Jahresregister direkt in Nextcloud neu synchronisiert.
+Nach einer Korrektur werden alle betroffenen Jahresregister direkt in Nextcloud
+neu synchronisiert. `correct` ist deshalb trotz genau einer lokalen
+Metadatenzeile ein extern schreibendes Werkzeug.
 
 ## Bestehende Archive nachtragen
 
@@ -138,6 +165,11 @@ Produktive Uebernahme nach ausdruecklichem Auftrag:
 ```
 
 Alte, nicht eindeutig lesbare Rechnungen werden mit Status `Pruefen` in das Jahresregister aufgenommen. Bereits archivierte PDFs werden beim Backfill nicht verschoben oder ersetzt.
+
+Die Vorschau liest PDF-Dateien und fuehrt den Virenscan sowie die Extraktion aus,
+speichert das Ergebnis aber nicht. Der produktive Pfad speichert dagegen die
+SQLite-Ergebnisse und synchronisiert danach die betroffenen Nextcloud-Register;
+sein Toolmodus ist daher `write` mit externer Wirkung.
 
 ## Abhaengigkeiten
 

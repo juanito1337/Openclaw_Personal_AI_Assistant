@@ -16,19 +16,45 @@ def add_commands(sub: Any) -> None:
     invoices_review = invoices_sub.add_parser("review", help="Unsichere Rechnungsmetadaten anzeigen")
     invoices_review.add_argument("--limit", type=int, default=100)
     invoices_export = invoices_sub.add_parser(
-        "export", help="Jahres-CSV erzeugen und optional nach Nextcloud exportieren"
+        "export",
+        help="Jahres-CSV schreibfrei vorschauen oder explizit in Nextcloud aktualisieren",
     )
     invoices_export.add_argument("--year", type=int, required=True)
-    invoices_export.add_argument("--nextcloud", action="store_true")
-    invoices_export.add_argument("--filename", default="")
-    invoices_export.add_argument("--yes", action="store_true")
+    invoices_export.add_argument(
+        "--nextcloud",
+        action="store_true",
+        help="Kompatibilitaetsoption ohne eigene Schreibfreigabe",
+    )
+    invoices_export.add_argument(
+        "--filename", default="", help="Nur Rechnungen_YYYY.csv ist erlaubt"
+    )
+    invoices_export_effect = invoices_export.add_mutually_exclusive_group()
+    invoices_export_effect.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Nur im Speicher rendern; weder SQLite noch Nextcloud aendern",
+    )
+    invoices_export_effect.add_argument(
+        "--yes",
+        action="store_true",
+        help="Verwaltetes Nextcloud-Jahresregister ausdruecklich bedingt ersetzen",
+    )
     invoices_backfill = invoices_sub.add_parser(
         "backfill", help="Bereits archivierte Rechnungen eines Jahres neu auswerten"
     )
     invoices_backfill.add_argument("--year", type=int, required=True)
     invoices_backfill.add_argument("--limit", type=int, default=500)
-    invoices_backfill.add_argument("--dry-run", action="store_true")
-    invoices_backfill.add_argument("--yes", action="store_true")
+    invoices_backfill_effect = invoices_backfill.add_mutually_exclusive_group()
+    invoices_backfill_effect.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Nur lesen und auswerten; weder SQLite noch Nextcloud aendern",
+    )
+    invoices_backfill_effect.add_argument(
+        "--yes",
+        action="store_true",
+        help="SQLite und verwaltetes Nextcloud-Jahresregister ausdruecklich aktualisieren",
+    )
     invoices_correct = invoices_sub.add_parser(
         "correct", help="Rechnungsmetadaten nach Nutzerauftrag korrigieren"
     )

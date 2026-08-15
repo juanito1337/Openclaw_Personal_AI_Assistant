@@ -142,16 +142,41 @@ def build_parser() -> argparse.ArgumentParser:
     inv_list.add_argument("--limit", type=int, default=100)
     inv_review = inv_sub.add_parser("review", help="Unsichere Rechnungsmetadaten anzeigen")
     inv_review.add_argument("--limit", type=int, default=100)
-    inv_export = inv_sub.add_parser("export", help="Jahres-CSV im festen Nextcloud-Jahresordner aktualisieren")
+    inv_export = inv_sub.add_parser(
+        "export",
+        help="Jahres-CSV schreibfrei vorschauen oder explizit im Nextcloud-Jahresordner aktualisieren",
+    )
     inv_export.add_argument("--year", type=int, required=True)
     inv_export.add_argument("--nextcloud", action="store_true", help="Kompatibilitaetsoption; R26 speichert immer nur in Nextcloud")
     inv_export.add_argument("--filename", default="", help="Nur der feste Name Rechnungen_YYYY.csv ist erlaubt")
-    inv_export.add_argument("--yes", action="store_true")
-    inv_backfill = inv_sub.add_parser("backfill", help="Bereits archivierte Rechnungs-PDFs eines Jahres read-only neu auswerten")
+    inv_export_effect = inv_export.add_mutually_exclusive_group()
+    inv_export_effect.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="CSV nur im Speicher rendern; weder SQLite noch Nextcloud aendern",
+    )
+    inv_export_effect.add_argument(
+        "--yes",
+        action="store_true",
+        help="Verwaltetes Nextcloud-Jahresregister ausdruecklich bedingt ersetzen",
+    )
+    inv_backfill = inv_sub.add_parser(
+        "backfill",
+        help="Archivierte Rechnungs-PDFs vorschauen oder explizit in SQLite und Jahresregister uebernehmen",
+    )
     inv_backfill.add_argument("--year", type=int, required=True)
     inv_backfill.add_argument("--limit", type=int, default=500)
-    inv_backfill.add_argument("--dry-run", action="store_true")
-    inv_backfill.add_argument("--yes", action="store_true")
+    inv_backfill_effect = inv_backfill.add_mutually_exclusive_group()
+    inv_backfill_effect.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="PDFs nur lesen und auswerten; weder SQLite noch Nextcloud aendern",
+    )
+    inv_backfill_effect.add_argument(
+        "--yes",
+        action="store_true",
+        help="Extraktion ausdruecklich in SQLite speichern und Jahresregister bedingt ersetzen",
+    )
     inv_correct = inv_sub.add_parser("correct", help="Unsichere Rechnungsmetadaten nach ausdruecklichem Auftrag korrigieren")
     inv_correct.add_argument("--hash", required=True, dest="attachment_hash")
     inv_correct.add_argument("--date", required=True, dest="invoice_date")
@@ -906,8 +931,11 @@ def _handle_invoices(args: argparse.Namespace, config: Config) -> int:
         if command == "export":
             if not 2000 <= int(args.year) <= 2100:
                 raise ValueError("Jahr muss zwischen 2000 und 2100 liegen")
-            if not args.yes:
-                raise PermissionError("Aktualisierung des Nextcloud-Jahresregisters benoetigt --yes")
+            if not args.dry_run and not args.yes:
+                raise PermissionError(
+                    "Export benoetigt --dry-run fuer die schreibfreie Vorschau oder --yes fuer "
+                    "die Aktualisierung des Nextcloud-Jahresregisters"
+                )
             expected_filename = f"Rechnungen_{int(args.year):04d}.csv"
             if args.filename and str(args.filename).strip() != expected_filename:
                 raise ValueError(f"R26 erlaubt nur den festen Dateinamen {expected_filename}")
@@ -915,7 +943,12 @@ def _handle_invoices(args: argparse.Namespace, config: Config) -> int:
             invoice_tool = tools.mail.invoices
             if not invoice_tool.enabled:
                 raise PermissionError("Zentrales Rechnungswerkzeug ist in tools.toml deaktiviert")
-            payload = _sync_invoice_register(register, year=args.year, invoice_tool=invoice_tool)
+            payload = _sync_invoice_register(
+                register,
+                year=args.year,
+                invoice_tool=invoice_tool,
+                dry_run=bool(args.dry_run),
+            )
             print(json.dumps(payload, indent=2, ensure_ascii=False))
             return 0 if payload.get("ok") else 1
         if command == "backfill":
@@ -1023,6 +1056,10 @@ def _handle_invoices(args: argparse.Namespace, config: Config) -> int:
         if command == "correct":
             if not args.yes:
                 raise PermissionError("Metadatenkorrektur benoetigt --yes nach ausdruecklichem Nutzerauftrag")
+            tools = load_tool_settings()
+            invoice_tool = tools.mail.invoices
+            if not invoice_tool.enabled:
+                raise PermissionError("Zentrales Rechnungswerkzeug ist in tools.toml deaktiviert")
             invoice_date = _validate_iso_date(args.invoice_date)
             due_date = _validate_iso_date(args.due_date, optional=True)
             gross = amount_to_cents(args.gross)
@@ -1037,10 +1074,6 @@ def _handle_invoices(args: argparse.Namespace, config: Config) -> int:
                 due_date=due_date,
             )
             regenerated = []
-            tools = load_tool_settings()
-            invoice_tool = tools.mail.invoices
-            if not invoice_tool.enabled:
-                raise PermissionError("Zentrales Rechnungswerkzeug ist in tools.toml deaktiviert")
             for year in sorted({v for v in (old_year, new_year) if v is not None}):
                 regenerated.append(_sync_invoice_register(register, year=year, invoice_tool=invoice_tool))
             if not all(bool(item.get("ok")) for item in regenerated):

@@ -80,7 +80,10 @@ class AgentToolArchitectureTests(unittest.TestCase):
         self.assertIn("mail.run", tools)
         self.assertIn("mail.invoice-archive", tools)
         self.assertIn("mail.calendar-command", tools)
-        self.assertEqual(tools["mail.invoice-archive"].approval, "automatic-create-only")
+        self.assertEqual(
+            tools["mail.invoice-archive"].approval,
+            "configured-invoice-archive-and-managed-register-sync",
+        )
 
     def test_owner_command_mail_uses_personal_assistant_action_bridge(self) -> None:
         bridge = FakeBridge()

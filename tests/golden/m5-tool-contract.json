@@ -1072,9 +1072,9 @@
     "writes_external_data": true
   },
   {
-    "approval": "automatic-create-only",
+    "approval": "configured-invoice-archive-and-managed-register-sync",
     "command": "./scripts/assistant.sh mail run --limit 20",
-    "description": "Sicher erkannte und virengepruefte Rechnungs-PDFs create-only ueber ActionPlan in Nextcloud archivieren",
+    "description": "Virengepruefte Rechnungs-PDFs create-only archivieren und bei konfiguriertem Rechnungsworkflow das verwaltete Jahresregister ETag-geschuetzt synchronisieren",
     "id": "mail.invoice-archive",
     "mode": "write",
     "writes_external_data": true
@@ -1104,17 +1104,17 @@
     "writes_external_data": false
   },
   {
-    "approval": "managed-invoice-register",
-    "command": "./scripts/assistant.sh invoices export --year <YYYY>",
-    "description": "Jahresregister als semikolongetrennte UTF-8-CSV lokal erzeugen",
+    "approval": "none",
+    "command": "./scripts/assistant.sh invoices export --year <YYYY> --dry-run",
+    "description": "Jahresregister schreibfrei im Speicher rendern; SQLite und Nextcloud bleiben unveraendert",
     "id": "assistant.invoices.export",
-    "mode": "local-write",
+    "mode": "read",
     "writes_external_data": false
   },
   {
-    "approval": "explicit-user-export-create-only",
-    "command": "./scripts/assistant.sh invoices export --year <YYYY> --nextcloud --yes",
-    "description": "Jahresregister nach ausdruecklichem Nutzerauftrag create-only nach Nextcloud exportieren",
+    "approval": "explicit-user-managed-register-replace",
+    "command": "./scripts/assistant.sh invoices export --year <YYYY> --yes",
+    "description": "Verwaltetes Jahresregister nach ausdruecklichem Nutzerauftrag mit ETag-, SHA- und Schemaschutz in Nextcloud anlegen oder bedingt ersetzen",
     "id": "assistant.invoices.export-nextcloud",
     "mode": "write",
     "writes_external_data": true
@@ -1122,26 +1122,26 @@
   {
     "approval": "none",
     "command": "./scripts/assistant.sh invoices backfill --year <YYYY> --limit 500 --dry-run",
-    "description": "Bereits archivierte Rechnungs-PDFs eines Jahres read-only erneut mit Text/OCR auswerten, ohne die Datenbank zu aendern",
+    "description": "Archivierte Rechnungs-PDFs eines Jahres nur lesen und auswerten; SQLite und Nextcloud bleiben unveraendert",
     "id": "assistant.invoices.backfill-preview",
     "mode": "read",
     "writes_external_data": false
   },
   {
-    "approval": "explicit-user-invoice-backfill",
+    "approval": "explicit-user-backfill-and-managed-register-replace",
     "command": "./scripts/assistant.sh invoices backfill --year <YYYY> --limit 500 --yes",
-    "description": "Bereits archivierte Rechnungs-PDFs eines Jahres nach ausdruecklichem Nutzerauftrag neu auswerten und ins Jahresregister uebernehmen",
+    "description": "Archivierte Rechnungs-PDFs nach ausdruecklichem Nutzerauftrag neu auswerten, SQLite aendern und verwaltete Nextcloud-Jahresregister bedingt ersetzen",
     "id": "assistant.invoices.backfill",
-    "mode": "local-write",
-    "writes_external_data": false
+    "mode": "write",
+    "writes_external_data": true
   },
   {
-    "approval": "explicit-user-correction",
+    "approval": "explicit-user-correction-and-managed-register-replace",
     "command": "./scripts/assistant.sh invoices correct --hash <SHA256> --date <YYYY-MM-DD> --number \"<Nr>\" --supplier \"<Steller>\" --category \"<Kategorie>\" --gross \"<Betrag>\" --yes",
-    "description": "Unsichere Rechnungsmetadaten anhand des PDF-Hashs nach ausdruecklichem Nutzerauftrag korrigieren",
+    "description": "Rechnungsmetadaten nach ausdruecklichem Nutzerauftrag in SQLite korrigieren und betroffene Nextcloud-Jahresregister bedingt ersetzen",
     "id": "assistant.invoices.correct",
-    "mode": "local-write",
-    "writes_external_data": false
+    "mode": "write",
+    "writes_external_data": true
   },
   {
     "approval": "trusted-owner-command",

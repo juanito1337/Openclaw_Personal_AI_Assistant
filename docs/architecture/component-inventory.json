@@ -2,7 +2,7 @@
   "schema_version": 1,
   "inventory_date": "2026-08-06",
   "source_scope": "all Python modules, shell entrypoints, skills, systemd units, migrations and Markdown documents",
-  "component_count": 365,
+  "component_count": 366,
   "classification_values": [
     "active",
     "compatibility",
@@ -3076,6 +3076,7 @@
         "tests/ruff-baseline.json",
         "tests/test_drain_mode.py",
         "tests/test_help_nextcloud_training.py",
+        "tests/test_invoice_effect_contract_m101.py",
         "tests/test_invoice_quality_m10.py",
         "tests/test_job_control.py",
         "tests/test_learning_patterns.py",
@@ -3089,7 +3090,7 @@
         "docs/architecture/README.md",
         "docs/archive/AUDIT_INITIAL_IMPORT.md"
       ],
-      "line_coverage_percent": 27.83,
+      "line_coverage_percent": 36.37,
       "last_git_change": "2026-08-14T14:43:28+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -3150,6 +3151,7 @@
         "tests/test_bounce_guard_3_2_1.py",
         "tests/test_container_runtime.py",
         "tests/test_help_nextcloud_training.py",
+        "tests/test_invoice_effect_contract_m101.py",
         "tests/test_invoice_ocr_register.py",
         "tests/test_invoices_calendar_approval.py",
         "tests/test_learning_patterns.py",
@@ -3268,6 +3270,7 @@
       "test_evidence": [
         "tests/mypy-baseline.json",
         "tests/ruff-baseline.json",
+        "tests/test_invoice_effect_contract_m101.py",
         "tests/test_invoice_ocr_register.py",
         "tests/test_invoices_calendar_approval.py"
       ],
@@ -3293,7 +3296,7 @@
         "tests/test_invoice_ocr_register.py"
       ],
       "documentation_evidence": [],
-      "line_coverage_percent": 91.18,
+      "line_coverage_percent": 92.65,
       "last_git_change": "2026-08-06T15:45:31+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -3420,6 +3423,7 @@
         "tests/test_carddav_contact_tools.py",
         "tests/test_drain_mode.py",
         "tests/test_help_nextcloud_training.py",
+        "tests/test_invoice_effect_contract_m101.py",
         "tests/test_invoice_ocr_register.py",
         "tests/test_invoices_calendar_approval.py",
         "tests/test_learning_patterns.py",
@@ -3688,6 +3692,7 @@
         "tests/test_batch_classifier.py",
         "tests/test_bounce_guard_3_2_1.py",
         "tests/test_help_nextcloud_training.py",
+        "tests/test_invoice_effect_contract_m101.py",
         "tests/test_invoice_ocr_register.py",
         "tests/test_invoice_quality_m10.py",
         "tests/test_invoices_calendar_approval.py",
@@ -4132,7 +4137,7 @@
         "tests/ruff-baseline.json"
       ],
       "documentation_evidence": [],
-      "line_coverage_percent": 10.13,
+      "line_coverage_percent": 9.64,
       "last_git_change": "2026-08-06T15:45:31+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -4449,6 +4454,7 @@
         "tests/ruff-baseline.json",
         "tests/test_container_runtime.py",
         "tests/test_immutable_runtime.py",
+        "tests/test_invoice_effect_contract_m101.py",
         "tests/test_m5_tool_contract.py",
         "tests/test_mail_projection_m96.py",
         "tests/test_monitoring_tool.py",
@@ -4549,6 +4555,7 @@
         "tests/ruff-baseline.json",
         "tests/test_caldav_update_tools.py",
         "tests/test_help_nextcloud_training.py",
+        "tests/test_invoice_effect_contract_m101.py",
         "tests/test_personal_assistant_core.py"
       ],
       "documentation_evidence": [],
@@ -4644,6 +4651,7 @@
       "productive_callers": [],
       "test_evidence": [
         "tests/ruff-baseline.json",
+        "tests/test_invoice_effect_contract_m101.py",
         "tests/test_nextcloud_workspace_tools.py",
         "tests/test_personal_assistant_core.py",
         "tests/test_portfolio_tool.py"
@@ -4652,7 +4660,7 @@
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
         "docs/architecture/legacy-decisions.json"
       ],
-      "line_coverage_percent": 29.63,
+      "line_coverage_percent": 42.96,
       "last_git_change": "2026-08-06T15:45:31+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -5485,6 +5493,7 @@
         "tests/test_carddav_contact_update.py",
         "tests/test_direct_calendar_tool.py",
         "tests/test_direct_tasks_tool.py",
+        "tests/test_invoice_effect_contract_m101.py",
         "tests/test_m5_tool_contract.py",
         "tests/test_mail_projection_m96.py",
         "tests/test_nextcloud_discovery_idempotency.py",
@@ -6021,6 +6030,7 @@
         "tests/test_carddav_contact_update.py",
         "tests/test_direct_calendar_tool.py",
         "tests/test_direct_tasks_tool.py",
+        "tests/test_invoice_effect_contract_m101.py",
         "tests/test_invoice_ocr_register.py",
         "tests/test_job_control.py",
         "tests/test_learning_patterns.py",
@@ -6076,6 +6086,7 @@
         "tests/test_carddav_contact_update.py",
         "tests/test_direct_calendar_tool.py",
         "tests/test_direct_tasks_tool.py",
+        "tests/test_invoice_effect_contract_m101.py",
         "tests/test_invoice_ocr_register.py",
         "tests/test_invoices_calendar_approval.py",
         "tests/test_job_control.py",
@@ -7983,6 +7994,30 @@
       "rollback_relevance": "none"
     },
     {
+      "path": "tests/test_invoice_effect_contract_m101.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "personal_assistant/tool_catalog/invoices.py"
+      ],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/COMMAND_REFERENCE.md",
+        "docs/TESTING.md",
+        "skills/personal-assistant/references/tool-contract.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
       "path": "tests/test_invoice_ocr_register.py",
       "types": [
         "python-module"
@@ -8024,7 +8059,7 @@
         "docs/TESTING.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-15T13:13:17+02:00",
+      "last_git_change": "2026-08-15T13:18:03+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"

@@ -1,6 +1,6 @@
 # Build- und CI-Nachweise
 
-Stand: M10.0, 2026-08-15. Der detaillierte Sicherheitsvertrag steht unter
+Stand: M10.1, 2026-08-15. Der detaillierte Sicherheitsvertrag steht unter
 [`architecture/IMAGE_SUPPLY_CHAIN.md`](architecture/IMAGE_SUPPLY_CHAIN.md).
 
 ## Gemeinsame Qualitaetspruefung
@@ -28,6 +28,14 @@ Jahresprioritaetsverhalten. Er greift nicht auf `/srv/openclaw`, Nextcloud,
 Postfachdaten, Secrets oder Container zu. Die Messergebnisse und Definitionen
 stehen unter
 [`INVOICE_QUALITY_BASELINE_M10.md`](INVOICE_QUALITY_BASELINE_M10.md).
+M10.1 ergaenzt Verhaltenspruefungen fuer den tatsaechlichen SQLite-/Nextcloud-
+Wirkungsvertrag von Export, Backfill und Korrektur. Ausschliesslich synthetische
+WebDAV-Antworten pruefen `If-Match`, `If-None-Match`, HTTP 412, SHA- und
+Schemaschutz sowie Remote-Fehler. Die neuen Vorschau- und Freigabepfade verwenden
+weder Produktivdaten noch einen erreichbaren Nextcloud-Server.
+Der Collection-Vertrag steigt damit auf 626 pytest-Items, darunter mindestens
+573 unittest-kompatible Tests und weiterhin mindestens 13 freie
+Rechnungs-pytest-Tests.
 
 Die Workflows besitzen global `permissions: {}`. Der Testjob darf nur Inhalte
 lesen. Der Releasejob erhaelt nur `contents: read`, `packages: write` und

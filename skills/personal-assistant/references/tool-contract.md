@@ -194,12 +194,12 @@ den fuehrenden Launcher durch `/opt/openclaw-agent/scripts/assistant.sh` ersetze
 
 | Tool-ID | Modus | externe Wirkung | Approval | Verfuegbarkeit | Kommando | Test |
 |---|---|---:|---|---|---|---|
-| `mail.invoice-archive` | `write` | ja | `automatic-create-only` | `invoices` | `./scripts/assistant.sh mail run --limit 20` | `tests/test_invoice_ocr_register.py` |
+| `mail.invoice-archive` | `write` | ja | `configured-invoice-archive-and-managed-register-sync` | `invoices` | `./scripts/assistant.sh mail run --limit 20` | `tests/test_invoice_effect_contract_m101.py` |
 | `assistant.invoices.status` | `read` | nein | `none` | `invoices` | `./scripts/assistant.sh invoices status` | `tests/test_invoice_ocr_register.py` |
 | `assistant.invoices.list` | `read` | nein | `none` | `invoices` | `./scripts/assistant.sh invoices list --year <YYYY> --limit 100` | `tests/test_invoice_ocr_register.py` |
 | `assistant.invoices.review` | `read` | nein | `none` | `invoices` | `./scripts/assistant.sh invoices review --limit 100` | `tests/test_invoice_ocr_register.py` |
-| `assistant.invoices.export` | `local-write` | nein | `managed-invoice-register` | `invoices` | `./scripts/assistant.sh invoices export --year <YYYY>` | `tests/test_invoice_ocr_register.py` |
-| `assistant.invoices.export-nextcloud` | `write` | ja | `explicit-user-export-create-only` | `invoices` | `./scripts/assistant.sh invoices export --year <YYYY> --nextcloud --yes` | `tests/test_invoice_ocr_register.py` |
-| `assistant.invoices.backfill-preview` | `read` | nein | `none` | `invoices` | `./scripts/assistant.sh invoices backfill --year <YYYY> --limit 500 --dry-run` | `tests/test_invoice_ocr_register.py` |
-| `assistant.invoices.backfill` | `local-write` | nein | `explicit-user-invoice-backfill` | `invoices` | `./scripts/assistant.sh invoices backfill --year <YYYY> --limit 500 --yes` | `tests/test_invoice_ocr_register.py` |
-| `assistant.invoices.correct` | `local-write` | nein | `explicit-user-correction` | `invoices` | `./scripts/assistant.sh invoices correct --hash <SHA256> --date <YYYY-MM-DD> --number "<Nr>" --supplier "<Steller>" --category "<Kategorie>" --gross "<Betrag>" --yes` | `tests/test_invoice_ocr_register.py` |
+| `assistant.invoices.export` | `read` | nein | `none` | `invoices` | `./scripts/assistant.sh invoices export --year <YYYY> --dry-run` | `tests/test_invoice_effect_contract_m101.py` |
+| `assistant.invoices.export-nextcloud` | `write` | ja | `explicit-user-managed-register-replace` | `invoices` | `./scripts/assistant.sh invoices export --year <YYYY> --yes` | `tests/test_invoice_effect_contract_m101.py` |
+| `assistant.invoices.backfill-preview` | `read` | nein | `none` | `invoices` | `./scripts/assistant.sh invoices backfill --year <YYYY> --limit 500 --dry-run` | `tests/test_invoice_effect_contract_m101.py` |
+| `assistant.invoices.backfill` | `write` | ja | `explicit-user-backfill-and-managed-register-replace` | `invoices` | `./scripts/assistant.sh invoices backfill --year <YYYY> --limit 500 --yes` | `tests/test_invoice_effect_contract_m101.py` |
+| `assistant.invoices.correct` | `write` | ja | `explicit-user-correction-and-managed-register-replace` | `invoices` | `./scripts/assistant.sh invoices correct --hash <SHA256> --date <YYYY-MM-DD> --number "<Nr>" --supplier "<Steller>" --category "<Kategorie>" --gross "<Betrag>" --yes` | `tests/test_invoice_effect_contract_m101.py` |

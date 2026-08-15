@@ -23,6 +23,8 @@ def run_external(args: argparse.Namespace) -> int:
             command.append("--nextcloud")
         if args.filename:
             command += ["--filename", args.filename]
+        if args.dry_run:
+            command.append("--dry-run")
         if args.yes:
             command.append("--yes")
     elif args.invoices_command == "backfill":

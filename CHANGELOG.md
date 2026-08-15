@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased – M10 Rechnungsqualitaet und sichere Neubewertung
+
+- M10.0 friert die aktuelle Rechnungsqualitaet mit einem vollstaendig
+  synthetischen deutsch/englischen Evaluationskorpus ein, ohne Extraktion,
+  Produktivdaten oder Reprocessing zu veraendern.
+- M10.1 weist Export, produktiven Backfill und Korrektur entsprechend ihrer
+  wirklichen SQLite- und Nextcloud-Wirkung aus. Eine neue Exportvorschau rendert
+  nur im Speicher; Direktaufrufe ohne `--dry-run` oder erforderliches `--yes`
+  scheitern vor einer Schreibwirkung.
+- Der verwaltete Jahresregisterpfad wird durch Verhaltensregressionen fuer ETag-
+  Konflikt, SHA-Abweichung, Schemafehler und fehlgeschlagenen Remote-Upload
+  abgesichert. Alte `--nextcloud`-Aufrufe bleiben kompatibel, erteilen aber keine
+  Schreibfreigabe.
+- 626 pytest-Items, davon mindestens 573 unittest-kompatibel, sichern M10.1 mit
+  62,69 Prozent Branch-einbezogener Gesamt-Coverage ab.
+
 ## Unreleased – M9 Mail-Qualitaet und Review-Triage
 
 - Die erste M9-Aktivierung kann den exakt freigegebenen Zielordner

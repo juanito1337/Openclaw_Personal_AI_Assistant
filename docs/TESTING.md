@@ -1,6 +1,6 @@
 # Tests, Qualitaetsbaseline und Container-Runtime
 
-Stand: 2026-08-15, fortgeschrieben bis M10.0. Sie startet keine produktiven Dienste und
+Stand: 2026-08-15, fortgeschrieben bis M10.1. Sie startet keine produktiven Dienste und
 verwendet weder `/srv/openclaw` noch produktive Zugangsdaten.
 
 ## Einheitlicher lokaler und CI-Prueflauf
@@ -44,14 +44,14 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 616 Tests, darunter mindestens 563 unittest-kompatible Tests
-(die bisherigen 349 sowie M0-M10.0-Regressionstests),
+fordert mindestens 626 Tests, darunter mindestens 573 unittest-kompatible Tests
+(die bisherigen 349 sowie M0-M10.1-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
 nach dem Sammeln mit einem Fehler ab. Neue Tests duerfen die Zahl erhoehen; die
 Baseline wird erst nach einem vollstaendigen gruenen Lauf bewusst angehoben.
 
-## M0-Ausgangswerte und aktueller M10.0-Teststand
+## M0-Ausgangswerte und aktueller M10.1-Teststand
 
 Gemessen auf Linux x86_64 mit Python 3.12.3. Die Werte sind Beobachtungen und noch
 keine willkuerlichen Mindestquoten. `scripts/quality-baseline.py` erzeugt sie nach
@@ -75,6 +75,7 @@ der aktuellen Python-Dateien.
 | Tests nach nativer Nextcloud- und aktiver Layout-3-Korrektur | 473 / 473 (JUnit-Zaehler inklusive Subtest-Ereignissen siehe `build/m0-baseline.json`) |
 | Tests nach M9 gesammelt/ausgefuehrt | 610 / 610 (643 JUnit-Faelle inklusive 33 Subtests) |
 | Tests nach M10.0 gesammelt/ausgefuehrt | 616 / 616 (649 JUnit-Faelle inklusive 33 Subtests) |
+| Tests nach M10.1 gesammelt/ausgefuehrt | 626 / 626 (664 JUnit-Faelle inklusive 38 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -87,6 +88,7 @@ der aktuellen Python-Dateien.
 | neue M7-Lieferketten-Regressionsitems | 21 |
 | neue M8-Recovery-/Skill-Regressionsitems | 7 |
 | neue M10.0-Rechnungsqualitaets-Regressionsitems | 6 |
+| neue M10.1-Wirkungsvertrags-Regressionsitems | 10 |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |
 | Gesamt-Coverage inklusive Branches (M8) | 59,18 % |
@@ -97,10 +99,13 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach M9 | 47,12 % |
 | Gesamt-Coverage inklusive Branches nach M10.0 | 62,21 % |
 | reine Branch-Coverage nach M10.0 | 47,37 % |
+| Gesamt-Coverage inklusive Branches nach M10.1 | 62,69 % |
+| reine Branch-Coverage nach M10.1 | 47,91 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
 | Laufzeit des finalen lokalen M10.0-Testlaufs | 107,45 s |
+| Laufzeit des finalen lokalen M10.1-Testlaufs | 110,01 s |
 | Laufzeit in der frischen M7-Wheel-Testumgebung | 55,56 s |
 | Wheelgroesse nach der Plugin-/Gatewaykorrektur | 397.870 Bytes |
 | M7-Wheel-Buildzeit | 4,582 s |
@@ -130,6 +135,24 @@ Metrikdefinitionen und Datenschutzgrenzen stehen in
 [`INVOICE_QUALITY_BASELINE_M10.md`](INVOICE_QUALITY_BASELINE_M10.md). Der
 Repositorycheck greift dieselbe Baseline ueber die Tests auf und benoetigt dafuer
 weder Produktivdaten noch Nextcloud oder Docker.
+
+## M10.1-Rechnungs-Wirkungsvertrag
+
+M10.1 prueft den Unterschied zwischen schreibfreier Vorschau, lokaler
+SQLite-Aenderung und externer Registeraktualisierung mit temporaeren Datenbanken
+und synthetischen WebDAV-Antworten:
+
+```bash
+.venv/bin/python -m pytest -q tests/test_invoice_effect_contract_m101.py
+```
+
+Die zehn Regressionstests belegen, dass Export- und Backfill-Vorschau SQLite und
+Nextcloud unveraendert lassen, alte Direktaufrufe ohne erforderliches `--yes`
+fail-closed enden und alle extern wirksamen Varianten in statischem Katalog,
+Live-Projektion und Capability-Ausgabe als `write` erscheinen. Die
+Registergrenze prueft einen erfolgreichen `If-Match`-PUT sowie negative Pfade fuer
+HTTP 412, falschen SHA-256, falsches CSV-Schema und allgemeinen Remote-Fehler.
+Keine Fixture verbindet sich mit einem produktiven Nextcloud-Server.
 
 Kritische Sicherheitsmodule im aktuellen M8-Lauf:
 

@@ -2,7 +2,7 @@
 
 Stand: 2026-08-15
 Empfohlener Arbeitsbranch: `development/invoice-quality-reprocessing-m10`
-Status: Planung; kein M10-Paket implementiert und kein Produktivlauf freigegeben
+Status: M10.0 und M10.1 implementiert; kein Produktivlauf freigegeben
 
 ## Ziel
 
@@ -209,6 +209,11 @@ M10.0. Beginne nicht mit M10.1.
 ```
 
 ## M10.1 – Wahrer Tool- und Effektvertrag
+
+Umsetzungsstand: abgeschlossen auf dem Entwicklungszweig
+`development/invoice-quality-reprocessing-m10`. Die Abnahme verwendet nur
+synthetische temporaere SQLite-/WebDAV-Fixtures. Es wurde kein produktiver Export,
+Backfill oder Korrekturlauf ausgefuehrt; M10.2 wurde nicht begonnen.
 
 ### Scope
 
