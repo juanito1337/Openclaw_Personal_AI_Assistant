@@ -1,0 +1,241 @@
+{
+  "schema_version": 1,
+  "corpus_id": "m10-synthetic-invoices-v1",
+  "privacy": "Fully synthetic fixtures. No production invoice, identifier, path, hash, address or account data.",
+  "cases": [
+    {
+      "case_id": "de-standard-tax",
+      "language": "de",
+      "document_type": "synthetic-pdf-text",
+      "features": [
+        "explicit-invoice-number",
+        "gross-net-tax",
+        "tax-percentage"
+      ],
+      "message": {
+        "subject": "Synthetische Rechnung 0001",
+        "sender_name": "M10 Fiktivbuero GmbH",
+        "sender_addr": "billing@example.invalid",
+        "received_at": "Fri, 16 Jan 2026 09:00:00 +0100"
+      },
+      "pages": [
+        "M10 Fiktivbuero GmbH\nRechnungsnummer: SYN-DE-0001\nRechnungsdatum: 15.01.2026\nNettobetrag: 100,00 EUR\nUmsatzsteuer 19 %: 19,00 EUR\nGesamtbetrag: 119,00 EUR\nFaellig am: 14.02.2026"
+      ],
+      "expected": {
+        "invoice_date": "2026-01-15",
+        "invoice_number": "SYN-DE-0001",
+        "supplier": "M10 Fiktivbuero GmbH",
+        "gross_amount": "119.00",
+        "net_amount": "100.00",
+        "tax_amount": "19.00",
+        "currency": "EUR",
+        "due_date": "2026-02-14"
+      }
+    },
+    {
+      "case_id": "en-standard-usd",
+      "language": "en",
+      "document_type": "synthetic-pdf-text",
+      "features": [
+        "english",
+        "explicit-invoice-number",
+        "foreign-currency"
+      ],
+      "message": {
+        "subject": "Synthetic invoice 0002",
+        "sender_name": "M10 Fictional Cloud Ltd",
+        "sender_addr": "invoice@example.invalid",
+        "received_at": "Wed, 11 Feb 2026 10:00:00 +0000"
+      },
+      "pages": [
+        "M10 Fictional Cloud Ltd\nInvoice Number: SYN-EN-0002\nInvoice Date: 2026-02-10\nSubtotal: 200.00 USD\nVAT: 40.00 USD\nGrand Total: 240.00 USD\nDue Date: 2026-03-10"
+      ],
+      "expected": {
+        "invoice_date": "2026-02-10",
+        "invoice_number": "SYN-EN-0002",
+        "supplier": "M10 Fictional Cloud Ltd",
+        "gross_amount": "240.00",
+        "net_amount": "200.00",
+        "tax_amount": "40.00",
+        "currency": "USD",
+        "due_date": "2026-03-10"
+      }
+    },
+    {
+      "case_id": "de-missing-number",
+      "language": "de",
+      "document_type": "synthetic-pdf-text",
+      "features": [
+        "missing-invoice-number",
+        "review-expected"
+      ],
+      "message": {
+        "subject": "Synthetischer Beleg ohne Nummer",
+        "sender_name": "M10 Fiktivservice GmbH",
+        "sender_addr": "service@example.invalid",
+        "received_at": "Tue, 03 Mar 2026 08:00:00 +0100"
+      },
+      "pages": [
+        "M10 Fiktivservice GmbH\nRechnungsdatum: 02.03.2026\nDienstleistung\nNettobetrag: 50,00 EUR\nUmsatzsteuer: 9,50 EUR\nGesamtbetrag: 59,50 EUR"
+      ],
+      "expected": {
+        "invoice_date": "2026-03-02",
+        "invoice_number": "",
+        "supplier": "M10 Fiktivservice GmbH",
+        "gross_amount": "59.50",
+        "net_amount": "50.00",
+        "tax_amount": "9.50",
+        "currency": "EUR",
+        "due_date": ""
+      }
+    },
+    {
+      "case_id": "de-multiple-dates",
+      "language": "de",
+      "document_type": "synthetic-pdf-text",
+      "features": [
+        "explicit-invoice-number",
+        "invoice-date",
+        "service-date",
+        "due-date"
+      ],
+      "message": {
+        "subject": "Synthetische Rechnung mit mehreren Datumsarten",
+        "sender_name": "M10 Fiktivwartung GmbH",
+        "sender_addr": "wartung@example.invalid",
+        "received_at": "Mon, 13 Apr 2026 09:00:00 +0200"
+      },
+      "pages": [
+        "M10 Fiktivwartung GmbH\nRechnungsnummer: SYN-DE-0004\nLeistungsdatum: 31.03.2026\nRechnungsdatum: 10.04.2026\nFaellig am: 30.04.2026\nGesamtbetrag: 357,00 EUR"
+      ],
+      "expected": {
+        "invoice_date": "2026-04-10",
+        "invoice_number": "SYN-DE-0004",
+        "supplier": "M10 Fiktivwartung GmbH",
+        "gross_amount": "357.00",
+        "net_amount": "",
+        "tax_amount": "",
+        "currency": "EUR",
+        "due_date": "2026-04-30"
+      }
+    },
+    {
+      "case_id": "de-credit-note",
+      "language": "de",
+      "document_type": "synthetic-pdf-text",
+      "features": [
+        "credit-note",
+        "negative-amounts",
+        "gross-net-tax"
+      ],
+      "message": {
+        "subject": "Synthetische Gutschrift",
+        "sender_name": "M10 Fiktivhandel GmbH",
+        "sender_addr": "credit@example.invalid",
+        "received_at": "Wed, 06 May 2026 12:00:00 +0200"
+      },
+      "pages": [
+        "M10 Fiktivhandel GmbH\nGutschrift\nRechnungsnummer: SYN-GS-0005\nRechnungsdatum: 05.05.2026\nNettobetrag: -50,00 EUR\nUmsatzsteuer: -9,50 EUR\nGesamtbetrag: -59,50 EUR"
+      ],
+      "expected": {
+        "invoice_date": "2026-05-05",
+        "invoice_number": "SYN-GS-0005",
+        "supplier": "M10 Fiktivhandel GmbH",
+        "gross_amount": "-59.50",
+        "net_amount": "-50.00",
+        "tax_amount": "-9.50",
+        "currency": "EUR",
+        "due_date": ""
+      }
+    },
+    {
+      "case_id": "de-multipage",
+      "language": "de",
+      "document_type": "synthetic-pdf-text",
+      "features": [
+        "multipage-pdf",
+        "fields-across-pages",
+        "gross-net-tax"
+      ],
+      "message": {
+        "subject": "Synthetische mehrseitige Rechnung",
+        "sender_name": "M10 Fiktivmaterial GmbH",
+        "sender_addr": "material@example.invalid",
+        "received_at": "Mon, 08 Jun 2026 15:00:00 +0200"
+      },
+      "pages": [
+        "M10 Fiktivmaterial GmbH\nRechnungsnummer: SYN-DE-0006\nRechnungsdatum: 08.06.2026\nSeite 1 von 2\nSynthetische Positionen",
+        "Seite 2 von 2\nNettobetrag: 1000,00 EUR\nMehrwertsteuer 19 %: 190,00 EUR\nZu zahlen: 1190,00 EUR"
+      ],
+      "expected": {
+        "invoice_date": "2026-06-08",
+        "invoice_number": "SYN-DE-0006",
+        "supplier": "M10 Fiktivmaterial GmbH",
+        "gross_amount": "1190.00",
+        "net_amount": "1000.00",
+        "tax_amount": "190.00",
+        "currency": "EUR",
+        "due_date": ""
+      }
+    },
+    {
+      "case_id": "de-multiple-totals",
+      "language": "de",
+      "document_type": "synthetic-pdf-text",
+      "features": [
+        "multiple-total-candidates",
+        "known-current-error",
+        "false-confirmed-risk"
+      ],
+      "message": {
+        "subject": "Synthetische Rechnung mit mehreren Summen",
+        "sender_name": "M10 Fiktivprojekt GmbH",
+        "sender_addr": "projekt@example.invalid",
+        "received_at": "Fri, 10 Jul 2026 11:00:00 +0200"
+      },
+      "pages": [
+        "M10 Fiktivprojekt GmbH\nRechnungsnummer: SYN-DE-0007\nRechnungsdatum: 09.07.2026\nGesamtsumme Positionen: 999,00 EUR\nZu zahlen: 119,00 EUR"
+      ],
+      "expected": {
+        "invoice_date": "2026-07-09",
+        "invoice_number": "SYN-DE-0007",
+        "supplier": "M10 Fiktivprojekt GmbH",
+        "gross_amount": "119.00",
+        "net_amount": "",
+        "tax_amount": "",
+        "currency": "EUR",
+        "due_date": ""
+      }
+    },
+    {
+      "case_id": "en-multiple-dates-tax-rate",
+      "language": "en",
+      "document_type": "synthetic-pdf-text",
+      "features": [
+        "english",
+        "service-date",
+        "tax-percentage",
+        "gross-net-tax"
+      ],
+      "message": {
+        "subject": "Synthetic invoice with tax rate",
+        "sender_name": "M10 Fictional Consulting Ltd",
+        "sender_addr": "consulting@example.invalid",
+        "received_at": "Fri, 14 Aug 2026 08:00:00 +0000"
+      },
+      "pages": [
+        "M10 Fictional Consulting Ltd\nInvoice No: SYN-EN-0008\nService Date: 2026-07-31\nInvoice Date: 2026-08-12\nNet Amount: 80.00 GBP\nVAT 20 %: 16.00 GBP\nInvoice Total: 96.00 GBP\nPayment Due: 2026-09-11"
+      ],
+      "expected": {
+        "invoice_date": "2026-08-12",
+        "invoice_number": "SYN-EN-0008",
+        "supplier": "M10 Fictional Consulting Ltd",
+        "gross_amount": "96.00",
+        "net_amount": "80.00",
+        "tax_amount": "16.00",
+        "currency": "GBP",
+        "due_date": "2026-09-11"
+      }
+    }
+  ]
+}

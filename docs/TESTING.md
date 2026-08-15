@@ -1,6 +1,6 @@
 # Tests, Qualitaetsbaseline und Container-Runtime
 
-Stand: 2026-08-14, fortgeschrieben bis M9. Sie startet keine produktiven Dienste und
+Stand: 2026-08-15, fortgeschrieben bis M10.0. Sie startet keine produktiven Dienste und
 verwendet weder `/srv/openclaw` noch produktive Zugangsdaten.
 
 ## Einheitlicher lokaler und CI-Prueflauf
@@ -44,14 +44,14 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 610 Tests, darunter mindestens 557 unittest-kompatible Tests
-(die bisherigen 349 sowie M0-M9-Regressionstests),
+fordert mindestens 616 Tests, darunter mindestens 563 unittest-kompatible Tests
+(die bisherigen 349 sowie M0-M10.0-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
 nach dem Sammeln mit einem Fehler ab. Neue Tests duerfen die Zahl erhoehen; die
 Baseline wird erst nach einem vollstaendigen gruenen Lauf bewusst angehoben.
 
-## M0-Ausgangswerte und aktueller M9-Teststand
+## M0-Ausgangswerte und aktueller M10.0-Teststand
 
 Gemessen auf Linux x86_64 mit Python 3.12.3. Die Werte sind Beobachtungen und noch
 keine willkuerlichen Mindestquoten. `scripts/quality-baseline.py` erzeugt sie nach
@@ -74,6 +74,7 @@ der aktuellen Python-Dateien.
 | Tests nach der immutable Plugin-/Gatewaykorrektur | 472 / 472 (494 JUnit-Faelle inklusive 22 Subtests) |
 | Tests nach nativer Nextcloud- und aktiver Layout-3-Korrektur | 473 / 473 (JUnit-Zaehler inklusive Subtest-Ereignissen siehe `build/m0-baseline.json`) |
 | Tests nach M9 gesammelt/ausgefuehrt | 610 / 610 (643 JUnit-Faelle inklusive 33 Subtests) |
+| Tests nach M10.0 gesammelt/ausgefuehrt | 616 / 616 (649 JUnit-Faelle inklusive 33 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -85,6 +86,7 @@ der aktuellen Python-Dateien.
 | neue M6-Legacy-/Upgrade-Regressionsitems | 14 |
 | neue M7-Lieferketten-Regressionsitems | 21 |
 | neue M8-Recovery-/Skill-Regressionsitems | 7 |
+| neue M10.0-Rechnungsqualitaets-Regressionsitems | 6 |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |
 | Gesamt-Coverage inklusive Branches (M8) | 59,18 % |
@@ -93,9 +95,12 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach der Plugin-/Gatewaykorrektur | 44,01 % |
 | Gesamt-Coverage inklusive Branches nach M9 | 62,03 % |
 | reine Branch-Coverage nach M9 | 47,12 % |
+| Gesamt-Coverage inklusive Branches nach M10.0 | 62,21 % |
+| reine Branch-Coverage nach M10.0 | 47,37 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
+| Laufzeit des finalen lokalen M10.0-Testlaufs | 107,45 s |
 | Laufzeit in der frischen M7-Wheel-Testumgebung | 55,56 s |
 | Wheelgroesse nach der Plugin-/Gatewaykorrektur | 397.870 Bytes |
 | M7-Wheel-Buildzeit | 4,582 s |
@@ -106,6 +111,25 @@ der aktuellen Python-Dateien.
 | Container-CLI-Kaltstart | 1.081 ms |
 | bekannte mypy-Altbefunde | 111 exakt baselinierte Befunde in 22 Dateien; 13 behoben |
 | bekannte Ruff-Altbefunde | 521 exakt baselinierte Befunde; 260 behoben |
+
+## M10.0-Rechnungsqualitaet
+
+M10.0 fuegt keine produktive Extraktions- oder Reprocessing-Logik hinzu. Ein
+vollstaendig synthetischer Korpus und ein deterministischer Verifier frieren den
+aktuellen Zustand einschliesslich eines bekannten False-confirmed-Falls ein:
+
+```bash
+.venv/bin/python scripts/evaluate_invoice_quality.py --verify
+.venv/bin/python -m pytest -q tests/test_invoice_quality_m10.py
+```
+
+Der Test belegt ausserdem, dass 48 bereits markierte `review`-Zeilen nicht in die
+aktuelle Legacy-Backfill-Auswahl geraten, waehrend zehn leere
+`extraction_status`-Zeilen getrennt Kandidaten bleiben. Operative Aggregate,
+Metrikdefinitionen und Datenschutzgrenzen stehen in
+[`INVOICE_QUALITY_BASELINE_M10.md`](INVOICE_QUALITY_BASELINE_M10.md). Der
+Repositorycheck greift dieselbe Baseline ueber die Tests auf und benoetigt dafuer
+weder Produktivdaten noch Nextcloud oder Docker.
 
 Kritische Sicherheitsmodule im aktuellen M8-Lauf:
 

@@ -1,0 +1,149 @@
+{
+  "arithmetic": {
+    "complete_triples": 6,
+    "error_rate": 0.0,
+    "errors": 0
+  },
+  "case_count": 8,
+  "cases": [
+    {
+      "arithmetic_error": false,
+      "case_id": "de-standard-tax",
+      "false_confirmed": false,
+      "mismatches": [],
+      "status": "confirmed"
+    },
+    {
+      "arithmetic_error": false,
+      "case_id": "en-standard-usd",
+      "false_confirmed": false,
+      "mismatches": [],
+      "status": "confirmed"
+    },
+    {
+      "arithmetic_error": false,
+      "case_id": "de-missing-number",
+      "false_confirmed": false,
+      "mismatches": [],
+      "status": "review"
+    },
+    {
+      "arithmetic_error": null,
+      "case_id": "de-multiple-dates",
+      "false_confirmed": false,
+      "mismatches": [],
+      "status": "confirmed"
+    },
+    {
+      "arithmetic_error": false,
+      "case_id": "de-credit-note",
+      "false_confirmed": false,
+      "mismatches": [],
+      "status": "confirmed"
+    },
+    {
+      "arithmetic_error": false,
+      "case_id": "de-multipage",
+      "false_confirmed": false,
+      "mismatches": [],
+      "status": "confirmed"
+    },
+    {
+      "arithmetic_error": null,
+      "case_id": "de-multiple-totals",
+      "false_confirmed": true,
+      "mismatches": [
+        "gross_amount"
+      ],
+      "status": "confirmed"
+    },
+    {
+      "arithmetic_error": false,
+      "case_id": "en-multiple-dates-tax-rate",
+      "false_confirmed": false,
+      "mismatches": [],
+      "status": "confirmed"
+    }
+  ],
+  "corpus_id": "m10-synthetic-invoices-v1",
+  "field_metrics": {
+    "currency": {
+      "correct": 8,
+      "coverage": 1.0,
+      "expected": 8,
+      "precision": 1.0,
+      "predicted": 8
+    },
+    "due_date": {
+      "correct": 4,
+      "coverage": 1.0,
+      "expected": 4,
+      "precision": 1.0,
+      "predicted": 4
+    },
+    "gross_amount": {
+      "correct": 7,
+      "coverage": 0.875,
+      "expected": 8,
+      "precision": 0.875,
+      "predicted": 8
+    },
+    "invoice_date": {
+      "correct": 8,
+      "coverage": 1.0,
+      "expected": 8,
+      "precision": 1.0,
+      "predicted": 8
+    },
+    "invoice_number": {
+      "correct": 7,
+      "coverage": 1.0,
+      "expected": 7,
+      "precision": 1.0,
+      "predicted": 7
+    },
+    "net_amount": {
+      "correct": 6,
+      "coverage": 1.0,
+      "expected": 6,
+      "precision": 1.0,
+      "predicted": 6
+    },
+    "supplier": {
+      "correct": 8,
+      "coverage": 1.0,
+      "expected": 8,
+      "precision": 1.0,
+      "predicted": 8
+    },
+    "tax_amount": {
+      "correct": 6,
+      "coverage": 1.0,
+      "expected": 6,
+      "precision": 1.0,
+      "predicted": 6
+    }
+  },
+  "metric_definitions": {
+    "arithmetic_error": "complete gross/net/tax triple differs by more than two cents",
+    "false_confirmed": "confirmed although a required expected fact is missing or incorrect",
+    "field_coverage": "correct non-empty predictions / all non-empty expected values",
+    "field_precision": "correct non-empty predictions / all non-empty predictions",
+    "review_rate": "review outcomes / all cases"
+  },
+  "outcomes": {
+    "confirmed": 7,
+    "false_confirmed": 1,
+    "false_confirmed_rate": 0.1429,
+    "review": 1,
+    "review_rate": 0.125
+  },
+  "overall_fields": {
+    "correct": 54,
+    "coverage": 0.9818,
+    "expected": 55,
+    "precision": 0.9818,
+    "predicted": 55
+  },
+  "schema_version": 1
+}

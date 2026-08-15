@@ -1,0 +1,132 @@
+# M10.0 – Rechnungqualitaets-Baseline
+
+Stand: 2026-08-15. Dieses Dokument ist eine Beobachtungsbasis, keine Freigabe
+willkuerlicher Qualitaetsgrenzen. M10.0 aendert weder Extraktion noch Datenbank,
+Toolvertrag, Routing oder produktive Daten.
+
+## Datenschutz und zwei getrennte Messbereiche
+
+Die operative Aufnahme enthaelt nur aggregierte Zaehler. Einzelne Lieferanten,
+Rechnungsnummern, Message-IDs, Dateinamen, Pfade, Hashes, Adressen, Konto- oder
+Bestellnummern werden nicht versioniert. Der reproduzierbare Extraktortest nutzt
+ausschliesslich den synthetischen Korpus
+`tests/fixtures/invoices/m10_sanitized_corpus.json`; alle Mailadressen enden auf
+der reservierten Domain `example.invalid`.
+
+Produktive Abfragen sind kein Bestandteil von `check-repo.sh`. Sie duerfen nur in
+einer separat autorisierten operativen Sitzung read-only ausgefuehrt werden. Die
+lokale und CI-seitige Baseline benoetigt weder `/srv/openclaw` noch Nextcloud,
+Postfachzugriff, Secrets oder laufende Container.
+
+## Aggregierter operativer Ausgangswert
+
+Die fuer die M10-Planung bereitgestellten read-only Ausgaben ergeben:
+
+| Messwert | Ausgangswert |
+| --- | ---: |
+| Rechnungszeilen insgesamt | 63 |
+| `review` | 48 |
+| bestaetigt, einschliesslich manueller Bestaetigung | 5 |
+| leerer `extraction_status` | 10 |
+| fehlende Rechnungsnummer | 39 |
+| fehlender Bruttobetrag | 27 |
+| Datumsproblem | 7 |
+| historischer Hinweis auf fehlendes Tesseract | 22 |
+| Kategorie leer oder `Ungeklärt` | 19 |
+| Extraktionsmethode `text` | 40 |
+| Extraktionsmethode `text+ocr-fallback` | 8 |
+| mittlere gespeicherte Extraktionskonfidenz | 0,5127 |
+| vollstaendige Brutto/Netto/Steuer-Tripel | 10 |
+| davon rechnerisch inkonsistent | 9 |
+| Steuerwert ohne Bruttowert | 26 |
+| Steuerwert groesser als Bruttowert | 4 |
+| Reviewzeilen unter einem `Pruefen`-Pfad | 29 |
+| Reviewzeilen ausserhalb eines `Pruefen`-Pfads | 19 |
+
+Die Jahresregister enthielten 2 Zeilen fuer 2024, 34 fuer 2025 und 17 fuer 2026.
+Der damalige Backfill-Dry-run fand fuer 2024 und 2025 keine Kandidaten und fuer
+2026 genau zehn Kandidaten. Davon wurde einer als `confirmed` und neun als
+`review` bewertet. Diese zehn Kandidaten sind die Zeilen mit leerem
+`extraction_status`; die 48 bereits als `review` markierten Zeilen werden durch die
+aktuelle Legacy-Auswahl nicht erneut gesammelt.
+
+Die Baseline kann ohne Ausgabe der Einzelzeilen erneut verdichtet werden. Der
+erste Befehl liefert die offiziellen Summen. Der zweite Befehl reicht die
+read-only Liste direkt an `jq` weiter und gibt nur Aggregate aus:
+
+```bash
+./scripts/assistant.sh invoices status
+
+./scripts/assistant.sh invoices list --limit 5000 | jq '
+  .records as $r |
+  def blank: . == null or . == "";
+  {
+    all: ($r | length),
+    review: [$r[] | select(.extraction_status == "review")] | length,
+    confirmed: [$r[] | select(.extraction_status == "confirmed" or .extraction_status == "confirmed-manual")] | length,
+    empty_extraction_status: [$r[] | select(.extraction_status | blank)] | length,
+    missing_invoice_number: [$r[] | select(.invoice_number | blank)] | length,
+    missing_gross: [$r[] | select(.gross_amount_cents == null)] | length,
+    unresolved_category: [$r[] | select((.category | blank) or .category == "Ungeklärt")] | length,
+    complete_amount_triples: [$r[] | select(.gross_amount_cents != null and .net_amount_cents != null and .tax_amount_cents != null)] | length,
+    inconsistent_amount_triples: [$r[] | select(.gross_amount_cents != null and .net_amount_cents != null and .tax_amount_cents != null and ((.gross_amount_cents - .net_amount_cents - .tax_amount_cents) | fabs) > 2)] | length,
+    tax_without_gross: [$r[] | select(.tax_amount_cents != null and .gross_amount_cents == null)] | length,
+    tax_above_gross: [$r[] | select(.tax_amount_cents != null and .gross_amount_cents != null and .tax_amount_cents > .gross_amount_cents)] | length,
+    review_in_pruefen: [$r[] | select(.extraction_status == "review" and (.nextcloud_path | contains("/Pruefen/")))] | length,
+    review_outside_pruefen: [$r[] | select(.extraction_status == "review" and ((.nextcloud_path | contains("/Pruefen/")) | not))] | length,
+    average_confidence: ([$r[].extraction_confidence] | add / length)
+  }'
+```
+
+Die Feinzaehler fuer Datums-/OCR-Probleme und Extraktionsmethoden beruhen auf
+versionierten Feldnamen und Issue-Texten, die in spaeteren Paketen geaendert
+werden koennen. Bei einem erneuten operativen Snapshot muessen deshalb sowohl der
+Git-Commit als auch die verwendete Release-ID mit erfasst werden, nicht jedoch die
+Einzelwerte.
+
+## Synthetischer Extraktor-Ausgangswert
+
+Der Korpus umfasst acht erfundene deutsche und englische Rechnungen. Er deckt
+explizite und fehlende Rechnungsnummern, Rechnungs-/Leistungs-/Faelligkeitsdaten,
+Brutto/Netto/Steuer, Steuersaetze, negative Gutschriften, mehrere Gesamtsummen und
+eine auf zwei Textseiten verteilte PDF-Ausgabe ab.
+
+```bash
+.venv/bin/python scripts/evaluate_invoice_quality.py --verify
+.venv/bin/python -m pytest -q tests/test_invoice_quality_m10.py
+```
+
+| Messwert | Ausgangswert |
+| --- | ---: |
+| synthetische Faelle | 8 |
+| erwartete nichtleere Felder | 55 |
+| vorhergesagte nichtleere Felder | 55 |
+| korrekte Felder | 54 |
+| Feldpraezision insgesamt | 0,9818 |
+| Feldabdeckung insgesamt | 0,9818 |
+| `review` | 1 |
+| Reviewquote | 0,1250 |
+| `confirmed` | 7 |
+| False-confirmed | 1 |
+| False-confirmed-Quote unter `confirmed` | 0,1429 |
+| vollstaendige Betragstripel | 6 |
+| rechnerische Fehler bei vollstaendigen Tripeln | 0 |
+
+Feldpraezision ist `korrekte nichtleere Vorhersagen / alle nichtleeren
+Vorhersagen`. Feldabdeckung ist `korrekte nichtleere Vorhersagen / alle
+erwarteten nichtleeren Werte`. Ein False-confirmed liegt vor, wenn ein Beleg als
+`confirmed` gilt, obwohl mindestens Rechnungsdatum, Rechnungsnummer, Lieferant
+oder Bruttobetrag fehlt oder vom Sollwert abweicht. Ein Rechenfehler liegt bei
+einem vollstaendigen Betragstripel vor, wenn `Brutto - Netto - Steuer` um mehr als
+zwei Cent von null abweicht.
+
+Der sichtbare False-confirmed-Fall ist beabsichtigte Charakterisierung: Bei zwei
+plausiblen Gesamtsummen waehlt der aktuelle Extraktor den groesseren statt des
+tatsaechlich zahlbaren Betrags. M10.0 behebt diesen Fehler nicht. Ebenso friert der
+Test die derzeitige Jahresprioritaet
+`invoice_date -> received_date -> created_at -> Pfadjahr -> Maildatum` nur als
+beobachtetes Verhalten ein; er erklaert sie nicht zur gewuenschten Semantik.
+
+Die vollstaendige maschinenlesbare Erwartung liegt in
+`tests/fixtures/invoices/m10_extractor_baseline.json`. Der Verifier vergleicht den
+gesamten Bericht strukturell und fehlschlaegt bei jeder unbemerkten Abweichung.

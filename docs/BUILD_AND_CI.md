@@ -1,6 +1,6 @@
 # Build- und CI-Nachweise
 
-Stand: M9, 2026-08-14. Der detaillierte Sicherheitsvertrag steht unter
+Stand: M10.0, 2026-08-15. Der detaillierte Sicherheitsvertrag steht unter
 [`architecture/IMAGE_SUPPLY_CHAIN.md`](architecture/IMAGE_SUPPLY_CHAIN.md).
 
 ## Gemeinsame Qualitaetspruefung
@@ -21,6 +21,13 @@ Walk-forward-Lernen, Kalenderdiagnose und atomare Mail-Suchprojektion. Die
 SQLite/WAL-Nebenlaeufigkeit wird mit temporaeren Datenbanken und offenem Writer
 getestet; die Dockerintegration bleibt der isolierte M8-Protokollstack und
 beruehrt keinen laufenden Compose-Stack.
+M10.0 hebt den Collection-Vertrag auf 616 pytest-Items an. Der neue Testpfad
+verifiziert einen ausschliesslich synthetischen Rechnungskorpus, die
+maschinenlesbare Extraktor-Baseline sowie das bestehende Backfill- und
+Jahresprioritaetsverhalten. Er greift nicht auf `/srv/openclaw`, Nextcloud,
+Postfachdaten, Secrets oder Container zu. Die Messergebnisse und Definitionen
+stehen unter
+[`INVOICE_QUALITY_BASELINE_M10.md`](INVOICE_QUALITY_BASELINE_M10.md).
 
 Die Workflows besitzen global `permissions: {}`. Der Testjob darf nur Inhalte
 lesen. Der Releasejob erhaelt nur `contents: read`, `packages: write` und

@@ -7,6 +7,9 @@ und Milestone-Tests, steht in
 Der anschliessende Qualitaetsmilestone fuer nachvollziehbare Mail-Prueffaelle,
 kontrollierte Einzelkorrekturen und messbares Lernen steht in
 [`MAIL_QUALITY_REVIEW_ROADMAP.md`](MAIL_QUALITY_REVIEW_ROADMAP.md).
+Der darauf aufbauende Rechnungsqualitaets-Milestone fuer belegte Feldextraktion,
+Plausibilitaetspruefung und sichere Neubewertung steht in
+[`INVOICE_QUALITY_REPROCESSING_ROADMAP.md`](INVOICE_QUALITY_REPROCESSING_ROADMAP.md).
 
 ## 3.4.x foundation
 
