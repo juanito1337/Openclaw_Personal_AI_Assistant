@@ -111,7 +111,7 @@ edf8b698f700724ef6e1185821871678fbc245dbc0abd835ea44a027187eef32  ./docs/archite
 15d67c8e72eeaa32828138fe556100d9b4cc94c2cf8f5626052699ec2ac74d92  ./docs/architecture/adr/0017-mail-suchprojektion-statt-wal-leser.md
 8eb068877eebc3953925e012ba1d57691b670fb706096a0f9b60509fb4181644  ./docs/architecture/adr/README.md
 d27b02d1ed286794ce453b80b4911bcbf476dfb08d005437510e5419f237203c  ./docs/architecture/compatibility-policy.json
-d1fa54fb31c6c12e7ba8717f9379bd760ead71d3162b0d90849e4750c5c9058c  ./docs/architecture/component-inventory.json
+97a302316c0dd7bc280a9f7bc8ada05f4cad7547150e6fddfd00587ec23fea7e  ./docs/architecture/component-inventory.json
 1f707ea0d3c63cf76a35d64fd62988a6f59c1c5e73fe7a09fe62fdb7901a919c  ./docs/architecture/image-baseline-m7.json
 b397cdaa70d5dbcd4bfd22ed503433570b67bb978059bd5916e8793d173807c3  ./docs/architecture/legacy-decisions.json
 18e55e2aa32043b238b4ff7a53455c297bdc98ed2702e7918956cfb0b0196370  ./docs/architecture/owners.json
@@ -346,7 +346,8 @@ d31afe9e5e8ebd2f58d250a9aa7b1a204dcedb9bc825d250999a379042ed872e  ./tests/fixtur
 08e658352e2aacfd56c7b2a0af552add25b5fc79f9a28d92aba111285f163c41  ./tests/fixtures/container/init-legacy-plugin-index.py
 9d4f684effff34a43dd64c3274bc3bb61643de652f3953b5066eaff78e733c4c  ./tests/fixtures/container/layout-v3.json
 17821b7a5a291a68f6e2d92fda0b642b57d83a755d9db0a23a2d0ede69665017  ./tests/fixtures/invoices/m10_extractor_baseline.json
-5b86b4f3d02a59bac67f5869389861b39f5b107abf890b1f1f2b7a620ef23ba3  ./tests/fixtures/invoices/m10_sanitized_corpus.json
+37c377b4a97445f09d4063d4125ea65cd9cd55e1c3361e92cb8e5c34342638f3  ./tests/fixtures/invoices/m10_multipage.pdf
+296a0238dae4833419e67e4b5b79fd7dce9cbd657f37c239c7cdee066e0631f0  ./tests/fixtures/invoices/m10_sanitized_corpus.json
 3a50ae8656e26aadbf368ed38c5ea80bd3aea6f5cdaf98be7feb57706b898cc8  ./tests/fixtures/upgrade/r26.1/VERSION
 612f74229ee93f63704f635238830d4573d487ece40b5f2b46b23b24e814d007  ./tests/fixtures/upgrade/r26.1/mail_agent/config.r26.1.fixture.toml
 3e2d2b60294e90bebdea6ba3074ab68383eed2f80d1b1c6c2539e0c13286f2a3  ./tests/fixtures/upgrade/r26.1/mail_agent/rules.r26.1.fixture.toml
@@ -384,7 +385,7 @@ e7081d43a55fa979b6cea401bd74d73fa8f7416a2af4b0f3aa6896797b641ad9  ./tests/test_c
 cca107ee5a8da579e71b06949065698b4be814923c3872186a831342462922be  ./tests/test_immutable_runtime.py
 0cad95b9399c7e97d681d04885a512c309f24fe8d85fd12cdbca250828c3bccb  ./tests/test_integration_cli.py
 2e421425cd70677c7b3e2da49f19a41720a7dac8bba6d447d9f0b0aab56aa077  ./tests/test_invoice_ocr_register.py
-8578987dd04b9d0db7d2a3e398ca2e7d48cf3808e82b39cb8014ddee3a0d1114  ./tests/test_invoice_quality_m10.py
+b8ee90edf60604b7b46b83606459611e609a3af4efdfd368267743ff8e50cc90  ./tests/test_invoice_quality_m10.py
 f33907ed9e80072d1c8e55b3f31c1b3bcf73fb56200a1c8fb6ac5f99ad64de5f  ./tests/test_invoices_calendar_approval.py
 240599f237a22dba63dcd99b4a7aa81a5bae0d1c5a8cc8f944d5cbf725e27b62  ./tests/test_job_control.py
 cdb1464b6a53f7222f7af9f89724f9349b7c4b7c8b24f3317ebb3abca587fa2b  ./tests/test_learning_patterns.py

@@ -33,7 +33,13 @@ class InvoiceQualityBaselineM10Tests(unittest.TestCase):
                 "multipage-pdf",
             }.issubset(features)
         )
-        self.assertTrue(any(len(case["pages"]) > 1 for case in cases))
+        multipage = next(case for case in cases if "multipage-pdf" in case["features"])
+        self.assertGreater(len(multipage["pages"]), 1)
+        pdf_path = DEFAULT_CORPUS.parent / multipage["pdf_fixture"]
+        pdf = pdf_path.read_bytes()
+        self.assertTrue(pdf.startswith(b"%PDF-1.4\n"))
+        self.assertEqual(len(re.findall(rb"/Type /Page\b", pdf)), 2)
+        self.assertIn(b"SYN-DE-0006", pdf)
 
     def test_corpus_contains_no_product_identifiers_or_private_values(self) -> None:
         raw = DEFAULT_CORPUS.read_text(encoding="utf-8")
@@ -50,6 +56,9 @@ class InvoiceQualityBaselineM10Tests(unittest.TestCase):
             self.assertTrue(case["message"]["sender_addr"].endswith("@example.invalid"))
             self.assertTrue(forbidden_keys.isdisjoint(case))
             self.assertTrue(forbidden_keys.isdisjoint(case["message"]))
+            if case.get("pdf_fixture"):
+                pdf_text = (DEFAULT_CORPUS.parent / case["pdf_fixture"]).read_text(encoding="ascii")
+                self.assertNotRegex(pdf_text.casefold(), r"\b(?:iban|bic|kontonummer|bestellnummer)\b")
         self.assertIsNone(re.search(r"\b[A-Fa-f0-9]{32,}\b", raw))
         self.assertNotRegex(raw.casefold(), r"\b(?:iban|bic|kontonummer|bestellnummer)\b")
 
