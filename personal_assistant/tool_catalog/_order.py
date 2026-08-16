@@ -138,6 +138,7 @@ TOOL_ORDER: tuple[str, ...] = (
     "nextcloud.deck.orders.due-date-backfill",
     "mail.invoice-archive",
     "assistant.invoices.status",
+    "assistant.invoices.audit",
     "assistant.invoices.list",
     "assistant.invoices.review",
     "assistant.invoices.export",

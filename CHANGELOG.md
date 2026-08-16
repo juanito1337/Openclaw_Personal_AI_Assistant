@@ -72,6 +72,18 @@
   bestehenden ETag-/SHA-/Schemavertrag abgeglichen. Remote-Konflikte und Ausfaelle
   bleiben als lokaler Teilerfolg sichtbar und koennen mit demselben unveraenderten
   Hash/Digest idempotent wiederaufgenommen werden; ein Claim begrenzt Konkurrenz.
+- M10.7 fuehrt `invoices audit` als registrierten, strikt read-only
+  Bestandsblick ein. Status, Pflichtfeldluecken, Plausibilitaet,
+  Extraktorversionen, Quelljahre und Pfadabweichungen werden nur aggregiert;
+  Dokumentwerte, Identifier und Pfade bleiben ausgeschlossen.
+- Unklassifizierte Legacy-Zeilen, Review, bestaetigte Werte und manuelle
+  Korrekturen werden getrennt dargestellt. Review-PDFs ausserhalb `Pruefen`
+  bleiben ein sichtbarer Zaehler; weder Invoice-Move noch eine allgemeine
+  Nextcloud-Verschiebefreigabe wurden eingefuehrt.
+- Der Agentenvertrag erzwingt Status -> Audit -> einzelne read-only Vorschau ->
+  Darstellung der exakten Aenderung -> separaten ausdruecklichen Auftrag fuer
+  Apply. Fehlende Werte duerfen nicht aus Erinnerung, Dateiname, Mailtext oder
+  Ollama entstehen und `--yes` wird nie autonom ergaenzt.
 - 659 pytest-Items, davon mindestens 595 unittest-kompatibel, sichern M10.4 mit
   63,45 Prozent Branch-einbezogener Gesamt-Coverage ab.
 - 671 pytest-Items, davon 607 unittest-kompatibel und weiterhin 13 freie
@@ -81,6 +93,10 @@
   Rechnungs-pytest-Tests, sichern M10.6 mit 63,85 Prozent branch-einbezogener
   Gesamt-Coverage ab. Alle Apply-, Konflikt- und Migrationstests sind hermetisch;
   es wurde kein produktiver Apply ausgefuehrt.
+- 688 pytest-Items, davon 624 unittest-kompatibel und weiterhin 13 freie
+  Rechnungs-pytest-Tests, sichern M10.7 mit 64,10 Prozent branch-einbezogener
+  Gesamt-Coverage hermetisch ab. Produktive SQLite, PDFs, Nextcloud, Register,
+  Jobs und `/srv/openclaw` wurden nicht verwendet.
 
 ## Unreleased – M9 Mail-Qualitaet und Review-Triage
 

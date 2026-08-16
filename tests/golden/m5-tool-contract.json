@@ -1089,6 +1089,14 @@
   },
   {
     "approval": "none",
+    "command": "./scripts/assistant.sh invoices audit",
+    "description": "Rechnungsbestand, Pflichtfeldluecken, Plausibilitaetsfehler, Extraktorversionen und Review-Pfadabweichungen ohne Dokumentinhalte aggregiert anzeigen",
+    "id": "assistant.invoices.audit",
+    "mode": "read",
+    "writes_external_data": false
+  },
+  {
+    "approval": "none",
     "command": "./scripts/assistant.sh invoices list --year <YYYY> --limit 100",
     "description": "Erkannte Rechnungsmetadaten eines Jahres ohne PDF-Inhalt anzeigen",
     "id": "assistant.invoices.list",

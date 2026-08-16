@@ -122,7 +122,7 @@ launcher shown above:
 | Contacts | `contacts status`, then `contacts list ...` or `contacts search ...` |
 | Calendar events or appointments | `calendar status`, then `calendar list ...` or `calendar search ...` |
 | Tasks or To-Dos | `tasks status`, then `tasks list ...` |
-| Invoices | `invoices status`, then `invoices list ...` or `invoices review ...` |
+| Invoices | `invoices status`, then `invoices audit`; use `invoices list ...` or `invoices review ...` only for requested detail |
 | Orders, deliveries or returns | `orders status`, then `orders list ...` |
 | Stocks, securities, depot positions or holdings | `portfolio holdings` |
 | Latest/current prices, portfolio value, profit or return | `portfolio quotes status`; if due, stale or missing and configured, `portfolio quotes refresh`; then `portfolio valuation`; report its EUR values only |
@@ -189,3 +189,19 @@ authenticate successfully.
 A capability is complete only when CLI, typed registry, policy, this skill or a
 linked reference, and a behavioral regression test agree. Hidden helper scripts
 are not agent tools.
+
+## Invoice backlog workflow
+
+For invoice quality, backlog or reprocessing requests, execute the registered
+commands in this order: `invoices status`, then `invoices audit`. Use the audit's
+exact `review` or `unclassified` cohort and source year for one `invoices
+reprocess ... --dry-run` call. Present the selected record's hash,
+`preview_sha256`, classification, exact field changes and typed conflicts. Stop
+and wait for Jan's explicit approval before executing the exact single-record
+`invoices reprocess-apply ... --yes` command.
+
+Never infer approval from a request to inspect, audit or preview. Never add
+`--yes` autonomously, combine hashes, or derive missing invoice values from
+memory, filename, mail text or Ollama. Review PDFs reported outside the configured
+review subfolder remain a read-only finding; do not move them and do not use a
+generic Nextcloud move as a substitute.

@@ -308,3 +308,44 @@ noch in das Audit uebernommen. Ein simuliertes altes/neues Jahresregister, ETag-
 Konflikt, Remote-Ausfall, Wiederaufnahme und konkurrierender Apply benoetigen
 weder `/srv/openclaw` noch Netzwerk oder Container. Es wurde kein produktiver
 Reprocess oder Apply ausgefuehrt.
+
+## M10.7 – Aggregierter Backlog-Audit
+
+M10.7 aendert weder Extraktor noch die M10.0- bis M10.4-Feldmetriken. Die neue
+hermetische Fixture enthaelt sieben vollstaendig erfundene Rechnungszeilen: eine
+unklassifizierte Legacy-Zeile, drei Reviewzeilen, eine bestaetigte, eine manuell
+korrigierte und eine technische Fehlerzeile. Sie misst ausschliesslich Aggregate.
+
+```bash
+.venv/bin/python -m pytest -q tests/test_invoice_backlog_audit_m107.py
+```
+
+| Synthetischer Auditmesswert | Wert |
+| --- | ---: |
+| Datensaetze | 7 |
+| unklassifizierte Legacy-Zeilen | 1 |
+| Reviewzeilen | 3 |
+| bestaetigte Zeilen | 1 |
+| manuelle Korrekturen | 1 |
+| Review im Pruefpfad / ausserhalb / ohne Pfad | 1 / 1 / 1 |
+| Register-/Pfad-Jahresabweichungen | 1 |
+| inkonsistente Betragstripel | 1 |
+| Steuer ohne Brutto | 1 |
+| ungueltige Datumswerte | 1 |
+| nach Formatpruefung redigierte Versionswerte | 1 |
+| private Inhalte, Identifier oder Pfade in der Ausgabe | 0 |
+| externe/PDF-/Registerzugriffe | 0 |
+
+Der bereits read-only erhobene operative M10-Ausgangswert von 19 Reviewzeilen
+ausserhalb `Pruefen` bleibt unveraendert dokumentiert. Er wird weder in den
+synthetischen Korpus kopiert noch als produktiver Lauf wiederholt. Der neue
+Zaehler `review_outside_review_subfolder` macht denselben Zustand bei einem
+spaeter autorisierten Status/Audit-Lauf direkt sichtbar, ohne Einzelpfade
+auszugeben oder eine Verschiebung anzubieten.
+
+Die gemeinsame Suite sammelt 688 pytest-Items und meldet 756 JUnit-Faelle
+einschliesslich 68 Subtests. Die branch-einbezogene Gesamt-Coverage betraegt
+64,10 Prozent, die reine Branch-Coverage 49,91 Prozent. Das neue Modul
+`mail_agent/invoice_backlog_audit.py` erreicht 94,22 Prozent. Diese Werte stammen
+aus dem erfolgreichen vollstaendigen lokalen Testpfad nach der abschliessenden
+deterministischen Manifestregenerierung.

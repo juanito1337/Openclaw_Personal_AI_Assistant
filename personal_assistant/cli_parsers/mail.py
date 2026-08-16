@@ -7,6 +7,10 @@ def add_commands(sub: Any) -> None:
     invoices = sub.add_parser("invoices", help="Rechnungs-OCR, Metadaten und Jahresregister")
     invoices_sub = invoices.add_subparsers(dest="invoices_command", required=True)
     invoices_sub.add_parser("status", help="OCR-Werkzeuge, Register und Zaehler anzeigen")
+    invoices_sub.add_parser(
+        "audit",
+        help="Rechnungsbestand und Pruefbacklog ausschliesslich aggregiert auswerten",
+    )
     invoices_list = invoices_sub.add_parser("list", help="Rechnungsmetadaten anzeigen")
     invoices_list.add_argument("--year", type=int, default=0)
     invoices_list.add_argument(

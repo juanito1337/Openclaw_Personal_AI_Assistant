@@ -139,6 +139,10 @@ def build_parser() -> argparse.ArgumentParser:
     invoices = sub.add_parser("invoices", help="Rechnungsmetadaten, OCR und Jahresregister verwalten")
     inv_sub = invoices.add_subparsers(dest="invoices_command", required=True)
     inv_sub.add_parser("status", help="OCR-Werkzeuge, Register und Rechnungszaehler anzeigen")
+    inv_sub.add_parser(
+        "audit",
+        help="Rechnungsbestand und Pruefbacklog ausschliesslich aggregiert auswerten",
+    )
     inv_list = inv_sub.add_parser("list", help="Rechnungsregistereintraege ohne PDF-Inhalt anzeigen")
     inv_list.add_argument("--year", type=int, default=0)
     inv_list.add_argument("--status", default="", choices=("", "confirmed", "confirmed-manual", "review", "error"))
@@ -1058,6 +1062,20 @@ def _handle_invoices(args: argparse.Namespace, config: Config) -> int:
         return _handle_invoice_reprocess(args, config)
     if args.invoices_command == "reprocess-apply":
         return _handle_invoice_reprocess_apply(args, config)
+    if args.invoices_command == "audit":
+        from .invoice_backlog_audit import run_invoice_backlog_audit
+
+        tools = load_tool_settings()
+        invoice_tool = tools.mail.invoices
+        if not invoice_tool.enabled:
+            raise PermissionError("Zentrales Rechnungswerkzeug ist in tools.toml deaktiviert")
+        payload = run_invoice_backlog_audit(
+            config.runtime.database,
+            invoice_folder=invoice_tool.folder,
+            review_subfolder=config.invoices.review_subfolder,
+        )
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
+        return 0
     storage = Storage(config.runtime.database)
     try:
         register = InvoiceRegister(storage, config.invoices)

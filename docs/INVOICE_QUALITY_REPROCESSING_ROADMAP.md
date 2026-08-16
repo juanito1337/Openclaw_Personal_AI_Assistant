@@ -2,7 +2,7 @@
 
 Stand: 2026-08-15
 Empfohlener Arbeitsbranch: `development/invoice-quality-reprocessing-m10`
-Status: M10.0 bis M10.5 implementiert; kein Produktivlauf freigegeben
+Status: M10.0 bis M10.7 implementiert; kein Produktivlauf freigegeben
 
 ## Ziel
 
@@ -520,6 +520,12 @@ Apply aus und stoppe nach M10.6.
 ```
 
 ## M10.7 – Register-/Backlog-Audit und agentengerechte Bedienung
+
+Umsetzungsstand: abgeschlossen auf dem Entwicklungszweig
+`development/invoice-quality-reprocessing-m10`. Der Audit und seine Abnahme
+verwenden ausschliesslich temporaere synthetische SQLite-Daten. Weder produktive
+PDFs noch `/srv/openclaw`, Nextcloud, Register oder Jobs wurden geoeffnet oder
+veraendert; M10.8 wurde nicht begonnen.
 
 ### Scope
 

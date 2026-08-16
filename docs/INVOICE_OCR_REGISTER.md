@@ -165,6 +165,7 @@ Kann die Jahres-CSV nicht aktualisiert werden, ist die Rechnungsverarbeitung nic
 
 ```bash
 ./scripts/assistant.sh invoices status
+./scripts/assistant.sh invoices audit
 ./scripts/assistant.sh invoices list --year 2026 --limit 100
 ./scripts/assistant.sh invoices review --limit 100
 ./scripts/assistant.sh invoices export --year 2026 --dry-run
@@ -184,6 +185,7 @@ Grenze nicht.
 
 | Pfad | SQLite | Nextcloud-PDF | verwaltetes Jahresregister | Freigabe |
 | --- | --- | --- | --- | --- |
+| `invoices audit` | strikt read-only; nur Aggregate | nicht geoeffnet | nicht geoeffnet | keine |
 | `invoices export ... --dry-run` | unveraendert | unveraendert | unveraendert; nur In-Memory-Vorschau | keine |
 | `invoices export ... --yes` | unveraendert | unveraendert | bedingtes Anlegen/Ersetzen | ausdrueckliches `--yes` |
 | `invoices backfill ... --dry-run` | unveraendert | nur gelesen, nie ersetzt | unveraendert | keine |
@@ -240,6 +242,58 @@ Die Vorschau liest PDF-Dateien und fuehrt den Virenscan sowie die Extraktion aus
 speichert das Ergebnis aber nicht. Der produktive Pfad speichert dagegen die
 SQLite-Ergebnisse und synchronisiert danach die betroffenen Nextcloud-Register;
 sein Toolmodus ist daher `write` mit externer Wirkung.
+
+## Aggregierter Backlog-Audit und Triage (M10.7)
+
+`invoices audit` ist die datenschutzsichere Bestandsaufnahme vor jeder
+historischen Neubewertung:
+
+```bash
+./scripts/assistant.sh invoices status
+./scripts/assistant.sh invoices audit
+```
+
+Der Audit oeffnet die Rechnungs-SQLite mit `mode=ro` und `query_only`. Bei einer
+geschlossenen Datenbank ohne WAL wird zusaetzlich der unveraenderliche SQLite-
+Modus verwendet, damit selbst keine neuen Sidecar-Dateien entstehen. Ein
+vorhandenes WAL wird dagegen in die aktuelle konsistente Lesesicht einbezogen.
+Nextcloud, PDFs, Jahresregister und der schreibende Extraktionsaudit werden nicht
+geoeffnet.
+
+Die Ausgabe enthaelt ausschliesslich Aggregate:
+
+- Archiv- und Extraktionsstatus;
+- getrennte Kohorten fuer unklassifizierte Legacy-Zeilen, Review, bestaetigte
+  Zeilen, manuelle Korrekturen und andere technische Zustaende;
+- fehlende Pflichtfelder sowie Datums- und Betragsplausibilitaet je Kohorte;
+- ausschliesslich typisierte `amount:*`-Reviewgruende;
+- eng formatgepruefte Extraktor-/Regelversionen und aggregierte Quelljahre;
+- Reviewzeilen innerhalb, ausserhalb oder ohne konfigurierten Pruefpfad sowie
+  Pfad-/Registerjahresabweichungen.
+
+Hashes, Message-IDs, Dateinamen, Pfade, Rechnungsnummern, Lieferanten,
+Dokumenttexte und freie Fehlertexte werden nie ausgegeben. Unbekannte oder frei
+formatierte Versionswerte erscheinen nur als `invalid-redacted`. Der operative
+M10-Ausgangswert von 19 Reviewzeilen ausserhalb `Pruefen` wird damit ueber
+`review_outside_review_subfolder` sichtbar, aber nicht hart kodiert.
+
+### Begrenzte Bedienreihenfolge
+
+1. `invoices status` und danach `invoices audit` lesen.
+2. Genau eine Auditkohorte `review` oder `unclassified` und genau ein dort
+   ausgewiesenes Quelljahr fuer `invoices reprocess ... --dry-run` auswaehlen.
+3. Fuer genau einen Vorschlag Hash, `preview_sha256`, Klassifikation,
+   Feldaenderungen und Konflikte vollstaendig darstellen.
+4. Ohne ausdrueckliche Einzelfreigabe stoppen. Erst ein neuer Nutzerauftrag darf
+   denselben unveraenderten Vorschlag mit `invoices reprocess-apply ... --yes`
+   ausfuehren.
+
+Pfadabweichungen sind nur ein Triagehinweis. M10.7 bietet weder einen Invoice-
+Move noch eine allgemeine Nextcloud-Verschiebefreigabe. Fehlende Werte werden
+nicht aus Erinnerung, Dateiname, Mailtext oder Ollama ergaenzt. Vor einem
+produktiven Apply gelten weiterhin verifiziertes lokales Backup und fuer
+vollstaendige externe Ruecknahme ein verifizierter Nextcloud-Snapshot-Hook. Ein
+Image-Rollback allein stellt keine bereits ersetzte Registerdatei wieder her.
 
 ## Read-only Reprocessing-Vorschau (M10.5)
 

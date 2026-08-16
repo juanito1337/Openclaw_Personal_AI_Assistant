@@ -1,6 +1,6 @@
 # Tests, Qualitaetsbaseline und Container-Runtime
 
-Stand: 2026-08-16, fortgeschrieben bis M10.6. Sie startet keine produktiven Dienste und
+Stand: 2026-08-16, fortgeschrieben bis M10.7. Sie startet keine produktiven Dienste und
 verwendet weder `/srv/openclaw` noch produktive Zugangsdaten.
 
 ## Einheitlicher lokaler und CI-Prueflauf
@@ -44,14 +44,14 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 680 Tests, darunter mindestens 616 unittest-kompatible Tests
-(die bisherigen 349 sowie M0-M10.6-Regressionstests),
+fordert mindestens 688 Tests, darunter mindestens 624 unittest-kompatible Tests
+(die bisherigen 349 sowie M0-M10.7-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
 nach dem Sammeln mit einem Fehler ab. Neue Tests duerfen die Zahl erhoehen; die
 Baseline wird erst nach einem vollstaendigen gruenen Lauf bewusst angehoben.
 
-## M0-Ausgangswerte und aktueller M10.6-Teststand
+## M0-Ausgangswerte und aktueller M10.7-Teststand
 
 Gemessen auf Linux x86_64 mit Python 3.12.3. Die Werte sind Beobachtungen und noch
 keine willkuerlichen Mindestquoten. `scripts/quality-baseline.py` erzeugt sie nach
@@ -81,6 +81,7 @@ der aktuellen Python-Dateien.
 | Tests nach M10.4 gesammelt/ausgefuehrt | 659 / 659 (715 JUnit-Faelle inklusive 56 Subtests) |
 | Tests nach M10.5 gesammelt/ausgefuehrt | 671 / 671 (735 JUnit-Faelle inklusive 64 Subtests) |
 | Tests nach M10.6 gesammelt/ausgefuehrt | 680 / 680 (748 JUnit-Faelle inklusive 68 Subtests) |
+| Tests nach M10.7 gesammelt/ausgefuehrt | 688 / 688 (756 JUnit-Faelle inklusive 68 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -99,6 +100,7 @@ der aktuellen Python-Dateien.
 | neue M10.4-OCR-/Fusions-Regressionsitems | 11 |
 | neue M10.5-Reprocessing-Vorschau-Regressionsitems | 12 |
 | neue M10.6-Einzeluebernahme-Regressionsitems | 9 |
+| neue M10.7-Backlog-/Skill-Regressionsitems | 8 |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |
 | Gesamt-Coverage inklusive Branches (M8) | 59,18 % |
@@ -120,6 +122,8 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach M10.5 | 49,35 % |
 | Gesamt-Coverage inklusive Branches nach M10.6 | 63,85 % |
 | reine Branch-Coverage nach M10.6 | 49,59 % |
+| Gesamt-Coverage inklusive Branches nach M10.7 | 64,10 % |
+| reine Branch-Coverage nach M10.7 | 49,91 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -127,6 +131,8 @@ der aktuellen Python-Dateien.
 | Laufzeit des finalen lokalen M10.1-Testlaufs | 110,01 s |
 | Laufzeit des finalen lokalen M10.5-Testlaufs | 70,72 s |
 | Laufzeit des finalen lokalen M10.6-Testlaufs | 118,09 s |
+| Laufzeit des ersten erfolgreichen lokalen M10.7-Gesamtlaufs | 118,48 s |
+| Laufzeit der erfolgreichen M10.7-Kontrollwiederholung | 115,65 s |
 | Laufzeit in der frischen M7-Wheel-Testumgebung | 55,56 s |
 | Wheelgroesse nach der Plugin-/Gatewaykorrektur | 397.870 Bytes |
 | M7-Wheel-Buildzeit | 4,582 s |
@@ -293,6 +299,36 @@ Wiederholungsaufruf validiert die Register erneut. Synthetische PDF-Evidenz und
 Archivpfad duerfen in keiner Auditspalte erscheinen; PDF-Bytes und Pfad bleiben
 unveraendert. Es wurde kein produktiver Apply ausgefuehrt.
 
+## M10.7-Aggregierter Backlog-Audit und Agentenablauf
+
+M10.7 prueft den neuen registrierten Read-Befehl ausschliesslich mit einer
+temporaeren SQLite und erfundenen Datensaetzen:
+
+```bash
+.venv/bin/python -m pytest -q tests/test_invoice_backlog_audit_m107.py
+```
+
+Die acht Tests vergleichen Statusverteilung, getrennte Legacy-/Review-/
+Bestaetigt-/manuelle Kohorten, Pflichtfeldluecken, Betrags-/Datumsplausibilitaet,
+typisierte Reviewgruende, Quelljahre und Pfadabweichungen exakt. Ein absichtlich
+wie privater Inhalt aussehender Wert wird weder als Extraktorversion noch als
+Reviewgrund, Pfad, Feldwert oder Identifier ausgegeben. SQLite-Hauptdatei und
+Verzeichnisbestand bleiben bei einer geschlossenen Fixture bytegleich; PDFs,
+Nextcloud, Register und Auditwriter werden nicht geoeffnet.
+
+CLI- und Tooltests belegen den realen Befehl `invoices audit`, den Modus `read`,
+fehlende externe Wirkung und die Abwesenheit eines Invoice-Move-Werkzeugs. Der
+Skilltest prueft die Reihenfolge Status -> Audit -> Preview -> dargestellte
+Einzelaenderung -> separater Nutzerauftrag fuer Apply; der Verhaltenspfad lehnt
+Apply ohne `--yes` weiterhin vor jeder Daten- oder Remoteaktion ab.
+
+Der operative Ausgangswert von 19 Reviewzeilen ausserhalb `Pruefen` bleibt ein
+bereits dokumentiertes read-only Aggregat und wird nicht als private Fixture
+kopiert. Ein spaeterer produktiver Triage-Lauf benoetigt zuerst Status/Audit und
+vor jedem einzelnen Apply das verifizierte Backup samt separater Freigabe. Ein
+Remote-Registerkonflikt ist kein lokaler Rollback; ein Image-Rollback stellt
+Nextcloud-Aenderungen nicht wieder her.
+
 Kritische Sicherheitsmodule im aktuellen M8-Lauf:
 
 | Modul | Coverage |
@@ -324,7 +360,7 @@ einem eigenen Modul. Die 124 bei M5 charakterisierten Werkzeuge, zwei spaeter
 registrierte read-only Mappingvorschlaege und zehn Research-/Philosophiewerkzeuge
 ergaben zunaechst 136 Toolprojektionen in
 `tests/golden/m5-tool-contract.json`; einschliesslich der spaeteren M9-/M10-
-Werkzeuge sind es aktuell 146 Toolprojektionen. Die stabile Top-Level-Hilfe steht in
+Werkzeuge sind es aktuell 147 Toolprojektionen. Die stabile Top-Level-Hilfe steht in
 `tests/golden/m5-cli-help.txt`. Aktuelle Modul- und Funktionsgroessen werden
 weiterhin ausschliesslich durch `scripts/quality-baseline.py` gemessen.
 

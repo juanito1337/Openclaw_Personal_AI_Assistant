@@ -28,6 +28,18 @@ TOOLS: tuple[ToolDefinition, ...] = (
         test_anchor="tests/test_invoice_ocr_register.py",
     ),
     define(
+        id="assistant.invoices.audit",
+        domain="invoices",
+        description="Rechnungsbestand, Pflichtfeldluecken, Plausibilitaetsfehler, Extraktorversionen und Review-Pfadabweichungen ohne Dokumentinhalte aggregiert anzeigen",
+        command="./scripts/assistant.sh invoices audit",
+        mode="read",
+        writes_external_data=False,
+        approval="none",
+        availability="invoices",
+        documentation_anchor="docs/INVOICE_OCR_REGISTER.md",
+        test_anchor="tests/test_invoice_backlog_audit_m107.py",
+    ),
+    define(
         id="assistant.invoices.list",
         domain="invoices",
         description="Erkannte Rechnungsmetadaten eines Jahres ohne PDF-Inhalt anzeigen",

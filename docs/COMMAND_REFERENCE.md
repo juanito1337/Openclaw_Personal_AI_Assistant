@@ -185,6 +185,7 @@ Konfigurationsfreie Sicht: `./scripts/assistant.sh tools list --catalog` und
 |---|---|---:|---|---|---|---|---|
 | `mail.invoice-archive` | `write` | ja | `configured-invoice-archive-and-managed-register-sync` | `invoices` | `./scripts/assistant.sh mail run --limit 20` | `docs/INVOICE_OCR_REGISTER.md` | `tests/test_invoice_effect_contract_m101.py` |
 | `assistant.invoices.status` | `read` | nein | `none` | `invoices` | `./scripts/assistant.sh invoices status` | `docs/INVOICE_OCR_REGISTER.md` | `tests/test_invoice_ocr_register.py` |
+| `assistant.invoices.audit` | `read` | nein | `none` | `invoices` | `./scripts/assistant.sh invoices audit` | `docs/INVOICE_OCR_REGISTER.md` | `tests/test_invoice_backlog_audit_m107.py` |
 | `assistant.invoices.list` | `read` | nein | `none` | `invoices` | `./scripts/assistant.sh invoices list --year <YYYY> --limit 100` | `docs/INVOICE_OCR_REGISTER.md` | `tests/test_invoice_ocr_register.py` |
 | `assistant.invoices.review` | `read` | nein | `none` | `invoices` | `./scripts/assistant.sh invoices review --limit 100` | `docs/INVOICE_OCR_REGISTER.md` | `tests/test_invoice_ocr_register.py` |
 | `assistant.invoices.export` | `read` | nein | `none` | `invoices` | `./scripts/assistant.sh invoices export --year <YYYY> --dry-run` | `docs/INVOICE_OCR_REGISTER.md` | `tests/test_invoice_effect_contract_m101.py` |

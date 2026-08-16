@@ -31,6 +31,7 @@
     {"path": "docs/architecture/adr/0019-typisierte-rechnungsbetraege-und-plausibilitaet.md", "owner": "Data Maintainers"},
     {"path": "docs/architecture/adr/0020-begrenzte-lokale-ocr-feldfusion.md", "owner": "Data Maintainers"},
     {"path": "docs/architecture/adr/0021-read-only-reprocessing-vorschau.md", "owner": "Data Maintainers"},
-    {"path": "docs/architecture/adr/0022-auditierbare-reprocessing-einzeluebernahme.md", "owner": "Data Maintainers"}
+    {"path": "docs/architecture/adr/0022-auditierbare-reprocessing-einzeluebernahme.md", "owner": "Data Maintainers"},
+    {"path": "docs/architecture/adr/0023-datenschutzsicherer-rechnungs-backlog-audit.md", "owner": "Data Maintainers"}
   ]
 }

@@ -9,7 +9,9 @@ from typing import Any
 
 def run_external(args: argparse.Namespace) -> int:
     command = [sys.executable, "-m", "mail_agent", "invoices", args.invoices_command]
-    if args.invoices_command == "list":
+    if args.invoices_command in {"status", "audit"}:
+        pass
+    elif args.invoices_command == "list":
         if args.year:
             command += ["--year", str(args.year)]
         if args.status:
