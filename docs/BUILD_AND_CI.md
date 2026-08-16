@@ -39,7 +39,7 @@ explizite Ausschlussrollen, Konflikte und Dateinamen als reine Stuetzung. Der
 Evaluator verifiziert M10.0 und M10.2 gegen getrennte versionierte Baselines;
 weder lokaler Check noch CI benoetigen dafuer produktive PDFs, SQLite,
 Nextcloud, `/srv/openclaw` oder Secrets. Der Collection-Vertrag steigt damit auf
-637 pytest-Items, darunter mindestens 584 unittest-kompatible Tests und
+648 pytest-Items, darunter mindestens 595 unittest-kompatible Tests und
 weiterhin mindestens 13 freie Rechnungs-pytest-Tests.
 
 Die Workflows besitzen global `permissions: {}`. Der Testjob darf nur Inhalte

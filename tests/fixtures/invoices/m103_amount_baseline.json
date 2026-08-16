@@ -1,153 +1,174 @@
 {
   "arithmetic": {
-    "complete_triples": 0,
-    "error_rate": null,
-    "errors": 0
+    "complete_triples": 11,
+    "error_rate": 0.1818,
+    "errors": 2
   },
-  "case_count": 12,
+  "case_count": 15,
   "cases": [
     {
-      "arithmetic_error": null,
-      "case_id": "de-rechnung-nr-unicode",
+      "arithmetic_error": false,
+      "case_id": "de-thousands-and-tax-rate",
+      "false_confirmed": false,
+      "mismatches": [],
+      "status": "confirmed"
+    },
+    {
+      "arithmetic_error": false,
+      "case_id": "en-thousands-usd",
       "false_confirmed": false,
       "mismatches": [],
       "status": "confirmed"
     },
     {
       "arithmetic_error": null,
-      "case_id": "en-invoice-no-alphanumeric",
+      "case_id": "de-integer-percentage-not-money",
       "false_confirmed": false,
       "mismatches": [],
       "status": "confirmed"
     },
     {
       "arithmetic_error": null,
-      "case_id": "de-ocr-spacing",
+      "case_id": "en-decimal-percentage-not-money",
       "false_confirmed": false,
       "mismatches": [],
       "status": "confirmed"
     },
     {
       "arithmetic_error": null,
-      "case_id": "de-filename-supports-label",
+      "case_id": "de-labeled-amount-due-over-subtotal",
       "false_confirmed": false,
       "mismatches": [],
       "status": "confirmed"
     },
     {
-      "arithmetic_error": null,
-      "case_id": "de-filename-only",
+      "arithmetic_error": true,
+      "case_id": "de-inconsistent-triple",
       "false_confirmed": false,
       "mismatches": [],
       "status": "review"
     },
     {
-      "arithmetic_error": null,
-      "case_id": "de-non-invoice-identifiers",
+      "arithmetic_error": false,
+      "case_id": "de-rounding-tolerance",
+      "false_confirmed": false,
+      "mismatches": [],
+      "status": "confirmed"
+    },
+    {
+      "arithmetic_error": false,
+      "case_id": "de-tax-above-gross",
       "false_confirmed": false,
       "mismatches": [],
       "status": "review"
     },
     {
-      "arithmetic_error": null,
-      "case_id": "de-distinct-date-roles",
+      "arithmetic_error": false,
+      "case_id": "de-discount-not-total",
+      "false_confirmed": false,
+      "mismatches": [],
+      "status": "confirmed"
+    },
+    {
+      "arithmetic_error": true,
+      "case_id": "de-advance-payment-conflict",
+      "false_confirmed": false,
+      "mismatches": [],
+      "status": "review"
+    },
+    {
+      "arithmetic_error": false,
+      "case_id": "de-negative-credit-note",
       "false_confirmed": false,
       "mismatches": [],
       "status": "confirmed"
     },
     {
       "arithmetic_error": null,
-      "case_id": "en-conflicting-invoice-dates",
+      "case_id": "de-positive-credit-ambiguous",
       "false_confirmed": false,
       "mismatches": [],
       "status": "review"
     },
     {
-      "arithmetic_error": null,
-      "case_id": "de-conflicting-invoice-numbers",
-      "false_confirmed": false,
-      "mismatches": [],
-      "status": "review"
-    },
-    {
-      "arithmetic_error": null,
-      "case_id": "de-number-looking-like-date",
-      "false_confirmed": false,
-      "mismatches": [],
-      "status": "review"
-    },
-    {
-      "arithmetic_error": null,
-      "case_id": "en-next-line-value",
+      "arithmetic_error": false,
+      "case_id": "en-negative-credit-gbp",
       "false_confirmed": false,
       "mismatches": [],
       "status": "confirmed"
     },
     {
-      "arithmetic_error": null,
-      "case_id": "de-beleg-nr-and-english-negative-dates",
+      "arithmetic_error": false,
+      "case_id": "en-chf-iso-currency",
       "false_confirmed": false,
       "mismatches": [],
       "status": "confirmed"
+    },
+    {
+      "arithmetic_error": false,
+      "case_id": "en-mixed-currency-conflict",
+      "false_confirmed": false,
+      "mismatches": [],
+      "status": "review"
     }
   ],
-  "corpus_id": "m10.2-synthetic-number-date-v1",
+  "corpus_id": "m103-synthetic-amounts-v1",
   "field_metrics": {
     "currency": {
-      "correct": 12,
+      "correct": 14,
       "coverage": 1.0,
-      "expected": 12,
+      "expected": 14,
       "precision": 1.0,
-      "predicted": 12
+      "predicted": 14
     },
     "due_date": {
-      "correct": 2,
-      "coverage": 1.0,
-      "expected": 2,
-      "precision": 1.0,
-      "predicted": 2
+      "correct": 0,
+      "coverage": null,
+      "expected": 0,
+      "precision": null,
+      "predicted": 0
     },
     "gross_amount": {
-      "correct": 12,
+      "correct": 14,
       "coverage": 1.0,
-      "expected": 12,
+      "expected": 14,
       "precision": 1.0,
-      "predicted": 12
+      "predicted": 14
     },
     "invoice_date": {
+      "correct": 15,
+      "coverage": 1.0,
+      "expected": 15,
+      "precision": 1.0,
+      "predicted": 15
+    },
+    "invoice_number": {
+      "correct": 15,
+      "coverage": 1.0,
+      "expected": 15,
+      "precision": 1.0,
+      "predicted": 15
+    },
+    "net_amount": {
       "correct": 11,
       "coverage": 1.0,
       "expected": 11,
       "precision": 1.0,
       "predicted": 11
     },
-    "invoice_number": {
-      "correct": 8,
-      "coverage": 1.0,
-      "expected": 8,
-      "precision": 1.0,
-      "predicted": 8
-    },
-    "net_amount": {
-      "correct": 0,
-      "coverage": null,
-      "expected": 0,
-      "precision": null,
-      "predicted": 0
-    },
     "supplier": {
-      "correct": 12,
+      "correct": 15,
       "coverage": 1.0,
-      "expected": 12,
+      "expected": 15,
       "precision": 1.0,
-      "predicted": 12
+      "predicted": 15
     },
     "tax_amount": {
-      "correct": 0,
-      "coverage": null,
-      "expected": 0,
-      "precision": null,
-      "predicted": 0
+      "correct": 11,
+      "coverage": 1.0,
+      "expected": 11,
+      "precision": 1.0,
+      "predicted": 11
     }
   },
   "metric_definitions": {
@@ -158,18 +179,18 @@
     "review_rate": "review outcomes / all cases"
   },
   "outcomes": {
-    "confirmed": 7,
+    "confirmed": 10,
     "false_confirmed": 0,
     "false_confirmed_rate": 0.0,
     "review": 5,
-    "review_rate": 0.4167
+    "review_rate": 0.3333
   },
   "overall_fields": {
-    "correct": 57,
+    "correct": 95,
     "coverage": 1.0,
-    "expected": 57,
+    "expected": 95,
     "precision": 1.0,
-    "predicted": 57
+    "predicted": 95
   },
   "schema_version": 1
 }

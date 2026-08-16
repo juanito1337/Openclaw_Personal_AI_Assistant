@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "corpus_id": "m103-synthetic-amounts-v1",
+  "privacy": "Fully synthetic fixtures. No production invoice, identifier, path, hash, address or account data.",
+  "cases": [
+    {
+      "case_id": "de-thousands-and-tax-rate",
+      "language": "de",
+      "features": ["german-decimal", "german-thousands", "tax-rate", "gross-net-tax"],
+      "message": {"subject": "Synthetischer Betragstest", "sender_name": "M103 Fiktivhandel GmbH", "sender_addr": "m103-01@example.invalid", "received_at": "Fri, 16 Jan 2026 09:00:00 +0100"},
+      "pages": ["M103 Fiktivhandel GmbH\nRechnungsnummer: M103-DE-001\nRechnungsdatum: 15.01.2026\nNettobetrag: 1.000,00 EUR\nUmsatzsteuer 19 %: 234,56 EUR\nGesamtbetrag: 1.234,56 EUR"],
+      "expected": {"invoice_date": "2026-01-15", "invoice_number": "M103-DE-001", "supplier": "M103 Fiktivhandel GmbH", "gross_amount": "1234.56", "net_amount": "1000.00", "tax_amount": "234.56", "currency": "EUR", "due_date": ""}
+    },
+    {
+      "case_id": "en-thousands-usd",
+      "language": "en",
+      "features": ["english-decimal", "english-thousands", "foreign-currency", "gross-net-tax"],
+      "message": {"subject": "Synthetic amount test", "sender_name": "M103 Fictional Systems Ltd", "sender_addr": "m103-02@example.invalid", "received_at": "Wed, 11 Feb 2026 10:00:00 +0000"},
+      "pages": ["M103 Fictional Systems Ltd\nInvoice Number: M103-EN-002\nInvoice Date: 2026-02-10\nNet Amount: USD 1,000.00\nVAT 23.456 %: USD 234.56\nGrand Total: USD 1,234.56"],
+      "expected": {"invoice_date": "2026-02-10", "invoice_number": "M103-EN-002", "supplier": "M103 Fictional Systems Ltd", "gross_amount": "1234.56", "net_amount": "1000.00", "tax_amount": "234.56", "currency": "USD", "due_date": ""}
+    },
+    {
+      "case_id": "de-integer-percentage-not-money",
+      "language": "de",
+      "features": ["tax-rate-only", "percentage-not-money"],
+      "message": {"subject": "Synthetischer Steuersatz", "sender_name": "M103 Fiktivservice GmbH", "sender_addr": "m103-03@example.invalid", "received_at": "Tue, 03 Mar 2026 08:00:00 +0100"},
+      "pages": ["M103 Fiktivservice GmbH\nRechnungsnummer: M103-DE-003\nRechnungsdatum: 02.03.2026\nSteuersatz: 7 %\nGesamtbetrag: 100,00 EUR"],
+      "expected": {"invoice_date": "2026-03-02", "invoice_number": "M103-DE-003", "supplier": "M103 Fiktivservice GmbH", "gross_amount": "100.00", "net_amount": "", "tax_amount": "", "currency": "EUR", "due_date": ""}
+    },
+    {
+      "case_id": "en-decimal-percentage-not-money",
+      "language": "en",
+      "features": ["tax-rate-only", "percentage-not-money", "decimal-percentage"],
+      "message": {"subject": "Synthetic tax rate", "sender_name": "M103 Fictional Service Ltd", "sender_addr": "m103-04@example.invalid", "received_at": "Mon, 13 Apr 2026 09:00:00 +0000"},
+      "pages": ["M103 Fictional Service Ltd\nInvoice No: M103-EN-004\nInvoice Date: 2026-04-12\nVAT rate: 19.00 %\nInvoice Total: 100.00 EUR"],
+      "expected": {"invoice_date": "2026-04-12", "invoice_number": "M103-EN-004", "supplier": "M103 Fictional Service Ltd", "gross_amount": "100.00", "net_amount": "", "tax_amount": "", "currency": "EUR", "due_date": ""}
+    },
+    {
+      "case_id": "de-labeled-amount-due-over-subtotal",
+      "language": "de",
+      "features": ["multiple-totals", "amount-due-priority", "not-largest"],
+      "message": {"subject": "Synthetische Summen", "sender_name": "M103 Fiktivprojekt GmbH", "sender_addr": "m103-05@example.invalid", "received_at": "Wed, 06 May 2026 12:00:00 +0200"},
+      "pages": ["M103 Fiktivprojekt GmbH\nRechnungsnummer: M103-DE-005\nRechnungsdatum: 05.05.2026\nGesamtsumme Positionen: 999,00 EUR\nZu zahlen: 119,00 EUR"],
+      "expected": {"invoice_date": "2026-05-05", "invoice_number": "M103-DE-005", "supplier": "M103 Fiktivprojekt GmbH", "gross_amount": "119.00", "net_amount": "", "tax_amount": "", "currency": "EUR", "due_date": ""}
+    },
+    {
+      "case_id": "de-inconsistent-triple",
+      "language": "de",
+      "features": ["gross-net-tax", "arithmetic-conflict", "review-expected"],
+      "message": {"subject": "Synthetischer Rechenkonflikt", "sender_name": "M103 Fiktivwartung GmbH", "sender_addr": "m103-06@example.invalid", "received_at": "Mon, 08 Jun 2026 15:00:00 +0200"},
+      "pages": ["M103 Fiktivwartung GmbH\nRechnungsnummer: M103-DE-006\nRechnungsdatum: 08.06.2026\nNettobetrag: 100,00 EUR\nUmsatzsteuer: 19,00 EUR\nGesamtbetrag: 120,00 EUR"],
+      "expected": {"invoice_date": "2026-06-08", "invoice_number": "M103-DE-006", "supplier": "M103 Fiktivwartung GmbH", "gross_amount": "120.00", "net_amount": "100.00", "tax_amount": "19.00", "currency": "EUR", "due_date": ""}
+    },
+    {
+      "case_id": "de-rounding-tolerance",
+      "language": "de",
+      "features": ["gross-net-tax", "cent-tolerance", "rounding"],
+      "message": {"subject": "Synthetische Rundung", "sender_name": "M103 Fiktivbuero GmbH", "sender_addr": "m103-07@example.invalid", "received_at": "Fri, 10 Jul 2026 11:00:00 +0200"},
+      "pages": ["M103 Fiktivbuero GmbH\nRechnungsnummer: M103-DE-007\nRechnungsdatum: 09.07.2026\nNettobetrag: 8,41 EUR\nMehrwertsteuer: 1,60 EUR\nGesamtbetrag: 10,00 EUR"],
+      "expected": {"invoice_date": "2026-07-09", "invoice_number": "M103-DE-007", "supplier": "M103 Fiktivbuero GmbH", "gross_amount": "10.00", "net_amount": "8.41", "tax_amount": "1.60", "currency": "EUR", "due_date": ""}
+    },
+    {
+      "case_id": "de-tax-above-gross",
+      "language": "de",
+      "features": ["tax-above-gross", "sign-conflict", "review-expected"],
+      "message": {"subject": "Synthetische Steuerabweichung", "sender_name": "M103 Fiktivlabor GmbH", "sender_addr": "m103-08@example.invalid", "received_at": "Fri, 14 Aug 2026 08:00:00 +0200"},
+      "pages": ["M103 Fiktivlabor GmbH\nRechnungsnummer: M103-DE-008\nRechnungsdatum: 13.08.2026\nNettobetrag: -9,00 EUR\nUmsatzsteuer: 19,00 EUR\nGesamtbetrag: 10,00 EUR"],
+      "expected": {"invoice_date": "2026-08-13", "invoice_number": "M103-DE-008", "supplier": "M103 Fiktivlabor GmbH", "gross_amount": "10.00", "net_amount": "-9.00", "tax_amount": "19.00", "currency": "EUR", "due_date": ""}
+    },
+    {
+      "case_id": "de-discount-not-total",
+      "language": "de",
+      "features": ["discount", "unit-price", "gross-net-tax"],
+      "message": {"subject": "Synthetischer Rabatt", "sender_name": "M103 Fiktivmaterial GmbH", "sender_addr": "m103-09@example.invalid", "received_at": "Tue, 15 Sep 2026 09:00:00 +0200"},
+      "pages": ["M103 Fiktivmaterial GmbH\nRechnungsnummer: M103-DE-009\nRechnungsdatum: 14.09.2026\nEinzelpreis: 999,00 EUR\nZwischensumme: 100,00 EUR\nRabatt: 10,00 EUR\nNettobetrag: 90,00 EUR\nUmsatzsteuer: 17,10 EUR\nZahlbetrag: 107,10 EUR"],
+      "expected": {"invoice_date": "2026-09-14", "invoice_number": "M103-DE-009", "supplier": "M103 Fiktivmaterial GmbH", "gross_amount": "107.10", "net_amount": "90.00", "tax_amount": "17.10", "currency": "EUR", "due_date": ""}
+    },
+    {
+      "case_id": "de-advance-payment-conflict",
+      "language": "de",
+      "features": ["advance-payment", "multiple-totals", "review-expected"],
+      "message": {"subject": "Synthetischer Abschlag", "sender_name": "M103 Fiktivbau GmbH", "sender_addr": "m103-10@example.invalid", "received_at": "Fri, 16 Oct 2026 09:00:00 +0200"},
+      "pages": ["M103 Fiktivbau GmbH\nRechnungsnummer: M103-DE-010\nRechnungsdatum: 15.10.2026\nNettobetrag: 100,00 EUR\nUmsatzsteuer: 19,00 EUR\nRechnungssumme: 119,00 EUR\nAbschlagszahlung: 50,00 EUR\nNoch zu zahlen: 69,00 EUR"],
+      "expected": {"invoice_date": "2026-10-15", "invoice_number": "M103-DE-010", "supplier": "M103 Fiktivbau GmbH", "gross_amount": "69.00", "net_amount": "100.00", "tax_amount": "19.00", "currency": "EUR", "due_date": ""}
+    },
+    {
+      "case_id": "de-negative-credit-note",
+      "language": "de",
+      "features": ["credit-note", "negative-amounts", "gross-net-tax"],
+      "message": {"subject": "Synthetische Gutschrift", "sender_name": "M103 Fiktivenergie GmbH", "sender_addr": "m103-11@example.invalid", "received_at": "Mon, 16 Nov 2026 09:00:00 +0100"},
+      "pages": ["M103 Fiktivenergie GmbH\nGutschrift\nRechnungsnummer: M103-GS-011\nRechnungsdatum: 15.11.2026\nNettobetrag: -50,00 EUR\nUmsatzsteuer: -9,50 EUR\nGutschriftsbetrag: -59,50 EUR"],
+      "expected": {"invoice_date": "2026-11-15", "invoice_number": "M103-GS-011", "supplier": "M103 Fiktivenergie GmbH", "gross_amount": "-59.50", "net_amount": "-50.00", "tax_amount": "-9.50", "currency": "EUR", "due_date": ""}
+    },
+    {
+      "case_id": "de-positive-credit-ambiguous",
+      "language": "de",
+      "features": ["credit-balance", "positive-credit", "review-expected"],
+      "message": {"subject": "Synthetisches Guthaben", "sender_name": "M103 Fiktivkonto GmbH", "sender_addr": "m103-12@example.invalid", "received_at": "Wed, 16 Dec 2026 09:00:00 +0100"},
+      "pages": ["M103 Fiktivkonto GmbH\nRechnungsnummer: M103-DE-012\nRechnungsdatum: 15.12.2026\nGuthaben: 50,00 EUR"],
+      "expected": {"invoice_date": "2026-12-15", "invoice_number": "M103-DE-012", "supplier": "M103 Fiktivkonto GmbH", "gross_amount": "", "net_amount": "", "tax_amount": "", "currency": "EUR", "due_date": ""}
+    },
+    {
+      "case_id": "en-negative-credit-gbp",
+      "language": "en",
+      "features": ["credit-note", "negative-amounts", "foreign-currency"],
+      "message": {"subject": "Synthetic credit", "sender_name": "M103 Fictional Hosting Ltd", "sender_addr": "m103-13@example.invalid", "received_at": "Sat, 16 Jan 2027 09:00:00 +0000"},
+      "pages": ["M103 Fictional Hosting Ltd\nCredit Note\nInvoice Number: M103-EN-013\nInvoice Date: 2027-01-15\nNet Amount: GBP -80.00\nVAT: GBP -16.00\nCredit Note Total: GBP -96.00"],
+      "expected": {"invoice_date": "2027-01-15", "invoice_number": "M103-EN-013", "supplier": "M103 Fictional Hosting Ltd", "gross_amount": "-96.00", "net_amount": "-80.00", "tax_amount": "-16.00", "currency": "GBP", "due_date": ""}
+    },
+    {
+      "case_id": "en-chf-iso-currency",
+      "language": "en",
+      "features": ["foreign-currency", "iso-currency", "gross-net-tax"],
+      "message": {"subject": "Synthetic CHF invoice", "sender_name": "M103 Fictional Alpine Ltd", "sender_addr": "m103-14@example.invalid", "received_at": "Tue, 16 Feb 2027 09:00:00 +0100"},
+      "pages": ["M103 Fictional Alpine Ltd\nInvoice Number: M103-EN-014\nInvoice Date: 2027-02-15\nNet Amount: 100.00 CHF\nTax Amount: 20.00 CHF\nAmount Due: 120.00 CHF"],
+      "expected": {"invoice_date": "2027-02-15", "invoice_number": "M103-EN-014", "supplier": "M103 Fictional Alpine Ltd", "gross_amount": "120.00", "net_amount": "100.00", "tax_amount": "20.00", "currency": "CHF", "due_date": ""}
+    },
+    {
+      "case_id": "en-mixed-currency-conflict",
+      "language": "en",
+      "features": ["foreign-currency", "currency-conflict", "review-expected"],
+      "message": {"subject": "Synthetic currency conflict", "sender_name": "M103 Fictional Mixed Ltd", "sender_addr": "m103-15@example.invalid", "received_at": "Tue, 16 Mar 2027 09:00:00 +0100"},
+      "pages": ["M103 Fictional Mixed Ltd\nInvoice Number: M103-EN-015\nInvoice Date: 2027-03-15\nNet Amount: 100.00 USD\nTax Amount: 19.00 EUR\nInvoice Total: 119.00 EUR"],
+      "expected": {"invoice_date": "2027-03-15", "invoice_number": "M103-EN-015", "supplier": "M103 Fictional Mixed Ltd", "gross_amount": "119.00", "net_amount": "100.00", "tax_amount": "19.00", "currency": "", "due_date": ""}
+    }
+  ]
+}

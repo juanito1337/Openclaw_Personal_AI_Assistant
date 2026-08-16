@@ -82,10 +82,7 @@ def _arithmetic_error(actual: dict[str, str]) -> bool | None:
 
 def evaluate(corpus_path: Path = DEFAULT_CORPUS) -> dict[str, Any]:
     corpus = _load_corpus(corpus_path)
-    field_counts = {
-        field: {"expected": 0, "predicted": 0, "correct": 0}
-        for field in EVALUATED_FIELDS
-    }
+    field_counts = {field: {"expected": 0, "predicted": 0, "correct": 0} for field in EVALUATED_FIELDS}
     cases: list[dict[str, Any]] = []
     confirmed = 0
     review = 0
@@ -101,10 +98,7 @@ def evaluate(corpus_path: Path = DEFAULT_CORPUS) -> dict[str, Any]:
             method="synthetic-text",
             document_name=str(case.get("document_name") or ""),
         )
-        actual = {
-            field: str(getattr(metadata, field).value or "")
-            for field in EVALUATED_FIELDS
-        }
+        actual = {field: str(getattr(metadata, field).value or "") for field in EVALUATED_FIELDS}
         expected = {field: str(case["expected"].get(field) or "") for field in EVALUATED_FIELDS}
         mismatches: list[str] = []
         for field in EVALUATED_FIELDS:
@@ -122,13 +116,16 @@ def evaluate(corpus_path: Path = DEFAULT_CORPUS) -> dict[str, Any]:
             ):
                 mismatches.append(field)
 
-        is_false_confirmed = metadata.status == "confirmed" and any(
-            not expected[field]
-            or not actual[field]
-            or _normal(expected[field], field) != _normal(actual[field], field)
-            for field in CRITICAL_FIELDS
-        )
         arithmetic_error = _arithmetic_error(actual)
+        is_false_confirmed = metadata.status == "confirmed" and (
+            bool(arithmetic_error)
+            or any(
+                not expected[field]
+                or not actual[field]
+                or _normal(expected[field], field) != _normal(actual[field], field)
+                for field in CRITICAL_FIELDS
+            )
+        )
         if metadata.status == "confirmed":
             confirmed += 1
         else:
@@ -169,7 +166,10 @@ def evaluate(corpus_path: Path = DEFAULT_CORPUS) -> dict[str, Any]:
         "metric_definitions": {
             "field_precision": "correct non-empty predictions / all non-empty predictions",
             "field_coverage": "correct non-empty predictions / all non-empty expected values",
-            "false_confirmed": "confirmed although a required expected fact is missing or incorrect",
+            "false_confirmed": (
+                "confirmed although a required expected fact is missing or incorrect, "
+                "or a complete amount triple is arithmetically inconsistent"
+            ),
             "review_rate": "review outcomes / all cases",
             "arithmetic_error": "complete gross/net/tax triple differs by more than two cents",
         },
@@ -204,7 +204,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--verify",
         action="store_true",
-        help="Mit der versionierten M10.0-Baseline vergleichen",
+        help="Mit der angegebenen versionierten M10-Baseline vergleichen",
     )
     return parser
 
@@ -217,7 +217,7 @@ def main() -> int:
         return 0
     expected = json.loads(args.baseline.read_text(encoding="utf-8"))
     if report != expected:
-        print(f"M10.0-Baseline weicht ab: {args.baseline}", file=sys.stderr)
+        print(f"M10-Baseline weicht ab: {args.baseline}", file=sys.stderr)
         return 1
     return 0
 

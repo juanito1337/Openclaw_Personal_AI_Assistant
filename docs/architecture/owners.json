@@ -27,6 +27,7 @@
     {"path": "docs/architecture/adr/0015-geschuetzte-gateway-konfiguration.md", "owner": "Security Maintainers"},
     {"path": "docs/architecture/adr/0016-providergebundenes-portfolio-research.md", "owner": "Data Maintainers"},
     {"path": "docs/architecture/adr/0017-mail-suchprojektion-statt-wal-leser.md", "owner": "Data Maintainers"},
-    {"path": "docs/architecture/adr/0018-belegte-rechnungsnummern-und-datumsrollen.md", "owner": "Data Maintainers"}
+    {"path": "docs/architecture/adr/0018-belegte-rechnungsnummern-und-datumsrollen.md", "owner": "Data Maintainers"},
+    {"path": "docs/architecture/adr/0019-typisierte-rechnungsbetraege-und-plausibilitaet.md", "owner": "Data Maintainers"}
   ]
 }

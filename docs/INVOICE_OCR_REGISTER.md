@@ -36,11 +36,23 @@ Es wird keine dauerhafte lokale CSV-Kopie gefuehrt. Kurzlebige, geschuetzte Acti
    `Ausstellungsdatum` erkannt. Leistungs-, Liefer-, Bestell-, Zahlungs- und
    Faelligkeitsdaten sind typisiert ausgeschlossen. Mehrere gleich plausible
    Rechnungsnummern oder Rechnungsdaten fuehren fail-closed zu `review`.
+10. Betragskandidaten behalten die getrennten Rollen Zahlbetrag, Brutto, Netto,
+    Steuerbetrag, Steuersatz, Zwischensumme, Rabatt, Abschlag, Gutschrift und
+    Einzelpreis. Prozentwerte sind immer ausgeschlossen und ein Wert wird nie
+    allein deshalb ausgewaehlt, weil er der groesste ist.
+11. Deutsche und englische Dezimal-/Tausenderformate werden in Cent, EUR, USD,
+    GBP und CHF in ISO-Waehrungscodes normalisiert. Vorzeichen und Waehrungen
+    werden nicht still korrigiert. Mailbetreff, Dateiname und Ollama sind keine
+    Betragsquellen.
+12. Vollstaendige Brutto/Netto/Steuer-Tripel duerfen um hoechstens zwei Cent
+    abweichen. Rechen-, Summen-, Vorzeichen- oder Waehrungskonflikte sowie Steuer
+    groesser als Brutto erzeugen einen typisierten `amount:*`-Reviewgrund.
 
 Der physische PDF-Dateiname darf nur einen bereits beschriftet aus PDF- oder
 OCR-Text extrahierten Rechnungsnummernkandidaten stuetzen. Eine unbeschriftete
-Nummer im Dateinamen erzeugt keinen Feldwert und keine Bestaetigung. M10.2 fuehrt
-keine Datenbankmigration und keine Neubewertung historischer Zeilen aus.
+Nummer im Dateinamen erzeugt keinen Feldwert und keine Bestaetigung. M10.2 und
+M10.3 fuehren keine Datenbankmigration und keine Neubewertung historischer Zeilen
+aus.
 
 Es wird kein fehlender Dokumentwert aus dem E-Mail-Eingangsdatum geraten. Das Eingangsdatum bleibt ein separates Registerfeld und ist nur der sichere Ablage-Fallback, wenn das Rechnungsdatum selbst nicht belastbar ist.
 

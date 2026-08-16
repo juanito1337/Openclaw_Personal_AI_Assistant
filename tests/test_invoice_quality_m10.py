@@ -10,6 +10,8 @@ from mail_agent.cli import _backfill_year
 from mail_agent.storage import Storage
 from scripts.evaluate_invoice_quality import DEFAULT_BASELINE, DEFAULT_CORPUS, evaluate
 
+M100_BASELINE = Path(__file__).parent / "fixtures" / "invoices" / "m100_extractor_baseline.json"
+
 
 class InvoiceQualityBaselineM10Tests(unittest.TestCase):
     def setUp(self) -> None:
@@ -70,13 +72,15 @@ class InvoiceQualityBaselineM10Tests(unittest.TestCase):
         self.assertEqual(first, baseline)
         self.assertEqual(first["case_count"], 8)
 
-    def test_current_extractor_false_confirmation_is_visible_not_fixed(self) -> None:
+    def test_m103_corrects_the_m100_multiple_total_false_confirmation(self) -> None:
         report = evaluate(DEFAULT_CORPUS)
         current_error = next(case for case in report["cases"] if case["case_id"] == "de-multiple-totals")
         self.assertEqual(current_error["status"], "confirmed")
-        self.assertTrue(current_error["false_confirmed"])
-        self.assertEqual(current_error["mismatches"], ["gross_amount"])
-        self.assertEqual(report["outcomes"]["false_confirmed"], 1)
+        self.assertFalse(current_error["false_confirmed"])
+        self.assertEqual(current_error["mismatches"], [])
+        self.assertEqual(report["outcomes"]["false_confirmed"], 0)
+        historical = json.loads(M100_BASELINE.read_text(encoding="utf-8"))
+        self.assertEqual(historical["outcomes"]["false_confirmed"], 1)
 
     def test_legacy_backfill_excludes_review_and_keeps_ten_empty_states_separate(self) -> None:
         with tempfile.TemporaryDirectory(prefix="openclaw-m10-") as temporary:

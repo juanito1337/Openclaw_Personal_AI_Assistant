@@ -2,7 +2,7 @@
 
 Stand: 2026-08-15
 Empfohlener Arbeitsbranch: `development/invoice-quality-reprocessing-m10`
-Status: M10.0 bis M10.2 implementiert; kein Produktivlauf freigegeben
+Status: M10.0 bis M10.3 implementiert; kein Produktivlauf freigegeben
 
 ## Ziel
 
@@ -304,6 +304,11 @@ stoppe nach M10.2.
 ```
 
 ## M10.3 – Typisierte Betraege und rechnerische Plausibilitaet
+
+Status: implementiert und lokal gegen den sanitisierten M10.3-Korpus
+abgenommen. Die Aenderung betrifft nur Extraktions- und Evaluationslogik. Es
+wurden weder SQLite-Schema noch Backfill-/Reprocessing-Auswahl, Register,
+Nextcloud-Dateien oder Produktivdaten veraendert. M10.4 wurde nicht begonnen.
 
 ### Scope
 

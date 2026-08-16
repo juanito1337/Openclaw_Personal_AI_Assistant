@@ -22,6 +22,23 @@ invoice labels remain review. A physical PDF filename may raise confidence only
 when it repeats an already labeled document value; a filename-only number is
 stored as excluded support and must never be presented as confirmed metadata.
 
+Invoice amounts are likewise selected only from labeled, typed document/OCR
+candidates. The roles `amount-due`, `gross-total`, `net-total`, `tax-amount`,
+`tax-rate`, `subtotal`, `discount`, `advance-payment`, `credit` and `unit-price`
+remain distinct. Percentages are always excluded as money. A labeled amount due
+has priority over a lower-priority total, but the extractor never chooses a value
+merely because it is the largest. A subtotal can become net only when gross,
+subtotal and tax validate within the fixed two-cent rounding tolerance.
+
+Conflicting values in one selected role, an amount triple outside that tolerance,
+tax larger than gross, incompatible signs, ambiguous positive credit amounts and
+mixed or unproven currencies produce typed `amount:*` review reasons. German and
+English decimal/thousands notation is normalized deterministically; EUR, USD,
+GBP and CHF are retained as ISO currency codes. Negative values are never flipped
+and currencies are never silently converted or corrected. Mail subject, physical
+filename and Ollama are not amount sources. Ollama cannot create a value or
+override arithmetic validation.
+
 The sole productive register is the managed Nextcloud
 `<invoice-root>/<YYYY>/Rechnungen_<YYYY>.csv`. Never create a durable local copy.
 Its narrow replacement path requires ETag, SHA and schema validation. Use

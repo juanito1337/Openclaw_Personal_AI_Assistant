@@ -23,8 +23,21 @@
   bestaetigen kein Feld. Ein neuer sanitiserter 12-Faelle-Korpus steigert die
   Nummernabdeckung von 0,50 auf 1,00 bei unveraendert 1,00 Praezision und null
   False-confirmed.
-- 637 pytest-Items, davon mindestens 584 unittest-kompatibel, sichern M10.2 mit
-  62,92 Prozent Branch-einbezogener Gesamt-Coverage ab.
+- M10.3 ersetzt die unabhaengige Groesstwert-Heuristik durch belegte Rollen fuer
+  Zahlbetrag, Brutto, Netto, Steuerbetrag, Steuersatz, Zwischensumme, Rabatt,
+  Abschlag, Gutschrift und Einzelpreis. Prozentwerte sind nie Geld; deutsche und
+  englische Zahlenformate sowie EUR, USD, GBP und CHF werden deterministisch
+  normalisiert.
+- Brutto, Netto und Steuer muessen innerhalb von zwei Cent zusammenpassen.
+  Mehrere unvereinbare Summen, Steuer groesser als Brutto, Vorzeichen- und
+  Waehrungskonflikte sowie positive mehrdeutige Guthaben erzeugen typisierte
+  `amount:*`-Reviewgruende. Mailbetreff, Dateiname und Ollama bleiben als
+  Betragsquelle ausgeschlossen.
+- Auf dem neuen synthetischen 15-Faelle-Korpus steigen Praezision und Abdeckung
+  fuer Brutto, Netto, Steuer und Waehrung jeweils auf 1,0000; False-confirmed
+  sinkt von 5 auf 0. Die historische M10.0-Baseline bleibt separat erhalten.
+- 648 pytest-Items, davon mindestens 595 unittest-kompatibel, sichern M10.3 mit
+  63,12 Prozent Branch-einbezogener Gesamt-Coverage ab.
 
 ## Unreleased – M9 Mail-Qualitaet und Review-Triage
 

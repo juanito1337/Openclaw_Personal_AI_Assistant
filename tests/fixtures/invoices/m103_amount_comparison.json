@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "corpus_id": "m103-synthetic-amounts-v1",
+  "measured_before_commit": "593361b2486d1e412a846280c5fffed7f6759395",
+  "before": {
+    "gross_amount": {"precision": 0.8333, "coverage": 0.7143},
+    "net_amount": {"precision": 0.8182, "coverage": 0.8182},
+    "tax_amount": {"precision": 0.9, "coverage": 0.8182},
+    "currency": {"precision": 0.8667, "coverage": 0.9286},
+    "false_confirmed": 5,
+    "arithmetic_errors": 4,
+    "complete_amount_triples": 7
+  },
+  "after": {
+    "gross_amount": {"precision": 1.0, "coverage": 1.0},
+    "net_amount": {"precision": 1.0, "coverage": 1.0},
+    "tax_amount": {"precision": 1.0, "coverage": 1.0},
+    "currency": {"precision": 1.0, "coverage": 1.0},
+    "false_confirmed": 0,
+    "arithmetic_errors": 2,
+    "complete_amount_triples": 11
+  }
+}

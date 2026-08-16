@@ -127,9 +127,11 @@ Test die derzeitige Jahresprioritaet
 `invoice_date -> received_date -> created_at -> Pfadjahr -> Maildatum` nur als
 beobachtetes Verhalten ein; er erklaert sie nicht zur gewuenschten Semantik.
 
-Die vollstaendige maschinenlesbare Erwartung liegt in
-`tests/fixtures/invoices/m10_extractor_baseline.json`. Der Verifier vergleicht den
-gesamten Bericht strukturell und fehlschlaegt bei jeder unbemerkten Abweichung.
+Die historische vollstaendige M10.0-Erwartung bleibt in
+`tests/fixtures/invoices/m100_extractor_baseline.json` erhalten. Die vom
+Standard-Verifier verwendete `m10_extractor_baseline.json` folgt dagegen dem
+aktuellen, abgenommenen Extraktorstand und wird bei einem spaeteren Paket nur mit
+einem dokumentierten Direktvergleich aktualisiert.
 
 ## M10.2 – Rechnungsnummern und Datumsrollen
 
@@ -176,5 +178,51 @@ aber beschrifteten Nummernfeldern. Dateinamen allein, Nummern anderer Rollen,
 datumsfoermige Nummernwerte sowie widerspruechliche Rechnungsnummern oder
 Rechnungsdaten bleiben `review`. M10.2 veraendert weder SQLite-Schema noch
 Backfill-Auswahl, Nextcloud-PDFs oder Jahresregister und fuehrt kein Reprocessing
-aus. Der bekannte M10.0-Fehler bei mehreren Betraegen bleibt bis M10.3 bewusst
-sichtbar.
+aus. Der in M10.0 sichtbare Fehler bei mehreren Betraegen blieb bis M10.3 als
+historische Baseline erhalten.
+
+## M10.3 – Typisierte Betraege und Plausibilitaet
+
+M10.3 ergaenzt einen separaten, vollstaendig synthetischen 15-Faelle-Korpus fuer
+deutsche und englische Dezimal-/Tausenderformate, EUR, USD, GBP und CHF,
+Steuersaetze, mehrere Summen, Rundung, Abschlag, Rabatt, Einzelpreis, positive
+und negative Gutschriften sowie Waehrungskonflikte. Der Vorher-Wert wurde vor der
+Betragsaenderung auf Commit
+`593361b2486d1e412a846280c5fffed7f6759395` mit demselben Korpus gemessen.
+
+```bash
+.venv/bin/python scripts/evaluate_invoice_quality.py \
+  --corpus tests/fixtures/invoices/m103_amount_corpus.json \
+  --baseline tests/fixtures/invoices/m103_amount_baseline.json \
+  --verify
+
+.venv/bin/python -m pytest -q tests/test_invoice_amounts_m103.py
+```
+
+Die kompakten Vorher-/Nachher-Werte liegen in
+`tests/fixtures/invoices/m103_amount_comparison.json`; der vollstaendige aktuelle
+Bericht liegt in `m103_amount_baseline.json`.
+
+| Messwert auf dem M10.3-Korpus | Vor M10.3 | Nach M10.3 |
+| --- | ---: | ---: |
+| synthetische Faelle | 15 | 15 |
+| Brutto-Praezision | 0,8333 | 1,0000 |
+| Brutto-Abdeckung | 0,7143 | 1,0000 |
+| Netto-Praezision / -Abdeckung | 0,8182 / 0,8182 | 1,0000 / 1,0000 |
+| Steuer-Praezision / -Abdeckung | 0,9000 / 0,8182 | 1,0000 / 1,0000 |
+| Waehrungs-Praezision / -Abdeckung | 0,8667 / 0,9286 | 1,0000 / 1,0000 |
+| False-confirmed | 5 | 0 |
+| vollstaendige Betragstripel | 7 | 11 |
+| rechnerisch inkonsistente ausgegebene Tripel | 4 | 2 |
+
+Die zwei verbleibenden Rechenfehler sind bewusst unplausible synthetische
+Dokumente: ein widerspruechliches Brutto/Netto/Steuer-Tripel und ein Zahlbetrag
+nach Abschlag, der nicht dem unveraenderten Netto/Steuer-Tripel entspricht. Beide
+werden mit typisiertem Reviewgrund abgelehnt und sind deshalb kein
+False-confirmed. Die dokumentierte Rundungstoleranz betraegt exakt zwei Cent.
+
+Der urspruengliche acht Faelle umfassende M10-Korpus erreicht nach M10.3 fuer alle
+55 erwarteten Felder Praezision und Abdeckung 1,0000; der zuvor sichtbare
+Mehrfachsummenfehler ist korrigiert. M10.3 aendert weder SQLite-Schema noch
+Backfill-/Reprocessing-Auswahl, Nextcloud-PDFs oder Jahresregister und fuehrt
+keinen produktiven Lauf aus.
