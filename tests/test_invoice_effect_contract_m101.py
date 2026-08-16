@@ -263,7 +263,14 @@ class InvoiceEffectContractM101Tests(unittest.TestCase):
 
             def scan_bytes(inner_self, *_: object, **__: object) -> SimpleNamespace:
                 events.append("scan")
-                return SimpleNamespace(infected=False, error=False, signature="", detail="", status="clean")
+                return SimpleNamespace(
+                    infected=False,
+                    error=False,
+                    signature="",
+                    detail="",
+                    status="clean",
+                    scanner_identity="clamav:m101-test",
+                )
 
             def close(inner_self) -> None:
                 events.append("close")
@@ -283,11 +290,12 @@ class InvoiceEffectContractM101Tests(unittest.TestCase):
         )
         with patch("mail_agent.cli.PersonalAssistantActionBridge", ReadBridge), patch(
             "mail_agent.cli.HostAntivirus", Antivirus
-        ), patch("mail_agent.cli.InvoiceExtractor.extract", return_value=metadata), redirect_stdout(
-            StringIO()
-        ):
+        ), patch(
+            "mail_agent.cli.InvoiceExtractor.extract", return_value=metadata
+        ) as extract, redirect_stdout(StringIO()):
             self.assertEqual(_handle_invoices(args, self.config), 0)
         self.assertEqual(events, ["read-pdf", "scan", "close"])
+        self.assertEqual(extract.call_args.kwargs["scanner_identity"], "clamav:m101-test")
         self.assertEqual(self._invoice_row(), before)
 
     def test_parser_rejects_conflicting_preview_and_write_approval(self) -> None:

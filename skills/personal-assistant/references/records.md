@@ -4,11 +4,23 @@
 
 Use registered `invoices status`, `invoices list` or `invoices review` first for
 questions about known invoices; memory and workspace search cannot establish an
-empty register. Use only registered `invoices` commands. Native PDF text is authoritative and read
-first; OCR is fallback only when text is unusable or the invoice date remains
-unsafe. The confirmed invoice date comes from the PDF, never only from mail date,
-filename, service/delivery/due date. A safe date controls `YYYY/MM` even when
-optional fields are absent; only an unsafe date routes the PDF to review.
+empty register. Use only registered `invoices` commands. Native PDF text is read
+first. Local Tesseract OCR is a bounded fallback only while invoice date, invoice
+number, gross amount or a document-backed supplier remains missing or unusable;
+complete usable required fields must not trigger OCR. The confirmed invoice date
+comes from the PDF, never only from mail date, filename,
+service/delivery/due date. A safe date controls `YYYY/MM` even when optional fields
+are absent; only an unsafe date routes the PDF to review.
+
+OCR may inspect at most the configured page budget. For a document longer than
+that budget it uses the leading pages plus the final page rather than increasing
+the limit. PDF bytes, rendered bytes, output characters, DPI and one total OCR
+deadline are independently bounded. `pdfinfo`, `pdftoppm` and Tesseract are the
+only OCR subprocesses; no external OCR or document service is permitted. Missing
+binaries/languages, corrupt input, timeout or a resource breach remains review.
+The stored technical result identifies extractor/ruleset, local engines,
+languages, selected page numbers, durations, resource counts and the ClamAV
+scanner identity, but contains no document values or OCR text.
 
 Invoice number and invoice date are selected only from typed candidates. Each
 candidate retains its document/OCR source, bounded evidence type, raw and
@@ -21,6 +33,10 @@ order, payment and due dates are never invoice-date evidence. Conflicting
 invoice labels remain review. A physical PDF filename may raise confidence only
 when it repeats an already labeled document value; a filename-only number is
 stored as excluded support and must never be presented as confirmed metadata.
+Native and OCR candidates are fused per field. A credible mismatch clears that
+field and adds a typed `fusion:<field>-conflict` review reason; overall confidence
+must never hide the conflict. OCR may fill an unusable field but cannot silently
+replace a usable native value.
 
 Invoice amounts are likewise selected only from labeled, typed document/OCR
 candidates. The roles `amount-due`, `gross-total`, `net-total`, `tax-amount`,

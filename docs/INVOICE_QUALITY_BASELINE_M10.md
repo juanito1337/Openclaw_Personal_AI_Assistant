@@ -226,3 +226,45 @@ Der urspruengliche acht Faelle umfassende M10-Korpus erreicht nach M10.3 fuer al
 Mehrfachsummenfehler ist korrigiert. M10.3 aendert weder SQLite-Schema noch
 Backfill-/Reprocessing-Auswahl, Nextcloud-PDFs oder Jahresregister und fuehrt
 keinen produktiven Lauf aus.
+
+## M10.4 – Begrenzte OCR und Feldfusion
+
+Der sanitiserte M10.4-Korpus beschreibt Textschicht-, bildbasierte, gemischte,
+mehrseitige und korrupte PDFs ohne produktive Inhalte. Pflichtfelder werden
+einzeln bewertet. Sind Rechnungsdatum, Rechnungsnummer, Bruttobetrag und ein
+dokumentbelegter Rechnungssteller brauchbar, bleibt OCR aus. Andernfalls darf der
+lokale Fallback nur innerhalb der in `docs/INVOICE_OCR_REGISTER.md`
+dokumentierten PDF-, Seiten-, DPI-, Gesamtzeit-, Render- und Ausgabebudgets
+arbeiten. Native/OCR-Konflikte werden als typisierte Reviewgruende sichtbar.
+
+Reproduzierbare Funktions- und Laufzeitpruefung:
+
+```bash
+.venv/bin/python -m pytest -q tests/test_invoice_ocr_m104.py
+.venv/bin/python scripts/benchmark-invoice-ocr-m104.py
+```
+
+Gemessen wurde am 2026-08-16 auf dem lokalen Entwicklungsrechner mit einem vom
+Benchmark selbst erzeugten, 1.284 Byte grossen sanitisierten Drei-Seiten-PDF:
+
+| Messwert | M10.4-Ausgangswert |
+| --- | ---: |
+| `pdftotext` / `pdfinfo` / `pdftoppm` | 24.02.0 |
+| Tesseract | 5.3.4 |
+| nativer Lauf | 19,040 ms |
+| gesamter OCR-Lauf | 3.556,265 ms |
+| intern gemessener OCR-Lauf | 3.555,622 ms |
+| ausgewaehlte Seiten | 1 und 3 von 3 |
+| gerenderte PNG-Daten | 122.217 Byte |
+| native Ausgabe | 158 Zeichen |
+| OCR-Ausgabe | 105 Zeichen |
+| maximal gemeldeter Child-RSS | 130.912 KiB |
+
+Die Zeiten und RSS-Zahl sind beobachtete Werte, keine Quality Gates; sie variieren
+mit CPU, Cache und Werkzeugbuild. Der Benchmark gibt seine Werkzeugversionen,
+Budgets und Messwerte als JSON aus, verarbeitet keine produktive PDF und greift
+weder auf `/srv/openclaw` noch auf Nextcloud oder eine externe OCR zu. M10.4
+aendert kein Datenbankschema und fuehrt weder Backfill noch Reprocessing aus.
+Der vollstaendige Repositorylauf sammelte und bestand 659 pytest-Items und
+erreichte 63,45 Prozent Branch-einbezogene Gesamt-Coverage. Der direkt betroffene
+Extraktor `mail_agent/invoice_extract.py` erreichte dabei 84,27 Prozent.

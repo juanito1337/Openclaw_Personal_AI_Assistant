@@ -2,7 +2,7 @@
 
 Stand: 2026-08-15
 Empfohlener Arbeitsbranch: `development/invoice-quality-reprocessing-m10`
-Status: M10.0 bis M10.3 implementiert; kein Produktivlauf freigegeben
+Status: M10.0 bis M10.4 implementiert; kein Produktivlauf freigegeben
 
 ## Ziel
 
@@ -353,6 +353,11 @@ Baselinevergleich und stoppe nach M10.3.
 ```
 
 ## M10.4 – Begrenzte OCR-Auswahl und versionierte Feldfusion
+
+Status: implementiert und lokal gegen den sanitisierten M10.4-Korpus sowie eine
+reproduzierbare Laufzeit-/Ressourcenmessung abgenommen. Produktive PDFs,
+Datenbanken, Nextcloud und Reprocessing wurden nicht verwendet; M10.5 ist nicht
+Bestandteil dieser Umsetzung.
 
 ### Scope
 

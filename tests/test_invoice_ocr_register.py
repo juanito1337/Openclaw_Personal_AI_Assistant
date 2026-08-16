@@ -235,7 +235,7 @@ def test_generic_datum_label_is_accepted_but_service_date_is_rejected() -> None:
     assert metadata.date_confirmed
 
 
-def test_high_confidence_native_date_wins_over_weaker_ocr_conflict() -> None:
+def test_native_ocr_date_conflict_is_never_silently_confirmed() -> None:
     native = InvoiceMetadata(
         invoice_date=FieldValue("2026-07-15", 0.96, "Rechnungsdatum"),
         method="text",
@@ -245,6 +245,8 @@ def test_high_confidence_native_date_wins_over_weaker_ocr_conflict() -> None:
         method="ocr",
     )
     selected = _choose(native, ocr)
-    assert selected.invoice_date.value == "2026-07-15"
-    assert selected.date_confirmed
-    assert any("nativen Textschicht" in issue for issue in selected.issues)
+    assert selected.invoice_date.value == ""
+    assert not selected.date_confirmed
+    assert selected.status == "review"
+    assert "fusion:invoice_date-conflict" in selected.review_reasons
+    assert any("widersprechen" in issue for issue in selected.issues)

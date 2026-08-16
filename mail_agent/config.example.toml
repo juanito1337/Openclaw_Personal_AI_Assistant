@@ -126,6 +126,8 @@ ocr_max_pages = 2
 ocr_dpi = 300
 ocr_page_segmentation = 6
 ocr_timeout_seconds = 180
+ocr_max_rendered_bytes = 50000000
+ocr_max_output_chars = 100000
 review_subfolder = "Pruefen"
 register_enabled = true
 # register_dir aus aelteren Versionen wird nur noch kompatibel eingelesen; R26 fuehrt keine lokale CSV.

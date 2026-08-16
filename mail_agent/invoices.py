@@ -206,7 +206,10 @@ class InvoiceManager:
                 metadata: InvoiceMetadata | None = None
                 if not str(existing["extraction_status"] or ""):
                     metadata = self.extractor.extract(
-                        attachment.data, message, filename=attachment.filename
+                        attachment.data,
+                        message,
+                        filename=attachment.filename,
+                        scanner_identity=str(getattr(scan, "scanner_identity", "") or ""),
                     )
                     record = self._metadata_record(message, metadata)
                     if not self.dry_run:
@@ -240,7 +243,10 @@ class InvoiceManager:
                 continue
 
             metadata = self.extractor.extract(
-                attachment.data, message, filename=attachment.filename
+                attachment.data,
+                message,
+                filename=attachment.filename,
+                scanner_identity=str(getattr(scan, "scanner_identity", "") or ""),
             )
             remote_folder = self._target_folder(message, metadata)
             remote_path = f"{remote_folder}/{self._target_filename(message, attachment, metadata)}"

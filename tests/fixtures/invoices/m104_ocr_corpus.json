@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "corpus_id": "m10.4-synthetic-ocr-v1",
+  "privacy": "All content is synthetic; all addresses use example.invalid.",
+  "cases": [
+    {
+      "id": "native-complete",
+      "pdf_kind": "text-layer",
+      "native_text": "M104 Fiktiv GmbH\nRechnungsnummer: NATIVE-104\nRechnungsdatum: 16.08.2026\nGesamtbetrag: 119,00 EUR\nLeistungsbeschreibung Leistungsbeschreibung Leistungsbeschreibung",
+      "ocr_text": "",
+      "expected_ocr": false
+    },
+    {
+      "id": "image-only",
+      "pdf_kind": "image-based",
+      "native_text": "",
+      "ocr_text": "M104 Bildbeleg GmbH\nRechnungsnummer: IMAGE-104\nRechnungsdatum: 16.08.2026\nGesamtbetrag: 238,00 EUR",
+      "expected_ocr": true
+    },
+    {
+      "id": "mixed-number-fallback",
+      "pdf_kind": "mixed",
+      "native_text": "M104 Gemischt GmbH\nRechnungsdatum: 16.08.2026\nGesamtbetrag: 357,00 EUR",
+      "ocr_text": "M104 Gemischt GmbH\nRechnungsnummer: MIXED-104\nRechnungsdatum: 16.08.2026\nGesamtbetrag: 357,00 EUR",
+      "expected_ocr": true
+    },
+    {
+      "id": "first-and-last-page",
+      "pdf_kind": "multipage",
+      "pages": [
+        "M104 Mehrseitig GmbH\nRechnungsdatum: 16.08.2026",
+        "Synthetische Positionen ohne personenbezogene Daten",
+        "Synthetische Positionen ohne personenbezogene Daten",
+        "Synthetische Positionen ohne personenbezogene Daten",
+        "Rechnungsnummer: MULTI-104\nGesamtbetrag: 476,00 EUR"
+      ],
+      "expected_pages": [1, 5]
+    },
+    {
+      "id": "corrupt-pdf",
+      "pdf_kind": "corrupt",
+      "native_text": "",
+      "ocr_text": "",
+      "expected_ocr": true
+    }
+  ]
+}

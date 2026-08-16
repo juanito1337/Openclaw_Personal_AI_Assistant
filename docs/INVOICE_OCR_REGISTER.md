@@ -15,10 +15,18 @@ Es wird keine dauerhafte lokale CSV-Kopie gefuehrt. Kurzlebige, geschuetzte Acti
 ## Erkennungsstufen
 
 1. `pdftotext` liest zuerst die vorhandene PDF-Textschicht mit Layout-Erhalt.
-2. Solange die native Textschicht brauchbar ist und ein belastbares Rechnungsdatum liefert, wird keine OCR ausgefuehrt. Fehlende Zusatzfelder allein loesen keine OCR aus.
-3. OCR mit `pdftoppm` und Tesseract ist nur der Fallback, wenn die Textschicht unbrauchbar ist oder das Rechnungsdatum nicht sicher erkannt wurde.
-4. Native Textwerte bleiben vorrangig. OCR darf fehlende oder sehr schwache Felder ergaenzen, aber keine guten Textwerte still ersetzen.
-5. Widersprechen sich native Textschicht und OCR bei Rechnungsdatum, Rechnungsnummer oder Bruttobetrag mit hoher Konfidenz, wird das betroffene Feld geleert und als `Pruefen` gekennzeichnet.
+2. Rechnungsdatum, Rechnungsnummer, Bruttobetrag und ein dokumentbelegter
+   Rechnungssteller werden getrennt auf Nutzbarkeit geprueft. Sind alle vier
+   Pflichtfelder brauchbar, wird keine OCR ausgefuehrt; optionale Felder allein
+   loesen sie nicht aus.
+3. Lokale OCR mit `pdfinfo`, `pdftoppm` und Tesseract ist nur der Fallback fuer
+   die konkret fehlenden oder unbrauchbaren Pflichtfelder. Sie verwendet keine
+   externe OCR- oder Dokumenten-API.
+4. Native Textwerte bleiben vorrangig. OCR darf ein unbrauchbares Feld ergaenzen,
+   aber keinen brauchbaren nativen Wert still ersetzen.
+5. Glaubwuerdige Widersprueche zwischen nativer Textschicht und OCR werden
+   feldweise geleert und mit `fusion:<feld>-conflict` als `Pruefen`
+   gekennzeichnet. Eine hohe Gesamtkonfidenz darf diesen Konflikt nicht verdecken.
 6. Rechnungsnummer und Rechnungsdatum entstehen aus typisierten Kandidaten mit
    Quelle, Rohwert, normalisiertem Wert, begrenztem Evidenztyp, Konfidenz und
    Ausschlussgrund. Die Evidenzzeile ist auf 300 Zeichen begrenzt.
@@ -47,6 +55,33 @@ Es wird keine dauerhafte lokale CSV-Kopie gefuehrt. Kurzlebige, geschuetzte Acti
 12. Vollstaendige Brutto/Netto/Steuer-Tripel duerfen um hoechstens zwei Cent
     abweichen. Rechen-, Summen-, Vorzeichen- oder Waehrungskonflikte sowie Steuer
     groesser als Brutto erzeugen einen typisierten `amount:*`-Reviewgrund.
+
+## OCR-Budgets und Seitenauswahl (M10.4)
+
+Die Standardgrenzen sind Sicherheitsbudgets und keine Aussage ueber die fachliche
+Erkennungsqualitaet:
+
+| Ressource | Standardgrenze |
+| --- | ---: |
+| PDF-Eingabe | 25.000.000 Byte |
+| OCR-Seiten | 2 |
+| Aufloesung | 300 DPI |
+| gesamter OCR-Lauf einschliesslich Seitenpruefung, Rendering und Erkennung | 180 Sekunden |
+| gerenderte PNG-Daten zusammen | 50.000.000 Byte |
+| OCR-Ausgabe zusammen | 100.000 Zeichen |
+
+Bei mehr Seiten als dem Budget werden zuerst die vorderen Seiten und zuletzt die
+letzte Seite gewaehlt. Mit dem unveraenderten Zwei-Seiten-Budget bedeutet das
+`[1, letzte Seite]`; bei drei Seiten werden also `[1, 3]` gelesen. Das Budget wird
+nicht automatisch vergroessert. `invoices status` zeigt Binaries, Sprachen,
+Seitenauswahl und alle aktiven Grenzen.
+
+Das technische Extraktionsergebnis verwendet Schema 1 sowie die versionierten
+Identitaeten `extractor_version=m10.4` und `ruleset_version=2026-08-16.1`. Es
+enthaelt nur Engine-/Scanneridentitaet, Sprachen, Eingabegroesse, Laufzeiten,
+Seitennummern, gerenderte Bytes, OCR-Ausloeser und feldweise Fusionsentscheidungen.
+Rechnungsnummer, Lieferant, Betraege, PDF-/OCR-Text und sonstiger Dokumentinhalt
+werden in diesem technischen Abschnitt nicht wiederholt.
 
 Der physische PDF-Dateiname darf nur einen bereits beschriftet aus PDF- oder
 OCR-Text extrahierten Rechnungsnummernkandidaten stuetzen. Eine unbeschriftete
@@ -210,6 +245,7 @@ Der Statusbefehl zeigt, ob folgende Programme vorhanden sind:
 
 ```text
 pdftotext
+pdfinfo
 pdftoppm
 tesseract
 Tesseract-Sprachen deu und eng

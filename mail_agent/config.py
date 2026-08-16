@@ -197,6 +197,8 @@ class InvoiceConfig:
     ocr_dpi: int = 300
     ocr_page_segmentation: int = 6
     ocr_timeout_seconds: int = 180
+    ocr_max_rendered_bytes: int = 50_000_000
+    ocr_max_output_chars: int = 100_000
     review_subfolder: str = "Pruefen"
     register_enabled: bool = True
     register_dir: Path = field(default_factory=lambda: WORKSPACE_ROOT / "mail_agent/data/invoice_register")
@@ -502,6 +504,16 @@ def _validate_config(config: Config) -> None:
             "invoices.ocr_dpi muss zwischen 150 und 600 liegen")
     require(isinstance(config.invoices.ocr_timeout_seconds, int) and config.invoices.ocr_timeout_seconds > 0,
             "invoices.ocr_timeout_seconds muss groesser als 0 sein")
+    require(
+        isinstance(config.invoices.ocr_max_rendered_bytes, int)
+        and 1_000_000 <= config.invoices.ocr_max_rendered_bytes <= 500_000_000,
+        "invoices.ocr_max_rendered_bytes muss zwischen 1000000 und 500000000 liegen",
+    )
+    require(
+        isinstance(config.invoices.ocr_max_output_chars, int)
+        and 1_000 <= config.invoices.ocr_max_output_chars <= 2_000_000,
+        "invoices.ocr_max_output_chars muss zwischen 1000 und 2000000 liegen",
+    )
     safe_text(config.invoices.review_subfolder, "invoices.review_subfolder")
     require(isinstance(config.invoices.register_enabled, bool), "invoices.register_enabled muss true oder false sein")
     require(str(config.invoices.register_delimiter) == ";", "invoices.register_delimiter muss in R26 ein Semikolon sein")

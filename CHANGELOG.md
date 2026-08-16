@@ -36,8 +36,17 @@
 - Auf dem neuen synthetischen 15-Faelle-Korpus steigen Praezision und Abdeckung
   fuer Brutto, Netto, Steuer und Waehrung jeweils auf 1,0000; False-confirmed
   sinkt von 5 auf 0. Die historische M10.0-Baseline bleibt separat erhalten.
-- 648 pytest-Items, davon mindestens 595 unittest-kompatibel, sichern M10.3 mit
-  63,12 Prozent Branch-einbezogener Gesamt-Coverage ab.
+- M10.4 startet lokale OCR nur fuer unbrauchbare Pflichtfelder. Das unveraenderte
+  Zwei-Seiten-Budget liest bei langen PDFs die vorderen Seiten plus Schlussseite;
+  PDF-Groesse, Gesamtzeit, DPI, Renderdaten und Ausgabe sind separat begrenzt.
+- Native und OCR-Kandidaten werden feldweise fusioniert. Glaubwuerdige
+  Abweichungen koennen nicht mehr durch eine hohe Gesamtkonfidenz bestaetigt
+  werden, sondern erzeugen `fusion:<feld>-conflict` und bleiben `review`.
+- Technische Ergebnisse nennen Extraktor-/Regelversion, lokale Engines,
+  OCR-Sprachen, Scanneridentitaet, Seiten, Laufzeiten und Ressourcenzaehler, ohne
+  Dokumentwerte oder OCR-Text in diesem Telemetrieabschnitt zu wiederholen.
+- 659 pytest-Items, davon mindestens 595 unittest-kompatibel, sichern M10.4 mit
+  63,45 Prozent Branch-einbezogener Gesamt-Coverage ab.
 
 ## Unreleased – M9 Mail-Qualitaet und Review-Triage
 

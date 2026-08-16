@@ -4,6 +4,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from mail_agent.app import MailAgent, RunSummary
 from mail_agent.config import load_config
@@ -119,9 +120,11 @@ class AntivirusToolTests(unittest.TestCase):
                 "routine", 0.99, 2, False, "Routine-Rechnung",
                 invoice=InvoiceSignal(True, 0.99, "Rechnung", ["Rechnung-4711.pdf"]),
             )
-            result = manager.process(parsed, classification)
+            with patch.object(manager.extractor, "extract") as extract:
+                result = manager.process(parsed, classification)
             self.assertEqual(result.status, "invoice-malware-detected")
             self.assertEqual(bridge.uploads, [])
+            extract.assert_not_called()
         finally:
             storage.close()
 

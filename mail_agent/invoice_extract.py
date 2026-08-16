@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import copy
 import json
+import os
 import re
 import shutil
 import subprocess
 import tempfile
+import time
 import unicodedata
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
@@ -15,6 +17,9 @@ from pathlib import Path
 
 from .config import InvoiceConfig
 from .models import ParsedMessage
+
+INVOICE_EXTRACTOR_VERSION = "m10.4"
+INVOICE_RULESET_VERSION = "2026-08-16.1"
 
 _DATE_TOKEN = re.compile(r"(?<!\d)(\d{1,2}[.\-/]\d{1,2}[.\-/](?:\d{2}|\d{4})|\d{4}-\d{1,2}-\d{1,2})(?!\d)")
 _AMOUNT_TOKEN = re.compile(
@@ -325,6 +330,33 @@ class FieldCandidate:
 
 
 @dataclass(slots=True)
+class FieldFusionDecision:
+    field: str
+    outcome: str
+    selected_source: str
+
+
+@dataclass(slots=True)
+class ExtractionTechnicalMetadata:
+    schema_version: int = 1
+    extractor_version: str = INVOICE_EXTRACTOR_VERSION
+    ruleset_version: str = INVOICE_RULESET_VERSION
+    native_engine: str = ""
+    ocr_engine: str = ""
+    ocr_languages: list[str] = field(default_factory=list)
+    scanner_identity: str = ""
+    input_size_bytes: int = 0
+    native_duration_ms: float = 0.0
+    ocr_duration_ms: float = 0.0
+    ocr_attempted: bool = False
+    ocr_trigger_fields: list[str] = field(default_factory=list)
+    pdf_page_count: int | None = None
+    ocr_pages: list[int] = field(default_factory=list)
+    ocr_rendered_bytes: int = 0
+    fusion: list[FieldFusionDecision] = field(default_factory=list)
+
+
+@dataclass(slots=True)
 class InvoiceMetadata:
     invoice_date: FieldValue = field(default_factory=FieldValue)
     invoice_number: FieldValue = field(default_factory=FieldValue)
@@ -342,6 +374,7 @@ class InvoiceMetadata:
     issues: list[str] = field(default_factory=list)
     review_reasons: list[str] = field(default_factory=list)
     field_candidates: list[FieldCandidate] = field(default_factory=list)
+    technical: ExtractionTechnicalMetadata = field(default_factory=ExtractionTechnicalMetadata)
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -1222,7 +1255,7 @@ def parse_invoice_text(
     return _finalize_metadata(metadata)
 
 
-def _run(command: list[str], *, timeout: int) -> subprocess.CompletedProcess[str]:
+def _run(command: list[str], *, timeout: float) -> subprocess.CompletedProcess[str]:
     return subprocess.run(command, check=False, capture_output=True, text=True, timeout=timeout)
 
 
@@ -1239,41 +1272,244 @@ def extract_native_text(pdf_path: Path, *, timeout: int) -> tuple[str, str]:
     return result.stdout or "", ""
 
 
-def extract_ocr_text(pdf_path: Path, *, config: InvoiceConfig) -> tuple[str, str]:
+@dataclass(slots=True)
+class OCRTextResult:
+    text: str = ""
+    error: str = ""
+    engine: str = ""
+    languages: list[str] = field(default_factory=list)
+    page_count: int | None = None
+    pages: list[int] = field(default_factory=list)
+    rendered_bytes: int = 0
+    duration_ms: float = 0.0
+
+    def __iter__(self) -> Iterator[str]:
+        # Keep the established two-value helper API compatible for callers that
+        # only need text/error while exposing bounded technical evidence to M10.4.
+        yield self.text
+        yield self.error
+
+
+_FIELD_USABILITY = {
+    "invoice_date": 0.85,
+    "invoice_number": 0.75,
+    "supplier": 0.55,
+    "gross_amount": 0.80,
+    "net_amount": 0.70,
+    "tax_amount": 0.70,
+    "currency": 0.65,
+    "due_date": 0.65,
+}
+_REQUIRED_INVOICE_FIELDS = ("invoice_date", "invoice_number", "gross_amount", "supplier")
+_FUSION_FIELDS = (
+    "invoice_date",
+    "invoice_number",
+    "supplier",
+    "gross_amount",
+    "net_amount",
+    "tax_amount",
+    "currency",
+    "due_date",
+)
+
+
+def _requested_ocr_languages(config: InvoiceConfig) -> list[str]:
+    return [value.strip() for value in config.ocr_languages.split("+") if value.strip()]
+
+
+def _installed_ocr_languages() -> tuple[list[str], str]:
+    roots: list[Path] = []
+    configured = os.environ.get("TESSDATA_PREFIX", "").strip()
+    if configured:
+        roots.extend((Path(configured), Path(configured) / "tessdata"))
+    roots.extend(
+        (
+            Path("/usr/share/tesseract-ocr/5/tessdata"),
+            Path("/usr/share/tesseract-ocr/4.00/tessdata"),
+            Path("/usr/share/tessdata"),
+            Path("/usr/local/share/tessdata"),
+        )
+    )
+    found: set[str] = set()
+    error = ""
+    for root in roots:
+        try:
+            found.update(source.stem for source in root.glob("*.traineddata"))
+        except OSError as exc:
+            error = str(exc)
+    return sorted(found), error
+
+
+def select_ocr_pages(page_count: int, max_pages: int) -> list[int]:
+    """Select a bounded prefix plus the final page without increasing the budget."""
+    if page_count < 1 or max_pages < 1:
+        return []
+    budget = min(page_count, max_pages)
+    if budget == 1:
+        return [1]
+    if page_count <= budget:
+        return list(range(1, page_count + 1))
+    return [*range(1, budget), page_count]
+
+
+def _deadline_run(command: list[str], *, deadline: float) -> subprocess.CompletedProcess[str]:
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise subprocess.TimeoutExpired(command, 0)
+    return _run(command, timeout=max(0.01, remaining))
+
+
+def _ocr_result(
+    started: float,
+    *,
+    text: str = "",
+    error: str = "",
+    engine: str = "",
+    languages: Iterable[str] = (),
+    page_count: int | None = None,
+    pages: Iterable[int] = (),
+    rendered_bytes: int = 0,
+) -> OCRTextResult:
+    result = OCRTextResult(
+        text=text,
+        error=error,
+        engine=engine,
+        languages=list(languages),
+        page_count=page_count,
+        pages=list(pages),
+        rendered_bytes=rendered_bytes,
+    )
+    result.duration_ms = round((time.monotonic() - started) * 1000.0, 3)
+    return result
+
+
+def extract_ocr_text(pdf_path: Path, *, config: InvoiceConfig) -> OCRTextResult:
+    started = time.monotonic()
+    requested_languages = _requested_ocr_languages(config)
+    try:
+        input_size = pdf_path.stat().st_size
+    except OSError as exc:
+        return _ocr_result(started, error=f"OCR-Eingabedatei ist nicht lesbar: {exc}")
+    if input_size > config.max_pdf_bytes:
+        return _ocr_result(
+            started,
+            error="OCR-Eingabe ueberschreitet das konfigurierte PDF-Groessenbudget",
+            languages=requested_languages,
+        )
+
+    pdfinfo = shutil.which("pdfinfo")
     pdftoppm = shutil.which("pdftoppm")
     tesseract = shutil.which("tesseract")
-    if not pdftoppm or not tesseract:
-        missing = [name for name, value in (("pdftoppm", pdftoppm), ("tesseract", tesseract)) if not value]
-        return "", "OCR-Werkzeug fehlt: " + ", ".join(missing)
+    missing = [
+        name
+        for name, value in (("pdfinfo", pdfinfo), ("pdftoppm", pdftoppm), ("tesseract", tesseract))
+        if not value
+    ]
+    if missing:
+        return _ocr_result(
+            started,
+            error="OCR-Werkzeug fehlt: " + ", ".join(missing),
+            languages=requested_languages,
+        )
+    installed_languages, language_error = _installed_ocr_languages()
+    missing_languages = [value for value in requested_languages if value not in installed_languages]
+    if missing_languages:
+        detail = "OCR-Sprache fehlt: " + ", ".join(missing_languages)
+        if language_error:
+            detail += f" ({language_error})"
+        return _ocr_result(started, error=detail, languages=requested_languages)
+
+    deadline = started + config.ocr_timeout_seconds
+    assert pdfinfo is not None
+    assert pdftoppm is not None
+    assert tesseract is not None
+    try:
+        info = _deadline_run([pdfinfo, str(pdf_path)], deadline=deadline)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return _ocr_result(
+            started,
+            error=f"PDF-Seitenpruefung fuer OCR fehlgeschlagen: {exc}",
+            languages=requested_languages,
+        )
+    if info.returncode != 0:
+        return _ocr_result(
+            started,
+            error=(info.stderr or "pdfinfo fehlgeschlagen")[-1000:],
+            languages=requested_languages,
+        )
+    page_match = re.search(r"(?mi)^Pages:\s*(\d+)\s*$", info.stdout or "")
+    if not page_match or int(page_match.group(1)) < 1:
+        return _ocr_result(
+            started,
+            error="OCR konnte die PDF-Seitenzahl nicht sicher bestimmen",
+            languages=requested_languages,
+        )
+    page_count = int(page_match.group(1))
+    selected_pages = select_ocr_pages(page_count, config.ocr_max_pages)
+
     with tempfile.TemporaryDirectory(prefix="invoice-ocr-") as temp:
-        prefix = Path(temp) / "page"
-        try:
-            render = _run(
-                [
-                    pdftoppm,
-                    "-f",
-                    "1",
-                    "-l",
-                    str(max(1, config.ocr_max_pages)),
-                    "-r",
-                    str(max(150, config.ocr_dpi)),
-                    "-png",
-                    str(pdf_path),
-                    str(prefix),
-                ],
-                timeout=config.ocr_timeout_seconds,
-            )
-        except (OSError, subprocess.TimeoutExpired) as exc:
-            return "", f"PDF-Rendering fuer OCR fehlgeschlagen: {exc}"
-        if render.returncode != 0:
-            return "", (render.stderr or "pdftoppm fehlgeschlagen")[-1000:]
-        pages = sorted(Path(temp).glob("page-*.png"))
-        if not pages:
-            return "", "OCR konnte keine PDF-Seiten rendern"
         texts: list[str] = []
-        for page in pages:
+        rendered_bytes = 0
+        for page_number in selected_pages:
+            prefix = Path(temp) / f"page-{page_number}"
             try:
-                result = _run(
+                render = _deadline_run(
+                    [
+                        pdftoppm,
+                        "-f",
+                        str(page_number),
+                        "-l",
+                        str(page_number),
+                        "-singlefile",
+                        "-r",
+                        str(config.ocr_dpi),
+                        "-png",
+                        str(pdf_path),
+                        str(prefix),
+                    ],
+                    deadline=deadline,
+                )
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                return _ocr_result(
+                    started,
+                    error=f"PDF-Rendering fuer OCR fehlgeschlagen: {exc}",
+                    languages=requested_languages,
+                    page_count=page_count,
+                    pages=selected_pages,
+                    rendered_bytes=rendered_bytes,
+                )
+            if render.returncode != 0:
+                return _ocr_result(
+                    started,
+                    error=(render.stderr or "pdftoppm fehlgeschlagen")[-1000:],
+                    languages=requested_languages,
+                    page_count=page_count,
+                    pages=selected_pages,
+                    rendered_bytes=rendered_bytes,
+                )
+            page = prefix.with_suffix(".png")
+            try:
+                rendered_bytes += page.stat().st_size
+            except OSError as exc:
+                return _ocr_result(
+                    started,
+                    error=f"OCR konnte gerenderte Seite nicht lesen: {exc}",
+                    languages=requested_languages,
+                    page_count=page_count,
+                    pages=selected_pages,
+                    rendered_bytes=rendered_bytes,
+                )
+            if rendered_bytes > config.ocr_max_rendered_bytes:
+                return _ocr_result(
+                    started,
+                    error="OCR-Rendering ueberschreitet das konfigurierte Ressourcenbudget",
+                    languages=requested_languages,
+                    page_count=page_count,
+                    pages=selected_pages,
+                    rendered_bytes=rendered_bytes,
+                )
+            try:
+                result = _deadline_run(
                     [
                         tesseract,
                         str(page),
@@ -1283,60 +1519,119 @@ def extract_ocr_text(pdf_path: Path, *, config: InvoiceConfig) -> tuple[str, str
                         "--psm",
                         str(config.ocr_page_segmentation),
                     ],
-                    timeout=config.ocr_timeout_seconds,
+                    deadline=deadline,
                 )
             except (OSError, subprocess.TimeoutExpired) as exc:
-                return "", f"Tesseract fehlgeschlagen: {exc}"
+                return _ocr_result(
+                    started,
+                    error=f"Tesseract fehlgeschlagen: {exc}",
+                    languages=requested_languages,
+                    page_count=page_count,
+                    pages=selected_pages,
+                    rendered_bytes=rendered_bytes,
+                )
             if result.returncode != 0:
-                return "", (result.stderr or "Tesseract fehlgeschlagen")[-1000:]
+                return _ocr_result(
+                    started,
+                    error=(result.stderr or "Tesseract fehlgeschlagen")[-1000:],
+                    languages=requested_languages,
+                    page_count=page_count,
+                    pages=selected_pages,
+                    rendered_bytes=rendered_bytes,
+                )
             texts.append(result.stdout or "")
-        return "\n\n".join(texts), ""
+            if sum(len(value) for value in texts) > config.ocr_max_output_chars:
+                return _ocr_result(
+                    started,
+                    error="OCR-Ausgabe ueberschreitet das konfigurierte Zeichenbudget",
+                    languages=requested_languages,
+                    page_count=page_count,
+                    pages=selected_pages,
+                    rendered_bytes=rendered_bytes,
+                )
+        return _ocr_result(
+            started,
+            text="\n\n".join(texts),
+            engine="tesseract",
+            languages=requested_languages,
+            page_count=page_count,
+            pages=selected_pages,
+            rendered_bytes=rendered_bytes,
+        )
 
 
-def _choose(native: InvoiceMetadata, ocr: InvoiceMetadata | None) -> InvoiceMetadata:
+def required_ocr_fields(metadata: InvoiceMetadata) -> list[str]:
+    result = [
+        name
+        for name in _REQUIRED_INVOICE_FIELDS
+        if not _field_usable(name, getattr(metadata, name))
+    ]
+    if (
+        any(reason.startswith("amount:") for reason in metadata.review_reasons)
+        and "gross_amount" not in result
+    ):
+        result.append("gross_amount")
+    return result
+
+
+def _field_usable(name: str, value: FieldValue) -> bool:
+    if name == "supplier" and value.evidence.startswith(("Absendername", "Absenderdomain")):
+        return False
+    return bool(value.value and value.confidence >= _FIELD_USABILITY[name])
+
+
+def _field_conflict_credible(name: str, value: FieldValue) -> bool:
+    if name == "supplier" and value.evidence.startswith(("Absendername", "Absenderdomain")):
+        return False
+    return bool(value.value and value.confidence >= min(0.75, _FIELD_USABILITY[name]))
+
+
+def _choose(
+    native: InvoiceMetadata,
+    ocr: InvoiceMetadata | None,
+    *,
+    requested_fields: Iterable[str] = (),
+) -> InvoiceMetadata:
     if ocr is None:
         return native
-    critical_names = ("invoice_date", "invoice_number", "gross_amount")
+    chosen = copy.deepcopy(native)
+    requested = set(requested_fields)
     conflicts: list[str] = []
-    retained_native_conflicts: list[str] = []
-    for name in critical_names:
+    decisions: list[FieldFusionDecision] = []
+    for name in _FUSION_FIELDS:
         left: FieldValue = getattr(native, name)
         right: FieldValue = getattr(ocr, name)
+        left_usable = _field_usable(name, left)
+        right_usable = _field_usable(name, right)
         if (
             left.value
             and right.value
             and left.value != right.value
-            and min(left.confidence, right.confidence) >= 0.75
+            and _field_conflict_credible(name, left)
+            and _field_conflict_credible(name, right)
         ):
-            if left.confidence >= 0.90 and left.confidence > right.confidence:
-                retained_native_conflicts.append(name)
-            else:
-                conflicts.append(name)
-    # Native PDF text remains authoritative whenever it contains a usable
-    # value. OCR is a fallback that fills missing/weak fields instead of
-    # replacing an otherwise readable text layer wholesale.
-    chosen = copy.deepcopy(native)
-    for name in (
-        "invoice_date",
-        "invoice_number",
-        "supplier",
-        "category",
-        "gross_amount",
-        "net_amount",
-        "tax_amount",
-        "currency",
-        "due_date",
-    ):
-        chosen_value: FieldValue = getattr(chosen, name)
-        ocr_value: FieldValue = getattr(ocr, name)
-        if (
-            (not chosen_value.value or chosen_value.confidence < 0.55)
-            and ocr_value.value
-            and ocr_value.confidence > chosen_value.confidence
-        ):
-            setattr(chosen, name, copy.deepcopy(ocr_value))
+            setattr(chosen, name, FieldValue("", 0.0, "Textschicht/OCR-Konflikt"))
+            conflicts.append(name)
+            decisions.append(FieldFusionDecision(name, "conflict-review", "none"))
+        elif not left_usable and right_usable:
+            setattr(chosen, name, copy.deepcopy(right))
+            outcome = "ocr-fallback" if name in requested else "ocr-support"
+            decisions.append(FieldFusionDecision(name, outcome, "ocr"))
+        elif left.value and right.value and left.value == right.value:
+            decisions.append(FieldFusionDecision(name, "agree", "native"))
+        elif left_usable:
+            outcome = "native-retained"
+            if right.value and right.value != left.value:
+                outcome = "native-retained-weak-ocr-disagreement"
+            decisions.append(FieldFusionDecision(name, outcome, "native"))
+        elif right.value and right.confidence > left.confidence:
+            setattr(chosen, name, copy.deepcopy(right))
+            decisions.append(FieldFusionDecision(name, "ocr-weak", "ocr"))
+        else:
+            decisions.append(FieldFusionDecision(name, "unresolved", "none"))
     chosen.method = "text+ocr-fallback"
     chosen.text_quality = max(native.text_quality, ocr.text_quality)
+    chosen.technical.fusion = decisions
     known_candidates = {
         (
             item.field,
@@ -1369,18 +1664,21 @@ def _choose(native: InvoiceMetadata, ocr: InvoiceMetadata | None) -> InvoiceMeta
     labels = {
         "invoice_date": "Rechnungsdatum",
         "invoice_number": "Rechnungsnummer",
+        "supplier": "Rechnungssteller",
         "gross_amount": "Bruttobetrag",
+        "net_amount": "Nettobetrag",
+        "tax_amount": "Steuerbetrag",
+        "currency": "Waehrung",
+        "due_date": "Faelligkeitsdatum",
     }
-    if retained_native_conflicts:
-        chosen.issues.append(
-            "Abweichende OCR-Werte zugunsten der hochkonfidenten nativen Textschicht ignoriert bei: "
-            + ", ".join(labels[v] for v in retained_native_conflicts)
-        )
     if conflicts:
-        for name in conflicts:
-            setattr(chosen, name, FieldValue("", 0.0, "Textschicht/OCR-Konflikt"))
         chosen.issues.append(
             "Textschicht und OCR widersprechen sich bei: " + ", ".join(labels[v] for v in conflicts)
+        )
+        chosen.review_reasons.extend(
+            reason
+            for reason in (f"fusion:{name}-conflict" for name in conflicts)
+            if reason not in chosen.review_reasons
         )
     return _finalize_metadata(chosen)
 
@@ -1391,40 +1689,22 @@ class InvoiceExtractor:
 
     def doctor(self) -> dict[str, object]:
         pdftotext = shutil.which("pdftotext") or ""
+        pdfinfo = shutil.which("pdfinfo") or ""
         pdftoppm = shutil.which("pdftoppm") or ""
         tesseract = shutil.which("tesseract") or ""
-        installed_languages: list[str] = []
-        language_error = ""
-        if tesseract:
-            roots: list[Path] = []
-            configured = __import__("os").environ.get("TESSDATA_PREFIX", "").strip()
-            if configured:
-                roots.extend((Path(configured), Path(configured) / "tessdata"))
-            roots.extend(
-                (
-                    Path("/usr/share/tesseract-ocr/5/tessdata"),
-                    Path("/usr/share/tesseract-ocr/4.00/tessdata"),
-                    Path("/usr/share/tessdata"),
-                    Path("/usr/local/share/tessdata"),
-                )
-            )
-            seen: set[str] = set()
-            for root in roots:
-                try:
-                    for source in root.glob("*.traineddata"):
-                        seen.add(source.stem)
-                except OSError as exc:
-                    language_error = str(exc)
-            installed_languages = sorted(seen)
-        requested = [value.strip() for value in self.config.ocr_languages.split("+") if value.strip()]
+        installed_languages, language_error = _installed_ocr_languages() if tesseract else ([], "")
+        requested = _requested_ocr_languages(self.config)
         missing_languages = [value for value in requested if value not in installed_languages]
-        ocr_available = bool(pdftoppm and tesseract and not missing_languages)
+        ocr_available = bool(pdfinfo and pdftoppm and tesseract and not missing_languages)
         native_available = bool(pdftotext)
         return {
             "ok": native_available or (self.config.ocr_enabled and ocr_available),
+            "extractor_version": INVOICE_EXTRACTOR_VERSION,
+            "ruleset_version": INVOICE_RULESET_VERSION,
             "native_text": {"binary": pdftotext, "available": native_available},
             "ocr": {
                 "enabled": self.config.ocr_enabled,
+                "pdfinfo": pdfinfo,
                 "pdftoppm": pdftoppm,
                 "tesseract": tesseract,
                 "available": ocr_available,
@@ -1437,36 +1717,91 @@ class InvoiceExtractor:
                 "language_error": language_error,
                 "max_pages": self.config.ocr_max_pages,
                 "dpi": self.config.ocr_dpi,
+                "timeout_seconds_total": self.config.ocr_timeout_seconds,
+                "max_pdf_bytes": self.config.max_pdf_bytes,
+                "max_rendered_bytes": self.config.ocr_max_rendered_bytes,
+                "max_output_chars": self.config.ocr_max_output_chars,
+                "page_selection": "first-pages-plus-last",
             },
         }
 
-    def extract(self, data: bytes, message: ParsedMessage, *, filename: str = "") -> InvoiceMetadata:
+    def extract(
+        self,
+        data: bytes,
+        message: ParsedMessage,
+        *,
+        filename: str = "",
+        scanner_identity: str = "",
+    ) -> InvoiceMetadata:
+        technical = ExtractionTechnicalMetadata(
+            native_engine="pdftotext" if shutil.which("pdftotext") else "",
+            ocr_languages=_requested_ocr_languages(self.config),
+            scanner_identity=(scanner_identity or "not-provided")[:300],
+            input_size_bytes=len(data),
+        )
         if not self.config.metadata_enabled:
             return InvoiceMetadata(
-                status="review", method="disabled", issues=["Metadatenextraktion ist deaktiviert"]
+                status="review",
+                method="disabled",
+                issues=["Metadatenextraktion ist deaktiviert"],
+                technical=technical,
+            )
+        if len(data) > self.config.max_pdf_bytes:
+            return InvoiceMetadata(
+                status="review",
+                method="blocked-size-budget",
+                issues=["PDF ueberschreitet das konfigurierte Extraktions-Groessenbudget"],
+                review_reasons=["ocr:pdf-size-budget"],
+                technical=technical,
             )
         with tempfile.TemporaryDirectory(prefix="invoice-extract-") as temp:
             pdf_path = Path(temp) / "invoice.pdf"
             pdf_path.write_bytes(data)
+            native_started = time.monotonic()
             native_text, native_error = extract_native_text(
                 pdf_path, timeout=self.config.text_timeout_seconds
             )
+            technical.native_duration_ms = round((time.monotonic() - native_started) * 1000.0, 3)
             native = parse_invoice_text(native_text, message, method="text", document_name=filename)
+            native.technical = technical
             if native_error:
                 native.issues.append(native_error)
-            # OCR is intentionally only a fallback. Missing optional accounting
-            # fields must not cause a clean native text layer to be OCR'd again.
-            need_ocr = self.config.ocr_enabled and (
-                native.text_quality < self.config.min_text_quality or not native.date_confirmed
-            )
+            trigger_fields = required_ocr_fields(native)
+            technical.ocr_trigger_fields = trigger_fields
+            need_ocr = self.config.ocr_enabled and bool(trigger_fields)
             ocr: InvoiceMetadata | None = None
             if need_ocr:
-                ocr_text, ocr_error = extract_ocr_text(pdf_path, config=self.config)
+                technical.ocr_attempted = True
+                raw_ocr = extract_ocr_text(pdf_path, config=self.config)
+                if isinstance(raw_ocr, OCRTextResult):
+                    ocr_result = raw_ocr
+                else:
+                    # Test doubles and older local integrations may still return
+                    # the historical two-value tuple.
+                    ocr_text_compat, ocr_error_compat = raw_ocr
+                    ocr_result = OCRTextResult(
+                        text=ocr_text_compat,
+                        error=ocr_error_compat,
+                        engine="tesseract",
+                        languages=_requested_ocr_languages(self.config),
+                    )
+                technical.ocr_engine = ocr_result.engine
+                technical.ocr_duration_ms = ocr_result.duration_ms
+                technical.pdf_page_count = ocr_result.page_count
+                technical.ocr_pages = list(ocr_result.pages)
+                technical.ocr_rendered_bytes = ocr_result.rendered_bytes
+                ocr_text, ocr_error = ocr_result.text, ocr_result.error
                 if ocr_text:
                     ocr = parse_invoice_text(ocr_text, message, method="ocr", document_name=filename)
                 elif ocr_error:
                     native.issues.append(ocr_error)
-            selected = _choose(native, ocr)
+                    native.review_reasons.append("ocr:fallback-failed")
+            elif trigger_fields:
+                native.issues.append(
+                    "OCR-Fallback ist deaktiviert; unbrauchbare Pflichtfelder bleiben ungefuellt"
+                )
+                native.review_reasons.append("ocr:fallback-disabled")
+            selected = _choose(native, ocr, requested_fields=trigger_fields)
             if not selected.date_confirmed or selected.confidence < self.config.metadata_min_confidence:
                 selected.status = "review"
             return selected

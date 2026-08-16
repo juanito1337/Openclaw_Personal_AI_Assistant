@@ -1001,6 +1001,7 @@ def _handle_invoices(args: argparse.Namespace, config: Config) -> int:
                                 or Path(remote_path).name
                                 or "invoice.pdf"
                             ),
+                            scanner_identity=str(getattr(scan, "scanner_identity", "") or ""),
                         )
                         target_year = int(metadata.invoice_date.value[:4]) if metadata.invoice_date.value else year
                         processed.append({
