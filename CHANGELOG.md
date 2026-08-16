@@ -56,11 +56,31 @@
   Extraktorversion und stabilen Neuvorschlag. SQLite wird read-only geoeffnet;
   Nextcloud-PDFs werden nur gelesen, ClamAV verwendet einen temporaeren Cache und
   Register sowie Audit werden nicht geoeffnet. M10.5 besitzt keinen Apply-Pfad.
+- M10.6 fuehrt die registrierte Einzeluebernahme fuer exakt einen PDF-Hash und
+  den unveraenderten Preview-Digest ein. `--yes` ist an den ausdruecklichen
+  Approval-Vertrag `explicit-user-single-invoice-reprocess` gebunden; eine Bulk-
+  oder freie Auswahl existiert nicht.
+- Vor dem lokalen Commit werden Original-PDF, Datensatzfingerprint, Status,
+  manueller Schutz, Extraktorversion, Vorschlagsdigest, Verbesserung und
+  Betragsarithmetik erneut fail-closed geprueft. Das PDF und sein Archivpfad
+  bleiben read-only und unveraendert.
+- Eine additive, wiederholbare Schema-4-Migration speichert genau eine lokale
+  Aenderung zusammen mit einem inhaltsfreien Extraktionsaudit. Dieses enthaelt
+  nur Fingerprints, Version, Approval, Status, Jahre, Claim, Versuch und Ergebnis,
+  aber keine PDF-/OCR-Texte, Mailinhalte, Pfade oder Zugangsdaten.
+- Betroffene alte und neue Jahresregister werden ausschliesslich ueber den
+  bestehenden ETag-/SHA-/Schemavertrag abgeglichen. Remote-Konflikte und Ausfaelle
+  bleiben als lokaler Teilerfolg sichtbar und koennen mit demselben unveraenderten
+  Hash/Digest idempotent wiederaufgenommen werden; ein Claim begrenzt Konkurrenz.
 - 659 pytest-Items, davon mindestens 595 unittest-kompatibel, sichern M10.4 mit
   63,45 Prozent Branch-einbezogener Gesamt-Coverage ab.
 - 671 pytest-Items, davon 607 unittest-kompatibel und weiterhin 13 freie
   Rechnungs-pytest-Tests, sichern M10.5 mit 63,70 Prozent branch-einbezogener
   Gesamt-Coverage ab.
+- 680 pytest-Items, davon 616 unittest-kompatibel und weiterhin 13 freie
+  Rechnungs-pytest-Tests, sichern M10.6 mit 63,85 Prozent branch-einbezogener
+  Gesamt-Coverage ab. Alle Apply-, Konflikt- und Migrationstests sind hermetisch;
+  es wurde kein produktiver Apply ausgefuehrt.
 
 ## Unreleased – M9 Mail-Qualitaet und Review-Triage
 

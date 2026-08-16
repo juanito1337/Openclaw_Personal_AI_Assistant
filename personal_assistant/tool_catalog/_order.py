@@ -145,6 +145,7 @@ TOOL_ORDER: tuple[str, ...] = (
     "assistant.invoices.backfill-preview",
     "assistant.invoices.backfill",
     "assistant.invoices.reprocess-preview",
+    "assistant.invoices.reprocess-apply",
     "assistant.invoices.correct",
     "mail.calendar-command",
 )

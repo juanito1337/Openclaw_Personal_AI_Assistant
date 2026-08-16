@@ -1,6 +1,6 @@
 # Build- und CI-Nachweise
 
-Stand: M10.5, 2026-08-16. Der detaillierte Sicherheitsvertrag steht unter
+Stand: M10.6, 2026-08-16. Der detaillierte Sicherheitsvertrag steht unter
 [`architecture/IMAGE_SUPPLY_CHAIN.md`](architecture/IMAGE_SUPPLY_CHAIN.md).
 
 ## Gemeinsame Qualitaetspruefung
@@ -48,6 +48,14 @@ freie Rechnungs-pytest-Tests. Der neue Reprocessing-Test verwendet nur
 temporaere SQLite-/PDF-Fixtures, simulierte Lesezugriffe und einen inhaltsfreien
 Scannerbeleg. Er prueft keinen produktiven Nextcloud-Server und fuehrt keinen
 Apply aus.
+M10.6 hebt den Vertrag auf 680 pytest-Items, darunter mindestens 616
+unittest-kompatible Tests und weiterhin 13 freie Rechnungs-pytest-Tests. Die
+Einzeluebernahme-Regressionen verwenden nur temporaere Schema-3/4-SQLite-Dateien,
+erfundene PDF-Bytes und simulierte erfolgreiche, konfligierende oder ausfallende
+Registerantworten. Parallelitaet, Idempotenz und Wiederaufnahme werden ohne
+Produktivdaten, `/srv/openclaw`, Nextcloud-Zugang oder laufenden Stack geprueft.
+CI fuehrt denselben Befehl und denselben generierten Toolvertrag aus; M10.6 fuegt
+keinen produktiven Deployment- oder Containerstart hinzu.
 
 Die Workflows besitzen global `permissions: {}`. Der Testjob darf nur Inhalte
 lesen. Der Releasejob erhaelt nur `contents: read`, `packages: write` und

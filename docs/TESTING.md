@@ -1,6 +1,6 @@
 # Tests, Qualitaetsbaseline und Container-Runtime
 
-Stand: 2026-08-16, fortgeschrieben bis M10.5. Sie startet keine produktiven Dienste und
+Stand: 2026-08-16, fortgeschrieben bis M10.6. Sie startet keine produktiven Dienste und
 verwendet weder `/srv/openclaw` noch produktive Zugangsdaten.
 
 ## Einheitlicher lokaler und CI-Prueflauf
@@ -44,14 +44,14 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 671 Tests, darunter mindestens 607 unittest-kompatible Tests
-(die bisherigen 349 sowie M0-M10.5-Regressionstests),
+fordert mindestens 680 Tests, darunter mindestens 616 unittest-kompatible Tests
+(die bisherigen 349 sowie M0-M10.6-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
 nach dem Sammeln mit einem Fehler ab. Neue Tests duerfen die Zahl erhoehen; die
 Baseline wird erst nach einem vollstaendigen gruenen Lauf bewusst angehoben.
 
-## M0-Ausgangswerte und aktueller M10.5-Teststand
+## M0-Ausgangswerte und aktueller M10.6-Teststand
 
 Gemessen auf Linux x86_64 mit Python 3.12.3. Die Werte sind Beobachtungen und noch
 keine willkuerlichen Mindestquoten. `scripts/quality-baseline.py` erzeugt sie nach
@@ -80,6 +80,7 @@ der aktuellen Python-Dateien.
 | Tests nach M10.3 gesammelt/ausgefuehrt | 648 / 648 (704 JUnit-Faelle inklusive 56 Subtests) |
 | Tests nach M10.4 gesammelt/ausgefuehrt | 659 / 659 (715 JUnit-Faelle inklusive 56 Subtests) |
 | Tests nach M10.5 gesammelt/ausgefuehrt | 671 / 671 (735 JUnit-Faelle inklusive 64 Subtests) |
+| Tests nach M10.6 gesammelt/ausgefuehrt | 680 / 680 (748 JUnit-Faelle inklusive 68 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -97,6 +98,7 @@ der aktuellen Python-Dateien.
 | neue M10.3-Betrags-/Plausibilitaets-Regressionsitems | 11 |
 | neue M10.4-OCR-/Fusions-Regressionsitems | 11 |
 | neue M10.5-Reprocessing-Vorschau-Regressionsitems | 12 |
+| neue M10.6-Einzeluebernahme-Regressionsitems | 9 |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |
 | Gesamt-Coverage inklusive Branches (M8) | 59,18 % |
@@ -116,12 +118,15 @@ der aktuellen Python-Dateien.
 | Gesamt-Coverage inklusive Branches nach M10.4 | 63,45 % |
 | Gesamt-Coverage inklusive Branches nach M10.5 | 63,70 % |
 | reine Branch-Coverage nach M10.5 | 49,35 % |
+| Gesamt-Coverage inklusive Branches nach M10.6 | 63,85 % |
+| reine Branch-Coverage nach M10.6 | 49,59 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
 | Laufzeit des finalen lokalen M10.0-Testlaufs | 107,45 s |
 | Laufzeit des finalen lokalen M10.1-Testlaufs | 110,01 s |
 | Laufzeit des finalen lokalen M10.5-Testlaufs | 70,72 s |
+| Laufzeit des finalen lokalen M10.6-Testlaufs | 118,09 s |
 | Laufzeit in der frischen M7-Wheel-Testumgebung | 55,56 s |
 | Wheelgroesse nach der Plugin-/Gatewaykorrektur | 397.870 Bytes |
 | M7-Wheel-Buildzeit | 4,582 s |
@@ -262,6 +267,32 @@ Apply-Pfad bereit. Ein manueller Lauf gegen eine konfigurierte Instanz ist nur
 read-only, liest aber die ausgewaehlten Nextcloud-PDFs und fuehrt den lokalen
 ClamAV- und gegebenenfalls OCR-Prozess aus.
 
+## M10.6-Auditierbare Einzeluebernahme
+
+M10.6 prueft den schreibenden Vertrag ausschliesslich mit temporaerer SQLite,
+erfundenen PDF-Bytes und simulierten Registerantworten:
+
+```bash
+.venv/bin/python -m pytest -q tests/test_invoice_reprocess_apply_m106.py
+```
+
+Die neun Tests decken fehlendes `--yes`, falschen Beleg-Hash, falschen Preview-
+Digest, PDF-/Datensatz-/Statusdrift, manuell geschuetzte Werte, nicht verbesserte
+Vorschlaege und unplausible Arithmetik ohne Schreibwirkung ab. Der positive Fall
+weist genau eine geaenderte Invoice-Zeile, eine inhaltsfreie Auditzeile und den
+ETag-/SHA-/Schemavertrag fuer altes und neues Registerjahr nach. Die Migration
+von Schema 3 auf 4 wird zweimal ausgefuehrt und mit erhaltener Invoice-Zeile sowie
+`PRAGMA quick_check` geprueft.
+
+Ein kontrollierter Paralleltest laesst zwei Aufrufer denselben Hash/Digest
+gleichzeitig extrahieren: genau einer fuehrt den lokalen Apply und Registerclaim
+aus, der zweite sieht die laufende Operation. Weitere Tests simulieren einen
+Remote-Konflikt nach lokalem Commit, pruefen den sichtbaren Fehler und setzen
+denselben Auditvorgang anschliessend idempotent fort. Ein abgeschlossener
+Wiederholungsaufruf validiert die Register erneut. Synthetische PDF-Evidenz und
+Archivpfad duerfen in keiner Auditspalte erscheinen; PDF-Bytes und Pfad bleiben
+unveraendert. Es wurde kein produktiver Apply ausgefuehrt.
+
 Kritische Sicherheitsmodule im aktuellen M8-Lauf:
 
 | Modul | Coverage |
@@ -293,7 +324,7 @@ einem eigenen Modul. Die 124 bei M5 charakterisierten Werkzeuge, zwei spaeter
 registrierte read-only Mappingvorschlaege und zehn Research-/Philosophiewerkzeuge
 ergaben zunaechst 136 Toolprojektionen in
 `tests/golden/m5-tool-contract.json`; einschliesslich der spaeteren M9-/M10-
-Werkzeuge sind es aktuell 145 Toolprojektionen. Die stabile Top-Level-Hilfe steht in
+Werkzeuge sind es aktuell 146 Toolprojektionen. Die stabile Top-Level-Hilfe steht in
 `tests/golden/m5-cli-help.txt`. Aktuelle Modul- und Funktionsgroessen werden
 weiterhin ausschliesslich durch `scripts/quality-baseline.py` gemessen.
 
@@ -529,7 +560,7 @@ Skilldrift wird ohne Textduplikation geprueft:
 .venv/bin/python -m pytest -q tests/test_m8_skill_contract.py
 ```
 
-Der Test gleicht alle 145 Tool-IDs, Commands, Modi, externe Wirkungen, Approvals,
+Der Test gleicht alle 146 Tool-IDs, Commands, Modi, externe Wirkungen, Approvals,
 Release und Testanker gegen die typisierte Registry ab, prueft die kurze
 Triggerbeschreibung und verlangt die domaenenspezifischen Referenzen sowie die
 Abwesenheit des entfernten Zweit-Agent-Skills.

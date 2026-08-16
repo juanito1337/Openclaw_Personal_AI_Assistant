@@ -43,6 +43,15 @@ def run_external(args: argparse.Namespace) -> int:
             str(max(1, args.limit)),
             "--dry-run",
         ]
+    elif args.invoices_command == "reprocess-apply":
+        command += [
+            "--hash",
+            args.attachment_hash,
+            "--expected-preview-sha256",
+            args.expected_preview_sha256,
+        ]
+        if args.yes:
+            command.append("--yes")
     elif args.invoices_command == "correct":
         command += [
             "--hash",

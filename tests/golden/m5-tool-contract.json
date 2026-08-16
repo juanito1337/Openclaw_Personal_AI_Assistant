@@ -1144,6 +1144,14 @@
     "writes_external_data": false
   },
   {
+    "approval": "explicit-user-single-invoice-reprocess",
+    "command": "./scripts/assistant.sh invoices reprocess-apply --hash \"<SHA256>\" --expected-preview-sha256 \"<Digest>\" --yes",
+    "description": "Genau einen unveraenderten, eindeutig verbesserten Reprocessing-Vorschlag nach explizitem Nutzerauftrag uebernehmen und betroffene verwaltete Jahresregister bedingt synchronisieren",
+    "id": "assistant.invoices.reprocess-apply",
+    "mode": "write",
+    "writes_external_data": true
+  },
+  {
     "approval": "explicit-user-correction-and-managed-register-replace",
     "command": "./scripts/assistant.sh invoices correct --hash <SHA256> --date <YYYY-MM-DD> --number \"<Nr>\" --supplier \"<Steller>\" --category \"<Kategorie>\" --gross \"<Betrag>\" --yes",
     "description": "Rechnungsmetadaten nach ausdruecklichem Nutzerauftrag in SQLite korrigieren und betroffene Nextcloud-Jahresregister bedingt ersetzen",

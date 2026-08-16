@@ -27,5 +27,6 @@ verweist mit Status `Superseded` auf den Nachfolger.
 | [0019](0019-typisierte-rechnungsbetraege-und-plausibilitaet.md) | Accepted | typisierte Rechnungsbetraege und fail-closed Plausibilitaet |
 | [0020](0020-begrenzte-lokale-ocr-feldfusion.md) | Accepted | begrenzte lokale Rechnungs-OCR und feldweise Konfliktbehandlung |
 | [0021](0021-read-only-reprocessing-vorschau.md) | Accepted | gebundene read-only Rechnungs-Reprocessing-Vorschau |
+| [0022](0022-auditierbare-reprocessing-einzeluebernahme.md) | Accepted | gebundene und auditierbare Reprocessing-Einzeluebernahme |
 
 Neue ADRs beginnen mit der [Vorlage](0000-template.md).

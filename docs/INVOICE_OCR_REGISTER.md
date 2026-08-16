@@ -288,8 +288,51 @@ Nextcloud-Zugriff verwendet nur das konfigurierte `read`-Recht und einen direkte
 GET innerhalb des Rechnungsroots; ActionPlan-, Audit- und Registerdienste werden
 nicht geoeffnet. ClamAV bleibt fail-closed, verwendet fuer die Vorschau aber nur
 einen nach dem Lauf entfernten temporaeren Cache. Original-PDF, Archivpfad,
-Register-ETag, SQLite und Audit bleiben unveraendert. M10.5 bietet absichtlich
-keinen Apply-Befehl.
+Register-ETag, SQLite und Audit bleiben unveraendert.
+
+## Explizite Einzeluebernahme (M10.6)
+
+Nur ein zuvor angezeigter, weiterhin unveraenderter Vorschlag darf uebernommen
+werden. Die Freigabe gilt gleichzeitig fuer genau einen PDF-Hash und genau einen
+`preview_sha256`; es gibt bewusst weder Limit noch Bulk-Option:
+
+```bash
+./scripts/assistant.sh invoices reprocess-apply \
+  --hash "<SHA256>" \
+  --expected-preview-sha256 "<Digest>" \
+  --yes
+```
+
+`--yes` ist die Approval-Grenze
+`explicit-user-single-invoice-reprocess` und darf nur nach einem ausdruecklichen
+Nutzerauftrag gesetzt werden. Vor der ersten SQLite-Aenderung liest der Befehl
+das archivierte PDF erneut read-only, prueft seinen SHA-256, fuehrt ClamAV
+fail-closed aus, extrahiert mit der aktuellen Version und berechnet dieselbe
+Vorschau erneut. Hash-, Datensatz-, Status-, Extraktor- oder Vorschlagsdrift
+bricht ohne Aenderung ab. Dasselbe gilt fuer bestaetigte/manuell korrigierte
+Zeilen, `unchanged`, `regressed`, `still-review`, offene Konflikte und
+unplausible Betragsarithmetik.
+
+Der erfolgreiche lokale Schritt aendert genau eine `invoices`-Zeile und erzeugt
+in derselben SQLite-Transaktion genau einen inhaltsfreien
+`invoice_reprocess_audit`-Datensatz. Das Audit enthaelt nur Hashes,
+Extraktorversion, Approval, Status, betroffene Jahre, Versuchszahl und Ergebnis;
+keinen PDF-/OCR-Text, Mailinhalt, Pfad oder Zugangsdaten. Die additive Migration
+auf Schema 4 behaelt bestehende Rechnungs-, Register- und Korrekturdaten.
+
+Anschliessend rendert der bestehende Registerpfad jedes betroffene alte/neue Jahr
+aus dem aktuellen SQLite-Stand und schreibt ausschliesslich das feste verwaltete
+CSV ueber ETag, erwarteten SHA-256 und Schemavalidierung. Ein Konflikt oder
+Ausfall liefert `local-applied-register-failed` und `retry_safe=true`; er darf
+nicht als Gesamterfolg oder automatischer lokaler Rollback beschrieben werden.
+Eine Wiederholung mit demselben unveraenderten Hash/Digest setzt nur diesen
+Auditvorgang idempotent fort. `register-sync-in-progress` zeigt einen aktiven
+konkurrierenden Abgleich an.
+
+| Reprocessing-Befehl | SQLite | Original-PDF/Pfad | Register | Approval |
+| --- | --- | --- | --- | --- |
+| `invoices reprocess ... --dry-run` | strikt read-only | nur gelesen, nie ersetzt | nicht geoeffnet | keine |
+| `invoices reprocess-apply ... --yes` | exakt eine Zeile plus inhaltsfreies Audit | nur gelesen, nie bewegt/ersetzt | ETag-/SHA-/Schemageschuetzter Abgleich | expliziter Einzelauftrag |
 
 ## Abhaengigkeiten
 

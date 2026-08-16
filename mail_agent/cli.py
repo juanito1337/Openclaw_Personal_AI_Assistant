@@ -24,6 +24,7 @@ from .envfile import default_env_file, load_env_file
 from .invoice_extract import InvoiceExtractor, amount_to_cents
 from .invoice_register import InvoiceRegister
 from .invoice_reprocess import ReadOnlyInvoicePdfReader, run_reprocess_preview
+from .invoice_reprocess_apply import run_reprocess_apply, validate_apply_identifiers
 from .learning import LearningFolderRegistry
 from .learning_quality import LearningQualityAnalyzer
 from .lock import ProcessLock, ProcessLockError, inspect_process_lock
@@ -192,6 +193,17 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         help="Nur PDF lesen, scannen und Alt/Neu-Vorschlag ausgeben; nichts speichern",
     )
+    inv_reprocess_apply = inv_sub.add_parser(
+        "reprocess-apply",
+        help="Genau einen unveraenderten Reprocessing-Vorschlag explizit uebernehmen",
+    )
+    inv_reprocess_apply.add_argument("--hash", required=True, dest="attachment_hash")
+    inv_reprocess_apply.add_argument(
+        "--expected-preview-sha256",
+        required=True,
+        dest="expected_preview_sha256",
+    )
+    inv_reprocess_apply.add_argument("--yes", action="store_true")
     inv_correct = inv_sub.add_parser("correct", help="Unsichere Rechnungsmetadaten nach ausdruecklichem Auftrag korrigieren")
     inv_correct.add_argument("--hash", required=True, dest="attachment_hash")
     inv_correct.add_argument("--date", required=True, dest="invoice_date")
@@ -970,9 +982,82 @@ def _handle_invoice_reprocess(args: argparse.Namespace, config: Config) -> int:
     return 0 if payload.get("ok") else 1
 
 
+def _handle_invoice_reprocess_apply(args: argparse.Namespace, config: Config) -> int:
+    if not bool(getattr(args, "yes", False)):
+        raise PermissionError(
+            "Einzelne Reprocessing-Uebernahme benoetigt --yes nach ausdruecklichem Nutzerauftrag"
+        )
+    attachment_hash, expected_preview_sha256 = validate_apply_identifiers(
+        str(args.attachment_hash),
+        str(args.expected_preview_sha256),
+    )
+    tools = load_tool_settings()
+    invoice_tool = tools.mail.invoices
+    if not invoice_tool.enabled:
+        raise PermissionError("Zentrales Rechnungswerkzeug ist in tools.toml deaktiviert")
+    reader = ReadOnlyInvoicePdfReader()
+    extractor = InvoiceExtractor(config.invoices)
+    with tempfile.TemporaryDirectory(prefix="openclaw-invoice-apply-") as temporary:
+        temp_root = Path(temporary)
+        antivirus_settings = replace(
+            tools.security.antivirus,
+            temp_dir=temp_root / "scan",
+        )
+        antivirus = HostAntivirus(
+            antivirus_settings,
+            database=temp_root / "antivirus.sqlite3",
+        )
+
+        def read_pdf(remote_path: str) -> bytes:
+            data = reader.read(
+                remote_path,
+                allowed_folder=invoice_tool.folder,
+                resource_id=invoice_tool.resource_id,
+            )
+            if len(data) > config.invoices.max_pdf_bytes:
+                raise ValueError("PDF ueberschreitet die konfigurierte Maximalgroesse")
+            return data
+
+        def scan_pdf(data: bytes, name: str) -> str:
+            scan = antivirus.scan_bytes(
+                data,
+                name=name,
+                source_type="invoice-reprocess-apply",
+                use_cache=False,
+            )
+            if not scan.clean:
+                raise RuntimeError("antivirus-gate-blocked")
+            return scan.scanner_identity
+
+        def sync_register(storage: Storage, year: int) -> dict[str, object]:
+            register = InvoiceRegister(storage, config.invoices)
+            return _sync_invoice_register(
+                register,
+                year=year,
+                invoice_tool=invoice_tool,
+            )
+
+        try:
+            payload = run_reprocess_apply(
+                config.runtime.database,
+                attachment_hash=attachment_hash,
+                expected_preview_sha256=expected_preview_sha256,
+                extractor=extractor,
+                read_pdf=read_pdf,
+                scan_pdf=scan_pdf,
+                sync_register=sync_register,
+            )
+        finally:
+            antivirus.close()
+    print(json.dumps(payload, indent=2, ensure_ascii=False))
+    return 0 if payload.get("ok") else 1
+
+
 def _handle_invoices(args: argparse.Namespace, config: Config) -> int:
     if args.invoices_command == "reprocess":
         return _handle_invoice_reprocess(args, config)
+    if args.invoices_command == "reprocess-apply":
+        return _handle_invoice_reprocess_apply(args, config)
     storage = Storage(config.runtime.database)
     try:
         register = InvoiceRegister(storage, config.invoices)

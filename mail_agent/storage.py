@@ -19,7 +19,7 @@ from .utils import (
     subject_patterns,
 )
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 FINAL_STATUSES = {
@@ -192,6 +192,37 @@ class Storage:
                 updated_at TEXT NOT NULL
             );
             CREATE INDEX IF NOT EXISTS idx_invoices_stable_key ON invoices(stable_key);
+
+            CREATE TABLE IF NOT EXISTS invoice_reprocess_audit (
+                operation_id TEXT PRIMARY KEY,
+                invoice_id INTEGER NOT NULL,
+                attachment_hash TEXT NOT NULL,
+                preview_sha256 TEXT NOT NULL,
+                old_state_sha256 TEXT NOT NULL,
+                new_state_sha256 TEXT NOT NULL,
+                proposal_sha256 TEXT NOT NULL,
+                extractor_version TEXT NOT NULL,
+                approval_label TEXT NOT NULL,
+                source_status TEXT NOT NULL,
+                proposed_status TEXT NOT NULL,
+                old_register_year INTEGER,
+                new_register_year INTEGER NOT NULL,
+                register_years_json TEXT NOT NULL,
+                completed_years_json TEXT NOT NULL,
+                result_status TEXT NOT NULL,
+                attempt_count INTEGER NOT NULL DEFAULT 0,
+                error_code TEXT,
+                claim_token TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                completed_at TEXT,
+                FOREIGN KEY(invoice_id) REFERENCES invoices(id),
+                UNIQUE(attachment_hash, preview_sha256)
+            );
+            CREATE INDEX IF NOT EXISTS idx_invoice_reprocess_audit_invoice
+                ON invoice_reprocess_audit(invoice_id, created_at);
+            CREATE INDEX IF NOT EXISTS idx_invoice_reprocess_audit_status
+                ON invoice_reprocess_audit(result_status, updated_at);
 
             CREATE TABLE IF NOT EXISTS calendar_approvals (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

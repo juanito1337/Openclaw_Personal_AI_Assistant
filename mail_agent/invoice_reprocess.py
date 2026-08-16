@@ -190,7 +190,7 @@ def read_reprocess_candidates(
         connection.close()
 
 
-def _message(item: Mapping[str, object]) -> ParsedMessage:
+def message_from_record(item: Mapping[str, object]) -> ParsedMessage:
     received = str(
         item.get("message_received_at")
         or item.get("received_date")
@@ -420,6 +420,17 @@ def compute_preview_digest(
     return hashlib.sha256(encoded).hexdigest()
 
 
+def compute_record_sha256(current_record: Mapping[str, object]) -> str:
+    """Fingerprint one exact joined invoice row without persisting its contents."""
+    encoded = json.dumps(
+        _canonical(current_record),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
 def _digest_proposal(
     *,
     metadata: InvoiceMetadata,
@@ -445,6 +456,36 @@ def _digest_proposal(
         },
         "conflicts": conflicts,
     }
+
+
+def metadata_proposal(
+    item: Mapping[str, object], metadata: InvoiceMetadata
+) -> dict[str, object]:
+    """Return the stable, content-bounded proposal used by preview and apply."""
+    fields, _, _ = _field_projection(item, metadata)
+    values = {
+        name: str(fields[name]["new"]["value"])  # type: ignore[index]
+        for name in _FIELD_NAMES
+    }
+    return _digest_proposal(
+        metadata=metadata,
+        values=values,
+        fields=fields,
+        conflicts=_typed_conflicts(metadata.review_reasons),
+        recognized_year=_year_prefix(metadata.invoice_date.value),
+    )
+
+
+def compute_metadata_proposal_sha256(
+    item: Mapping[str, object], metadata: InvoiceMetadata
+) -> str:
+    encoded = json.dumps(
+        _canonical(metadata_proposal(item, metadata)),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def build_preview_record(
@@ -482,13 +523,7 @@ def build_preview_record(
         conflicts=new_conflicts,
     )
     recognized_year = _year_prefix(metadata.invoice_date.value)
-    proposal = _digest_proposal(
-        metadata=metadata,
-        values=new_values,
-        fields=fields,
-        conflicts=new_conflicts,
-        recognized_year=recognized_year,
-    )
+    proposal = metadata_proposal(item, metadata)
     digest = compute_preview_digest(
         pdf_sha256=pdf_sha256,
         current_record=item,
@@ -552,7 +587,7 @@ def run_reprocess_preview(
             scanner_identity = scan_pdf(data, str(item.get("original_filename") or "invoice.pdf"))
             metadata = extractor.extract(
                 data,
-                _message(item),
+                message_from_record(item),
                 filename=str(item.get("original_filename") or Path(remote_path).name or "invoice.pdf"),
                 scanner_identity=scanner_identity,
             )

@@ -112,6 +112,18 @@ TOOLS: tuple[ToolDefinition, ...] = (
         test_anchor="tests/test_invoice_reprocess_preview_m105.py",
     ),
     define(
+        id="assistant.invoices.reprocess-apply",
+        domain="invoices",
+        description="Genau einen unveraenderten, eindeutig verbesserten Reprocessing-Vorschlag nach explizitem Nutzerauftrag uebernehmen und betroffene verwaltete Jahresregister bedingt synchronisieren",
+        command='./scripts/assistant.sh invoices reprocess-apply --hash "<SHA256>" --expected-preview-sha256 "<Digest>" --yes',
+        mode="write",
+        writes_external_data=True,
+        approval="explicit-user-single-invoice-reprocess",
+        availability="invoices",
+        documentation_anchor="docs/INVOICE_OCR_REGISTER.md",
+        test_anchor="tests/test_invoice_reprocess_apply_m106.py",
+    ),
+    define(
         id="assistant.invoices.correct",
         domain="invoices",
         description="Rechnungsmetadaten nach ausdruecklichem Nutzerauftrag in SQLite korrigieren und betroffene Nextcloud-Jahresregister bedingt ersetzen",

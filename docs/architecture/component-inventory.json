@@ -2,7 +2,7 @@
   "schema_version": 1,
   "inventory_date": "2026-08-06",
   "source_scope": "all Python modules, shell entrypoints, skills, systemd units, migrations and Markdown documents",
-  "component_count": 376,
+  "component_count": 379,
   "classification_values": [
     "active",
     "compatibility",
@@ -87,7 +87,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-16T13:41:27+02:00",
+      "last_git_change": "2026-08-16T16:36:16+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -924,7 +924,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-16T12:31:21+02:00",
+      "last_git_change": "2026-08-16T16:36:16+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -990,7 +990,7 @@
         "docs/architecture/adr/0009-typisierte-domaenen-toolvertraege.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-15T13:59:41+02:00",
+      "last_git_change": "2026-08-16T16:36:16+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1168,7 +1168,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-16T13:41:27+02:00",
+      "last_git_change": "2026-08-16T16:36:16+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1190,7 +1190,7 @@
         "docs/TESTING.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-16T13:41:27+02:00",
+      "last_git_change": "2026-08-16T16:36:16+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1211,7 +1211,7 @@
         "docs/ROADMAP.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-16T13:41:27+02:00",
+      "last_git_change": "2026-08-16T16:36:16+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1567,7 +1567,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-16T12:31:21+02:00",
+      "last_git_change": "2026-08-16T16:36:16+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -2228,6 +2228,27 @@
         "docs/architecture/owners.json"
       ],
       "line_coverage_percent": null,
+      "last_git_change": "2026-08-16T16:36:16+02:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "docs/architecture/adr/0022-auditierbare-reprocessing-einzeluebernahme.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Architecture Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/architecture/adr/README.md",
+        "docs/architecture/owners.json"
+      ],
+      "line_coverage_percent": null,
       "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
@@ -2268,7 +2289,7 @@
         "docs/archive/README.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-16T13:41:27+02:00",
+      "last_git_change": "2026-08-16T16:36:16+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -3166,6 +3187,7 @@
         "tests/test_help_nextcloud_training.py",
         "tests/test_invoice_effect_contract_m101.py",
         "tests/test_invoice_quality_m10.py",
+        "tests/test_invoice_reprocess_apply_m106.py",
         "tests/test_invoice_reprocess_preview_m105.py",
         "tests/test_job_control.py",
         "tests/test_learning_patterns.py",
@@ -3179,8 +3201,8 @@
         "docs/architecture/README.md",
         "docs/archive/AUDIT_INITIAL_IMPORT.md"
       ],
-      "line_coverage_percent": 38.15,
-      "last_git_change": "2026-08-16T13:41:27+02:00",
+      "line_coverage_percent": 37.7,
+      "last_git_change": "2026-08-16T16:36:16+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -3369,6 +3391,7 @@
         "tests/test_invoice_number_date_m102.py",
         "tests/test_invoice_ocr_m104.py",
         "tests/test_invoice_ocr_register.py",
+        "tests/test_invoice_reprocess_apply_m106.py",
         "tests/test_invoice_reprocess_preview_m105.py",
         "tests/test_invoices_calendar_approval.py"
       ],
@@ -3413,12 +3436,35 @@
       "classification": "active",
       "productive_callers": [],
       "test_evidence": [
+        "tests/test_invoice_reprocess_apply_m106.py",
         "tests/test_invoice_reprocess_preview_m105.py"
       ],
       "documentation_evidence": [
         "docs/INVOICE_QUALITY_BASELINE_M10.md"
       ],
-      "line_coverage_percent": 75.07,
+      "line_coverage_percent": 76.78,
+      "last_git_change": "2026-08-16T16:36:16+02:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "mail_agent/invoice_reprocess_apply.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Mail Domain Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [
+        "tests/test_invoice_reprocess_apply_m106.py"
+      ],
+      "documentation_evidence": [
+        "docs/INVOICE_QUALITY_BASELINE_M10.md"
+      ],
+      "line_coverage_percent": 75.58,
       "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
@@ -3820,6 +3866,7 @@
         "tests/test_invoice_effect_contract_m101.py",
         "tests/test_invoice_ocr_register.py",
         "tests/test_invoice_quality_m10.py",
+        "tests/test_invoice_reprocess_apply_m106.py",
         "tests/test_invoice_reprocess_preview_m105.py",
         "tests/test_invoices_calendar_approval.py",
         "tests/test_learning_patterns.py",
@@ -4138,6 +4185,7 @@
         "tests/test_caldav_update_tools.py",
         "tests/test_carddav_contact_tools.py",
         "tests/test_carddav_contact_update.py",
+        "tests/test_invoice_reprocess_apply_m106.py",
         "tests/test_invoice_reprocess_preview_m105.py",
         "tests/test_learning_patterns.py",
         "tests/test_mail_review_m9.py",
@@ -4262,11 +4310,12 @@
       "test_evidence": [
         "tests/mypy-baseline.json",
         "tests/ruff-baseline.json",
+        "tests/test_invoice_reprocess_apply_m106.py",
         "tests/test_invoice_reprocess_preview_m105.py"
       ],
       "documentation_evidence": [],
-      "line_coverage_percent": 27.59,
-      "last_git_change": "2026-08-15T13:59:41+02:00",
+      "line_coverage_percent": 32.63,
+      "last_git_change": "2026-08-16T16:36:16+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -4470,7 +4519,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": 100.0,
-      "last_git_change": "2026-08-15T13:59:41+02:00",
+      "last_git_change": "2026-08-16T16:36:16+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -5924,7 +5973,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": 100.0,
-      "last_git_change": "2026-08-14T14:43:28+02:00",
+      "last_git_change": "2026-08-16T16:36:16+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -5991,7 +6040,7 @@
       ],
       "documentation_evidence": [],
       "line_coverage_percent": 100.0,
-      "last_git_change": "2026-08-15T13:59:41+02:00",
+      "last_git_change": "2026-08-16T16:36:16+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -6166,6 +6215,7 @@
         "tests/test_direct_tasks_tool.py",
         "tests/test_invoice_effect_contract_m101.py",
         "tests/test_invoice_ocr_register.py",
+        "tests/test_invoice_reprocess_apply_m106.py",
         "tests/test_invoice_reprocess_preview_m105.py",
         "tests/test_job_control.py",
         "tests/test_learning_patterns.py",
@@ -7506,7 +7556,7 @@
         "skills/personal-assistant/references/commands.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-16T13:41:27+02:00",
+      "last_git_change": "2026-08-16T16:36:16+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -7562,7 +7612,7 @@
         "skills/personal-assistant/references/runtime-security.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-15T13:59:41+02:00",
+      "last_git_change": "2026-08-16T16:36:16+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -8291,7 +8341,7 @@
       "rollback_relevance": "none"
     },
     {
-      "path": "tests/test_invoice_reprocess_preview_m105.py",
+      "path": "tests/test_invoice_reprocess_apply_m106.py",
       "types": [
         "python-module"
       ],
@@ -8308,6 +8358,30 @@
       ],
       "line_coverage_percent": null,
       "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "tests/test_invoice_reprocess_preview_m105.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "personal_assistant/tool_catalog/invoices.py"
+      ],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/COMMAND_REFERENCE.md",
+        "docs/TESTING.md",
+        "skills/personal-assistant/references/tool-contract.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": "2026-08-16T16:36:16+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -8419,7 +8493,7 @@
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-14T14:43:28+02:00",
+      "last_git_change": "2026-08-16T16:36:16+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"

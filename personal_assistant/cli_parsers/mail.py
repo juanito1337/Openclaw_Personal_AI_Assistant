@@ -70,6 +70,17 @@ def add_commands(sub: Any) -> None:
         required=True,
         help="Nur PDF lesen, scannen und Alt/Neu-Vorschlag ausgeben; nichts speichern",
     )
+    invoices_reprocess_apply = invoices_sub.add_parser(
+        "reprocess-apply",
+        help="Genau einen unveraenderten Reprocessing-Vorschlag explizit uebernehmen",
+    )
+    invoices_reprocess_apply.add_argument("--hash", required=True, dest="attachment_hash")
+    invoices_reprocess_apply.add_argument(
+        "--expected-preview-sha256",
+        required=True,
+        dest="expected_preview_sha256",
+    )
+    invoices_reprocess_apply.add_argument("--yes", action="store_true")
     invoices_correct = invoices_sub.add_parser(
         "correct", help="Rechnungsmetadaten nach Nutzerauftrag korrigieren"
     )

@@ -402,7 +402,7 @@ stoppe nach M10.4.
 Umsetzungsstand: abgeschlossen auf dem Entwicklungszweig
 `development/invoice-quality-reprocessing-m10`. Die Abnahme verwendet nur
 synthetische PDFs und temporaere SQLite-/Zustands-Fixtures. Es wurde kein
-produktiver Reprocess oder Apply ausgefuehrt; M10.6 wurde nicht begonnen.
+produktiver Reprocess oder Apply ausgefuehrt.
 
 ### Scope
 
@@ -460,6 +460,12 @@ keinen Apply aus und stoppe nach M10.5.
 ```
 
 ## M10.6 – Auditierbare, explizite Einzeluebernahme
+
+Umsetzungsstand: abgeschlossen auf dem Entwicklungszweig
+`development/invoice-quality-reprocessing-m10`. Migration, Apply, Konflikt- und
+Wiederaufnahmevertrag wurden ausschliesslich mit temporaerer SQLite, erfundenen
+PDF-Bytes und simulierten Registerantworten abgenommen. Es wurde kein produktiver
+Apply ausgefuehrt; M10.7 wurde nicht begonnen.
 
 ### Scope
 

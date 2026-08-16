@@ -287,3 +287,24 @@ SQLite- und PDF-Zustaende, unveraenderten synthetischen Register-ETag und keinen
 erzeugten Auditpfad. Digestdrift wird getrennt fuer PDF-SHA-256, Altzustand,
 Extraktorversion und Neuvorschlag geprueft. In Git befinden sich keine
 produktiven Einzelwerte, Pfade, Hashes, PDFs oder Nextcloud-Antworten.
+
+## M10.6 – Auditierbare Einzeluebernahme
+
+M10.6 veraendert die synthetischen Extraktionskorpora und deren M10.0- bis
+M10.4-Feldmetriken nicht. Die gemeinsame Suite sammelt 680 pytest-Items und
+meldet 748 JUnit-Faelle einschliesslich Subtests; 616 Items sind
+unittest-kompatibel und die 13 zuvor ausgelassenen freien Rechnungs-pytest-Tests
+bleiben enthalten. Die branch-einbezogene Gesamt-Coverage betraegt 63,85 Prozent,
+die reine Branch-Coverage 49,59 Prozent. Das neue Modul
+`mail_agent/invoice_reprocess_apply.py` erreicht 75,58 Prozent; der bestehende
+Extraktor bleibt bei 84,27 Prozent und die Vorschau erreicht 76,78 Prozent.
+
+Die neun M10.6-Items erzeugen genau eine temporaere Rechnungszeile, eine
+Schema-3/4-Migrationsfixture und erfundene PDF-Bytes. Gemessen werden nur
+Operationsergebnis, Zeilen-/Auditanzahl, Fingerprints, fachliche Status,
+Registerjahre und Versuchszahl. PDF-/OCR-Text, Mailinhalt, Zugangsdaten,
+produktive Pfade und Remote-Antwortinhalte werden weder in die Fixture-Ausgabe
+noch in das Audit uebernommen. Ein simuliertes altes/neues Jahresregister, ETag-
+Konflikt, Remote-Ausfall, Wiederaufnahme und konkurrierender Apply benoetigen
+weder `/srv/openclaw` noch Netzwerk oder Container. Es wurde kein produktiver
+Reprocess oder Apply ausgefuehrt.
