@@ -564,6 +564,17 @@ docker compose --env-file .env --profile tools run --rm agent-cli \
 Der zweite Befehl veraendert die lokale Toolkonfiguration und darf deshalb erst
 nach bewusster Auswahl der im ersten Befehl ausgegebenen Ressource laufen.
 
+### M10-Rechnungs-Canary
+
+Eine gruene M10-Entwicklungs- oder Imageabnahme autorisiert weder Reprocessing
+noch Registerersatz. Der separate
+[`M10-Rolloutvertrag`](INVOICE_M10_ROLLOUT.md) verlangt fuer einen spaeteren
+Auftrag dasselbe signierte Rollenset, einen belegten Single-Writer-Zustand, ein
+verifiziertes lokales Backup, einen verifizierten externen Nextcloud-Snapshot,
+eine read-only Status-/Audit-Baseline und genau eine angezeigte Vorschau. Erst
+eine danach erneut erteilte Einzelfreigabe darf den unveraenderten Hash/Digest
+anwenden. M10.8 fuehrt diesen produktiven Ablauf nicht aus.
+
 ### Erste M9-Mailordner-Aktivierung
 
 Eine vor M9 bestehende Mailkonfiguration besitzt noch kein `folders.relevant`.

@@ -71,6 +71,8 @@ for path in files:
         errors.append(f"Fremd-Skill darf nicht vendort werden: {text}")
     if text != "requirements-dev.lock" and name.endswith((".pyc", ".sqlite", ".sqlite3", ".db", ".eml", ".msg", ".lock")):
         errors.append(f"Laufzeit-/Privatdatei: {text}")
+    if name.casefold().endswith(".pdf"):
+        errors.append(f"PDF darf nicht im Quellbestand liegen: {text}")
     if ".sqlite3-" in name or ".backup-" in name or name.endswith(".bak"):
         errors.append(f"Backup oder SQLite-Seitendatei: {text}")
     if name.endswith(".log") or ".log." in name:

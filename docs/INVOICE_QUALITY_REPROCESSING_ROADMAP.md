@@ -1,8 +1,9 @@
 # M10-Roadmap: Rechnungsqualitaet und sichere Neubewertung
 
-Stand: 2026-08-15
+Stand: 2026-08-17
 Empfohlener Arbeitsbranch: `development/invoice-quality-reprocessing-m10`
-Status: M10.0 bis M10.7 implementiert; kein Produktivlauf freigegeben
+Status: M10.0 bis M10.8 implementiert und lokal abgenommen; kein produktiver
+Rollout freigegeben oder ausgefuehrt
 
 ## Ziel
 
@@ -570,6 +571,13 @@ aktualisiere Betriebs-/Testdokumentation und stoppe nach M10.7.
 
 ## M10.8 – Gesamt-Abnahme und separater Rolloutvertrag
 
+Umsetzungsstand: abgeschlossen auf dem Entwicklungszweig
+`development/invoice-quality-reprocessing-m10`. Alle Abnahmen verwenden den
+Quellcheckout, synthetische Fixtures, frisch gebaute Artefakte und isolierte
+Container. Der separate Rolloutvertrag liegt unter
+[`INVOICE_M10_ROLLOUT.md`](INVOICE_M10_ROLLOUT.md); er wurde nicht produktiv
+ausgefuehrt.
+
 ### Scope
 
 - Einzelabnahmen M10.0 bis M10.7 wiederholen und Baselinevergleich erstellen.
@@ -622,7 +630,8 @@ produktiven Rollout.
 ## Produktiver Rollout nach M10
 
 Dieser Abschnitt ist nur ein Vertrag fuer einen spaeteren Auftrag, keine aktuelle
-Freigabe.
+Freigabe. Die vollstaendige ausfuehrbare Reihenfolge und ihre Abbruchbedingungen
+stehen im separaten [`M10-Rolloutvertrag`](INVOICE_M10_ROLLOUT.md).
 
 1. Signiertes Image und exakte OCI-Revision pruefen.
 2. Alle Writer stoppen und ein verifiziertes lokales Release-Backup erstellen.

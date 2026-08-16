@@ -295,6 +295,12 @@ produktiven Apply gelten weiterhin verifiziertes lokales Backup und fuer
 vollstaendige externe Ruecknahme ein verifizierter Nextcloud-Snapshot-Hook. Ein
 Image-Rollback allein stellt keine bereits ersetzte Registerdatei wieder her.
 
+Die gruene M10-Entwicklungsabnahme ist keine produktive Freigabe. Installation,
+read-only Baseline, genau eine Canary-Vorschau, ausdrueckliche Einzelfreigabe,
+Nachmessung und getrennte lokale/externe Recovery sind im
+[`M10-Rolloutvertrag`](INVOICE_M10_ROLLOUT.md) verbindlich geordnet. Dieser
+Rollout wurde in M10.8 nicht ausgefuehrt.
+
 ## Read-only Reprocessing-Vorschau (M10.5)
 
 Der neue Reprocessing-Pfad ist kein Alias fuer den Legacy-Backfill. Er waehlt

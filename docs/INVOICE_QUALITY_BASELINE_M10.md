@@ -349,3 +349,48 @@ einschliesslich 68 Subtests. Die branch-einbezogene Gesamt-Coverage betraegt
 `mail_agent/invoice_backlog_audit.py` erreicht 94,22 Prozent. Diese Werte stammen
 aus dem erfolgreichen vollstaendigen lokalen Testpfad nach der abschliessenden
 deterministischen Manifestregenerierung.
+
+## M10.8 – Gesamtvergleich und Abnahmegrenze
+
+M10.8 fuehrt alle drei versionierten Evaluationskorpora erneut mit demselben
+deterministischen Extraktor aus. Die Resultate stimmen byteinhaltlich mit ihren
+Baselines ueberein:
+
+| Korpus | Faelle | korrekte/erwartete Felder | Praezision | Abdeckung | False-confirmed |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| M10.0 aktueller Extraktorstand | 8 | 55 / 55 | 1,0000 | 1,0000 | 0 |
+| M10.2 Nummer/Datum | 12 | 57 / 57 | 1,0000 | 1,0000 | 0 |
+| M10.3 Betraege | 15 | 95 / 95 | 1,0000 | 1,0000 | 0 |
+
+Im Betragskorpus sind zwei absichtlich unplausible vollstaendige
+Brutto/Netto/Steuer-Tripel enthalten. Beide bleiben `review`; keines wird als
+`confirmed` akzeptiert. Prozentwerte, unbeschriftete Zahlen, Mailtext,
+Dateinamen und Modellprosa erzeugen weiterhin keinen Geldbetrag.
+
+Die gemeinsame M10.0- bis M10.7-Einzelabnahme umfasst 78 pytest-Items und 35
+Subtests. Die sechs zusaetzlichen M10.8-Items pruefen die unveraenderten
+Qualitaetsbaselines, Toolwirkungen/Approvals, PDF-Ausschluss in Git/Wheel/Image,
+den CI-Rollenpfad und den separaten Rolloutvertrag. Das bislang getrackte,
+vollstaendig synthetische PDF wird jetzt nur noch deterministisch in einem
+temporaeren Testverzeichnis erzeugt; es gelangt weder nach Git noch in ein
+Artefakt.
+
+Das Wheel aus dem bereinigten Quellsnapshot ist 471.110 Byte gross, wurde in
+3,488 Sekunden gebaut und bestand nach Installation in einer frischen Umgebung
+694 Tests plus 80 Subtests in 85,19 Sekunden. CLI-Hilfe, Paketimport,
+Release-Verifikation und der PDF-/Secret-/Laufzeitdaten-Scan waren gruen.
+
+Der erste vollstaendige lokale M10.8-Repositorycheck sammelte 694 pytest-Items
+und meldete 774 JUnit-Faelle einschliesslich 80 Subtests in 112,13 Sekunden. Die
+branch-einbezogene Gesamt-Coverage betraegt 64,09 Prozent, die reine
+Branch-Coverage 49,89 Prozent. Gegenueber M10.7 sind damit keine Tests verloren
+gegangen; die geringfuegige Coverage-Aenderung bleibt als gemessener Ausgangswert
+sichtbar und ist keine nachtraeglich gewaehlte Freigabegrenze.
+
+Die dynamischen Wheel-, Rollenimage-, Rootfs-, Compose-, Konflikt- und
+Recovery-Ergebnisse werden durch die Befehle unter
+[`TESTING.md`](TESTING.md) und [`BUILD_AND_CI.md`](BUILD_AND_CI.md) erzeugt. Sie
+verwenden keine produktiven PDFs, Hashes, Dateinamen, Register, Mailinhalte,
+Zugangsdaten oder `/srv/openclaw`. Der
+[`M10-Rolloutvertrag`](INVOICE_M10_ROLLOUT.md) bleibt eine separate, nicht
+ausgefuehrte Betriebsfreigabe.

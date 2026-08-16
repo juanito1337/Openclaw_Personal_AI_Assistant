@@ -9,6 +9,7 @@ from pathlib import Path
 from mail_agent.cli import _backfill_year
 from mail_agent.storage import Storage
 from scripts.evaluate_invoice_quality import DEFAULT_BASELINE, DEFAULT_CORPUS, evaluate
+from scripts.invoice_ocr_fixture import build_sanitized_pdf
 
 M100_BASELINE = Path(__file__).parent / "fixtures" / "invoices" / "m100_extractor_baseline.json"
 
@@ -37,11 +38,10 @@ class InvoiceQualityBaselineM10Tests(unittest.TestCase):
         )
         multipage = next(case for case in cases if "multipage-pdf" in case["features"])
         self.assertGreater(len(multipage["pages"]), 1)
-        pdf_path = DEFAULT_CORPUS.parent / multipage["pdf_fixture"]
-        pdf = pdf_path.read_bytes()
+        pdf = build_sanitized_pdf()
         self.assertTrue(pdf.startswith(b"%PDF-1.4\n"))
-        self.assertEqual(len(re.findall(rb"/Type /Page\b", pdf)), 2)
-        self.assertIn(b"SYN-DE-0006", pdf)
+        self.assertEqual(len(re.findall(rb"/Type /Page\b", pdf)), 3)
+        self.assertIn(b"BENCH-104", pdf)
 
     def test_corpus_contains_no_product_identifiers_or_private_values(self) -> None:
         raw = DEFAULT_CORPUS.read_text(encoding="utf-8")
@@ -58,9 +58,8 @@ class InvoiceQualityBaselineM10Tests(unittest.TestCase):
             self.assertTrue(case["message"]["sender_addr"].endswith("@example.invalid"))
             self.assertTrue(forbidden_keys.isdisjoint(case))
             self.assertTrue(forbidden_keys.isdisjoint(case["message"]))
-            if case.get("pdf_fixture"):
-                pdf_text = (DEFAULT_CORPUS.parent / case["pdf_fixture"]).read_text(encoding="ascii")
-                self.assertNotRegex(pdf_text.casefold(), r"\b(?:iban|bic|kontonummer|bestellnummer)\b")
+        pdf_text = build_sanitized_pdf().decode("ascii")
+        self.assertNotRegex(pdf_text.casefold(), r"\b(?:iban|bic|kontonummer|bestellnummer)\b")
         self.assertIsNone(re.search(r"\b[A-Fa-f0-9]{32,}\b", raw))
         self.assertNotRegex(raw.casefold(), r"\b(?:iban|bic|kontonummer|bestellnummer)\b")
 

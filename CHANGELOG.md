@@ -84,6 +84,19 @@
   Darstellung der exakten Aenderung -> separaten ausdruecklichen Auftrag fuer
   Apply. Fehlende Werte duerfen nicht aus Erinnerung, Dateiname, Mailtext oder
   Ollama entstehen und `--yes` wird nie autonom ergaenzt.
+- M10.8 fuehrt alle drei sanitisierten Feldqualitaetsvergleiche und die
+  M10.0- bis M10.7-Einzelabnahmen zusammen. Toolwirkungen, Wheel, drei
+  Rollenimages, Rootfs-Hygiene, Compose, ETag-/Remote-Teilfehler und Recovery
+  bilden einen reproduzierbaren Abschlussvertrag; ein produktiver Rollout ist
+  davon getrennt und wurde nicht ausgefuehrt.
+- Die fruehere synthetische PDF-Fixture wird deterministisch nur noch im
+  temporaeren Testverzeichnis erzeugt. Git-Hygiene sowie Wheel-/Image-Scanner
+  lehnen PDF-Dateien jetzt explizit ab; produktive Dokumente, Register,
+  Datenbanken, Logs und Secrets bleiben aus Quellbaum und Artefakten entfernt.
+- Der separate M10-Rolloutvertrag verlangt signierte Digests, Single Writer,
+  lokales Backup plus externen Nextcloud-Snapshot, read-only Baseline, genau eine
+  angezeigte Canary-Vorschau, eine neue Einzelfreigabe, Nachmessung und getrennte
+  lokale/externe Recovery.
 - 659 pytest-Items, davon mindestens 595 unittest-kompatibel, sichern M10.4 mit
   63,45 Prozent Branch-einbezogener Gesamt-Coverage ab.
 - 671 pytest-Items, davon 607 unittest-kompatibel und weiterhin 13 freie
@@ -97,6 +110,10 @@
   Rechnungs-pytest-Tests, sichern M10.7 mit 64,10 Prozent branch-einbezogener
   Gesamt-Coverage hermetisch ab. Produktive SQLite, PDFs, Nextcloud, Register,
   Jobs und `/srv/openclaw` wurden nicht verwendet.
+- 694 pytest-Items, davon 630 unittest-kompatibel und weiterhin 13 freie
+  Rechnungs-pytest-Tests, schliessen M10.8 mit 64,09 Prozent branch-einbezogener
+  Gesamt-Coverage ab. Das isoliert installierte Wheel bestand dieselben 694 Tests
+  plus 80 Subtests; produktive Systeme wurden nicht verwendet.
 
 ## Unreleased – M9 Mail-Qualitaet und Review-Triage
 

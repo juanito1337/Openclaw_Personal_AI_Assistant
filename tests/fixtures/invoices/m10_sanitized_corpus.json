@@ -157,7 +157,6 @@
         "fields-across-pages",
         "gross-net-tax"
       ],
-      "pdf_fixture": "m10_multipage.pdf",
       "message": {
         "subject": "Synthetische mehrseitige Rechnung",
         "sender_name": "M10 Fiktivmaterial GmbH",

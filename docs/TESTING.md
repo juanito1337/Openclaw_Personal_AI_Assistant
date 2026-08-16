@@ -1,6 +1,6 @@
 # Tests, Qualitaetsbaseline und Container-Runtime
 
-Stand: 2026-08-16, fortgeschrieben bis M10.7. Sie startet keine produktiven Dienste und
+Stand: 2026-08-17, fortgeschrieben bis M10.8. Sie startet keine produktiven Dienste und
 verwendet weder `/srv/openclaw` noch produktive Zugangsdaten.
 
 ## Einheitlicher lokaler und CI-Prueflauf
@@ -44,14 +44,14 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 688 Tests, darunter mindestens 624 unittest-kompatible Tests
-(die bisherigen 349 sowie M0-M10.7-Regressionstests),
+fordert mindestens 694 Tests, darunter mindestens 630 unittest-kompatible Tests
+(die bisherigen 349 sowie M0-M10.8-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
 nach dem Sammeln mit einem Fehler ab. Neue Tests duerfen die Zahl erhoehen; die
 Baseline wird erst nach einem vollstaendigen gruenen Lauf bewusst angehoben.
 
-## M0-Ausgangswerte und aktueller M10.7-Teststand
+## M0-Ausgangswerte und aktueller M10.8-Teststand
 
 Gemessen auf Linux x86_64 mit Python 3.12.3. Die Werte sind Beobachtungen und noch
 keine willkuerlichen Mindestquoten. `scripts/quality-baseline.py` erzeugt sie nach
@@ -82,6 +82,7 @@ der aktuellen Python-Dateien.
 | Tests nach M10.5 gesammelt/ausgefuehrt | 671 / 671 (735 JUnit-Faelle inklusive 64 Subtests) |
 | Tests nach M10.6 gesammelt/ausgefuehrt | 680 / 680 (748 JUnit-Faelle inklusive 68 Subtests) |
 | Tests nach M10.7 gesammelt/ausgefuehrt | 688 / 688 (756 JUnit-Faelle inklusive 68 Subtests) |
+| Tests nach M10.8 gesammelt/ausgefuehrt | 694 / 694 (774 JUnit-Faelle inklusive 80 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -101,6 +102,7 @@ der aktuellen Python-Dateien.
 | neue M10.5-Reprocessing-Vorschau-Regressionsitems | 12 |
 | neue M10.6-Einzeluebernahme-Regressionsitems | 9 |
 | neue M10.7-Backlog-/Skill-Regressionsitems | 8 |
+| neue M10.8-Abnahme-/Artefakt-/Rollout-Regressionsitems | 6 |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |
 | Gesamt-Coverage inklusive Branches (M8) | 59,18 % |
@@ -124,6 +126,8 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach M10.6 | 49,59 % |
 | Gesamt-Coverage inklusive Branches nach M10.7 | 64,10 % |
 | reine Branch-Coverage nach M10.7 | 49,91 % |
+| Gesamt-Coverage inklusive Branches nach M10.8 | 64,09 % |
+| reine Branch-Coverage nach M10.8 | 49,89 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -133,9 +137,13 @@ der aktuellen Python-Dateien.
 | Laufzeit des finalen lokalen M10.6-Testlaufs | 118,09 s |
 | Laufzeit des ersten erfolgreichen lokalen M10.7-Gesamtlaufs | 118,48 s |
 | Laufzeit der erfolgreichen M10.7-Kontrollwiederholung | 115,65 s |
+| Laufzeit des ersten erfolgreichen lokalen M10.8-Gesamtchecks | 112,13 s |
 | Laufzeit in der frischen M7-Wheel-Testumgebung | 55,56 s |
 | Wheelgroesse nach der Plugin-/Gatewaykorrektur | 397.870 Bytes |
 | M7-Wheel-Buildzeit | 4,582 s |
+| M10.8-Wheelgroesse | 471.110 Bytes |
+| M10.8-Wheel-Buildzeit | 3,488 s |
+| M10.8-Tests in frischer Wheel-Umgebung | 694 plus 80 Subtests in 85,19 s |
 | Container-Imagegroesse des M6-Testimages | 425.555.866 Bytes |
 | Runtime-Imagegroesse mit gepinnten Brave-/Signal-Plugins | 376.600.036 Bytes |
 | sauberer Container-Erstbuild | ca. 411,92 s |
@@ -328,6 +336,43 @@ kopiert. Ein spaeterer produktiver Triage-Lauf benoetigt zuerst Status/Audit und
 vor jedem einzelnen Apply das verifizierte Backup samt separater Freigabe. Ein
 Remote-Registerkonflikt ist kein lokaler Rollback; ein Image-Rollback stellt
 Nextcloud-Aenderungen nicht wieder her.
+
+## M10.8-Gesamtabnahme und Artefaktgrenze
+
+Die Abschlussregression fuehrt die drei versionierten, sanitisierten
+Feldqualitaetsvergleiche, den endgueltigen Toolwirkungsvertrag, die
+Quellbaumhygiene, den PDF-Guard fuer Wheel/Image, die CI-Rollenpfade und den
+geordneten Rolloutvertrag zusammen:
+
+```bash
+.venv/bin/python -m pytest -q tests/test_invoice_acceptance_m108.py
+./scripts/check-wheel.sh
+sg docker -c './docker/scripts/build-local.sh \
+  openclaw-agent:m10-acceptance \
+  openclaw-agent:m10-acceptance-proxy \
+  openclaw-agent:m10-acceptance-maintenance'
+sg docker -c './scripts/check-role-images.sh \
+  openclaw-agent:m10-acceptance \
+  openclaw-agent:m10-acceptance-proxy \
+  openclaw-agent:m10-acceptance-maintenance \
+  "$(git rev-parse HEAD)"'
+sg docker -c './scripts/check-m8-integration.sh'
+```
+
+Die sechs Tests vergleichen echte Evaluatorausgaben mit allen drei Baselines,
+pruefen `read`/`write`/Approval direkt im typisierten Toolkatalog und rufen den
+Artefaktpruefer mit einer PDF-Negativfixture auf. `git ls-files` muss ohne PDF,
+Maildatei, Datenbank, Log oder aktive Laufzeitkonfiguration bleiben. Das ehemals
+getrackte synthetische M10-PDF wird nun deterministisch nur in einem temporaeren
+Verzeichnis erzeugt. Der CI-Vertrag muss Wheel, alle drei Rollenimages,
+rollenbezogene Rootfs-/Supply-Chain-Pruefungen und das interne Fehlernetz
+enthalten.
+
+Der [separate M10-Rolloutvertrag](INVOICE_M10_ROLLOUT.md) ist Bestandteil der
+Dokumentationsabnahme, aber keine Deployment- oder Apply-Freigabe. Lokale
+Containerchecks verwenden ausschliesslich neue Testimages, kurzlebige Container
+und eindeutig benannte interne Netze; sie stoppen oder veraendern keinen
+laufenden produktiven Compose-Stack.
 
 Kritische Sicherheitsmodule im aktuellen M8-Lauf:
 

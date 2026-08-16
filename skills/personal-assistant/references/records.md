@@ -140,6 +140,14 @@ through their existing ETag/SHA/schema contract. A remote conflict or outage is
 unchanged hash/digest may be used after explicit instruction to resume safely and
 idempotently; on `register-sync-in-progress`, do not start a competing substitute.
 
+A completed development, Wheel, role-image or recovery acceptance is not a
+productive deployment approval. Treat deployment, read-only production baseline,
+one exact Canary preview and the later single-record apply as separate explicit
+decisions. Require a verified local backup and an externally restorable
+Nextcloud snapshot before the write Canary; an image rollback alone cannot undo a
+register change. Never execute the backlog automatically after one successful
+case.
+
 ## Agent-managed order cards
 
 Use `nextcloud.deck.orders.status` and then `nextcloud.deck.orders.list` for open

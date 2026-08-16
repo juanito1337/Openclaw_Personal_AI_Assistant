@@ -15,6 +15,7 @@ RUNTIME_SUFFIXES = {
     ".sqlite",
     ".sqlite3",
 }
+DOCUMENT_SUFFIXES = {".pdf"}
 RUNTIME_NAMES = {
     ".env",
     "config.json",
@@ -116,6 +117,8 @@ def forbidden_path(value: str) -> str | None:
         return "private Schluessel-/Zugangsdaten"
     if path.suffix.casefold() in RUNTIME_SUFFIXES or ".sqlite3-" in lowered:
         return "Laufzeitdaten"
+    if path.suffix.casefold() in DOCUMENT_SUFFIXES:
+        return "Dokumentinhalt"
     if _contains_parts(path, ("mail_agent", "data")) or _contains_parts(
         path, ("personal_assistant", "data")
     ):

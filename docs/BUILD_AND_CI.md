@@ -1,6 +1,6 @@
 # Build- und CI-Nachweise
 
-Stand: M10.7, 2026-08-16. Der detaillierte Sicherheitsvertrag steht unter
+Stand: M10.8, 2026-08-17. Der detaillierte Sicherheitsvertrag steht unter
 [`architecture/IMAGE_SUPPLY_CHAIN.md`](architecture/IMAGE_SUPPLY_CHAIN.md).
 
 ## Gemeinsame Qualitaetspruefung
@@ -63,6 +63,16 @@ Aggregate aus. Seine Tests verwenden keine produktiven Werte, PDFs, Pfade,
 Hashes, Nextcloud-Verbindung, Secrets oder laufenden Container. CLI,
 Toolkatalog, generierter Skillvertrag und Skillablauf werden gemeinsam geprueft;
 M10.7 schaltet weder ein Move-Werkzeug noch einen autonomen Apply frei.
+M10.8 fuehrt die M10.0- bis M10.7-Einzelabnahmen und alle drei versionierten
+Feldqualitaetsvergleiche zusammen. Der Abschlusscheck baut das Wheel aus einem
+frischen Quellsnapshot, installiert es isoliert und fuehrt dort Release- und
+Gesamttests aus. Der Containerjob baut alle drei Rollenimages, prueft Rolle,
+Release und Revision, exportiert jeden produkt-eigenen Rootfs-Bereich fuer den
+Artefaktscan und injiziert ETag-, Remote-, Crash-, Netz- und Single-Writer-Fehler
+ausschliesslich im internen Fixture-Netz. Eine im M10.0-Korpus noch getrackte
+synthetische PDF wurde durch deterministische Erzeugung im temporaeren
+Testverzeichnis ersetzt; der Repository-, Wheel- und Image-Guard verwirft nun
+jede PDF-Datei.
 
 Die Workflows besitzen global `permissions: {}`. Der Testjob darf nur Inhalte
 lesen. Der Releasejob erhaelt nur `contents: read`, `packages: write` und

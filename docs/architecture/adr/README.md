@@ -29,5 +29,6 @@ verweist mit Status `Superseded` auf den Nachfolger.
 | [0021](0021-read-only-reprocessing-vorschau.md) | Accepted | gebundene read-only Rechnungs-Reprocessing-Vorschau |
 | [0022](0022-auditierbare-reprocessing-einzeluebernahme.md) | Accepted | gebundene und auditierbare Reprocessing-Einzeluebernahme |
 | [0023](0023-datenschutzsicherer-rechnungs-backlog-audit.md) | Accepted | aggregierter read-only Rechnungs-Backlog-Audit |
+| [0024](0024-m10-abnahme-vor-produktivem-einzelrollout.md) | Accepted | M10-Entwicklungsabnahme bleibt vom produktiven Einzelrollout getrennt |
 
 Neue ADRs beginnen mit der [Vorlage](0000-template.md).

@@ -205,3 +205,7 @@ Never infer approval from a request to inspect, audit or preview. Never add
 memory, filename, mail text or Ollama. Review PDFs reported outside the configured
 review subfolder remain a read-only finding; do not move them and do not use a
 generic Nextcloud move as a substitute.
+
+A green development, Wheel, image or rollout-plan check is never approval to
+deploy or reprocess. Productive rollout, one exact preview and the subsequent
+single-record apply are separate user decisions; stop after each boundary.
