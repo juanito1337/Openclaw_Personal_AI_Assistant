@@ -169,6 +169,7 @@ Kann die Jahres-CSV nicht aktualisiert werden, ist die Rechnungsverarbeitung nic
 ./scripts/assistant.sh invoices review --limit 100
 ./scripts/assistant.sh invoices export --year 2026 --dry-run
 ./scripts/assistant.sh invoices export --year 2026 --yes
+./scripts/assistant.sh invoices reprocess --status "review" --source-year 2026 --limit 100 --dry-run
 ```
 
 `invoices export --dry-run` rendert die CSV nur im Speicher. Es schreibt weder
@@ -187,6 +188,7 @@ Grenze nicht.
 | `invoices export ... --yes` | unveraendert | unveraendert | bedingtes Anlegen/Ersetzen | ausdrueckliches `--yes` |
 | `invoices backfill ... --dry-run` | unveraendert | nur gelesen, nie ersetzt | unveraendert | keine |
 | `invoices backfill ... --yes` | Extraktionszeilen werden einzeln aktualisiert | nur gelesen, nie ersetzt | betroffene Jahre werden bedingt ersetzt | ausdrueckliches `--yes` |
+| `invoices reprocess ... --dry-run` | strikt read-only geoeffnet | nur gelesen, nie ersetzt | nicht geoeffnet | keine |
 | `invoices correct ... --yes` | genau der adressierte Hash wird aktualisiert | unveraendert | altes und neues Jahr werden bedingt ersetzt | ausdrueckliches `--yes` |
 | konfigurierter Mail-Rechnungslauf | Archiv-/Metadatenstatus wird aktualisiert | create-only | zugehoeriges Jahr wird bedingt synchronisiert | zuvor freigegebene Workflow-/Ressourcenkonfiguration |
 
@@ -238,6 +240,56 @@ Die Vorschau liest PDF-Dateien und fuehrt den Virenscan sowie die Extraktion aus
 speichert das Ergebnis aber nicht. Der produktive Pfad speichert dagegen die
 SQLite-Ergebnisse und synchronisiert danach die betroffenen Nextcloud-Register;
 sein Toolmodus ist daher `write` mit externer Wirkung.
+
+## Read-only Reprocessing-Vorschau (M10.5)
+
+Der neue Reprocessing-Pfad ist kein Alias fuer den Legacy-Backfill. Er waehlt
+entweder exakt `review` oder exakt einen leeren, als `unclassified` dargestellten
+Extraktionsstatus. `confirmed` und `confirmed-manual` sind sowohl in der
+read-only SQL-Auswahl als auch unmittelbar vor dem Erzeugen eines Vorschlags
+ausgeschlossen. Pro Aufruf werden hoechstens 100 Ergebnisse ausgegeben:
+
+```bash
+./scripts/assistant.sh invoices reprocess \
+  --status "<review|unclassified>" \
+  --source-year 2026 \
+  --limit 100 \
+  --dry-run
+```
+
+`source_year` ist bewusst kein Rechnungsjahr. Es bezeichnet das bestehende
+`register_year`; fehlt dieses, gilt das vierstellige Jahrsegment des vorhandenen
+Archivpfads. Ein Datensatz ohne beide Angaben wird nicht still ueber sein
+Empfangsjahr zugeordnet. Die Ausgabe weist `register_year`, `path_year`,
+`received_year` und das neu erkannte `recognized_invoice_year` getrennt aus und
+nennt die verwendete Quelljahrbasis.
+
+Jedes Feld zeigt begrenzten Alt-/Neuwert, Konfidenz, Evidenztyp und Quelle. Rohes
+PDF-/OCR-Zeilenmaterial, allgemeine Extraktionsfehler, Zugangsdaten und
+Nextcloud-Antwortinhalte werden nicht ausgegeben. Nur typisierte Konfliktcodes
+gelangen in die Vorschau. Die Bewertung bedeutet:
+
+- `unchanged`: Werte und fachlicher Status sind identisch;
+- `improved`: bestaetigter Status, Pflichtfeldabdeckung oder belegte Konfidenz
+  steigen ohne Verlust und Konflikt;
+- `regressed`: ein Pflichtwert geht verloren, die Qualitaet sinkt oder ein
+  typisierter Konflikt bleibt;
+- `still-review`: der Vorschlag aendert sich, erreicht aber keine belegte
+  Verbesserung und bleibt ein Prueffall.
+
+Der `preview_sha256` bindet Schema, tatsaechlichen PDF-SHA-256, den vollstaendigen
+aktuellen Datenbank-/Nachrichtenstand, die Extraktorversion und den stabilen
+Neuvorschlag. Laufzeiten und temporaere Scannerwerte sind nicht Teil des
+Vorschlags, sodass identische Eingaben deterministisch bleiben. Eine Aenderung an
+PDF-Hash, Altzustand, Extraktor oder Vorschlag erzeugt einen anderen Digest.
+
+Die Mail-SQLite wird mit SQLite `mode=ro` und `query_only` geoeffnet. Der
+Nextcloud-Zugriff verwendet nur das konfigurierte `read`-Recht und einen direkten
+GET innerhalb des Rechnungsroots; ActionPlan-, Audit- und Registerdienste werden
+nicht geoeffnet. ClamAV bleibt fail-closed, verwendet fuer die Vorschau aber nur
+einen nach dem Lauf entfernten temporaeren Cache. Original-PDF, Archivpfad,
+Register-ETag, SQLite und Audit bleiben unveraendert. M10.5 bietet absichtlich
+keinen Apply-Befehl.
 
 ## Abhaengigkeiten
 

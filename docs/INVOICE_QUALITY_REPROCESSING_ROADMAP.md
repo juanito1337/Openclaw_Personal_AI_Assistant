@@ -2,7 +2,7 @@
 
 Stand: 2026-08-15
 Empfohlener Arbeitsbranch: `development/invoice-quality-reprocessing-m10`
-Status: M10.0 bis M10.4 implementiert; kein Produktivlauf freigegeben
+Status: M10.0 bis M10.5 implementiert; kein Produktivlauf freigegeben
 
 ## Ziel
 
@@ -398,6 +398,11 @@ stoppe nach M10.4.
 ```
 
 ## M10.5 – Read-only Reprocessing-Vorschau
+
+Umsetzungsstand: abgeschlossen auf dem Entwicklungszweig
+`development/invoice-quality-reprocessing-m10`. Die Abnahme verwendet nur
+synthetische PDFs und temporaere SQLite-/Zustands-Fixtures. Es wurde kein
+produktiver Reprocess oder Apply ausgefuehrt; M10.6 wurde nicht begonnen.
 
 ### Scope
 

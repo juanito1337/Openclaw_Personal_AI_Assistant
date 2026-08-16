@@ -100,6 +100,18 @@ TOOLS: tuple[ToolDefinition, ...] = (
         test_anchor="tests/test_invoice_effect_contract_m101.py",
     ),
     define(
+        id="assistant.invoices.reprocess-preview",
+        domain="invoices",
+        description="Exakt review oder unklassifiziert markierte Rechnungen eines eindeutigen Quelljahres read-only neu bewerten und mit Alt/Neu-Evidenz sowie Vorschau-Digest anzeigen",
+        command='./scripts/assistant.sh invoices reprocess --status "<review|unclassified>" --source-year <YYYY> --limit 100 --dry-run',
+        mode="read",
+        writes_external_data=False,
+        approval="none",
+        availability="invoices",
+        documentation_anchor="docs/INVOICE_OCR_REGISTER.md",
+        test_anchor="tests/test_invoice_reprocess_preview_m105.py",
+    ),
+    define(
         id="assistant.invoices.correct",
         domain="invoices",
         description="Rechnungsmetadaten nach ausdruecklichem Nutzerauftrag in SQLite korrigieren und betroffene Nextcloud-Jahresregister bedingt ersetzen",

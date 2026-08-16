@@ -55,6 +55,21 @@ def add_commands(sub: Any) -> None:
         action="store_true",
         help="SQLite und verwaltetes Nextcloud-Jahresregister ausdruecklich aktualisieren",
     )
+    invoices_reprocess = invoices_sub.add_parser(
+        "reprocess",
+        help="Review- oder unklassifizierte Rechnungen schreibfrei neu bewerten",
+    )
+    invoices_reprocess.add_argument(
+        "--status", required=True, choices=("review", "unclassified")
+    )
+    invoices_reprocess.add_argument("--source-year", type=int, required=True)
+    invoices_reprocess.add_argument("--limit", type=int, default=100)
+    invoices_reprocess.add_argument(
+        "--dry-run",
+        action="store_true",
+        required=True,
+        help="Nur PDF lesen, scannen und Alt/Neu-Vorschlag ausgeben; nichts speichern",
+    )
     invoices_correct = invoices_sub.add_parser(
         "correct", help="Rechnungsmetadaten nach Nutzerauftrag korrigieren"
     )

@@ -83,6 +83,24 @@ not grant a manual export, correction or backfill approval. Backfill never
 overwrites or moves the archived original. The register is not a tax filing or
 DATEV booking file.
 
+Use `invoices reprocess --status "<review|unclassified>" --source-year <YYYY>
+--limit 100 --dry-run` only for a new read-only assessment of existing rows. It
+is distinct from legacy backfill: select exactly one of `review` or
+`unclassified`; never substitute `confirmed`, `confirmed-manual` or a free SQL
+expression. Source year is the stored register year, falling back only to the
+existing archive-path year. Always keep source, register, path, received and
+newly recognized invoice year separate when explaining the result.
+
+For each record report the bounded old/new field values, evidence type, typed
+conflicts, extractor/ruleset version, `preview_sha256` and the exact
+`improved|unchanged|regressed|still-review` classification. Raw PDF/OCR text,
+generic issue strings, Nextcloud response bodies and credentials are absent by
+contract. The preview opens invoice SQLite read-only, performs a fail-closed
+ClamAV scan with temporary local cache, reads the original PDF without moving or
+replacing it, and never opens the managed register or audit path. M10.5 defines
+no apply command: never invent or execute one, and do not use backfill or
+`correct --yes` as a substitute.
+
 ## Agent-managed order cards
 
 Use `nextcloud.deck.orders.status` and then `nextcloud.deck.orders.list` for open

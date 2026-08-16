@@ -268,3 +268,22 @@ aendert kein Datenbankschema und fuehrt weder Backfill noch Reprocessing aus.
 Der vollstaendige Repositorylauf sammelte und bestand 659 pytest-Items und
 erreichte 63,45 Prozent Branch-einbezogene Gesamt-Coverage. Der direkt betroffene
 Extraktor `mail_agent/invoice_extract.py` erreichte dabei 84,27 Prozent.
+
+## M10.5 – Read-only Reprocessing-Vorschau
+
+M10.5 veraendert die M10.0- bis M10.4-Extraktionsmetriken nicht, sondern stellt
+den versionierten Extraktor fuer vorhandene `review`- oder unklassifizierte
+Zeilen ueber einen neuen read-only Vertrag bereit. Die vollstaendige Suite
+sammelt und besteht 671 pytest-Items; 607 sind unittest-kompatibel und die 13
+freien Rechnungs-pytest-Tests bleiben enthalten. Die branch-einbezogene
+Gesamt-Coverage betraegt 63,70 Prozent, die reine Branch-Coverage 49,35 Prozent.
+Das neue Modul `mail_agent/invoice_reprocess.py` erreicht 75,07 Prozent, der
+unveraenderte Extraktor weiterhin 84,27 Prozent.
+
+Die M10.5-Fixture verwendet vier absichtlich verschiedene Jahreswerte (Quelljahr
+2024, Pfadjahr 2025, Empfangsjahr 2026 und erkanntes Rechnungsjahr 2027) und
+vollstaendig erfundene PDF-Bytes. Vorher-/Nachhervergleiche belegen bytegleiche
+SQLite- und PDF-Zustaende, unveraenderten synthetischen Register-ETag und keinen
+erzeugten Auditpfad. Digestdrift wird getrennt fuer PDF-SHA-256, Altzustand,
+Extraktorversion und Neuvorschlag geprueft. In Git befinden sich keine
+produktiven Einzelwerte, Pfade, Hashes, PDFs oder Nextcloud-Antworten.

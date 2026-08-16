@@ -1,6 +1,6 @@
 # Build- und CI-Nachweise
 
-Stand: M10.2, 2026-08-15. Der detaillierte Sicherheitsvertrag steht unter
+Stand: M10.5, 2026-08-16. Der detaillierte Sicherheitsvertrag steht unter
 [`architecture/IMAGE_SUPPLY_CHAIN.md`](architecture/IMAGE_SUPPLY_CHAIN.md).
 
 ## Gemeinsame Qualitaetspruefung
@@ -41,6 +41,13 @@ weder lokaler Check noch CI benoetigen dafuer produktive PDFs, SQLite,
 Nextcloud, `/srv/openclaw` oder Secrets. Der Collection-Vertrag steigt damit auf
 648 pytest-Items, darunter mindestens 595 unittest-kompatible Tests und
 weiterhin mindestens 13 freie Rechnungs-pytest-Tests.
+M10.3 und M10.4 ergaenzen typisierte Betragsplausibilitaet sowie lokal begrenzte,
+versionierte OCR-Feldfusion. M10.5 hebt den Collection-Vertrag auf 671
+pytest-Items, darunter mindestens 607 unittest-kompatible Tests und weiterhin 13
+freie Rechnungs-pytest-Tests. Der neue Reprocessing-Test verwendet nur
+temporaere SQLite-/PDF-Fixtures, simulierte Lesezugriffe und einen inhaltsfreien
+Scannerbeleg. Er prueft keinen produktiven Nextcloud-Server und fuehrt keinen
+Apply aus.
 
 Die Workflows besitzen global `permissions: {}`. Der Testjob darf nur Inhalte
 lesen. Der Releasejob erhaelt nur `contents: read`, `packages: write` und

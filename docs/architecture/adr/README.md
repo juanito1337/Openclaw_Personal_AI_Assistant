@@ -26,5 +26,6 @@ verweist mit Status `Superseded` auf den Nachfolger.
 | [0018](0018-belegte-rechnungsnummern-und-datumsrollen.md) | Accepted | belegte Rechnungsnummern und getrennte Datumsrollen |
 | [0019](0019-typisierte-rechnungsbetraege-und-plausibilitaet.md) | Accepted | typisierte Rechnungsbetraege und fail-closed Plausibilitaet |
 | [0020](0020-begrenzte-lokale-ocr-feldfusion.md) | Accepted | begrenzte lokale Rechnungs-OCR und feldweise Konfliktbehandlung |
+| [0021](0021-read-only-reprocessing-vorschau.md) | Accepted | gebundene read-only Rechnungs-Reprocessing-Vorschau |
 
 Neue ADRs beginnen mit der [Vorlage](0000-template.md).

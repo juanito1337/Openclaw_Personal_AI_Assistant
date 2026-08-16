@@ -45,8 +45,22 @@
 - Technische Ergebnisse nennen Extraktor-/Regelversion, lokale Engines,
   OCR-Sprachen, Scanneridentitaet, Seiten, Laufzeiten und Ressourcenzaehler, ohne
   Dokumentwerte oder OCR-Text in diesem Telemetrieabschnitt zu wiederholen.
+- M10.5 fuehrt eine registrierte, zwingend schreibfreie Reprocessing-Vorschau
+  getrennt vom Legacy-Backfill ein. `review` und `unclassified` sind exakt
+  waehlbar; bestaetigte und manuell korrigierte Zeilen bleiben hart ausgeschlossen.
+- Quell-, Register-, Pfad-, Empfangs- und neu erkanntes Rechnungsjahr werden
+  getrennt ausgegeben. Begrenzte Alt-/Neu-Evidenz, typisierte Konflikte und die
+  Bewertungen `improved`, `unchanged`, `regressed` oder `still-review` enthalten
+  weder PDF-/OCR-Rohtext noch Zugangsdaten.
+- Ein deterministischer Vorschau-Digest bindet PDF-Hash, aktuellen Datensatz,
+  Extraktorversion und stabilen Neuvorschlag. SQLite wird read-only geoeffnet;
+  Nextcloud-PDFs werden nur gelesen, ClamAV verwendet einen temporaeren Cache und
+  Register sowie Audit werden nicht geoeffnet. M10.5 besitzt keinen Apply-Pfad.
 - 659 pytest-Items, davon mindestens 595 unittest-kompatibel, sichern M10.4 mit
   63,45 Prozent Branch-einbezogener Gesamt-Coverage ab.
+- 671 pytest-Items, davon 607 unittest-kompatibel und weiterhin 13 freie
+  Rechnungs-pytest-Tests, sichern M10.5 mit 63,70 Prozent branch-einbezogener
+  Gesamt-Coverage ab.
 
 ## Unreleased – M9 Mail-Qualitaet und Review-Triage
 

@@ -33,6 +33,16 @@ def run_external(args: argparse.Namespace) -> int:
             command.append("--dry-run")
         if args.yes:
             command.append("--yes")
+    elif args.invoices_command == "reprocess":
+        command += [
+            "--status",
+            args.status,
+            "--source-year",
+            str(args.source_year),
+            "--limit",
+            str(max(1, args.limit)),
+            "--dry-run",
+        ]
     elif args.invoices_command == "correct":
         command += [
             "--hash",

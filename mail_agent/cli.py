@@ -6,7 +6,8 @@ import logging
 import os
 import shutil
 import sys
-from dataclasses import asdict
+import tempfile
+from dataclasses import asdict, replace
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 from logging.handlers import RotatingFileHandler
@@ -22,6 +23,7 @@ from .config import Config, load_config
 from .envfile import default_env_file, load_env_file
 from .invoice_extract import InvoiceExtractor, amount_to_cents
 from .invoice_register import InvoiceRegister
+from .invoice_reprocess import ReadOnlyInvoicePdfReader, run_reprocess_preview
 from .learning import LearningFolderRegistry
 from .learning_quality import LearningQualityAnalyzer
 from .lock import ProcessLock, ProcessLockError, inspect_process_lock
@@ -176,6 +178,19 @@ def build_parser() -> argparse.ArgumentParser:
         "--yes",
         action="store_true",
         help="Extraktion ausdruecklich in SQLite speichern und Jahresregister bedingt ersetzen",
+    )
+    inv_reprocess = inv_sub.add_parser(
+        "reprocess",
+        help="Review- oder unklassifizierte Rechnungen schreibfrei neu bewerten",
+    )
+    inv_reprocess.add_argument("--status", required=True, choices=("review", "unclassified"))
+    inv_reprocess.add_argument("--source-year", type=int, required=True)
+    inv_reprocess.add_argument("--limit", type=int, default=100)
+    inv_reprocess.add_argument(
+        "--dry-run",
+        action="store_true",
+        required=True,
+        help="Nur PDF lesen, scannen und Alt/Neu-Vorschlag ausgeben; nichts speichern",
     )
     inv_correct = inv_sub.add_parser("correct", help="Unsichere Rechnungsmetadaten nach ausdruecklichem Auftrag korrigieren")
     inv_correct.add_argument("--hash", required=True, dest="attachment_hash")
@@ -898,7 +913,66 @@ def _sync_invoice_register(
     return payload
 
 
+def _handle_invoice_reprocess(args: argparse.Namespace, config: Config) -> int:
+    if not bool(getattr(args, "dry_run", False)):
+        raise PermissionError("Reprocessing-Vorschau benoetigt zwingend --dry-run")
+    tools = load_tool_settings()
+    invoice_tool = tools.mail.invoices
+    if not invoice_tool.enabled:
+        raise PermissionError("Zentrales Rechnungswerkzeug ist in tools.toml deaktiviert")
+    reader = ReadOnlyInvoicePdfReader()
+    extractor = InvoiceExtractor(config.invoices)
+    with tempfile.TemporaryDirectory(prefix="openclaw-invoice-preview-") as temporary:
+        temp_root = Path(temporary)
+        antivirus_settings = replace(
+            tools.security.antivirus,
+            temp_dir=temp_root / "scan",
+        )
+        antivirus = HostAntivirus(
+            antivirus_settings,
+            database=temp_root / "antivirus.sqlite3",
+        )
+
+        def read_pdf(remote_path: str) -> bytes:
+            data = reader.read(
+                remote_path,
+                allowed_folder=invoice_tool.folder,
+                resource_id=invoice_tool.resource_id,
+            )
+            if len(data) > config.invoices.max_pdf_bytes:
+                raise ValueError("PDF ueberschreitet die konfigurierte Maximalgroesse")
+            return data
+
+        def scan_pdf(data: bytes, name: str) -> str:
+            scan = antivirus.scan_bytes(
+                data,
+                name=name,
+                source_type="invoice-reprocess-preview",
+                use_cache=False,
+            )
+            if not scan.clean:
+                raise RuntimeError("antivirus-gate-blocked")
+            return scan.scanner_identity
+
+        try:
+            payload = run_reprocess_preview(
+                config.runtime.database,
+                status=str(args.status),
+                source_year=int(args.source_year),
+                limit=int(args.limit),
+                extractor=extractor,
+                read_pdf=read_pdf,
+                scan_pdf=scan_pdf,
+            )
+        finally:
+            antivirus.close()
+    print(json.dumps(payload, indent=2, ensure_ascii=False))
+    return 0 if payload.get("ok") else 1
+
+
 def _handle_invoices(args: argparse.Namespace, config: Config) -> int:
+    if args.invoices_command == "reprocess":
+        return _handle_invoice_reprocess(args, config)
     storage = Storage(config.runtime.database)
     try:
         register = InvoiceRegister(storage, config.invoices)
