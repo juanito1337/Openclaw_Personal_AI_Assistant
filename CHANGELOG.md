@@ -97,6 +97,10 @@
   lokales Backup plus externen Nextcloud-Snapshot, read-only Baseline, genau eine
   angezeigte Canary-Vorschau, eine neue Einzelfreigabe, Nachmessung und getrennte
   lokale/externe Recovery.
+- Die dynamische M10.8-Abnahme erkannte den aus dem Alpine-3.22-Repository
+  entfernten Python-Pin `3.12.13-r0`. Das Runtime-Image verwendet nun den
+  aufloesbaren Pin `3.12.14-r0`; der Supply-Chain-Lock und eine Regression
+  verhindern eine unbemerkte Dockerfile-Abweichung.
 - 659 pytest-Items, davon mindestens 595 unittest-kompatibel, sichern M10.4 mit
   63,45 Prozent Branch-einbezogener Gesamt-Coverage ab.
 - 671 pytest-Items, davon 607 unittest-kompatibel und weiterhin 13 freie

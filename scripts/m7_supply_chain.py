@@ -142,6 +142,16 @@ def verify_lock(root: Path = ROOT) -> dict[str, Any]:
     for name, reference in base_images.items():
         if str(reference) not in dockerfile:
             errors.append(f"Dockerfile does not use locked base image {name}")
+    runtime_package_pins = cast(dict[str, Any], lock.get("runtime_package_pins") or {})
+    for package, version in runtime_package_pins.items():
+        if not re.fullmatch(r"[a-z0-9][a-z0-9+_.-]*", str(package)):
+            errors.append(f"invalid locked runtime package name: {package}")
+            continue
+        if not re.fullmatch(r"[0-9][a-zA-Z0-9+_.-]*", str(version)):
+            errors.append(f"invalid locked runtime package version: {package}={version}")
+            continue
+        if f"{package}={version}" not in dockerfile:
+            errors.append(f"Dockerfile does not use locked runtime package {package}={version}")
     deploy_verifier = (root / "docker/scripts/verify-image-supply-chain.sh").read_text(encoding="utf-8")
     scanner_images = cast(dict[str, Any], lock.get("scanner_images") or {})
     cosign_reference = str(scanner_images.get("cosign") or "")
@@ -222,6 +232,7 @@ def verify_lock(root: Path = ROOT) -> dict[str, Any]:
     return {
         "ok": True,
         "base_images": len(lock["base_images"]),
+        "runtime_package_pins": len(runtime_package_pins),
         "scanner_images": len(lock["scanner_images"]),
         "immutable_openclaw_plugins": len(plugin_lock.get("packages", {})),
         "github_actions": len(actions),

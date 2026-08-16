@@ -51,7 +51,12 @@ Datenbanken, Logs und Laufzeitdaten bleiben ebenfalls ausgeschlossen.
   Jobberechtigungen beginnen leer und erteilen nur den benoetigten Mindestumfang.
 
 `scripts/m7_supply_chain.py verify-lock` vergleicht Lockfile, Dockerfile und alle
-Workflows. Es gibt keine pauschale Vulnerability-Ausnahme: jede bekannte kritische
+Workflows. Dazu gehoeren jetzt auch direkt im Lock erfasste
+Runtime-Paketpins. Damit scheitert bereits der Quellcheck, wenn ein aktualisierter
+Alpine-Pin nicht gleichzeitig im Supply-Chain-Vertrag festgehalten wurde. Der
+dynamische Rollenbuild bleibt die verbindliche Pruefung, dass der gepinnte
+Paketstand im unveraenderten Basisimage-Repository tatsaechlich aufloesbar ist.
+Es gibt keine pauschale Vulnerability-Ausnahme: jede bekannte kritische
 Schwachstelle, auch ohne Fix, stoppt die Freigabe.
 
 ## Freigabeevidenz

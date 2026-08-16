@@ -6,6 +6,9 @@
     "node_runtime": "node:24-alpine3.22@sha256:191c9f0080fcbbc6547a85dc0ff7988072214a355aabdc1d2ec55a7dae5eea8a",
     "python_runtime": "python:3.11-alpine3.22@sha256:a4fc589b32e824f3f02ed9d7e7be19518aa47e105b80416336af9f202275a489"
   },
+  "runtime_package_pins": {
+    "python3": "3.12.14-r0"
+  },
   "himalaya": {
     "version": "1.2.0",
     "archive_url": "https://github.com/pimalaya/himalaya/releases/download/v1.2.0/himalaya.x86_64-linux.tgz",

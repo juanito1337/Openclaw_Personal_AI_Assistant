@@ -31,6 +31,7 @@ class M7SupplyChainTests(unittest.TestCase):
         report = self.module.verify_lock(ROOT)
         self.assertTrue(report["ok"])
         self.assertGreaterEqual(report["base_images"], 2)
+        self.assertGreaterEqual(report["runtime_package_pins"], 1)
         self.assertEqual(report["immutable_openclaw_plugins"], 2)
         self.assertGreaterEqual(report["github_actions"], 8)
 
