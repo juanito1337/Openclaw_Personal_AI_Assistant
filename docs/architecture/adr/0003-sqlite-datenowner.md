@@ -18,6 +18,14 @@ Writer und Leser werden explizit dokumentiert. Fachfremde Leser verwenden, wo
 moeglich, read-only Verbindungen. Schemaaenderungen sind vorwaertsgerichtete,
 idempotente Migrationen; produktive Datenbanken werden nie als Reparatur geloescht.
 
+Eine geschlossene WAL-Datenbank ohne vorhandene `-wal`-Datei wird auf einem
+read-only Rollenmount mit SQLite `mode=ro&immutable=1` und `query_only` geoeffnet.
+Damit versucht SQLite nicht, ein `-shm`-Sidecar auf dem absichtlich
+unbeschreibbaren Mount anzulegen. Existiert ein WAL, wird `immutable` niemals
+gesetzt: Der normale read-only Pfad muss dessen committed Inhalt sehen oder
+fail-closed abbrechen. Diese Regel erteilt dem Leser keine Schreibrechte und
+ersetzt keine Owner-spezifische Projektion bei dauerhaft nebenlaeufigen Quellen.
+
 ## Konsequenzen
 
 Subsysteme koennen getrennt migriert und diagnostiziert werden. Layout 3 setzt diese
@@ -26,8 +34,9 @@ fuer dokumentierte Aufrufer geteilt.
 
 ## Verifikation
 
-Datenkatalogtest, SQLite-Quick-Checks in Backup/Restore und subsystembezogene
-Migrationstests.
+Datenkatalogtest, SQLite-Quick-Checks in Backup/Restore, subsystembezogene
+Migrationstests sowie Regressionen gegen geschlossene WAL-Datenbanken in
+chmod-read-only Verzeichnissen und gegen das Ausblenden vorhandener WAL-Dateien.
 
 ## Offene Fragen
 

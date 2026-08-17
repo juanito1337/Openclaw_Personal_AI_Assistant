@@ -7,7 +7,13 @@ from pathlib import Path
 from unittest.mock import patch
 
 from mail_agent.cli import _productive_checks_with_folder_self_heal
-from personal_assistant.job_control import CommandResult, JobController, JobSpec
+from personal_assistant.job_control import (
+    CommandResult,
+    JobController,
+    JobSpec,
+    _system_event_command,
+)
+from personal_assistant.portfolio import _system_event_command as _portfolio_event_command
 from personal_assistant.tool_registry import build_tool_registry
 from personal_assistant.tool_settings import ToolSettings
 
@@ -315,6 +321,32 @@ class JobControlTests(unittest.TestCase):
         self.assertTrue(report["notification"]["attempted"])
         event_calls = [cmd for cmd in self.system.commands if cmd[:3] == ["openclaw", "system", "event"]]
         self.assertEqual(len(event_calls), 1)
+
+    def test_container_event_uses_paired_gateway_environment_without_secret_argv(self) -> None:
+        environment = {
+            "OPENCLAW_GATEWAY_URL": "ws://gateway:18789",
+            "OPENCLAW_GATEWAY_WS_URL": "ws://gateway:18789",
+            "OPENCLAW_GATEWAY_PASSWORD": "fixture-password-must-not-be-in-argv",
+        }
+        with patch.dict("os.environ", environment, clear=False):
+            job_command = _system_event_command("Statuswechsel")
+            portfolio_command = _portfolio_event_command("Kursmarke")
+        for command in (job_command, portfolio_command):
+            self.assertNotIn("--url", command)
+            self.assertNotIn("--token", command)
+            self.assertNotIn(environment["OPENCLAW_GATEWAY_PASSWORD"], command)
+
+    def test_legacy_event_url_remains_an_explicit_fallback(self) -> None:
+        with patch.dict(
+            "os.environ",
+            {
+                "OPENCLAW_GATEWAY_URL": "",
+                "OPENCLAW_GATEWAY_WS_URL": "ws://legacy-gateway:18789",
+            },
+            clear=False,
+        ):
+            command = _system_event_command("Statuswechsel")
+        self.assertEqual(command[-2:], ["--url", "ws://legacy-gateway:18789"])
 
     def test_repeated_same_alert_does_not_wake_openclaw_again(self) -> None:
         self.controller.status(target="all", record=True)

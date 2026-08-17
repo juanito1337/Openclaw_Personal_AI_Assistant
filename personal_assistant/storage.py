@@ -13,6 +13,23 @@ from .models import ActionPlan, SearchResult
 SCHEMA_VERSION = 1
 
 
+def read_only_sqlite_uri(path: Path) -> str:
+    """Return a side-effect-free SQLite URI without hiding an active WAL.
+
+    SQLite databases keep WAL mode in their header. Even when no WAL exists, a
+    normal ``mode=ro`` connection may therefore try to create ``-shm`` beside
+    the database and fail on an intentionally read-only container mount. A
+    quiescent database can safely be opened as immutable. If a WAL exists we
+    retain SQLite's normal read-only path so committed WAL content is never
+    ignored; missing or unreadable sidecars then fail closed.
+    """
+
+    resolved = path.expanduser().resolve()
+    wal_path = resolved.with_name(resolved.name + "-wal")
+    suffix = "?mode=ro" if wal_path.exists() else "?mode=ro&immutable=1"
+    return resolved.as_uri() + suffix
+
+
 class AssistantStorage:
     def __init__(
         self,
@@ -66,14 +83,16 @@ class AssistantStorage:
     @staticmethod
     def _connect(path: Path, *, read_only: bool) -> sqlite3.Connection:
         if read_only:
-            connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+            connection = sqlite3.connect(read_only_sqlite_uri(path), uri=True)
         else:
             path.parent.mkdir(parents=True, exist_ok=True)
             connection = sqlite3.connect(path)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys=ON")
         connection.execute("PRAGMA busy_timeout=5000")
-        if not read_only:
+        if read_only:
+            connection.execute("PRAGMA query_only=ON")
+        else:
             connection.execute("PRAGMA journal_mode=WAL")
         return connection
 

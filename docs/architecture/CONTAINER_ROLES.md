@@ -25,7 +25,7 @@ tragen denselben Release und Commit; Inhalt, Messung und Freigabe beschreibt der
 | `gateway` | `runtime` | Gateway/Sessions und Toolaufrufe | G/M/O/P/N/W/C/S/Q `rw`; I-Profil/Memory `rw`, I-Konfigurationsordner `ro`; H/E/X/V `ro` | interaktive Universalrolle; Konfigurationssetup ausschliesslich ueber `agent-cli`, fachliche Rechte bleiben Policy-/Approval-gebunden |
 | `mail-worker` | `runtime` | Mail, Orders, delegierte ActionPlans | I `ro`, M/O/C/S/Q `rw`, H/E/X/V `ro` | nur Mail-/PA-Secrets; einziger produktiver Mailwriter |
 | `sync-worker` | `runtime` | Index und Syncstatus | I/M/C `ro`, W/Q `rw`, E/X `ro` | Live-Discovery ohne Core-Persistierung; nur Nextcloud/Mail-Envdateien; keine Orders-/Portfolio-/Monitoring-DB |
-| `supervisor-worker` | `runtime` | Job-Sollzustand und Heartbeats | I `ro`, Q `rw`, E/X `ro` | nur internes `backend`, keine direkte Egress-Route |
+| `supervisor-worker` | `runtime` | Job-Sollzustand und Heartbeats | I `ro`, Q `rw`, E/X `ro` | nur internes `backend`, keine direkte Egress-Route; 1 GiB fuer die belegte OpenClaw-CLI-Spitze |
 | `portfolio-worker` | `runtime` | Portfolio/Kurse | I `ro`, P/Q `rw`, E/X `ro` | Portfolio-/Gateway-Secrets, keine Maildaten |
 | `monitor-worker` | `runtime` | Monitoring-Snapshots | I/M/P/W/C/S `ro`, N/Q `rw`, E/X `ro` | Quellzustand technisch read-only; einzelne benoetigte Envdateien |
 | `agent-cli` | `runtime` | explizit gewaehltes Tool | G/I/M/O/P/N/W/C/S/Q `rw`, H/E/X/V `ro` | kurzlebige Universalrolle; breit nur wegen explizit gewaehlter Tools |
@@ -35,6 +35,13 @@ Alle Rollen laufen mit read-only Rootfs, `cap_drop: ALL`,
 `no-new-privileges`, explizitem Nicht-root-Benutzer, sicherem `tmpfs`, PID-/CPU-/
 RAM-Grenzen und begrenzter lokaler Docker-Logrotation. Root- und Hostnetz-Ausnahmen
 existieren nicht. Details und exakte Zahlen stehen im maschinenlesbaren Vertrag.
+
+Der Monitor behaelt Core, Wissen und Mail technisch `ro`. Bei einer
+geschlossenen WAL-Datenbank ohne `-wal` verwendet er die dokumentierte
+immutable-/query-only-Lesesicht, sodass kein `-shm` auf dem Rollenmount erzeugt
+wird. Ein vorhandenes WAL wird nicht ausgeblendet. Der Supervisor markiert seinen
+laufenden Eigencheck neutral als `running`; ein alter Exitcode kann den neuen Lauf
+nicht selbstreferenziell dauerhaft auf `failed` halten.
 
 Der Gateway-Workspace bleibt fuer Identitaetsprofil, Memory und kontrollierte
 Workspace-Daten beschreibbar. Die verschachtelten Mounts `mail_agent/` und

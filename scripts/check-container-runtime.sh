@@ -51,6 +51,9 @@ secrets="$fixture/secrets"
 himalaya="$fixture/himalaya"
 mkdir -p "$state/workspace/scripts" "$state/workspace/mail_agent" \
   "$config" "$secrets" "$himalaya"
+touch "$config/mail-agent.env" "$config/personal-assistant.env" \
+  "$secrets/mail-agent.env" "$secrets/personal-assistant.env" \
+  "$secrets/gateway.env"
 printf '%s\n' '#!/bin/sh' 'touch /home/node/.openclaw/tampered-script-ran' \
   > "$state/workspace/scripts/assistant.sh"
 chmod 700 "$state/workspace/scripts/assistant.sh"
@@ -305,6 +308,51 @@ if ! docker run --rm "${role_args[@]}" \
   "$IMAGE" /bin/sh -c \
   'touch /var/lib/openclaw/monitoring/.m3-probe && ! touch /var/lib/openclaw/core/.forbidden 2>/dev/null'; then
   fail "Monitoring-Rollenmount verletzt Schreib-/Leserechte"
+fi
+
+# Exercise the actual monitor constructor and SQLite queries with exactly the
+# production ro/rw role split. A mere touch probe cannot detect SQLite trying to
+# create a WAL shared-memory sidecar on a read-only source mount.
+python3 - "$state/v3/domains/mail/mail_agent.sqlite3" <<'PY'
+import sqlite3
+import sys
+
+connection = sqlite3.connect(sys.argv[1])
+connection.execute("PRAGMA journal_mode=WAL")
+connection.execute("CREATE TABLE fixture(value TEXT)")
+connection.close()
+PY
+if ! monitor_json=$(docker run --rm "${role_args[@]}" \
+  -e OPENCLAW_ROLE=monitor-worker \
+  -v "$config/mail-agent.env:/etc/openclaw-env/mail-agent.env:ro" \
+  -v "$config/personal-assistant.env:/etc/openclaw-env/personal-assistant.env:ro" \
+  -v "$secrets/mail-agent.env:/run/openclaw-env/mail-agent.env:ro" \
+  -v "$secrets/personal-assistant.env:/run/openclaw-env/personal-assistant.env:ro" \
+  -v "$secrets/gateway.env:/run/openclaw-env/gateway.env:ro" \
+  -v "$state/v3/domains/mail:/var/lib/openclaw/mail:ro" \
+  -v "$state/v3/domains/portfolio:/var/lib/openclaw/portfolio:ro" \
+  -v "$state/v3/domains/monitoring:/var/lib/openclaw/monitoring" \
+  -v "$state/v3/domains/knowledge:/var/lib/openclaw/knowledge:ro" \
+  -v "$state/v3/shared/core:/var/lib/openclaw/core:ro" \
+  -v "$state/v3/shared/security:/var/lib/openclaw/security:ro" \
+  -v "$state/v3/shared/coordination:/var/lib/openclaw/coordination" \
+  "$IMAGE" /opt/openclaw-agent/scripts/assistant.sh monitor status --days 7 \
+  2>"$fixture/monitor.stderr"); then
+  cat "$fixture/monitor.stderr" >&2
+  fail "Monitor konnte die read-only SQLite-Quellen nicht auswerten"
+fi
+if ! MONITOR_JSON="$monitor_json" python3 - <<'PY'
+import json
+import os
+
+payload = json.loads(os.environ["MONITOR_JSON"])
+assistant = payload["metrics"]["assistant"]
+mail = payload["metrics"]["mail"]
+assert assistant["integrity"] == "ok", assistant
+assert mail["integrity"] == "ok", mail
+PY
+then
+  fail "Monitorbericht verletzt den read-only SQLite-Vertrag"
 fi
 
 # Even root cannot change image code when the container root filesystem is

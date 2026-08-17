@@ -47,6 +47,9 @@ x-openclaw-common: &openclaw-common
     OPENCLAW_LOG_DIR: /var/lib/openclaw/coordination/container_logs
     OPENCLAW_JOB_STATUS_DIR: /var/lib/openclaw/coordination/container_jobs
     OPENCLAW_GATEWAY_PORT: "18789"
+    # OpenClaw pairs an environment URL with the mounted gateway credential;
+    # this avoids exposing that credential as a process argument for events.
+    OPENCLAW_GATEWAY_URL: ws://gateway:18789
     OPENCLAW_GATEWAY_WS_URL: ws://gateway:18789
     MAIL_INTERVAL_SECONDS: ${MAIL_INTERVAL_SECONDS:-1200}
     MAIL_INITIAL_DELAY_SECONDS: ${MAIL_INITIAL_DELAY_SECONDS:-120}
@@ -240,7 +243,9 @@ services:
     container_name: openclaw-supervisor-worker
     pids_limit: 128
     cpus: 0.5
-    mem_limit: 512m
+    # Complete checks invoke the OpenClaw Node CLI; 512 MiB caused a confirmed
+    # cgroup OOM kill of the supervised child process.
+    mem_limit: 1g
     environment:
       <<: *openclaw-environment
       OPENCLAW_ROLE: supervisor-worker

@@ -152,6 +152,32 @@ class MonitoringToolTests(unittest.TestCase):
             any("scheduler doctor" in item for item in report["recommendations"])
         )
 
+    def test_monitor_reads_quiescent_mail_database_from_read_only_mount(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            mail_root = Path(folder) / "mail"
+            mail_database = mail_root / "mail_agent.sqlite3"
+            mail = MailStorage(mail_database)
+            mail.close()
+            self.assertFalse(Path(f"{mail_database}-wal").exists())
+            before = sorted(item.name for item in mail_root.iterdir())
+            mail_database.chmod(0o444)
+            mail_root.chmod(0o555)
+            monitor = PerformanceMonitor(
+                self.monitor.config,
+                self.storage,
+                self.registry,
+                mail_database=mail_database,
+                monitor_database=Path(folder) / "monitoring/monitor.sqlite3",
+            )
+            try:
+                report = monitor.report(days=7, live=False)
+                self.assertEqual(report["metrics"]["mail"]["integrity"], "ok")
+                self.assertEqual(sorted(item.name for item in mail_root.iterdir()), before)
+            finally:
+                monitor.close()
+                mail_root.chmod(0o755)
+                mail_database.chmod(0o644)
+
     def test_tool_registry_exposes_monitoring(self) -> None:
         ids = {item.id for item in build_tool_registry(ToolSettings(path=Path("tools.toml")))}
         self.assertIn("assistant.monitor.status", ids)

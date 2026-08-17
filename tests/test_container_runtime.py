@@ -212,6 +212,47 @@ raise SystemExit(86)
             self.assertEqual(report["jobs"][0]["state"], "degraded")
             self.assertEqual(report["jobs"][0]["issues"][0]["code"], "service-degraded")
 
+    def test_running_supervisor_does_not_latch_its_previous_failed_result(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            status_dir = root / "personal_assistant/data/container_jobs"
+            status_dir.mkdir(parents=True)
+            (status_dir / "supervisor.json").write_text(
+                json.dumps(
+                    {
+                        "updated_at": datetime.now(UTC).isoformat(),
+                        "state": "running",
+                        "result": "failed",
+                        "last_exit_code": -9,
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            def runner(command: list[str], timeout: int) -> CommandResult:
+                del timeout
+                if command[:3] == ["openclaw", "config", "get"]:
+                    value = "last" if command[-1].endswith("target") else "30m"
+                    return CommandResult(0, json.dumps(value), "")
+                return CommandResult(0, '{"ok": true}', "")
+
+            with patch.dict(
+                os.environ,
+                {
+                    "OPENCLAW_RUNTIME": "container",
+                    "OPENCLAW_JOB_STATUS_DIR": str(status_dir),
+                },
+            ):
+                controller = JobController(
+                    workspace_root=root,
+                    state_path=root / "personal_assistant/data/job_control.json",
+                    runner=runner,
+                )
+                report = controller.status(target="supervisor")
+            self.assertTrue(report["ok"])
+            self.assertEqual(report["jobs"][0]["service"]["Result"], "running")
+            self.assertEqual(report["jobs"][0]["service"]["ExecMainStatus"], "0")
+
     def test_clamav_updater_has_its_own_database_healthcheck(self) -> None:
         root = Path(__file__).resolve().parents[1]
         compose = (root / "compose.yaml").read_text(encoding="utf-8")

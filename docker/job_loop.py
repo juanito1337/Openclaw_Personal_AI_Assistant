@@ -246,6 +246,8 @@ def main() -> int:
             state="running",
             updated_at=started,
             last_started_at=started,
+            last_exit_code=None,
+            result="running",
             command=command,
             scheduler_ticket=ticket_id,
             queue_reason="granted" if claim is not None else "bypass",

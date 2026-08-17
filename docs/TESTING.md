@@ -1,7 +1,8 @@
 # Tests, Qualitaetsbaseline und Container-Runtime
 
-Stand: 2026-08-17, fortgeschrieben bis M10.8. Sie startet keine produktiven Dienste und
-verwendet weder `/srv/openclaw` noch produktive Zugangsdaten.
+Stand: 2026-08-17, fortgeschrieben bis zu den M10-Rolloutkorrekturen fuer Sync,
+Monitor und Supervisor. Sie startet keine produktiven Dienste und verwendet weder
+`/srv/openclaw` noch produktive Zugangsdaten.
 
 ## Einheitlicher lokaler und CI-Prueflauf
 
@@ -44,14 +45,14 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 694 Tests, darunter mindestens 630 unittest-kompatible Tests
-(die bisherigen 349 sowie M0-M10.8-Regressionstests),
+fordert mindestens 707 Tests, darunter mindestens 642 unittest-kompatible Tests
+(die bisherigen 349 sowie M0-M10.8- und Rollout-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
 nach dem Sammeln mit einem Fehler ab. Neue Tests duerfen die Zahl erhoehen; die
 Baseline wird erst nach einem vollstaendigen gruenen Lauf bewusst angehoben.
 
-## M0-Ausgangswerte und aktueller M10.8-Teststand
+## M0-Ausgangswerte und aktueller M10-Rollout-Teststand
 
 Gemessen auf Linux x86_64 mit Python 3.12.3. Die Werte sind Beobachtungen und noch
 keine willkuerlichen Mindestquoten. `scripts/quality-baseline.py` erzeugt sie nach
@@ -84,6 +85,7 @@ der aktuellen Python-Dateien.
 | Tests nach M10.7 gesammelt/ausgefuehrt | 688 / 688 (756 JUnit-Faelle inklusive 68 Subtests) |
 | Tests nach M10.8 gesammelt/ausgefuehrt | 694 / 694 (774 JUnit-Faelle inklusive 80 Subtests) |
 | Tests nach der M10-Rollout-Syncrollenkorrektur gesammelt/ausgefuehrt | 701 / 701 (781 JUnit-Faelle inklusive 80 Subtests) |
+| Tests nach der M10-Rollout-Monitor-/Supervisorkorrektur gesammelt/ausgefuehrt | 707 / 707 (787 JUnit-Faelle inklusive 80 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -131,6 +133,8 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach M10.8 | 49,89 % |
 | Gesamt-Coverage nach der M10-Rollout-Syncrollenkorrektur | 64,24 % |
 | reine Branch-Coverage nach der M10-Rollout-Syncrollenkorrektur | 49,99 % |
+| Gesamt-Coverage nach der M10-Rollout-Monitor-/Supervisorkorrektur | 64,36 % |
+| reine Branch-Coverage nach der M10-Rollout-Monitor-/Supervisorkorrektur | 50,19 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -142,6 +146,7 @@ der aktuellen Python-Dateien.
 | Laufzeit der erfolgreichen M10.7-Kontrollwiederholung | 115,65 s |
 | Laufzeit des ersten erfolgreichen lokalen M10.8-Gesamtchecks | 112,13 s |
 | Laufzeit der M10-Rollout-Syncrollenkorrektur | 112,42 s |
+| Laufzeit der M10-Rollout-Monitor-/Supervisorkorrektur | 117,69 s |
 | Laufzeit in der frischen M7-Wheel-Testumgebung | 55,56 s |
 | Wheelgroesse nach der Plugin-/Gatewaykorrektur | 397.870 Bytes |
 | M7-Wheel-Buildzeit | 4,582 s |
@@ -151,8 +156,12 @@ der aktuellen Python-Dateien.
 | Wheelgroesse nach der M10-Rollout-Syncrollenkorrektur | 473.145 Bytes |
 | Wheel-Buildzeit nach der M10-Rollout-Syncrollenkorrektur | 3,577 s |
 | Wheel-Tests nach der M10-Rollout-Syncrollenkorrektur | 701 plus 80 Subtests in 92,61 s |
+| Wheelgroesse nach der M10-Rollout-Monitor-/Supervisorkorrektur | 473.999 Bytes |
+| Wheel-Buildzeit nach der M10-Rollout-Monitor-/Supervisorkorrektur | 4,066 s |
+| Wheel-Tests nach der M10-Rollout-Monitor-/Supervisorkorrektur | 707 plus 80 Subtests in 93,64 s |
 | Container-Imagegroesse des M6-Testimages | 425.555.866 Bytes |
 | Runtime-Imagegroesse mit gepinnten Brave-/Signal-Plugins | 376.600.036 Bytes |
+| Runtime-Imagegroesse nach der M10-Rollout-Monitor-/Supervisorkorrektur | 376.793.375 Bytes |
 | sauberer Container-Erstbuild | ca. 411,92 s |
 | M6-Cache-Rebuild | 11 s |
 | Container-CLI-Kaltstart | 1.081 ms |

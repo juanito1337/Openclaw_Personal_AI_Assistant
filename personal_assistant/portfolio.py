@@ -3250,7 +3250,8 @@ class PortfolioService:
 
 def _system_event_command(text: str) -> list[str]:
     command = ["openclaw", "system", "event", "--text", text[:1800], "--mode", "now"]
+    gateway_environment_url = os.environ.get("OPENCLAW_GATEWAY_URL", "").strip()
     gateway_url = os.environ.get("OPENCLAW_GATEWAY_WS_URL", "").strip()
-    if gateway_url:
+    if gateway_url and not gateway_environment_url:
         command.extend(["--url", gateway_url])
     return command

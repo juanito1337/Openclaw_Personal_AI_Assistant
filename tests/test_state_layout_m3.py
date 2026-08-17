@@ -23,7 +23,7 @@ from personal_assistant.runtime_layout import (
     migrate_layout,
     restore_backup,
 )
-from personal_assistant.storage import AssistantStorage
+from personal_assistant.storage import AssistantStorage, read_only_sqlite_uri
 from personal_assistant.work_scheduler import AdaptiveWorkScheduler
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -65,6 +65,62 @@ def _uncommitted_write(database: str, ready: multiprocessing.Event) -> None:
 
 
 class StateLayoutM3Tests(unittest.TestCase):
+    def test_quiescent_wal_databases_open_without_writes_on_read_only_mounts(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            core_dir = root / "core"
+            knowledge_dir = root / "knowledge"
+            core = core_dir / "assistant.sqlite3"
+            with patch.dict(
+                os.environ,
+                {"OPENCLAW_KNOWLEDGE_DATA_DIR": str(knowledge_dir)},
+                clear=False,
+            ):
+                writer = AssistantStorage(core)
+                writer.close()
+                self.assertFalse(Path(f"{core}-wal").exists())
+                knowledge = knowledge_dir / "knowledge.sqlite3"
+                self.assertFalse(Path(f"{knowledge}-wal").exists())
+                before = {
+                    path: sorted(item.name for item in path.iterdir())
+                    for path in (core_dir, knowledge_dir)
+                }
+                for path in (core, knowledge):
+                    path.chmod(0o444)
+                for path in (core_dir, knowledge_dir):
+                    path.chmod(0o555)
+                try:
+                    reader = AssistantStorage(core, read_only=True)
+                    try:
+                        self.assertEqual(reader.integrity(), "ok")
+                        self.assertEqual(reader.connection.execute("PRAGMA query_only").fetchone()[0], 1)
+                        self.assertEqual(
+                            reader.knowledge_connection.execute("PRAGMA query_only").fetchone()[0],
+                            1,
+                        )
+                    finally:
+                        reader.close()
+                    self.assertEqual(
+                        {
+                            path: sorted(item.name for item in path.iterdir())
+                            for path in (core_dir, knowledge_dir)
+                        },
+                        before,
+                    )
+                finally:
+                    for path in (core_dir, knowledge_dir):
+                        path.chmod(0o755)
+                    for path in (core, knowledge):
+                        path.chmod(0o644)
+
+    def test_read_only_uri_never_hides_an_existing_wal(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            database = Path(folder) / "assistant.sqlite3"
+            database.touch()
+            self.assertIn("immutable=1", read_only_sqlite_uri(database))
+            Path(f"{database}-wal").touch()
+            self.assertNotIn("immutable=1", read_only_sqlite_uri(database))
+
     def _state(self, folder: str) -> tuple[Path, Path]:
         state = Path(folder) / "state"
         workspace = state / "workspace"

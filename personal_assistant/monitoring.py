@@ -15,7 +15,7 @@ from typing import Any
 from .config import WORKSPACE_ROOT, AssistantConfig
 from .contracts.time import now_utc_iso
 from .registry import ResourceRegistry
-from .storage import AssistantStorage
+from .storage import AssistantStorage, read_only_sqlite_uri
 
 DEFAULT_MONITOR_DB = WORKSPACE_ROOT / "personal_assistant/data/monitoring.sqlite3"
 
@@ -235,8 +235,9 @@ class PerformanceMonitor:
         if not path.exists():
             return "missing"
         try:
-            connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+            connection = sqlite3.connect(read_only_sqlite_uri(path), uri=True)
             try:
+                connection.execute("PRAGMA query_only=ON")
                 row = connection.execute("PRAGMA integrity_check").fetchone()
                 return str(row[0] if row else "unknown")
             finally:
@@ -281,9 +282,10 @@ class PerformanceMonitor:
         }
         if not self.mail_database.exists():
             return result
-        connection = sqlite3.connect(f"file:{self.mail_database}?mode=ro", uri=True)
+        connection = sqlite3.connect(read_only_sqlite_uri(self.mail_database), uri=True)
         connection.row_factory = sqlite3.Row
         try:
+            connection.execute("PRAGMA query_only=ON")
             row = self._query_one(
                 connection,
                 """

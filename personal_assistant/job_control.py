@@ -24,8 +24,14 @@ USER_UNIT_DIR = Path("~/.config/systemd/user").expanduser()
 
 def _system_event_command(text: str) -> list[str]:
     command = ["openclaw", "system", "event", "--text", text, "--mode", "now"]
+    # OpenClaw deliberately refuses a CLI --url override unless credentials are
+    # also exposed as CLI arguments. Container deployments pair the internal
+    # URL and the mounted gateway credential through OPENCLAW_GATEWAY_URL and
+    # therefore keep the secret out of argv. The legacy URL remains a local
+    # fallback only when that paired environment contract is absent.
+    gateway_environment_url = os.environ.get("OPENCLAW_GATEWAY_URL", "").strip()
     gateway_url = os.environ.get("OPENCLAW_GATEWAY_WS_URL", "").strip()
-    if gateway_url:
+    if gateway_url and not gateway_environment_url:
         command.extend(["--url", gateway_url])
     return command
 
@@ -293,6 +299,13 @@ class JobController:
                 fresh = False
         active = desired and fresh
         is_timer = unit == spec.timer_unit
+        heartbeat_state = str(heartbeat.get("state") or "")
+        # A worker publishes ``running`` before starting its child. Its previous
+        # result remains useful history but must not be treated as the result of
+        # the in-flight run. This is essential for the supervisor checking its
+        # own status: otherwise one failed run permanently latches the next run
+        # into the same failure.
+        in_flight = heartbeat_state == "running"
         return {
             "unit": unit,
             "available": True,
@@ -300,10 +313,10 @@ class JobController:
             "error": "" if fresh or not desired else "Container-Worker hat keinen aktuellen Heartbeat",
             "LoadState": "loaded",
             "ActiveState": "active" if active else "inactive",
-            "SubState": ("waiting" if is_timer else str(heartbeat.get("state") or "running")) if active else "dead",
+            "SubState": ("waiting" if is_timer else (heartbeat_state or "running")) if active else "dead",
             "UnitFileState": "enabled" if desired else "disabled",
-            "Result": str(heartbeat.get("result") or "success"),
-            "ExecMainStatus": str(heartbeat.get("last_exit_code") or 0),
+            "Result": "running" if in_flight else str(heartbeat.get("result") or "success"),
+            "ExecMainStatus": "0" if in_flight else str(heartbeat.get("last_exit_code") or 0),
             "ExecMainStartTimestamp": str(heartbeat.get("last_started_at") or ""),
             "ExecMainExitTimestamp": str(heartbeat.get("last_finished_at") or ""),
             "container": True,

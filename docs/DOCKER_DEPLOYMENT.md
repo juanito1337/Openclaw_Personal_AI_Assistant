@@ -209,6 +209,19 @@ Worker schreibt Index und Syncstatus ausschliesslich unter Wissen/Koordination.
 Teil- oder Quellfehler liefern Exitcode 1 und bleiben als `degraded` mit der
 urspruenglichen Ursache sichtbar.
 
+Der Monitor liest seine Core-, Wissens- und Mailquellen weiterhin ausschliesslich
+read-only. Geschlossene WAL-Datenbanken ohne vorhandenes WAL werden immutable und
+`query_only` geoeffnet, damit SQLite auf dem `ro`-Mount kein `-shm` anlegen muss;
+ein vorhandenes WAL bleibt sichtbar oder der Lauf bricht fail-closed ab.
+
+Supervisor-Systemereignisse erhalten die interne Gatewayadresse ueber
+`OPENCLAW_GATEWAY_URL`. OpenClaw paart diese Umgebungsadresse mit dem separat
+gemounteten Gateway-Credential, ohne das Secret in `--token`-/`--password`-
+Prozessargumente zu kopieren. Der Worker besitzt 1 GiB RAM, nachdem produktive
+cgroup-Zaehlung wiederholte OOM-Kills unter dem frueheren 512-MiB-Limit belegt
+hat. Waehrend eines Eigenchecks ist sein aktuelles Resultat `running`; der
+Exitcode des vorherigen Laufs wird erst nach Abschluss wieder bewertet.
+
 Layout 3 fuehrt vor jeder Veraenderung Schreibbarkeits-, UID-, Freiplatz- und
 SQLite-Checks aus. Es erzeugt ueber SQLite `backup()` einen SHA-256-verifizierten
 Snapshot, baut `v3` in einem Stagingpfad und publiziert ihn atomar. Konfiguration,
