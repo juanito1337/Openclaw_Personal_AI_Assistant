@@ -174,6 +174,8 @@ echo "Pruefe signierte M7-Images vor jeder Aenderung am laufenden Stack."
 "$SCRIPT_DIR/verify-image-supply-chain.sh" "$target_image" "$expected_source_revision" runtime
 "$SCRIPT_DIR/verify-image-supply-chain.sh" "$target_proxy_image" "$expected_source_revision" proxy
 "$SCRIPT_DIR/verify-image-supply-chain.sh" "$target_maintenance_image" "$expected_source_revision" maintenance
+echo "Pruefe ClamAV-Maintenance-Laufzeit und TLS-Transport vor dem Writer-Stopp."
+"$SCRIPT_DIR/check-maintenance-runtime.sh" "$target_maintenance_image"
 
 target_layout_min=$(
   docker image inspect \

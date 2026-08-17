@@ -250,6 +250,7 @@ trap - EXIT
 
 docker run --rm --network none --entrypoint python3 "$maintenance" -P -c '
 import personal_assistant.clamav_health
+import personal_assistant.clamav_transport
 from pathlib import Path
 assert Path("/usr/bin/freshclam").is_file()
 assert Path("/usr/bin/clamscan").is_file()
@@ -258,4 +259,5 @@ assert not Path("/usr/local/bin/openclaw").exists()
 assert not Path("/usr/local/bin/himalaya").exists()
 assert not Path("/usr/bin/tesseract").exists()
 '
+"$root/docker/scripts/check-maintenance-runtime.sh" "$maintenance"
 echo "M7 role smoke tests successful."

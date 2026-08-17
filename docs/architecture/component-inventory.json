@@ -2,7 +2,7 @@
   "schema_version": 1,
   "inventory_date": "2026-08-06",
   "source_scope": "all Python modules, shell entrypoints, skills, systemd units, migrations and Markdown documents",
-  "component_count": 386,
+  "component_count": 388,
   "classification_values": [
     "active",
     "compatibility",
@@ -87,7 +87,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-17T00:19:33+02:00",
+      "last_git_change": "2026-08-17T00:24:54+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -450,6 +450,30 @@
       "documentation_evidence": [],
       "line_coverage_percent": null,
       "last_git_change": "2026-08-06T15:45:31+02:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "docker/scripts/check-maintenance-runtime.sh",
+      "types": [
+        "shell-entrypoint"
+      ],
+      "owner": "Operations Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "docker/scripts/deploy.sh",
+        "scripts/check-role-images.sh"
+      ],
+      "test_evidence": [
+        "tests/test_container_runtime.py",
+        "tests/test_m8_recovery.py"
+      ],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1702,7 +1726,7 @@
         "docs/architecture/owners.json"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-08T10:11:53+02:00",
+      "last_git_change": "2026-08-17T00:24:54+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -4266,6 +4290,31 @@
       "rollback_relevance": "none"
     },
     {
+      "path": "personal_assistant/clamav_transport.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Core Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "Dockerfile",
+        "docker/scripts/check-maintenance-runtime.sh",
+        "scripts/check-role-images.sh"
+      ],
+      "test_evidence": [
+        "tests/test_container_hardening_m4.py",
+        "tests/test_container_runtime.py"
+      ],
+      "documentation_evidence": [],
+      "line_coverage_percent": 77.36,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
       "path": "personal_assistant/cli.py",
       "types": [
         "python-module"
@@ -6454,7 +6503,7 @@
         "docs/architecture/adr/0007-shared-sqlite-scheduler.md",
         "docs/architecture/state-access.json"
       ],
-      "line_coverage_percent": 85.1,
+      "line_coverage_percent": 84.24,
       "last_git_change": "2026-08-06T15:45:31+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -6992,6 +7041,7 @@
         ".github/workflows/container.yml"
       ],
       "test_evidence": [
+        "tests/test_container_runtime.py",
         "tests/test_invoice_acceptance_m108.py"
       ],
       "documentation_evidence": [
@@ -7255,7 +7305,7 @@
         "docs/architecture/IMAGE_SUPPLY_CHAIN.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-08T10:11:53+02:00",
+      "last_git_change": "2026-08-17T00:24:54+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -8722,7 +8772,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-08T10:11:53+02:00",
+      "last_git_change": "2026-08-17T00:24:54+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"

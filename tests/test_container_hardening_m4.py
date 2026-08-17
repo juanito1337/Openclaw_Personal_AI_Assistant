@@ -11,6 +11,7 @@ from unittest import mock
 
 from personal_assistant import container_entrypoint
 from personal_assistant.clamav_health import inspect_database
+from personal_assistant.clamav_transport import CURLOPT_URL, LIBCURL, probe_tls_transport
 from personal_assistant.container_health import evaluate
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -342,6 +343,49 @@ raise SystemExit(86)
             bad = subprocess.CompletedProcess(["clamscan", "--version"], 0, "ClamAV 1.4\n", "")
             with self.assertRaisesRegex(ValueError, "Scanneridentitaet"):
                 inspect_database(database, max_age_seconds=120, now=current, run=lambda *args, **kwargs: bad)
+
+    def test_clamav_transport_exercises_libcurl_https_and_fails_closed(self) -> None:
+        class FakeFunction:
+            def __init__(self, result: object = 0) -> None:
+                self.result = result
+                self.calls: list[tuple[object, ...]] = []
+                self.argtypes: object = None
+                self.restype: object = None
+
+            def __call__(self, *args: object) -> object:
+                self.calls.append(args)
+                return self.result
+
+        class FakeCurl:
+            def __init__(self, perform_code: int = 0) -> None:
+                self.curl_global_init = FakeFunction(0)
+                self.curl_global_cleanup = FakeFunction(None)
+                self.curl_easy_init = FakeFunction(1234)
+                self.curl_easy_setopt = FakeFunction(0)
+                self.curl_easy_perform = FakeFunction(perform_code)
+                self.curl_easy_cleanup = FakeFunction(None)
+
+        curl = FakeCurl()
+        report = probe_tls_transport(loader=lambda name: curl)
+        self.assertTrue(report["ok"])
+        self.assertEqual(report["library"], LIBCURL)
+        url_calls = [
+            call
+            for call in curl.curl_easy_setopt.calls
+            if len(call) == 3 and getattr(call[1], "value", None) == CURLOPT_URL
+        ]
+        self.assertEqual(len(url_calls), 1)
+        self.assertTrue(getattr(url_calls[0][2], "value", b"").startswith(b"https://"))
+        self.assertEqual(len(curl.curl_easy_perform.calls), 1)
+        self.assertEqual(len(curl.curl_easy_cleanup.calls), 1)
+        self.assertEqual(len(curl.curl_global_cleanup.calls), 1)
+
+        with self.assertRaisesRegex(RuntimeError, "TLS-Handshake"):
+            probe_tls_transport(loader=lambda name: FakeCurl(35))
+        with self.assertRaisesRegex(RuntimeError, "konnte nicht geladen"):
+            probe_tls_transport(
+                loader=lambda name: (_ for _ in ()).throw(OSError("symbol not found"))
+            )
 
 
 if __name__ == "__main__":

@@ -319,6 +319,14 @@ SLSA-Provenance, SPDX-SBOM, release, revision and role for every image before it
 stops any running container. Tags such as `latest`, an unsigned digest or a role
 mismatch are rejected without changing the running stack.
 
+Before any writer is stopped, the exact signed maintenance digest additionally
+starts `freshclam` and `clamscan` in isolated containers and completes one bounded,
+certificate-verified libcurl TLS handshake with `database.clamav.net`. The same
+behavioral preflight runs in the CI role smoke. A loader/ABI, certificate, DNS or
+transport failure therefore stops the rollout before the production interruption;
+the later real signature update remains fail-closed and still triggers rollback if
+it fails after the verified backup.
+
 ### Fast live-test loop
 
 Branches below `test/**` publish a container automatically after the repository

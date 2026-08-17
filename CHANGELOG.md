@@ -2,6 +2,11 @@
 
 ## Unreleased – M10 Rechnungsqualitaet und sichere Neubewertung
 
+- Der signierte Test-Rollout prueft die ClamAV-Maintenance-Rolle jetzt bereits
+  vor dem Writer-Stopp durch echte Programmstarts und einen begrenzten
+  zertifikatsgeprueften libcurl-TLS-Handshake. Eine defekte oder temporaer nicht
+  nutzbare Maintenance-Laufzeit bricht damit ohne Produktionsunterbrechung ab;
+  derselbe Verhaltenscheck laeuft im Image-Smoke der CI.
 - M10.0 friert die aktuelle Rechnungsqualitaet mit einem vollstaendig
   synthetischen deutsch/englischen Evaluationskorpus ein, ohne Extraktion,
   Produktivdaten oder Reprocessing zu veraendern.

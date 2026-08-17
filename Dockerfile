@@ -239,7 +239,8 @@ RUN apk add --no-cache \
        freshclam=1.4.3-r0 \
        tini=0.19.0-r3
 COPY VERSION RELEASE.json /opt/openclaw-agent/
-COPY personal_assistant/__init__.py personal_assistant/clamav_health.py /opt/openclaw-agent/personal_assistant/
+COPY personal_assistant/__init__.py personal_assistant/clamav_health.py \
+     personal_assistant/clamav_transport.py /opt/openclaw-agent/personal_assistant/
 COPY docker/clamav-update.sh /opt/openclaw-agent/docker/
 COPY docker/supply-chain.lock.json /usr/share/openclaw/supply-chain.lock.json
 WORKDIR /opt/openclaw-agent

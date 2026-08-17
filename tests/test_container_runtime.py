@@ -227,6 +227,21 @@ raise SystemExit(86)
         self.assertIn("-P -m personal_assistant.clamav_health", deploy)
         self.assertIn("wait_for_healthy clamav-update 180", deploy)
 
+    def test_maintenance_transport_preflight_runs_before_writer_stop_and_in_role_smoke(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        deploy = (root / "docker/scripts/deploy.sh").read_text(encoding="utf-8")
+        role_smoke = (root / "scripts/check-role-images.sh").read_text(encoding="utf-8")
+        preflight = (root / "docker/scripts/check-maintenance-runtime.sh").read_text(
+            encoding="utf-8"
+        )
+        call = '"$SCRIPT_DIR/check-maintenance-runtime.sh" "$target_maintenance_image"'
+        self.assertIn(call, deploy)
+        self.assertLess(deploy.index(call), deploy.index('echo "Stoppe alle schreibenden Laufzeiten."'))
+        self.assertIn('"$root/docker/scripts/check-maintenance-runtime.sh" "$maintenance"', role_smoke)
+        self.assertIn("/usr/bin/freshclam", preflight)
+        self.assertIn("/usr/bin/clamscan", preflight)
+        self.assertIn("personal_assistant.clamav_transport", preflight)
+
     def test_entrypoint_builds_runtime_ca_bundle_from_public_crt_files(self) -> None:
         entrypoint = (
             Path(__file__).resolve().parents[1] / "personal_assistant/container_entrypoint.py"
