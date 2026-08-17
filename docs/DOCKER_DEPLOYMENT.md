@@ -214,10 +214,13 @@ read-only. Geschlossene WAL-Datenbanken ohne vorhandenes WAL werden immutable un
 `query_only` geoeffnet, damit SQLite auf dem `ro`-Mount kein `-shm` anlegen muss;
 ein vorhandenes WAL bleibt sichtbar oder der Lauf bricht fail-closed ab.
 
-Supervisor-Systemereignisse erhalten die interne Gatewayadresse ueber
-`OPENCLAW_GATEWAY_URL`. OpenClaw paart diese Umgebungsadresse mit dem separat
-gemounteten Gateway-Credential, ohne das Secret in `--token`-/`--password`-
-Prozessargumente zu kopieren. Der Worker besitzt 1 GiB RAM, nachdem produktive
+Supervisor-Systemereignisse werden atomar und begrenzt in der gemeinsamen
+Koordination abgelegt. Nur der Gateway-Container besitzt das Credential und
+stellt die Meldung ueber akzeptiertes `ws://127.0.0.1` zu. Unsicheres
+Non-Loopback-WebSocket wird weder freigegeben noch durch Prozessargumente
+umgangen. Der Supervisor besitzt keine Mail- oder Gateway-Secrets und oeffnet
+keinen Mail-State; die einzige erlaubte Production-Gate-Recovery laeuft beim
+alleinigen Mail-Writer. Der Worker besitzt 1 GiB RAM, nachdem produktive
 cgroup-Zaehlung wiederholte OOM-Kills unter dem frueheren 512-MiB-Limit belegt
 hat. Waehrend eines Eigenchecks ist sein aktuelles Resultat `running`; der
 Exitcode des vorherigen Laufs wird erst nach Abschluss wieder bewertet.

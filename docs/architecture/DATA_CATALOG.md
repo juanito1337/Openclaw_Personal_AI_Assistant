@@ -17,7 +17,7 @@ jeweiligen SQLite-Datenbank und duerfen nicht einzeln gesichert werden.
 | `domains/knowledge/` | `personal_assistant.storage` | `knowledge.sqlite3` mit Dokumenten, Chunks, FTS und Sync-Cursorn | SQLite-Backup-API; Sync `rw`, Monitor `ro`; getrennt von ActionPlan/Audit |
 | `shared/core/` | `personal_assistant.storage` | `assistant.sqlite3`, `resources.toml`, Action-Payloads/Workspace-Outbox | SQLite-Backup-API; Unique-Idempotenzschluessel; Audit und ActionPlan konsistent sichern |
 | `shared/security/` | `personal_assistant.antivirus` | `antivirus.sqlite3`, temporaerer Scanpfad | Cache nur bei identischem SHA/Scanner; Mail/CLI `rw`, Monitor `ro` |
-| `shared/coordination/` | Scheduler und JobController | `work_scheduler.sqlite3`, `job_control.json`, Heartbeats und Rollenlogs | WAL/Busy-Timeout; atomarer JSON-Replace; Worker besitzen nur eigene Heartbeats/Logs |
+| `shared/coordination/` | Scheduler, JobController und Gateway-Relay | `work_scheduler.sqlite3`, `job_control.json`, Heartbeats, Rollenlogs und begrenzte Eventqueue | WAL/Busy-Timeout; atomarer JSON-Replace/Claim; Worker besitzen nur eigene Heartbeats/Logs und duerfen begrenzte Events einstellen |
 
 ## Datei- und Transaktionsvertraege
 
@@ -34,6 +34,8 @@ jeweiligen SQLite-Datenbank und duerfen nicht einzeln gesichert werden.
 | `shared/coordination/work_scheduler.sqlite3` | alle Fachworker und Focus-CLI | Supervisor/Monitor | `BEGIN IMMEDIATE`, atomare Claims, Owner/Token/Ablauf; stale Lease wird kontrolliert recovered |
 | `shared/coordination/job_control.json` | JobController | alle Worker | atomarer Replace; nur registrierte Jobs |
 | `shared/coordination/container_jobs/<job>.json` | genau der jeweilige Worker | Healthcheck/Supervisor | atomarer Replace, keine Nutzinhalte |
+| `shared/coordination/gateway_events/` | Fachworker nur `pending`, Gateway-Relay konsumiert | Supervisor/Health nur `relay-status.json` | maximal 256 aktive und 64 fehlgeschlagene Events, je 1.800 Zeichen; atomarer Claim; Gateway-Credential bleibt ausserhalb der Queue |
+| `shared/coordination/mail_worker_recovery.json` | Mailworker | Mailworker/Supervisor | inhaltsfreier Fingerprint, Ergebnis und 30-Minuten-Cooldown; keine Mail- oder Modelldaten |
 
 ## Layoutmigration und Restore
 

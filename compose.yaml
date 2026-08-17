@@ -46,11 +46,8 @@ x-openclaw-common: &openclaw-common
     OPENCLAW_CA_DIR: /etc/openclaw-ca
     OPENCLAW_LOG_DIR: /var/lib/openclaw/coordination/container_logs
     OPENCLAW_JOB_STATUS_DIR: /var/lib/openclaw/coordination/container_jobs
+    OPENCLAW_EVENT_QUEUE_DIR: /var/lib/openclaw/coordination/gateway_events
     OPENCLAW_GATEWAY_PORT: "18789"
-    # OpenClaw pairs an environment URL with the mounted gateway credential;
-    # this avoids exposing that credential as a process argument for events.
-    OPENCLAW_GATEWAY_URL: ws://gateway:18789
-    OPENCLAW_GATEWAY_WS_URL: ws://gateway:18789
     MAIL_INTERVAL_SECONDS: ${MAIL_INTERVAL_SECONDS:-1200}
     MAIL_INITIAL_DELAY_SECONDS: ${MAIL_INITIAL_DELAY_SECONDS:-120}
     MAIL_DRAIN_BATCH_SIZE: ${MAIL_DRAIN_BATCH_SIZE:-20}
@@ -265,9 +262,6 @@ services:
     volumes:
       - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/instance:/home/node/.openclaw/workspace:ro
       - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/shared/coordination:/var/lib/openclaw/coordination
-      - ${OPENCLAW_CONFIG_DIR:-/srv/openclaw/config}/mail-agent.env:/etc/openclaw-env/mail-agent.env:ro
-      - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/mail-agent.env:/run/openclaw-env/mail-agent.env:ro
-      - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/gateway.env:/run/openclaw-env/gateway.env:ro
 
   portfolio-worker:
     <<: *openclaw-common
@@ -296,7 +290,6 @@ services:
       - ${OPENCLAW_CONFIG_DIR:-/srv/openclaw/config}/ca:/etc/openclaw-ca:ro
       - ${OPENCLAW_CONFIG_DIR:-/srv/openclaw/config}/personal-assistant.env:/etc/openclaw-env/personal-assistant.env:ro
       - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/personal-assistant.env:/run/openclaw-env/personal-assistant.env:ro
-      - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/gateway.env:/run/openclaw-env/gateway.env:ro
 
   monitor-worker:
     <<: *openclaw-common
@@ -334,7 +327,6 @@ services:
       - ${OPENCLAW_CONFIG_DIR:-/srv/openclaw/config}/personal-assistant.env:/etc/openclaw-env/personal-assistant.env:ro
       - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/mail-agent.env:/run/openclaw-env/mail-agent.env:ro
       - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/personal-assistant.env:/run/openclaw-env/personal-assistant.env:ro
-      - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/gateway.env:/run/openclaw-env/gateway.env:ro
 
   agent-cli:
     <<: *openclaw-common

@@ -332,7 +332,6 @@ if ! monitor_json=$(docker run --rm "${role_args[@]}" \
   -v "$config/personal-assistant.env:/etc/openclaw-env/personal-assistant.env:ro" \
   -v "$secrets/mail-agent.env:/run/openclaw-env/mail-agent.env:ro" \
   -v "$secrets/personal-assistant.env:/run/openclaw-env/personal-assistant.env:ro" \
-  -v "$secrets/gateway.env:/run/openclaw-env/gateway.env:ro" \
   -v "$state/v3/domains/mail:/var/lib/openclaw/mail:ro" \
   -v "$state/v3/domains/portfolio:/var/lib/openclaw/portfolio:ro" \
   -v "$state/v3/domains/monitoring:/var/lib/openclaw/monitoring" \

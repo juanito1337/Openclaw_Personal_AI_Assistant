@@ -2,7 +2,7 @@
   "schema_version": 1,
   "inventory_date": "2026-08-06",
   "source_scope": "all Python modules, shell entrypoints, skills, systemd units, migrations and Markdown documents",
-  "component_count": 388,
+  "component_count": 392,
   "classification_values": [
     "active",
     "compatibility",
@@ -2358,6 +2358,27 @@
       "rollback_relevance": "none"
     },
     {
+      "path": "docs/architecture/adr/0025-gateway-event-relay-und-mail-writer-recovery.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Architecture Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/architecture/adr/README.md",
+        "docs/architecture/owners.json"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
       "path": "docs/architecture/adr/README.md",
       "types": [
         "document"
@@ -2784,13 +2805,13 @@
         "scripts/check-repo.sh"
       ],
       "test_evidence": [
+        "tests/test_gateway_event_relay.py",
         "tests/test_job_control.py",
         "tests/test_m6_legacy_cleanup.py"
       ],
       "documentation_evidence": [
         "CHANGELOG.md",
         "HEARTBEAT.md",
-        "docs/JOB_CONTROL.md",
         "docs/OLLAMA_JSON_RECOVERY.md",
         "docs/archive/README_PRE_M1.md"
       ],
@@ -2819,13 +2840,12 @@
         "scripts/check-repo.sh"
       ],
       "test_evidence": [
+        "tests/test_gateway_event_relay.py",
         "tests/test_job_control.py",
         "tests/test_m6_legacy_cleanup.py",
         "tests/test_m8_recovery.py"
       ],
-      "documentation_evidence": [
-        "docs/JOB_CONTROL.md"
-      ],
+      "documentation_evidence": [],
       "line_coverage_percent": null,
       "last_git_change": "2026-08-06T15:45:31+02:00",
       "runtime_telemetry": {
@@ -3004,6 +3024,7 @@
         "scripts/check-repo.sh"
       ],
       "test_evidence": [
+        "tests/test_gateway_event_relay.py",
         "tests/test_job_control.py"
       ],
       "documentation_evidence": [],
@@ -3031,6 +3052,7 @@
         "scripts/check-repo.sh"
       ],
       "test_evidence": [
+        "tests/test_gateway_event_relay.py",
         "tests/test_job_control.py"
       ],
       "documentation_evidence": [],
@@ -5091,7 +5113,7 @@
       "documentation_evidence": [
         "docs/TESTING.md"
       ],
-      "line_coverage_percent": 37.43,
+      "line_coverage_percent": 36.65,
       "last_git_change": "2026-08-08T10:11:53+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -5280,6 +5302,30 @@
       "rollback_relevance": "none"
     },
     {
+      "path": "personal_assistant/gateway_events.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Core Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "docker/healthcheck.sh",
+        "personal_assistant/container_entrypoint.py",
+        "scripts/check-role-images.sh"
+      ],
+      "test_evidence": [
+        "tests/test_gateway_event_relay.py"
+      ],
+      "documentation_evidence": [],
+      "line_coverage_percent": 57.34,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
       "path": "personal_assistant/ical_edit.py",
       "types": [
         "python-module"
@@ -5341,6 +5387,7 @@
       "test_evidence": [
         "tests/ruff-baseline.json",
         "tests/test_container_runtime.py",
+        "tests/test_gateway_event_relay.py",
         "tests/test_job_control.py",
         "tests/test_m6_legacy_cleanup.py",
         "tests/test_portfolio_tool.py"
@@ -5348,7 +5395,7 @@
       "documentation_evidence": [
         "docs/TESTING.md"
       ],
-      "line_coverage_percent": 84.01,
+      "line_coverage_percent": 84.73,
       "last_git_change": "2026-08-17T23:33:22+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -5418,6 +5465,29 @@
       "documentation_evidence": [],
       "line_coverage_percent": 84.47,
       "last_git_change": "2026-08-06T15:45:31+02:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "personal_assistant/mail_worker.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Core Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "docker/job_loop.py"
+      ],
+      "test_evidence": [
+        "tests/test_gateway_event_relay.py",
+        "tests/test_immutable_runtime.py"
+      ],
+      "documentation_evidence": [],
+      "line_coverage_percent": 54.29,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -5626,7 +5696,7 @@
         "docs/TESTING.md",
         "docs/architecture/DATA_CATALOG.md"
       ],
-      "line_coverage_percent": 71.81,
+      "line_coverage_percent": 71.83,
       "last_git_change": "2026-08-17T23:33:22+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -6836,7 +6906,7 @@
         "docs/TESTING.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-17T23:33:22+02:00",
+      "last_git_change": "2026-08-17T23:43:59+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -7364,11 +7434,13 @@
         "mail_agent/setup_assistant.py",
         "mail_agent/training.py",
         "personal_assistant/job_control.py",
+        "personal_assistant/mail_worker.py",
         "personal_assistant/runtime_identity.py",
         "scripts/bootstrap-local.sh"
       ],
       "test_evidence": [
         "tests/test_container_runtime.py",
+        "tests/test_gateway_event_relay.py",
         "tests/test_immutable_runtime.py",
         "tests/test_job_control.py",
         "tests/test_m8_recovery.py"
@@ -8321,6 +8393,24 @@
       "documentation_evidence": [],
       "line_coverage_percent": null,
       "last_git_change": "2026-08-06T15:45:31+02:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "tests/test_gateway_event_relay.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"

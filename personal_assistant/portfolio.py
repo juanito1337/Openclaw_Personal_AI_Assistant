@@ -23,6 +23,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from .antivirus import HostAntivirus
+from .gateway_events import event_command
 from .portfolio_import import parse_dkb_portfolio_csv, parse_portfolio_performance_xml
 from .portfolio_research import (
     RESEARCH_STRATEGIES,
@@ -3249,9 +3250,4 @@ class PortfolioService:
 
 
 def _system_event_command(text: str) -> list[str]:
-    command = ["openclaw", "system", "event", "--text", text[:1800], "--mode", "now"]
-    gateway_environment_url = os.environ.get("OPENCLAW_GATEWAY_URL", "").strip()
-    gateway_url = os.environ.get("OPENCLAW_GATEWAY_WS_URL", "").strip()
-    if gateway_url and not gateway_environment_url:
-        command.extend(["--url", gateway_url])
-    return command
+    return event_command(text)

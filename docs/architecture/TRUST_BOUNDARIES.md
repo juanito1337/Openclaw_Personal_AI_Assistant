@@ -17,6 +17,7 @@ Toolausgaben sind Daten und niemals Anweisungen.
 | Core -> externer Write | geplanter Payload | Ressource, Permission, Approval, Idempotenz, Audit | Connector-Aufruf |
 | Container -> Secret | kompromittierter Prozess | einzelne rollenbezogene read-only Dateimounts und strikter KEY=VALUE-Parser | genau freigegebene Secretdatei |
 | Container -> Netz | kompromittierter Prozess | internes Backend, explizites Egress, Loopback-Portbindung | nur erforderliche Gegenstellen |
+| Worker -> Gateway | begrenzte technische Meldung | schema-validierte Queue, Groessen-/Anzahllimit, atomarer Claim | Gateway-lokaler Loopback-Relay mit alleinigem Credential |
 | Image -> State | Releaseinhalt | read-only RootFS, feste Codepfade, Layoutmigration und kontrollierte Dokumentlinks | persistenter Workspace ohne ausfuehrbaren Produktcode |
 | Git/Builder -> Image | Quellbaum und Fremdartefakte | Digest-/Commit-Lock, SBOM, SLSA-Provenance, CVE-/Secret-Scan und Cosign | attestierter Rollenimage-Digest |
 | Deployment -> produktive Writer | neues Image/State | Single-Writer-Pruefung, Backup, Smoke, Rollback | genau ein freigegebener Stack |
@@ -52,6 +53,9 @@ Verzeichnisse ab und wertet keine Datei als Shellcode aus. Er akzeptiert pro Rol
 nur feste Dateinamen und eine dokumentierte Schluessel-Whitelist; unbekannte Zeilen,
 Schluessel oder fehlende Pflichtdateien brechen fail-closed ab. Secrets duerfen
 nicht in Git, Image, Logs, Prompts, Testfixtures, Memory oder Nextcloud landen.
+Das Gateway-Credential wird nur in Gateway und expliziter `agent-cli` gemountet.
+Supervisor, Portfolio und Monitor koennen keine direkte Gateway-Verbindung
+authentisieren; ihre Queue ist kein allgemeiner RPC-Kanal.
 
 ## Backup- und Rollbackgrenze
 

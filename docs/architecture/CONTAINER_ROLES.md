@@ -25,8 +25,8 @@ tragen denselben Release und Commit; Inhalt, Messung und Freigabe beschreibt der
 | `gateway` | `runtime` | Gateway/Sessions und Toolaufrufe | G/M/O/P/N/W/C/S/Q `rw`; I-Profil/Memory `rw`, I-Konfigurationsordner `ro`; H/E/X/V `ro` | interaktive Universalrolle; Konfigurationssetup ausschliesslich ueber `agent-cli`, fachliche Rechte bleiben Policy-/Approval-gebunden |
 | `mail-worker` | `runtime` | Mail, Orders, delegierte ActionPlans | I `ro`, M/O/C/S/Q `rw`, H/E/X/V `ro` | nur Mail-/PA-Secrets; einziger produktiver Mailwriter |
 | `sync-worker` | `runtime` | Index und Syncstatus | I/M/C `ro`, W/Q `rw`, E/X `ro` | Live-Discovery ohne Core-Persistierung; nur Nextcloud/Mail-Envdateien; keine Orders-/Portfolio-/Monitoring-DB |
-| `supervisor-worker` | `runtime` | Job-Sollzustand und Heartbeats | I `ro`, Q `rw`, E/X `ro` | nur internes `backend`, keine direkte Egress-Route; 1 GiB fuer die belegte OpenClaw-CLI-Spitze |
-| `portfolio-worker` | `runtime` | Portfolio/Kurse | I `ro`, P/Q `rw`, E/X `ro` | Portfolio-/Gateway-Secrets, keine Maildaten |
+| `supervisor-worker` | `runtime` | Job-Sollzustand und Heartbeats | I `ro`, Q `rw`; kein E/X | nur Beobachter; internes `backend`, keine direkte Egress-Route; 1 GiB fuer die belegte OpenClaw-CLI-Spitze |
+| `portfolio-worker` | `runtime` | Portfolio/Kurse | I `ro`, P/Q `rw`, E/X `ro` | nur Portfolio-Secrets; Events ueber Q, keine Gateway-Secrets oder Maildaten |
 | `monitor-worker` | `runtime` | Monitoring-Snapshots | I/M/P/W/C/S `ro`, N/Q `rw`, E/X `ro` | Quellzustand technisch read-only; einzelne benoetigte Envdateien |
 | `agent-cli` | `runtime` | explizit gewaehltes Tool | G/I/M/O/P/N/W/C/S/Q `rw`, H/E/X/V `ro` | kurzlebige Universalrolle; breit nur wegen explizit gewaehlter Tools |
 | `clamav-update` | `maintenance-runtime` | ClamAV-Signaturen | V `rw` | nur ClamAV/Health; keine OpenClaw-State- oder Secret-Mounts |
@@ -42,6 +42,11 @@ immutable-/query-only-Lesesicht, sodass kein `-shm` auf dem Rollenmount erzeugt
 wird. Ein vorhandenes WAL wird nicht ausgeblendet. Der Supervisor markiert seinen
 laufenden Eigencheck neutral als `running`; ein alter Exitcode kann den neuen Lauf
 nicht selbstreferenziell dauerhaft auf `failed` halten.
+Der Supervisor oeffnet keine Fach-State-Datenbank und fuehrt keine Mail-Recovery
+aus. Die begrenzte Production-Gate-Recovery laeuft vor dem produktiven Kindprozess
+im alleinigen Mail-Worker. Fachworker stellen Events nur atomar in Q ein; der
+Gateway konsumiert sie und verbindet sich mit seinem eigenen Credential ueber
+Loopback. Eine Freigabe unsicherer Non-Loopback-WebSockets existiert nicht.
 
 Der Gateway-Workspace bleibt fuer Identitaetsprofil, Memory und kontrollierte
 Workspace-Daten beschreibbar. Die verschachtelten Mounts `mail_agent/` und

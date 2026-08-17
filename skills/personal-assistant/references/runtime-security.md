@@ -33,6 +33,11 @@ bounded result path.
 - The supervisor remains outside the business-job scheduler. A worker must hold
   and renew its lease; repeated renewal failure is fail-closed. Queue wait itself
   is not a failure.
+- In the container runtime the supervisor is observation-only for domain state.
+  The narrow mail dry-run recovery runs before the productive child inside the
+  single mail worker. Worker alerts use the bounded coordination queue; only the
+  gateway-local relay owns gateway credentials and connects over loopback. Never
+  enable insecure private WebSockets or give gateway credentials to a worker.
 - `scheduler focus` is a bounded local priority hint. It cannot enable a job,
   expand rights, approve an ActionPlan or execute arbitrary commands.
 

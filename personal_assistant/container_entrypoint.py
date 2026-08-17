@@ -34,22 +34,18 @@ ROLE_ENV_FILES: dict[str, tuple[str, ...]] = {
         "/run/openclaw-env/mail-agent.env",
         "/run/openclaw-env/personal-assistant.env",
     ),
-    "supervisor-worker": (
-        "/etc/openclaw-env/mail-agent.env",
-        "/run/openclaw-env/mail-agent.env",
-        "/run/openclaw-env/gateway.env",
-    ),
+    # The supervisor observes coordination telemetry only. It owns neither
+    # domain credentials nor the gateway credential.
+    "supervisor-worker": (),
     "portfolio-worker": (
         "/etc/openclaw-env/personal-assistant.env",
         "/run/openclaw-env/personal-assistant.env",
-        "/run/openclaw-env/gateway.env",
     ),
     "monitor-worker": (
         "/etc/openclaw-env/mail-agent.env",
         "/etc/openclaw-env/personal-assistant.env",
         "/run/openclaw-env/mail-agent.env",
         "/run/openclaw-env/personal-assistant.env",
-        "/run/openclaw-env/gateway.env",
     ),
     "agent-cli": (
         "/etc/openclaw-env/mail-agent.env",
@@ -271,6 +267,20 @@ def main(argv: list[str] | None = None) -> int:
         )
         if plugin_report["registry_rows_changed"]:
             print(json.dumps({"immutable_plugins": plugin_report}, sort_keys=True), file=sys.stderr)
+
+        # Worker containers never receive the gateway credential. They publish
+        # bounded event files to coordination; only this gateway-local relay
+        # connects through an accepted loopback WebSocket.
+        if environment.get("OPENCLAW_EVENT_QUEUE_DIR", "").strip():
+            command = [
+                sys.executable,
+                "-P",
+                "-m",
+                "personal_assistant.gateway_events",
+                "serve",
+                "--",
+                *command,
+            ]
 
     executable = shutil.which(command[0], path=environment["PATH"]) if "/" not in command[0] else command[0]
     if executable is None:

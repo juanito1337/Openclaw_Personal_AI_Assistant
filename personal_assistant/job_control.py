@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import WORKSPACE_ROOT
+from .gateway_events import event_command, relay_status
 from .work_scheduler import AdaptiveWorkScheduler
 
 STATE_VERSION = 2
@@ -23,17 +24,7 @@ USER_UNIT_DIR = Path("~/.config/systemd/user").expanduser()
 
 
 def _system_event_command(text: str) -> list[str]:
-    command = ["openclaw", "system", "event", "--text", text, "--mode", "now"]
-    # OpenClaw deliberately refuses a CLI --url override unless credentials are
-    # also exposed as CLI arguments. Container deployments pair the internal
-    # URL and the mounted gateway credential through OPENCLAW_GATEWAY_URL and
-    # therefore keep the secret out of argv. The legacy URL remains a local
-    # fallback only when that paired environment contract is absent.
-    gateway_environment_url = os.environ.get("OPENCLAW_GATEWAY_URL", "").strip()
-    gateway_url = os.environ.get("OPENCLAW_GATEWAY_WS_URL", "").strip()
-    if gateway_url and not gateway_environment_url:
-        command.extend(["--url", gateway_url])
-    return command
+    return event_command(text)
 
 
 @dataclass(frozen=True, slots=True)
@@ -365,6 +356,22 @@ class JobController:
         }
 
     def _heartbeat_reporting_status(self) -> dict[str, Any]:
+        if (
+            self.container_mode
+            and os.environ.get("OPENCLAW_ROLE", "").strip() == "supervisor-worker"
+            and os.environ.get("OPENCLAW_EVENT_QUEUE_DIR", "").strip()
+        ):
+            status = relay_status()
+            return {
+                **status,
+                "target": "gateway-local-event-relay",
+                "every": f"{os.environ.get('SUPERVISOR_INTERVAL_SECONDS', '300')}s",
+                "detail": (
+                    "Gateway-lokaler Ereignisrelay ist zustellbereit"
+                    if status.get("ok")
+                    else str(status.get("detail") or "Gateway-Ereignisrelay ist nicht zustellbereit")
+                ),
+            }
         target = self._openclaw_config_get("agents.defaults.heartbeat.target")
         every = self._openclaw_config_get("agents.defaults.heartbeat.every")
         target_value = str(target.get("value") or "none")
@@ -860,9 +867,14 @@ class JobController:
                     })
 
         health: dict[str, Any] = {"checked": False, "ok": True}
-        if spec.always_health or deep or any(
+        observer_only = (
+            self.container_mode
+            and os.environ.get("OPENCLAW_ROLE", "").strip() == "supervisor-worker"
+            and spec.name != "supervisor"
+        )
+        if not observer_only and (spec.always_health or deep or any(
             item["code"] in {"service-failed", "timer-failed"} for item in issues
-        ):
+        )):
             health = self._health(spec)
             if desired_on and health.get("checked") and not health.get("ok"):
                 missing = health.get("missing_folders") or []
@@ -1133,8 +1145,12 @@ class JobController:
 
         initial = self.status(target=target, deep=deep, record=False)
         recoveries: list[dict[str, Any]] = []
+        observer_only = (
+            self.container_mode
+            and os.environ.get("OPENCLAW_ROLE", "").strip() == "supervisor-worker"
+        )
         for job in initial["jobs"]:
-            if job.get("name") != "mail" or job.get("desired") != "on":
+            if observer_only or job.get("name") != "mail" or job.get("desired") != "on":
                 continue
             spec = self.specs["mail"]
             # Always verify the machine-readable production gate. A previous
@@ -1171,6 +1187,8 @@ class JobController:
 
         report = self.status(target=target, deep=deep, record=True)
         report["automatic_recoveries"] = recoveries
+        if observer_only:
+            report["automatic_recovery_owner"] = "mail-worker"
         if recoveries:
             report["ok"] = report["ok"] and all(
                 bool(item["recovery"].get("ok")) and bool(item["restart"].get("ok"))

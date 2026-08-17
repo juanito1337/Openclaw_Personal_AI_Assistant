@@ -358,7 +358,11 @@ class ImmutableRuntimeTests(unittest.TestCase):
             check=True,
         )
         command = json.loads(result.stdout)
-        self.assertEqual(command[0], "/image/scripts/mail-agent.sh")
+        self.assertEqual(
+            command[:6],
+            ["python3", "-P", "-m", "personal_assistant.mail_worker", "--", "/image/scripts/mail-agent.sh"],
+        )
+        self.assertIn("production-check", (self.root / "personal_assistant/mail_worker.py").read_text())
         self.assertNotIn("/state/workspace", " ".join(command))
 
     def test_runtime_identity_rejects_revision_and_state_code_mismatch(self) -> None:

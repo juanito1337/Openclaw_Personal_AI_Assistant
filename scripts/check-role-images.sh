@@ -93,6 +93,7 @@ done
     --tmpfs /var/lib/openclaw:rw,nosuid,nodev,noexec,size=64m,mode=0700,uid=1000,gid=1000 \
     --env OPENCLAW_ROLE=gateway \
     --env OPENCLAW_LAYOUT_MODE=verify \
+    --env OPENCLAW_EVENT_QUEUE_DIR=/var/lib/openclaw/gateway-events \
     --mount "type=volume,src=$gateway_volume,dst=/home/node/.openclaw" \
     --mount "type=bind,src=$plugin_config,dst=/home/node/.openclaw/openclaw.json,readonly" \
     --mount "type=bind,src=$root/tests/fixtures/container/layout-v3.json,dst=/home/node/.openclaw/workspace/.layout-version.json,readonly" \
@@ -115,6 +116,25 @@ done
   if [[ $gateway_ready != 1 ]]; then
     echo "Immutable Plugin-Gateway wurde nicht bereit." >&2
     docker top "$gateway_container" -eo pid,args >&2 || true
+    docker logs "$gateway_container" >&2 || true
+    exit 1
+  fi
+  docker exec "$gateway_container" \
+    python3 -P -m personal_assistant.gateway_events enqueue \
+    --text "Hermetischer Gateway-Relay-Smoke" >/dev/null
+  event_delivered=0
+  for _ in $(seq 1 30); do
+    if docker exec "$gateway_container" /bin/sh -c \
+      'test -z "$(find /var/lib/openclaw/gateway-events/pending -name "*.json" -type f -print -quit)"' && \
+      docker exec "$gateway_container" \
+        python3 -P -m personal_assistant.gateway_events status >/dev/null 2>&1; then
+      event_delivered=1
+      break
+    fi
+    sleep 1
+  done
+  if [[ $event_delivered != 1 ]]; then
+    echo "Gateway-lokaler Ereignisrelay konnte den Smoke-Event nicht zustellen." >&2
     docker logs "$gateway_container" >&2 || true
     exit 1
   fi

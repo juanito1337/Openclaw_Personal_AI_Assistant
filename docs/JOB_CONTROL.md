@@ -34,14 +34,18 @@ that it is inactive.
 
 ## Safe repair boundary
 
-A check normally observes and reports only. There is one narrow automatic recovery:
-when every required mail health check is healthy and the only production blocker is
-a missing or stale successful dry-run fingerprint, the controller may:
+A check normally observes and reports only. There is one narrow automatic
+recovery. In the Docker runtime it belongs to the single `mail-worker`, before
+that worker starts its productive child. The supervisor remains read-only. In
+the frozen legacy runtime the controller retains the equivalent ordered unit
+recovery. When every required mail health check is healthy and the only
+production blocker is a missing or stale successful dry-run fingerprint, it may:
 
 1. run `mail-agent.sh run --dry-run --no-digest --limit 5`,
 2. require return code 0, valid JSON, no errors and successful actions,
 3. verify the machine-readable production gate again,
-4. reset the failed unit and start the normal mail service without `--force`,
+4. start the normal productive mail child without `--force` (or reset/start the
+   existing service in the legacy runtime),
 5. emit an OpenClaw event reporting success or failure.
 
 A failed automatic dry-run is not repeated for 30 minutes, preventing a retry loop.
@@ -69,10 +73,14 @@ a verified rollback. The helper additionally requires
 `OPENCLAW_ENABLE_LEGACY_SYSTEMD=YES`; it is not a deployment entrypoint. A legacy
 writer and the container mail writer must never run together.
 
-The supervisor records lightweight checks every five minutes. A newly detected
-or resolved alert also queues an immediate OpenClaw system event; the heartbeat
-then runs the deeper check and reports the concrete evidence. An unchanged active
-alert is not queued repeatedly. Local state is stored at:
+The supervisor records lightweight checks every five minutes. It never opens a
+domain database or runs mail recovery in the container runtime. A newly detected
+or resolved alert is atomically queued below
+`shared/coordination/gateway_events/`. Only the gateway-local relay consumes that
+bounded queue and invokes OpenClaw through `ws://127.0.0.1`; worker roles neither
+receive a gateway credential nor disable the non-loopback WebSocket protection.
+The heartbeat then runs the deeper check and reports the concrete evidence. An
+unchanged active alert is not queued repeatedly. Local state is stored at:
 
 ```text
 personal_assistant/data/job_control.json
@@ -113,17 +121,21 @@ Adaptive priority never overrides portfolio freshness indefinitely. Deadline
 urgency and starvation aging eventually outrank a temporary chat-topic boost.
 
 
-## R20.1 mail recovery ordering
+## Mail recovery ordering
 
-For a stale production fingerprint the controller uses this fixed sequence:
+For a stale production fingerprint the container mail worker uses this fixed
+sequence while it already owns the only writer lease:
 
-1. stop `mail-agent.timer`,
-2. stop `mail-agent.service`,
-3. query `mail-agent.sh lock-status` and wait for the real `flock`,
-4. run the bounded maintenance-priority dry-run,
-5. recheck `production-check`,
-6. reset failures, enable the timer and start the service asynchronously.
+1. run `mail-agent.sh production-check`,
+2. require the machine-readable `auto_recoverable` flag,
+3. run the bounded maintenance-priority dry-run,
+4. recheck `production-check`,
+5. start the unchanged productive drain command only after a green gate.
 
 A lock collision is transient. It is retried up to three times and does not write
 the 30-minute recovery cooldown. The lock file is never deleted. Genuine model,
 JSON or classification failures retain the existing cooldown.
+
+The legacy controller first stops timer and service and verifies the real lock
+before the same dry-run. That compatibility path is not used by the container
+supervisor.

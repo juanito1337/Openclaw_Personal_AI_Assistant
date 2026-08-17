@@ -47,15 +47,18 @@ def config(
     assistant = str(image_root / "scripts/assistant.sh")
     mail_agent = str(image_root / "scripts/mail-agent.sh")
     if job == "mail":
+        productive = [
+            mail_agent, "run", "--drain",
+            "--batch-size", os.environ.get("MAIL_DRAIN_BATCH_SIZE", "20"),
+            "--max-messages", os.environ.get("MAIL_MAX_MESSAGES", "500"),
+            "--max-runtime", os.environ.get("MAIL_MAX_RUNTIME", "2400"),
+            "--shutdown-reserve", os.environ.get("MAIL_SHUTDOWN_RESERVE", "180"),
+            "--max-batches", os.environ.get("MAIL_MAX_BATCHES", "100"),
+            "--no-digest",
+        ]
         return (
             [
-                mail_agent, "run", "--drain",
-                "--batch-size", os.environ.get("MAIL_DRAIN_BATCH_SIZE", "20"),
-                "--max-messages", os.environ.get("MAIL_MAX_MESSAGES", "500"),
-                "--max-runtime", os.environ.get("MAIL_MAX_RUNTIME", "2400"),
-                "--shutdown-reserve", os.environ.get("MAIL_SHUTDOWN_RESERVE", "180"),
-                "--max-batches", os.environ.get("MAIL_MAX_BATCHES", "100"),
-                "--no-digest",
+                "python3", "-P", "-m", "personal_assistant.mail_worker", "--", *productive,
             ],
             int(os.environ.get("MAIL_INTERVAL_SECONDS", "1200")),
             int(os.environ.get("MAIL_INITIAL_DELAY_SECONDS", "120")),

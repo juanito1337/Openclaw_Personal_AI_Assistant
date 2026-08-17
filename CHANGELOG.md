@@ -10,10 +10,16 @@
   Laufs nicht mehr als neuen Eigenfehler. Das durch cgroup-Zaehlung belegte
   512-MiB-OOM fuer die OpenClaw-CLI wurde durch ein dokumentiertes 1-GiB-Limit
   behoben.
-- Interne Zustandsmeldungen verwenden die von OpenClaw vorgesehene Paarung aus
-  `OPENCLAW_GATEWAY_URL` und gemountetem Gateway-Credential. Das Secret bleibt
-  aus Prozessargumenten; `--url` loest deshalb nicht mehr den expliziten
-  Authentifizierungsfehler aus.
+- Interne Zustandsmeldungen laufen ueber eine begrenzte persistente Queue und
+  werden ausschliesslich im Gateway-Container ueber akzeptiertes Loopback
+  zugestellt. Die OpenClaw-Schutzpruefung fuer unverschluesseltes Non-Loopback-
+  WebSocket bleibt aktiv; Supervisor, Portfolio und Monitor benoetigen kein
+  Gateway-Credential mehr.
+- Der Container-Supervisor ist fuer Mail nur Beobachter und oeffnet keinen
+  schreibgeschuetzten oder fremden Mail-State. Die einzige erlaubte automatische
+  Dry-Run-Freigabe laeuft vor dem produktiven Zyklus beim alleinigen Mail-Writer,
+  prueft `auto_recoverable` und Production-Gate erneut und behaelt den
+  30-Minuten-Cooldown fuer echte Fehler bei.
 - Der produktive Nextcloud-Sync respektiert jetzt die Rollenmatrix: Der
   `sync-worker` fuehrt Live-Discovery ohne Persistierung der read-only
   Core-Registry aus und schreibt ausschliesslich in Wissensindex und

@@ -11,6 +11,7 @@ image_root=${OPENCLAW_IMAGE_ROOT:-/opt/openclaw-agent}
 case "$mode" in
   gateway)
     curl --fail --silent --show-error --max-time 8 "http://127.0.0.1:${OPENCLAW_GATEWAY_PORT:-18789}/healthz" >/dev/null
+    python3 -P -m personal_assistant.gateway_events status >/dev/null
     ;;
   proxy)
     # Docker health processes do not inherit variables parsed by PID 1. The

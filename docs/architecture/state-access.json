@@ -28,7 +28,7 @@
   "shared_contracts": {
     "core": "personal_assistant.storage owns schema; sync and ActionPlan callers transact through AssistantStorage; idempotency_key is unique",
     "knowledge": "personal_assistant.storage owns documents, chunks, FTS and sync cursors in a database separate from ActionPlans and audit data",
-    "coordination": "personal_assistant.work_scheduler owns the WAL schema; workers own only their heartbeat/log; JobController owns job_control.json",
+    "coordination": "personal_assistant.work_scheduler owns the WAL schema; workers own only their heartbeat/log; JobController owns job_control.json; workers may enqueue bounded gateway events and only the gateway relay consumes them",
     "security": "personal_assistant.antivirus owns cache schema; verdict writes are keyed by content and scanner identity"
   }
 }
