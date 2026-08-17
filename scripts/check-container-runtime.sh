@@ -313,15 +313,19 @@ fi
 # Exercise the actual monitor constructor and SQLite queries with exactly the
 # production ro/rw role split. A mere touch probe cannot detect SQLite trying to
 # create a WAL shared-memory sidecar on a read-only source mount.
-python3 - "$state/v3/domains/mail/mail_agent.sqlite3" <<'PY'
+if ! docker run --rm -i "${role_args[@]}" \
+  -v "$state/v3/domains/mail:/var/lib/openclaw/mail" \
+  "$IMAGE" python3 - <<'PY'
 import sqlite3
-import sys
 
-connection = sqlite3.connect(sys.argv[1])
+connection = sqlite3.connect("/var/lib/openclaw/mail/mail_agent.sqlite3")
 connection.execute("PRAGMA journal_mode=WAL")
 connection.execute("CREATE TABLE fixture(value TEXT)")
 connection.close()
 PY
+then
+  fail "Mail-Fixture konnte nicht mit der Runtime-UID erstellt werden"
+fi
 if ! monitor_json=$(docker run --rm "${role_args[@]}" \
   -e OPENCLAW_ROLE=monitor-worker \
   -v "$config/mail-agent.env:/etc/openclaw-env/mail-agent.env:ro" \

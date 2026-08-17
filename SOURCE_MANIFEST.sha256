@@ -120,7 +120,7 @@ edf8b698f700724ef6e1185821871678fbc245dbc0abd835ea44a027187eef32  ./docs/archite
 12712dc9ca5bfe0ce551709063f785519d4f26e32c4a5710a1307f036932751b  ./docs/architecture/adr/0024-m10-abnahme-vor-produktivem-einzelrollout.md
 e3df2098642e12c96caef6a3e7a74dece900cb62a9053ca3b58b517556c2c849  ./docs/architecture/adr/README.md
 d27b02d1ed286794ce453b80b4911bcbf476dfb08d005437510e5419f237203c  ./docs/architecture/compatibility-policy.json
-4d79e78a53c2354977e283ac499f9ecc00f074c19b52ffb2c859afaf444f7c9e  ./docs/architecture/component-inventory.json
+ecdc2924293a0c6bb3d6a436717b4e11df795fe6ce559abaa2edccfe89a7e19d  ./docs/architecture/component-inventory.json
 1f707ea0d3c63cf76a35d64fd62988a6f59c1c5e73fe7a09fe62fdb7901a919c  ./docs/architecture/image-baseline-m7.json
 b397cdaa70d5dbcd4bfd22ed503433570b67bb978059bd5916e8793d173807c3  ./docs/architecture/legacy-decisions.json
 9f6694544d8120afe785c4645a53b23dad8d3a0885660c66549ceb90249fb557  ./docs/architecture/owners.json
@@ -315,7 +315,7 @@ baeae6fe7b674d56939dccac25b668c542e9f578cfc023451621b2a043ad1029  ./scripts/benc
 1ba09b1054b4191b66c8dbdfe3c74ef0260524db2957db30a9c0db2cbe0228c0  ./scripts/bootstrap-dev.sh
 2fb732d46841f144510b66d5781ed7ee66a210b2487ba3d2e96f6642f3523c56  ./scripts/bootstrap-local.sh
 ee2ef8fb77a7eb309d815ac6b845c296f83bfb75af5faca53faaf68846cc7a7d  ./scripts/check-container-hardening.sh
-c89742803300f30d58e3f2977ed37664e5046e597f8207803acdf03327788815  ./scripts/check-container-runtime.sh
+43dd6c5f73019ea63c1d8e49925f914433a390b4dc72b4c8f45833698cdd41bf  ./scripts/check-container-runtime.sh
 bf4d976d5256a5e1fc2c7fdf65b29a43cf3a6f0dc16ac0380369c3dfb7c0a1db  ./scripts/check-docs.py
 d0b6febd3421769e03a9207eda1cc6ac6d346a8470adb8006a64de859ec3e3b3  ./scripts/check-image-supply-chain.sh
 cbb83b2f1dc6001ed743b775dad292038d5f1b62a81bbd5530daef40125855a1  ./scripts/check-local-signature.sh
