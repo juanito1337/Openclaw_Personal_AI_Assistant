@@ -201,6 +201,14 @@ bleibt `ro`; dafuer werden weder Schreibrechte noch ein zweiter Datenowner
 eingefuehrt. Eine fehlende, veraltete oder korrupte Projektion bleibt als
 Sync-Fehler mit der letzten vollstaendigen Generation sichtbar.
 
+Der Sync-Worker entdeckt die aktuell erreichbaren Nextcloud-Ressourcen bei jedem
+Lauf live, persistiert diese Discovery aber nicht in der Core-Registry. Sein
+`shared/core`-Mount bleibt entsprechend der Rollenmatrix read-only; nur
+core-faehige, explizite CLI-Aufrufe duerfen `resources.toml` aktualisieren. Der
+Worker schreibt Index und Syncstatus ausschliesslich unter Wissen/Koordination.
+Teil- oder Quellfehler liefern Exitcode 1 und bleiben als `degraded` mit der
+urspruenglichen Ursache sichtbar.
+
 Layout 3 fuehrt vor jeder Veraenderung Schreibbarkeits-, UID-, Freiplatz- und
 SQLite-Checks aus. Es erzeugt ueber SQLite `backup()` einen SHA-256-verifizierten
 Snapshot, baut `v3` in einem Stagingpfad und publiziert ihn atomar. Konfiguration,

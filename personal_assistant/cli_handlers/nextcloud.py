@@ -33,4 +33,4 @@ def handle(args: argparse.Namespace, assistant: Any, emit: Callable[[Any], None]
     else:
         raise ValueError(f"Unbekannter Nextcloud-Befehl: {command}")
     emit(result)
-    return 0
+    return 0 if result.get("ok", True) else 1

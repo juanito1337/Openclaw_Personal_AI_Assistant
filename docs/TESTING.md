@@ -83,6 +83,7 @@ der aktuellen Python-Dateien.
 | Tests nach M10.6 gesammelt/ausgefuehrt | 680 / 680 (748 JUnit-Faelle inklusive 68 Subtests) |
 | Tests nach M10.7 gesammelt/ausgefuehrt | 688 / 688 (756 JUnit-Faelle inklusive 68 Subtests) |
 | Tests nach M10.8 gesammelt/ausgefuehrt | 694 / 694 (774 JUnit-Faelle inklusive 80 Subtests) |
+| Tests nach der M10-Rollout-Syncrollenkorrektur gesammelt/ausgefuehrt | 701 / 701 (781 JUnit-Faelle inklusive 80 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -128,6 +129,8 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach M10.7 | 49,91 % |
 | Gesamt-Coverage inklusive Branches nach M10.8 | 64,09 % |
 | reine Branch-Coverage nach M10.8 | 49,89 % |
+| Gesamt-Coverage nach der M10-Rollout-Syncrollenkorrektur | 64,24 % |
+| reine Branch-Coverage nach der M10-Rollout-Syncrollenkorrektur | 49,99 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -138,12 +141,16 @@ der aktuellen Python-Dateien.
 | Laufzeit des ersten erfolgreichen lokalen M10.7-Gesamtlaufs | 118,48 s |
 | Laufzeit der erfolgreichen M10.7-Kontrollwiederholung | 115,65 s |
 | Laufzeit des ersten erfolgreichen lokalen M10.8-Gesamtchecks | 112,13 s |
+| Laufzeit der M10-Rollout-Syncrollenkorrektur | 112,42 s |
 | Laufzeit in der frischen M7-Wheel-Testumgebung | 55,56 s |
 | Wheelgroesse nach der Plugin-/Gatewaykorrektur | 397.870 Bytes |
 | M7-Wheel-Buildzeit | 4,582 s |
 | M10.8-Wheelgroesse | 471.110 Bytes |
 | M10.8-Wheel-Buildzeit | 3,488 s |
 | M10.8-Tests in frischer Wheel-Umgebung | 694 plus 80 Subtests in 85,19 s |
+| Wheelgroesse nach der M10-Rollout-Syncrollenkorrektur | 473.145 Bytes |
+| Wheel-Buildzeit nach der M10-Rollout-Syncrollenkorrektur | 3,577 s |
+| Wheel-Tests nach der M10-Rollout-Syncrollenkorrektur | 701 plus 80 Subtests in 92,61 s |
 | Container-Imagegroesse des M6-Testimages | 425.555.866 Bytes |
 | Runtime-Imagegroesse mit gepinnten Brave-/Signal-Plugins | 376.600.036 Bytes |
 | sauberer Container-Erstbuild | ca. 411,92 s |

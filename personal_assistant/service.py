@@ -2149,8 +2149,12 @@ class PersonalAssistant(
 
     def sync_nextcloud(self) -> dict[str, Any]:
         if not self.config.nextcloud.enabled:
-            return {"skipped": "Nextcloud ist deaktiviert"}
-        discovery = self.discover_nextcloud(persist=True)
+            return {"ok": True, "skipped": "Nextcloud ist deaktiviert"}
+        # The sync role owns only the knowledge database.  The resource registry
+        # belongs to the core role and is therefore deliberately mounted read-only
+        # in that container.  Discovery is still live, but only an interactive
+        # core-capable role may persist the refreshed registry.
+        discovery = self.discover_nextcloud(persist=self.role != "sync-worker")
         calendars = self.nextcloud_discovery.calendars()
         addressbooks = self.nextcloud_discovery.addressbooks()
         files = self.nextcloud_files.sync_index(
@@ -2163,15 +2167,33 @@ class PersonalAssistant(
         )
         contacts = self.nextcloud_contacts.sync_index(self.storage, addressbooks)
         events = self.nextcloud_calendar.sync_index(self.storage, calendars)
-        return {"discovery": discovery, "files": files, "contacts": contacts, "calendar": events}
+        return {
+            "ok": bool(discovery.get("health", {}).get("ok"))
+            and all(int(section.get("errors") or 0) == 0 for section in (files, contacts, events)),
+            "discovery": discovery,
+            "files": files,
+            "contacts": contacts,
+            "calendar": events,
+        }
 
     def sync_all(self) -> dict[str, Any]:
-        result = {"mail": self.sync_mail()}
+        mail = self.sync_mail()
+        projection = mail.get("projection", {})
+        result = {
+            "ok": bool(projection.get("published", True)),
+            "mail": mail,
+        }
         try:
-            result["nextcloud"] = self.sync_nextcloud()
+            nextcloud = self.sync_nextcloud()
+            result["nextcloud"] = nextcloud
+            result["ok"] = bool(result["ok"] and nextcloud.get("ok", True))
         except Exception as exc:
-            result["nextcloud"] = {"error": str(exc)}
-            self.storage.audit("sync.nextcloud_failed", {"error": str(exc)})
+            result["ok"] = False
+            result["nextcloud"] = {"ok": False, "error": str(exc)}
+            if self.storage.core_read_only:
+                self.log.warning("Nextcloud-Sync fehlgeschlagen: %s", exc)
+            else:
+                self.storage.audit("sync.nextcloud_failed", {"error": str(exc)})
         return result
 
     def capabilities(self) -> dict[str, Any]:

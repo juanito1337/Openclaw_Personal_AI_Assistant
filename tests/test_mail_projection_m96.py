@@ -6,6 +6,7 @@ import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from mail_agent.app import MailAgent, calendar_doctor_payload
@@ -19,6 +20,7 @@ from mail_agent.search_snapshot import (
 )
 from mail_agent.storage import Storage
 from mail_agent.utils import atomic_write_bytes
+from personal_assistant.cli_handlers.core import handle as handle_core_command
 from personal_assistant.config import AssistantConfig
 from personal_assistant.knowledge import KnowledgeIndexer
 from personal_assistant.service import PersonalAssistant
@@ -200,6 +202,79 @@ class MailProjectionM96Tests(unittest.TestCase):
         self.assertEqual(service.indexer.database_calls, 0)
         self.assertEqual(result["database"]["mail_database_access"], "none")
         self.assertTrue(result["projection"]["published"])
+
+    def test_sync_worker_discovers_nextcloud_without_writing_core_registry(self) -> None:
+        service = object.__new__(PersonalAssistant)
+        service.role = "sync-worker"
+        service.config = SimpleNamespace(
+            nextcloud=SimpleNamespace(enabled=True, allowed_file_roots=("Assistent",)),
+            search=SimpleNamespace(nextcloud_max_items=100, nextcloud_max_depth=3),
+        )
+        discovery_calls: list[bool] = []
+
+        def discover_nextcloud(*, persist: bool = True):
+            discovery_calls.append(persist)
+            return {"health": {"ok": True}, "persisted": persist}
+
+        service.discover_nextcloud = discover_nextcloud
+        service.nextcloud_discovery = SimpleNamespace(
+            calendars=lambda: ["calendar"],
+            addressbooks=lambda: ["addressbook"],
+        )
+        service.storage = object()
+        service.indexer = object()
+        service.nextcloud_files = SimpleNamespace(
+            sync_index=lambda *_args, **_kwargs: {"files": 2, "errors": 0}
+        )
+        service.nextcloud_contacts = SimpleNamespace(
+            sync_index=lambda *_args, **_kwargs: {"contacts": 3, "errors": 0}
+        )
+        service.nextcloud_calendar = SimpleNamespace(
+            sync_index=lambda *_args, **_kwargs: {"events": 4, "errors": 0}
+        )
+
+        result = PersonalAssistant.sync_nextcloud(service)
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(discovery_calls, [False])
+        self.assertFalse(result["discovery"]["persisted"])
+
+    def test_sync_worker_reports_nextcloud_failure_without_core_audit_write(self) -> None:
+        class ReadOnlyCoreStorage:
+            core_read_only = True
+
+            @staticmethod
+            def audit(*_args, **_kwargs):
+                raise AssertionError("Sync-Worker darf nicht in die Core-Auditdatenbank schreiben")
+
+        service = object.__new__(PersonalAssistant)
+        service.role = "sync-worker"
+        service.log = SimpleNamespace(warning=lambda *_args: None)
+        service.storage = ReadOnlyCoreStorage()
+        service.sync_mail = lambda: {"projection": {"published": True}}
+
+        def failed_nextcloud_sync():
+            raise OSError("simulierter Nextcloud-Fehler")
+
+        service.sync_nextcloud = failed_nextcloud_sync
+
+        result = PersonalAssistant.sync_all(service)
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["nextcloud"]["error"], "simulierter Nextcloud-Fehler")
+
+    def test_index_all_returns_degraded_exit_for_reported_sync_failure(self) -> None:
+        emitted: list[dict[str, object]] = []
+        assistant = SimpleNamespace(sync_all=lambda: {"ok": False, "nextcloud": {"error": "x"}})
+
+        exit_code = handle_core_command(
+            SimpleNamespace(command="index", index_command="all"),
+            assistant,
+            emitted.append,
+        )
+
+        self.assertEqual(exit_code, 1)
+        self.assertFalse(emitted[0]["ok"])
 
     def test_missing_calendar_doctor_result_is_actionable_but_read_only(self) -> None:
         result = calendar_doctor_payload(

@@ -43,8 +43,9 @@ def handle(args: argparse.Namespace, assistant: Any, emit: Callable[[Any], None]
         emit({"resource": asdict(resource), "backup": str(backup or "")})
         return 0
     if args.command == "index":
-        emit(assistant.sync_mail() if args.index_command == "mail" else assistant.sync_all())
-        return 0
+        result = assistant.sync_mail() if args.index_command == "mail" else assistant.sync_all()
+        emit(result)
+        return 0 if result.get("ok", True) else 1
     if args.command == "search":
         limit = args.limit or assistant.config.search.default_limit
         results = assistant.storage.search(

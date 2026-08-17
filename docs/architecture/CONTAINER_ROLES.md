@@ -24,7 +24,7 @@ tragen denselben Release und Commit; Inhalt, Messung und Freigabe beschreibt der
 | `ollama-proxy` | `proxy-runtime` | In-Memory-Modellqueue | I `ro`, eine Proxy-Envdatei | kein OpenClaw/Mail/OCR/ClamAV, keine Secrets/Fachdaten; einzige Host-Gateway-Ausnahme |
 | `gateway` | `runtime` | Gateway/Sessions und Toolaufrufe | G/M/O/P/N/W/C/S/Q `rw`; I-Profil/Memory `rw`, I-Konfigurationsordner `ro`; H/E/X/V `ro` | interaktive Universalrolle; Konfigurationssetup ausschliesslich ueber `agent-cli`, fachliche Rechte bleiben Policy-/Approval-gebunden |
 | `mail-worker` | `runtime` | Mail, Orders, delegierte ActionPlans | I `ro`, M/O/C/S/Q `rw`, H/E/X/V `ro` | nur Mail-/PA-Secrets; einziger produktiver Mailwriter |
-| `sync-worker` | `runtime` | Index und Syncstatus | I/M/C `ro`, W/Q `rw`, E/X `ro` | nur Nextcloud/Mail-Envdateien; keine Orders-/Portfolio-/Monitoring-DB |
+| `sync-worker` | `runtime` | Index und Syncstatus | I/M/C `ro`, W/Q `rw`, E/X `ro` | Live-Discovery ohne Core-Persistierung; nur Nextcloud/Mail-Envdateien; keine Orders-/Portfolio-/Monitoring-DB |
 | `supervisor-worker` | `runtime` | Job-Sollzustand und Heartbeats | I `ro`, Q `rw`, E/X `ro` | nur internes `backend`, keine direkte Egress-Route |
 | `portfolio-worker` | `runtime` | Portfolio/Kurse | I `ro`, P/Q `rw`, E/X `ro` | Portfolio-/Gateway-Secrets, keine Maildaten |
 | `monitor-worker` | `runtime` | Monitoring-Snapshots | I/M/P/W/C/S `ro`, N/Q `rw`, E/X `ro` | Quellzustand technisch read-only; einzelne benoetigte Envdateien |

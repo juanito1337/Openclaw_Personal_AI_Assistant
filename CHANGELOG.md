@@ -2,6 +2,12 @@
 
 ## Unreleased – M10 Rechnungsqualitaet und sichere Neubewertung
 
+- Der produktive Nextcloud-Sync respektiert jetzt die Rollenmatrix: Der
+  `sync-worker` fuehrt Live-Discovery ohne Persistierung der read-only
+  Core-Registry aus und schreibt ausschliesslich in Wissensindex und
+  Koordination. Ein echter Syncfehler bleibt mit seiner Originalursache sichtbar
+  und fuehrt deterministisch zu `degraded`, ohne durch einen unzulaessigen
+  Schreibversuch in der Core-Auditdatenbank verdeckt zu werden.
 - Der signierte Test-Rollout prueft die ClamAV-Maintenance-Rolle jetzt bereits
   vor dem Writer-Stopp durch echte Programmstarts und einen begrenzten
   zertifikatsgeprueften libcurl-TLS-Handshake. Eine defekte oder temporaer nicht

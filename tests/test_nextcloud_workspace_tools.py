@@ -6,6 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from personal_assistant.actions import ActionService
+from personal_assistant.cli_handlers.nextcloud import handle as handle_nextcloud_command
 from personal_assistant.connectors.nextcloud.files import NextcloudFiles
 from personal_assistant.models import ActionPlan, Resource
 from personal_assistant.policy import PolicyEngine
@@ -106,6 +107,19 @@ class NextcloudWorkspaceToolTests(unittest.TestCase):
         self.assertIn("nextcloud.workspace.move", ids)
         self.assertIn("nextcloud.workspace.configure", ids)
 
+    def test_sync_command_propagates_degraded_result_as_exit_one(self) -> None:
+        emitted: list[dict[str, object]] = []
+        assistant = SimpleNamespace(sync_nextcloud=lambda: {"ok": False, "errors": 1})
+
+        exit_code = handle_nextcloud_command(
+            SimpleNamespace(nextcloud_command="sync"),
+            assistant,
+            emitted.append,
+        )
+
+        self.assertEqual(exit_code, 1)
+        self.assertFalse(emitted[0]["ok"])
+
     def test_policy_allows_only_inside_workspace_and_no_overwrite(self) -> None:
         registry_path = self.root / "resources.toml"
         registry = ResourceRegistry(registry_path)
@@ -120,7 +134,11 @@ class NextcloudWorkspaceToolTests(unittest.TestCase):
             )
         ])
         policy = PolicyEngine(self.root / "policies.toml", registry)
-        self.assertTrue(policy.decide("nextcloud-files-main", "files.mkdir", {"path": "Assistent/Projekte"}).allowed)
+        self.assertTrue(
+            policy.decide(
+                "nextcloud-files-main", "files.mkdir", {"path": "Assistent/Projekte"}
+            ).allowed
+        )
         self.assertFalse(policy.decide("nextcloud-files-main", "files.mkdir", {"path": "Privat"}).allowed)
         self.assertTrue(policy.decide(
             "nextcloud-files-main",
@@ -154,7 +172,11 @@ class NextcloudWorkspaceToolTests(unittest.TestCase):
             "nextcloud-files-main", "files.create",
             {**managed, "year": 2025},
         ).allowed)
-        self.assertFalse(policy.decide("nextcloud-files-main", "files.delete", {"path": "Assistent/a.txt"}).allowed)
+        self.assertFalse(
+            policy.decide(
+                "nextcloud-files-main", "files.delete", {"path": "Assistent/a.txt"}
+            ).allowed
+        )
 
     def test_move_uses_webdav_no_overwrite(self) -> None:
         client = FakeDavClient()
