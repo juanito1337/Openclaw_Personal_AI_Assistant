@@ -10,12 +10,18 @@ kontrollierte Einzelkorrekturen und messbares Lernen steht in
 Der darauf aufbauende Rechnungsqualitaets-Milestone fuer belegte Feldextraktion,
 Plausibilitaetspruefung und sichere Neubewertung steht in
 [`INVOICE_QUALITY_REPROCESSING_ROADMAP.md`](INVOICE_QUALITY_REPROCESSING_ROADMAP.md).
+Der geplante Folgemilestone fuer eine vollstaendige, schnelle und kontextuelle
+Mail-Suche mit lokalem Volltextindex, belegten Tags, Threadkontext und evaluierten
+lokalen Embeddings steht in
+[`MAIL_SEARCH_INDEXING_ROADMAP.md`](MAIL_SEARCH_INDEXING_ROADMAP.md).
 
 M0 bis M10 sind kumulativ in `3.4.0-r28` enthalten. Die Roadmaps bleiben als
 Umsetzungs- und Testevidenz bestehen; die aktuelle Release-, Upgrade- und
 Rollbackbeschreibung steht im
 [`3.4.0-r28`-Releasebericht](RELEASE_3_4_0_R28.md). Eine Main-Promotion ist noch
 keine produktive Installation oder Freigabe historischer Mail-/Rechnungsdaten.
+M11 ist auf `development/mail-search-indexing-m11` ausschliesslich geplant und
+noch nicht implementiert oder produktiv aktiviert.
 
 ## 3.4.x foundation
 

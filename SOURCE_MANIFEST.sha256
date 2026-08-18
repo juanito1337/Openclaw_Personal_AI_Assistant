@@ -74,6 +74,7 @@ d6cd99fdef0f274213cc064222cf6192870291ff069baa765add3acf3578977d  ./docs/JOB_CON
 25a62ddd6563f6a17a1aff716a096be41b6193ff717db1b57610a622eab34f53  ./docs/MAIL_QUALITY_REVIEW_ROADMAP.md
 1ba495e1e837bc4aedaaa93d250a151122c57e45a102afb31cec1286b3168001  ./docs/MAIL_QUALITY_ROLLOUT.md
 56e95ffe4237b871c97e91db66c9a2d2eb5983d51eaa0f0fb943b15d9c54e242  ./docs/MAIL_RUNTIME_RECOVERY.md
+292d83e8d9a2f7b6422cd8108808881aec850b35548df2c6203a996b5488d40d  ./docs/MAIL_SEARCH_INDEXING_ROADMAP.md
 1baba0a2e531fb5ff9b2715829ec9dfcc69b151166925241a5b319b10d6615b4  ./docs/MIGRATION.md
 fc6f8ba87557d5dce43a0f837a424f5451aa3d8d066d1fe1cde0593d72aa4c6e  ./docs/MONITORING.md
 af22f72cc8e46d50ae221a3df8e9f200409c531df06d220b3d6ddf4820a782dc  ./docs/NEXTCLOUD.md
@@ -82,7 +83,7 @@ e246a08dec2174c1594f0c5997467b2c61f54ee8bb2eb7755e6c4bfc4ecbd14a  ./docs/OLLAMA_
 48e4fa6417fb7ea7c0200c28299d37e620f2637d8e1ab812b44bef76db255bbd  ./docs/PERFORMANCE_TELEMETRY.md
 98c144e892cb88e5aa4931f6c85d1e3a2786d6722bb06713534c9f7dcc04960c  ./docs/PORTFOLIO_ADVISOR.md
 8b0dc4e68110df7c2e1aa77cb9386af1a29bd80fe9695c91f0483f4d2a673257  ./docs/RELEASE_3_4_0_R28.md
-f100594a3169a02c39911772436a525c2755434b3fe46f3e983f12fe7cb435bd  ./docs/ROADMAP.md
+0d51efcc9d7fdbd9dc631431e4b0b80dbd1ca3e05acecfbbeda3f671aa5bbb72  ./docs/ROADMAP.md
 e86c798f920237b0f37ac2e917358951d6f14fe090f7f097a587862ce2d9df34  ./docs/SEARCH.md
 c05dae661dfebb9f3dad052b3d98697b15e5fd4277805197789ffb84e4e9e106  ./docs/SECURITY.md
 a163eda40d0d6e5f9d585e7f51a90c9a7cb670a963ee3bd07eef2203386de394  ./docs/SELF_MANAGEMENT.md
@@ -122,7 +123,7 @@ edf8b698f700724ef6e1185821871678fbc245dbc0abd835ea44a027187eef32  ./docs/archite
 8d15282d31a1c81be24a03a3a941deafdeed7dbd94bf8d2b257608d0a1100d4a  ./docs/architecture/adr/0025-gateway-event-relay-und-mail-writer-recovery.md
 cca12c18f91104556f03bd5e22d91ab85164836d12df8dd7e5f632fb283f4a78  ./docs/architecture/adr/README.md
 d27b02d1ed286794ce453b80b4911bcbf476dfb08d005437510e5419f237203c  ./docs/architecture/compatibility-policy.json
-75629c3328e59b0cde5d090eabd590eb457289f4b512b424d931a8a2532aed17  ./docs/architecture/component-inventory.json
+a569fad1dcf0101fffec2e2b9fc0b53d4816114af7049503d7a6bbd8b745ccbe  ./docs/architecture/component-inventory.json
 1f707ea0d3c63cf76a35d64fd62988a6f59c1c5e73fe7a09fe62fdb7901a919c  ./docs/architecture/image-baseline-m7.json
 b397cdaa70d5dbcd4bfd22ed503433570b67bb978059bd5916e8793d173807c3  ./docs/architecture/legacy-decisions.json
 876534aabd021cf57efec689866c167ac677fb64091d40b379dd95d3d5e6dc77  ./docs/architecture/owners.json
