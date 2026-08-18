@@ -1,7 +1,7 @@
 # Tests, Qualitaetsbaseline und Container-Runtime
 
-Stand: 2026-08-17, fortgeschrieben bis zu den M10-Rolloutkorrekturen fuer Sync,
-Monitor und Supervisor. Sie startet keine produktiven Dienste und verwendet weder
+Stand: 2026-08-18, fortgeschrieben bis zur Trennung von Supervisor- und
+Fachgesundheit sowie zur XLON-Handelszeitkorrektur. Sie startet keine produktiven Dienste und verwendet weder
 `/srv/openclaw` noch produktive Zugangsdaten.
 
 ## Einheitlicher lokaler und CI-Prueflauf
@@ -45,7 +45,7 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 715 Tests, darunter mindestens 650 unittest-kompatible Tests
+fordert mindestens 717 Tests, darunter mindestens 652 unittest-kompatible Tests
 (die bisherigen 349 sowie M0-M10.8- und Rollout-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
@@ -87,6 +87,7 @@ der aktuellen Python-Dateien.
 | Tests nach der M10-Rollout-Syncrollenkorrektur gesammelt/ausgefuehrt | 701 / 701 (781 JUnit-Faelle inklusive 80 Subtests) |
 | Tests nach der M10-Rollout-Monitor-/Supervisorkorrektur gesammelt/ausgefuehrt | 707 / 707 (787 JUnit-Faelle inklusive 80 Subtests) |
 | Tests nach der Gateway-Relay-/Mail-Writer-Korrektur gesammelt/ausgefuehrt | 715 / 715 (795 JUnit-Faelle inklusive 80 Subtests) |
+| Tests nach Supervisor-/XLON-Korrektur gesammelt/ausgefuehrt | 717 / 717 (797 JUnit-Faelle inklusive 80 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -138,6 +139,8 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach der M10-Rollout-Monitor-/Supervisorkorrektur | 50,19 % |
 | Gesamt-Coverage nach der Gateway-Relay-/Mail-Writer-Korrektur | 64,23 % |
 | reine Branch-Coverage nach der Gateway-Relay-/Mail-Writer-Korrektur | 50,05 % |
+| Gesamt-Coverage nach der Supervisor-/XLON-Korrektur | 64,24 % |
+| reine Branch-Coverage nach der Supervisor-/XLON-Korrektur | 50,09 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -150,6 +153,7 @@ der aktuellen Python-Dateien.
 | Laufzeit des ersten erfolgreichen lokalen M10.8-Gesamtchecks | 112,13 s |
 | Laufzeit der M10-Rollout-Syncrollenkorrektur | 112,42 s |
 | Laufzeit der M10-Rollout-Monitor-/Supervisorkorrektur | 117,69 s |
+| Laufzeit der Supervisor-/XLON-Gesamtabnahme | 122,85 s |
 | Laufzeit in der frischen M7-Wheel-Testumgebung | 55,56 s |
 | Wheelgroesse nach der Plugin-/Gatewaykorrektur | 397.870 Bytes |
 | M7-Wheel-Buildzeit | 4,582 s |
@@ -165,6 +169,9 @@ der aktuellen Python-Dateien.
 | Wheelgroesse nach der Gateway-Relay-/Mail-Writer-Korrektur | 481.576 Bytes |
 | Wheel-Buildzeit nach der Gateway-Relay-/Mail-Writer-Korrektur | 1,821 s |
 | Wheel-Tests nach der Gateway-Relay-/Mail-Writer-Korrektur | 715 plus 80 Subtests in 63,27 s |
+| Wheelgroesse nach der Supervisor-/XLON-Korrektur | 482.026 Bytes |
+| Wheel-Buildzeit nach der Supervisor-/XLON-Korrektur | 4,095 s |
+| Wheel-Tests nach der Supervisor-/XLON-Korrektur | 717 plus 80 Subtests in 95,74 s |
 | Container-Imagegroesse des M6-Testimages | 425.555.866 Bytes |
 | Runtime-Imagegroesse mit gepinnten Brave-/Signal-Plugins | 376.600.036 Bytes |
 | Runtime-Imagegroesse nach der M10-Rollout-Monitor-/Supervisorkorrektur | 376.793.375 Bytes |

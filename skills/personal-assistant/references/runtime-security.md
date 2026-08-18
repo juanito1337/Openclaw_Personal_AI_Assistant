@@ -38,6 +38,11 @@ bounded result path.
   single mail worker. Worker alerts use the bounded coordination queue; only the
   gateway-local relay owns gateway credentials and connects over loopback. Never
   enable insecure private WebSockets or give gateway credentials to a worker.
+- A successfully persisted and delivered child-job degradation is a healthy
+  supervisor observation, not a supervisor process failure. Preserve the child's
+  `DEGRADED`/`FAILED` result and alert, but do not report the observer itself as
+  degraded. Missing supervisor state, scheduler/relay health failures or failed
+  alert delivery still fail the observer cycle closed.
 - `scheduler focus` is a bounded local priority hint. It cannot enable a job,
   expand rights, approve an ActionPlan or execute arbitrary commands.
 

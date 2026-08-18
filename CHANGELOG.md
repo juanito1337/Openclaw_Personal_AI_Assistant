@@ -6,10 +6,15 @@
   absichtlich read-only gemounteten Rollenpfaden oeffnen. Geschlossene
   WAL-Datenbanken werden nebenwirkungsfrei als immutable gelesen; ein vorhandenes
   WAL wird nie ausgeblendet und bleibt fail-closed Teil der konsistenten Sicht.
-- Supervisorlaeufe bewerten ihren vorherigen Exitcode waehrend des aktuellen
-  Laufs nicht mehr als neuen Eigenfehler. Das durch cgroup-Zaehlung belegte
-  512-MiB-OOM fuer die OpenClaw-CLI wurde durch ein dokumentiertes 1-GiB-Limit
-  behoben.
+- Ein erfolgreich beobachteter Fachfehler bleibt als Fachfehler sichtbar, laesst
+  den Container-Supervisor selbst aber nicht mehr mit Exitcode 1 aussteigen. Echte
+  Supervisor-, Scheduler-, Relay- oder Alarmzustellungsfehler bleiben
+  fail-closed. Das durch cgroup-Zaehlung belegte 512-MiB-OOM fuer die
+  OpenClaw-CLI wurde durch ein dokumentiertes 1-GiB-Limit behoben.
+- Die Kursfrische fuer `XLON` verwendet jetzt die Londoner Ortszeit und das
+  Handelsfenster 08:00 bis 16:30. Ein belegter Vortagesschluss wird vor
+  Boersenoeffnung nicht mehr faelschlich als kritischer BAE-Kursfehler gewertet;
+  nach Oeffnung bleibt derselbe veraltete Kurs sichtbar `degraded`.
 - Interne Zustandsmeldungen laufen ueber eine begrenzte persistente Queue und
   werden ausschliesslich im Gateway-Container ueber akzeptiertes Loopback
   zugestellt. Die OpenClaw-Schutzpruefung fuer unverschluesseltes Non-Loopback-

@@ -903,6 +903,48 @@ class PortfolioServiceTests(unittest.TestCase):
         self.assertEqual(result["status"], "success")
         self.assertEqual(self.service.health()["state"], "healthy")
 
+    def test_london_previous_close_is_accepted_only_before_venue_open(self) -> None:
+        self.service.watchlist_add(
+            isin="GB0002634946",
+            name="BAE Systems plc",
+            symbol="BA.",
+            mic="XLON",
+            currency="GBP",
+        )
+        previous_close = datetime(2026, 8, 17, 15, 35, tzinfo=UTC)
+        self.service._quote_fetcher = lambda instrument: Quote(
+            symbol=instrument["symbol"],
+            price=Decimal("22.70"),
+            currency="GBP",
+            observed_at=previous_close.isoformat(),
+            provider="test-provider",
+        )
+        self.service._fx_quote_fetcher = lambda base, quote: FxQuote(
+            base_currency=base,
+            quote_currency=quote,
+            rate=Decimal("0.86"),
+            observed_at=self.clock().isoformat(),
+        )
+
+        # 06:13 UTC is 07:13 in London during daylight-saving time. The
+        # previous close is therefore the latest legitimate observation.
+        self.clock.value = datetime(2026, 8, 18, 6, 13, tzinfo=UTC)
+        before_open = self.service.refresh_quotes(force=True)
+        self.assertTrue(before_open["ok"])
+        self.assertEqual(before_open["status"], "success")
+        self.assertEqual(before_open["failures"], [])
+        self.assertEqual(self.service.health()["state"], "healthy")
+
+        # Once XLON is open, the same previous-day observation must become a
+        # visible degraded watchlist result instead of being silently accepted.
+        self.clock.value = datetime(2026, 8, 18, 8, 13, tzinfo=UTC)
+        during_market = self.service.refresh_quotes(force=True)
+        self.assertTrue(during_market["ok"])
+        self.assertEqual(during_market["status"], "degraded")
+        self.assertEqual(len(during_market["failures"]), 1)
+        self.assertIn("kritisch veralteten Kurs", during_market["failures"][0]["error"])
+        self.assertEqual(self.service.health()["watchlist_missing_or_stale"], 1)
+
     def test_analysis_abstains_on_critical_staleness(self) -> None:
         self._prepare()
         self.service.refresh_quotes(force=True)

@@ -118,6 +118,11 @@ portfolio doctor plus deep job checks.
 EODHD returns London sterling prices in the exchange minor unit GBX while labeling
 the mapping GBP. The registered quote tool normalizes these values to major units;
 report `22.70 GBP`, never the raw provider value as `2270 GBP`.
+For freshness, `XLON` uses the regular London weekday window 08:00-16:30 in
+`Europe/London`. A timestamped previous close before that venue opens is not a
+current live quote, but it is not a critical stale failure. Once the venue is
+open, the configured warning and critical limits apply. Never replace this with
+the generic Berlin window or describe a previous close as live.
 
 ## Providergebundene Aktiensuche und Investmentphilosophie
 

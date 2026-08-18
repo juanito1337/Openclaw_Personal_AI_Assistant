@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import patch
 
+from personal_assistant.cli import _jobs_result_ok
 from personal_assistant.gateway_events import (
     enqueue_event,
     event_command,
@@ -269,6 +270,94 @@ class SupervisorOwnershipTests(unittest.TestCase):
             self.assertEqual(report["automatic_recovery_owner"], "mail-worker")
             self.assertFalse(any("mail-agent.sh" in " ".join(command) for command in commands))
             self.assertFalse(any(command[:3] == ["openclaw", "config", "get"] for command in commands))
+
+    def test_business_degradation_does_not_fail_the_observer_cycle(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            status_dir = root / "container_jobs"
+            status_dir.mkdir()
+            now = datetime.now(UTC).isoformat()
+            for name, result, returncode in (
+                ("supervisor", "success", 0),
+                ("portfolio", "degraded", 1),
+            ):
+                (status_dir / f"{name}.json").write_text(
+                    json.dumps(
+                        {
+                            "state": "running" if name == "supervisor" else "waiting",
+                            "updated_at": now,
+                            "result": result,
+                            "last_exit_code": returncode,
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+            queue = root / "events"
+            queue.mkdir()
+            (queue / "relay-status.json").write_text(
+                json.dumps(
+                    {
+                        "schema": 1,
+                        "ok": True,
+                        "state": "running",
+                        "updated_at": now,
+                        "pending": 0,
+                        "failed": 0,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            specs = (
+                JobSpec(
+                    name="supervisor",
+                    description="Supervisor",
+                    timer_unit="personal-assistant-supervisor.timer",
+                    service_unit="personal-assistant-supervisor.service",
+                    default_on=True,
+                    standard=True,
+                ),
+                JobSpec(
+                    name="portfolio",
+                    description="Portfolio",
+                    timer_unit="personal-assistant-portfolio.timer",
+                    service_unit="personal-assistant-portfolio.service",
+                    default_on=True,
+                    standard=False,
+                ),
+            )
+
+            def runner(_command: Sequence[str], _timeout: int) -> CommandResult:
+                return CommandResult(0, '{"ok": true}', "")
+
+            environment = {
+                "OPENCLAW_RUNTIME": "container",
+                "OPENCLAW_ROLE": "supervisor-worker",
+                "OPENCLAW_JOB_STATUS_DIR": str(status_dir),
+                "OPENCLAW_COORDINATION_DATA_DIR": str(root),
+                "OPENCLAW_EVENT_QUEUE_DIR": str(queue),
+            }
+            with patch.dict(os.environ, environment, clear=False):
+                controller = JobController(
+                    state_path=root / "job_control.json",
+                    workspace_root=root / "workspace",
+                    runner=runner,
+                    specs=specs,
+                )
+                report = controller.check(target="all")
+
+            self.assertFalse(report["ok"])
+            self.assertTrue(report["observer_cycle"]["ok"])
+            self.assertFalse(report["observer_cycle"]["observed_jobs_ok"])
+            self.assertTrue(_jobs_result_ok(report))
+            self.assertEqual(
+                {alert["id"] for alert in report["new_alerts"]},
+                {"portfolio:service-degraded"},
+            )
+            broken_observer = {
+                **report,
+                "observer_cycle": {"ok": False},
+            }
+            self.assertFalse(_jobs_result_ok(broken_observer))
 
 
 if __name__ == "__main__":

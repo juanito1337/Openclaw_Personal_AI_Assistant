@@ -170,6 +170,13 @@ EODHD returns London sterling OHLC values in pence even though its mapping curre
 is `GBP`. The provider adapter scales these values by `0.01` before storage, so a
 raw `2270` is exposed and valued as `22.70 GBP`. A refresh upserts an identical
 provider timestamp so previously stored unscaled values are repaired safely.
+Freshness for `XLON` is evaluated in `Europe/London` against the regular weekday
+window 08:00 through 16:30 local time. Before that venue opens, the timestamped
+previous close is the legitimate latest observation and does not create a false
+staleness alert. Once London is open, the ordinary warning and critical freshness
+limits apply again. Xetra uses 09:00 through 17:30 Europe/Berlin; registered US
+venues use 09:30 through 16:00 America/New_York. Other MICs use the explicitly
+configured fallback window rather than an invented exchange calendar.
 After checking the proposed fields, confirm the exact provider symbol, ISO 10383
 MIC and currency separately:
 
@@ -347,7 +354,9 @@ The portfolio job is optional and defaults to OFF. Enabling or restarting it
 requires Jan's explicit instruction. A held position with an unavailable,
 unmapped or critically stale quote makes the job fail; a watchlist-only gap is
 degraded. The supervisor deduplicates unchanged failures and queues a new or
-resolved OpenClaw system event.
+resolved OpenClaw system event. A successfully detected portfolio degradation is
+not itself a supervisor failure; observer infrastructure and alert delivery still
+fail closed independently.
 
 The overall monitor includes market-data pipeline health, but trading-signal
 performance is deliberately separate:

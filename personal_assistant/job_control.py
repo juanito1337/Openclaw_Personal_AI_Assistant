@@ -1189,6 +1189,35 @@ class JobController:
         report["automatic_recoveries"] = recoveries
         if observer_only:
             report["automatic_recovery_owner"] = "mail-worker"
+            supervisor = next(
+                (job for job in report["jobs"] if job.get("name") == "supervisor"),
+                None,
+            )
+            own_issues = [
+                issue
+                for issue in (supervisor or {}).get("issues", [])
+                # Exit 1 from the previous observer cycle represented an
+                # observed business-job degradation, not a broken observer.
+                # Ignore that historical self-result so a successful next
+                # observation can clear it.
+                if issue.get("code") != "service-degraded"
+            ]
+            observer_notification = report.get("notification")
+            notification_ok = not isinstance(observer_notification, dict) or bool(
+                observer_notification.get("ok")
+            )
+            observer_ok = bool(supervisor is not None and not own_issues and notification_ok)
+            report["observer_cycle"] = {
+                "ok": observer_ok,
+                "observed_jobs_ok": bool(report.get("ok")),
+                "own_issues": own_issues,
+                "notification_ok": notification_ok,
+                "detail": (
+                    "Beobachtung und Alarmzustellung erfolgreich"
+                    if observer_ok
+                    else "Supervisor-Beobachtung oder Alarmzustellung fehlgeschlagen"
+                ),
+            }
         if recoveries:
             report["ok"] = report["ok"] and all(
                 bool(item["recovery"].get("ok")) and bool(item["restart"].get("ok"))

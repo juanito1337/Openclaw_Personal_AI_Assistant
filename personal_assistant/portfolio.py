@@ -1752,6 +1752,11 @@ class PortfolioService:
             return local.weekday() < 5 and clock_time(9, 0) <= local.time().replace(
                 tzinfo=None
             ) <= clock_time(17, 30)
+        if mic == "XLON":
+            local = now.astimezone(ZoneInfo("Europe/London"))
+            return local.weekday() < 5 and clock_time(8, 0) <= local.time().replace(
+                tzinfo=None
+            ) <= clock_time(16, 30)
         if mic in {"XNAS", "XNGS", "XNYS"}:
             local = now.astimezone(ZoneInfo("America/New_York"))
             return local.weekday() < 5 and clock_time(9, 30) <= local.time().replace(

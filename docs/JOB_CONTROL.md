@@ -86,6 +86,15 @@ unchanged active alert is not queued repeatedly. Local state is stored at:
 personal_assistant/data/job_control.json
 ```
 
+The observer result and the observed business result are deliberately separate.
+`jobs check` retains `ok=false` and the exact domain issue when, for example, the
+portfolio worker is degraded, but exposes a successful `observer_cycle` after the
+state was persisted and its alert was delivered. The supervisor process then
+exits successfully, so a detected child failure cannot create a second false
+`supervisor:service-degraded` alert. Missing supervisor state, scheduler or relay
+health failures and failed alert delivery still make the observer cycle and
+process fail closed.
+
 It also checks `personal_assistant/data/work_scheduler.sqlite3` when present.
 Expired leases or missed scheduler deadlines use the same deduplicated alert
 path. Queue state is available through:

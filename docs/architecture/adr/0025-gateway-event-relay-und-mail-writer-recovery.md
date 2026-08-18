@@ -44,6 +44,13 @@ der produktive Lauf. Ein echter Fehler erhaelt den bestehenden 30-Minuten-
 Cooldown; ein Lockkonflikt bleibt transient. Andere Blocker werden niemals
 repariert oder umgangen.
 
+Beobachtergesundheit und beobachtete Fachgesundheit bleiben getrennt. Ein
+erfolgreich persistierter und zugestellter Fachalarm behaelt im Bericht seinen
+Fachstatus `degraded` oder `failed`, fuehrt aber fuer den Supervisorprozess zu
+Exitcode 0. Nur ein eigener Supervisor-, Scheduler-, Relay- oder
+Zustellungsfehler fuehrt zu Exitcode 1. Damit erzeugt eine korrekte Beobachtung
+keinen zusaetzlichen rekursiven Supervisoralarm.
+
 Supervisor, Portfolio und Monitor erhalten kein Gateway-Credential mehr. Der
 Supervisor erhaelt auch keine Mail-Konfiguration oder Mail-Secrets.
 
@@ -65,5 +72,6 @@ Jobzustand.
 Regressionstests pruefen Queuegrenze, atomare Uebergabe, manipulierte Eintraege,
 credential-freie Workerkommandos, ausschliessliche Loopback-Zustellung,
 Relay-Frische, Crash-Wiederaufnahme, den Observer-only-Supervisor und die
-allowlistgebundene Mail-Recovery. Der Container-Healthcheck prueft HTTP-Gateway und Relay gemeinsam.
+Trennung von Fach- und Beobachterergebnis sowie die allowlistgebundene
+Mail-Recovery. Der Container-Healthcheck prueft HTTP-Gateway und Relay gemeinsam.
 Compose- und Rollenvertrag pruefen, dass Fachworker keine Gateway-Secrets mounten.

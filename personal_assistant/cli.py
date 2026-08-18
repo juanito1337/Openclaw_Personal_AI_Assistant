@@ -201,6 +201,13 @@ def _handle_version(args: argparse.Namespace) -> int:
     return 0 if payload.get("ok") else 1
 
 
+def _jobs_result_ok(result: dict[str, Any]) -> bool:
+    observer_cycle = result.get("observer_cycle")
+    if isinstance(observer_cycle, dict):
+        return bool(observer_cycle.get("ok"))
+    return bool(result.get("ok"))
+
+
 def _handle_jobs(args: argparse.Namespace) -> int:
     controller = JobController()
     try:
@@ -219,7 +226,7 @@ def _handle_jobs(args: argparse.Namespace) -> int:
         else:
             raise ValueError(f"Unbekannter Jobs-Befehl: {args.jobs_command}")
         _print(result)
-        return 0 if result.get("ok") else 1
+        return 0 if _jobs_result_ok(result) else 1
     except (OSError, ValueError) as exc:
         _print({"ok": False, "error": str(exc)})
         return 1
