@@ -163,6 +163,18 @@ add` does not exist and must never be executed; the only confirmation command is
 the returned `portfolio watchlist add ... --yes`. Never silently confirm a
 mapping or ask Jan to run `docker exec`.
 
+If `portfolio valuation` returns `failure_code=equity-quote-missing-or-critical`
+or the exact error `Aktienkurs fehlt oder ist kritisch veraltet`, treat that as a
+fail-closed freshness result, not as permission to speculate about the cause.
+Read `mapping_confirmed`, `provider_symbol`, `quote_observed_at`,
+`quote_age_seconds`, `quote_provider`, `quote_stale` and `quote_critical` from the
+failure. Execute its `registered_next_commands` through the installed launcher.
+When `mapping_confirmed=true`, the stored provider mapping is not an unresolved
+cause: never propose alternate tickers or run mapping suggestion. When it is
+false, only the registered provider-bounded mapping suggestion is allowed. Never
+claim a provider outage without tool evidence and never offer generic web search
+as a replacement quote source.
+
 For portfolio research, treat HTTP 402/403 from EODHD Screener or Fundamentals
 as the structured, non-retryable `provider-entitlement-denied` result returned
 by the tool. Report `decision=abstain` and the exact denied endpoint. Never hide

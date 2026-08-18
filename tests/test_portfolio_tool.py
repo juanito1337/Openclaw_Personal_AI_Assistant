@@ -880,6 +880,52 @@ class PortfolioServiceTests(unittest.TestCase):
         self.assertIsNone(result["totals"])
         self.assertTrue(any("Wechselkurs" in item["error"] for item in result["failures"]))
 
+    def test_valuation_failure_preserves_confirmed_mapping_and_bounded_diagnostics(self) -> None:
+        self.clock.value = datetime(2026, 8, 3, 10, 0, tzinfo=UTC)
+        imported = self.service.import_csv(self.csv.name, dry_run=False)
+        with self.service.store.connection:
+            self.service.store.connection.execute(
+                "DELETE FROM position_snapshots WHERE import_id=? AND isin!=?",
+                (imported["import_id"], ISIN),
+            )
+        self.service.watchlist_add(
+            isin=ISIN,
+            name="BASF SE",
+            symbol="BAS",
+            mic="XETR",
+            currency="EUR",
+        )
+        self.assertTrue(self.service.refresh_quotes(force=True)["ok"])
+        observed_at = self.clock().isoformat()
+        self.clock.value += timedelta(hours=2)
+
+        result = self.service.valuation()
+
+        self.assertFalse(result["ok"])
+        self.assertIsNone(result["totals"])
+        self.assertEqual(len(result["failures"]), 1)
+        failure = result["failures"][0]
+        self.assertEqual(failure["failure_code"], "equity-quote-missing-or-critical")
+        self.assertTrue(failure["mapping_confirmed"])
+        self.assertFalse(failure["mapping_action_required"])
+        self.assertEqual(failure["symbol"], "BAS")
+        self.assertEqual(failure["mic"], "XETR")
+        self.assertEqual(failure["provider_symbol"], "BAS.XETRA")
+        self.assertEqual(failure["quote_observed_at"], observed_at)
+        self.assertEqual(failure["quote_age_seconds"], 7200)
+        self.assertTrue(failure["quote_critical"])
+        self.assertFalse(failure["web_fallback_allowed"])
+        self.assertEqual(
+            failure["registered_next_commands"],
+            [
+                "portfolio quotes status",
+                f'portfolio quotes get --isin "{ISIN}"',
+                "portfolio doctor",
+                "jobs check --target all --deep",
+            ],
+        )
+        self.assertNotIn("mapping suggest", " ".join(failure["registered_next_commands"]))
+
     def test_stale_source_degrades_then_fails_closed(self) -> None:
         self._prepare()
         self.quote_offset = -timedelta(minutes=60)

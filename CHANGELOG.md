@@ -2,6 +2,11 @@
 
 ## Unreleased – M10 Rechnungsqualitaet und sichere Neubewertung
 
+- Unvollstaendige Portfoliobewertungen liefern jetzt einen stabilen Fehlercode,
+  den bestaetigten Symbol-/MIC-/Provider-Ticker, den letzten Kurszeitpunkt und
+  eine begrenzte registrierte Diagnosefolge. Der Agent darf einen kritisch alten
+  Kurs nicht mehr als mutmasslichen Mapping- oder Providerfehler auslegen,
+  Ticker-Alternativen erfinden oder eine Websuche als Ersatzkurs anbieten.
 - Der `monitor-worker` kann Core-, Wissens- und Mail-SQLite nun auch auf den
   absichtlich read-only gemounteten Rollenpfaden oeffnen. Geschlossene
   WAL-Datenbanken werden nebenwirkungsfrei als immutable gelesen; ein vorhandenes

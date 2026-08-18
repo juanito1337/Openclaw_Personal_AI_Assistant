@@ -2867,7 +2867,7 @@ class PortfolioService:
         holdings = self.holdings()
         health_by_isin = {str(item["isin"]): item for item in self.health().get("instruments", [])}
         positions: list[dict[str, Any]] = []
-        failures: list[dict[str, str]] = []
+        failures: list[dict[str, Any]] = []
         totals: dict[str, dict[str, Decimal]] = {}
         fx_used: dict[str, dict[str, Any]] = {}
         for item in holdings.get("positions", []):
@@ -2966,7 +2966,57 @@ class PortfolioService:
                 bucket["current_value"] += current_value
                 bucket["gain"] += gain
             except (ValueError, InvalidOperation, ZeroDivisionError) as exc:
-                failures.append({"isin": isin, "name": str(item.get("name") or isin), "error": str(exc)})
+                error = str(exc)
+                health_item = health_by_isin.get(isin) or {}
+                latest_quote = self.store.connection.execute(
+                    """
+                    SELECT price,currency,provider,observed_at,received_at
+                    FROM quotes WHERE isin=? ORDER BY observed_at DESC,id DESC LIMIT 1
+                    """,
+                    (isin,),
+                ).fetchone()
+                mapping_confirmed = bool(health_item.get("mapping_confirmed"))
+                if error == "Aktienkurs fehlt oder ist kritisch veraltet":
+                    failure_code = "equity-quote-missing-or-critical"
+                elif "Wechselkurs" in error or "Waehrung" in error:
+                    failure_code = "currency-conversion-unavailable"
+                else:
+                    failure_code = "valuation-input-invalid"
+                registered_next_commands = [
+                    "portfolio quotes status",
+                    f'portfolio quotes get --isin "{isin}"',
+                    "portfolio doctor",
+                    "jobs check --target all --deep",
+                ]
+                if not mapping_confirmed:
+                    registered_next_commands.insert(
+                        2,
+                        f'portfolio mapping suggest --isin "{isin}"',
+                    )
+                failures.append(
+                    {
+                        "isin": isin,
+                        "name": str(item.get("name") or isin),
+                        "error": error,
+                        "failure_code": failure_code,
+                        "mapping_confirmed": mapping_confirmed,
+                        "mapping_action_required": not mapping_confirmed,
+                        "symbol": str(item.get("symbol") or ""),
+                        "mic": str(item.get("mic") or ""),
+                        "provider_symbol": health_item.get("provider_symbol"),
+                        "quote_price": latest_quote["price"] if latest_quote else None,
+                        "quote_currency": latest_quote["currency"] if latest_quote else None,
+                        "quote_provider": latest_quote["provider"] if latest_quote else None,
+                        "quote_observed_at": latest_quote["observed_at"] if latest_quote else None,
+                        "quote_received_at": latest_quote["received_at"] if latest_quote else None,
+                        "quote_age_seconds": health_item.get("age_seconds"),
+                        "quote_stale": bool(health_item.get("stale", True)),
+                        "quote_critical": bool(health_item.get("critical", True)),
+                        "provider_market_open": health_item.get("provider_market_open"),
+                        "registered_next_commands": registered_next_commands,
+                        "web_fallback_allowed": False,
+                    }
+                )
         complete = not failures and len(positions) == int(holdings.get("count") or 0)
         rendered_totals: dict[str, dict[str, str]] | None = None
         if complete:

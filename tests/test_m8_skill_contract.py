@@ -179,6 +179,22 @@ def test_failed_portfolio_status_requires_complete_diagnosis_and_next_action() -
     assert "Secret provisioning remains Jan's host action" in portfolio
 
 
+def test_critical_quote_failure_never_guesses_mapping_or_offers_web_fallback() -> None:
+    skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
+    portfolio = " ".join((SKILL / "references/portfolio.md").read_text(encoding="utf-8").split())
+
+    for contract in (skill, portfolio):
+        assert "Aktienkurs fehlt oder ist kritisch veraltet" in contract
+        assert "`mapping_confirmed`" in contract
+        assert "`provider_symbol`" in contract
+        assert "`registered_next_commands`" in contract
+        assert "generic web search" in contract
+    assert "the stored provider mapping is not an unresolved cause" in skill
+    assert "never propose alternate tickers" in skill
+    assert "Never invent or mention plausible alternatives such as `RHM.DE` or `RHN`" in portfolio
+    assert "never call a temporary provider outage without registered evidence" in portfolio
+
+
 def test_missing_mapping_uses_provider_bounded_ollama_suggestion() -> None:
     skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
     portfolio = " ".join((SKILL / "references/portfolio.md").read_text(encoding="utf-8").split())

@@ -108,6 +108,23 @@ old snapshot price is current. Never inspect or edit `personal_assistant/tools.t
 to recover from a portfolio error. Run the registered doctor and deep job check;
 protected setup changes belong to the explicitly approved `agent-cli` path.
 
+The valuation error `Aktienkurs fehlt oder ist kritisch veraltet` and its code
+`equity-quote-missing-or-critical` state only that fail-closed precondition; they
+do not prove an API outage or a bad mapping. Read the same failure object's
+`mapping_confirmed`, `symbol`, `mic`, `provider_symbol`, `quote_provider`,
+`quote_observed_at`, `quote_age_seconds`, `quote_stale` and `quote_critical`
+fields. Execute the returned `registered_next_commands` in order through the
+installed launcher: quote status, the exact-ISIN quote, portfolio doctor and the
+deep all-job check. A due ordinary refresh may follow quote status under the
+existing refresh contract; do not force or loop retries. If
+`mapping_confirmed=true`, report the exact stored `provider_symbol` and explicitly
+exclude mapping as the unresolved blocker. Never invent or mention plausible
+alternatives such as `RHM.DE` or `RHN`. Only when `mapping_confirmed=false` and
+`mapping_action_required=true` may the registered provider-bounded mapping
+suggestion be used. Never substitute or offer a generic web search for the
+registered EODHD quote path, and never call a temporary provider outage without
+registered evidence.
+
 EODHD is the only quote provider. It uses confirmed forms such as `RHM.XETRA`,
 batches at most 20 market/FX symbols and normally returns prices delayed by about
 15–20 minutes. The refresh obtains every required `EUR<currency>.FOREX` pair for

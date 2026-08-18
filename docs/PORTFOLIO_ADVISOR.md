@@ -238,6 +238,15 @@ summing or presenting mixed currencies. Equity and FX observations remain
 separately timestamped because their markets and provider delays can differ
 legitimately.
 
+For an incomplete position, each valuation failure includes a stable
+`failure_code`, the confirmed mapping state, exact provider symbol, last quote
+source/timestamps and bounded `registered_next_commands`. In particular,
+`equity-quote-missing-or-critical` does not diagnose the provider or the mapping
+by itself. If `mapping_confirmed` is true, the mapping remains authoritative and
+must not be replaced with guessed ticker variants. Diagnose with quote status,
+the exact-ISIN quote, portfolio doctor and the deep job check. Generic web quotes
+are neither a fallback nor admissible evidence for the controlled valuation.
+
 Course marks trigger once per crossing. A rule must clear its hysteresis before a
 new crossing can trigger, and a cooldown prevents rapid repeats. A new event is
 stored locally and queues an immediate OpenClaw system event. This is an

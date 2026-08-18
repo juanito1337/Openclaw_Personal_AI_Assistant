@@ -45,7 +45,7 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 717 Tests, darunter mindestens 652 unittest-kompatible Tests
+fordert mindestens 719 Tests, darunter mindestens 653 unittest-kompatible Tests
 (die bisherigen 349 sowie M0-M10.8- und Rollout-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
@@ -88,6 +88,7 @@ der aktuellen Python-Dateien.
 | Tests nach der M10-Rollout-Monitor-/Supervisorkorrektur gesammelt/ausgefuehrt | 707 / 707 (787 JUnit-Faelle inklusive 80 Subtests) |
 | Tests nach der Gateway-Relay-/Mail-Writer-Korrektur gesammelt/ausgefuehrt | 715 / 715 (795 JUnit-Faelle inklusive 80 Subtests) |
 | Tests nach Supervisor-/XLON-Korrektur gesammelt/ausgefuehrt | 717 / 717 (797 JUnit-Faelle inklusive 80 Subtests) |
+| Tests nach der Portfolio-Fehlervertragshaertung gesammelt/ausgefuehrt | 719 / 719 (799 JUnit-Faelle inklusive 80 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
