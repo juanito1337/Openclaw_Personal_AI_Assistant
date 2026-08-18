@@ -26,21 +26,21 @@ class ReleaseAwarenessTests(unittest.TestCase):
         report = json.loads(completed.stdout)
         self.assertTrue(report["ok"], report)
         self.assertEqual(report["product"], "OpenClaw Local Personal Assistant")
-        self.assertEqual(report["version"], "3.4.0-r27.2.5")
+        self.assertEqual(report["version"], "3.4.0-r28")
         self.assertNotEqual(report["version"], "2026.7.1")
 
     def test_installed_package_manifest_is_consistent(self) -> None:
         report = release_report(verify=True, include_history=True, limit=20)
         self.assertTrue(report["ok"], report)
-        self.assertEqual(report["version"], "3.4.0-r27.2.5")
-        self.assertEqual(report["history"][0]["version"], "3.4.0-r27.2.5")
+        self.assertEqual(report["version"], "3.4.0-r28")
+        self.assertEqual(report["history"][0]["version"], "3.4.0-r28")
 
     def test_history_since_r18_lists_only_newer_releases(self) -> None:
         report = release_report(include_history=True, since="3.4.0-r18", limit=22)
         versions = [item["version"] for item in report["history"]]
-        self.assertEqual(versions[0], "3.4.0-r27.2.5")
-        self.assertEqual(versions[1], "3.4.0-r27.2.4")
-        self.assertEqual(versions[-1], "3.4.0-r22.4")
+        self.assertEqual(versions[0], "3.4.0-r28")
+        self.assertEqual(versions[1], "3.4.0-r27.2.5")
+        self.assertEqual(versions[-1], "3.4.0-r23")
         self.assertEqual(len(versions), 22)
         self.assertTrue(report["since_found"])
 

@@ -45,7 +45,7 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 719 Tests, darunter mindestens 653 unittest-kompatible Tests
+fordert mindestens 720 Tests, darunter mindestens 654 unittest-kompatible Tests
 (die bisherigen 349 sowie M0-M10.8- und Rollout-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
@@ -89,6 +89,7 @@ der aktuellen Python-Dateien.
 | Tests nach der Gateway-Relay-/Mail-Writer-Korrektur gesammelt/ausgefuehrt | 715 / 715 (795 JUnit-Faelle inklusive 80 Subtests) |
 | Tests nach Supervisor-/XLON-Korrektur gesammelt/ausgefuehrt | 717 / 717 (797 JUnit-Faelle inklusive 80 Subtests) |
 | Tests nach der Portfolio-Fehlervertragshaertung gesammelt/ausgefuehrt | 719 / 719 (799 JUnit-Faelle inklusive 80 Subtests) |
+| Tests im Release 3.4.0-r28 gesammelt/ausgefuehrt | 720 / 720 (800 JUnit-Faelle inklusive 80 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -142,6 +143,8 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach der Gateway-Relay-/Mail-Writer-Korrektur | 50,05 % |
 | Gesamt-Coverage nach der Supervisor-/XLON-Korrektur | 64,24 % |
 | reine Branch-Coverage nach der Supervisor-/XLON-Korrektur | 50,09 % |
+| Gesamt-Coverage im Release 3.4.0-r28 | 64,25 % |
+| reine Branch-Coverage im Release 3.4.0-r28 | 50,12 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |

@@ -5,7 +5,7 @@ umask 077
 image=${1:?Unveraenderliche Image-Referenz angeben}
 expected_revision=${2:?Erwartete Git-Revision angeben}
 expected_role=${3:?Erwartete Image-Rolle angeben}
-expected_release=${OPENCLAW_EXPECTED_RELEASE:-3.4.0-r27.2.5}
+expected_release=${OPENCLAW_EXPECTED_RELEASE:-3.4.0-r28}
 issuer=${OPENCLAW_SIGNATURE_ISSUER:-https://token.actions.githubusercontent.com}
 identity=${OPENCLAW_SIGNATURE_IDENTITY_REGEXP:-'^https://github.com/juanito1337/Openclaw_Personal_AI_Assistant/.github/workflows/container.yml@refs/(heads/main|heads/test/.+|tags/r.+)$'}
 cosign_image='ghcr.io/sigstore/cosign/cosign:v3.1.3@sha256:9e5c2f2edc34351160407ca3416c61855bdf9403c3c5936e0f0be7fc261611b8'

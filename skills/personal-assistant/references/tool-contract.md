@@ -1,6 +1,6 @@
 # Generierter Skill-Toolvertrag
 
-Release: `3.4.0-r27.2.5`. Quelle: typisierte Tooldefinitionen unter
+Release: `3.4.0-r28`. Quelle: typisierte Tooldefinitionen unter
 `personal_assistant/tool_catalog/` und `RELEASE.json`. Nicht manuell bearbeiten;
 `python3 scripts/generate-skill-tool-contract.py` erzeugt diese Datei deterministisch.
 Die statische Liste belegt keine live erteilte Berechtigung; dafuer immer

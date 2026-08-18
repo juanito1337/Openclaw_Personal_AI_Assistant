@@ -26,7 +26,7 @@ class AgentCapabilityExposureTests(unittest.TestCase):
         documented = "\n".join((skill, agents, references))
         normalized_agents = " ".join(agents.split())
 
-        self.assertIn("Release identity: `3.4.0-r27.2.5`", skill)
+        self.assertIn("Release identity: `3.4.0-r28`", skill)
         for command in (
             "calendar list --limit 100",
             "calendar search --query",

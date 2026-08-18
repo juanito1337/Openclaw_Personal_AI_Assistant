@@ -5,7 +5,7 @@ description: Use for Jan's OpenClaw Personal Assistant product version/release/u
 
 # Personal Assistant
 
-Release identity: `3.4.0-r27.2.5`. Verify it through the registered version
+Release identity: `3.4.0-r28`. Verify it through the registered version
 command before making an installed-version or update claim.
 
 ## Product version is not the embedded core version

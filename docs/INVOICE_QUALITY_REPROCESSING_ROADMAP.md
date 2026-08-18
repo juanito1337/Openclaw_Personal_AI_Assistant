@@ -1,9 +1,10 @@
 # M10-Roadmap: Rechnungsqualitaet und sichere Neubewertung
 
-Stand: 2026-08-17
-Empfohlener Arbeitsbranch: `development/invoice-quality-reprocessing-m10`
-Status: M10.0 bis M10.8 implementiert und lokal abgenommen; kein produktiver
-Rollout freigegeben oder ausgefuehrt
+Stand: 2026-08-18
+Urspruenglicher Arbeitsbranch: `development/invoice-quality-reprocessing-m10`
+Status: M10.0 bis M10.8 implementiert, abgenommen und Bestandteil von
+`3.4.0-r28`; kein produktiver Reprocessing-Apply oder historischer Bulk-Rollout
+freigegeben oder ausgefuehrt
 
 ## Ziel
 

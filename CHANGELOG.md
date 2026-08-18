@@ -1,6 +1,15 @@
 # Changelog
 
-## Unreleased – M10 Rechnungsqualitaet und sichere Neubewertung
+## 3.4.0-r28 – Sichere Containerarchitektur, Mail- und Rechnungsqualitaet
+
+Vollstaendige Release-, Upgrade-, Abnahme- und Rollbackhinweise stehen in
+[`docs/RELEASE_3_4_0_R28.md`](docs/RELEASE_3_4_0_R28.md). Dieser kumulative
+Release umfasst die zuvor einzeln abgenommenen Architekturmilestones M0 bis M8,
+die Mail-Qualitaetsarbeiten M9, die Rechnungsqualitaetsarbeiten M10 sowie die beim
+Live-Test belegten Rollen- und Diagnosekorrekturen. Die Git-Promotion und ein
+produktives Deployment bleiben getrennte Vorgaenge.
+
+### M10 Rechnungsqualitaet und sichere Neubewertung
 
 - Unvollstaendige Portfoliobewertungen liefern jetzt einen stabilen Fehlercode,
   den bestaetigten Symbol-/MIC-/Provider-Ticker, den letzten Kurszeitpunkt und
@@ -158,7 +167,7 @@
   Gesamt-Coverage ab. Das isoliert installierte Wheel bestand dieselben 694 Tests
   plus 80 Subtests; produktive Systeme wurden nicht verwendet.
 
-## Unreleased – M9 Mail-Qualitaet und Review-Triage
+### M9 Mail-Qualitaet und Review-Triage
 
 - Die erste M9-Aktivierung kann den exakt freigegebenen Zielordner
   `Agent/Relevant` nun nach verifiziertem Backup und Writer-Stopp, aber vor dem
@@ -194,7 +203,7 @@
   Der Gesamtcheck misst 62,03 Prozent Branch-einbezogene Coverage und meldet
   keine neuen Ruff- oder mypy-Befunde.
 
-## Unreleased – M8 End-to-End-Recovery, Skills und Releaseabschluss
+### M8 End-to-End-Recovery, Skills und Releaseabschluss
 
 - Providergebundene Aktiensuche kombiniert einen allowlist-begrenzten EODHD-
   Screener mit EODHD-Fundamental- und EOD-Historie. Vier versionierte,
@@ -388,7 +397,7 @@
   Depotwert aus. Rollen-Worker schreiben ihr CLI-Log in das beschreibbare
   Koordinationsverzeichnis, statt am schreibgeschuetzten Core-Mount zu scheitern.
 
-## Unreleased – M7 Reproduzierbare und attestierte Image-Lieferkette
+### M7 Reproduzierbare und attestierte Image-Lieferkette
 
 - OpenClaw-Quellimage, Node-/Python-Alpine-Basisimages sowie Syft, Trivy und Cosign
   sind per Digest gepinnt; direkte Alpine-Pakete sowie Version, Archiv- und
@@ -410,7 +419,7 @@
   kritische CVEs, 11,53 bis 94,50 Prozent kleinere Rollenimages sowie die bewusst
   akzeptierte, sichtbar weitergemessene Kaltstart-/RAM-Regression des Alpine-Pfads.
 
-## Unreleased – M6 Evidenzbasierte Bereinigung und Legacy-Ausstieg
+### M6 Evidenzbasierte Bereinigung und Legacy-Ausstieg
 
 - Ein deterministisches Komponenten-Inventar klassifiziert alle Pythonmodule,
   Shell-Einstiege, Skills, systemd-Units, Migrationen und Dokumente samt Owner,
@@ -429,7 +438,7 @@
   beziehungsweise den zentralen ActionPlan-Dateiconnector. Positive und negative
   M6-Regressionspruefungen sichern Paketdrift und entfernte Oberflaechen.
 
-## Unreleased – M5 Modulare Anwendungsdienste und Toolvertrag
+### M5 Modulare Anwendungsdienste und Toolvertrag
 
 - Alle 124 stabilen Toolprojektionen und die Top-Level-CLI-Hilfe sind als Golden
   Contracts fixiert; Modi, externe Wirkung, Approval und Fehlercodes werden
@@ -448,7 +457,7 @@
 - Policy-Negativtests bestaetigen, dass M5 weder Berechtigungen noch externe
   Schreib-, Approval- oder Loeschvertraege erweitert.
 
-## Unreleased – M4 Rollenbezogene Container-Haertung
+### M4 Rollenbezogene Container-Haertung
 
 - Hostnetzwerk entfernt: internes `backend`, begrenztes `egress`, nur Gateway auf
   `127.0.0.1:18789`; allein der Ollama-Proxy besitzt die in ADR-0008 dokumentierte
@@ -466,7 +475,7 @@
 - Ein maschinenlesbarer M4-Vertrag sowie statische und isolierte Docker-Tests pruefen
   Mounts, Secrets, Netznegative, Signale, Rootfs, PID/OOM und Ressourcenlimits.
 
-## Unreleased – M3 Datenbesitz, Mountgrenzen und Nebenlaeufigkeit
+### M3 Datenbesitz, Mountgrenzen und Nebenlaeufigkeit
 
 - State-Layout 3 trennt Instanz, Gateway/Sessions, Mail, Orders, Portfolio,
   Monitoring, Wissensindex, Core/ActionPlan, Security und bewusst geteilte
@@ -482,7 +491,7 @@
 - Reale Parallel-, Lock-, SIGKILL-, Full-/Read-only-Disk-, Backup-/Restore- und
   Compose-Mounttests sowie ein `strace`-Zugriffsauditor sichern M3 ab.
 
-## Unreleased – M2 Unveraenderlicher Code und eindeutige Release-Ausfuehrung
+### M2 Unveraenderlicher Code und eindeutige Release-Ausfuehrung
 
 - Gateway, Proxy, Worker und agent-cli starten Shell- und Python-Code nur noch aus
   `/opt/openclaw-agent`; beschreibbarer Workspace-Code wird weder ausgefuehrt noch
@@ -501,7 +510,7 @@
   read-only Imagecode, parallele Starts, fehlgeschlagene Migration, Idempotenz und
   Versions-/Revisionsabweichungen.
 
-## Unreleased – M1 Architekturvertrag, ADRs und Git-Arbeitsweise
+### M1 Architekturvertrag, ADRs und Git-Arbeitsweise
 
 - `docs/architecture/README.md` ist der verbindliche Einstieg fuer Systemkontext,
   Container- und Komponentenansicht; Rollen-, Daten- und Trust-Boundary-Matrizen
@@ -517,7 +526,7 @@
 - Ein in `check-repo.sh` integrierter Dokumentationscheck prueft interne Links,
   eindeutige Owner, Releaseverweise, Zwei-Link-Erreichbarkeit und Rollen-/Datenmatrix.
 
-## Unreleased – M0 Baseline, Testvollstaendigkeit und Integritaet
+### M0 Baseline, Testvollstaendigkeit und Integritaet
 
 - pytest ist der einheitliche lokale und CI-Test-Runner. Er fuehrt die bisherigen
   349 unittest-Tests und die zuvor ausgelassenen 13 freien Rechnungs-Tests aus;

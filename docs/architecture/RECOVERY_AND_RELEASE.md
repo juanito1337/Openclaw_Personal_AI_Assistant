@@ -119,6 +119,11 @@ Weitere reale, temporaere Failure-Injections der Gesamtsuite:
 Die Checkliste ist in dieser Reihenfolge abzuarbeiten und als Releaseevidenz zu
 speichern:
 
+Die kumulative Anwendung dieser Checkliste fuer `3.4.0-r28` ist im
+[Releasebericht](../RELEASE_3_4_0_R28.md) zusammengefasst. Dort stehen auch der
+Main-Promotions-, Installations- und Nachpruefpfad; die Sicherheitsgrenzen dieses
+Recoveryvertrags bleiben vorrangig.
+
 1. Sauberer Review-Commit; keine unbeabsichtigten Worktree-Dateien.
 2. `version --verify`, `git diff --check`, `check-repo.sh`, Wheel-Pruefung und beide
    Compose-Renderings gruen.

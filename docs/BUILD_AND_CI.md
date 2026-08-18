@@ -131,8 +131,10 @@ und sind im [Recoveryvertrag](architecture/RECOVERY_AND_RELEASE.md) begrenzt.
 
 ## Releaseworkflow
 
-`.github/workflows/container.yml` laeuft manuell, fuer `test/**` und fuer
-Release-Tags. Nach dem identischen Repositorycheck gilt folgende Reihenfolge:
+`.github/workflows/container.yml` laeuft manuell, fuer `main`, fuer `test/**` und
+fuer Release-Tags. Damit erzeugt auch der nach `main` promovierte, zuvor auf dem
+Testbranch abgenommene Commit seinen eigenen signierten Rollensatz. Nach dem
+identischen Repositorycheck gilt folgende Reihenfolge:
 
 1. lokale Kandidaten aller Rollen bauen, rollenbezogen testen und scannen,
 2. den gesamten Rollenbuild zweimal ohne Cache aus demselben sauberen Checkout

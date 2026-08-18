@@ -317,14 +317,16 @@ Lokaler isolierter Rollenbuild (kein Deployment):
 
 ```bash
 ./docker/scripts/build-local.sh \
-  openclaw-agent:r27.2.5-local \
-  openclaw-agent:r27.2.5-local-proxy \
-  openclaw-agent:r27.2.5-local-maintenance
+  openclaw-agent:r28-local \
+  openclaw-agent:r28-local-proxy \
+  openclaw-agent:r28-local-maintenance
 ```
 
-For the normal GitHub flow, push a release tag such as `r27.2.5`. The
-`container.yml` workflow tests the repository, scans all targets, generates SBOM
-and Provenance, signs all immutable digests and publishes the three images to GHCR.
+For the normal GitHub flow, push the reviewed commit to `main` and, after its
+green checks, publish the annotated release tag `r28`. Pushes to `main`,
+`test/**` and `r*` tags run `container.yml`: the workflow tests the repository,
+scans all targets, generates SBOM and Provenance, signs all immutable digests and
+publishes the three images to GHCR.
 The [supply-chain contract](architecture/IMAGE_SUPPLY_CHAIN.md) documents the exact
 checks. The production host needs Docker and logs into the private registry once:
 

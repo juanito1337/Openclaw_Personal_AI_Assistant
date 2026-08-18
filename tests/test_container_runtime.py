@@ -321,6 +321,13 @@ raise SystemExit(86)
         self.assertIn("DOCKER_METADATA_SHORT_SHA_LENGTH: 12", workflow)
         self.assertIn("cancel-in-progress: true", workflow)
 
+    def test_main_push_builds_signed_release_images(self) -> None:
+        workflow = (Path(__file__).resolve().parents[1] / ".github/workflows/container.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("      - main", workflow)
+        self.assertIn("type=sha,prefix=sha-", workflow)
+
     def test_live_test_checks_docker_access_and_exports_exact_revision(self) -> None:
         helper = (Path(__file__).resolve().parents[1] / "docker/scripts/live-test-branch.sh").read_text(
             encoding="utf-8"

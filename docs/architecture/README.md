@@ -51,7 +51,7 @@ und Schreibrechte; der [Datenkatalog](DATA_CATALOG.md) ordnet persistente Dateie
 ihren logischen Ownern zu.
 
 ```text
-gemeinsamer Commit + Release 3.4.0-r27.2.5
+gemeinsamer Commit + Release 3.4.0-r28
 ├── runtime
 │   ├── gateway
 │   ├── mail-/sync-/supervisor-/portfolio-/monitor-worker

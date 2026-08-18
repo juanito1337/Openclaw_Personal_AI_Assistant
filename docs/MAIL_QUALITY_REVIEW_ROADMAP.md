@@ -1,8 +1,10 @@
 # M9-Roadmap: Mail-Qualitaet und Review-Triage
 
-Stand: 2026-08-14  
-Arbeitsbranch: `development/mail-quality-review-triage`  
-Status: Entwicklungsumsetzung M9.0 bis M9.7 abgeschlossen; keine produktive Aktivierung
+Stand: 2026-08-18
+Urspruenglicher Arbeitsbranch: `development/mail-quality-review-triage`
+Status: M9.0 bis M9.7 abgeschlossen und Bestandteil von `3.4.0-r28`; die
+Main-Promotion verschiebt keinen historischen Pruefbestand und erteilt keine neue
+Job-, Backlog- oder Schreibfreigabe
 
 ## Ziel
 

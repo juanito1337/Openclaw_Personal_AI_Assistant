@@ -8,7 +8,7 @@ the other references below that skill. Release-specific history belongs in
 
 ## Release identity
 
-- Installed package release: **3.4.0-r27.2.5**.
+- Installed package release: **3.4.0-r28**.
 - `RELEASE.json` is authoritative, never conversational memory, an archive name,
   README alone or an old session.
 - An unqualified question such as "Welche Version verwendest du?", "Welche

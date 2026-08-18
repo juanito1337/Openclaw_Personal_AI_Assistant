@@ -7,7 +7,7 @@ runtime=${1:?Runtime-Image angeben}
 proxy=${2:?Proxy-Image angeben}
 maintenance=${3:?Maintenance-Image angeben}
 revision=${4:?Git-Revision angeben}
-release=3.4.0-r27.2.5
+release=3.4.0-r28
 
 verify_labels() {
   local image=$1 role=$2 actual

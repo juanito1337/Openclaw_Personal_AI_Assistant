@@ -2,7 +2,7 @@
   "schema_version": 1,
   "inventory_date": "2026-08-06",
   "source_scope": "all Python modules, shell entrypoints, skills, systemd units, migrations and Markdown documents",
-  "component_count": 392,
+  "component_count": 393,
   "classification_values": [
     "active",
     "compatibility",
@@ -84,10 +84,11 @@
         "CONTRIBUTING.md",
         "README.md",
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
+        "docs/RELEASE_3_4_0_R28.md",
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-18T01:08:00+02:00",
+      "last_git_change": "2026-08-18T09:44:40+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -181,6 +182,7 @@
         "docs/ASSISTANT_ARCHITECTURE.md",
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
         "docs/DOCKER_DEPLOYMENT.md",
+        "docs/RELEASE_3_4_0_R28.md",
         "docs/architecture/README.md",
         "docs/architecture/owners.json",
         "docs/archive/README.md"
@@ -532,6 +534,7 @@
       "documentation_evidence": [
         "docs/DOCKER_DEPLOYMENT.md",
         "docs/INVOICE_M10_ROLLOUT.md",
+        "docs/RELEASE_3_4_0_R28.md",
         "docs/architecture/IMAGE_SUPPLY_CHAIN.md",
         "docs/architecture/RECOVERY_AND_RELEASE.md",
         "docs/architecture/adr/0012-m8-recovery-und-agentenvertrag.md",
@@ -559,6 +562,7 @@
       "documentation_evidence": [
         "docs/DOCKER_DEPLOYMENT.md",
         "docs/MAIL_QUALITY_ROLLOUT.md",
+        "docs/RELEASE_3_4_0_R28.md",
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
@@ -637,7 +641,8 @@
       "documentation_evidence": [
         "CHANGELOG.md",
         "REPOSITORY_AUDIT.md",
-        "docs/DOCKER_DEPLOYMENT.md"
+        "docs/DOCKER_DEPLOYMENT.md",
+        "docs/RELEASE_3_4_0_R28.md"
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-08-09T14:31:57+02:00",
@@ -714,6 +719,7 @@
       "documentation_evidence": [
         "CHANGELOG.md",
         "docs/DOCKER_DEPLOYMENT.md",
+        "docs/RELEASE_3_4_0_R28.md",
         "docs/architecture/RECOVERY_AND_RELEASE.md",
         "docs/architecture/adr/0012-m8-recovery-und-agentenvertrag.md",
         "docs/architecture/legacy-decisions.json"
@@ -949,6 +955,7 @@
         "README.md",
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
         "docs/INVOICE_QUALITY_BASELINE_M10.md",
+        "docs/RELEASE_3_4_0_R28.md",
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
@@ -1150,6 +1157,7 @@
         "README.md",
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
         "docs/MIGRATION.md",
+        "docs/RELEASE_3_4_0_R28.md",
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
@@ -1195,6 +1203,7 @@
         "docs/INVOICE_OCR_REGISTER.md",
         "docs/INVOICE_QUALITY_BASELINE_M10.md",
         "docs/INVOICE_QUALITY_REPROCESSING_ROADMAP.md",
+        "docs/RELEASE_3_4_0_R28.md",
         "docs/TESTING.md",
         "docs/architecture/adr/0024-m10-abnahme-vor-produktivem-einzelrollout.md"
       ],
@@ -1289,7 +1298,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-18T01:08:00+02:00",
+      "last_git_change": "2026-08-18T08:41:43+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1345,7 +1354,8 @@
       "productive_callers": [],
       "test_evidence": [],
       "documentation_evidence": [
-        "README.md"
+        "README.md",
+        "docs/RELEASE_3_4_0_R28.md"
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-08-14T14:43:28+02:00",
@@ -1510,7 +1520,30 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-13T18:10:57+02:00",
+      "last_git_change": "2026-08-18T09:44:40+02:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "docs/RELEASE_3_4_0_R28.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Documentation Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "CHANGELOG.md",
+        "README.md",
+        "docs/ROADMAP.md",
+        "docs/architecture/RECOVERY_AND_RELEASE.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1622,10 +1655,11 @@
         "README.md",
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
         "docs/INVOICE_QUALITY_BASELINE_M10.md",
+        "docs/RELEASE_3_4_0_R28.md",
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-18T01:08:00+02:00",
+      "last_git_change": "2026-08-18T09:44:40+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1646,6 +1680,7 @@
       "documentation_evidence": [
         "SECURITY.md",
         "docs/DOCKER_DEPLOYMENT.md",
+        "docs/RELEASE_3_4_0_R28.md",
         "docs/architecture/README.md",
         "docs/architecture/owners.json"
       ],
@@ -1670,6 +1705,7 @@
       "test_evidence": [],
       "documentation_evidence": [
         "CONTRIBUTING.md",
+        "docs/RELEASE_3_4_0_R28.md",
         "docs/architecture/README.md",
         "docs/architecture/owners.json"
       ],
@@ -1719,6 +1755,7 @@
         "SECURITY.md",
         "docs/BUILD_AND_CI.md",
         "docs/DOCKER_DEPLOYMENT.md",
+        "docs/RELEASE_3_4_0_R28.md",
         "docs/architecture/CONTAINER_ROLES.md",
         "docs/architecture/EXTENDING.md",
         "docs/architecture/README.md",
@@ -1761,6 +1798,7 @@
         "docs/ASSISTANT_ARCHITECTURE.md",
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
         "docs/DOCKER_DEPLOYMENT.md",
+        "docs/RELEASE_3_4_0_R28.md",
         "docs/architecture/owners.json",
         "docs/archive/README.md"
       ],
@@ -1787,6 +1825,7 @@
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
         "docs/DOCKER_DEPLOYMENT.md",
         "docs/INVOICE_M10_ROLLOUT.md",
+        "docs/RELEASE_3_4_0_R28.md",
         "docs/TESTING.md",
         "docs/architecture/README.md",
         "docs/architecture/compatibility-policy.json",
@@ -2371,7 +2410,7 @@
         "docs/architecture/owners.json"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-18T01:08:00+02:00",
+      "last_git_change": "2026-08-18T08:41:43+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -2406,6 +2445,7 @@
         "docs/ASSISTANT_ARCHITECTURE.md",
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
         "docs/DOCKER_DEPLOYMENT.md",
+        "docs/RELEASE_3_4_0_R28.md",
         "docs/architecture/README.md",
         "docs/architecture/owners.json",
         "docs/archive/README.md"
@@ -2510,6 +2550,7 @@
         "docs/ASSISTANT_ARCHITECTURE.md",
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
         "docs/DOCKER_DEPLOYMENT.md",
+        "docs/RELEASE_3_4_0_R28.md",
         "docs/architecture/README.md",
         "docs/architecture/owners.json"
       ],
@@ -2750,6 +2791,7 @@
         "docs/ASSISTANT_ARCHITECTURE.md",
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
         "docs/DOCKER_DEPLOYMENT.md",
+        "docs/RELEASE_3_4_0_R28.md",
         "docs/architecture/README.md",
         "docs/architecture/owners.json",
         "docs/archive/README.md"
@@ -4384,7 +4426,7 @@
         "docs/archive/AUDIT_INITIAL_IMPORT.md"
       ],
       "line_coverage_percent": 28.46,
-      "last_git_change": "2026-08-14T02:48:52+02:00",
+      "last_git_change": "2026-08-18T08:41:43+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -5401,7 +5443,7 @@
         "docs/TESTING.md"
       ],
       "line_coverage_percent": 84.84,
-      "last_git_change": "2026-08-18T01:08:00+02:00",
+      "last_git_change": "2026-08-18T08:41:43+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -5701,8 +5743,8 @@
         "docs/TESTING.md",
         "docs/architecture/DATA_CATALOG.md"
       ],
-      "line_coverage_percent": 72.01,
-      "last_git_change": "2026-08-18T01:08:00+02:00",
+      "line_coverage_percent": 72.17,
+      "last_git_change": "2026-08-18T09:44:40+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -6583,7 +6625,7 @@
         "docs/architecture/adr/0007-shared-sqlite-scheduler.md",
         "docs/architecture/state-access.json"
       ],
-      "line_coverage_percent": 84.24,
+      "line_coverage_percent": 85.1,
       "last_git_change": "2026-08-06T15:45:31+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -6682,6 +6724,7 @@
         "docs/NEXTCLOUD.md",
         "docs/OLLAMA_PRIORITY.md",
         "docs/PORTFOLIO_ADVISOR.md",
+        "docs/RELEASE_3_4_0_R28.md",
         "docs/SEARCH.md",
         "docs/SELF_MANAGEMENT.md",
         "docs/TESTING.md",
@@ -6832,6 +6875,7 @@
       "test_evidence": [],
       "documentation_evidence": [
         "README.md",
+        "docs/RELEASE_3_4_0_R28.md",
         "docs/TESTING.md",
         "docs/archive/README_PRE_M1.md"
       ],
@@ -7071,6 +7115,7 @@
         "docs/INVOICE_QUALITY_REPROCESSING_ROADMAP.md",
         "docs/MAIL_QUALITY_REVIEW_ROADMAP.md",
         "docs/MAIL_QUALITY_ROLLOUT.md",
+        "docs/RELEASE_3_4_0_R28.md",
         "docs/TESTING.md",
         "docs/architecture/EXTENDING.md",
         "docs/architecture/RECOVERY_AND_RELEASE.md",
@@ -7204,6 +7249,7 @@
         "CONTRIBUTING.md",
         "README.md",
         "docs/MAIL_QUALITY_ROLLOUT.md",
+        "docs/RELEASE_3_4_0_R28.md",
         "docs/TESTING.md",
         "docs/archive/README_PRE_M1.md"
       ],
@@ -7703,7 +7749,7 @@
         "docs/architecture/legacy-decisions.json"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-17T00:19:33+02:00",
+      "last_git_change": "2026-08-18T09:44:40+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -7777,6 +7823,7 @@
         "AGENTS.md",
         "docs/COMMAND_REFERENCE.md",
         "docs/MAIL_QUALITY_REVIEW_ROADMAP.md",
+        "docs/RELEASE_3_4_0_R28.md",
         "skills/personal-assistant/SKILL.md",
         "skills/personal-assistant/references/commands.md"
       ],
@@ -7806,7 +7853,7 @@
         "skills/personal-assistant/references/commands.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-13T18:10:57+02:00",
+      "last_git_change": "2026-08-18T09:44:40+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -7857,7 +7904,7 @@
         "skills/personal-assistant/references/commands.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-18T01:08:00+02:00",
+      "last_git_change": "2026-08-18T08:41:43+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -8415,7 +8462,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-18T01:08:00+02:00",
+      "last_git_change": "2026-08-18T08:41:43+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -8912,7 +8959,7 @@
         "docs/TESTING.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-13T17:14:41+02:00",
+      "last_git_change": "2026-08-18T09:44:40+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -9334,7 +9381,7 @@
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-13T03:01:46+02:00",
+      "last_git_change": "2026-08-18T09:44:40+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"

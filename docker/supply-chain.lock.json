@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "release": "3.4.0-r27.2.5",
+  "release": "3.4.0-r28",
   "base_images": {
     "openclaw_source": "ghcr.io/openclaw/openclaw:2026.7.1-2@sha256:8789721d2e9b24b780a1504b56deb4c6bd5c7dbf96a1dd117e7c45c2ed72c8ac",
     "node_runtime": "node:24-alpine3.22@sha256:191c9f0080fcbbc6547a85dc0ff7988072214a355aabdc1d2ec55a7dae5eea8a",

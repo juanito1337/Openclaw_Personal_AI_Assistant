@@ -236,7 +236,7 @@ class M7SupplyChainTests(unittest.TestCase):
                     "externalParameters": {
                         "role": "runtime",
                         "revision": "b" * 40,
-                        "release": "3.4.0-r27.2.5",
+                        "release": "3.4.0-r28",
                         "sbom_sha256": "c" * 64,
                     },
                     "resolvedDependencies": [{}, {}, {}],
@@ -250,7 +250,7 @@ class M7SupplyChainTests(unittest.TestCase):
             image_id="sha256:" + "a" * 64,
             role="runtime",
             revision="b" * 40,
-            version="3.4.0-r27.2.5",
+            version="3.4.0-r28",
             sbom_sha256="c" * 64,
         )
 
@@ -261,7 +261,7 @@ class M7SupplyChainTests(unittest.TestCase):
                 image_id="sha256:" + "a" * 64,
                 role="runtime",
                 revision="b" * 40,
-                version="3.4.0-r27.2.5",
+                version="3.4.0-r28",
                 sbom_sha256="c" * 64,
             )
 
@@ -272,7 +272,7 @@ class M7SupplyChainTests(unittest.TestCase):
                 image_id="sha256:" + "a" * 64,
                 role="runtime",
                 revision="e" * 40,
-                version="3.4.0-r27.2.5",
+                version="3.4.0-r28",
                 sbom_sha256="c" * 64,
             )
 
@@ -316,7 +316,7 @@ class M7SupplyChainTests(unittest.TestCase):
                 "FAKE_COSIGN_FAIL": "1" if cosign_fail else "0",
                 "FAKE_DOCKER_CALLS": str(calls),
                 "FAKE_REVISION": revision or expected,
-                "FAKE_RELEASE": "3.4.0-r27.2.5",
+                "FAKE_RELEASE": "3.4.0-r28",
                 "FAKE_ROLE": "runtime",
             }
         )
@@ -430,7 +430,7 @@ class M7SupplyChainTests(unittest.TestCase):
 
     def test_image_label_contract_rejects_wrong_role(self) -> None:
         labels = {
-            "org.opencontainers.image.version": "3.4.0-r27.2.5",
+            "org.opencontainers.image.version": "3.4.0-r28",
             "org.opencontainers.image.revision": "b" * 40,
             "org.opencontainers.image.openclaw.role": "proxy",
             "org.opencontainers.image.created": "2026-08-06T00:00:00Z",
@@ -439,7 +439,7 @@ class M7SupplyChainTests(unittest.TestCase):
             "org.opencontainers.image.base.digest": "sha256:" + "a" * 64,
         }
         with self.assertRaises(self.module.ContractError):
-            self.module.verify_labels(labels, role="runtime", revision="b" * 40, version="3.4.0-r27.2.5")
+            self.module.verify_labels(labels, role="runtime", revision="b" * 40, version="3.4.0-r28")
 
 
 if __name__ == "__main__":

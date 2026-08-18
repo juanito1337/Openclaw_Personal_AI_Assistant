@@ -1,21 +1,39 @@
 {
   "schema_version": 1,
   "product": "OpenClaw Local Personal Assistant",
-  "version": "3.4.0-r27.2.5",
-  "release": "r27.2.5",
-  "title": "Robuste Mail-Suche und kontrollierte Kursabrufe",
-  "released_at": "2026-08-03",
+  "version": "3.4.0-r28",
+  "release": "r28",
+  "title": "Sichere Containerarchitektur, Mail- und Rechnungsqualitaet",
+  "released_at": "2026-08-18",
   "installed_at": null,
-  "previous_version": "3.4.0-r27.2.4",
+  "previous_version": "3.4.0-r27.2.5",
   "installation_id": null,
   "changes": [
-    "Erfolgreiche Himalaya-Suchen ohne Treffer werden als vollstaendige leere Trefferliste behandelt; nichtleere ungueltige JSON-Ausgaben bleiben sichtbare Fehler.",
-    "Regressionstests und ein optionaler Container-Smoke-Test decken serverseitige Nulltreffer ab.",
-    "Depot und aktivierte Watchlist werden dedupliziert gemeinsam im dokumentierten 15-Minuten-Intervall aktualisiert.",
-    "Nicht wiederholbare EODHD-Antworten HTTP 401, 402 und 403 loesen bis zum naechsten UTC-Tag einen automatischen Cooldown aus.",
-    "Der Doctor liest die verifizierte Versionsidentitaet aus RELEASE.json statt aus einer veralteten Paketkonstante."
+    "M0 bis M8 ersetzen den gewachsenen Monolithbetrieb durch einen dokumentierten, getesteten und attestierten Multi-Container-Stack mit unveraenderlichem Programmcode, rollenbezogenen Mounts und genau einem Writer je Schreibdomaene.",
+    "Lokaler Check und CI verwenden denselben gepinnten Test-, Lint-, Typ-, Manifest-, Wheel-, Compose- und Artefaktpfad; 720 pytest-Items sowie 80 Subtests bilden die Release-Untergrenze.",
+    "M9 fuehrt eine persistente Mail-Review-Taxonomie, read-only Triagewerkzeuge, kontrollierte Einzelkorrektur und eine atomare Suchprojektion ein, ohne den historischen Pruefbestand automatisch zu verschieben.",
+    "M10 verbessert Rechnungsnummern, Datumsrollen, typisierte Betraege und begrenzte lokale OCR; Vorschau, Einzeluebernahme und Backlog-Audit bleiben getrennt, beleggebunden und fail-closed.",
+    "Gateway-Ereignisse, Mail-Recovery, Sync-, Monitor- und Supervisorrollen halten die dokumentierten Datenowner-, Read-only- und Single-Writer-Grenzen auch bei Teilfehlern ein.",
+    "Portfoliobewertungen liefern bei alten Kursen belegte Diagnosefelder; XLON-Frische folgt der Londoner Handelszeit und Websuche oder erfundene Ticker bleiben als Ersatzkurs verboten.",
+    "Main-, Test- und Release-Images entstehen aus einem exakten Commit als reproduzierbare Rollenimages mit SBOM, SLSA-Provenance, Secret-/CVE-Scan, Cosign-Signatur und anschliessender Digest-Verifikation.",
+    "Produktive Installation bleibt ein separater, backup- und rollbackgesicherter Auftrag; lokale Backups ersetzen keinen externen Restore bereits erfolgter IMAP-, Nextcloud-, CardDAV- oder CalDAV-Aenderungen."
   ],
   "history": [
+    {
+      "version": "3.4.0-r28",
+      "released_at": "2026-08-18",
+      "title": "Sichere Containerarchitektur, Mail- und Rechnungsqualitaet",
+      "changes": [
+        "M0 bis M8 ersetzen den gewachsenen Monolithbetrieb durch einen dokumentierten, getesteten und attestierten Multi-Container-Stack mit unveraenderlichem Programmcode, rollenbezogenen Mounts und genau einem Writer je Schreibdomaene.",
+        "Lokaler Check und CI verwenden denselben gepinnten Test-, Lint-, Typ-, Manifest-, Wheel-, Compose- und Artefaktpfad; 720 pytest-Items sowie 80 Subtests bilden die Release-Untergrenze.",
+        "M9 fuehrt eine persistente Mail-Review-Taxonomie, read-only Triagewerkzeuge, kontrollierte Einzelkorrektur und eine atomare Suchprojektion ein, ohne den historischen Pruefbestand automatisch zu verschieben.",
+        "M10 verbessert Rechnungsnummern, Datumsrollen, typisierte Betraege und begrenzte lokale OCR; Vorschau, Einzeluebernahme und Backlog-Audit bleiben getrennt, beleggebunden und fail-closed.",
+        "Gateway-Ereignisse, Mail-Recovery, Sync-, Monitor- und Supervisorrollen halten die dokumentierten Datenowner-, Read-only- und Single-Writer-Grenzen auch bei Teilfehlern ein.",
+        "Portfoliobewertungen liefern bei alten Kursen belegte Diagnosefelder; XLON-Frische folgt der Londoner Handelszeit und Websuche oder erfundene Ticker bleiben als Ersatzkurs verboten.",
+        "Main-, Test- und Release-Images entstehen aus einem exakten Commit als reproduzierbare Rollenimages mit SBOM, SLSA-Provenance, Secret-/CVE-Scan, Cosign-Signatur und anschliessender Digest-Verifikation.",
+        "Produktive Installation bleibt ein separater, backup- und rollbackgesicherter Auftrag; lokale Backups ersetzen keinen externen Restore bereits erfolgter IMAP-, Nextcloud-, CardDAV- oder CalDAV-Aenderungen."
+      ]
+    },
     {
       "version": "3.4.0-r27.2.5",
       "released_at": "2026-08-03",

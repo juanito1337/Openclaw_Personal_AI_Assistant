@@ -12,6 +12,9 @@ unter [`docs/architecture/README.md`](docs/architecture/README.md).
   `docs/<thema>` oder `test/<thema>`.
 - `test/**` besitzt zusaetzlich die dokumentierte Bedeutung eines automatisch
   gebauten Live-Testimages. Solche Images sind keine Produktionsfreigabe.
+- `main` ist der freigegebene, vorspulbare Integrationsstand. Jeder Push erzeugt
+  nach demselben Repositorycheck einen signierten Rollensatz; ein produktives
+  Deployment bleibt trotzdem ein separater Auftrag.
 - Keine Runtime-, Daten- oder Berechtigungsmigration mit einer reinen
   Dokumentationsaenderung vermischen.
 - Vorhandene Benutzerarbeit im Worktree bleibt erhalten; fremde Aenderungen werden

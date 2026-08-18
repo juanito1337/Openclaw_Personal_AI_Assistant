@@ -2,7 +2,7 @@
 set -euo pipefail
 ROOT=$(CDPATH='' cd "$(dirname "$0")/../.." && pwd)
 cd "$ROOT"
-runtime=${1:-openclaw-agent:r27.2.5-local}
+runtime=${1:-openclaw-agent:r28-local}
 proxy=${2:-${runtime}-proxy}
 maintenance=${3:-${runtime}-maintenance}
 revision=${OPENCLAW_SOURCE_REVISION:-$(git rev-parse --verify HEAD 2>/dev/null || printf 'local')}
@@ -20,7 +20,7 @@ common_args=(
   --build-arg "OPENCLAW_SOURCE_REVISION=$revision"
   --build-arg "OPENCLAW_BUILD_CREATED=$created"
   --build-arg "SOURCE_DATE_EPOCH=$source_epoch"
-  --build-arg "OPENCLAW_VERSION=3.4.0-r27.2.5"
+  --build-arg "OPENCLAW_VERSION=3.4.0-r28"
 )
 build_flags=()
 if [[ ${M7_BUILD_NO_CACHE:-0} == 1 ]]; then
