@@ -29,6 +29,39 @@ productive mailbox. The current server-side path remains authoritative for
 current mailbox questions until later M11 coverage and live-locator contracts
 are implemented and accepted.
 
+M11.2 adds two registered operational contracts without changing that search
+precedence:
+
+```bash
+./scripts/assistant.sh mail index plan
+./scripts/assistant.sh mail index backfill \
+  --page-size 50 --max-pages 200 --max-messages 10000 \
+  --max-bytes 1000000000 --max-message-bytes 100000000 \
+  --max-runtime 3600 --request-interval 0.2 --yes
+```
+
+The plan inventories readable folders and reports paging, raw fetch, UID,
+UIDVALIDITY, UIDNEXT, MODSEQ, CONDSTORE, QRESYNC and IDLE independently. It does
+not write an index. The second command needs the unchanged explicit approval,
+holds the mail-owner lock and writes only a private local checkpoint and v2
+staging projection. Page, message, byte, single-message, run-time and request
+interval limits are mandatory. Completed page partitions precede their atomic
+checkpoint, so a crash repeats at most one deterministic page.
+
+Every complete RFC822 message and every decoded physical attachment passes the
+existing fail-closed ClamAV gate before parsing/body publication. A finding,
+scanner error or size/decode failure leaves only a content-free checkpoint
+status and makes coverage incomplete. Attachment bytes are not full-text indexed
+or sent externally.
+
+Himalaya 1.2 proves numbered paging and raw export, but does not expose the IMAP
+UIDVALIDITY/delta capability set through this connector. Its bounded page-number
+fallback therefore uses mailbox ID plus raw digest for occurrence identity and
+must publish `complete=false`, even after every page was read. No UID, cursor or
+absence proof is invented. The staging root is
+`<mail-data>/search_backfill_v2/projection`; it does not replace the active v1
+root before M11.3.
+
 ## Sources
 
 - mail-agent message metadata and summaries

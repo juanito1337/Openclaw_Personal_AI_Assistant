@@ -19,8 +19,10 @@ from personal_assistant.tool_settings import load_tool_settings
 
 from .app import MailAgent
 from .assistant_bridge import PersonalAssistantActionBridge
+from .command import CommandRunner
 from .config import Config, load_config
 from .envfile import default_env_file, load_env_file
+from .himalaya import HimalayaClient
 from .invoice_extract import InvoiceExtractor, amount_to_cents
 from .invoice_register import InvoiceRegister
 from .invoice_reprocess import ReadOnlyInvoicePdfReader, run_reprocess_preview
@@ -31,6 +33,7 @@ from .lock import ProcessLock, ProcessLockError, inspect_process_lock
 from .models import ParsedMessage
 from .nextcloud import NextcloudSkillClient, NextcloudSkillError
 from .nextcloud_setup import interactive_nextcloud_setup
+from .search_backfill import BackfillLimits, HimalayaBackfillBackend, MailSearchBackfill
 from .setup_assistant import (
     build_guide,
     configuration_fingerprint,
@@ -132,6 +135,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     folders_activate.add_argument("--relevant", required=True)
     folders_activate.add_argument("--yes", action="store_true")
+    index = sub.add_parser("index", help="Vollkonto-Suchprojektion planen oder lokal aufbauen")
+    index_sub = index.add_subparsers(dest="index_command", required=True)
+    index_sub.add_parser("plan", help="Ordner und Connectorfaehigkeiten read-only inventarisieren")
+    index_backfill = index_sub.add_parser(
+        "backfill", help="Begrenzten lokalen Read-only-Backfill explizit ausfuehren"
+    )
+    index_backfill.add_argument("--page-size", type=int, default=50)
+    index_backfill.add_argument("--max-pages", type=int, default=200)
+    index_backfill.add_argument("--max-messages", type=int, default=10000)
+    index_backfill.add_argument("--max-bytes", type=int, default=1000000000)
+    index_backfill.add_argument("--max-message-bytes", type=int, default=100000000)
+    index_backfill.add_argument("--max-runtime", type=float, default=3600.0)
+    index_backfill.add_argument("--request-interval", type=float, default=0.2)
+    index_backfill.add_argument("--yes", action="store_true")
     performance = sub.add_parser("performance", help="Privacy-sichere Laufzeitmessungen anzeigen")
     performance.add_argument("--limit", type=int, default=20, help="Anzahl der letzten Laeufe (1-500)")
     performance.add_argument("--raw", action="store_true", help="Unverdichtete Telemetrie-Datensaetze anzeigen")
@@ -1352,6 +1369,60 @@ def main(argv: list[str] | None = None) -> int:
         result: object = records if args.raw else summarize_performance(records)
         print(json.dumps(result, indent=2, ensure_ascii=False))
         return 0
+
+    if args.command == "index":
+        limits = BackfillLimits(
+            page_size=int(getattr(args, "page_size", 50)),
+            max_pages=int(getattr(args, "max_pages", 200)),
+            max_messages=int(getattr(args, "max_messages", 10000)),
+            max_bytes=int(getattr(args, "max_bytes", 1000000000)),
+            max_message_bytes=int(getattr(args, "max_message_bytes", 100000000)),
+            max_runtime_seconds=float(getattr(args, "max_runtime", 3600.0)),
+            request_interval_seconds=float(getattr(args, "request_interval", 0.2)),
+        ).validated()
+        state_root = config.runtime.database.parent / "search_backfill_v2"
+        runner = CommandRunner(config.runtime.command_timeout_seconds)
+        backend = HimalayaBackfillBackend(HimalayaClient(config, runner, dry_run=True))
+        antivirus: HostAntivirus | None = None
+        try:
+            if args.index_command == "backfill":
+                tools = load_tool_settings()
+                settings = tools.security.antivirus
+                if not (
+                    settings.enabled
+                    and settings.fail_closed
+                    and settings.scan_raw_mail
+                    and settings.scan_attachments
+                ):
+                    raise PermissionError(
+                        "Backfill benoetigt aktivierten fail-closed Raw- und Attachment-Scan"
+                    )
+                antivirus = HostAntivirus(settings)
+            crawler = MailSearchBackfill(
+                backend,
+                antivirus,
+                projection_root=state_root / "projection",
+                checkpoint_path=state_root / "checkpoint.json",
+                quarantine_folders=tuple(config.mailbox.quarantine_folders),
+                limits=limits,
+            )
+            if args.index_command == "plan":
+                payload = crawler.plan()
+            else:
+                with ProcessLock(config.runtime.lock_file):
+                    payload = crawler.run(approved=bool(args.yes))
+            print(json.dumps(payload, indent=2, ensure_ascii=False))
+            return 0 if payload.get("ok") else 1
+        except (ValueError, PermissionError, ProcessLockError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+        except Exception as exc:
+            logging.getLogger(__name__).exception("Mail-Index-Backfill fehlgeschlagen")
+            print(f"Fehler: {exc}", file=sys.stderr)
+            return 1
+        finally:
+            if antivirus is not None:
+                antivirus.close()
 
     if args.command == "invoices":
         try:

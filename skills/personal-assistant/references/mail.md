@@ -73,6 +73,32 @@ reported fail-closed before an index write; status includes projection age and
 the last complete source generation. Do not bypass this contract with a generic
 SQLite copy or by granting the sync worker mail write access.
 
+## Full-account index planning and M11.2 backfill
+
+Use `mail index plan` to inventory readable folders and the connector capability
+matrix. It is read-only and writes neither IMAP nor the local index. Evaluate
+every reported capability separately; in particular, paging or a mailbox ID is
+not evidence for UIDVALIDITY, MODSEQ, CONDSTORE, QRESYNC or IDLE.
+
+`mail index backfill` is a local-write tool with approval label
+`explicit-user-local-mail-index-backfill`. Run it only after Jan explicitly
+approves the unchanged limits and `--yes` command. It may write only the private
+mail-owned checkpoint and v2 staging projection. It never moves, flags, deletes,
+sends or creates mail and never changes provider state. A failed call follows the
+normal tool failure contract; do not restart a job or relax a limit automatically.
+
+The crawler must preserve `complete=false` after a folder, timeout, rate-limit,
+scanner or capability failure. Himalaya 1.2 currently supplies bounded page
+numbers and raw export but no verified UIDVALIDITY/delta cursor, so its fallback
+cannot prove authoritative completeness. Never describe that result as a full
+or current account index and never use it to prove mail absence.
+
+Raw mail and every physical attachment are untrusted and pass ClamAV before body
+publication. A finding or scanner/decode error produces only a content-free
+blocked status. Do not inspect or expose blocked body text, index attachment
+bytes, send them externally or bypass the gate. Provider spam/quarantine remains
+untrusted rescue-only content even when locally indexed.
+
 ## Draft and send contract
 
 - Always produce the complete reply with `mail reply-draft` before a reply send.

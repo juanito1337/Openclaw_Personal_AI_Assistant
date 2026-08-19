@@ -32,5 +32,6 @@ verweist mit Status `Superseded` auf den Nachfolger.
 | [0024](0024-m10-abnahme-vor-produktivem-einzelrollout.md) | Accepted | M10-Entwicklungsabnahme bleibt vom produktiven Einzelrollout getrennt |
 | [0025](0025-gateway-event-relay-und-mail-writer-recovery.md) | Accepted | Events nur ueber Gateway-Loopback; Mail-Recovery nur beim Mail-Writer |
 | [0026](0026-versionierter-mail-suchdatenvertrag.md) | Accepted | partitionierte v2-Mailprojektion mit getrennten Content-, Occurrence- und Locator-Identitaeten |
+| [0027](0027-begrenzter-mail-vollkonto-backfill.md) | Accepted | begrenzter, wiederaufnehmbarer und fail-closed gescannter Vollkonto-Backfill |
 
 Neue ADRs beginnen mit der [Vorlage](0000-template.md).

@@ -609,6 +609,22 @@
   },
   {
     "approval": "none",
+    "command": "./scripts/assistant.sh mail index plan",
+    "description": "Alle lesbaren Mailordner und belegten Connectorfaehigkeiten fuer den begrenzten Vollkonto-Index read-only inventarisieren",
+    "id": "mail.index.plan",
+    "mode": "read",
+    "writes_external_data": false
+  },
+  {
+    "approval": "explicit-user-local-mail-index-backfill",
+    "command": "./scripts/assistant.sh mail index backfill --page-size 50 --max-pages 200 --max-messages 10000 --max-bytes 1000000000 --max-message-bytes 100000000 --max-runtime 3600 --request-interval 0.2 --yes",
+    "description": "Begrenzten wiederaufnehmbaren Vollkonto-Backfill nach expliziter Freigabe in eine lokale v2-Stagingprojektion schreiben; IMAP bleibt read-only",
+    "id": "mail.index.backfill",
+    "mode": "local-write",
+    "writes_external_data": false
+  },
+  {
+    "approval": "none",
     "command": "./scripts/assistant.sh mail learning status",
     "description": "Korrekturlernen, gemischte Absender, Musterkonflikte und Lernordner anzeigen",
     "id": "mail.learning.status",

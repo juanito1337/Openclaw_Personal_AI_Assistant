@@ -162,6 +162,22 @@ def add_commands(sub: Any) -> None:
     )
     folders_activate.add_argument("--relevant", required=True)
     folders_activate.add_argument("--yes", action="store_true")
+    mail_index = mail_sub.add_parser(
+        "index", help="Vollkonto-Suchprojektion read-only planen oder lokal aufbauen"
+    )
+    index_sub = mail_index.add_subparsers(dest="index_command", required=True)
+    index_sub.add_parser("plan", help="Ordner und Connectorfaehigkeiten read-only inventarisieren")
+    index_backfill = index_sub.add_parser(
+        "backfill", help="Begrenzten lokalen Backfill nach expliziter Freigabe ausfuehren"
+    )
+    index_backfill.add_argument("--page-size", type=int, default=50)
+    index_backfill.add_argument("--max-pages", type=int, default=200)
+    index_backfill.add_argument("--max-messages", type=int, default=10000)
+    index_backfill.add_argument("--max-bytes", type=int, default=1000000000)
+    index_backfill.add_argument("--max-message-bytes", type=int, default=100000000)
+    index_backfill.add_argument("--max-runtime", type=float, default=3600.0)
+    index_backfill.add_argument("--request-interval", type=float, default=0.2)
+    index_backfill.add_argument("--yes", action="store_true")
     mail_dry = mail_sub.add_parser("dry-run")
     mail_dry.add_argument("--limit", type=int, default=20)
     mail_run = mail_sub.add_parser("run")

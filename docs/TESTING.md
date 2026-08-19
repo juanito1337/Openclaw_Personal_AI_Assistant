@@ -1,7 +1,7 @@
 # Tests, Qualitaetsbaseline und Container-Runtime
 
-Stand: 2026-08-19, fortgeschrieben bis zum M11.1-Suchdaten- und
-Migrationsvertrag. Sie startet keine produktiven Dienste und verwendet
+Stand: 2026-08-19, fortgeschrieben bis zum begrenzten M11.2-Vollkonto-Backfill.
+Sie startet keine produktiven Dienste und verwendet
 weder `/srv/openclaw` noch produktive Zugangsdaten.
 
 ## Einheitlicher lokaler und CI-Prueflauf
@@ -45,14 +45,14 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 753 Tests, darunter mindestens 687 unittest-kompatible Tests
-(die bisherigen 349 sowie M0-M11.1- und Rollout-Regressionstests),
+fordert mindestens 771 Tests, darunter mindestens 687 unittest-kompatible Tests
+(die bisherigen 349 sowie M0-M11.2- und Rollout-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
 nach dem Sammeln mit einem Fehler ab. Neue Tests duerfen die Zahl erhoehen; die
 Baseline wird erst nach einem vollstaendigen gruenen Lauf bewusst angehoben.
 
-## M0-Ausgangswerte und aktueller M11.1-Teststand
+## M0-Ausgangswerte und aktueller M11.2-Teststand
 
 Gemessen auf Linux x86_64 mit Python 3.12.3. Die Werte sind Beobachtungen und noch
 keine willkuerlichen Mindestquoten. `scripts/quality-baseline.py` erzeugt sie nach
@@ -92,6 +92,7 @@ der aktuellen Python-Dateien.
 | Tests im Release 3.4.0-r28 gesammelt/ausgefuehrt | 720 / 720 (800 JUnit-Faelle inklusive 80 Subtests) |
 | Tests nach M11.0 gesammelt/ausgefuehrt | 735 / 735 (815 JUnit-Faelle inklusive 80 Subtests) |
 | Tests nach M11.1 gesammelt/ausgefuehrt | 753 / 753 (840 JUnit-Faelle inklusive 87 Subtests) |
+| Tests nach M11.2 gesammelt/ausgefuehrt | 771 / 771 (858 JUnit-Faelle inklusive 87 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -114,6 +115,7 @@ der aktuellen Python-Dateien.
 | neue M10.8-Abnahme-/Artefakt-/Rollout-Regressionsitems | 6 |
 | neue M11.0-Mail-Suchbaseline-Regressionsitems | 15 |
 | neue M11.1-Suchdatenvertrags-Regressionsitems | 18 (zusaetzlich 7 Subtests) |
+| neue M11.2-Vollkonto-Backfill-Regressionsitems | 18 |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |
 | Gesamt-Coverage inklusive Branches (M8) | 59,18 % |
@@ -153,6 +155,8 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach M11.0 | 50,41 % |
 | Gesamt-Coverage nach M11.1 | 64,81 % |
 | reine Branch-Coverage nach M11.1 | 50,72 % |
+| Gesamt-Coverage nach M11.2 | 65,03 % |
+| reine Branch-Coverage nach M11.2 | 50,96 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -526,6 +530,43 @@ Die vorhandenen M3-/M4-Tests bleiben Teil der gezielten Abnahme, damit die neue
 Projektion weder einen zweiten Mailwriter noch einen schreibbaren Mail-Mount fuer
 den Sync-Worker einfuehrt. Es wird kein `/srv/openclaw` gelesen, keine Mail
 verschoben, kein Job gestartet und keine v2-Projektion produktiv publiziert.
+
+## M11.2-Backfill-, Checkpoint- und Antivirus-Tests
+
+M11.2 verwendet ausschliesslich synthetische EMLs, Fake-IMAP, Fake-ClamAV und
+temporaere Projektions-/Checkpointverzeichnisse. Es wird kein produktiver
+Backfill ausgefuehrt. Die gezielte Abnahme lautet:
+
+```bash
+OPENCLAW_ENFORCE_TEST_BASELINE=0 .venv/bin/python -m pytest -q \
+  tests/test_mail_search_backfill_m112.py \
+  tests/test_mail_search_contract_m111.py \
+  tests/test_mail_search_baseline_m110.py \
+  tests/test_agent_tool_architecture.py
+```
+
+Die 18 neuen Regressionstests belegen Mehrordner-Paging, Nullordner, Unicode,
+Anhangsmetadaten, grosse synthetische Mengen, doppelte und fehlende Message-ID
+sowie Crash/Resume an jeder der drei Seitengrenzen ohne doppelte Occurrence.
+Timeout, Rate-Limit und Ordnerfehler erhalten den letzten sicheren Cursor und
+publizieren `complete=false`. Das Seitenbudget gilt pro explizitem Aufruf; drei
+aufeinanderfolgende Ein-Seiten-Aufrufe setzen denselben Fuenf-Mail-Checkpoint
+bis zur vollstaendigen dritten Seite fort. Eine vom Connector kleiner gekappte
+Seitengroesse wird fuer die Endeerkennung verwendet und beendet den Lauf nicht
+vorzeitig.
+
+Die Capability-Fixtures decken UID/UIDVALIDITY, UIDNEXT, MODSEQ,
+CONDSTORE/QRESYNC, IDLE, den gebundenen Fallback ohne UIDVALIDITY,
+Ordnerrename und UIDVALIDITY-Reset ab. IDLE und Deltafunktionen werden im
+Initial-Backfill nie verwendet oder simuliert. Raw- und physische Anhangsscans
+muessen beide sauber sein; Fund, Fehler, Groessenlimit oder
+Scanneridentitaetswechsel verhindern eine ungesicherte Bodyprojektion.
+
+Der synthetische Lastfall verarbeitet 101 Nachrichten mit Seitengroesse 7 in
+exakt 15 Seiten- und 101 Raw-Aufrufen. Er weist reproduzierbar
+`peak_page_messages <= 7`, seitengebundenen Rohdatenverbrauch sowie die exakte
+Backend-Aufrufzahl 117 aus. Das sind Vertragswerte des Fixtures, keine
+willkuerlichen Grenzwerte fuer ein produktives Postfach.
 
 ## Ruff-/mypy-Ausgangsbaseline und enge Ausnahmen
 

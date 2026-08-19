@@ -113,6 +113,31 @@ class HimalayaClient:
         ])
         return self._parse_envelopes(result, limit=limit, folder=folder)
 
+    def list_envelopes_page(
+        self,
+        folder: str,
+        *,
+        page: int,
+        page_size: int,
+    ) -> tuple[list[Envelope], str]:
+        """Read exactly one Himalaya page without inventing IMAP cursor data."""
+
+        safe_page = max(1, int(page))
+        safe_size = max(1, min(int(page_size), self.config.mailbox.page_size))
+        result = self._run_variants([
+            [
+                "envelope", "list", "--folder", folder,
+                "--page", str(safe_page), "--page-size", str(safe_size),
+                "--output", "json", "order", "by", "date", "asc",
+            ],
+            [
+                "envelope", "list", "--folder", folder,
+                "--page", str(safe_page), "--page-size", str(safe_size),
+                "-o", "json", "order", "by", "date", "asc",
+            ],
+        ])
+        return self._parse_envelopes(result, limit=safe_size, folder=folder)
+
     def search_envelopes(
         self,
         folder: str,

@@ -2,6 +2,29 @@
 
 ## Unreleased – M11 Mail-Suchindex
 
+### M11.2 Begrenzter, wiederaufnehmbarer Vollkonto-Backfill
+
+- `mail index plan` inventarisiert alle lesbaren Ordner, Quarantaenestatus und
+  die tatsaechlich belegten Connectorfaehigkeiten schreibfrei. `mail index
+  backfill ... --yes` ist davon als explizit freizugebender lokaler Writevertrag
+  getrennt und veraendert weder IMAP-Nachrichten noch Flags oder Ordner.
+- Der Backfill arbeitet seitenweise mit festen Seiten-, Nachrichten-, Byte-,
+  Einzelmail-, Laufzeit- und Request-Intervallgrenzen. Eine Partition wird vor
+  dem zugehoerigen Checkpoint publiziert; Crash oder Neustart wiederholen
+  hoechstens die letzte deterministische Seite und erzeugen keine doppelten
+  Occurrences.
+- Vollstaendige Raw-Mails und jede physische Anlage passieren den bestehenden
+  scanneridentitaetsgebundenen ClamAV-Cache. Fund, Scannerfehler, Decodefehler
+  oder Groessenlimit blockieren Bodyindexierung fail-closed und hinterlassen im
+  Checkpoint nur Hash, Locator und typisierten inhaltsfreien Status.
+- Himalaya 1.2 belegt Paging und Raw-Fetch, aber keine UIDVALIDITY-, UIDNEXT-,
+  MODSEQ-, CONDSTORE-, QRESYNC- oder IDLE-Semantik. Der dokumentierte
+  Page-Number-/Mailbox-ID-plus-Raw-Hash-Fallback bleibt deshalb bewusst
+  `complete=false` und nicht autoritativ; er erfindet keinen IMAP-Cursor.
+- Die v2-Ergebnisse liegen bis zu M11.3 getrennt unter
+  `search_backfill_v2/projection` und ersetzen nicht die aktive v1-Projektion.
+  M11.2 startet keinen produktiven Backfill, keinen Job und kein neues Ranking.
+
 ### M11.1 Versionierter Suchdaten- und Identitaetsvertrag
 
 - Das neue, noch nicht produktiv aktivierte Projektionsschema v2 trennt

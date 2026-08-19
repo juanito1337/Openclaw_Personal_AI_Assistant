@@ -2,7 +2,7 @@
 
 Stand: 2026-08-18
 Arbeitsbranch: `development/mail-search-indexing-m11`
-Status: M11.0 und M11.1 abgeschlossen; M11.2 bis M11.8 nicht begonnen
+Status: M11.0 bis M11.2 abgeschlossen; M11.3 bis M11.8 nicht begonnen
 
 ## Ziel
 
@@ -431,6 +431,11 @@ stoppe nach M11.1.
 ```
 
 ## M11.2 – Begrenzter Vollkonto-Backfill
+
+Status: abgeschlossen am 2026-08-19. Der produktive Backfill bleibt eine
+separate, explizit freizugebende Betriebsaktion und wurde in M11.2 nicht
+ausgefuehrt. Architekturentscheidungen und der ehrliche Himalaya-Fallback stehen
+in [ADR-0027](architecture/adr/0027-begrenzter-mail-vollkonto-backfill.md).
 
 ### Scope
 

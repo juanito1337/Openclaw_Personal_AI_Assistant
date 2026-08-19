@@ -114,8 +114,12 @@ Importgraphen auf Zyklen.
   wiederverwendbare Ordnerpartitionen nur durch ein atomisches Root. Der
   Sync-Worker liest diese Quelle read-only, validiert Alter, Digests und Coverage
   vor dem ersten Indexwrite und oeffnet die Mail-SQLite samt WAL nicht; die letzte
-  vollstaendige Generation liegt im Wissens-Sync-Status. V1 bleibt lesbar, v2 ist
-  in M11.1 noch nicht produktiv aktiviert.
+  vollstaendige Generation liegt im Wissens-Sync-Status. V1 bleibt lesbar. Der
+  begrenzte M11.2-Crawler aus
+  [ADR-0027](adr/0027-begrenzter-mail-vollkonto-backfill.md) publiziert v2 nur in
+  ein getrenntes Mail-Owner-Staging mit seitenweisem Checkpoint und
+  fail-closed Raw-/Anhangscan; die aktive v1-Projektion bleibt bis M11.3
+  unveraendert.
 - Instanzkonfiguration und Secrets liegen getrennt unter `/srv/openclaw/config` und
   `/srv/openclaw/secrets`; Rollen sehen daraus nur benoetigte read-only Dateien.
 - ClamAV-Signaturen liegen im Docker-Volume `clamav-db`; nur `clamav-update` schreibt.

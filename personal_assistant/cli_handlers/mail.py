@@ -57,6 +57,27 @@ def run_external(args: argparse.Namespace) -> int:
             command += ["--relevant", args.relevant]
         if args.folders_command in {"apply", "activate-relevant"} and args.yes:
             command.append("--yes")
+    elif args.mail_command == "index":
+        command += ["index", args.index_command]
+        if args.index_command == "backfill":
+            command += [
+                "--page-size",
+                str(args.page_size),
+                "--max-pages",
+                str(args.max_pages),
+                "--max-messages",
+                str(args.max_messages),
+                "--max-bytes",
+                str(args.max_bytes),
+                "--max-message-bytes",
+                str(args.max_message_bytes),
+                "--max-runtime",
+                str(args.max_runtime),
+                "--request-interval",
+                str(args.request_interval),
+            ]
+            if args.yes:
+                command.append("--yes")
     elif args.mail_command == "learning":
         command += ["training", args.learning_command]
         if args.learning_command in {"feedback", "not-spam", "mixed-senders", "conflicts", "evaluate"}:
