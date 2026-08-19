@@ -103,8 +103,9 @@ Nachgewiesene Luecken:
                               v
                   Mail-Owner / Inventory-Crawler
                   - Ordnerinventar und Checkpoints
+                  - IMAP-Deltas und periodische Reconciliation
                   - ClamAV-Gate und Parser
-                  - Stable Identity und Thread-Header
+                  - Content-/Occurrence-Identitaet und Thread-Header
                   - belegte lokale Tags
                               |
                               v
@@ -151,11 +152,28 @@ Nachgewiesene Luecken:
 
 ### Identitaet, Vollstaendigkeit und Aktualitaet
 
+Die Suchdaten trennen drei Ebenen, damit Aenderungen durch Webmail, Smartphone,
+Desktop-Mailclient, Provider-Spamfilter oder serverseitige Regeln nicht als neue
+Mailinhalte verarbeitet werden:
+
+- `content_id`: inhaltsbezogene Identitaet fuer Parsertext, Chunks, Threads und
+  Embeddings. Sie ist konto-/ressourcengebunden und verwendet kanonische
+  `Message-ID`, Raw-SHA-256 und weitere belegte Konfliktmerkmale nach dem in M11.1
+  festgelegten Vertrag. Eine `Message-ID` allein ist weder eindeutig noch
+  ausreichend.
+- `occurrence_id`: Identitaet einer physischen IMAP-Auspraegung. Kopien derselben
+  Mail duerfen mehrere Occurrences besitzen, ohne den Inhalt mehrfach zu
+  analysieren.
+- `locator`: aktueller Fundort einer Occurrence aus Ressourcen-/Konto-ID, Ordner,
+  UIDVALIDITY und UID beziehungsweise einem dokumentierten Connector-Fallback.
+  Ein Content kann gleichzeitig mehrere aktuelle Locator besitzen.
+
 Jeder indizierte Datensatz benoetigt mindestens:
 
 - Ressourcen-/Konto-ID,
-- stabilen Mail-Key aus kanonischer `Message-ID` oder Raw-SHA-256-Fallback,
-- aktuellen Quellordner und aktuellen Mailbox-Locator,
+- `content_id`, `occurrence_id` und einen oder mehrere aktuelle
+  Mailbox-Locator,
+- kanonische `Message-ID`, Raw-SHA-256 und den angewandten Identitaetsnachweis,
 - sofern vom Connector belastbar lieferbar: UIDVALIDITY und UID,
 - Quellzeitpunkt, empfangenen/gesendeten Zeitpunkt und Indexzeitpunkt,
 - Record-, Partition- und Root-Generationsdigest,
@@ -166,7 +184,12 @@ inventarisiert wurden und die Root-Generation genau diese Ordnergenerationen
 bindet. Ein Fehler in einem Ordner macht die Gesamtgeneration unvollstaendig.
 Fehlende Mails werden nur nach einem vollstaendigen autoritativen Abgleich als
 verschoben oder entfernt markiert. Ein abgebrochener Lauf darf keine Tombstones
-erzeugen.
+erzeugen. Das Auftauchen eines zweiten Locator ist zunaechst eine Kopie und erst
+nach bestaetigtem Verschwinden des bisherigen Locator eine Verschiebung. Das
+Entfernen einer einzelnen Occurrence tombstoned nicht den Content, solange ein
+weiterer belegter Locator existiert. Ein UIDVALIDITY-Reset, Ordnerrename oder
+eine kurzzeitig ueberlappende Copy/Delete-Folge wird als eigener Konfliktfall
+behandelt und niemals aus einer einzelnen Message-ID erraten.
 
 ### Lokaler Tagging-Vertrag
 
@@ -219,6 +242,10 @@ Abnahme muss mindestens folgende Dimensionen reproduzierbar berichten:
 - Projektions-/Indexgeneration und Alter,
 - Erst-Backfill-Dauer, Durchsatz, CPU-, RAM-, Netz- und Plattenbedarf,
 - inkrementelle Aktualisierungsdauer ohne und mit Aenderungen,
+- inkrementelle Aktualisierungsdauer fuer einzelnen Move, Copy/Delete-Folge,
+  Quarantaenewechsel und groessere Move-Gruppe,
+- Zahl gelesener Header/Bodies, uebertragene Bytes, geaenderte FTS-Dokumente und
+  wiederverwendete beziehungsweise neu berechnete Parser-/Embedding-Ergebnisse,
 - Suchlatenz p50/p95/p99 fuer lexikalisch, strukturiert, semantisch und hybrid,
 - Cold-/Warm-Start und Ollama-Queue-Wartezeit getrennt,
 - Recall@5/10, MRR und nDCG@10 auf einem sanitisierten Goldkorpus,
@@ -284,6 +311,10 @@ werden.
 - Laufzeit, Backend-Aufrufe, CPU, RAM und Ergebnisvollstaendigkeit fuer typische
   Suchmuster messen: einzelner exakter Begriff, mehrere Begriffe, Absender,
   Zeitraum, Bodybegriff, Nulltreffer und sehr haeufiger Begriff.
+- Den heutigen Aufwand beziehungsweise die noch fehlende Unterstuetzung fuer
+  No-op, neue Mail, Kopie, externen Move, Move nach/aus Quarantaene und
+  UIDVALIDITY-Wechsel mit Fake-IMAP charakterisieren, ohne bereits eine
+  Synchronisierung zu implementieren.
 - Einen sanitisierten Goldkorpus aus vollstaendig synthetischen EMLs und
   realistischen deutschen/englischen Suchfragen anlegen. Keine produktiven
   Betreffe, Adressen, Bodies oder Message-IDs in Git uebernehmen.
@@ -299,6 +330,9 @@ werden.
 - Der lokale FTS-Pfad ist fuer Chunk-Duplikate, Queryfehler, Snippets und
   fehlende Mail-Locator charakterisiert.
 - Baseline-Benchmark kann offline mit Fake-IMAP reproduziert werden.
+- Die Baseline weist fuer No-op, neue Mail, Copy/Move und UIDVALIDITY-Wechsel
+  Backendaufrufe, Header-/Body-Fetches und uebertragene Bytes getrennt aus oder
+  markiert eine heute nicht vorhandene Faehigkeit ausdruecklich als solche.
 - Produktive Diagnosebefehle geben nur Aggregate aus und sind gesondert als
   optionaler, read-only Betriebscheck dokumentiert.
 - Goldkorpus und Benchmarkreport enthalten keine Geheimnisse oder privaten
@@ -314,7 +348,9 @@ Toolvertrag, docs/SEARCH.md und ADR-0017 vollstaendig. Fuehre zuerst
 ./scripts/assistant.sh version --verify und git status --short aus. Veraendere
 keine Datei unter /srv/openclaw, kein produktives Postfach und keinen Jobzustand.
 Charakterisiere die heutige ordnerweise IMAP-Suche und den lokalen FTS-Pfad mit
-Fake-IMAP und temporaeren Datenbanken. Lege einen rein synthetischen deutschen und
+Fake-IMAP und temporaeren Datenbanken. Vermesse dabei auch No-op, neue Mail,
+Kopie, externen Move, Quarantaenewechsel und UIDVALIDITY-Reset, ohne fehlende
+Faehigkeiten vorzutaeuschen. Lege einen rein synthetischen deutschen und
 englischen Goldkorpus samt erwarteten Trefferlisten an und erfasse Coverage-,
 Qualitaets-, Latenz- und Ressourcen-Baselines reproduzierbar. Definiere noch keine
 willkuerlichen Zielgrenzen und aendere weder Schema, Projektion, Suchranking, CLI
@@ -339,8 +375,13 @@ M11.0.
 - Wissensschema additiv um Locator, Tags, Threadkanten, Indexgeneration,
   Quellstatus und Embeddingversion ergaenzen. Bestehende Dokumente und
   Sync-Historie bleiben erhalten.
-- Stable-Key, Message-ID-Fallback, Ordner-/Mailbox-Locator, optionale
-  UIDVALIDITY/UID-Semantik und Konfliktfaelle exakt definieren.
+- `content_id`, `occurrence_id`, Locator-Menge, Message-ID-/Raw-SHA-Nachweis,
+  Ordner-/Mailbox-Locator, optionale UIDVALIDITY/UID-Semantik und Konfliktfaelle
+  exakt definieren. Eine Message-ID darf Kopien oder verschiedene physische Mails
+  nicht still zusammenfuehren.
+- Content-addressed Parser-, FTS- und Embeddingdaten von veraenderlichen Locator-,
+  Ordner- und Quarantaenemetadaten trennen, damit ein reiner Locatorwechsel den
+  Content-Digest nicht aendert.
 - Tombstones nur als Ergebnis eines vollstaendigen autoritativen Ordnerabgleichs
   erlauben.
 - Parserfelder `In-Reply-To` und `References` tolerant und begrenzt aufnehmen,
@@ -350,6 +391,9 @@ M11.0.
 
 - Golden-Schema-Tests fuer v1, v2, unbekannte Zukunftsversion, fehlende Partition,
   falschen Digest, doppelte Stable-Keys und unsichere Dateinamen.
+- Identitaetstests fuer gleiche Message-ID mit verschiedenem Raw-Inhalt,
+  identischen Raw-Inhalt in mehreren Ordnern, fehlende Message-ID, Copy/Delete-
+  Ueberlappung, UIDVALIDITY-Reset und Ordnerrename.
 - Migration einer realistischen v1-Wissensdatenbank ohne Datenverlust; wiederholte
   Migration liefert denselben Zustand.
 - Crash vor Record-, Partitions- oder Root-Manifest-Replace laesst die letzte
@@ -364,8 +408,11 @@ M11.0.
 ```text
 Setze nur M11.1 um und fuehre zuerst die M11.0-Abnahme aus. Erstelle eine ADR und
 einen versionierten Suchdatenvertrag fuer eine partitionierte atomare
-Mailprojektion v2. Definiere stabile Mailidentitaet, aktuellen Locator,
-Ordnergenerationen, Coverage und sichere Tombstones. Erweitere Projektion,
+Mailprojektion v2. Definiere getrennte Content- und Occurrence-Identitaeten,
+mehrere aktuelle Locator, Copy-/Move-/Delete-Semantik, UIDVALIDITY-Reset,
+Ordnerrename, Ordnergenerationen, Coverage und sichere Tombstones. Stelle sicher,
+dass Locator-, Ordner- oder Quarantaenemetadaten keinen unveraenderten
+Content-Digest aendern. Erweitere Projektion,
 Parser und Wissensschema nur additiv und migrationssicher; v1 bleibt lesbar und
 eine wiederholte Migration verliert keine Dokumente oder Sync-Historie. Bewahre
 Mail-Owner-, Sync-read-only- und Gateway-read-only-Grenzen. Teste alle Crash-,
@@ -381,9 +428,13 @@ stoppe nach M11.1.
 
 - Alle freigegebenen Mailordner read-only inventarisieren, statt nur bereits vom
   Mailworker verarbeitete Nachrichten zu kennen.
-- Connectorfaehigkeiten fuer Paging, UID/UIDVALIDITY und Body-/Raw-Fetch explizit
-  erkennen. Fehlende Providerfaehigkeiten erhalten einen langsameren, aber
-  korrekten Fallback statt erfundener Cursorsemantik.
+- Connectorfaehigkeiten fuer Paging, UID/UIDVALIDITY, UIDNEXT, MODSEQ,
+  CONDSTORE/QRESYNC, optional IDLE und Body-/Raw-Fetch explizit erkennen.
+  Fehlende Providerfaehigkeiten erhalten einen langsameren, aber korrekten
+  Fallback statt erfundener Cursorsemantik.
+- Ordnerbestand einschliesslich neu angelegter, entfernter oder umbenannter
+  freigegebener Ordner erfassen. Provider-Spam-/Quarantaeneordner bleiben den
+  bestehenden Rescue-only- und Untrusted-Content-Regeln unterworfen.
 - Backfill nach Ordner und Cursor begrenzen, persistent fortsetzen und nach Crash,
   Timeout oder Neustart idempotent wiederaufnehmen.
 - Nie das gesamte Konto gleichzeitig in RAM laden. Paging, Bytebudgets,
@@ -404,6 +455,9 @@ stoppe nach M11.1.
 - Crash und Wiederaufnahme an jeder Seitengrenze ohne doppelte Records.
 - Timeout, Rate-Limit, Ordnerfehler und Connector ohne UIDVALIDITY melden
   `complete = false` und erhalten den letzten sicheren Checkpoint.
+- Capability-Matrix und Fake-IMAP testen Deltafaehigkeiten, fehlendes
+  CONDSTORE/QRESYNC, IDLE-Abbruch, UIDVALIDITY-Reset und Ordnerrename jeweils mit
+  korrektem gebundenem Fallback.
 - ClamAV-Fund, Scannerfehler und Cacheidentitaetswechsel verhindern
   ungesicherte Bodyindexierung.
 - Dry-run/Plan schreibt weder IMAP noch Index; Backfill schreibt nur lokale
@@ -418,6 +472,10 @@ Setze nur M11.2 um. Baue auf dem M11.1-Datenvertrag einen paginierten,
 wiederaufnehmbaren Read-only-Vollkonto-Crawler. Er muss alle freigegebenen Ordner
 inventarisieren, Connectorfaehigkeiten explizit erkennen, mit festen Laufzeit-,
 Byte-, Seiten- und Rate-Limits arbeiten und bei Fehlern unvollstaendig bleiben.
+Nutze UIDNEXT/MODSEQ/CONDSTORE/QRESYNC oder optional IDLE nur nach belegter
+Serverfaehigkeit und implementiere einen korrekten Fallback. Erfasse neue,
+entfernte und umbenannte freigegebene Ordner sowie Quarantaeneordner, ohne deren
+Sicherheitsvertrag zu lockern.
 Fuehre komplette Raw-Mails und physische Anhaenge durch das bestehende
 fail-closed ClamAV-Gate; umgehe keinen Scanner fuer Suchzwecke. Implementiere
 Plan/Dry-run und lokalen Checkpointvertrag, aber starte keinen produktiven
@@ -435,9 +493,15 @@ M11.2.
   Ordnerpartitionen verarbeiten.
 - Ordner-Cursor und Quellgenerationen transaktional publizieren; ein Checkpoint
   darf erst nach verifizierter Partitionspublikation fortgeschrieben werden.
-- Moves, serverseitige Ordnerwechsel und entfernte Nachrichten durch einen
-  vollstaendigen periodischen Abgleich erkennen. Stable Content und aktueller
-  Locator bleiben getrennte Konzepte.
+- Moves durch Webmail, Smartphone, Desktop-Mailclient, Provider-Spamfilter oder
+  serverseitige Regeln sowie entfernte Nachrichten durch Deltaabgleich und einen
+  vollstaendigen periodischen Abgleich erkennen. Stable Content, physische
+  Occurrence und aktuelle Locator-Menge bleiben getrennte Konzepte.
+- Copy, Move, Copy/Delete-Ueberlappung, Entfernen nur einer von mehreren
+  Occurrences, Ordnerrename und UIDVALIDITY-Reset deterministisch unterscheiden.
+- Bei unveraendertem Content Parsertext, Thread, fachliche Tags, Chunks, FTS und
+  Embeddings wiederverwenden. Ein Locatorwechsel aktualisiert nur Locator-,
+  Ordner-, Quarantaene- und davon abgeleitete strukturierte Suchmetadaten.
 - Tombstones beziehungsweise Locatorwechsel nur nach vollstaendigem Ordnerabgleich
   anwenden. Fehlerhafte Teilscans bewahren den letzten vollstaendigen Indexstand.
 - Den Sync-Worker Deltas transaktional anwenden lassen. Eine fehlgeschlagene
@@ -453,8 +517,23 @@ M11.2.
 
 - Keine-Aenderung-Lauf verursacht keine Body-Reexports und keinen kompletten
   FTS-Neuaufbau.
-- Neue Mail, geaenderter Locator, Move, geloeschte Mail und wiederaufgetauchte Mail
-  sind getrennt getestet.
+- Ein eindeutig aus Delta-/Locatornachweisen erkennbarer externer Move verursacht
+  keinen Raw-/Body-Fetch, kein erneutes Parsing/OCR, keine Modellanfrage, keine
+  Embeddingberechnung und keinen kompletten FTS-Neuaufbau. Ist die Identitaet ohne
+  Inhaltsnachweis mehrdeutig, ist ein begrenzter Raw-Fetch zur SHA-Verifikation
+  erlaubt; bestaetigt er unveraenderten Content, werden Parser-, FTS- und
+  Embeddingergebnisse wiederverwendet. Ein ClamAV-Rescan ist nur bei geaendertem
+  Inhalt oder nicht mehr passender Scanner-/Signaturidentitaet erlaubt.
+- Neue Mail, geaenderter Locator, Copy, Move, Copy/Delete-Ueberlappung, geloeschte
+  Occurrence, letzter geloeschter Locator und wiederaufgetauchte Mail sind
+  getrennt getestet.
+- Ein Move nach oder aus dem Provider-Spam-/Quarantaeneordner aktualisiert Locator
+  und belegte Ordner-/Quarantaenemetadaten, behaelt Content-, Thread- und
+  Embeddingidentitaet und fuehrt keine Rettung, Mailaktion oder Aenderung der
+  Spamregeln aus.
+- Inkrementelle Tests zaehlen Header-/Body-Fetches, uebertragene Bytes,
+  Parser-/OCR-/ClamAV-/Modellaufrufe, geaenderte FTS-Zeilen und
+  wiederverwendete/neue Embeddings fuer No-op, einzelne und gebuendelte Moves.
 - Teilscan, Netzverlust und Crash vor/nach Projektion oder Indexcommit erzeugen
   keine falschen Tombstones und keine vorgezogene Generation.
 - Paralleler produktiver Mailwriter und Indexcrawler verletzen keine Locks,
@@ -468,13 +547,21 @@ M11.2.
 
 ```text
 Setze nur M11.3 um. Implementiere einen effizienten inkrementellen
-Projektions-/Indexpfad auf Basis vollstaendiger Ordnergenerationen. Trenne stabile
-Mailidentitaet vom aktuellen Locator. Erzeuge Moves oder Tombstones nur nach
+Projektions-/Indexpfad auf Basis vollstaendiger Ordnergenerationen. Trenne Content,
+Occurrence und Locator-Menge. Erkenne Aenderungen externer Mailclients,
+Provider-Spamfilter und Serverregeln; unterscheide Copy, Move, Delete,
+Ordnerrename und UIDVALIDITY-Reset. Ein belegter reiner Locatorwechsel muss
+Content, Parsertext, Thread, FTS-Text und Embeddings wiederverwenden. Er darf nur
+bei mehrdeutiger Identitaet einen begrenzten Raw-Fetch zur SHA-Verifikation und
+bei geaenderter Scanneridentitaet einen ClamAV-Rescan anstossen, aber keine
+erneute teure Inhaltsverarbeitung. Erzeuge Moves oder Tombstones nur nach
 vollstaendig erfolgreichem autoritativem Abgleich; ein Teilscan darf den letzten
 vollstaendigen Stand nicht beschaedigen. Wende Deltas im Wissensindex
 transaktional an und schreibe Cursor erst nach verifiziertem Commit fort. Teste
-No-op, neue Mail, Move, Delete, Wiederkehr, Netzverlust, Crash an jeder
-Publikationsgrenze, parallelen Writer und Retention. Bereite den allowlisteten Job
+No-op, neue Mail, Copy, Move, Quarantaenewechsel, Delete, Wiederkehr,
+UIDVALIDITY-Reset, Netzverlust, Crash an jeder Publikationsgrenze, parallelen
+Writer und Retention. Messe Backend-, Fetch-, Byte-, FTS-, Scanner- und
+Modellaufwand. Bereite den allowlisteten Job
 vor, aktiviere oder starte ihn aber nicht. Aendere keine produktiven Rechte oder
 Postfachdaten und stoppe nach M11.3.
 ```
@@ -495,6 +582,8 @@ Postfachdaten und stoppe nach M11.3.
   query-zentrierten Snippet liefern.
 - Geschlossene lokale Tag-Namensraeume, Herkunft, Version, Konfidenz und
   Evidenzspanne implementieren. Keine Tags auf IMAP schreiben.
+- Ordner-/Quarantaene-Tags aus der aktuellen Locator-Menge ableiten und bei einem
+  Move ohne erneute inhaltliche Klassifikation aktualisieren.
 - Index- und Querymetriken nur mit technischen Zaehlern und Latenzen erfassen;
   keine Suchbegriffe, Mailadressen oder Snippets als Labels/Logs speichern.
 
@@ -588,6 +677,8 @@ keine semantische Suche und stoppe nach M11.5.
 - Embeddings an Record-SHA, normalisierten Retrievaltext, Chunkversion,
   Modellname/-digest und Dimension binden. Unveraenderte Chunks werden nicht neu
   berechnet.
+- Locator-, Ordner- und Quarantaeneaenderungen explizit aus dem Embedding-Key
+  ausschliessen; ein Content mit mehreren Occurrences teilt seine Vektoren.
 - Geeignete lokale Vektorsuche nach Benchmark waehlen. Fehlende optionale SQLite-
   Erweiterungen muessen sichtbar auf eine korrekte, fuer den gemessenen Bestand
   geeignete Implementierung oder lexikalisch-only degradieren; keine stille
@@ -601,6 +692,8 @@ keine semantische Suche und stoppe nach M11.5.
 
 - Deterministische Fake-Embeddings testen Speicherung, Dimensionsfehler,
   Modellwechsel, Resume, Cachetreffer und Chunkaenderung.
+- Ein externer Move, eine zusaetzliche Kopie und ein Quarantaenewechsel erzeugen
+  bei unveraendertem Retrievaltext exakt null neue Embeddinganfragen.
 - Ollama-Timeout, Queue-Full, Proxy-Ausfall, falsche Dimension und ungueltige
   Zahlen degradieren sichtbar ohne FTS-Ausfall.
 - Modellvergleich berichtet Recall@5/10, MRR, nDCG@10, p50/p95, RAM,
@@ -618,7 +711,9 @@ vergleiche mindestens zwei fuer deutsche und englische Mailtexte geeignete
 Modelle auf dem synthetischen M11.0-Goldkorpus. Fuehre Modellanfragen
 ausschliesslich ueber den Ollama-Koordinator aus und respektiere Prioritaet,
 Timeout, Queue und Hintergrundlimits. Binde jeden Vektor an Quell-SHA,
-Retrievaltextversion, Chunk und Modelldigest. FTS muss bei jedem semantischen
+Retrievaltextversion, Chunk und Modelldigest; Locator-, Ordner- und
+Quarantaeneaenderungen sind kein Teil dieses Schluessels. Teste, dass externe
+Moves und Kopien keine neuen Vektoren erzeugen. FTS muss bei jedem semantischen
 Fehler verfuegbar bleiben. Teste mit Fake-Vektoren alle Cache-, Resume-,
 Dimensions-, Modellwechsel-, Timeout- und Fehlerpfade. Dokumentiere Qualitaet und
 Ressourcen statt ein Modell zu erraten. Pull oder aktiviere kein produktives
@@ -647,9 +742,10 @@ Modell und starte keinen Job ohne separate Freigabe. Stoppe nach M11.6.
 - Suchantwort mindestens mit `complete`, `coverage`, `freshness`,
   `index_generation`, `semantic_state`, `fallback_used`, `folder_errors` und
   `results_may_be_truncated` versehen.
-- Jeder Treffer enthaelt Stable-Key, aktuellen oder als veraltet markierten
-  Locator, query-zentrierten Snippet, Tags, Threadkontext, Scorekomponenten und
-  eine zitierbare Quellreferenz.
+- Jeder Treffer enthaelt Content-/Occurrence-ID, aktuelle oder als veraltet
+  markierte Locator-Menge, einen deterministisch gewaehlten Live-Locator,
+  query-zentrierten Snippet, Tags, Threadkontext, Scorekomponenten und eine
+  zitierbare Quellreferenz.
 - Vor `mail read` aktuellen Ordner, Mailbox-ID und erwarteten Betreff erneut auf
   IMAP validieren. Der Index allein autorisiert keine Aktion.
 - Skillbeschreibung anweisen, zuerst den schnellen Pfad zu verwenden, Statusfelder
@@ -667,6 +763,9 @@ Modell und starte keinen Job ohne separate Freigabe. Stoppe nach M11.6.
   Status; FTS-Ausfall nutzt den sicheren Serverpfad.
 - Aktueller Move zwischen Suche und Read wird erkannt und neu aufgeloest oder als
   Konflikt gemeldet.
+- Bei mehreren Locatorn wird die konkrete physische Occurrence vor `mail read`
+  eindeutig und aktuell aufgeloest; ein verschwundener Locator berechtigt nicht
+  zur stillen Auswahl eines ungeprueften Ziels.
 - Prompt-Injection in Body oder Suchquery kann weder Toolaufruf noch Mailaktion
   ausloesen.
 - Echte Verhaltenspruefungen testen Ergebnismenge, Ranking, Statusfelder,
@@ -721,6 +820,14 @@ Backfill oder Jobstart aus und stoppe nach M11.7.
   erklaert.
 - Neue Mail wird inkrementell ohne Voll-Reexport auffindbar; Move/Delete werden
   nur nach vollstaendigem Abgleich wirksam.
+- Externe Client-/Provider-Moves, Copy/Delete-Ueberlappung, mehrere Locator,
+  Quarantaenewechsel, Ordnerrename und UIDVALIDITY-Reset sind hermetisch getestet.
+- Eindeutig belegte reine Locatorwechsel erzeugen keinen Body-/Raw-Reexport, kein
+  erneutes Parsing oder OCR, keine unnoetige ClamAV-Arbeit, keine
+  Modell-/Embeddinganfrage und keinen Voll-FTS-Neuaufbau. Mehrdeutige Faelle
+  duerfen nur den dokumentierten begrenzten Raw-SHA-Nachweis ausloesen; die
+  gemessenen Aufruf- und Ressourcenzaehler belegen die anschliessende
+  Wiederverwendung.
 - Lexikalische, strukturierte, Thread- und semantische Goldqueries erreichen die
   nach M11.0 beschlossenen Qualitaets- und Latenzgrenzen.
 - Mehrere Chunks erzeugen keinen doppelten Mailtreffer; Threadkontext wird nicht
@@ -775,7 +882,8 @@ eigenen ausdruecklichen Auftrag. Die vorgesehene Reihenfolge lautet:
 10. Nach gruener Nachmessung `auto` fuer Suchanfragen aktivieren; semantischen
     Provider nur nach separater Modellfreigabe einschalten.
 11. Inkrementellen Job separat freigeben und mindestens sieben Tage Coverage,
-    Latenz, Fallbackrate, Fehler und Ressourcenverbrauch beobachten.
+    Latenz, Fallbackrate, externe Moves/Locator-Konflikte, Wiederverwendungsrate,
+    Body-/Embedding-Fetches, Fehler und Ressourcenverbrauch beobachten.
 12. Bei Verschlechterung Jobs stoppen, vorherige Konfiguration/Runtime und
     verifizierten Index wiederherstellen; Server-Suche bleibt der sichere
     Fallback. Externe Mails werden durch diesen Rollback weder ersetzt noch
