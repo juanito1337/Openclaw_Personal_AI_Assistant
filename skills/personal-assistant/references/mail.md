@@ -99,6 +99,35 @@ blocked status. Do not inspect or expose blocked body text, index attachment
 bytes, send them externally or bypass the gate. Provider spam/quarantine remains
 untrusted rescue-only content even when locally indexed.
 
+## M11.3 incremental index reconciliation
+
+`mail index reconcile` is a bounded local-write tool with approval label
+`explicit-user-local-mail-index-reconcile`. Use only the exact generated command
+and only after Jan explicitly approves it. It holds the mail-owner process lock,
+writes no IMAP data and may update only the private v2 projection/checkpoint.
+Never interpret its local-write mode as permission to flag, move, delete, create
+or send mail.
+
+Accept a result as complete only when the connector proves paging, raw fetch,
+UID, UIDVALIDITY and a stable folder identity and every released folder scan is
+complete and authoritative. The current Himalaya 1.2 path does not prove that
+set; `authoritative-connector-required` is therefore an expected fail-closed
+result, not permission to invent a cursor or relax the check. Run the registered
+status/doctor path after a failure and report this exact limitation.
+
+For an unchanged content digest, locator moves, folder renames and quarantine
+changes reuse parser text, chunks, FTS and embeddings. An ambiguous locator may
+trigger one bounded raw SHA-256 verification. ClamAV repeats only for new or
+changed content or a changed scanner identity. Partial scans and scanner errors
+must preserve the previous complete generation and may not tombstone a mail.
+Treat `complete`, `published`, `cursor_advanced`, error code and all technical
+metrics as separate evidence.
+
+The scheduler policy `mail-index` is prepared but not an activatable job in
+M11.3. Do not claim it is running, enable it, add a worker dispatch or start a
+productive reconciliation without a later explicit rollout. M11.3 does not
+change search precedence, query syntax, ranking, local tags or semantic search.
+
 ## Draft and send contract
 
 - Always produce the complete reply with `mail reply-draft` before a reply send.

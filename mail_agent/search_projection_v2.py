@@ -124,6 +124,11 @@ class PartitionedSearchSnapshotWriter:
             "content_sha256": reference["sha256"],
         }
 
+    def publish_content(self, message: ParsedMessage) -> dict[str, str]:
+        """Publish one immutable parsed content object for incremental reuse."""
+
+        return self._write_content_payload(self._content_payload(message))
+
     def _write_occurrence_payload(self, payload: dict[str, Any]) -> dict[str, str]:
         occurrence_id = str(payload.get("occurrence_id") or "")
         reference = self._write_payload("occurrence", occurrence_id, payload)
@@ -189,9 +194,19 @@ class PartitionedSearchSnapshotWriter:
             if not occurrence_id or not tombstoned_at:
                 raise SearchProjectionError("Tombstone ist unvollstaendig")
             parse_timestamp(tombstoned_at, field="tombstoned_at")
-            normalized_tombstones.append(
-                {"occurrence_id": occurrence_id, "tombstoned_at": tombstoned_at}
-            )
+            normalized = {
+                "occurrence_id": occurrence_id,
+                "tombstoned_at": tombstoned_at,
+            }
+            locator_id = str(item.get("locator_id") or "")
+            if locator_id:
+                normalized["locator_id"] = require_safe_id(
+                    locator_id, field="tombstone.locator_id"
+                )
+            reason = str(item.get("reason") or "")[:100]
+            if reason:
+                normalized["reason"] = reason
+            normalized_tombstones.append(normalized)
         normalized_records = sorted(
             records,
             key=lambda row: (str(row["occurrence_id"]), str(row["filename"])),
@@ -265,6 +280,67 @@ class PartitionedSearchSnapshotWriter:
             generated_at=timestamp,
             complete=complete,
             authoritative=authoritative,
+            tombstones=list(tombstones or []),
+        )
+
+    def publish_reused_occurrence(
+        self,
+        *,
+        content_reference: dict[str, str],
+        raw_sha256: str,
+        locators: tuple[MailLocator, ...],
+        source_status: str,
+        observed_at: str,
+        expected_occurrence_id: str = "",
+    ) -> dict[str, str]:
+        """Publish new locator state while reusing an immutable content file."""
+
+        if not locators:
+            raise SearchProjectionError("Occurrence benoetigt mindestens einen Locator")
+        for locator in locators:
+            if locator.resource_id != self.resource_id:
+                raise SearchProjectionError("Locator gehoert zu einer anderen Ressource")
+        content_id = content_identity(self.resource_id, raw_sha256)
+        if content_id != str(content_reference.get("content_id") or ""):
+            raise SearchProjectionError("Wiederverwendete Contentreferenz stimmt nicht")
+        occurrence_id = occurrence_identity(locators[0], raw_sha256)
+        if expected_occurrence_id and occurrence_id != expected_occurrence_id:
+            raise SearchProjectionError("Primaerlocator wuerde Occurrence-Identitaet aendern")
+        payload = {
+            "schema": PROJECTION_SCHEMA_V2,
+            "kind": OCCURRENCE_KIND,
+            "occurrence_id": occurrence_id,
+            "content_id": content_id,
+            "resource_id": self.resource_id,
+            "raw_sha256": require_sha256(raw_sha256, field="raw_sha256"),
+            "content_filename": str(content_reference["content_filename"]),
+            "content_sha256": require_sha256(
+                content_reference["content_sha256"], field="content_sha256"
+            ),
+            "source_status": str(source_status or "active"),
+            "indexed_source_at": observed_at,
+            "locators": [locator_payload(locator) for locator in locators],
+        }
+        return self._write_occurrence_payload(payload)
+
+    def publish_partition_references(
+        self,
+        *,
+        partition_id: str,
+        folder_id: str,
+        folder_name: str,
+        records: list[dict[str, str]],
+        generated_at: str,
+        tombstones: list[dict[str, str]] | None = None,
+    ) -> dict[str, Any]:
+        return self._publish_partition_references(
+            partition_id=partition_id,
+            folder_id=folder_id,
+            folder_name=folder_name,
+            records=records,
+            generated_at=generated_at,
+            complete=True,
+            authoritative=True,
             tombstones=list(tombstones or []),
         )
 

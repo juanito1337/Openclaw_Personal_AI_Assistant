@@ -10,7 +10,7 @@ jeweiligen SQLite-Datenbank und duerfen nicht einzeln gesichert werden.
 | --- | --- | --- | --- |
 | `instance/` | Instanzadministrator | TOML-Konfiguration und kontrollierte lokale Dokumente; Layoutmarker Schema 1 | in jedem Releasebackup; Worker `ro`, nur Gateway/CLI `rw`; keine Secrets |
 | `gateway/` | OpenClaw Runtime | Gatewaykonfiguration, Sessions und Agentenkontext | Releasebackup; nur Gateway/CLI `rw`; Aufbewahrung nach Runtimevertrag |
-| `domains/mail/` | `mail_agent.storage` | `mail_agent.sqlite3` plus Schema-Migration vor Learning/Produktivlauf; v1- und partitionierte v2-`search_documents`-Leseprojektion | SQLite-Backup-API/Quick-Check; Mail-Prozesslock; Korrekturhistorie nie zur Reparatur loeschen; Projektions-Root atomar |
+| `domains/mail/` | `mail_agent.storage` | `mail_agent.sqlite3` plus Schema-Migration vor Learning/Produktivlauf; v1- und partitionierte v2-`search_documents`-Leseprojektion; M11.2/3-Staging und Cursor | SQLite-Backup-API/Quick-Check; Mail-Prozesslock; Korrekturhistorie nie zur Reparatur loeschen; Projektions-Root atomar |
 | `domains/orders/` | `personal_assistant.orders` | `orders.sqlite3` | SQLite-Backup-API; Remote-Nachbedingung vor Retry; Historie erhalten |
 | `domains/portfolio/` | `personal_assistant.portfolio` | `portfolio.sqlite3`, kontrolliertes `inbox/` | SQLite-Backup-API; Portfolio-Owner `rw`, Monitor `ro`; Imports/Quotes dauerhaft |
 | `domains/monitoring/` | `personal_assistant.monitoring` | `monitoring.sqlite3` | SQLite-Backup-API; nur technische Metriken; Retention durch Monitorvertrag |
@@ -24,11 +24,12 @@ jeweiligen SQLite-Datenbank und duerfen nicht einzeln gesichert werden.
 | Datei | Writer | Leser | Invariante |
 | --- | --- | --- | --- |
 | `shared/core/assistant.sqlite3` | Gateway/CLI, Sync, Mail-ActionBridge | Core, Monitor `ro` | ActionPlan, Status und Audit laufen in Transaktionen; `idempotency_key` bleibt eindeutig |
-| `domains/knowledge/knowledge.sqlite3` | Gateway/CLI, Sync | Suche, Monitor `ro` | Dokumente, Chunks, FTS und Sync-Cursor bilden einen eigenen konsistenten SQLite-Satz |
+| `domains/knowledge/knowledge.sqlite3` | Gateway/CLI, Sync | Suche, Monitor `ro` | Dokumente, Chunks, FTS und Sync-Cursor bilden einen eigenen konsistenten SQLite-Satz; eine komplette v2-Generation und ihr Cursor werden gemeinsam committed |
 | `domains/mail/mail_agent.sqlite3` | Mailworker oder explizite Mail-CLI | Mail, Monitor `ro` | genau ein produktiver Remote-Mailwriter; der Sync-Worker oeffnet diese SQLite/WAL-Domaene nicht |
 | `domains/mail/search_documents/_projection.json` und v1-Datensaetze | Mailworker | Sync `ro`, Mail `ro` | v1 bleibt strikt lesbar; Stable-Keys, SHA-256 und Quellzeitpunkte werden validiert; v1 allein belegt keine Vollkonto-Coverage |
 | `domains/mail/search_documents/content-*.json`, `occurrence-*.json` und `partition-*.json` | Mailworker | Sync `ro`, Mail `ro` | v2-Dateien sind unveraenderlich und checksumgebunden; Content ist von veraenderlichen Locator-/Ordnerdaten getrennt; nur das atomare Root publiziert eine Generation |
 | `domains/mail/search_documents/_projection.json` (Schema 2) | Mailworker | Sync `ro`, Mail `ro` | erwartete, aktuelle und vollstaendig autoritative Partitionen muessen exakt uebereinstimmen; Tombstones nur nach vollstaendigem autoritativem Ordnerabgleich; unvollstaendige Roots werden vor Indexwrites abgewiesen |
+| `domains/mail/search_backfill_v2/projection/` und `search_reconcile_v3/state.json` | explizite Mail-Index-CLI unter Mail-Prozesslock | Mail `ro`; spaeterer Sync-Rollout | private v2-Staginggenerationen und inhaltsfreier Ordnercursor; Cursor erst nach gueltigem Root; Retention schuetzt aktive und letzte Rollbackgeneration; aktueller Himalaya-Pfad bleibt nicht autoritativ |
 | `domains/orders/orders.sqlite3` | Mailworker/Orders-CLI | Orders | lokale Idempotenz ersetzt keine Remote-Nachbedingung |
 | `domains/portfolio/portfolio.sqlite3` | Portfolioworker/CLI | Monitor `ro` | ein Schemaowner, WAL, Pflichtdaten fail-closed |
 | `domains/monitoring/monitoring.sqlite3` | Monitorworker/CLI | Monitor | keine Mailinhalte oder Credentials |

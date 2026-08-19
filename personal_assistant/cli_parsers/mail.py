@@ -178,6 +178,17 @@ def add_commands(sub: Any) -> None:
     index_backfill.add_argument("--max-runtime", type=float, default=3600.0)
     index_backfill.add_argument("--request-interval", type=float, default=0.2)
     index_backfill.add_argument("--yes", action="store_true")
+    index_reconcile = index_sub.add_parser(
+        "reconcile", help="Autoritative inkrementelle Mailprojektion lokal abgleichen"
+    )
+    index_reconcile.add_argument("--max-folders", type=int, default=500)
+    index_reconcile.add_argument("--max-messages", type=int, default=100000)
+    index_reconcile.add_argument("--max-bytes", type=int, default=2000000000)
+    index_reconcile.add_argument("--max-message-bytes", type=int, default=100000000)
+    index_reconcile.add_argument("--max-runtime", type=float, default=3600.0)
+    index_reconcile.add_argument("--request-interval", type=float, default=0.2)
+    index_reconcile.add_argument("--retention-generations", type=int, default=2)
+    index_reconcile.add_argument("--yes", action="store_true")
     mail_dry = mail_sub.add_parser("dry-run")
     mail_dry.add_argument("--limit", type=int, default=20)
     mail_run = mail_sub.add_parser("run")

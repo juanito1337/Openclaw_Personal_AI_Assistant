@@ -60,7 +60,45 @@ fallback therefore uses mailbox ID plus raw digest for occurrence identity and
 must publish `complete=false`, even after every page was read. No UID, cursor or
 absence proof is invented. The staging root is
 `<mail-data>/search_backfill_v2/projection`; it does not replace the active v1
-root before M11.3.
+root without a separate productive connector and rollout approval.
+
+M11.3 implements the authoritative incremental projection and knowledge-index
+path defined in [ADR-0028](architecture/adr/0028-transaktionale-mail-reconciliation.md):
+
+```bash
+./scripts/assistant.sh mail index reconcile \
+  --max-folders 500 --max-messages 100000 \
+  --max-bytes 2000000000 --max-message-bytes 100000000 \
+  --max-runtime 3600 --request-interval 0.2 \
+  --retention-generations 2 --yes
+```
+
+The local-write command needs approval
+`explicit-user-local-mail-index-reconcile`, holds the existing mail-owner lock
+and never writes IMAP. It accepts a generation only after every released folder
+was scanned completely and authoritatively. A partial scan, network error,
+limit, ClamAV block or crash before root publication preserves the previous root
+and cursor. A valid root published before a cursor crash is safe to replay.
+
+Verified locator-only moves, folder renames and quarantine changes reuse content,
+parser output, chunks, FTS and embeddings. An ambiguous move may fetch exactly
+the affected raw message for SHA-256 verification, but unchanged content is not
+parsed or indexed again. New or changed content, and a changed ClamAV scanner
+identity, pass the fail-closed scan gate. Copy, move, disappearance, reappearance
+and UIDVALIDITY reset remain distinct occurrence/locator events.
+
+The sync worker applies a complete v2 generation and its cursor in one SQLite
+transaction. A locator-only delta changes no FTS row. Projection retention keeps
+the active and at least one verified rollback generation and never removes mail
+source or the knowledge database. Technical counters report work without bodies,
+addresses or subjects.
+
+The bounded scheduler policy `mail-index` is registered but intentionally has no
+activatable JobSpec, worker dispatch or deployment service in M11.3. The current
+Himalaya 1.2 adapter also cannot prove UID, UIDVALIDITY and stable folder IDs, so
+the live command fails closed with `authoritative-connector-required`. Connector
+rollout, job activation, productive reconciliation and M11.4 query/ranking work
+are not part of this milestone.
 
 ## Sources
 

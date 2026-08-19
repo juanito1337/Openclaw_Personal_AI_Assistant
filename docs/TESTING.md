@@ -1,6 +1,6 @@
 # Tests, Qualitaetsbaseline und Container-Runtime
 
-Stand: 2026-08-19, fortgeschrieben bis zum begrenzten M11.2-Vollkonto-Backfill.
+Stand: 2026-08-20, fortgeschrieben bis zur transaktionalen M11.3-Reconciliation.
 Sie startet keine produktiven Dienste und verwendet
 weder `/srv/openclaw` noch produktive Zugangsdaten.
 
@@ -45,14 +45,14 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 771 Tests, darunter mindestens 687 unittest-kompatible Tests
-(die bisherigen 349 sowie M0-M11.2- und Rollout-Regressionstests),
+fordert mindestens 791 Tests, darunter mindestens 687 unittest-kompatible Tests
+(die bisherigen 349 sowie M0-M11.3- und Rollout-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
 nach dem Sammeln mit einem Fehler ab. Neue Tests duerfen die Zahl erhoehen; die
 Baseline wird erst nach einem vollstaendigen gruenen Lauf bewusst angehoben.
 
-## M0-Ausgangswerte und aktueller M11.2-Teststand
+## M0-Ausgangswerte und aktueller M11.3-Teststand
 
 Gemessen auf Linux x86_64 mit Python 3.12.3. Die Werte sind Beobachtungen und noch
 keine willkuerlichen Mindestquoten. `scripts/quality-baseline.py` erzeugt sie nach
@@ -93,6 +93,7 @@ der aktuellen Python-Dateien.
 | Tests nach M11.0 gesammelt/ausgefuehrt | 735 / 735 (815 JUnit-Faelle inklusive 80 Subtests) |
 | Tests nach M11.1 gesammelt/ausgefuehrt | 753 / 753 (840 JUnit-Faelle inklusive 87 Subtests) |
 | Tests nach M11.2 gesammelt/ausgefuehrt | 771 / 771 (858 JUnit-Faelle inklusive 87 Subtests) |
+| Tests nach M11.3 gesammelt/ausgefuehrt | 791 / 791 (878 JUnit-Faelle inklusive 87 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -116,6 +117,7 @@ der aktuellen Python-Dateien.
 | neue M11.0-Mail-Suchbaseline-Regressionsitems | 15 |
 | neue M11.1-Suchdatenvertrags-Regressionsitems | 18 (zusaetzlich 7 Subtests) |
 | neue M11.2-Vollkonto-Backfill-Regressionsitems | 18 |
+| neue M11.3-Reconciliation-Regressionsitems | 20 |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |
 | Gesamt-Coverage inklusive Branches (M8) | 59,18 % |
@@ -157,6 +159,8 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach M11.1 | 50,72 % |
 | Gesamt-Coverage nach M11.2 | 65,03 % |
 | reine Branch-Coverage nach M11.2 | 50,96 % |
+| Gesamt-Coverage nach M11.3 | 65,53 % |
+| reine Branch-Coverage nach M11.3 | 51,68 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -172,6 +176,7 @@ der aktuellen Python-Dateien.
 | Laufzeit der Supervisor-/XLON-Gesamtabnahme | 122,85 s |
 | Laufzeit des finalen lokalen M11.0-Testlaufs | 99,34 s |
 | Laufzeit des finalen lokalen M11.1-Testlaufs | 133,68 s |
+| Laufzeit des finalen lokalen M11.3-Testlaufs | 128,26 s |
 | Laufzeit in der frischen M7-Wheel-Testumgebung | 55,56 s |
 | Wheelgroesse nach der Plugin-/Gatewaykorrektur | 397.870 Bytes |
 | M7-Wheel-Buildzeit | 4,582 s |
@@ -567,6 +572,46 @@ exakt 15 Seiten- und 101 Raw-Aufrufen. Er weist reproduzierbar
 `peak_page_messages <= 7`, seitengebundenen Rohdatenverbrauch sowie die exakte
 Backend-Aufrufzahl 117 aus. Das sind Vertragswerte des Fixtures, keine
 willkuerlichen Grenzwerte fuer ein produktives Postfach.
+
+## M11.3-Reconciliation-, Delta- und Transaktionstests
+
+M11.3 verwendet nur synthetische EMLs, einen autoritativen Fake-Connector,
+Fake-ClamAV sowie temporaere Projektions- und SQLite-Verzeichnisse. Es wird weder
+`/srv/openclaw` gelesen noch ein produktiver Job, IMAP-Write oder Mailkonto
+verwendet. Die gezielte Abnahme lautet:
+
+```bash
+OPENCLAW_ENFORCE_TEST_BASELINE=0 .venv/bin/python -m pytest -q \
+  tests/test_mail_search_reconcile_m113.py \
+  tests/test_mail_search_contract_m111.py \
+  tests/test_mail_search_backfill_m112.py \
+  tests/test_mail_projection_m96.py \
+  tests/test_work_scheduler.py \
+  tests/test_m5_tool_contract.py
+```
+
+Die 20 neuen Tests belegen No-op, einzelne und gebuendelte Moves, neue Mail,
+Copy/Delete, letzte entfernte Occurrence, Wiederkehr, Ordnerrename,
+UIDVALIDITY-Reset und Quarantaenewechsel. Ein belegter Move hat exakt null
+Bodybytes, Parser-, OCR-, ClamAV-, Modell- und FTS-Aufwand. Ein mehrdeutiger Move
+ruft nur Raw fuer den SHA-Nachweis ab und verwendet danach alle Inhaltsartefakte
+wieder. Neue/geaenderte Inhalte und Scanneridentitaetswechsel passieren den
+fail-closed ClamAV-Pfad.
+
+Teilscan, simulierter Netzverlust, ClamAV-Block und Crash nach Scan, vor Root,
+nach Root sowie vor Wissenscommit bewahren jeweils die letzte belegte Grenze.
+Der Wissensimport schreibt v2-Contents, Occurrences, Locator, Dokumente, Chunks,
+FTS und Cursor in einer SQLite-Transaktion; ein simulierter Commitabbruch rollt
+alles zurueck. Ein reiner Move berichtet `fts_rows_changed = 0` und erhaelt die
+Chunkzahl.
+
+Retention behaelt genau die konfigurierten zwei Rootgenerationen einschliesslich
+aktiver und vorheriger Generation und laesst eine benachbarte Mail-SQLite
+unangetastet. Die fehlende produktive Connectorfaehigkeit wird ebenfalls
+verhaltensgeprueft: ohne UID, UIDVALIDITY und stabile Ordner-ID erfolgt vor
+Inventory/Scan ein `authoritative-connector-required`, ohne Root- oder
+Cursoraenderung. Die `mail-index`-Schedulerpolicy ist allowlistet, erscheint aber
+nicht in den aktivierbaren JobSpecs.
 
 ## Ruff-/mypy-Ausgangsbaseline und enge Ausnahmen
 

@@ -40,6 +40,12 @@ Every allowlisted job has a fixed policy with:
 - maximum expected runtime,
 - a human-readable purpose.
 
+M11.3 adds the bounded policy `mail-index` to reserve a future knowledge-topic
+queue contract. It is deliberately absent from JobController specs, worker-loop
+dispatch and Compose services, so `jobs on mail-index` cannot activate it. A
+later explicit rollout must first provide and verify an authoritative connector;
+the policy alone is neither approval nor a running job.
+
 The effective score combines:
 
 1. base priority,

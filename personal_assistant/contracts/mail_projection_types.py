@@ -23,4 +23,4 @@ class SearchProjection:
     complete: bool = True
     coverage: dict[str, Any] = field(default_factory=dict)
     partitions: tuple[dict[str, Any], ...] = ()
-
+    tombstones: tuple[dict[str, Any], ...] = ()

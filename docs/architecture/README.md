@@ -118,8 +118,13 @@ Importgraphen auf Zyklen.
   begrenzte M11.2-Crawler aus
   [ADR-0027](adr/0027-begrenzter-mail-vollkonto-backfill.md) publiziert v2 nur in
   ein getrenntes Mail-Owner-Staging mit seitenweisem Checkpoint und
-  fail-closed Raw-/Anhangscan; die aktive v1-Projektion bleibt bis M11.3
-  unveraendert.
+  fail-closed Raw-/Anhangscan. Der M11.3-Reconciler aus
+  [ADR-0028](adr/0028-transaktionale-mail-reconciliation.md) publiziert nur nach
+  einem vollstaendigen autoritativen Ordnerabgleich Locatorwechsel und
+  Tombstones, verwendet unveraenderten Content bis zu Chunks/FTS/Embeddings
+  wieder und uebergibt Deltas samt Cursor transaktional an den Wissensindex.
+  Seine Allowlist-Policy ist nicht als Job aktivierbar; der aktuelle
+  Himalaya-Connector bleibt ohne belegte UID-/UIDVALIDITY-Semantik fail-closed.
 - Instanzkonfiguration und Secrets liegen getrennt unter `/srv/openclaw/config` und
   `/srv/openclaw/secrets`; Rollen sehen daraus nur benoetigte read-only Dateien.
 - ClamAV-Signaturen liegen im Docker-Volume `clamav-db`; nur `clamav-update` schreibt.

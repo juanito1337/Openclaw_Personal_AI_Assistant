@@ -4,6 +4,7 @@ import json
 import os
 import sqlite3
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -446,6 +447,323 @@ class AssistantStorage:
                 )
         self.knowledge_connection.commit()
         return document_id
+
+    def apply_mail_projection(
+        self,
+        *,
+        generation: str,
+        generated_at: str,
+        coverage: dict[str, Any],
+        records: list[dict[str, Any]],
+        before_commit: Callable[[], None] | None = None,
+    ) -> dict[str, int]:
+        """Atomically apply one complete v2 mail generation and its cursor."""
+
+        connection = self.knowledge_connection
+        timestamp = now_utc_iso()
+        metrics = {
+            "indexed": 0,
+            "unchanged": 0,
+            "metadata_updated": 0,
+            "removed": 0,
+            "fts_rows_changed": 0,
+            "embeddings_reused": 0,
+            "embeddings_new": 0,
+        }
+
+        def remove_chunks(document_id: int) -> int:
+            rows = connection.execute(
+                "SELECT id FROM chunks WHERE document_id=?", (document_id,)
+            ).fetchall()
+            if self.fts_enabled:
+                for row in rows:
+                    connection.execute(
+                        "DELETE FROM knowledge_fts WHERE rowid=?", (int(row["id"]),)
+                    )
+            connection.execute("DELETE FROM chunks WHERE document_id=?", (document_id,))
+            return len(rows)
+
+        current_content_ids = {str(item["content_id"]) for item in records}
+        current_occurrence_ids = {
+            str(occurrence_id)
+            for item in records
+            for occurrence_id in item.get("occurrence_ids", [])
+        }
+        with connection:
+            connection.execute(
+                "UPDATE mail_search_locators SET is_current=0 WHERE resource_id=?",
+                ("mail-agent",),
+            )
+            for item in records:
+                content_id = str(item["content_id"])
+                metadata = dict(item.get("metadata") or {})
+                connection.execute(
+                    """
+                    INSERT INTO mail_search_contents(
+                        content_id,resource_id,raw_sha256,canonical_message_id,
+                        identity_evidence_json,parser_version,normalization_version,
+                        tag_version,embedding_version,content_digest,indexed_at
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?)
+                    ON CONFLICT(content_id) DO UPDATE SET
+                        embedding_version=excluded.embedding_version,
+                        indexed_at=excluded.indexed_at
+                    """,
+                    (
+                        content_id,
+                        "mail-agent",
+                        str(item.get("sha256") or ""),
+                        str(item.get("message_id") or ""),
+                        json.dumps(
+                            {"method": "resource+raw-sha256", "version": "mail-identity-v1"},
+                            ensure_ascii=False,
+                        ),
+                        str(metadata.get("parser_version") or ""),
+                        str(metadata.get("normalization_version") or ""),
+                        str(metadata.get("tag_version") or ""),
+                        str(metadata.get("embedding_version") or "") or None,
+                        str(item.get("sha256") or ""),
+                        timestamp,
+                    ),
+                )
+                locators = [
+                    *list(metadata.get("locators") or []),
+                    *list(metadata.get("historical_locators") or []),
+                ]
+                occurrence_ids = [str(value) for value in metadata.get("occurrence_ids", [])]
+                for occurrence_id in occurrence_ids:
+                    connection.execute(
+                        """
+                        INSERT INTO mail_search_occurrences(
+                            occurrence_id,content_id,resource_id,index_generation,
+                            source_status,first_seen_at,last_seen_at,tombstoned_at,conflict_code
+                        ) VALUES(?,?,?,?,?,?,?,?,?)
+                        ON CONFLICT(occurrence_id) DO UPDATE SET
+                            content_id=excluded.content_id,
+                            index_generation=excluded.index_generation,
+                            source_status=excluded.source_status,
+                            last_seen_at=excluded.last_seen_at,
+                            tombstoned_at=NULL,
+                            conflict_code=''
+                        """,
+                        (
+                            occurrence_id,
+                            content_id,
+                            "mail-agent",
+                            generation,
+                            str(metadata.get("source_status") or "active"),
+                            timestamp,
+                            timestamp,
+                            None,
+                            "",
+                        ),
+                    )
+                for locator in locators:
+                    occurrence_id = str(locator.get("occurrence_id") or "")
+                    if occurrence_id not in occurrence_ids:
+                        raise ValueError("Locator besitzt keine gueltige Occurrence-Zuordnung")
+                    connection.execute(
+                        """
+                        INSERT INTO mail_search_locators(
+                            occurrence_id,locator_id,resource_id,folder_id,folder_name,
+                            mailbox_id,uidvalidity,uid,observed_at,is_current,quarantine
+                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?)
+                        ON CONFLICT(occurrence_id,locator_id) DO UPDATE SET
+                            folder_name=excluded.folder_name,
+                            mailbox_id=excluded.mailbox_id,
+                            uidvalidity=excluded.uidvalidity,
+                            uid=excluded.uid,
+                            observed_at=excluded.observed_at,
+                            is_current=excluded.is_current,
+                            quarantine=excluded.quarantine
+                        """,
+                        (
+                            occurrence_id,
+                            str(locator.get("locator_id") or ""),
+                            "mail-agent",
+                            str(locator.get("folder_id") or ""),
+                            str(locator.get("folder_name") or ""),
+                            str(locator.get("mailbox_id") or ""),
+                            str(locator.get("uidvalidity") or ""),
+                            str(locator.get("uid") or ""),
+                            str(locator.get("observed_at") or generated_at),
+                            int(bool(locator.get("is_current", True))),
+                            int(bool(locator.get("quarantine"))),
+                        ),
+                    )
+
+                existing = self.get_document("mail-agent", content_id)
+                metadata_json = json.dumps(metadata, ensure_ascii=False)
+                if (
+                    existing is not None
+                    and str(existing["content_id"] or "") == content_id
+                    and str(existing["sha256"] or "") == str(item.get("sha256") or "")
+                ):
+                    connection.execute(
+                        """
+                        UPDATE documents SET title=?,modified_at=?,metadata_json=?,
+                            indexed_at=?,index_generation=?,source_status=?,embedding_version=?
+                        WHERE id=?
+                        """,
+                        (
+                            str(item.get("title") or "(ohne Betreff)"),
+                            str(item.get("modified_at") or generated_at),
+                            metadata_json,
+                            timestamp,
+                            generation,
+                            str(metadata.get("source_status") or "active"),
+                            str(metadata.get("embedding_version") or "") or None,
+                            int(existing["id"]),
+                        ),
+                    )
+                    metrics["unchanged"] += 1
+                    metrics["metadata_updated"] += 1
+                    if existing["embedding_version"]:
+                        metrics["embeddings_reused"] += 1
+                    continue
+
+                if existing is None:
+                    cursor = connection.execute(
+                        """
+                        INSERT INTO documents(
+                            source_type,resource_id,source_id,uri,title,mime_type,
+                            modified_at,etag,sha256,metadata_json,indexed_at,content_id,
+                            index_generation,source_status,embedding_version
+                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                        """,
+                        (
+                            "email", "mail-agent", content_id,
+                            f"mail-agent://{content_id}",
+                            str(item.get("title") or "(ohne Betreff)"),
+                            "message/rfc822", str(item.get("modified_at") or generated_at),
+                            "", str(item.get("sha256") or ""), metadata_json, timestamp,
+                            content_id, generation,
+                            str(metadata.get("source_status") or "active"),
+                            str(metadata.get("embedding_version") or "") or None,
+                        ),
+                    )
+                    document_rowid = cursor.lastrowid
+                    if document_rowid is None:
+                        raise RuntimeError("Dokument-Insert lieferte keine ID")
+                    document_id = int(document_rowid)
+                else:
+                    document_id = int(existing["id"])
+                    metrics["fts_rows_changed"] += remove_chunks(document_id)
+                    connection.execute(
+                        """
+                        UPDATE documents SET uri=?,title=?,mime_type=?,modified_at=?,
+                            sha256=?,metadata_json=?,indexed_at=?,content_id=?,
+                            index_generation=?,source_status=?,embedding_version=?
+                        WHERE id=?
+                        """,
+                        (
+                            f"mail-agent://{content_id}",
+                            str(item.get("title") or "(ohne Betreff)"),
+                            "message/rfc822", str(item.get("modified_at") or generated_at),
+                            str(item.get("sha256") or ""), metadata_json, timestamp,
+                            content_id, generation,
+                            str(metadata.get("source_status") or "active"),
+                            str(metadata.get("embedding_version") or "") or None,
+                            document_id,
+                        ),
+                    )
+                for index, text in enumerate(item.get("chunks") or []):
+                    cursor = connection.execute(
+                        "INSERT INTO chunks(document_id,chunk_index,text) VALUES(?,?,?)",
+                        (document_id, index, str(text)),
+                    )
+                    if self.fts_enabled:
+                        chunk_rowid = cursor.lastrowid
+                        if chunk_rowid is None:
+                            raise RuntimeError("Chunk-Insert lieferte keine ID")
+                        connection.execute(
+                            "INSERT INTO knowledge_fts("
+                            "rowid,title,text,source_type,resource_id"
+                            ") VALUES(?,?,?,?,?)",
+                            (
+                                int(chunk_rowid),
+                                str(item.get("title") or "(ohne Betreff)"),
+                                str(text),
+                                "email",
+                                "mail-agent",
+                            ),
+                        )
+                    metrics["fts_rows_changed"] += 1
+                metrics["indexed"] += 1
+                if metadata.get("embedding_version"):
+                    metrics["embeddings_new"] += 1
+
+            stale = connection.execute(
+                """
+                SELECT id FROM documents
+                WHERE resource_id='mail-agent' AND source_type='email'
+                  AND content_id IS NOT NULL
+                """
+            ).fetchall()
+            for row in stale:
+                document_id = int(row["id"])
+                current = connection.execute(
+                    "SELECT content_id FROM documents WHERE id=?", (document_id,)
+                ).fetchone()
+                if current is not None and str(current["content_id"]) in current_content_ids:
+                    continue
+                metrics["fts_rows_changed"] += remove_chunks(document_id)
+                connection.execute("DELETE FROM documents WHERE id=?", (document_id,))
+                metrics["removed"] += 1
+
+            if current_occurrence_ids:
+                placeholders = ",".join("?" for _ in current_occurrence_ids)
+                connection.execute(
+                    f"""
+                    UPDATE mail_search_occurrences
+                    SET tombstoned_at=?,source_status='tombstoned',index_generation=?
+                    WHERE resource_id='mail-agent'
+                      AND occurrence_id NOT IN ({placeholders})
+                    """,
+                    (timestamp, generation, *sorted(current_occurrence_ids)),
+                )
+            else:
+                connection.execute(
+                    """
+                    UPDATE mail_search_occurrences
+                    SET tombstoned_at=?,source_status='tombstoned',index_generation=?
+                    WHERE resource_id='mail-agent'
+                    """,
+                    (timestamp, generation),
+                )
+            connection.execute(
+                """
+                INSERT OR REPLACE INTO mail_search_generations(
+                    generation,schema_version,source_generated_at,imported_at,
+                    complete,source_status,coverage_json
+                ) VALUES(?,?,?,?,?,?,?)
+                """,
+                (
+                    generation, 2, generated_at, timestamp, 1, "active",
+                    json.dumps(coverage, ensure_ascii=False),
+                ),
+            )
+            detail = json.dumps(
+                {
+                    "state": "complete",
+                    "source_generation": generation,
+                    "generated_at": generated_at,
+                    "record_count": len(records),
+                },
+                ensure_ascii=False,
+            )
+            connection.execute(
+                """
+                INSERT INTO sync_state(resource_id,scope,cursor,etag,synced_at,status,detail)
+                VALUES(?,?,?,?,?,?,?)
+                ON CONFLICT(resource_id,scope) DO UPDATE SET
+                    cursor=excluded.cursor,etag=excluded.etag,
+                    synced_at=excluded.synced_at,status=excluded.status,detail=excluded.detail
+                """,
+                ("mail-agent", "projection", generation, generation, timestamp, "ok", detail),
+            )
+            if before_commit is not None:
+                before_commit()
+        return metrics
 
     def search(
         self,

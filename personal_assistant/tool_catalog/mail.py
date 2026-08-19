@@ -136,6 +136,18 @@ TOOLS: tuple[ToolDefinition, ...] = (
         test_anchor="tests/test_mail_search_backfill_m112.py",
     ),
     define(
+        id="mail.index.reconcile",
+        domain="mail",
+        description="Vollstaendige autoritative Ordnergenerationen inkrementell in die lokale v2-Mailprojektion uebernehmen; IMAP bleibt read-only",
+        command="./scripts/assistant.sh mail index reconcile --max-folders 500 --max-messages 100000 --max-bytes 2000000000 --max-message-bytes 100000000 --max-runtime 3600 --request-interval 0.2 --retention-generations 2 --yes",
+        mode="local-write",
+        writes_external_data=False,
+        approval="explicit-user-local-mail-index-reconcile",
+        availability="always",
+        documentation_anchor="skills/personal-assistant/references/mail.md",
+        test_anchor="tests/test_mail_search_reconcile_m113.py",
+    ),
+    define(
         id="mail.learning.status",
         domain="mail",
         description="Korrekturlernen, gemischte Absender, Musterkonflikte und Lernordner anzeigen",

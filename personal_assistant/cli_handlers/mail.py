@@ -78,6 +78,18 @@ def run_external(args: argparse.Namespace) -> int:
             ]
             if args.yes:
                 command.append("--yes")
+        elif args.index_command == "reconcile":
+            command += [
+                "--max-folders", str(args.max_folders),
+                "--max-messages", str(args.max_messages),
+                "--max-bytes", str(args.max_bytes),
+                "--max-message-bytes", str(args.max_message_bytes),
+                "--max-runtime", str(args.max_runtime),
+                "--request-interval", str(args.request_interval),
+                "--retention-generations", str(args.retention_generations),
+            ]
+            if args.yes:
+                command.append("--yes")
     elif args.mail_command == "learning":
         command += ["training", args.learning_command]
         if args.learning_command in {"feedback", "not-spam", "mixed-senders", "conflicts", "evaluate"}:

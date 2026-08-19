@@ -34,6 +34,11 @@ from .models import ParsedMessage
 from .nextcloud import NextcloudSkillClient, NextcloudSkillError
 from .nextcloud_setup import interactive_nextcloud_setup
 from .search_backfill import BackfillLimits, HimalayaBackfillBackend, MailSearchBackfill
+from .search_reconcile import (
+    HimalayaReconcileBackend,
+    MailSearchReconciler,
+    ReconcileLimits,
+)
 from .setup_assistant import (
     build_guide,
     configuration_fingerprint,
@@ -149,6 +154,17 @@ def build_parser() -> argparse.ArgumentParser:
     index_backfill.add_argument("--max-runtime", type=float, default=3600.0)
     index_backfill.add_argument("--request-interval", type=float, default=0.2)
     index_backfill.add_argument("--yes", action="store_true")
+    index_reconcile = index_sub.add_parser(
+        "reconcile", help="Autoritative inkrementelle Mailprojektion lokal abgleichen"
+    )
+    index_reconcile.add_argument("--max-folders", type=int, default=500)
+    index_reconcile.add_argument("--max-messages", type=int, default=100000)
+    index_reconcile.add_argument("--max-bytes", type=int, default=2000000000)
+    index_reconcile.add_argument("--max-message-bytes", type=int, default=100000000)
+    index_reconcile.add_argument("--max-runtime", type=float, default=3600.0)
+    index_reconcile.add_argument("--request-interval", type=float, default=0.2)
+    index_reconcile.add_argument("--retention-generations", type=int, default=2)
+    index_reconcile.add_argument("--yes", action="store_true")
     performance = sub.add_parser("performance", help="Privacy-sichere Laufzeitmessungen anzeigen")
     performance.add_argument("--limit", type=int, default=20, help="Anzahl der letzten Laeufe (1-500)")
     performance.add_argument("--raw", action="store_true", help="Unverdichtete Telemetrie-Datensaetze anzeigen")
@@ -1371,6 +1387,59 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "index":
+        if args.index_command == "reconcile":
+            reconcile_limits = ReconcileLimits(
+                max_folders=int(args.max_folders),
+                max_messages=int(args.max_messages),
+                max_bytes=int(args.max_bytes),
+                max_message_bytes=int(args.max_message_bytes),
+                max_runtime_seconds=float(args.max_runtime),
+                request_interval_seconds=float(args.request_interval),
+                retention_generations=int(args.retention_generations),
+            ).validated()
+            state_root = config.runtime.database.parent / "search_backfill_v2"
+            runner = CommandRunner(config.runtime.command_timeout_seconds)
+            reconcile_backend = HimalayaReconcileBackend(
+                HimalayaBackfillBackend(HimalayaClient(config, runner, dry_run=True))
+            )
+            reconcile_antivirus: HostAntivirus | None = None
+            try:
+                tools = load_tool_settings()
+                settings = tools.security.antivirus
+                if not (
+                    settings.enabled
+                    and settings.fail_closed
+                    and settings.scan_raw_mail
+                    and settings.scan_attachments
+                ):
+                    raise PermissionError(
+                        "Reconciliation benoetigt aktivierten fail-closed Raw- und Attachment-Scan"
+                    )
+                reconcile_antivirus = HostAntivirus(settings)
+                reconciler = MailSearchReconciler(
+                    reconcile_backend,
+                    reconcile_antivirus,
+                    projection_root=state_root / "projection",
+                    state_path=config.runtime.database.parent
+                    / "search_reconcile_v3"
+                    / "state.json",
+                    quarantine_folders=tuple(config.mailbox.quarantine_folders),
+                    limits=reconcile_limits,
+                )
+                with ProcessLock(config.runtime.lock_file):
+                    payload = reconciler.run(approved=bool(args.yes))
+                print(json.dumps(payload, indent=2, ensure_ascii=False))
+                return 0 if payload.get("ok") else 1
+            except (ValueError, PermissionError, ProcessLockError) as exc:
+                print(str(exc), file=sys.stderr)
+                return 2
+            except Exception as exc:
+                logging.getLogger(__name__).exception("Mail-Reconciliation fehlgeschlagen")
+                print(f"Fehler: {exc}", file=sys.stderr)
+                return 1
+            finally:
+                if reconcile_antivirus is not None:
+                    reconcile_antivirus.close()
         limits = BackfillLimits(
             page_size=int(getattr(args, "page_size", 50)),
             max_pages=int(getattr(args, "max_pages", 200)),

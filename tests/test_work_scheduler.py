@@ -181,7 +181,7 @@ class WorkSchedulerTests(unittest.TestCase):
         self.assertEqual(report["integrity"], "ok")
         self.assertEqual(
             {item["job"] for item in report["policies"]},
-            {"mail", "portfolio", "sync", "monitor"},
+            {"mail", "mail-index", "portfolio", "sync", "monitor"},
         )
 
     def test_cli_and_tool_registry_expose_scheduler(self) -> None:

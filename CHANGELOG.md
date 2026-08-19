@@ -2,6 +2,32 @@
 
 ## Unreleased – M11 Mail-Suchindex
 
+### M11.3 Transaktionale inkrementelle Reconciliation
+
+- `mail index reconcile ... --yes` fuehrt nach expliziter lokaler Freigabe einen
+  begrenzten, IMAP-read-only Vollabgleich autoritativer Ordnergenerationen aus.
+  Nur ein in allen Ordnern vollstaendiger Lauf darf Root, Locatorwechsel,
+  Tombstones und Cursor publizieren; Teilscan, Netzfehler, Limit, ClamAV-Block
+  und Crash bewahren den letzten vollstaendigen Stand.
+- Content, physische Occurrence und aktuelle/historische Locator bleiben
+  getrennt. Belegte Moves, Ordnerrenames und Quarantaenewechsel verwenden
+  Parsertext, Chunks, FTS und Embeddings wieder. Mehrdeutige Identitaet erlaubt
+  nur einen begrenzten Raw-SHA-Nachweis; ClamAV wiederholt sich nur bei neuem
+  beziehungsweise geaendertem Content oder neuer Scanneridentitaet.
+- Copy, Move, Copy/Delete-Ueberlappung, einzelne/letzte entfernte Occurrence,
+  Wiederkehr und UIDVALIDITY-Reset besitzen deterministische, getestete
+  Semantik. Technische Metriken enthalten weder Body, Betreff noch Adresse.
+- Der Sync-Worker uebernimmt eine vollstaendige v2-Generation samt Sync-Cursor
+  in einer SQLite-Transaktion. Reine Locatoraenderungen schreiben keine
+  FTS-Zeilen neu; ein Commitfehler rollt Daten und Cursor gemeinsam zurueck.
+- Generation-Retention schuetzt aktive und letzte verifizierte Rollbackgeneration
+  und entfernt keine Mailquelle oder Wissensdatenbank. Die Scheduler-Allowlist
+  `mail-index` ist vorbereitet, aber nicht als produktiver Job aktivierbar.
+- Himalaya 1.2 liefert weiterhin keinen belegten UID-/UIDVALIDITY-/stabilen
+  Ordnervertrag. Der operative Reconciler bricht deshalb ehrlich mit
+  `authoritative-connector-required` ab. Kein Job, produktiver Indexlauf, neues
+  Ranking, Tagging oder M11.4-Verhalten wurde aktiviert.
+
 ### M11.2 Begrenzter, wiederaufnehmbarer Vollkonto-Backfill
 
 - `mail index plan` inventarisiert alle lesbaren Ordner, Quarantaenestatus und

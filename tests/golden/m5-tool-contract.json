@@ -624,6 +624,14 @@
     "writes_external_data": false
   },
   {
+    "approval": "explicit-user-local-mail-index-reconcile",
+    "command": "./scripts/assistant.sh mail index reconcile --max-folders 500 --max-messages 100000 --max-bytes 2000000000 --max-message-bytes 100000000 --max-runtime 3600 --request-interval 0.2 --retention-generations 2 --yes",
+    "description": "Vollstaendige autoritative Ordnergenerationen inkrementell in die lokale v2-Mailprojektion uebernehmen; IMAP bleibt read-only",
+    "id": "mail.index.reconcile",
+    "mode": "local-write",
+    "writes_external_data": false
+  },
+  {
     "approval": "none",
     "command": "./scripts/assistant.sh mail learning status",
     "description": "Korrekturlernen, gemischte Absender, Musterkonflikte und Lernordner anzeigen",

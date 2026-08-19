@@ -81,6 +81,14 @@ TASK_POLICIES: dict[str, TaskPolicy] = {
         max_runtime_seconds=30 * 60,
         description="Wissensindex-Synchronisation",
     ),
+    "mail-index": TaskPolicy(
+        job="mail-index",
+        topic="knowledge",
+        base_priority=35,
+        deadline_seconds=6 * 60 * 60,
+        max_runtime_seconds=60 * 60,
+        description="Begrenzte Mail-Suchprojektions-Reconciliation (nicht aktiviert)",
+    ),
     "monitor": TaskPolicy(
         job="monitor",
         topic="operations",

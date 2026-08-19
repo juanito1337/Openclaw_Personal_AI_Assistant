@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -12,9 +13,16 @@ from .storage import AssistantStorage
 
 
 class KnowledgeIndexer:
-    def __init__(self, config: AssistantConfig, storage: AssistantStorage) -> None:
+    def __init__(
+        self,
+        config: AssistantConfig,
+        storage: AssistantStorage,
+        *,
+        before_mail_projection_commit: Callable[[], None] | None = None,
+    ) -> None:
         self.config = config
         self.storage = storage
+        self.before_mail_projection_commit = before_mail_projection_commit
 
     def index_mail_database(self, mail_db: Path) -> dict[str, int]:
         stats = {"seen": 0, "indexed": 0, "unchanged": 0}
@@ -113,6 +121,65 @@ class KnowledgeIndexer:
                 "partial",
                 "Mail-Suchprojektion v2 besitzt keinen vollstaendigen Coverage-Nachweis",
             )
+
+        if projection.schema >= 2:
+            prepared: list[dict[str, Any]] = []
+            for _path, payload in projection.records:
+                content_id = str(payload["content_id"])
+                metadata = dict(payload.get("metadata") or {})
+                existing = self.storage.get_document("mail-agent", content_id)
+                content_unchanged = bool(
+                    existing is not None
+                    and str(existing["content_id"] or "") == content_id
+                    and str(existing["sha256"] or "") == str(payload.get("sha256") or "")
+                )
+                title = str(payload.get("subject") or "(ohne Betreff)")
+                text_chunks: list[str] = []
+                if not content_unchanged:
+                    text = "\n".join([
+                        f"Von: {payload.get('sender_name','')} <{payload.get('sender_addr','')}>",
+                        f"Betreff: {title}",
+                        str(payload.get("body_text") or ""),
+                    ])
+                    text_chunks = chunks(
+                        text,
+                        size=self.config.search.chunk_chars,
+                        overlap=self.config.search.chunk_overlap_chars,
+                    )
+                prepared.append(
+                    {
+                        "content_id": content_id,
+                        "message_id": str(payload.get("message_id") or ""),
+                        "sha256": str(payload.get("sha256") or ""),
+                        "title": title,
+                        "modified_at": str(payload.get("indexed_source_at") or ""),
+                        "metadata": metadata,
+                        "occurrence_ids": list(metadata.get("occurrence_ids") or []),
+                        "chunks": text_chunks,
+                    }
+                )
+            try:
+                applied = self.storage.apply_mail_projection(
+                    generation=projection.generation,
+                    generated_at=projection.generated_at,
+                    coverage=projection.coverage,
+                    records=prepared,
+                    before_commit=self.before_mail_projection_commit,
+                )
+            except Exception as exc:
+                return self._mail_projection_failure(
+                    "transaction-failed", f"Mail-Indextransaktion fehlgeschlagen: {exc}"
+                )
+            return {
+                "seen": len(projection.records),
+                "published": True,
+                "state": "complete",
+                "source_generation": projection.generation,
+                "last_complete_source_generation": projection.generation,
+                "generated_at": projection.generated_at,
+                "age_seconds": projection.age_seconds,
+                **applied,
+            }
 
         # Validate the complete source generation before the first knowledge
         # write; incomplete or corrupt projections never become index input.

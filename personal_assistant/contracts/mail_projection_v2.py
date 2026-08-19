@@ -40,6 +40,7 @@ class MailLocator:
     uid: str = ""
     observed_at: str = ""
     quarantine: bool = False
+    is_current: bool = True
 
 
 def canonical_json_bytes(payload: dict[str, Any]) -> bytes:
@@ -268,6 +269,7 @@ def _validate_occurrence(
             uid=str(raw_locator.get("uid") or ""),
             observed_at=str(raw_locator.get("observed_at") or ""),
             quarantine=bool(raw_locator.get("quarantine")),
+            is_current=bool(raw_locator.get("is_current", True)),
         )
         if locator.resource_id != resource_id:
             raise SearchProjectionError(f"Locator-Ressource stimmt in {filename} nicht")
@@ -324,9 +326,16 @@ def _validate_partition(
         if not occurrence_id or not tombstoned_at:
             raise SearchProjectionError(f"Unvollstaendiger Tombstone in {filename}")
         parse_timestamp(tombstoned_at, field="tombstoned_at")
-        normalized_tombstones.append(
-            {"occurrence_id": occurrence_id, "tombstoned_at": tombstoned_at}
-        )
+        normalized = {"occurrence_id": occurrence_id, "tombstoned_at": tombstoned_at}
+        locator_id = str(tombstone.get("locator_id") or "")
+        if locator_id:
+            normalized["locator_id"] = require_safe_id(
+                locator_id, field="tombstone.locator_id"
+            )
+        reason = str(tombstone.get("reason") or "")[:100]
+        if reason:
+            normalized["reason"] = reason
+        normalized_tombstones.append(normalized)
     loaded: list[tuple[Path, dict[str, Any], Path, dict[str, Any]]] = []
     seen_occurrences: set[str] = set()
     normalized_records: list[dict[str, Any]] = []
@@ -406,8 +415,14 @@ def _flatten_records(
         elif canonical_json_bytes(content) != content_contracts[content_id]:
             raise SearchProjectionError(f"Widerspruechliche Contentdaten fuer {content_id}")
         metadata = current["metadata"]
-        metadata["occurrence_ids"].append(str(occurrence["occurrence_id"]))
-        metadata["locators"].extend(list(occurrence["locators"]))
+        occurrence_id = str(occurrence["occurrence_id"])
+        metadata["occurrence_ids"].append(occurrence_id)
+        for raw_locator in occurrence["locators"]:
+            locator = {**dict(raw_locator), "occurrence_id": occurrence_id}
+            if bool(locator.get("is_current", True)):
+                metadata["locators"].append(locator)
+            else:
+                metadata.setdefault("historical_locators", []).append(locator)
         if str(occurrence.get("indexed_source_at") or "") > str(
             current["indexed_source_at"]
         ):
@@ -419,8 +434,20 @@ def _flatten_records(
         metadata["occurrence_ids"] = sorted(set(metadata["occurrence_ids"]))
         locators = {str(item["locator_id"]): item for item in metadata["locators"]}
         metadata["locators"] = [locators[key] for key in sorted(locators)]
+        historical = {
+            str(item["locator_id"]): item
+            for item in metadata.get("historical_locators", [])
+        }
+        metadata["historical_locators"] = [
+            historical[key] for key in sorted(historical)
+        ]
         if metadata["locators"]:
             metadata["source_folder"] = str(metadata["locators"][0]["folder_name"])
+            metadata["source_status"] = (
+                "quarantine-untrusted"
+                if all(bool(item.get("quarantine")) for item in metadata["locators"])
+                else "active"
+            )
         flattened.append((content_paths[content_id], payload))
     return tuple(flattened)
 
@@ -445,6 +472,7 @@ def load_search_projection_v2(
     normalized_references: list[dict[str, Any]] = []
     partition_payloads: list[dict[str, Any]] = []
     all_occurrences: list[tuple[Path, dict[str, Any], Path, dict[str, Any]]] = []
+    all_tombstones: list[dict[str, Any]] = []
     seen_partitions: set[str] = set()
     seen_files: set[str] = set()
     seen_occurrences: set[str] = set()
@@ -467,6 +495,14 @@ def load_search_projection_v2(
             seen_occurrences.add(occurrence_id)
         all_occurrences.extend(occurrences)
         partition_payloads.append(partition)
+        for item in partition.get("tombstones", []):
+            all_tombstones.append(
+                {
+                    **dict(item),
+                    "partition_id": partition_id,
+                    "folder_id": str(partition.get("folder_id") or ""),
+                }
+            )
         normalized_references.append(
             {
                 "partition_id": partition_id,
@@ -529,4 +565,5 @@ def load_search_projection_v2(
         complete=complete,
         coverage=dict(coverage),
         partitions=tuple(dict(item) for item in normalized_references),
+        tombstones=tuple(all_tombstones),
     )

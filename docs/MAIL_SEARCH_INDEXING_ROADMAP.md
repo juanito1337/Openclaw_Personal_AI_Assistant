@@ -1,8 +1,8 @@
 # M11-Roadmap: Schnelle, vollstaendige und kontextuelle Mail-Suche
 
-Stand: 2026-08-18
+Stand: 2026-08-20
 Arbeitsbranch: `development/mail-search-indexing-m11`
-Status: M11.0 bis M11.2 abgeschlossen; M11.3 bis M11.8 nicht begonnen
+Status: M11.0 bis M11.3 abgeschlossen; M11.4 bis M11.8 nicht begonnen
 
 ## Ziel
 
@@ -499,6 +499,14 @@ M11.2.
 ```
 
 ## M11.3 – Inkrementelle Aktualisierung und Reconciliation
+
+Status: abgeschlossen am 2026-08-20. Der autoritative Delta-, Tombstone-,
+Retention- und transaktionale Wissensimportvertrag steht in
+[ADR-0028](architecture/adr/0028-transaktionale-mail-reconciliation.md). Die
+Allowlist-Policy ist vorbereitet, aber weder als Job aktivierbar noch gestartet.
+Der aktuelle Himalaya-Connector bleibt mangels belegter UID-/UIDVALIDITY- und
+stabiler Ordner-ID-Semantik fail-closed; produktiver Connector-Rollout und
+Erstlauf sind separate spaetere Betriebsauftraege.
 
 ### Scope
 
