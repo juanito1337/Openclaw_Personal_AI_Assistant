@@ -1,5 +1,16 @@
 # Knowledge index and search
 
+## M11 development status
+
+M11.0 has frozen the current behavior with a fully synthetic German/English
+mail corpus, Fake IMAP and temporary SQLite databases. The measured starting
+point, reproduction command, privacy boundary and known coverage/locator gaps
+are documented in
+[`MAIL_SEARCH_BASELINE_M110.md`](MAIL_SEARCH_BASELINE_M110.md). M11.0 changes no
+schema, ranking, CLI, runtime configuration or productive mailbox. The current
+server-side path remains authoritative for current mailbox questions until the
+later M11 coverage and live-locator contracts are implemented and accepted.
+
 ## Sources
 
 - mail-agent message metadata and summaries

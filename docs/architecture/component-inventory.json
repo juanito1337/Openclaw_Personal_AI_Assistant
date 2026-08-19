@@ -2,7 +2,7 @@
   "schema_version": 1,
   "inventory_date": "2026-08-06",
   "source_scope": "all Python modules, shell entrypoints, skills, systemd units, migrations and Markdown documents",
-  "component_count": 394,
+  "component_count": 397,
   "classification_values": [
     "active",
     "compatibility",
@@ -1387,6 +1387,29 @@
       "rollback_relevance": "none"
     },
     {
+      "path": "docs/MAIL_SEARCH_BASELINE_M110.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Documentation Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/MAIL_SEARCH_INDEXING_ROADMAP.md",
+        "docs/ROADMAP.md",
+        "docs/SEARCH.md",
+        "docs/TESTING.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
       "path": "docs/MAIL_SEARCH_INDEXING_ROADMAP.md",
       "types": [
         "document"
@@ -1399,7 +1422,7 @@
         "docs/ROADMAP.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-08-19T09:45:21+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1589,7 +1612,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-18T19:46:35+02:00",
+      "last_git_change": "2026-08-18T21:30:01+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -3795,6 +3818,7 @@
       "classification": "active",
       "productive_callers": [
         "personal_assistant/adapters/mail.py",
+        "scripts/benchmark_mail_search_m110.py",
         "scripts/evaluate_invoice_quality.py"
       ],
       "test_evidence": [
@@ -3909,7 +3933,8 @@
       "owner": "Mail Domain Maintainers",
       "classification": "active",
       "productive_callers": [
-        "personal_assistant/adapters/mail.py"
+        "personal_assistant/adapters/mail.py",
+        "scripts/benchmark_mail_search_m110.py"
       ],
       "test_evidence": [
         "tests/mypy-baseline.json",
@@ -4019,7 +4044,9 @@
       ],
       "owner": "Mail Domain Maintainers",
       "classification": "active",
-      "productive_callers": [],
+      "productive_callers": [
+        "scripts/benchmark_mail_search_m110.py"
+      ],
       "test_evidence": [
         "tests/test_mail_projection_m96.py",
         "tests/test_mail_search_snapshot.py"
@@ -4282,10 +4309,12 @@
       ],
       "owner": "Core Maintainers",
       "classification": "active",
-      "productive_callers": [],
+      "productive_callers": [
+        "scripts/benchmark_mail_search_m110.py"
+      ],
       "test_evidence": [],
       "documentation_evidence": [],
-      "line_coverage_percent": 31.96,
+      "line_coverage_percent": 42.8,
       "last_git_change": "2026-08-14T02:48:52+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -4873,7 +4902,8 @@
         "docker/scripts/setup-host.sh",
         "mail_agent/assistant_bridge.py",
         "mail_agent/invoice_reprocess.py",
-        "mail_agent/nextcloud.py"
+        "mail_agent/nextcloud.py",
+        "scripts/benchmark_mail_search_m110.py"
       ],
       "test_evidence": [
         "tests/mypy-baseline.json",
@@ -5480,7 +5510,9 @@
       ],
       "owner": "Core Maintainers",
       "classification": "active",
-      "productive_callers": [],
+      "productive_callers": [
+        "scripts/benchmark_mail_search_m110.py"
+      ],
       "test_evidence": [
         "tests/ruff-baseline.json",
         "tests/test_mail_projection_m96.py"
@@ -5572,7 +5604,8 @@
       "owner": "Core Maintainers",
       "classification": "active",
       "productive_callers": [
-        "personal_assistant/cli_handlers/core.py"
+        "personal_assistant/cli_handlers/core.py",
+        "scripts/benchmark_mail_search_m110.py"
       ],
       "test_evidence": [
         "tests/ruff-baseline.json",
@@ -5714,6 +5747,7 @@
       "owner": "Core Maintainers",
       "classification": "active",
       "productive_callers": [
+        "scripts/benchmark_mail_search_m110.py",
         "scripts/quality-baseline.py"
       ],
       "test_evidence": [
@@ -5848,7 +5882,8 @@
       "owner": "Core Maintainers",
       "classification": "active",
       "productive_callers": [
-        "mail_agent/invoice_reprocess.py"
+        "mail_agent/invoice_reprocess.py",
+        "scripts/benchmark_mail_search_m110.py"
       ],
       "test_evidence": [
         "tests/mypy-baseline.json",
@@ -6208,7 +6243,8 @@
       "owner": "Core Maintainers",
       "classification": "active",
       "productive_callers": [
-        "scripts/benchmark-state-layout.py"
+        "scripts/benchmark-state-layout.py",
+        "scripts/benchmark_mail_search_m110.py"
       ],
       "test_evidence": [
         "tests/mypy-baseline.json",
@@ -6216,6 +6252,7 @@
         "tests/test_m5_tool_contract.py",
         "tests/test_mail_move_tool.py",
         "tests/test_mail_review_m9.py",
+        "tests/test_mail_search_baseline_m110.py",
         "tests/test_monitoring_tool.py",
         "tests/test_nextcloud_workspace_tools.py",
         "tests/test_order_deck_tool.py",
@@ -6229,7 +6266,7 @@
         "docs/archive/AUDIT_INITIAL_IMPORT.md",
         "docs/archive/pre-container/ASSISTANT_ARCHITECTURE.md"
       ],
-      "line_coverage_percent": 83.73,
+      "line_coverage_percent": 85.17,
       "last_git_change": "2026-08-17T23:33:22+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -6557,7 +6594,8 @@
         "mail_agent/app.py",
         "mail_agent/calendar.py",
         "mail_agent/cli.py",
-        "mail_agent/invoices.py"
+        "mail_agent/invoices.py",
+        "scripts/benchmark_mail_search_m110.py"
       ],
       "test_evidence": [
         "tests/ruff-baseline.json",
@@ -6648,7 +6686,7 @@
         "docs/architecture/adr/0007-shared-sqlite-scheduler.md",
         "docs/architecture/state-access.json"
       ],
-      "line_coverage_percent": 84.24,
+      "line_coverage_percent": 85.1,
       "last_git_change": "2026-08-06T15:45:31+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -6743,6 +6781,7 @@
         "docs/MAIL_MOVE.md",
         "docs/MAIL_QUALITY_REVIEW_ROADMAP.md",
         "docs/MAIL_QUALITY_ROLLOUT.md",
+        "docs/MAIL_SEARCH_BASELINE_M110.md",
         "docs/MAIL_SEARCH_INDEXING_ROADMAP.md",
         "docs/MONITORING.md",
         "docs/NEXTCLOUD.md",
@@ -6883,6 +6922,27 @@
       "rollback_relevance": "none"
     },
     {
+      "path": "scripts/benchmark_mail_search_m110.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Build Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/MAIL_SEARCH_BASELINE_M110.md",
+        "docs/TESTING.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
       "path": "scripts/bootstrap-dev.sh",
       "types": [
         "shell-entrypoint"
@@ -6899,6 +6959,7 @@
       "test_evidence": [],
       "documentation_evidence": [
         "README.md",
+        "docs/MAIL_SEARCH_BASELINE_M110.md",
         "docs/RELEASE_3_4_0_R28.md",
         "docs/TESTING.md",
         "docs/archive/README_PRE_M1.md"
@@ -7139,6 +7200,7 @@
         "docs/INVOICE_QUALITY_REPROCESSING_ROADMAP.md",
         "docs/MAIL_QUALITY_REVIEW_ROADMAP.md",
         "docs/MAIL_QUALITY_ROLLOUT.md",
+        "docs/MAIL_SEARCH_BASELINE_M110.md",
         "docs/MAIL_SEARCH_INDEXING_ROADMAP.md",
         "docs/RELEASE_3_4_0_R28.md",
         "docs/TESTING.md",
@@ -9108,6 +9170,27 @@
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-08-14T14:43:28+02:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "tests/test_mail_search_baseline_m110.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/MAIL_SEARCH_BASELINE_M110.md",
+        "docs/TESTING.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"

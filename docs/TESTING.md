@@ -1,8 +1,8 @@
 # Tests, Qualitaetsbaseline und Container-Runtime
 
-Stand: 2026-08-18, fortgeschrieben bis zur Trennung von Supervisor- und
-Fachgesundheit sowie zur XLON-Handelszeitkorrektur. Sie startet keine produktiven Dienste und verwendet weder
-`/srv/openclaw` noch produktive Zugangsdaten.
+Stand: 2026-08-19, fortgeschrieben bis zur reproduzierbaren M11.0-Baseline fuer
+Mail-Suche und -Indexierung. Sie startet keine produktiven Dienste und verwendet
+weder `/srv/openclaw` noch produktive Zugangsdaten.
 
 ## Einheitlicher lokaler und CI-Prueflauf
 
@@ -45,14 +45,14 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 720 Tests, darunter mindestens 654 unittest-kompatible Tests
-(die bisherigen 349 sowie M0-M10.8- und Rollout-Regressionstests),
+fordert mindestens 735 Tests, darunter mindestens 669 unittest-kompatible Tests
+(die bisherigen 349 sowie M0-M11.0- und Rollout-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
 nach dem Sammeln mit einem Fehler ab. Neue Tests duerfen die Zahl erhoehen; die
 Baseline wird erst nach einem vollstaendigen gruenen Lauf bewusst angehoben.
 
-## M0-Ausgangswerte und aktueller M10-Rollout-Teststand
+## M0-Ausgangswerte und aktueller M11.0-Teststand
 
 Gemessen auf Linux x86_64 mit Python 3.12.3. Die Werte sind Beobachtungen und noch
 keine willkuerlichen Mindestquoten. `scripts/quality-baseline.py` erzeugt sie nach
@@ -90,6 +90,7 @@ der aktuellen Python-Dateien.
 | Tests nach Supervisor-/XLON-Korrektur gesammelt/ausgefuehrt | 717 / 717 (797 JUnit-Faelle inklusive 80 Subtests) |
 | Tests nach der Portfolio-Fehlervertragshaertung gesammelt/ausgefuehrt | 719 / 719 (799 JUnit-Faelle inklusive 80 Subtests) |
 | Tests im Release 3.4.0-r28 gesammelt/ausgefuehrt | 720 / 720 (800 JUnit-Faelle inklusive 80 Subtests) |
+| Tests nach M11.0 gesammelt/ausgefuehrt | 735 / 735 (815 JUnit-Faelle inklusive 80 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -110,6 +111,7 @@ der aktuellen Python-Dateien.
 | neue M10.6-Einzeluebernahme-Regressionsitems | 9 |
 | neue M10.7-Backlog-/Skill-Regressionsitems | 8 |
 | neue M10.8-Abnahme-/Artefakt-/Rollout-Regressionsitems | 6 |
+| neue M11.0-Mail-Suchbaseline-Regressionsitems | 15 |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |
 | Gesamt-Coverage inklusive Branches (M8) | 59,18 % |
@@ -145,6 +147,8 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach der Supervisor-/XLON-Korrektur | 50,09 % |
 | Gesamt-Coverage im Release 3.4.0-r28 | 64,25 % |
 | reine Branch-Coverage im Release 3.4.0-r28 | 50,12 % |
+| Gesamt-Coverage nach M11.0 | 64,46 % |
+| reine Branch-Coverage nach M11.0 | 50,41 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -158,6 +162,7 @@ der aktuellen Python-Dateien.
 | Laufzeit der M10-Rollout-Syncrollenkorrektur | 112,42 s |
 | Laufzeit der M10-Rollout-Monitor-/Supervisorkorrektur | 117,69 s |
 | Laufzeit der Supervisor-/XLON-Gesamtabnahme | 122,85 s |
+| Laufzeit des finalen lokalen M11.0-Testlaufs | 99,34 s |
 | Laufzeit in der frischen M7-Wheel-Testumgebung | 55,56 s |
 | Wheelgroesse nach der Plugin-/Gatewaykorrektur | 397.870 Bytes |
 | M7-Wheel-Buildzeit | 4,582 s |
@@ -456,6 +461,36 @@ daher nicht mit diesem Ausgangswert vergleichbar. Der `container`-Job in
 `.github/workflows/ci.yml` erfasst dieselben Werte auf dem CI-Docker-Runner und
 schreibt sie in die Job Summary. Dabei wird kein produktiver Stack gestartet;
 gemessen wird nur `personal-assistant --help` mit ueberschriebenem Entry Point.
+
+## M11.0-Mail-Suchbaseline
+
+M11.0 charakterisiert die bestehende serverseitige Ordnersuche und die lokale
+SQLite-FTS-Projektion mit einem ausschliesslich synthetischen, deutsch/englischen
+Korpus. Die Fixtures verwenden nur reservierte `example.invalid`-Adressen; EMLs,
+SQLite-Datenbanken und der JSON-Bericht entstehen in temporaeren Verzeichnissen
+beziehungsweise unter dem ignorierten `build/`-Verzeichnis. Produktive Mailboxen,
+`/srv/openclaw`, Zugangsdaten und Jobs werden nicht beruehrt.
+
+Der reproduzierbare Benchmark wird so ausgefuehrt:
+
+```bash
+.venv/bin/python scripts/benchmark_mail_search_m110.py \
+  --samples 11 --output build/m110-mail-search-baseline.json
+```
+
+Die Verhaltensregressionen laufen einzeln mit:
+
+```bash
+OPENCLAW_ENFORCE_TEST_BASELINE=0 .venv/bin/python -m pytest -q \
+  tests/test_mail_search_baseline_m110.py
+```
+
+Der Gesamtcheck sammelt diese 15 Tests ueber denselben verbindlichen Testpfad wie
+CI. Gemessen werden Retrievalqualitaet nach Anfrageklasse, Latenzverteilung,
+Backend-Aufrufe, Speicherbedarf, Indexgroesse und die heute fehlende inkrementelle
+Aenderungsverfolgung. Die vollstaendige Methodik, Werte und bekannten Luecken
+stehen in [MAIL_SEARCH_BASELINE_M110.md](MAIL_SEARCH_BASELINE_M110.md). Sie sind
+eine Ausgangsbeobachtung und setzen noch keine willkuerlichen Zielwerte.
 
 ## Ruff-/mypy-Ausgangsbaseline und enge Ausnahmen
 

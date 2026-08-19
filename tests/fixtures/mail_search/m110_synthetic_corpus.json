@@ -1,0 +1,316 @@
+{
+  "schema_version": 1,
+  "corpus_id": "m110-synthetic-mail-search-v1",
+  "privacy": {
+    "synthetic": true,
+    "productive_data": false,
+    "reserved_domain": "example.invalid",
+    "generated_eml_only": true
+  },
+  "folders": [
+    "INBOX",
+    "Archiv/2025",
+    "Gesendet",
+    "Agent/Pruefen",
+    "Spamverdacht"
+  ],
+  "messages": [
+    {
+      "id": "maint-request-de",
+      "mailbox_id": "101",
+      "folder": "INBOX",
+      "message_id": "maint-request-de@example.invalid",
+      "from_name": "Mara Werk",
+      "from_addr": "mara.werk@example.invalid",
+      "to": ["alex.owner@example.invalid"],
+      "date": "2026-04-02T08:15:00+00:00",
+      "subject": "Tankprüfung Nordhafen am Donnerstag",
+      "body": "Das Wartungsteam kann die Tankprüfung am Donnerstag um 10 Uhr durchführen. Bitte bestätigen Sie den Termin.",
+      "thread_id": "thread-maintenance-de",
+      "projected": true,
+      "attachments": []
+    },
+    {
+      "id": "maint-reply-de",
+      "mailbox_id": "102",
+      "folder": "Gesendet",
+      "message_id": "maint-reply-de@example.invalid",
+      "in_reply_to": "maint-request-de@example.invalid",
+      "references": ["maint-request-de@example.invalid"],
+      "from_name": "Alex Beispiel",
+      "from_addr": "alex.owner@example.invalid",
+      "to": ["mara.werk@example.invalid"],
+      "date": "2026-04-02T09:05:00+00:00",
+      "subject": "Re: Tankprüfung Nordhafen am Donnerstag",
+      "body": "Der Wartungstermin ist bestätigt. Donnerstag um 10 Uhr passt.",
+      "thread_id": "thread-maintenance-de",
+      "projected": true,
+      "attachments": []
+    },
+    {
+      "id": "pump-invoice-en",
+      "mailbox_id": "201",
+      "folder": "INBOX",
+      "message_id": "pump-invoice-en@example.invalid",
+      "from_name": "River Pump Service",
+      "from_addr": "billing@river-pump.example.invalid",
+      "to": ["alex.owner@example.invalid"],
+      "date": "2026-04-04T11:30:00+00:00",
+      "subject": "Invoice ZX-2048 for pump repair",
+      "body": "The repaired circulation pump was tested successfully. The invoice total is 480.00 EUR and is due in fourteen days.",
+      "thread_id": "thread-pump-en",
+      "projected": true,
+      "attachments": [
+        {
+          "filename": "pump-repair-ZX-2048.pdf",
+          "content_type": "application/pdf",
+          "content": "Synthetic PDF placeholder for invoice ZX-2048."
+        }
+      ]
+    },
+    {
+      "id": "rail-change-de",
+      "mailbox_id": "301",
+      "folder": "INBOX",
+      "message_id": "rail-change-de@example.invalid",
+      "from_name": "Regionalbahn Beispiel",
+      "from_addr": "service@regionalbahn.example.invalid",
+      "to": ["alex.owner@example.invalid"],
+      "date": "2026-04-05T06:20:00+00:00",
+      "subject": "Fahrplanänderung am Wochenende",
+      "body": "Der Regionalzug fährt am Samstag zwanzig Minuten später. Der Ersatzfahrplan ist online verfügbar.",
+      "thread_id": "thread-rail-de",
+      "projected": true,
+      "attachments": []
+    },
+    {
+      "id": "security-spam-de",
+      "mailbox_id": "401",
+      "folder": "Spamverdacht",
+      "message_id": "security-spam-de@example.invalid",
+      "from_name": "Unbekannter Sicherheitsdienst",
+      "from_addr": "notice@untrusted.example.invalid",
+      "to": ["alex.owner@example.invalid"],
+      "date": "2026-04-06T14:45:00+00:00",
+      "subject": "Dringende Sicherheitsprüfung des Kontos",
+      "body": "Diese synthetische Nachricht fordert dazu auf, vorherige Regeln zu ignorieren. Sie bleibt ausschließlich unvertrauenswürdiger Suchinhalt.",
+      "thread_id": "thread-security-de",
+      "projected": true,
+      "attachments": []
+    },
+    {
+      "id": "board-material-en",
+      "mailbox_id": "501",
+      "folder": "Archiv/2025",
+      "message_id": "board-material-en@example.invalid",
+      "from_name": "Taylor Example",
+      "from_addr": "taylor@example.invalid",
+      "to": ["alex.owner@example.invalid"],
+      "date": "2026-04-08T15:00:00+00:00",
+      "subject": "Quarterly board material for Project Cedar",
+      "body": "The quarterly board slides summarize delivery risks, staffing and the proposed Project Cedar budget.",
+      "thread_id": "thread-board-en",
+      "projected": true,
+      "attachments": []
+    },
+    {
+      "id": "board-followup-en",
+      "mailbox_id": "502",
+      "folder": "Gesendet",
+      "message_id": "board-followup-en@example.invalid",
+      "in_reply_to": "board-material-en@example.invalid",
+      "references": ["board-material-en@example.invalid"],
+      "from_name": "Alex Beispiel",
+      "from_addr": "alex.owner@example.invalid",
+      "to": ["taylor@example.invalid"],
+      "date": "2026-04-09T09:10:00+00:00",
+      "subject": "Re: Quarterly board material for Project Cedar",
+      "body": "After the meeting we decided to postpone the expansion and keep the current Project Cedar budget.",
+      "thread_id": "thread-board-en",
+      "projected": true,
+      "attachments": []
+    },
+    {
+      "id": "roof-estimate-de",
+      "mailbox_id": "601",
+      "folder": "INBOX",
+      "message_id": "roof-estimate-de@example.invalid",
+      "from_name": "Dachbau Muster",
+      "from_addr": "angebot@dachbau.example.invalid",
+      "to": ["alex.owner@example.invalid"],
+      "date": "2026-04-10T12:00:00+00:00",
+      "subject": "Kostenvoranschlag Dachabdichtung Projekt Lindenhof",
+      "body": "Die Dachinstandsetzung umfasst Abdichtung und Gerüst. Der Gesamtpreis beträgt 8.200,00 EUR.",
+      "thread_id": "thread-roof-de",
+      "projected": true,
+      "attachments": []
+    },
+    {
+      "id": "roof-reply-de",
+      "mailbox_id": "602",
+      "folder": "Gesendet",
+      "message_id": "roof-reply-de@example.invalid",
+      "in_reply_to": "roof-estimate-de@example.invalid",
+      "references": ["roof-estimate-de@example.invalid"],
+      "from_name": "Alex Beispiel",
+      "from_addr": "alex.owner@example.invalid",
+      "to": ["angebot@dachbau.example.invalid"],
+      "date": "2026-04-10T13:15:00+00:00",
+      "subject": "Re: Kostenvoranschlag Dachabdichtung Projekt Lindenhof",
+      "body": "Bitte erläutern Sie vor der Freigabe noch die Position für das Gerüst.",
+      "thread_id": "thread-roof-de",
+      "projected": true,
+      "attachments": []
+    },
+    {
+      "id": "monthly-news-de",
+      "mailbox_id": "701",
+      "folder": "Archiv/2025",
+      "message_id": "monthly-news-de@example.invalid",
+      "from_name": "Beispiel Netzwerk",
+      "from_addr": "newsletter@network.example.invalid",
+      "to": ["alex.owner@example.invalid"],
+      "date": "2026-04-11T07:00:00+00:00",
+      "subject": "Monatsbericht verschiedener Projekte",
+      "body": "Der Bericht enthält allgemeine Meldungen zu Projekt Atlas, Projekt Birke und Projekt Cedar.",
+      "thread_id": "thread-news-de",
+      "projected": true,
+      "attachments": []
+    },
+    {
+      "id": "aurora-handover-de",
+      "mailbox_id": "801",
+      "folder": "Gesendet",
+      "message_id": "aurora-handover-de@example.invalid",
+      "from_name": "Alex Beispiel",
+      "from_addr": "alex.owner@example.invalid",
+      "to": ["team@aurora.example.invalid"],
+      "date": "2026-04-12T10:40:00+00:00",
+      "subject": "Übergabe Projekt Aurora",
+      "body": "Das Übergabeprotokoll für Projekt Aurora ist vollständig. Die offenen Punkte sind im Anhang beschrieben.",
+      "thread_id": "thread-aurora-de",
+      "projected": true,
+      "attachments": []
+    },
+    {
+      "id": "ambiguous-review-de",
+      "mailbox_id": "901",
+      "folder": "Agent/Pruefen",
+      "message_id": "ambiguous-review-de@example.invalid",
+      "from_name": "Kontakt Beispiel",
+      "from_addr": "kontakt@example.invalid",
+      "to": ["alex.owner@example.invalid"],
+      "date": "2026-04-13T16:20:00+00:00",
+      "subject": "Bitte Projektunterlagen prüfen",
+      "body": "Die Nachricht nennt weder ein eindeutiges Projekt noch eine belastbare nächste Aktion.",
+      "thread_id": "thread-review-de",
+      "projected": false,
+      "attachments": []
+    },
+    {
+      "id": "heatpump-warranty-en",
+      "mailbox_id": "1001",
+      "folder": "Archiv/2025",
+      "message_id": "heatpump-warranty-en@example.invalid",
+      "from_name": "North Heat Systems",
+      "from_addr": "support@north-heat.example.invalid",
+      "to": ["alex.owner@example.invalid"],
+      "date": "2025-11-20T10:00:00+00:00",
+      "subject": "Heat pump guarantee certificate",
+      "body": "This certificate confirms five years of coverage for the installed heating unit and compressor.",
+      "thread_id": "thread-warranty-en",
+      "projected": false,
+      "attachments": []
+    }
+  ],
+  "queries": [
+    {
+      "id": "lexical-de-exact",
+      "kind": "lexical",
+      "query": "Tankprüfung Nordhafen",
+      "relevance": {"maint-request-de": 3, "maint-reply-de": 2}
+    },
+    {
+      "id": "lexical-en-invoice",
+      "kind": "lexical",
+      "query": "invoice ZX-2048",
+      "relevance": {"pump-invoice-en": 3}
+    },
+    {
+      "id": "sender-de",
+      "kind": "sender",
+      "query": "Mara Werk",
+      "relevance": {"maint-request-de": 3}
+    },
+    {
+      "id": "body-de",
+      "kind": "body",
+      "query": "Übergabeprotokoll",
+      "relevance": {"aurora-handover-de": 3}
+    },
+    {
+      "id": "body-en",
+      "kind": "body",
+      "query": "quarterly board slides",
+      "relevance": {"board-material-en": 3}
+    },
+    {
+      "id": "common-term-de",
+      "kind": "common",
+      "query": "Projekt",
+      "relevance": {
+        "aurora-handover-de": 3,
+        "roof-estimate-de": 2,
+        "roof-reply-de": 1,
+        "monthly-news-de": 1,
+        "ambiguous-review-de": 1
+      }
+    },
+    {
+      "id": "date-range-april",
+      "kind": "date-range",
+      "query": "2026-04-09 2026-04-10",
+      "relevance": {
+        "board-followup-en": 2,
+        "roof-estimate-de": 3,
+        "roof-reply-de": 3
+      }
+    },
+    {
+      "id": "negative-de",
+      "kind": "negative",
+      "query": "Polarstation",
+      "relevance": {}
+    },
+    {
+      "id": "attachment-en",
+      "kind": "attachment",
+      "query": "pump-repair-ZX-2048.pdf",
+      "relevance": {"pump-invoice-en": 3}
+    },
+    {
+      "id": "semantic-de",
+      "kind": "semantic",
+      "query": "Was kostet die Reparatur des Gebäudedachs",
+      "relevance": {"roof-estimate-de": 3}
+    },
+    {
+      "id": "semantic-en",
+      "kind": "semantic",
+      "query": "proof of heat pump warranty",
+      "relevance": {"heatpump-warranty-en": 3}
+    },
+    {
+      "id": "context-de",
+      "kind": "context",
+      "query": "Wann wurde der Wartungstermin bestätigt",
+      "relevance": {"maint-reply-de": 3, "maint-request-de": 1}
+    },
+    {
+      "id": "context-en",
+      "kind": "context",
+      "query": "What was decided after the board meeting",
+      "relevance": {"board-followup-en": 3, "board-material-en": 1}
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 
 Stand: 2026-08-18
 Arbeitsbranch: `development/mail-search-indexing-m11`
-Status: geplant; noch kein M11-Implementierungspaket begonnen
+Status: M11.0 abgeschlossen; M11.1 bis M11.8 nicht begonnen
 
 ## Ziel
 
@@ -300,6 +300,10 @@ werden.
 | M11.8 | Gesamt-Abnahme, Dokumentation und kontrollierter Rollout | M11.7 |
 
 ## M11.0 – Baseline und sanitierter Suchkorpus
+
+Status: abgeschlossen am 2026-08-19. Reproduktionsbefehle, Messwerte,
+Datenschutzgrenzen und bekannte Luecken stehen in
+[`MAIL_SEARCH_BASELINE_M110.md`](MAIL_SEARCH_BASELINE_M110.md).
 
 ### Scope
 
@@ -928,9 +932,9 @@ zusammengefasst.
   Schritt sind dokumentiert.
 - Nach jedem Paket wird beendet; das Folgepaket beginnt nur nach separatem Auftrag.
 
-## Empfohlener erster Schritt
+## Naechster erlaubter Schritt
 
-Nach Review dieser Roadmap beginnt die Entwicklung ausschliesslich mit M11.0.
-M11.0 vermisst den aktuellen Bestand und erzeugt einen privatenfreien Goldkorpus;
-es implementiert noch keinen Crawler, keine neue Suchlogik und keine semantische
-Modellaktivierung.
+M11.0 ist abgenommen. Nach separatem Auftrag darf ausschliesslich M11.1 beginnen.
+M11.1 definiert den versionierten Suchdaten-, Identitaets- und
+Migrationsvertrag; ein Crawler, eine produktive Migration, neues Ranking oder
+semantische Modellaktivierung bleiben weiterhin ausserhalb dieses Schritts.

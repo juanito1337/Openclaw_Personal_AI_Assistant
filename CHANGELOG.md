@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased – M11 Mail-Suchindex
+
+### M11.0 Baseline und synthetischer Goldkorpus
+
+- Der bestehende ordnerweise IMAP-Suchpfad und der lokale SQLite-FTS5-Pfad sind
+  mit 13 ausschliesslich synthetisch erzeugten deutsch/englischen EMLs, 13
+  Goldqueries, Fake-IMAP und temporaeren Datenbanken reproduzierbar vermessen.
+- Verhaltensregressionen frieren Mehrordnersuche, globales Limit, Nulltreffer,
+  Ordnerfehler, Trunkierung, FTS-Queryfallback, Chunk-Duplikate, nicht
+  query-zentrierte Snippets und fehlende Live-Locator ein.
+- Ein synthetischer Zeitraumfall und das gemessene Indexalter weisen explizit
+  nach, dass der heutige freie Suchstring noch keinen strukturierten Datumsfilter
+  oder Vollkonto-Frischevertrag besitzt.
+- No-op, neue Mail, Kopie, externer Client-Move, Quarantaenewechsel und
+  UIDVALIDITY-Reset werden als heute nicht inkrementell getrackte Zustaende
+  sichtbar ausgewiesen. Weder produktive Maildaten noch `/srv/openclaw`, Jobs,
+  Schema, Suchranking, CLI oder Konfiguration wurden veraendert.
+
 ## 3.4.0-r28 – Sichere Containerarchitektur, Mail- und Rechnungsqualitaet
 
 Vollstaendige Release-, Upgrade-, Abnahme- und Rollbackhinweise stehen in

@@ -20,8 +20,11 @@ Umsetzungs- und Testevidenz bestehen; die aktuelle Release-, Upgrade- und
 Rollbackbeschreibung steht im
 [`3.4.0-r28`-Releasebericht](RELEASE_3_4_0_R28.md). Eine Main-Promotion ist noch
 keine produktive Installation oder Freigabe historischer Mail-/Rechnungsdaten.
-M11 ist auf `development/mail-search-indexing-m11` ausschliesslich geplant und
-noch nicht implementiert oder produktiv aktiviert.
+M11.0 ist auf `development/mail-search-indexing-m11` als rein synthetische,
+schreibfreie Such-, Coverage- und Ressourcenbaseline abgeschlossen. M11.1 bis
+M11.8 sind noch nicht implementiert oder produktiv aktiviert. Messwerte und
+bekannte Luecken stehen in
+[`MAIL_SEARCH_BASELINE_M110.md`](MAIL_SEARCH_BASELINE_M110.md).
 
 ## 3.4.x foundation
 
