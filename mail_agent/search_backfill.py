@@ -15,7 +15,7 @@ from typing import Any, Protocol
 from personal_assistant.contracts.mail_projection_v2 import MailLocator, canonical_json_bytes
 
 from .himalaya import HimalayaClient
-from .models import Envelope
+from .models import Envelope, ParsedMessage
 from .parser import parse_eml
 from .search_projection_v2 import PartitionedSearchSnapshotWriter, ProjectionOccurrenceInput
 from .utils import atomic_write_bytes, now_utc_iso
@@ -224,6 +224,7 @@ class MailSearchBackfill:
         monotonic: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], None] = time.sleep,
         after_partition: Callable[[str, int], None] | None = None,
+        tag_resolver: Callable[[ParsedMessage], tuple[dict[str, Any], ...]] | None = None,
     ) -> None:
         self.backend = backend
         self.antivirus = antivirus
@@ -235,6 +236,7 @@ class MailSearchBackfill:
         self.monotonic = monotonic
         self.sleep = sleep
         self.after_partition = after_partition
+        self.tag_resolver = tag_resolver
 
     def _load_checkpoint(self) -> dict[str, Any] | None:
         try:
@@ -532,6 +534,7 @@ class MailSearchBackfill:
                                 parsed,
                                 (locator,),
                                 "quarantine-untrusted" if locator.quarantine else "active",
+                                self.tag_resolver(parsed) if self.tag_resolver else (),
                             )
                         )
                     metrics["peak_page_messages"] = max(metrics["peak_page_messages"], len(page.items))

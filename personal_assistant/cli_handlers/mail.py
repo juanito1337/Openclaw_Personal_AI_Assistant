@@ -7,6 +7,8 @@ import sys
 from collections.abc import Callable
 from typing import Any
 
+from personal_assistant.mail_search import MailSearchFilters
+
 
 def run_external(args: argparse.Namespace) -> int:
     command = [sys.executable, "-m", "mail_agent"]
@@ -137,6 +139,27 @@ def handle(args: argparse.Namespace, assistant: Any, emit: Callable[[Any], None]
         result = assistant.mail_list_messages(args.folder, limit=args.limit)
     elif command == "search":
         result = assistant.mail_search_messages(args.query, limit=args.limit)
+    elif command == "search-local":
+        has_attachment = (
+            None if args.has_attachment is None else args.has_attachment == "yes"
+        )
+        result = assistant.storage.search_mail_lexical(
+            args.query,
+            filters=MailSearchFilters(
+                sender=args.sender,
+                participant=args.participant,
+                after=args.after,
+                before=args.before,
+                folder=args.folder,
+                category=args.category,
+                review_reason=args.review_reason,
+                has_attachment=has_attachment,
+                attachment_type=args.attachment_type,
+                tags=tuple(args.tag),
+            ),
+            limit=args.limit,
+            max_age_seconds=assistant.config.search.mail_projection_max_age_seconds,
+        )
     elif command == "read":
         result = assistant.mail_read_message(
             args.folder,

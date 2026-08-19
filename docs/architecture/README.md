@@ -125,6 +125,11 @@ Importgraphen auf Zyklen.
   wieder und uebergibt Deltas samt Cursor transaktional an den Wissensindex.
   Seine Allowlist-Policy ist nicht als Job aktivierbar; der aktuelle
   Himalaya-Connector bleibt ohne belegte UID-/UIDVALIDITY-Semantik fail-closed.
+  Die sichere lokale M11.4-Suche aus
+  [ADR-0029](adr/0029-sichere-lokale-mail-lexik-und-tags.md) setzt eine typisierte
+  Queryschicht vor feldgetrenntes Mail-FTS, filtert ueber belegte lokale Tags und
+  gruppiert Chunks vor dem Ergebnislimit. Sie schreibt keine Maildaten und
+  ersetzt bis zur Live-Locator-/Fallback-Abnahme nicht die aktuelle Serversuche.
 - Instanzkonfiguration und Secrets liegen getrennt unter `/srv/openclaw/config` und
   `/srv/openclaw/secrets`; Rollen sehen daraus nur benoetigte read-only Dateien.
 - ClamAV-Signaturen liegen im Docker-Volume `clamav-db`; nur `clamav-update` schreibt.

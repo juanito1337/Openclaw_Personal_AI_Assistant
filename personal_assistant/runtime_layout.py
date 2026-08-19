@@ -645,7 +645,19 @@ def _split_assistant_database(source: Path, stage: Path) -> None:
     _consistent_copy(seed, knowledge)
     _prune_assistant_database(
         core,
-        ("knowledge_fts", "chunks", "documents", "sync_state"),
+        (
+            "mail_search_fts",
+            "knowledge_fts",
+            "mail_search_thread_edges",
+            "mail_search_tags",
+            "mail_search_locators",
+            "mail_search_occurrences",
+            "mail_search_contents",
+            "mail_search_generations",
+            "chunks",
+            "documents",
+            "sync_state",
+        ),
     )
     _prune_assistant_database(
         knowledge,

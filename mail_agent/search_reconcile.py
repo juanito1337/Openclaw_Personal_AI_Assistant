@@ -19,6 +19,7 @@ from personal_assistant.contracts.mail_projection_v2 import (
     require_sha256,
 )
 
+from .models import ParsedMessage
 from .parser import parse_eml
 from .search_backfill import (
     AntivirusGate,
@@ -249,6 +250,7 @@ class MailSearchReconciler:
         monotonic: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], None] = time.sleep,
         hook: Callable[[str], None] | None = None,
+        tag_resolver: Callable[[ParsedMessage], tuple[dict[str, Any], ...]] | None = None,
     ) -> None:
         self.backend = backend
         self.antivirus = antivirus
@@ -260,6 +262,7 @@ class MailSearchReconciler:
         self.monotonic = monotonic
         self.sleep = sleep
         self.hook = hook
+        self.tag_resolver = tag_resolver
         self._run_started = 0.0
         self._last_request_at: float | None = None
 
@@ -659,7 +662,12 @@ class MailSearchReconciler:
                                 "mail-parse-error", type(exc).__name__
                             ) from exc
                         metrics["parser_calls"] += 1
-                        content_reference = writer.publish_content(parsed)
+                        content_reference = writer.publish_content(
+                            parsed,
+                            declared_tags=(
+                                self.tag_resolver(parsed) if self.tag_resolver else ()
+                            ),
+                        )
                         final[occurrence_id] = publish_reused(
                             old,
                             rows,
@@ -751,7 +759,12 @@ class MailSearchReconciler:
                             "mail-parse-error", type(exc).__name__
                         ) from exc
                     metrics["parser_calls"] += 1
-                    content_reference = writer.publish_content(parsed)
+                    content_reference = writer.publish_content(
+                        parsed,
+                        declared_tags=(
+                            self.tag_resolver(parsed) if self.tag_resolver else ()
+                        ),
+                    )
                 if move_source is not None:
                     final[move_source.occurrence_id] = publish_reused(
                         move_source,

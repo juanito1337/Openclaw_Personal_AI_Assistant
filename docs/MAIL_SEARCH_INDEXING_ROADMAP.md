@@ -2,7 +2,7 @@
 
 Stand: 2026-08-20
 Arbeitsbranch: `development/mail-search-indexing-m11`
-Status: M11.0 bis M11.3 abgeschlossen; M11.4 bis M11.8 nicht begonnen
+Status: M11.0 bis M11.4 abgeschlossen; M11.5 bis M11.8 nicht begonnen
 
 ## Ziel
 
@@ -588,6 +588,12 @@ Postfachdaten und stoppe nach M11.3.
 ```
 
 ## M11.4 – Schnelle lexikalische Suche und lokale Tags
+
+Status: abgeschlossen am 2026-08-20. Query-, Ranking- und Tagentscheidung stehen
+in [ADR-0029](architecture/adr/0029-sichere-lokale-mail-lexik-und-tags.md); der
+produktive Suchpfad und Jobs wurden nicht umgeschaltet. Vorhandene typisierte
+Kategorie-, Review- und Extraktorentscheidungen werden im Backfill und in der
+Reconciliation read-only als belegte lokale Tags uebernommen.
 
 ### Scope
 

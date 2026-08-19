@@ -97,8 +97,77 @@ The bounded scheduler policy `mail-index` is registered but intentionally has no
 activatable JobSpec, worker dispatch or deployment service in M11.3. The current
 Himalaya 1.2 adapter also cannot prove UID, UIDVALIDITY and stable folder IDs, so
 the live command fails closed with `authoritative-connector-required`. Connector
-rollout, job activation, productive reconciliation and M11.4 query/ranking work
-are not part of this milestone.
+rollout, job activation and productive reconciliation are not part of M11.3.
+
+M11.4 adds a separate registered read-only query path without changing the
+server-search precedence:
+
+```bash
+./scripts/assistant.sh mail search-local --query "Rechnung ZX-2048" --limit 50
+./scripts/assistant.sh mail search-local --query "Projekt" \
+  --sender "sender@example.invalid" --folder "INBOX" \
+  --after "2026-01-01" --before "2026-12-31" --limit 50
+./scripts/assistant.sh mail search-local --query "" \
+  --has-attachment yes --attachment-type pdf --tag "category:invoice"
+```
+
+`mail search-local` reads only the validated knowledge index. It never writes an
+IMAP flag, provider label or tag. At least a query or one structured filter is
+required. Available filters are `--sender`, `--participant`, `--after`,
+`--before`, `--folder`, `--category`, `--review-reason`,
+`--has-attachment yes|no`, `--attachment-type` and repeatable `--tag
+<namespace>:<value>`. Date-only `--before` is inclusive for that calendar day.
+
+The safe query grammar normalizes NFKC and accepts at most 500 characters and 24
+terms. It supports quoted phrases and a bounded suffix `*` prefix search. Every
+term is generated as quoted FTS input; user-provided `OR`, `NOT`, `NEAR`, quotes,
+parentheses and punctuation never become executable raw FTS syntax.
+
+Mail FTS separates subject, sender and body. BM25 weights are 8.0, 4.0 and 1.0.
+An exact phrase receives +2.0 and an exact sender +3.0. No recency boost is
+applied, so an old exact hit is not silently displaced; the returned ranking
+object explains every component. Matching chunks are grouped by mail before the
+final limit. Snippets are centered on the best match, bounded to 320 characters
+and stripped of HTML, terminal escapes and control characters.
+
+Active local tag namespaces are closed to `folder`, `sender`, `sender-domain`,
+`participant`, `has`, `attachment-type`, `category`, `review`, `kind`, `year`,
+`month` and `quarantine`. Every row carries source, source version, confidence,
+structured evidence, activity and uncertainty. Missing evidence makes a
+declared domain tag inactive; every model result remains an inactive
+`model-proposal`. Current folder and quarantine tags are rebuilt only from the
+current locator set, so an external move changes no body FTS row.
+
+M11.2 backfill and M11.3 reconciliation resolve declared tags through a
+query-only SQLite connection to the existing mail-owner database. Typed stored
+classification decisions provide `category`, typed review decisions provide
+`review`, and existing invoice/order/calendar extractor records provide `kind`
+(plus the corresponding invoice/order category used by the CLI filter). The
+resolver never creates or migrates that database, never invokes Ollama and never
+uses a free model label. If no corresponding typed local record exists, only
+parser- and locator-derived structural tags are published.
+
+Always inspect `complete`, `results_may_be_truncated` and `index`. A local empty
+result proves absence only when `index.absence_proven` is true, which requires a
+fresh, complete, authoritative generation. Until M11.7, use the existing `mail
+search` server command for current-mailbox claims and live actions.
+
+The reproducible comparison is:
+
+```bash
+.venv/bin/python scripts/benchmark_mail_search_m114.py \
+  --samples 11 --output build/m114-mail-search-benchmark.json
+```
+
+On the documented 11-sample reference run, M11.4 reached Recall@5/10 0.6500,
+MRR 0.6667 and nDCG@10 0.6368 versus M11.0 local FTS 0.4833 / 0.4833 / 0.5000 /
+0.4766. Date and attachment filter cases rose from zero to full Recall, exact
+lexical and body cases stayed at full Recall, and duplicate hits were zero.
+M11.4 p50/p95/p99 were 0.9342/2.5405/3.0160 ms versus the simultaneously
+reproduced M11.0 path at 0.3346/0.5873/0.8854 ms. The additional time is visible
+and comes from filter/tag provenance, coverage evidence, document grouping and
+safe snippets; no arbitrary pass/fail threshold is inferred from this small
+synthetic run.
 
 ## Sources
 

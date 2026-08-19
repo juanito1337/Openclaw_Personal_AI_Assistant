@@ -42,6 +42,7 @@ class ProjectionOccurrenceInput:
     message: ParsedMessage
     locators: tuple[MailLocator, ...]
     source_status: str = "active"
+    declared_tags: tuple[dict[str, Any], ...] = ()
 
 
 class PartitionedSearchSnapshotWriter:
@@ -67,7 +68,17 @@ class PartitionedSearchSnapshotWriter:
         atomic_write_bytes(self.root / filename, data)
         return {"filename": filename, "sha256": digest}
 
-    def _content_payload(self, message: ParsedMessage) -> dict[str, Any]:
+    def _content_payload(
+        self,
+        message: ParsedMessage,
+        *,
+        declared_tags: tuple[dict[str, Any], ...] = (),
+    ) -> dict[str, Any]:
+        # Importing here keeps the projection identity contract independent from
+        # the query implementation while ensuring that only the closed M11.4 tag
+        # vocabulary can enter an immutable content object.
+        from personal_assistant.mail_search import normalize_declared_mail_tags
+
         raw_sha256 = sha256_bytes(message.raw)
         content_id = content_identity(self.resource_id, raw_sha256)
         message_id = canonical_message_id(message.message_id)
@@ -93,7 +104,7 @@ class PartitionedSearchSnapshotWriter:
             "body_text": message.body_text[: self.max_body_chars],
             "in_reply_to": list(message.in_reply_to),
             "references": list(message.references),
-            "tags": [],
+            "tags": normalize_declared_mail_tags(declared_tags),
             "metadata": {
                 "date": message.date,
                 "received_at": message.received_at or message.date,
@@ -124,10 +135,17 @@ class PartitionedSearchSnapshotWriter:
             "content_sha256": reference["sha256"],
         }
 
-    def publish_content(self, message: ParsedMessage) -> dict[str, str]:
+    def publish_content(
+        self,
+        message: ParsedMessage,
+        *,
+        declared_tags: tuple[dict[str, Any], ...] = (),
+    ) -> dict[str, str]:
         """Publish one immutable parsed content object for incremental reuse."""
 
-        return self._write_content_payload(self._content_payload(message))
+        return self._write_content_payload(
+            self._content_payload(message, declared_tags=declared_tags)
+        )
 
     def _write_occurrence_payload(self, payload: dict[str, Any]) -> dict[str, str]:
         occurrence_id = str(payload.get("occurrence_id") or "")
@@ -264,7 +282,10 @@ class PartitionedSearchSnapshotWriter:
         records: list[dict[str, str]] = []
         for item in occurrences:
             content_reference = self._write_content_payload(
-                self._content_payload(item.message)
+                self._content_payload(
+                    item.message,
+                    declared_tags=item.declared_tags,
+                )
             )
             occurrence = self._occurrence_payload(
                 item,

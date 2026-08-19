@@ -1,6 +1,6 @@
 # Tests, Qualitaetsbaseline und Container-Runtime
 
-Stand: 2026-08-20, fortgeschrieben bis zur transaktionalen M11.3-Reconciliation.
+Stand: 2026-08-20, fortgeschrieben bis zur sicheren lokalen M11.4-Mail-Suche.
 Sie startet keine produktiven Dienste und verwendet
 weder `/srv/openclaw` noch produktive Zugangsdaten.
 
@@ -45,14 +45,14 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 791 Tests, darunter mindestens 687 unittest-kompatible Tests
-(die bisherigen 349 sowie M0-M11.3- und Rollout-Regressionstests),
+fordert mindestens 813 Tests, darunter mindestens 687 unittest-kompatible Tests
+(die bisherigen 349 sowie M0-M11.4- und Rollout-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
 nach dem Sammeln mit einem Fehler ab. Neue Tests duerfen die Zahl erhoehen; die
 Baseline wird erst nach einem vollstaendigen gruenen Lauf bewusst angehoben.
 
-## M0-Ausgangswerte und aktueller M11.3-Teststand
+## M0-Ausgangswerte und aktueller M11.4-Teststand
 
 Gemessen auf Linux x86_64 mit Python 3.12.3. Die Werte sind Beobachtungen und noch
 keine willkuerlichen Mindestquoten. `scripts/quality-baseline.py` erzeugt sie nach
@@ -94,6 +94,7 @@ der aktuellen Python-Dateien.
 | Tests nach M11.1 gesammelt/ausgefuehrt | 753 / 753 (840 JUnit-Faelle inklusive 87 Subtests) |
 | Tests nach M11.2 gesammelt/ausgefuehrt | 771 / 771 (858 JUnit-Faelle inklusive 87 Subtests) |
 | Tests nach M11.3 gesammelt/ausgefuehrt | 791 / 791 (878 JUnit-Faelle inklusive 87 Subtests) |
+| Tests nach M11.4 gesammelt/ausgefuehrt | 813 / 813 (900 JUnit-Faelle inklusive 87 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -118,6 +119,7 @@ der aktuellen Python-Dateien.
 | neue M11.1-Suchdatenvertrags-Regressionsitems | 18 (zusaetzlich 7 Subtests) |
 | neue M11.2-Vollkonto-Backfill-Regressionsitems | 18 |
 | neue M11.3-Reconciliation-Regressionsitems | 20 |
+| neue M11.4-Lexik-/Tag-/Benchmark-Regressionsitems | 22 |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |
 | Gesamt-Coverage inklusive Branches (M8) | 59,18 % |
@@ -161,6 +163,8 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach M11.2 | 50,96 % |
 | Gesamt-Coverage nach M11.3 | 65,53 % |
 | reine Branch-Coverage nach M11.3 | 51,68 % |
+| Gesamt-Coverage nach M11.4 | 66,02 % |
+| reine Branch-Coverage nach M11.4 | 52,35 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -457,8 +461,8 @@ und Sicherheitsdienste als Anwendungs-Mixins. Die Portfolio-Importparser liegen 
 einem eigenen Modul. Die 124 bei M5 charakterisierten Werkzeuge, zwei spaeter
 registrierte read-only Mappingvorschlaege und zehn Research-/Philosophiewerkzeuge
 ergaben zunaechst 136 Toolprojektionen in
-`tests/golden/m5-tool-contract.json`; einschliesslich der spaeteren M9-/M10-
-Werkzeuge sind es aktuell 147 Toolprojektionen. Die stabile Top-Level-Hilfe steht in
+`tests/golden/m5-tool-contract.json`; einschliesslich der spaeteren M9-/M10-/M11-
+Werkzeuge sind es aktuell 151 Toolprojektionen. Die stabile Top-Level-Hilfe steht in
 `tests/golden/m5-cli-help.txt`. Aktuelle Modul- und Funktionsgroessen werden
 weiterhin ausschliesslich durch `scripts/quality-baseline.py` gemessen.
 
@@ -612,6 +616,52 @@ verhaltensgeprueft: ohne UID, UIDVALIDITY und stabile Ordner-ID erfolgt vor
 Inventory/Scan ein `authoritative-connector-required`, ohne Root- oder
 Cursoraenderung. Die `mail-index`-Schedulerpolicy ist allowlistet, erscheint aber
 nicht in den aktivierbaren JobSpecs.
+
+## M11.4-Lexik-, Filter-, Tag- und Benchmarktests
+
+M11.4 verwendet ausschliesslich synthetische Maildatensaetze unter
+`example.invalid` und temporaere SQLite-Datenbanken. Es liest weder ein
+produktives Postfach noch `/srv/openclaw`, startet keinen Job und schreibt keine
+IMAP-Flags oder Providerlabels. Die gezielte Abnahme lautet:
+
+```bash
+OPENCLAW_ENFORCE_TEST_BASELINE=0 .venv/bin/python -m pytest -q \
+  tests/test_mail_search_lexical_m114.py \
+  tests/test_mail_search_benchmark_m114.py \
+  tests/test_mail_search_reconcile_m113.py \
+  tests/test_mail_search_contract_m111.py \
+  tests/test_mail_search_baseline_m110.py
+```
+
+Die 22 neuen Tests pruefen die sichere Queryschicht mit Umlauten, Akzenten,
+Gross-/Kleinschreibung, Bindestrichen, E-Mail-Adressen, Rechnungsnummern,
+Phrasen, offenen Zitaten, Klammern, Prefixen und FTS-Operatorzeichen. Sie
+belegen, dass alle strukturierten Filter vor Ranking und Limit greifen, mehrere
+Chunks zu genau einer Mail werden und der beste query-zentrierte Snippet weder
+HTML noch ANSI-/Steuerzeichen ausfuehrt.
+
+Tagtests pruefen geschlossene Namensraeume, aktive und inaktive Provenienz,
+Version, Konfidenz, Evidenz und Unsicherheit. Ein Modellvorschlag bleibt selbst
+bei angefordertem Aktivstatus inaktiv; fehlende Evidenz ist sichtbar. Der
+Locator-Move-Test aktualisiert Ordner-/Quarantaene-Tags und belegt zugleich
+`fts_rows_changed = 0`. Ein End-to-End-Test schreibt vorhandene typisierte
+Kategorie-, Review- und Rechnungsentscheidungen ueber den query-only Resolver in
+eine echte v2-Projektion und validiert deren geschlossenen Tagvertrag.
+
+Der reproduzierbare Qualitaets- und Latenzvergleich lautet:
+
+```bash
+.venv/bin/python scripts/benchmark_mail_search_m114.py \
+  --samples 11 --output build/m114-mail-search-benchmark.json
+```
+
+Der Referenzlauf sammelte 143 Suchsamples. M11.4 erreicht Recall@5/10 0,6500,
+MRR 0,6667 und nDCG@10 0,6368; die gleichzeitig reproduzierte M11.0-Lokalsuche
+erreicht 0,4833 / 0,4833 / 0,5000 / 0,4766. p50/p95/p99 liegen fuer M11.4 bei
+0,9342/2,5405/3,0160 ms und fuer M11.0 bei 0,3346/0,5873/0,8854 ms. Der Bericht
+macht diese Zusatzkosten sichtbar, setzt aber noch keine willkuerliche
+Qualitaets- oder Laufzeitgrenze. Er enthaelt nur synthetische Query-IDs,
+Treffer-IDs und Aggregate, nie Querytext, Adresse, Body oder Snippet.
 
 ## Ruff-/mypy-Ausgangsbaseline und enge Ausnahmen
 

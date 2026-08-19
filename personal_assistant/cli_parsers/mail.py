@@ -215,6 +215,40 @@ def add_commands(sub: Any) -> None:
     )
     mail_search.add_argument("--query", required=True)
     mail_search.add_argument("--limit", type=int, default=50)
+    local_search = mail_sub.add_parser(
+        "search-local",
+        help="Validierten lokalen Mailindex lexikalisch und strukturiert durchsuchen",
+    )
+    local_search.add_argument("--query", default="")
+    local_search.add_argument("--sender", default="")
+    local_search.add_argument("--participant", default="")
+    local_search.add_argument("--after", default="")
+    local_search.add_argument("--before", default="")
+    local_search.add_argument("--folder", default="")
+    local_search.add_argument(
+        "--category",
+        default="",
+        choices=("", "appointment", "invoice", "order", "relevant", "routine", "spam", "uncertain"),
+    )
+    local_search.add_argument(
+        "--review-reason",
+        default="",
+        choices=(
+            "",
+            "appointment-review",
+            "classification-uncertain",
+            "invoice-review",
+            "relevant-not-forwarded",
+            "routine-below-threshold",
+            "safety-blocked",
+            "spam-below-threshold",
+            "unknown-legacy",
+        ),
+    )
+    local_search.add_argument("--has-attachment", choices=("yes", "no"), default=None)
+    local_search.add_argument("--attachment-type", default="")
+    local_search.add_argument("--tag", action="append", default=[])
+    local_search.add_argument("--limit", type=int, default=50)
     mail_read = mail_sub.add_parser("read", help="Eine eindeutig identifizierte Mail read-only lesen")
     mail_read.add_argument("--folder", required=True)
     mail_read.add_argument("--message-id", required=True)

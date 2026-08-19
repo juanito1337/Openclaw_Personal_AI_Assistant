@@ -9,10 +9,11 @@ from pathlib import Path
 from typing import Any
 
 from .contracts.time import now_utc_iso
+from .mail_search import MailLexicalSearch, MailSearchFilters, build_mail_tags
 from .models import ActionPlan, SearchResult
 
 CORE_SCHEMA_VERSION = 1
-KNOWLEDGE_SCHEMA_VERSION = 2
+KNOWLEDGE_SCHEMA_VERSION = 3
 # Compatibility export for callers that historically treated the combined
 # development database as the knowledge schema.
 SCHEMA_VERSION = KNOWLEDGE_SCHEMA_VERSION
@@ -78,8 +79,15 @@ class AssistantStorage:
                     "SELECT 1 FROM sqlite_master WHERE type='table' AND name='knowledge_fts'"
                 ).fetchone()
             )
+            self.mail_search_fts_enabled = bool(
+                self.knowledge_connection.execute(
+                    "SELECT 1 FROM sqlite_master "
+                    "WHERE type='table' AND name='mail_search_fts'"
+                ).fetchone()
+            )
         else:
             self.fts_enabled = False
+            self.mail_search_fts_enabled = False
         if not self.core_read_only or (
             self.enable_knowledge and not self.knowledge_read_only
         ):
@@ -280,6 +288,8 @@ class AssistantStorage:
                 confidence REAL,
                 evidence_json TEXT NOT NULL,
                 index_generation TEXT NOT NULL,
+                active INTEGER NOT NULL DEFAULT 1,
+                uncertainty TEXT NOT NULL DEFAULT '',
                 PRIMARY KEY(content_id, namespace, value, source, source_version)
             );
             CREATE INDEX IF NOT EXISTS idx_mail_search_tags_lookup
@@ -312,6 +322,20 @@ class AssistantStorage:
                 self.knowledge_connection.execute(
                     f"ALTER TABLE documents ADD COLUMN {name} {declaration}"
                 )
+        tag_columns = {
+            str(row[1])
+            for row in self.knowledge_connection.execute(
+                "PRAGMA table_info(mail_search_tags)"
+            ).fetchall()
+        }
+        for name, declaration in {
+            "active": "INTEGER NOT NULL DEFAULT 1",
+            "uncertainty": "TEXT NOT NULL DEFAULT ''",
+        }.items():
+            if name not in tag_columns:
+                self.knowledge_connection.execute(
+                    f"ALTER TABLE mail_search_tags ADD COLUMN {name} {declaration}"
+                )
         try:
             self.knowledge_connection.execute(
                 "CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_fts USING fts5(title, text, source_type, resource_id, tokenize='unicode61 remove_diacritics 2')"
@@ -319,6 +343,58 @@ class AssistantStorage:
             self.fts_enabled = True
         except sqlite3.OperationalError:
             self.fts_enabled = False
+        mail_fts_existed = bool(
+            self.knowledge_connection.execute(
+                "SELECT 1 FROM sqlite_master "
+                "WHERE type='table' AND name='mail_search_fts'"
+            ).fetchone()
+        )
+        try:
+            self.knowledge_connection.execute(
+                "CREATE VIRTUAL TABLE IF NOT EXISTS mail_search_fts USING fts5("
+                "content_id UNINDEXED,document_id UNINDEXED,chunk_id UNINDEXED,"
+                "subject,sender,body,tokenize='unicode61 remove_diacritics 2')"
+            )
+            self.mail_search_fts_enabled = True
+            if not mail_fts_existed:
+                rows = self.knowledge_connection.execute(
+                    """
+                    SELECT c.id,c.document_id,c.text,d.source_id,d.content_id,d.title,
+                           d.metadata_json
+                    FROM chunks c JOIN documents d ON d.id=c.document_id
+                    WHERE d.source_type='email' AND d.resource_id='mail-agent'
+                    ORDER BY c.id
+                    """
+                ).fetchall()
+                for row in rows:
+                    try:
+                        metadata = json.loads(str(row["metadata_json"] or "{}"))
+                    except json.JSONDecodeError:
+                        metadata = {}
+                    sender = " ".join(
+                        value
+                        for value in (
+                            str(metadata.get("sender_name") or ""),
+                            str(metadata.get("sender_addr") or ""),
+                        )
+                        if value
+                    )
+                    self.knowledge_connection.execute(
+                        "INSERT INTO mail_search_fts("
+                        "rowid,content_id,document_id,chunk_id,subject,sender,body"
+                        ") VALUES(?,?,?,?,?,?,?)",
+                        (
+                            int(row["id"]),
+                            str(row["content_id"] or row["source_id"]),
+                            int(row["document_id"]),
+                            int(row["id"]),
+                            str(row["title"] or ""),
+                            sender,
+                            str(row["text"] or ""),
+                        ),
+                    )
+        except sqlite3.OperationalError:
+            self.mail_search_fts_enabled = False
         self.knowledge_connection.execute(
             f"PRAGMA user_version={KNOWLEDGE_SCHEMA_VERSION}"
         )
@@ -431,6 +507,11 @@ class AssistantStorage:
                 self.knowledge_connection.execute(
                     "DELETE FROM knowledge_fts WHERE rowid=?", (int(old["id"]),)
                 )
+        if self.mail_search_fts_enabled and source_type == "email":
+            for old in old_rows:
+                self.knowledge_connection.execute(
+                    "DELETE FROM mail_search_fts WHERE rowid=?", (int(old["id"]),)
+                )
         self.knowledge_connection.execute(
             "DELETE FROM chunks WHERE document_id=?", (document_id,)
         )
@@ -444,6 +525,30 @@ class AssistantStorage:
                 self.knowledge_connection.execute(
                     "INSERT INTO knowledge_fts(rowid,title,text,source_type,resource_id) VALUES(?,?,?,?,?)",
                     (chunk_id, title, text, source_type, resource_id),
+                )
+            if self.mail_search_fts_enabled and source_type == "email":
+                metadata_values = metadata or {}
+                sender = " ".join(
+                    value
+                    for value in (
+                        str(metadata_values.get("sender_name") or ""),
+                        str(metadata_values.get("sender_addr") or ""),
+                    )
+                    if value
+                )
+                self.knowledge_connection.execute(
+                    "INSERT INTO mail_search_fts("
+                    "rowid,content_id,document_id,chunk_id,subject,sender,body"
+                    ") VALUES(?,?,?,?,?,?,?)",
+                    (
+                        chunk_id,
+                        content_id or source_id,
+                        document_id,
+                        chunk_id,
+                        title,
+                        sender,
+                        text,
+                    ),
                 )
         self.knowledge_connection.commit()
         return document_id
@@ -469,6 +574,7 @@ class AssistantStorage:
             "fts_rows_changed": 0,
             "embeddings_reused": 0,
             "embeddings_new": 0,
+            "tag_rows_changed": 0,
         }
 
         def remove_chunks(document_id: int) -> int:
@@ -479,6 +585,11 @@ class AssistantStorage:
                 for row in rows:
                     connection.execute(
                         "DELETE FROM knowledge_fts WHERE rowid=?", (int(row["id"]),)
+                    )
+            if self.mail_search_fts_enabled:
+                for row in rows:
+                    connection.execute(
+                        "DELETE FROM mail_search_fts WHERE rowid=?", (int(row["id"]),)
                     )
             connection.execute("DELETE FROM chunks WHERE document_id=?", (document_id,))
             return len(rows)
@@ -591,6 +702,32 @@ class AssistantStorage:
                         ),
                     )
 
+                connection.execute(
+                    "DELETE FROM mail_search_tags WHERE content_id=?", (content_id,)
+                )
+                for tag in build_mail_tags(metadata):
+                    connection.execute(
+                        """
+                        INSERT INTO mail_search_tags(
+                            content_id,namespace,value,source,source_version,
+                            confidence,evidence_json,index_generation,active,uncertainty
+                        ) VALUES(?,?,?,?,?,?,?,?,?,?)
+                        """,
+                        (
+                            content_id,
+                            tag.namespace,
+                            tag.value,
+                            tag.source,
+                            tag.source_version,
+                            tag.confidence,
+                            json.dumps(tag.evidence, ensure_ascii=False, sort_keys=True),
+                            generation,
+                            int(tag.active),
+                            tag.uncertainty,
+                        ),
+                    )
+                    metrics["tag_rows_changed"] += 1
+
                 existing = self.get_document("mail-agent", content_id)
                 metadata_json = json.dumps(metadata, ensure_ascii=False)
                 if (
@@ -615,6 +752,29 @@ class AssistantStorage:
                             int(existing["id"]),
                         ),
                     )
+                    if self.mail_search_fts_enabled:
+                        sender = " ".join(
+                            value
+                            for value in (
+                                str(metadata.get("sender_name") or ""),
+                                str(metadata.get("sender_addr") or ""),
+                            )
+                            if value
+                        )
+                        changed = connection.execute(
+                            """
+                            UPDATE mail_search_fts SET subject=?,sender=?
+                            WHERE document_id=? AND (subject<>? OR sender<>?)
+                            """,
+                            (
+                                str(item.get("title") or "(ohne Betreff)"),
+                                sender,
+                                int(existing["id"]),
+                                str(item.get("title") or "(ohne Betreff)"),
+                                sender,
+                            ),
+                        ).rowcount
+                        metrics["fts_rows_changed"] += max(0, int(changed))
                     metrics["unchanged"] += 1
                     metrics["metadata_updated"] += 1
                     if existing["embedding_version"]:
@@ -685,6 +845,32 @@ class AssistantStorage:
                                 str(text),
                                 "email",
                                 "mail-agent",
+                            ),
+                        )
+                    if self.mail_search_fts_enabled:
+                        chunk_rowid = cursor.lastrowid
+                        if chunk_rowid is None:
+                            raise RuntimeError("Chunk-Insert lieferte keine ID")
+                        sender = " ".join(
+                            value
+                            for value in (
+                                str(metadata.get("sender_name") or ""),
+                                str(metadata.get("sender_addr") or ""),
+                            )
+                            if value
+                        )
+                        connection.execute(
+                            "INSERT INTO mail_search_fts("
+                            "rowid,content_id,document_id,chunk_id,subject,sender,body"
+                            ") VALUES(?,?,?,?,?,?,?)",
+                            (
+                                int(chunk_rowid),
+                                content_id,
+                                document_id,
+                                int(chunk_rowid),
+                                str(item.get("title") or "(ohne Betreff)"),
+                                sender,
+                                str(text),
                             ),
                         )
                     metrics["fts_rows_changed"] += 1
@@ -764,6 +950,24 @@ class AssistantStorage:
             if before_commit is not None:
                 before_commit()
         return metrics
+
+    def search_mail_lexical(
+        self,
+        query: str,
+        *,
+        filters: MailSearchFilters | None = None,
+        limit: int = 20,
+        max_age_seconds: int = 7200,
+    ) -> dict[str, Any]:
+        return MailLexicalSearch(
+            self.knowledge_connection,
+            fts_enabled=self.mail_search_fts_enabled,
+        ).search(
+            query,
+            filters=filters,
+            limit=limit,
+            max_age_seconds=max_age_seconds,
+        )
 
     def search(
         self,

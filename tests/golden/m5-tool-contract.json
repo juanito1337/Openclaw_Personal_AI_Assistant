@@ -633,6 +633,14 @@
   },
   {
     "approval": "none",
+    "command": "./scripts/assistant.sh mail search-local --query \"<Suchbegriff>\" --limit 50",
+    "description": "Validierten lokalen Mailindex mit sicherer lexikalischer Query, strukturierten Filtern, belegten Tags und deduplizierten Treffern lesen",
+    "id": "mail.search.local",
+    "mode": "read",
+    "writes_external_data": false
+  },
+  {
+    "approval": "none",
     "command": "./scripts/assistant.sh mail learning status",
     "description": "Korrekturlernen, gemischte Absender, Musterkonflikte und Lernordner anzeigen",
     "id": "mail.learning.status",

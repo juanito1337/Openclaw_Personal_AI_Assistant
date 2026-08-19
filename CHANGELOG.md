@@ -2,6 +2,38 @@
 
 ## Unreleased – M11 Mail-Suchindex
 
+### M11.4 Sichere lokale Lexik und belegte Tags
+
+- Das neue read-only Werkzeug `mail search-local` durchsucht den validierten
+  Wissensindex mit einer begrenzten, selbst gequoteten FTS-Query. Phrasen,
+  Prefixe, Unicode, E-Mail-Adressen, Bindestriche, Rechnungsnummern und
+  Sonderzeichen sind verhaltensgeprueft; rohe FTS-Operatoren werden nie direkt
+  ausgefuehrt.
+- Absender-/Teilnehmer-, Zeitraum-, Ordner-, Kategorie-, Review-, Anlagen- und
+  Tagfilter greifen vor Ranking und Limit. Feldgetrenntes BM25 gewichtet Betreff,
+  Absender und Body mit 8/4/1, weist Phrase-/Absenderboosts aus und verwendet
+  bewusst keinen verborgenen Recency-Boost.
+- Mehrere passende Chunks werden vor dem Ergebnislimit zu genau einer Mail
+  gruppiert. Query-zentrierte Snippets sind auf 320 Zeichen begrenzt und
+  entfernen HTML-, ANSI- und Steuerzeichen statt sie auszufuehren.
+- Geschlossene lokale Tags speichern Quelle, Version, Konfidenz, Evidenz,
+  Aktivstatus und Unsicherheit. Modellvorschlaege und deklarierte Tags ohne
+  Evidenz bleiben inaktiv. Aktuelle Ordner-/Quarantaene-Tags folgen Locatorn,
+  ohne bei einem Move Body-FTS oder Klassifikation neu zu berechnen.
+- Backfill und Reconciliation uebernehmen vorhandene typisierte Kategorie-,
+  Review-, Rechnungs-, Bestell- und Kalenderfakten ueber eine query-only
+  Verbindung aus der Mail-Owner-Datenbank. Der Projektionsvertrag lehnt freie
+  oder nicht kanonisierte Tags ab; dabei wird weder ein Modell aufgerufen noch
+  die Mail-Datenbank migriert.
+- Treffer weisen Generation, Coverage, Alter und Autoritaet aus. Nur eine
+  frische, vollstaendige autoritative Generation darf lokale Abwesenheit
+  belegen. Query, Adressen und Snippets erscheinen nicht in Metriken oder
+  Benchmarkartefakten.
+- Der synthetische M11.4-Vergleich verbessert Recall@10 von 0,4833 auf 0,6500
+  und entfernt Chunkduplikate. Die hoehere p50/p95/p99-Latenz von
+  0,9342/2,5405/3,0160 ms ist gegen M11.0 sichtbar dokumentiert; M11.4 schaltet
+  weder produktive Suchpraeferenz noch Job, IMAP-Zugriff oder Semantik um.
+
 ### M11.3 Transaktionale inkrementelle Reconciliation
 
 - `mail index reconcile ... --yes` fuehrt nach expliziter lokaler Freigabe einen

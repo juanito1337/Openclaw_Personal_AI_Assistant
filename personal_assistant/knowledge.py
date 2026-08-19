@@ -134,13 +134,15 @@ class KnowledgeIndexer:
                     and str(existing["sha256"] or "") == str(payload.get("sha256") or "")
                 )
                 title = str(payload.get("subject") or "(ohne Betreff)")
+                metadata.update(
+                    {
+                        "sender_addr": str(payload.get("sender_addr") or ""),
+                        "sender_name": str(payload.get("sender_name") or ""),
+                    }
+                )
                 text_chunks: list[str] = []
                 if not content_unchanged:
-                    text = "\n".join([
-                        f"Von: {payload.get('sender_name','')} <{payload.get('sender_addr','')}>",
-                        f"Betreff: {title}",
-                        str(payload.get("body_text") or ""),
-                    ])
+                    text = str(payload.get("body_text") or "")
                     text_chunks = chunks(
                         text,
                         size=self.config.search.chunk_chars,

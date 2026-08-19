@@ -229,6 +229,15 @@ def _validate_content(
     for field in ("parser_version", "normalization_version", "tag_version"):
         if not str(payload.get(field) or "").strip():
             raise SearchProjectionError(f"Contentvertrag {filename} enthaelt kein {field}")
+    raw_tags = payload.get("tags")
+    if not isinstance(raw_tags, list) or any(not isinstance(tag, dict) for tag in raw_tags):
+        raise SearchProjectionError(f"Contentvertrag {filename} enthaelt ungueltige Tags")
+    from personal_assistant.mail_search import normalize_declared_mail_tags
+
+    if raw_tags != normalize_declared_mail_tags(raw_tags):
+        raise SearchProjectionError(
+            f"Contentvertrag {filename} verletzt den geschlossenen Tagvertrag"
+        )
     return path, payload
 
 
@@ -405,6 +414,7 @@ def _flatten_records(
                     "parser_version": content.get("parser_version"),
                     "normalization_version": content.get("normalization_version"),
                     "tag_version": content.get("tag_version"),
+                    "declared_tags": list(content.get("tags") or []),
                     "in_reply_to": list(content.get("in_reply_to") or []),
                     "references": list(content.get("references") or []),
                 },

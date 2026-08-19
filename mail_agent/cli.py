@@ -39,6 +39,7 @@ from .search_reconcile import (
     MailSearchReconciler,
     ReconcileLimits,
 )
+from .search_tags import LocalMailTagResolver
 from .setup_assistant import (
     build_guide,
     configuration_fingerprint,
@@ -1403,6 +1404,7 @@ def main(argv: list[str] | None = None) -> int:
                 HimalayaBackfillBackend(HimalayaClient(config, runner, dry_run=True))
             )
             reconcile_antivirus: HostAntivirus | None = None
+            reconcile_tags: LocalMailTagResolver | None = None
             try:
                 tools = load_tool_settings()
                 settings = tools.security.antivirus
@@ -1416,6 +1418,7 @@ def main(argv: list[str] | None = None) -> int:
                         "Reconciliation benoetigt aktivierten fail-closed Raw- und Attachment-Scan"
                     )
                 reconcile_antivirus = HostAntivirus(settings)
+                reconcile_tags = LocalMailTagResolver(config.runtime.database)
                 reconciler = MailSearchReconciler(
                     reconcile_backend,
                     reconcile_antivirus,
@@ -1425,6 +1428,7 @@ def main(argv: list[str] | None = None) -> int:
                     / "state.json",
                     quarantine_folders=tuple(config.mailbox.quarantine_folders),
                     limits=reconcile_limits,
+                    tag_resolver=reconcile_tags.resolve,
                 )
                 with ProcessLock(config.runtime.lock_file):
                     payload = reconciler.run(approved=bool(args.yes))
@@ -1440,6 +1444,8 @@ def main(argv: list[str] | None = None) -> int:
             finally:
                 if reconcile_antivirus is not None:
                     reconcile_antivirus.close()
+                if reconcile_tags is not None:
+                    reconcile_tags.close()
         limits = BackfillLimits(
             page_size=int(getattr(args, "page_size", 50)),
             max_pages=int(getattr(args, "max_pages", 200)),
@@ -1453,6 +1459,7 @@ def main(argv: list[str] | None = None) -> int:
         runner = CommandRunner(config.runtime.command_timeout_seconds)
         backend = HimalayaBackfillBackend(HimalayaClient(config, runner, dry_run=True))
         antivirus: HostAntivirus | None = None
+        search_tags: LocalMailTagResolver | None = None
         try:
             if args.index_command == "backfill":
                 tools = load_tool_settings()
@@ -1467,6 +1474,7 @@ def main(argv: list[str] | None = None) -> int:
                         "Backfill benoetigt aktivierten fail-closed Raw- und Attachment-Scan"
                     )
                 antivirus = HostAntivirus(settings)
+                search_tags = LocalMailTagResolver(config.runtime.database)
             crawler = MailSearchBackfill(
                 backend,
                 antivirus,
@@ -1474,6 +1482,7 @@ def main(argv: list[str] | None = None) -> int:
                 checkpoint_path=state_root / "checkpoint.json",
                 quarantine_folders=tuple(config.mailbox.quarantine_folders),
                 limits=limits,
+                tag_resolver=search_tags.resolve if search_tags is not None else None,
             )
             if args.index_command == "plan":
                 payload = crawler.plan()
@@ -1492,6 +1501,8 @@ def main(argv: list[str] | None = None) -> int:
         finally:
             if antivirus is not None:
                 antivirus.close()
+            if search_tags is not None:
+                search_tags.close()
 
     if args.command == "invoices":
         try:

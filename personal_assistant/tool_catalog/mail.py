@@ -148,6 +148,21 @@ TOOLS: tuple[ToolDefinition, ...] = (
         test_anchor="tests/test_mail_search_reconcile_m113.py",
     ),
     define(
+        id="mail.search.local",
+        domain="mail",
+        description=(
+            "Validierten lokalen Mailindex mit sicherer lexikalischer Query, "
+            "strukturierten Filtern, belegten Tags und deduplizierten Treffern lesen"
+        ),
+        command='./scripts/assistant.sh mail search-local --query "<Suchbegriff>" --limit 50',
+        mode="read",
+        writes_external_data=False,
+        approval="none",
+        availability="always",
+        documentation_anchor="skills/personal-assistant/references/mail.md",
+        test_anchor="tests/test_mail_search_lexical_m114.py",
+    ),
+    define(
         id="mail.learning.status",
         domain="mail",
         description="Korrekturlernen, gemischte Absender, Musterkonflikte und Lernordner anzeigen",

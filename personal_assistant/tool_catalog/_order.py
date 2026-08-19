@@ -81,6 +81,7 @@ TOOL_ORDER: tuple[str, ...] = (
     "mail.index.plan",
     "mail.index.backfill",
     "mail.index.reconcile",
+    "mail.search.local",
     "mail.learning.status",
     "mail.learning.feedback",
     "mail.learning.not-spam",

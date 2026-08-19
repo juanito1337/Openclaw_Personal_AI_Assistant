@@ -34,5 +34,6 @@ verweist mit Status `Superseded` auf den Nachfolger.
 | [0026](0026-versionierter-mail-suchdatenvertrag.md) | Accepted | partitionierte v2-Mailprojektion mit getrennten Content-, Occurrence- und Locator-Identitaeten |
 | [0027](0027-begrenzter-mail-vollkonto-backfill.md) | Accepted | begrenzter, wiederaufnehmbarer und fail-closed gescannter Vollkonto-Backfill |
 | [0028](0028-transaktionale-mail-reconciliation.md) | Accepted | autoritative inkrementelle Mail-Reconciliation mit transaktionalem Deltaimport |
+| [0029](0029-sichere-lokale-mail-lexik-und-tags.md) | Accepted | sichere lokale Mail-Lexik, erklaerbares Ranking und belegte Tags |
 
 Neue ADRs beginnen mit der [Vorlage](0000-template.md).

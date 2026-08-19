@@ -490,11 +490,23 @@ enabled = true
                     "SELECT 1 FROM sqlite_master WHERE type='table' AND name='documents'"
                 ).fetchone()
             )
+            self.assertIsNone(
+                core_connection.execute(
+                    "SELECT 1 FROM sqlite_master "
+                    "WHERE type='table' AND name='mail_search_fts'"
+                ).fetchone()
+            )
             core_connection.close()
             knowledge_connection = sqlite3.connect(knowledge)
             self.assertEqual(
                 knowledge_connection.execute("SELECT COUNT(*) FROM documents").fetchone()[0],
                 1,
+            )
+            self.assertIsNotNone(
+                knowledge_connection.execute(
+                    "SELECT 1 FROM sqlite_master "
+                    "WHERE type='table' AND name='mail_search_fts'"
+                ).fetchone()
             )
             self.assertIsNone(
                 knowledge_connection.execute(

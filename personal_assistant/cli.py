@@ -469,6 +469,7 @@ def main(argv: list[str] | None = None) -> int:
         "move-status",
         "list",
         "search",
+        "search-local",
         "read",
         "reply-draft",
         "reply-send",
