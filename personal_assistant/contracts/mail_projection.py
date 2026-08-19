@@ -2,25 +2,17 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-PROJECTION_MANIFEST = "_projection.json"
-PROJECTION_SCHEMA = 1
-
-
-class SearchProjectionError(ValueError):
-    """Raised when a published projection is incomplete or inconsistent."""
-
-
-@dataclass(frozen=True, slots=True)
-class SearchProjection:
-    generation: str
-    generated_at: str
-    age_seconds: int
-    records: tuple[tuple[Path, dict[str, Any]], ...]
+from .mail_projection_types import (
+    PROJECTION_MANIFEST,
+    PROJECTION_SCHEMA,
+    PROJECTION_SCHEMA_V2,
+    SearchProjection,
+    SearchProjectionError,
+)
 
 
 def canonical_projection_generation(records: list[dict[str, Any]]) -> str:
@@ -80,8 +72,23 @@ def load_search_projection(
         raise SearchProjectionError("Mail-Suchprojektion wurde noch nicht veroeffentlicht") from exc
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise SearchProjectionError(f"Projektionsmanifest ist ungueltig: {exc}") from exc
-    if not isinstance(manifest, dict) or int(manifest.get("schema") or 0) != PROJECTION_SCHEMA:
+    if not isinstance(manifest, dict):
         raise SearchProjectionError("Projektionsmanifest hat ein ungueltiges Schema")
+    try:
+        schema = int(manifest.get("schema") or 0)
+    except (TypeError, ValueError) as exc:
+        raise SearchProjectionError("Projektionsmanifest hat ein ungueltiges Schema") from exc
+    if schema == PROJECTION_SCHEMA_V2:
+        from .mail_projection_v2 import load_search_projection_v2
+
+        return load_search_projection_v2(
+            root,
+            manifest,
+            max_age_seconds=max_age_seconds,
+            now=now,
+        )
+    if schema != PROJECTION_SCHEMA:
+        raise SearchProjectionError(f"Unbekannte Mail-Projektionsversion: {schema}")
     raw_records = manifest.get("records")
     if not isinstance(raw_records, list) or int(manifest.get("record_count") or 0) != len(raw_records):
         raise SearchProjectionError("Projektionsmanifest ist unvollstaendig")
@@ -126,4 +133,15 @@ def load_search_projection(
         raise SearchProjectionError(
             f"Mail-Suchprojektion ist veraltet ({age_seconds}s > {int(max_age_seconds)}s)"
         )
-    return SearchProjection(generation, generated_at, age_seconds, tuple(records))
+    return SearchProjection(
+        generation,
+        generated_at,
+        age_seconds,
+        tuple(records),
+        schema=PROJECTION_SCHEMA,
+        complete=True,
+        coverage={
+            "contract": "v1-generation-only",
+            "account_coverage_proven": False,
+        },
+    )

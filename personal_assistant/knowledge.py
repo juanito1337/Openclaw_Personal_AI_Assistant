@@ -62,7 +62,11 @@ class KnowledgeIndexer:
                     "category": row["category"],
                     "status": row["status"],
                 },
-                chunks=chunks(text, size=self.config.search.chunk_chars, overlap=self.config.search.chunk_overlap_chars),
+                chunks=chunks(
+                    text,
+                    size=self.config.search.chunk_chars,
+                    overlap=self.config.search.chunk_overlap_chars,
+                ),
             )
             stats["indexed"] += 1
         return stats
@@ -104,6 +108,11 @@ class KnowledgeIndexer:
         except SearchProjectionError as exc:
             state = "stale" if "veraltet" in str(exc).casefold() else "invalid"
             return self._mail_projection_failure(state, str(exc))
+        if projection.schema >= 2 and not projection.complete:
+            return self._mail_projection_failure(
+                "partial",
+                "Mail-Suchprojektion v2 besitzt keinen vollstaendigen Coverage-Nachweis",
+            )
 
         # Validate the complete source generation before the first knowledge
         # write; incomplete or corrupt projections never become index input.
@@ -143,7 +152,15 @@ class KnowledgeIndexer:
                 modified_at=modified,
                 sha256=str(payload.get("sha256") or ""),
                 metadata=metadata,
-                chunks=chunks(text, size=self.config.search.chunk_chars, overlap=self.config.search.chunk_overlap_chars),
+                content_id=str(payload.get("content_id") or ""),
+                index_generation=projection.generation,
+                source_status=str(metadata.get("source_status") or "active"),
+                embedding_version=str(metadata.get("embedding_version") or ""),
+                chunks=chunks(
+                    text,
+                    size=self.config.search.chunk_chars,
+                    overlap=self.config.search.chunk_overlap_chars,
+                ),
             )
             stats["indexed"] += 1
         detail = {

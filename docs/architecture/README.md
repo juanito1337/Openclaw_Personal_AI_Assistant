@@ -108,9 +108,14 @@ Importgraphen auf Zyklen.
 - ActionPlan/Audit liegen in `shared/core/assistant.sqlite3`; Dokumente, FTS und
   Sync-Cursor liegen separat in `domains/knowledge/knowledge.sqlite3`.
 - Der Mailworker veroeffentlicht unter `domains/mail/search_documents` eine
-  checksumgebundene, atomare Suchprojektion. Der Sync-Worker liest diese Quelle
-  read-only, validiert Alter und Vollstaendigkeit und oeffnet die Mail-SQLite samt
-  WAL nicht; die letzte vollstaendige Generation liegt im Wissens-Sync-Status.
+  checksumgebundene, atomare Suchprojektion. Der v2-Vertrag aus
+  [ADR-0026](adr/0026-versionierter-mail-suchdatenvertrag.md) trennt immutable
+  Contents von Occurrences und veraenderlichen Locatorn und publiziert
+  wiederverwendbare Ordnerpartitionen nur durch ein atomisches Root. Der
+  Sync-Worker liest diese Quelle read-only, validiert Alter, Digests und Coverage
+  vor dem ersten Indexwrite und oeffnet die Mail-SQLite samt WAL nicht; die letzte
+  vollstaendige Generation liegt im Wissens-Sync-Status. V1 bleibt lesbar, v2 ist
+  in M11.1 noch nicht produktiv aktiviert.
 - Instanzkonfiguration und Secrets liegen getrennt unter `/srv/openclaw/config` und
   `/srv/openclaw/secrets`; Rollen sehen daraus nur benoetigte read-only Dateien.
 - ClamAV-Signaturen liegen im Docker-Volume `clamav-db`; nur `clamav-update` schreibt.

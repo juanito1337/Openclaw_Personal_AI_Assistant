@@ -10,11 +10,11 @@ jeweiligen SQLite-Datenbank und duerfen nicht einzeln gesichert werden.
 | --- | --- | --- | --- |
 | `instance/` | Instanzadministrator | TOML-Konfiguration und kontrollierte lokale Dokumente; Layoutmarker Schema 1 | in jedem Releasebackup; Worker `ro`, nur Gateway/CLI `rw`; keine Secrets |
 | `gateway/` | OpenClaw Runtime | Gatewaykonfiguration, Sessions und Agentenkontext | Releasebackup; nur Gateway/CLI `rw`; Aufbewahrung nach Runtimevertrag |
-| `domains/mail/` | `mail_agent.storage` | `mail_agent.sqlite3` plus Schema-Migration vor Learning/Produktivlauf; vollstaendige `search_documents`-Leseprojektion | SQLite-Backup-API/Quick-Check; Mail-Prozesslock; Korrekturhistorie nie zur Reparatur loeschen; Projektionsmanifest atomar |
+| `domains/mail/` | `mail_agent.storage` | `mail_agent.sqlite3` plus Schema-Migration vor Learning/Produktivlauf; v1- und partitionierte v2-`search_documents`-Leseprojektion | SQLite-Backup-API/Quick-Check; Mail-Prozesslock; Korrekturhistorie nie zur Reparatur loeschen; Projektions-Root atomar |
 | `domains/orders/` | `personal_assistant.orders` | `orders.sqlite3` | SQLite-Backup-API; Remote-Nachbedingung vor Retry; Historie erhalten |
 | `domains/portfolio/` | `personal_assistant.portfolio` | `portfolio.sqlite3`, kontrolliertes `inbox/` | SQLite-Backup-API; Portfolio-Owner `rw`, Monitor `ro`; Imports/Quotes dauerhaft |
 | `domains/monitoring/` | `personal_assistant.monitoring` | `monitoring.sqlite3` | SQLite-Backup-API; nur technische Metriken; Retention durch Monitorvertrag |
-| `domains/knowledge/` | `personal_assistant.storage` | `knowledge.sqlite3` mit Dokumenten, Chunks, FTS und Sync-Cursorn | SQLite-Backup-API; Sync `rw`, Monitor `ro`; getrennt von ActionPlan/Audit |
+| `domains/knowledge/` | `personal_assistant.storage` | Schema 2: Dokumente, Chunks, FTS, Sync-Cursor sowie additive Mail-Generationen, Contents, Occurrences, Locator, Tags und Threadkanten | SQLite-Backup-API; idempotente additive Migration; Sync `rw`, Monitor `ro`; getrennt von ActionPlan/Audit |
 | `shared/core/` | `personal_assistant.storage` | `assistant.sqlite3`, `resources.toml`, Action-Payloads/Workspace-Outbox | SQLite-Backup-API; Unique-Idempotenzschluessel; Audit und ActionPlan konsistent sichern |
 | `shared/security/` | `personal_assistant.antivirus` | `antivirus.sqlite3`, temporaerer Scanpfad | Cache nur bei identischem SHA/Scanner; Mail/CLI `rw`, Monitor `ro` |
 | `shared/coordination/` | Scheduler, JobController und Gateway-Relay | `work_scheduler.sqlite3`, `job_control.json`, Heartbeats, Rollenlogs und begrenzte Eventqueue | WAL/Busy-Timeout; atomarer JSON-Replace/Claim; Worker besitzen nur eigene Heartbeats/Logs und duerfen begrenzte Events einstellen |
@@ -26,7 +26,9 @@ jeweiligen SQLite-Datenbank und duerfen nicht einzeln gesichert werden.
 | `shared/core/assistant.sqlite3` | Gateway/CLI, Sync, Mail-ActionBridge | Core, Monitor `ro` | ActionPlan, Status und Audit laufen in Transaktionen; `idempotency_key` bleibt eindeutig |
 | `domains/knowledge/knowledge.sqlite3` | Gateway/CLI, Sync | Suche, Monitor `ro` | Dokumente, Chunks, FTS und Sync-Cursor bilden einen eigenen konsistenten SQLite-Satz |
 | `domains/mail/mail_agent.sqlite3` | Mailworker oder explizite Mail-CLI | Mail, Monitor `ro` | genau ein produktiver Remote-Mailwriter; der Sync-Worker oeffnet diese SQLite/WAL-Domaene nicht |
-| `domains/mail/search_documents/_projection.json` und referenzierte Datensaetze | Mailworker | Sync `ro`, Mail `ro` | atomarer Manifest-Replace; vollstaendige Generation, eindeutige Stable-Keys, SHA-256 und Quellzeitpunkte werden vor dem ersten Indexwrite validiert |
+| `domains/mail/search_documents/_projection.json` und v1-Datensaetze | Mailworker | Sync `ro`, Mail `ro` | v1 bleibt strikt lesbar; Stable-Keys, SHA-256 und Quellzeitpunkte werden validiert; v1 allein belegt keine Vollkonto-Coverage |
+| `domains/mail/search_documents/content-*.json`, `occurrence-*.json` und `partition-*.json` | Mailworker | Sync `ro`, Mail `ro` | v2-Dateien sind unveraenderlich und checksumgebunden; Content ist von veraenderlichen Locator-/Ordnerdaten getrennt; nur das atomare Root publiziert eine Generation |
+| `domains/mail/search_documents/_projection.json` (Schema 2) | Mailworker | Sync `ro`, Mail `ro` | erwartete, aktuelle und vollstaendig autoritative Partitionen muessen exakt uebereinstimmen; Tombstones nur nach vollstaendigem autoritativem Ordnerabgleich; unvollstaendige Roots werden vor Indexwrites abgewiesen |
 | `domains/orders/orders.sqlite3` | Mailworker/Orders-CLI | Orders | lokale Idempotenz ersetzt keine Remote-Nachbedingung |
 | `domains/portfolio/portfolio.sqlite3` | Portfolioworker/CLI | Monitor `ro` | ein Schemaowner, WAL, Pflichtdaten fail-closed |
 | `domains/monitoring/monitoring.sqlite3` | Monitorworker/CLI | Monitor | keine Mailinhalte oder Credentials |

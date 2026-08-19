@@ -2,6 +2,24 @@
 
 ## Unreleased – M11 Mail-Suchindex
 
+### M11.1 Versionierter Suchdaten- und Identitaetsvertrag
+
+- Das neue, noch nicht produktiv aktivierte Projektionsschema v2 trennt
+  content-adressierte Mailinhalte von Occurrences und veraenderlichen Locatorn,
+  verwendet wiederverwendbare Ordnerpartitionen und publiziert Generationen nur
+  ueber ein atomar ersetztes, checksumgebundenes Root-Manifest.
+- Message-ID bleibt Nachweis und Threadsignal statt Deduplizierungsschluessel.
+  Raw-SHA-256, Content-/Occurrence-/Locator-Identitaeten, Copy/Move/Delete,
+  UIDVALIDITY-Reset, Ordnerrename, Coverage und Tombstones sind fail-closed
+  definiert und regressionserprobt.
+- Projektion v1 bleibt lesbar und kann wiederholbar in ein separates,
+  ausdruecklich unvollstaendiges v2-Staging republiziert werden. Das additive
+  Wissensschema 2 erhaelt bestehende Dokumente, Chunks, FTS und Sync-Historie und
+  bereitet Generationen, Locator, Tags, Threadkanten und Embeddingversionen vor.
+- `In-Reply-To` und `References` werden tolerant, dedupliziert und begrenzt
+  eingelesen. M11.1 aktiviert weder Vollkonto-Backfill noch neue Suche, Ranking,
+  Jobs oder produktive Migration und veraendert keine Rollen-/Mountgrenze.
+
 ### M11.0 Baseline und synthetischer Goldkorpus
 
 - Der bestehende ordnerweise IMAP-Suchpfad und der lokale SQLite-FTS5-Pfad sind

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 from email import policy
 from email.message import Message
@@ -8,6 +9,8 @@ from email.utils import getaddresses, parseaddr
 
 from .models import AttachmentInfo, Envelope, ParsedMessage
 from .utils import decode_header_value, html_to_text, stable_message_key, utf8_clean
+
+_MESSAGE_ID_TOKEN = re.compile(r"<([^<>\r\n]{1,998})>")
 
 
 def _decode_bytes(payload: bytes, charset: str | None = None) -> str:
@@ -53,6 +56,27 @@ def _header_values(message: Message, name: str) -> list[str]:
 def _header_value(message: Message, name: str) -> str:
     values = _header_values(message, name)
     return decode_header_value(values[0]) if values else ""
+
+
+def _message_id_tokens(message: Message, name: str, *, limit: int) -> list[str]:
+    """Parse malformed real-world relationship headers without aborting a mail."""
+
+    result: list[str] = []
+    seen: set[str] = set()
+    for raw in _header_values(message, name)[:20]:
+        decoded = decode_header_value(raw).replace("\r", " ").replace("\n", " ")
+        candidates = _MESSAGE_ID_TOKEN.findall(decoded)
+        if not candidates:
+            candidates = decoded.split()
+        for candidate in candidates:
+            normalized = "".join(str(candidate).strip("<>").split())[:998]
+            if "@" not in normalized or normalized in seen:
+                continue
+            seen.add(normalized)
+            result.append(normalized)
+            if len(result) >= limit:
+                return result
+    return result
 
 
 def _parseaddr_loose(value: str) -> tuple[str, str]:
@@ -243,4 +267,6 @@ def parse_eml(raw: bytes, envelope: Envelope, source_folder: str) -> ParsedMessa
         body_text=_body_text(message),
         attachments=attachments,
         calendar_invites=[utf8_clean(item) for item in calendar_invites],
+        in_reply_to=_message_id_tokens(message, "In-Reply-To", limit=20),
+        references=_message_id_tokens(message, "References", limit=50),
     )

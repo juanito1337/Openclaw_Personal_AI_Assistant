@@ -10,7 +10,11 @@ from typing import Any
 from .contracts.time import now_utc_iso
 from .models import ActionPlan, SearchResult
 
-SCHEMA_VERSION = 1
+CORE_SCHEMA_VERSION = 1
+KNOWLEDGE_SCHEMA_VERSION = 2
+# Compatibility export for callers that historically treated the combined
+# development database as the knowledge schema.
+SCHEMA_VERSION = KNOWLEDGE_SCHEMA_VERSION
 
 
 def read_only_sqlite_uri(path: Path) -> str:
@@ -103,10 +107,16 @@ class AssistantStorage:
 
     def _migrate(self) -> None:
         if not self.core_read_only:
+            core_target = (
+                KNOWLEDGE_SCHEMA_VERSION
+                if self.enable_knowledge
+                and self.knowledge_connection is self.connection
+                else CORE_SCHEMA_VERSION
+            )
             current = int(self.connection.execute("PRAGMA user_version").fetchone()[0])
-            if current > SCHEMA_VERSION:
+            if current > core_target:
                 raise RuntimeError(
-                    f"Assistant-Datenbankschema {current} ist neuer als {SCHEMA_VERSION}"
+                    f"Assistant-Datenbankschema {current} ist neuer als {core_target}"
                 )
             self.connection.executescript(
                 """
@@ -152,7 +162,7 @@ class AssistantStorage:
             );
                 """
             )
-            self.connection.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
+            self.connection.execute(f"PRAGMA user_version={core_target}")
             self.connection.commit()
         if not self.enable_knowledge or self.knowledge_read_only:
             return
@@ -160,9 +170,10 @@ class AssistantStorage:
         knowledge_version = int(
             self.knowledge_connection.execute("PRAGMA user_version").fetchone()[0]
         )
-        if knowledge_version > SCHEMA_VERSION:
+        if knowledge_version > KNOWLEDGE_SCHEMA_VERSION:
             raise RuntimeError(
-                f"Wissensdatenbankschema {knowledge_version} ist neuer als {SCHEMA_VERSION}"
+                "Wissensdatenbankschema "
+                f"{knowledge_version} ist neuer als {KNOWLEDGE_SCHEMA_VERSION}"
             )
         self.knowledge_connection.executescript(
             """
@@ -201,8 +212,105 @@ class AssistantStorage:
                 text TEXT NOT NULL,
                 UNIQUE(document_id, chunk_index)
             );
+            CREATE TABLE IF NOT EXISTS mail_search_generations (
+                generation TEXT PRIMARY KEY,
+                schema_version INTEGER NOT NULL,
+                source_generated_at TEXT NOT NULL,
+                imported_at TEXT NOT NULL,
+                complete INTEGER NOT NULL,
+                source_status TEXT NOT NULL,
+                coverage_json TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS mail_search_contents (
+                content_id TEXT PRIMARY KEY,
+                resource_id TEXT NOT NULL,
+                raw_sha256 TEXT NOT NULL,
+                canonical_message_id TEXT,
+                identity_evidence_json TEXT NOT NULL,
+                parser_version TEXT NOT NULL,
+                normalization_version TEXT NOT NULL,
+                tag_version TEXT NOT NULL,
+                embedding_version TEXT,
+                content_digest TEXT NOT NULL,
+                indexed_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_mail_search_contents_resource
+                ON mail_search_contents(resource_id);
+            CREATE INDEX IF NOT EXISTS idx_mail_search_contents_message_id
+                ON mail_search_contents(resource_id, canonical_message_id);
+            CREATE TABLE IF NOT EXISTS mail_search_occurrences (
+                occurrence_id TEXT PRIMARY KEY,
+                content_id TEXT NOT NULL REFERENCES mail_search_contents(content_id),
+                resource_id TEXT NOT NULL,
+                index_generation TEXT NOT NULL,
+                source_status TEXT NOT NULL,
+                first_seen_at TEXT NOT NULL,
+                last_seen_at TEXT NOT NULL,
+                tombstoned_at TEXT,
+                conflict_code TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_mail_search_occurrences_content
+                ON mail_search_occurrences(content_id);
+            CREATE INDEX IF NOT EXISTS idx_mail_search_occurrences_generation
+                ON mail_search_occurrences(index_generation);
+            CREATE TABLE IF NOT EXISTS mail_search_locators (
+                occurrence_id TEXT NOT NULL
+                    REFERENCES mail_search_occurrences(occurrence_id),
+                locator_id TEXT NOT NULL,
+                resource_id TEXT NOT NULL,
+                folder_id TEXT NOT NULL,
+                folder_name TEXT NOT NULL,
+                mailbox_id TEXT,
+                uidvalidity TEXT,
+                uid TEXT,
+                observed_at TEXT NOT NULL,
+                is_current INTEGER NOT NULL,
+                quarantine INTEGER NOT NULL,
+                PRIMARY KEY(occurrence_id, locator_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_mail_search_locators_folder
+                ON mail_search_locators(resource_id, folder_id, is_current);
+            CREATE TABLE IF NOT EXISTS mail_search_tags (
+                content_id TEXT NOT NULL REFERENCES mail_search_contents(content_id),
+                namespace TEXT NOT NULL,
+                value TEXT NOT NULL,
+                source TEXT NOT NULL,
+                source_version TEXT NOT NULL,
+                confidence REAL,
+                evidence_json TEXT NOT NULL,
+                index_generation TEXT NOT NULL,
+                PRIMARY KEY(content_id, namespace, value, source, source_version)
+            );
+            CREATE INDEX IF NOT EXISTS idx_mail_search_tags_lookup
+                ON mail_search_tags(namespace, value, content_id);
+            CREATE TABLE IF NOT EXISTS mail_search_thread_edges (
+                content_id TEXT NOT NULL REFERENCES mail_search_contents(content_id),
+                edge_type TEXT NOT NULL,
+                relation_message_id TEXT NOT NULL,
+                related_content_id TEXT,
+                evidence_header TEXT NOT NULL,
+                index_generation TEXT NOT NULL,
+                PRIMARY KEY(content_id, edge_type, relation_message_id)
+            );
             """
         )
+        document_columns = {
+            str(row[1])
+            for row in self.knowledge_connection.execute(
+                "PRAGMA table_info(documents)"
+            ).fetchall()
+        }
+        additive_columns = {
+            "content_id": "TEXT",
+            "index_generation": "TEXT",
+            "source_status": "TEXT NOT NULL DEFAULT 'legacy'",
+            "embedding_version": "TEXT",
+        }
+        for name, declaration in additive_columns.items():
+            if name not in document_columns:
+                self.knowledge_connection.execute(
+                    f"ALTER TABLE documents ADD COLUMN {name} {declaration}"
+                )
         try:
             self.knowledge_connection.execute(
                 "CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_fts USING fts5(title, text, source_type, resource_id, tokenize='unicode61 remove_diacritics 2')"
@@ -210,7 +318,9 @@ class AssistantStorage:
             self.fts_enabled = True
         except sqlite3.OperationalError:
             self.fts_enabled = False
-        self.knowledge_connection.execute(f"PRAGMA user_version={SCHEMA_VERSION}")
+        self.knowledge_connection.execute(
+            f"PRAGMA user_version={KNOWLEDGE_SCHEMA_VERSION}"
+        )
         self.knowledge_connection.commit()
 
     def integrity(self) -> str:
@@ -266,20 +376,48 @@ class AssistantStorage:
         etag: str = "",
         sha256: str = "",
         metadata: dict[str, Any] | None = None,
+        content_id: str = "",
+        index_generation: str = "",
+        source_status: str = "legacy",
+        embedding_version: str = "",
         chunks: list[str],
     ) -> int:
         timestamp = now_utc_iso()
         metadata_json = json.dumps(metadata or {}, ensure_ascii=False)
         self.knowledge_connection.execute(
             """
-            INSERT INTO documents(source_type,resource_id,source_id,uri,title,mime_type,modified_at,etag,sha256,metadata_json,indexed_at)
-            VALUES(?,?,?,?,?,?,?,?,?,?,?)
+            INSERT INTO documents(
+                source_type,resource_id,source_id,uri,title,mime_type,modified_at,
+                etag,sha256,metadata_json,indexed_at,content_id,index_generation,
+                source_status,embedding_version
+            )
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             ON CONFLICT(resource_id,source_id) DO UPDATE SET
               source_type=excluded.source_type,uri=excluded.uri,title=excluded.title,
               mime_type=excluded.mime_type,modified_at=excluded.modified_at,etag=excluded.etag,
-              sha256=excluded.sha256,metadata_json=excluded.metadata_json,indexed_at=excluded.indexed_at
+              sha256=excluded.sha256,metadata_json=excluded.metadata_json,
+              indexed_at=excluded.indexed_at,content_id=excluded.content_id,
+              index_generation=excluded.index_generation,
+              source_status=excluded.source_status,
+              embedding_version=excluded.embedding_version
             """,
-            (source_type, resource_id, source_id, uri, title, mime_type, modified_at, etag, sha256, metadata_json, timestamp),
+            (
+                source_type,
+                resource_id,
+                source_id,
+                uri,
+                title,
+                mime_type,
+                modified_at,
+                etag,
+                sha256,
+                metadata_json,
+                timestamp,
+                content_id or None,
+                index_generation or None,
+                source_status,
+                embedding_version or None,
+            ),
         )
         row = self.get_document(resource_id, source_id)
         assert row is not None

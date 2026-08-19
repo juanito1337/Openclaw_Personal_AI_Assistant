@@ -50,6 +50,8 @@ class ParsedMessage:
     body_text: str = ""
     attachments: list[AttachmentInfo] = field(default_factory=list)
     calendar_invites: list[str] = field(default_factory=list)
+    in_reply_to: list[str] = field(default_factory=list)
+    references: list[str] = field(default_factory=list)
 
     @property
     def sender_domain(self) -> str:

@@ -34,6 +34,7 @@
     {"path": "docs/architecture/adr/0022-auditierbare-reprocessing-einzeluebernahme.md", "owner": "Data Maintainers"},
     {"path": "docs/architecture/adr/0023-datenschutzsicherer-rechnungs-backlog-audit.md", "owner": "Data Maintainers"},
     {"path": "docs/architecture/adr/0024-m10-abnahme-vor-produktivem-einzelrollout.md", "owner": "Operations Maintainers"},
-    {"path": "docs/architecture/adr/0025-gateway-event-relay-und-mail-writer-recovery.md", "owner": "Security Maintainers"}
+    {"path": "docs/architecture/adr/0025-gateway-event-relay-und-mail-writer-recovery.md", "owner": "Security Maintainers"},
+    {"path": "docs/architecture/adr/0026-versionierter-mail-suchdatenvertrag.md", "owner": "Data Maintainers"}
   ]
 }

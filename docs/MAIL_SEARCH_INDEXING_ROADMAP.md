@@ -2,7 +2,7 @@
 
 Stand: 2026-08-18
 Arbeitsbranch: `development/mail-search-indexing-m11`
-Status: M11.0 abgeschlossen; M11.1 bis M11.8 nicht begonnen
+Status: M11.0 und M11.1 abgeschlossen; M11.2 bis M11.8 nicht begonnen
 
 ## Ziel
 
@@ -364,6 +364,10 @@ M11.0.
 ```
 
 ## M11.1 – Suchdaten-, Identitaets- und Migrationsvertrag
+
+Status: abgeschlossen am 2026-08-19. Die Vertragsentscheidung steht in
+[ADR-0026](architecture/adr/0026-versionierter-mail-suchdatenvertrag.md). Es wurde
+weder ein produktiver Backfill noch v2-Publikation oder neues Ranking aktiviert.
 
 ### Scope
 
