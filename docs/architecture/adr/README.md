@@ -38,5 +38,6 @@ verweist mit Status `Superseded` auf den Nachfolger.
 | [0030](0030-konservative-mail-threads-und-kontext.md) | Accepted | konservative Headerthreads, unsicherer Fallback und begrenzter Kontext |
 | [0031](0031-versionierte-lokale-mail-embeddings.md) | Accepted | contentgebundene lokale Embeddings, Koordinatorpflicht und separate Modellfreigabe |
 | [0032](0032-hybrid-mail-search-und-live-locator.md) | Accepted | agentengerechte Hybrid-Mail-Suche, sichtbarer Server-Fallback und fail-closed Live-Locator |
+| [0033](0033-m11-abnahme-und-rolloutgrenze.md) | Accepted | hermetische M11-Entwicklungsabnahme getrennt von produktivem Index- und Modellrollout |
 
 Neue ADRs beginnen mit der [Vorlage](0000-template.md).

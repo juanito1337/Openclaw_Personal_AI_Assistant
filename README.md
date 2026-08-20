@@ -26,7 +26,7 @@ Zustand, Instanzkonfiguration und Secrets bleiben ausserhalb des Images unter
 | Architekturentscheidungen | [ADR-Index](docs/architecture/adr/README.md) |
 | Geplante Container-Milestones | [Container-Roadmap](docs/CONTAINER_ARCHITECTURE_ROADMAP.md) |
 | Mail-Qualitaet, Review-Triage und kontrollierter Rollout | [M9-Roadmap](docs/MAIL_QUALITY_REVIEW_ROADMAP.md) und [Rolloutvertrag](docs/MAIL_QUALITY_ROLLOUT.md) |
-| Vollstaendige, schnelle und kontextuelle Mail-Suche | [M11-Roadmap](docs/MAIL_SEARCH_INDEXING_ROADMAP.md), [Suchvertrag](docs/SEARCH.md) und [M11.0-Baseline](docs/MAIL_SEARCH_BASELINE_M110.md) |
+| Vollstaendige, schnelle und kontextuelle Mail-Suche | [M11-Roadmap](docs/MAIL_SEARCH_INDEXING_ROADMAP.md), [Suchvertrag](docs/SEARCH.md), [M11.0-Baseline](docs/MAIL_SEARCH_BASELINE_M110.md) und [M11-Gesamtabnahme/Rolloutgrenze](docs/MAIL_SEARCH_M11_ACCEPTANCE_AND_ROLLOUT.md) |
 | Rechnungsqualitaet und sichere Neubewertung | [M10-Roadmap](docs/INVOICE_QUALITY_REPROCESSING_ROADMAP.md), [Baseline](docs/INVOICE_QUALITY_BASELINE_M10.md), [Betriebsvertrag](docs/INVOICE_OCR_REGISTER.md) und [separater Rolloutvertrag](docs/INVOICE_M10_ROLLOUT.md) |
 | Chronologische Aenderungen | [Changelog](CHANGELOG.md) |
 

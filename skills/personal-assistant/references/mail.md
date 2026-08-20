@@ -254,6 +254,30 @@ The search itself is read-only. An auto fallback using local-only category,
 review, attachment or tag filters reports `filter_limitations` and remains
 incomplete rather than pretending the server proved those filters.
 
+## M11.8 acceptance and productive rollout boundary
+
+M11.0 through M11.8 have passed the synthetic development contract. This does
+not mean the productive account is indexed and does not authorize a backfill,
+reconciliation, job activation, connector change, model pull, semantic
+activation or mail mutation. The current Himalaya path still lacks one verified
+authoritative UID, UIDVALIDITY and stable-folder-identity contract, so productive
+full-account coverage remains fail-closed and auto mode must keep its visible
+server fallback.
+
+Use only active, non-tombstoned mail documents when interpreting locator
+coverage. A retained historical content identity after an authoritative delete
+is audit/cache history, not an active searchable mail and not a missing current
+locator. Never turn that distinction into permission to resurrect, read or act
+on deleted remote content.
+
+The full production sequence is a separate administrator operation documented
+in `docs/MAIL_SEARCH_M11_ACCEPTANCE_AND_ROLLOUT.md`: verify immutable images and
+read-only health, calculate capacity, create and verify backups, migrate staged,
+run a bounded canary, prove coverage, obtain a new approval for full backfill,
+shadow-compare search, approve auto and any real model separately, then monitor
+the incremental canary. On regression, stop the index path and return to server
+search. A local image/index rollback never restores or changes remote mail.
+
 ## Draft and send contract
 
 - Always produce the complete reply with `mail reply-draft` before a reply send.

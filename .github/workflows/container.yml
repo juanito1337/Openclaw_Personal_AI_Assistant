@@ -99,6 +99,12 @@ jobs:
         run: ./scripts/check-container-runtime.sh openclaw-agent:m7-candidate
       - name: Verify role hardening
         run: ./scripts/check-container-hardening.sh openclaw-agent:m7-candidate
+      - name: Hermetic M11 mail-index end-to-end stack
+        env:
+          OPENCLAW_M11_RUNTIME_IMAGE: openclaw-agent:m7-candidate
+        run: ./scripts/check-m11-integration.sh
+      - name: Record synthetic M11 acceptance comparison
+        run: python3 scripts/benchmark_mail_acceptance_m118.py --output build/m11-acceptance.json
       - name: Rebuild twice and require identical OCI artifacts
         env:
           OPENCLAW_SOURCE_REVISION: ${{ github.sha }}

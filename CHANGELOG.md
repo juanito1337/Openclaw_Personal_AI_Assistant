@@ -2,6 +2,29 @@
 
 ## Unreleased – M11 Mail-Suchindex
 
+### M11.8 Gesamtabnahme und kontrollierte Rolloutgrenze
+
+- Ein eigener hermetischer Compose-Stack prueft den zusammenhaengenden M11-Pfad
+  mit synthetischem Fake-IMAP, ClamAV clean/found/error, Projektionspublisher,
+  Sync-Worker, FTS, Fake-Embeddings und Gateway. Inkrementelle Mail, Move, Copy,
+  Delete, Quarantaene, Ordnerrename, UIDVALIDITY, Netzverlust und SIGKILL/Restart
+  werden ohne Hostports, Secrets, Produktivmounts oder externe Konten abgenommen.
+- Die synthetischen M11.0-/M11.4-/M11.5-/M11.6-Benchmarks werden in einem
+  inhaltsfreien M11.8-Bericht zusammengefuehrt. CI und Containerworkflow bewahren
+  diesen sowie den inhaltsfreien Integrationsbericht als Artefakte auf.
+- Ein Regressionstest behebt, dass korrekt tombstonte historische Contents nach
+  einem autoritativen Delete die aktive Locatorabdeckung dauerhaft vergifteten.
+  Retained History bleibt erhalten, zaehlt aber nicht mehr als aktives
+  Suchdokument.
+- Wheel- und Imageguards erkennen nun auch eigenstaendige Vektor-/Embedding- und
+  Mailindex-Artefakte. Die zentrale Abnahmedokumentation trennt synthetische
+  Entwicklungsabnahme, echtes semantisches Zielhardwaremodell und produktiven
+  backup-/canary-/rollbackgesicherten Rollout.
+- M11.8 fuehrt keinen produktiven Backfill, keine Reconciliation, keinen Jobstart,
+  keine Mailaktion, keine Modellaktivierung, keine Main-Promotion, kein Tagging
+  und keine Installation aus. Die fehlende autoritative UID-/UIDVALIDITY-/stabile
+  Ordner-ID-Semantik des aktuellen Connectors bleibt produktiv blockierend.
+
 ### M11.7 Agentengerechte Hybrid-Suche und Live-Locator
 
 - Der kompatible Einstieg `mail search` verwendet im Standardmodus den lokalen

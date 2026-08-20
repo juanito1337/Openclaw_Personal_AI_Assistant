@@ -1,0 +1,91 @@
+name: openclaw-m11-integration
+
+x-runtime: &runtime
+  image: ${OPENCLAW_M11_RUNTIME_IMAGE:-openclaw-agent:m11-candidate}
+  user: "1000:1000"
+  read_only: true
+  cap_drop: ["ALL"]
+  security_opt: ["no-new-privileges:true"]
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,nodev,size=64m,mode=1777
+  volumes:
+    - ./scenario.py:/m11/scenario.py:ro
+    - mail-state:/state
+    - knowledge-state:/knowledge
+  networks: [m11]
+
+services:
+  state-init:
+    image: python:3.11-alpine3.22@sha256:a4fc589b32e824f3f02ed9d7e7be19518aa47e105b80416336af9f202275a489
+    user: "0:0"
+    read_only: true
+    cap_drop: ["ALL"]
+    cap_add: ["CHOWN", "DAC_OVERRIDE"]
+    security_opt: ["no-new-privileges:true"]
+    command: ["sh", "-c", "chown -R 1000:1000 /state /knowledge"]
+    volumes:
+      - mail-state:/state
+      - knowledge-state:/knowledge
+    networks: [m11]
+
+  fake-services:
+    image: python:3.11-alpine3.22@sha256:a4fc589b32e824f3f02ed9d7e7be19518aa47e105b80416336af9f202275a489
+    user: "65534:65534"
+    command: ["python3", "/m11/fake_services.py"]
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16m,mode=1777
+    volumes:
+      - ./fake_services.py:/m11/fake_services.py:ro
+    expose: ["1143", "3310", "8080"]
+    networks: [m11]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2).read()"]
+      interval: 1s
+      timeout: 3s
+      retries: 20
+
+  projection-publisher:
+    <<: *runtime
+    entrypoint: ["python3", "/m11/scenario.py"]
+    command: ["backfill"]
+    environment:
+      OPENCLAW_ROLE: mail-worker
+    depends_on:
+      fake-services:
+        condition: service_healthy
+
+  sync-worker:
+    <<: *runtime
+    entrypoint: ["python3", "/m11/scenario.py"]
+    command: ["sync-daemon"]
+    environment:
+      OPENCLAW_ROLE: sync-worker
+    depends_on:
+      fake-services:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "test", "-s", "/state/sync-ready"]
+      interval: 1s
+      timeout: 3s
+      retries: 20
+
+  gateway:
+    <<: *runtime
+    entrypoint: ["python3", "/m11/scenario.py"]
+    command: ["gateway", "--expect", "baseline"]
+    environment:
+      OPENCLAW_ROLE: gateway
+    depends_on:
+      fake-services:
+        condition: service_healthy
+
+networks:
+  m11:
+    internal: true
+
+volumes:
+  mail-state:
+  knowledge-state:

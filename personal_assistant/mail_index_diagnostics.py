@@ -74,9 +74,18 @@ class MailIndexDiagnostics:
             index = MailLexicalSearch(
                 self.connection, fts_enabled=self.fts_enabled
             ).index_state(max_age_seconds=max_age_seconds)
-            content_count = int(
+            retained_content_count = int(
                 self.connection.execute(
                     "SELECT COUNT(*) FROM mail_search_contents"
+                ).fetchone()[0]
+            )
+            content_count = int(
+                self.connection.execute(
+                    """
+                    SELECT COUNT(DISTINCT content_id) FROM documents
+                    WHERE source_type='email' AND resource_id='mail-agent'
+                      AND content_id IS NOT NULL AND source_status<>'tombstoned'
+                    """
                 ).fetchone()[0]
             )
             occurrence_count = int(
@@ -192,6 +201,7 @@ class MailIndexDiagnostics:
                     "current": locator_count,
                     "located_contents": located_content_count,
                     "contents": content_count,
+                    "retained_historical_contents": retained_content_count - content_count,
                 },
                 "occurrences": occurrence_count,
                 "semantic": semantic,

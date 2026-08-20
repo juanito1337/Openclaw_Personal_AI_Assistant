@@ -327,6 +327,33 @@ M11.7 does not run `mail index backfill`, `mail index reconcile`, start a job,
 pull a model or change productive state. The durable decision is
 [ADR-0032](architecture/adr/0032-hybrid-mail-search-und-live-locator.md).
 
+M11.8 closes the synthetic development acceptance with an isolated container
+flow and one content-free aggregate benchmark:
+
+```bash
+.venv/bin/python scripts/benchmark_mail_acceptance_m118.py \
+  --samples 11 --output build/m11-acceptance.json
+OPENCLAW_M11_RUNTIME_IMAGE=openclaw-agent:m11-candidate \
+  ./scripts/check-m11-integration.sh
+```
+
+The integration uses only `example.invalid` fixtures, an internal Docker
+network, temporary volumes and no host ports, secrets or productive mounts. It
+exercises Fake-IMAP, fail-closed ClamAV outcomes, projection, sync, lexical and
+fake-semantic retrieval, live locators, external-style move/copy/delete,
+quarantine, folder rename, UIDVALIDITY reset, network loss and worker crash.
+Historical tombstoned content remains available for audit/reuse but is excluded
+from active locator-coverage counts.
+
+This acceptance does not authorize production. The current Himalaya connector
+still cannot prove UID, UIDVALIDITY and stable folder identity as one
+authoritative contract, and no real embedding model was selected on target
+hardware. The exact backup, canary, shadow comparison, monitoring and rollback
+sequence is documented in
+[MAIL_SEARCH_M11_ACCEPTANCE_AND_ROLLOUT.md](MAIL_SEARCH_M11_ACCEPTANCE_AND_ROLLOUT.md)
+and remains a separate explicit operation. The decision is
+[ADR-0033](architecture/adr/0033-m11-abnahme-und-rolloutgrenze.md).
+
 ## Sources
 
 - mail-agent message metadata and summaries

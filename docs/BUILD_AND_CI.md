@@ -1,6 +1,6 @@
 # Build- und CI-Nachweise
 
-Stand: M10.8, 2026-08-17. Der detaillierte Sicherheitsvertrag steht unter
+Stand: M11.8, 2026-08-20. Der detaillierte Sicherheitsvertrag steht unter
 [`architecture/IMAGE_SUPPLY_CHAIN.md`](architecture/IMAGE_SUPPLY_CHAIN.md).
 
 ## Gemeinsame Qualitaetspruefung
@@ -15,6 +15,18 @@ Drei-Szenarien-Recovery-Drill gegen temporaere Roots aus. Der Docker-Containerjo
 ruft `scripts/check-m8-integration.sh` auf und bewahrt
 `build/m8-integration.json`; keine Fixture publiziert Hostports oder nutzt
 produktive Konten, Secrets, Mounts oder Netze.
+M11.8 baut im selben Containerjob zuerst die drei Rollenimages und startet danach
+`scripts/check-m11-integration.sh` mit dem Kandidaten-Runtimeimage. Der eigene
+Compose-Stack verwendet Fake-IMAP, Fake-ClamAV und einen Fake-Embeddingdienst auf
+einem internen Netz ohne Hostports, Secrets oder Produktivmounts. Netztrennung,
+SIGKILL/Restart und Locator-/UIDVALIDITY-Mutationen bleiben auf den eindeutigen
+Testprojektnamen und temporaere Volumes begrenzt. CI und Releaseworkflow fuehren
+ausserdem `scripts/benchmark_mail_acceptance_m118.py` aus und bewahren
+`build/m11-integration.json` sowie `build/m11-acceptance.json` als inhaltsfreie
+Nachweise. Die Entwicklungsabnahme und der weiterhin nicht ausgefuehrte
+produktive Rollout sind unter
+[`MAIL_SEARCH_M11_ACCEPTANCE_AND_ROLLOUT.md`](MAIL_SEARCH_M11_ACCEPTANCE_AND_ROLLOUT.md)
+getrennt dokumentiert.
 M9 hebt denselben Collection-Vertrag auf 610 pytest-Items an und ergaenzt
 Verhaltensregressionen fuer Review-Taxonomie, exakte Einzelkorrektur,
 Walk-forward-Lernen, Kalenderdiagnose und atomare Mail-Suchprojektion. Die
@@ -128,6 +140,8 @@ je Rolle. Buildzeit und CVE-Ergebnis sind Teil desselben Laufs.
 Der Testjob bewahrt auch `build/m8-recovery.json`. Dieses Artefakt misst nur kleine
 lokale Fixtures; Produktions-RTO und externer Restore bleiben deshalb bewusst offen
 und sind im [Recoveryvertrag](architecture/RECOVERY_AND_RELEASE.md) begrenzt.
+Dasselbe gilt fuer die M11-Zeiten und Ressourcenzaehler: Sie charakterisieren den
+synthetischen Stack, nie Postfachgroesse, Produktiv-RTO oder Zielhardwareleistung.
 
 ## Releaseworkflow
 

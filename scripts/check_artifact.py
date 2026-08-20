@@ -12,8 +12,12 @@ RUNTIME_SUFFIXES = {
     ".lock",
     ".log",
     ".msg",
+    ".npy",
+    ".npz",
     ".sqlite",
     ".sqlite3",
+    ".vec",
+    ".vector",
 }
 DOCUMENT_SUFFIXES = {".pdf"}
 RUNTIME_NAMES = {
@@ -22,6 +26,9 @@ RUNTIME_NAMES = {
     "config.toml",
     "config.yaml",
     "config.yml",
+    "embedding-cache.json",
+    "embeddings.json",
+    "mail-index.json",
     "policies.json",
     "policies.toml",
     "policies.yaml",

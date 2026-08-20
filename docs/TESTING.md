@@ -1,6 +1,6 @@
 # Tests, Qualitaetsbaseline und Container-Runtime
 
-Stand: 2026-08-20, fortgeschrieben bis zur M11.7-Hybridsuche.
+Stand: 2026-08-20, fortgeschrieben bis zur M11.8-Gesamtabnahme.
 Sie startet keine produktiven Dienste und verwendet
 weder `/srv/openclaw` noch produktive Zugangsdaten.
 
@@ -45,14 +45,14 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 873 Tests, darunter mindestens 687 unittest-kompatible Tests
-(die bisherigen 349 sowie M0-M11.7- und Rollout-Regressionstests),
+fordert mindestens 879 Tests, darunter mindestens 687 unittest-kompatible Tests
+(die bisherigen 349 sowie M0-M11.8- und Rollout-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
 nach dem Sammeln mit einem Fehler ab. Neue Tests duerfen die Zahl erhoehen; die
 Baseline wird erst nach einem vollstaendigen gruenen Lauf bewusst angehoben.
 
-## M0-Ausgangswerte und aktueller M11.7-Teststand
+## M0-Ausgangswerte und aktueller M11.8-Teststand
 
 Gemessen auf Linux x86_64 mit Python 3.12.3. Die Werte sind Beobachtungen und noch
 keine willkuerlichen Mindestquoten. `scripts/quality-baseline.py` erzeugt sie nach
@@ -98,6 +98,7 @@ der aktuellen Python-Dateien.
 | Tests nach M11.5 gesammelt/ausgefuehrt | 832 / 832 (919 JUnit-Faelle inklusive 87 Subtests) |
 | Tests nach M11.6 gesammelt/ausgefuehrt | 858 / 858 (945 JUnit-Faelle inklusive 87 Subtests) |
 | Tests nach M11.7 gesammelt/ausgefuehrt | 873 / 873 (960 JUnit-Faelle inklusive 87 Subtests) |
+| Tests nach M11.8 gesammelt/ausgefuehrt | 879 / 879 (966 JUnit-Faelle inklusive 87 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -126,6 +127,7 @@ der aktuellen Python-Dateien.
 | neue M11.5-Thread-/Kontext-/Normalisierungs-Regressionsitems | 19 |
 | neue M11.6-Embedding-/Cache-/Koordinator-Regressionsitems | 26 |
 | neue M11.7-Hybrid-/Fallback-/Live-Locator-Regressionsitems | 15 |
+| neue M11.8-Abnahme-/Artefakt-/Container-Regressionsitems | 6 |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |
 | Gesamt-Coverage inklusive Branches (M8) | 59,18 % |
@@ -177,6 +179,8 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach M11.6 | 53,11 % |
 | Gesamt-Coverage nach M11.7 | 66,83 % |
 | reine Branch-Coverage nach M11.7 | 53,39 % |
+| Gesamt-Coverage nach M11.8 | 66,85 % |
+| reine Branch-Coverage nach M11.8 | 53,42 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -195,6 +199,7 @@ der aktuellen Python-Dateien.
 | Laufzeit des finalen lokalen M11.3-Testlaufs | 128,26 s |
 | Laufzeit des finalen lokalen M11.5-Testlaufs | 97,03 s |
 | Laufzeit des finalen lokalen M11.6-Testlaufs | 150,70 s |
+| Laufzeit des finalen lokalen M11.8-Testlaufs | 132,82 s |
 | Laufzeit in der frischen M7-Wheel-Testumgebung | 55,56 s |
 | Wheelgroesse nach der Plugin-/Gatewaykorrektur | 397.870 Bytes |
 | M7-Wheel-Buildzeit | 4,582 s |
@@ -213,6 +218,9 @@ der aktuellen Python-Dateien.
 | Wheelgroesse nach der Supervisor-/XLON-Korrektur | 482.026 Bytes |
 | Wheel-Buildzeit nach der Supervisor-/XLON-Korrektur | 4,095 s |
 | Wheel-Tests nach der Supervisor-/XLON-Korrektur | 717 plus 80 Subtests in 95,74 s |
+| M11.8-Wheelgroesse | 552.534 Bytes |
+| M11.8-Wheel-Buildzeit | 2,874 s |
+| M11.8-Wheel-Tests in frischer Umgebung | 879 plus 87 Subtests |
 | Container-Imagegroesse des M6-Testimages | 425.555.866 Bytes |
 | Runtime-Imagegroesse mit gepinnten Brave-/Signal-Plugins | 376.600.036 Bytes |
 | Runtime-Imagegroesse nach der M10-Rollout-Monitor-/Supervisorkorrektur | 376.793.375 Bytes |
@@ -796,6 +804,48 @@ mehrerer gueltiger Occurrences und die erneute Ordner-/ID-/Betreffpruefung bei
 Nutzlast; Backend-Aufrufzahlen und fehlende Schreibwirkungen werden explizit
 assertiert. Status, Doctor, CLI, Service, Toolkatalog und generierter Skillvertrag
 sind Teil derselben Regression.
+
+## M11.8-Gesamtabnahme und hermetische Containerintegration
+
+M11.8 aggregiert die echten synthetischen M11.0-, M11.4-, M11.5- und
+M11.6-Benchmarks ohne produktive Daten:
+
+```bash
+.venv/bin/python scripts/benchmark_mail_acceptance_m118.py \
+  --samples 11 --output build/m11-acceptance.json
+```
+
+Der Bericht enthaelt nur Korpus-Hash, Aggregate, Latenzen und technische
+Statuswerte. Die Regressionen pruefen, dass weder Querytexte, Mailadressen,
+Betreffe, Bodies, Treffer-IDs noch Vektoren geschrieben werden, dass beide
+Fake-Embeddingprofile niemals aktivierungsfaehig sind und dass Wheel-/Imageguards
+eigenstaendige Vektor-, Embeddingcache- und Mailindexdateien verwerfen. Ein
+weiterer Regressionstest belegt, dass ein tombstonter historischer Content die
+aktive Locatorcoverage nicht dauerhaft unvollstaendig macht.
+
+Die zusammenhaengende Containerabnahme lautet:
+
+```bash
+OPENCLAW_M11_RUNTIME_IMAGE=openclaw-agent:m11-candidate \
+  ./scripts/check-m11-integration.sh
+```
+
+Sie verwendet echte Backfill-, Reconcile-, Wissensindex-, FTS-, Embedding- und
+Hybridmodule gegen Fake-IMAP, Fake-ClamAV und Fake-Embedding auf einem internen
+Compose-Netz. Eindeutiger Projektname, temporaere Volumes, null Hostports, keine
+Secrets und kein `/srv/openclaw`-Mount isolieren sie von laufenden Containern.
+Der Lauf prueft neue Mail, Move, Copy, autoritatives Delete, Teilscan,
+Quarantaene, Ordnerrename, UIDVALIDITY, semantischen Ausfall, Netztrennung und
+SIGKILL/Restart. `build/m11-integration.json` belegt fuer den Referenzlauf
+7,151984 s Stackbereitschaft und 2,902854 s Crash-Recovery. Reine Locatorwechsel
+verursachten null Raw-Fetch-, ClamAV- und Embeddingaufrufe; die vollstaendigen
+inhaltsfreien Ressourcenwerte stehen im selben Artefakt.
+
+Diese Tests sind eine Entwicklungsabnahme, keine produktive Kontoabnahme. Der
+aktuelle Connector belegt UID, UIDVALIDITY und stabile Ordneridentitaet noch
+nicht autoritativ; ein echtes Embeddingmodell wurde nicht auf Zielhardware
+ausgewaehlt. Der getrennte Rolloutvertrag steht in
+[MAIL_SEARCH_M11_ACCEPTANCE_AND_ROLLOUT.md](MAIL_SEARCH_M11_ACCEPTANCE_AND_ROLLOUT.md).
 
 ## Ruff-/mypy-Ausgangsbaseline und enge Ausnahmen
 

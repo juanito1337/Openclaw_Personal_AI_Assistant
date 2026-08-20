@@ -2,7 +2,8 @@
 
 Stand: 2026-08-20
 Arbeitsbranch: `development/mail-search-indexing-m11`
-Status: M11.0 bis M11.7 implementiert; reale M11.6-Modellabnahme und M11.8 offen
+Status: M11.0 bis M11.8 synthetisch abgenommen; produktiver Rollout und reale
+M11.6-Modellabnahme separat offen
 
 ## Ziel
 
@@ -768,7 +769,8 @@ lokale Treffer erhalten erst nach begrenzter IMAP-Revalidierung einen
 Live-Locator, und `mail read` verlangt und prueft zusaetzlich den erwarteten
 Betreff. Status und Doctor sind registrierte read-only Werkzeuge. Kein
 produktiver Backfill, Job, Modellpull oder Modellwechsel wurde ausgefuehrt;
-M11.8 wurde nicht begonnen.
+M11.8 ist synthetisch abgenommen. Der produktive Rollout und die reale
+Modellabnahme bleiben getrennte, nicht ausgefuehrte Betriebsentscheidungen.
 
 ### Scope
 
@@ -978,7 +980,10 @@ zusammengefasst.
 
 ## Naechster erlaubter Schritt
 
-M11.0 ist abgenommen. Nach separatem Auftrag darf ausschliesslich M11.1 beginnen.
-M11.1 definiert den versionierten Suchdaten-, Identitaets- und
-Migrationsvertrag; ein Crawler, eine produktive Migration, neues Ranking oder
-semantische Modellaktivierung bleiben weiterhin ausserhalb dieses Schritts.
+M11.0 bis M11.8 sind im synthetischen Entwicklungsvertrag abgenommen. M11 ist
+beendet. Der naechste erlaubte Schritt ist ausschliesslich ein neuer expliziter
+Auftrag fuer den in
+[`MAIL_SEARCH_M11_ACCEPTANCE_AND_ROLLOUT.md`](MAIL_SEARCH_M11_ACCEPTANCE_AND_ROLLOUT.md)
+beschriebenen produktiven Rollout. Er bleibt blockiert, solange der Connector
+UID, UIDVALIDITY und stabile Ordneridentitaeten nicht autoritativ belegt. Ein
+reales Embeddingmodell benoetigt eine eigene Zielhardwareabnahme und Freigabe.

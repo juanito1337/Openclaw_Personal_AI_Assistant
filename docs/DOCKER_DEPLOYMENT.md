@@ -609,6 +609,23 @@ eine read-only Status-/Audit-Baseline und genau eine angezeigte Vorschau. Erst
 eine danach erneut erteilte Einzelfreigabe darf den unveraenderten Hash/Digest
 anwenden. M10.8 fuehrt diesen produktiven Ablauf nicht aus.
 
+### M11-Mailindex-Rollout
+
+Eine gruene M11.8-Entwicklungs-, Wheel- oder Imageabnahme aktiviert keinen
+produktiven Mailindex. Der aktuelle Connector belegt UID, UIDVALIDITY und stabile
+Ordneridentitaet noch nicht als autoritativen Gesamtvertrag; ein Vollkontoindex
+bleibt deshalb fail-closed. Es wurde auch kein echtes Embeddingmodell auf der
+Zielhardware ausgewaehlt oder aktiviert.
+
+Der spaetere Betriebsauftrag folgt ausschliesslich dem
+[`M11-Abnahme- und Rolloutvertrag`](MAIL_SEARCH_M11_ACCEPTANCE_AND_ROLLOUT.md):
+unveraenderliche Digests und read-only Health pruefen, Kapazitaet planen,
+lokales und gegebenenfalls externes Backup verifizieren, Schema staged migrieren,
+einen begrenzten Canary ausfuehren, Coverage und Suchqualitaet vergleichen und
+Vollbackfill, Automatik, Modell und inkrementellen Job jeweils separat freigeben.
+Bei Verschlechterung wird auf Serversuche zurueckgeschaltet. Ein lokaler
+Image-/Indexrollback stellt keine externe Mail wieder her und behauptet dies nie.
+
 ### Erste M9-Mailordner-Aktivierung
 
 Eine vor M9 bestehende Mailkonfiguration besitzt noch kein `folders.relevant`.

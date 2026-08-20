@@ -82,6 +82,12 @@ jobs:
         run: ./scripts/check-container-hardening.sh openclaw-agent:m7-ci
       - name: Hermetic M8 protocol and failure-injection stack
         run: ./scripts/check-m8-integration.sh
+      - name: Hermetic M11 mail-index end-to-end stack
+        env:
+          OPENCLAW_M11_RUNTIME_IMAGE: openclaw-agent:m7-ci
+        run: ./scripts/check-m11-integration.sh
+      - name: Record synthetic M11 acceptance comparison
+        run: .venv/bin/python scripts/benchmark_mail_acceptance_m118.py --output build/m11-acceptance.json
       - name: Record M7 image baseline
         run: |
           python3 scripts/benchmark-m7.py \
@@ -98,4 +104,6 @@ jobs:
             build/m7/
             build/m7-baseline.json
             build/m8-integration.json
+            build/m11-integration.json
+            build/m11-acceptance.json
           if-no-files-found: error

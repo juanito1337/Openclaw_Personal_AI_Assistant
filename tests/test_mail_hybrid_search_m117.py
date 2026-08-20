@@ -324,6 +324,31 @@ def test_locatorless_index_falls_back_and_explicit_local_never_proves_absence(
     assert local["results"][0]["live_locator"] is None
 
 
+def test_authoritative_delete_keeps_history_without_poisoning_active_locator_coverage(
+    storage: AssistantStorage,
+) -> None:
+    retained = _record("20a", subject="Retained", body="active needle")
+    deleted = _record("20b", subject="Deleted", body="obsolete content")
+    _publish(storage, [retained, deleted], generation="before-delete")
+    _publish(storage, [retained], generation="after-delete")
+    server = RecordingServer()
+
+    status = storage.mail_index_status(max_age_seconds=7200)
+    result = MailHybridSearch(storage, server, _config()).search("needle")
+
+    assert status["search_eligible"] is True
+    assert status["locators"] == {
+        "complete": True,
+        "current": 1,
+        "located_contents": 1,
+        "contents": 1,
+        "retained_historical_contents": 1,
+    }
+    assert result["backend"] == "local-hybrid"
+    assert result["complete"] is True
+    assert server.search_calls == 0
+
+
 class SemanticProvider:
     def __init__(self, *, fail_query: bool = False) -> None:
         self.fail_query = fail_query

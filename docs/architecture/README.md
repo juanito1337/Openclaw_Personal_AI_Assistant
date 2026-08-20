@@ -152,6 +152,13 @@ Importgraphen auf Zyklen.
   auf die Serversuche. `mail read` prueft Ordner, Mailbox-ID und erwarteten
   Betreff erneut; der Index autorisiert keine Aktion. M11.7 aktiviert weiterhin
   weder einen Indexjob noch ein Embeddingmodell.
+  [ADR-0033](adr/0033-m11-abnahme-und-rolloutgrenze.md) schliesst M11 mit einem
+  hermetischen, synthetischen Containerfluss ab und trennt diese
+  Entwicklungsabnahme vom produktiven Backfill-, Job- und Modellrollout.
+  Historische tombstonte Contents duerfen fuer Audit und Wiederverwendung
+  erhalten bleiben; die aktive Locatorabdeckung zaehlt ausschliesslich
+  nicht-tombstonte Suchdokumente. Der produktive Rollout bleibt ohne belegte
+  UID-/UIDVALIDITY-/stabile-Ordner-ID-Semantik fail-closed.
 - Instanzkonfiguration und Secrets liegen getrennt unter `/srv/openclaw/config` und
   `/srv/openclaw/secrets`; Rollen sehen daraus nur benoetigte read-only Dateien.
 - ClamAV-Signaturen liegen im Docker-Volume `clamav-db`; nur `clamav-update` schreibt.
