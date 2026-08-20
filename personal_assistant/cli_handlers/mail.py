@@ -133,12 +133,36 @@ def handle(args: argparse.Namespace, assistant: Any, emit: Callable[[Any], None]
             label=args.label,
             approved=args.yes,
         )
+    elif command == "index" and args.index_command == "status":
+        result = assistant.mail_index_status()
+    elif command == "index" and args.index_command == "doctor":
+        result = assistant.mail_index_doctor()
     elif command == "move-status":
         result = assistant.mail_move_status()
     elif command == "list":
         result = assistant.mail_list_messages(args.folder, limit=args.limit)
     elif command == "search":
-        result = assistant.mail_search_messages(args.query, limit=args.limit)
+        has_attachment = (
+            None if args.has_attachment is None else args.has_attachment == "yes"
+        )
+        result = assistant.mail_search_messages(
+            args.query,
+            limit=args.limit,
+            mode=args.mode,
+            context_limit=args.context_limit,
+            filters=MailSearchFilters(
+                sender=args.sender,
+                participant=args.participant,
+                after=args.after,
+                before=args.before,
+                folder=args.folder,
+                category=args.category,
+                review_reason=args.review_reason,
+                has_attachment=has_attachment,
+                attachment_type=args.attachment_type,
+                tags=tuple(args.tag),
+            ),
+        )
     elif command == "search-local":
         has_attachment = (
             None if args.has_attachment is None else args.has_attachment == "yes"

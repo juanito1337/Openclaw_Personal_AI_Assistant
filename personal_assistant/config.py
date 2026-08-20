@@ -51,6 +51,11 @@ class SearchConfig:
     )
     mail_projection_max_age_seconds: int = 7200
     semantic_provider: str = "disabled"
+    semantic_model: str = ""
+    semantic_model_digest: str = ""
+    semantic_dimension: int = 0
+    semantic_context_limit: int = 8192
+    ollama_coordinator_url: str = "http://127.0.0.1:11435"
 
 
 @dataclass(slots=True)
@@ -117,6 +122,20 @@ def _validate(config: AssistantConfig) -> None:
         errors.append("search.default_limit muss zwischen 1 und 200 liegen")
     if config.search.semantic_provider not in {"disabled", "ollama"}:
         errors.append("search.semantic_provider muss disabled oder ollama sein")
+    if config.search.semantic_provider == "ollama":
+        if not config.search.semantic_model.strip():
+            errors.append("search.semantic_model fehlt fuer semantic_provider=ollama")
+        digest = config.search.semantic_model_digest.strip().casefold()
+        if (
+            not digest.startswith("sha256:")
+            or len(digest) != 71
+            or any(char not in "0123456789abcdef" for char in digest[7:])
+        ):
+            errors.append("search.semantic_model_digest muss sha256:<64 Hexzeichen> sein")
+        if not 1 <= config.search.semantic_dimension <= 8192:
+            errors.append("search.semantic_dimension muss zwischen 1 und 8192 liegen")
+        if config.search.semantic_context_limit < 256:
+            errors.append("search.semantic_context_limit muss mindestens 256 sein")
     for name in (
         config.nextcloud.base_url_env,
         config.nextcloud.username_env,

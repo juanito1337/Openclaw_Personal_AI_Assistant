@@ -645,6 +645,55 @@ class MailLexicalSearch:
             "coverage": coverage,
         }
 
+    def index_state(self, *, max_age_seconds: int) -> dict[str, Any]:
+        """Expose the validated generation state without running a query."""
+
+        return self._index_state(max_age_seconds=max_age_seconds)
+
+    def locators(self, content_id: str) -> tuple[list[str], list[dict[str, Any]]]:
+        """Return occurrence identities and locator evidence for one indexed mail."""
+
+        rows = self.connection.execute(
+            """
+            SELECT o.occurrence_id,o.index_generation,o.source_status,o.tombstoned_at,
+                   o.conflict_code,l.locator_id,l.resource_id,l.folder_id,l.folder_name,
+                   l.mailbox_id,l.uidvalidity,l.uid,l.observed_at,l.is_current,l.quarantine
+            FROM mail_search_occurrences o
+            LEFT JOIN mail_search_locators l ON l.occurrence_id=o.occurrence_id
+            WHERE o.content_id=?
+            ORDER BY o.occurrence_id,l.is_current DESC,l.quarantine,
+                     lower(l.folder_name),l.mailbox_id,l.locator_id
+            """,
+            (content_id,),
+        ).fetchall()
+        occurrences = sorted({str(row["occurrence_id"]) for row in rows})
+        locators: list[dict[str, Any]] = []
+        for row in rows:
+            if row["locator_id"] is None:
+                continue
+            current = bool(row["is_current"]) and row["tombstoned_at"] is None
+            locators.append(
+                {
+                    "occurrence_id": str(row["occurrence_id"]),
+                    "locator_id": str(row["locator_id"]),
+                    "resource_id": str(row["resource_id"]),
+                    "folder_id": str(row["folder_id"]),
+                    "folder": str(row["folder_name"]),
+                    "mailbox_id": str(row["mailbox_id"] or ""),
+                    "uidvalidity": str(row["uidvalidity"] or ""),
+                    "uid": str(row["uid"] or ""),
+                    "observed_at": str(row["observed_at"] or ""),
+                    "current_in_index": current,
+                    "stale": not current,
+                    "quarantine": bool(row["quarantine"]),
+                    "source_status": str(row["source_status"] or ""),
+                    "source_generation": str(row["index_generation"] or ""),
+                    "conflict_code": str(row["conflict_code"] or ""),
+                    "live_state": "not-validated",
+                }
+            )
+        return occurrences, locators
+
     def _thread_metadata(self, content_id: str) -> dict[str, Any] | None:
         row = self.connection.execute(
             """
@@ -1020,6 +1069,17 @@ class MailLexicalSearch:
                     "source_status": str(row["source_status"] or ""),
                 }
             )
+            occurrences, locators = self.locators(content_id)
+            results[-1]["occurrence_ids"] = occurrences
+            results[-1]["locators"] = locators
+            results[-1]["live_locator"] = None
+            results[-1]["source_reference"] = {
+                "resource_id": "mail-agent",
+                "content_id": content_id,
+                "occurrence_ids": occurrences,
+                "index_generation": str(row["index_generation"] or ""),
+                "locator_validation": "pending",
+            }
         query_hit_ids = {str(item["content_id"]) for item in results}
         if context_limit:
             for item in results:

@@ -266,8 +266,66 @@ installed models and their exact local digests:
 ```
 
 This command never pulls a model. A successful target-hardware report still
-needs a separate model-selection and productive activation approval. M11.7 owns
-future hybrid fusion, agent routing and live locators.
+needs a separate model-selection and productive activation approval.
+
+M11.7 makes the compatible `mail search` entry agent-facing and hybrid without
+activating a model or background job:
+
+```bash
+./scripts/assistant.sh mail index status
+./scripts/assistant.sh mail index doctor
+./scripts/assistant.sh mail index plan
+./scripts/assistant.sh mail search --query "Projekt Aurora" --limit 20
+./scripts/assistant.sh mail search --query "Rechnung" \
+  --sender "billing@example.invalid" --after "2026-01-01" \
+  --category invoice --context-limit 2 --limit 20
+```
+
+The default `--mode auto` uses the local path only when `mail index status`
+proves a complete, authoritative and fresh generation, working FTS and a current
+locator for every indexed content. Otherwise it switches visibly to the
+existing server path and reports `fallback_used=true` plus exact reasons. The
+diagnostic modes `--mode local` and `--mode server` cannot relax those evidence
+rules; in particular, an incomplete local result never proves absence.
+
+`mail-hybrid-rrf-v1` uses weighted reciprocal rank fusion with `k=60`.
+Lexical, semantic, structured-filter and thread components use weights 1.0,
+0.7, 0.10 and 0.05. Each hit reports ranks, components and match reasons. A
+semantic-only item remains `role=semantic-candidate`, `query_match=false` and
+`evidence_for_query=false`. With the default disabled semantic provider, the
+same path remains a deterministic lexical/structured/thread search and reports
+`semantic_state=disabled`. Model or proxy failure becomes
+`degraded-lexical-only`; FTS evidence remains available.
+
+Every positive local result contains content and occurrence IDs, all indexed
+locators, one deterministic live locator, a query-centered snippet, tags,
+thread context, score provenance and a source reference. The server checks only
+the candidate folders first. A unique exact subject/sender match after a move is
+`resolved-after-move`; missing or ambiguous copies trigger the safe server
+fallback in auto mode. A local zero result needs no IMAP call once index
+eligibility has been proved.
+
+The returned top-level fields always include `complete`, `coverage`,
+`freshness`, `index_generation`, `semantic_state`, `fallback_used`,
+`folder_errors` and `results_may_be_truncated`. Server fallback cannot prove
+local-only category, review, attachment or tag filters; these appear under
+`filter_limitations` and keep `complete=false`.
+
+Before reading a hit, use exactly its `live_locator.folder`,
+`live_locator.mailbox_id` and subject:
+
+```bash
+./scripts/assistant.sh mail read \
+  --folder "<live_locator.folder>" \
+  --message-id "<live_locator.mailbox_id>" \
+  --expected-subject "<subject>"
+```
+
+`mail read` revalidates all three fields. A moved or disappeared locator returns
+`mail-locator-conflict`; the index never authorizes a read, move, draft or send.
+M11.7 does not run `mail index backfill`, `mail index reconcile`, start a job,
+pull a model or change productive state. The durable decision is
+[ADR-0032](architecture/adr/0032-hybrid-mail-search-und-live-locator.md).
 
 ## Sources
 
@@ -295,5 +353,6 @@ future hybrid fusion, agent routing and live locators.
 SQLite FTS5 supplies fast lexical search. Metadata filters restrict source type and
 resource. Search results contain source IDs, URIs, snippets, and metadata for citation.
 
-Semantic search is deliberately not faked. The provider interface is prepared, but a
-local embedding model must be selected and tested before activation.
+Semantic activation is deliberately not faked. Hybrid routing reports the
+semantic state, but a local embedding model still needs a measured target-hardware
+comparison and separate approval before configuration or indexing.

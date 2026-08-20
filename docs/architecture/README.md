@@ -143,6 +143,15 @@ Importgraphen auf Zyklen.
   Ollama-Prioritaetsproxy. Exakte Kosinussuche ist die gemessene korrekte
   Ausgangsimplementierung und degradiert bei jedem Modellfehler sichtbar auf
   FTS. Kein echtes Modell, produktiver Job oder neue Suchpraeferenz ist aktiviert.
+  Die M11.7-Orchestrierung aus
+  [ADR-0032](adr/0032-hybrid-mail-search-und-live-locator.md) verwendet den
+  lokalen Hybridpfad nur bei vollstaendiger, autoritativer und frischer
+  Generation samt aktuellem Locator fuer jeden Content. Sie fusioniert
+  erklaerbare Lexik-, Semantik-, Filter- und Threadsignale, validiert nur die
+  Locator der positiven Treffer live und faellt bei jeder Unsicherheit sichtbar
+  auf die Serversuche. `mail read` prueft Ordner, Mailbox-ID und erwarteten
+  Betreff erneut; der Index autorisiert keine Aktion. M11.7 aktiviert weiterhin
+  weder einen Indexjob noch ein Embeddingmodell.
 - Instanzkonfiguration und Secrets liegen getrennt unter `/srv/openclaw/config` und
   `/srv/openclaw/secrets`; Rollen sehen daraus nur benoetigte read-only Dateien.
 - ClamAV-Signaturen liegen im Docker-Volume `clamav-db`; nur `clamav-update` schreibt.

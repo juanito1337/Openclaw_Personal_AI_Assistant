@@ -40,6 +40,7 @@
     {"path": "docs/architecture/adr/0028-transaktionale-mail-reconciliation.md", "owner": "Data Maintainers"},
     {"path": "docs/architecture/adr/0029-sichere-lokale-mail-lexik-und-tags.md", "owner": "Data Maintainers"},
     {"path": "docs/architecture/adr/0030-konservative-mail-threads-und-kontext.md", "owner": "Data Maintainers"},
-    {"path": "docs/architecture/adr/0031-versionierte-lokale-mail-embeddings.md", "owner": "Data Maintainers"}
+    {"path": "docs/architecture/adr/0031-versionierte-lokale-mail-embeddings.md", "owner": "Data Maintainers"},
+    {"path": "docs/architecture/adr/0032-hybrid-mail-search-und-live-locator.md", "owner": "Security Maintainers"}
   ]
 }

@@ -482,10 +482,16 @@ def main(argv: list[str] | None = None) -> int:
         and args.mail_command == "review"
         and getattr(args, "review_command", "") == "correct"
     )
+    direct_index_diagnostic = bool(
+        args.command == "mail"
+        and args.mail_command == "index"
+        and getattr(args, "index_command", "") in {"status", "doctor"}
+    )
     if (
         args.command == "mail"
         and args.mail_command not in direct_mail_commands
         and not direct_review_correction
+        and not direct_index_diagnostic
     ):
         return run_mail_external(args)
 

@@ -25,6 +25,7 @@ class AgentCapabilityExposureTests(unittest.TestCase):
         )
         documented = "\n".join((skill, agents, references))
         normalized_agents = " ".join(agents.split())
+        normalized_references = " ".join(references.split())
 
         self.assertIn("Release identity: `3.4.0-r28`", skill)
         for command in (
@@ -34,6 +35,9 @@ class AgentCapabilityExposureTests(unittest.TestCase):
             "tasks list --include-completed",
             "tasks update --uid",
             "contacts update --uid",
+            "mail search --query",
+            "mail index status",
+            "mail index doctor",
             "mail compose-draft --to",
             "mail compose-send --draft-id",
             "portfolio import-csv --file",
@@ -58,7 +62,16 @@ class AgentCapabilityExposureTests(unittest.TestCase):
         for claim in stale_claims:
             self.assertNotIn(claim, documented)
         self.assertIn("Do not describe the calendar integration as create-only", agents)
-        self.assertIn("`mail search` searches server-side", references)
+        self.assertIn("`mail search` uses the M11.7 auto path", normalized_references)
+        self.assertIn("eligible local Hybridindex first", normalized_references)
+        self.assertIn("visible server fallback otherwise", normalized_references)
+        self.assertIn(
+            "`semantic_state`, `fallback_used`, `folder_errors`", normalized_references
+        )
+        self.assertIn(
+            "`live_locator.folder` and `live_locator.mailbox_id`", normalized_references
+        )
+        self.assertIn("`--expected-subject` to `mail read`", normalized_references)
         self.assertIn("`complete`,", references)
         self.assertIn("`folder_errors` and `results_may_be_truncated`", references)
         self.assertIn("Bei jedem Suchergebnis `complete`", agents)

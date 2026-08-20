@@ -1,6 +1,6 @@
 # Tests, Qualitaetsbaseline und Container-Runtime
 
-Stand: 2026-08-20, fortgeschrieben bis zum M11.6-Embeddingvertrag.
+Stand: 2026-08-20, fortgeschrieben bis zur M11.7-Hybridsuche.
 Sie startet keine produktiven Dienste und verwendet
 weder `/srv/openclaw` noch produktive Zugangsdaten.
 
@@ -45,14 +45,14 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 858 Tests, darunter mindestens 687 unittest-kompatible Tests
-(die bisherigen 349 sowie M0-M11.6- und Rollout-Regressionstests),
+fordert mindestens 873 Tests, darunter mindestens 687 unittest-kompatible Tests
+(die bisherigen 349 sowie M0-M11.7- und Rollout-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
 nach dem Sammeln mit einem Fehler ab. Neue Tests duerfen die Zahl erhoehen; die
 Baseline wird erst nach einem vollstaendigen gruenen Lauf bewusst angehoben.
 
-## M0-Ausgangswerte und aktueller M11.6-Teststand
+## M0-Ausgangswerte und aktueller M11.7-Teststand
 
 Gemessen auf Linux x86_64 mit Python 3.12.3. Die Werte sind Beobachtungen und noch
 keine willkuerlichen Mindestquoten. `scripts/quality-baseline.py` erzeugt sie nach
@@ -97,6 +97,7 @@ der aktuellen Python-Dateien.
 | Tests nach M11.4 gesammelt/ausgefuehrt | 813 / 813 (900 JUnit-Faelle inklusive 87 Subtests) |
 | Tests nach M11.5 gesammelt/ausgefuehrt | 832 / 832 (919 JUnit-Faelle inklusive 87 Subtests) |
 | Tests nach M11.6 gesammelt/ausgefuehrt | 858 / 858 (945 JUnit-Faelle inklusive 87 Subtests) |
+| Tests nach M11.7 gesammelt/ausgefuehrt | 873 / 873 (960 JUnit-Faelle inklusive 87 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -124,6 +125,7 @@ der aktuellen Python-Dateien.
 | neue M11.4-Lexik-/Tag-/Benchmark-Regressionsitems | 22 |
 | neue M11.5-Thread-/Kontext-/Normalisierungs-Regressionsitems | 19 |
 | neue M11.6-Embedding-/Cache-/Koordinator-Regressionsitems | 26 |
+| neue M11.7-Hybrid-/Fallback-/Live-Locator-Regressionsitems | 15 |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |
 | Gesamt-Coverage inklusive Branches (M8) | 59,18 % |
@@ -173,6 +175,8 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach M11.5 | 52,90 % |
 | Gesamt-Coverage nach M11.6 | 66,55 % |
 | reine Branch-Coverage nach M11.6 | 53,11 % |
+| Gesamt-Coverage nach M11.7 | 66,83 % |
+| reine Branch-Coverage nach M11.7 | 53,39 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -216,8 +220,8 @@ der aktuellen Python-Dateien.
 | sauberer Container-Erstbuild | ca. 411,92 s |
 | M6-Cache-Rebuild | 11 s |
 | Container-CLI-Kaltstart | 1.081 ms |
-| bekannte mypy-Altbefunde | 109 exakt baselinierte Befunde in 21 Dateien; 15 behoben |
-| bekannte Ruff-Altbefunde | 504 exakt baselinierte Befunde; 277 behoben |
+| bekannte mypy-Altbefunde | 108 exakt baselinierte Befunde in 20 Dateien; 16 behoben |
+| bekannte Ruff-Altbefunde | 497 exakt baselinierte Befunde; 284 behoben |
 
 ## M10.0-Rechnungsqualitaet
 
@@ -759,6 +763,39 @@ Qualitaet, RAM, Modellgroesse, Cold/Warm-Zeit noch Queuewerte fuer echte Modelle
 erfunden worden. Der spaetere Zielhardwarebefehl steht in `docs/SEARCH.md` und
 verlangt mindestens zwei bereits installierte, vollstaendig digestverifizierte
 Modelle ueber den Prioritaetsproxy.
+
+## M11.7-Hybrid-, Fallback- und Live-Locator-Tests
+
+M11.7 arbeitet in den Tests ausschliesslich mit synthetischen Nachrichten,
+temporaeren SQLite-Datenbanken sowie kontrollierten Fake-IMAP- und
+Fake-Embedding-Backends. Es wird kein produktives Postfach gelesen oder
+veraendert, kein Modell gezogen und weder Backfill noch Job gestartet. Die
+gezielte Abnahme lautet:
+
+```bash
+OPENCLAW_ENFORCE_TEST_BASELINE=0 PYTHONPATH=. .venv/bin/python -m pytest -q \
+  tests/test_mail_hybrid_search_m117.py \
+  tests/test_mail_embeddings_m116.py \
+  tests/test_mail_threads_m115.py \
+  tests/test_mail_search_lexical_m114.py \
+  tests/test_mail_search_reconcile_m113.py
+```
+
+Die 15 neuen Verhaltensitems pruefen, dass ein vollstaendiger und frischer Index
+die ordnerweise Serversuche vermeidet, waehrend Teilabdeckung, fehlende
+Autoritaet, Alter, fehlendes FTS oder Locatorluecken sichtbar auf den Serverpfad
+fallen. Ein expliziter lokaler Diagnosemodus darf dabei kein vollstaendiges
+Negativergebnis vortaeuschen. Serverfilter ohne gleichwertige IMAP-Semantik
+werden als Einschraenkung ausgewiesen.
+
+Weitere Faelle belegen die deterministische RRF-Rangfolge, lexikalischen Erhalt
+bei semantischem Timeout, den Nicht-Faktenstatus semantischer Einzelkandidaten,
+eindeutige Move-Neuaufloesung, Konflikte bei Kopien, deterministische Auswahl
+mehrerer gueltiger Occurrences und die erneute Ordner-/ID-/Betreffpruefung bei
+`mail read`. Eine Prompt-Injection im Suchtext oder Treffer bleibt reine
+Nutzlast; Backend-Aufrufzahlen und fehlende Schreibwirkungen werden explizit
+assertiert. Status, Doctor, CLI, Service, Toolkatalog und generierter Skillvertrag
+sind Teil derselben Regression.
 
 ## Ruff-/mypy-Ausgangsbaseline und enge Ausnahmen
 

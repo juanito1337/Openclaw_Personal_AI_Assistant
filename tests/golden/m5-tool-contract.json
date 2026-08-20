@@ -609,6 +609,22 @@
   },
   {
     "approval": "none",
+    "command": "./scripts/assistant.sh mail index status",
+    "description": "Lokale Mailindex-Coverage, Generation, Alter, Locatorabdeckung und semantischen Zustand read-only anzeigen",
+    "id": "mail.index.status",
+    "mode": "read",
+    "writes_external_data": false
+  },
+  {
+    "approval": "none",
+    "command": "./scripts/assistant.sh mail index doctor",
+    "description": "SQLite-, FTS-, Generation-, Locator- und Embeddingintegritaet des lokalen Mailindex read-only pruefen",
+    "id": "mail.index.doctor",
+    "mode": "read",
+    "writes_external_data": false
+  },
+  {
+    "approval": "none",
     "command": "./scripts/assistant.sh mail index plan",
     "description": "Alle lesbaren Mailordner und belegten Connectorfaehigkeiten fuer den begrenzten Vollkonto-Index read-only inventarisieren",
     "id": "mail.index.plan",
@@ -778,7 +794,7 @@
   {
     "approval": "none",
     "command": "./scripts/assistant.sh mail search --query \"<Suchbegriff>\" --limit 50",
-    "description": "Mails serverseitig in Absender, Betreff und Text ordneruebergreifend einschliesslich Review-Ordnern durchsuchen; Vollstaendigkeit und Ergebnislimit in der Rueckgabe pruefen",
+    "description": "Mails im Standardmodus ueber einen frischen vollstaendigen lokalen Hybridindex suchen, Treffer-Locator live validieren und bei fehlender Coverage oder Frische sichtbar serverseitig fallen; alle Statusfelder pruefen",
     "id": "mail.search",
     "mode": "read",
     "writes_external_data": false

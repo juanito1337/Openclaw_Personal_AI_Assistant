@@ -115,6 +115,8 @@ den fuehrenden Launcher durch `/opt/openclaw-agent/scripts/assistant.sh` ersetze
 | `mail.folders.plan` | `read` | nein | `none` | `always` | `./scripts/assistant.sh mail folders plan` | `tests/test_mail_review_m9.py` |
 | `mail.folders.apply` | `write` | ja | `explicit-user-create-configured-mail-folders` | `always` | `./scripts/assistant.sh mail folders apply --yes` | `tests/test_mail_review_m9.py` |
 | `mail.folders.activate-relevant` | `write` | ja | `explicit-user-configure-and-create-relevant-folder` | `always` | `./scripts/assistant.sh mail folders activate-relevant --relevant "Agent/Relevant" --yes` | `tests/test_mail_review_m9.py` |
+| `mail.index.status` | `read` | nein | `none` | `always` | `./scripts/assistant.sh mail index status` | `tests/test_mail_hybrid_search_m117.py` |
+| `mail.index.doctor` | `read` | nein | `none` | `always` | `./scripts/assistant.sh mail index doctor` | `tests/test_mail_hybrid_search_m117.py` |
 | `mail.index.plan` | `read` | nein | `none` | `always` | `./scripts/assistant.sh mail index plan` | `tests/test_mail_search_backfill_m112.py` |
 | `mail.index.backfill` | `local-write` | nein | `explicit-user-local-mail-index-backfill` | `always` | `./scripts/assistant.sh mail index backfill --page-size 50 --max-pages 200 --max-messages 10000 --max-bytes 1000000000 --max-message-bytes 100000000 --max-runtime 3600 --request-interval 0.2 --yes` | `tests/test_mail_search_backfill_m112.py` |
 | `mail.index.reconcile` | `local-write` | nein | `explicit-user-local-mail-index-reconcile` | `always` | `./scripts/assistant.sh mail index reconcile --max-folders 500 --max-messages 100000 --max-bytes 2000000000 --max-message-bytes 100000000 --max-runtime 3600 --request-interval 0.2 --retention-generations 2 --yes` | `tests/test_mail_search_reconcile_m113.py` |
@@ -136,7 +138,7 @@ den fuehrenden Launcher durch `/opt/openclaw-agent/scripts/assistant.sh` ersetze
 | `mail.spam-review` | `write` | ja | `quarantine-rescue-policy` | `always` | `./scripts/assistant.sh mail spam-review --limit 20` | `tests/test_agent_tool_architecture.py` |
 | `mail.move-status` | `read` | nein | `none` | `mail-move` | `./scripts/assistant.sh mail move-status` | `tests/test_agent_tool_architecture.py` |
 | `mail.list` | `read` | nein | `none` | `mail-move` | `./scripts/assistant.sh mail list --folder "<Ordner>" --limit 50` | `tests/test_agent_tool_architecture.py` |
-| `mail.search` | `read` | nein | `none` | `mail-move` | `./scripts/assistant.sh mail search --query "<Suchbegriff>" --limit 50` | `tests/test_agent_tool_architecture.py` |
+| `mail.search` | `read` | nein | `none` | `mail-move` | `./scripts/assistant.sh mail search --query "<Suchbegriff>" --limit 50` | `tests/test_mail_hybrid_search_m117.py` |
 | `mail.read` | `read` | nein | `none` | `mail-move` | `./scripts/assistant.sh mail read --folder "<Ordner>" --message-id "<ID>" --expected-subject "<Betreff>"` | `tests/test_agent_tool_architecture.py` |
 | `mail.reply-draft` | `local-write` | nein | `draft-only-no-send` | `mail-move` | `./scripts/assistant.sh mail reply-draft --folder "<Ordner>" --message-id "<ID>" --expected-subject "<Betreff>" --body "<Entwurf>"` | `tests/test_agent_tool_architecture.py` |
 | `mail.reply-send` | `write` | ja | `explicit-user-approved-presented-draft` | `mail-move` | `./scripts/assistant.sh mail reply-send --draft-id "<Entwurfs-ID>" --yes` | `tests/test_agent_tool_architecture.py` |

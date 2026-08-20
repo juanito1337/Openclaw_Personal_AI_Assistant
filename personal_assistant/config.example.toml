@@ -17,8 +17,15 @@ nextcloud_max_depth = 6
 nextcloud_max_items = 2000
 mail_snapshot_dir = "mail_agent/data/search_documents"
 mail_projection_max_age_seconds = 7200
-# Optional extension point. No embedding model is forced in 3.4.0.
+# Optional M11.7 extension point. Disabled until two real models have been
+# measured and one exact local digest has been approved. All calls use the
+# priority coordinator; port 11434 is deliberately not accepted by the client.
 semantic_provider = "disabled"
+semantic_model = ""
+semantic_model_digest = ""
+semantic_dimension = 0
+semantic_context_limit = 8192
+ollama_coordinator_url = "http://127.0.0.1:11435"
 
 [nextcloud]
 enabled = false

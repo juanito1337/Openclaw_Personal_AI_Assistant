@@ -10,6 +10,7 @@ from typing import Any
 
 from .contracts.time import now_utc_iso
 from .mail_embeddings import EmbeddingModel, EmbeddingProvider, MailEmbeddingIndex
+from .mail_index_diagnostics import MailIndexDiagnostics
 from .mail_search import MailLexicalSearch, MailSearchFilters, build_mail_tags
 from .mail_threads import (
     MAIL_RETRIEVAL_TEXT_VERSION,
@@ -1214,6 +1215,34 @@ class AssistantStorage:
             model=model,
             provider=provider,
             limit=limit,
+        )
+
+    def mail_index_status(
+        self,
+        *,
+        max_age_seconds: int = 7200,
+        semantic_model: EmbeddingModel | None = None,
+    ) -> dict[str, Any]:
+        return MailIndexDiagnostics(
+            self.knowledge_connection,
+            fts_enabled=self.mail_search_fts_enabled,
+        ).status(
+            max_age_seconds=max_age_seconds,
+            semantic_model=semantic_model,
+        )
+
+    def mail_index_doctor(
+        self,
+        *,
+        max_age_seconds: int = 7200,
+        semantic_model: EmbeddingModel | None = None,
+    ) -> dict[str, Any]:
+        return MailIndexDiagnostics(
+            self.knowledge_connection,
+            fts_enabled=self.mail_search_fts_enabled,
+        ).doctor(
+            max_age_seconds=max_age_seconds,
+            semantic_model=semantic_model,
         )
 
     def search(

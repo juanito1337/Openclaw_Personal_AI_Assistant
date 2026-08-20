@@ -2,6 +2,32 @@
 
 ## Unreleased – M11 Mail-Suchindex
 
+### M11.7 Agentengerechte Hybrid-Suche und Live-Locator
+
+- Der kompatible Einstieg `mail search` verwendet im Standardmodus den lokalen
+  Index nur bei nachgewiesener Vollstaendigkeit, Autoritaet, Frische,
+  FTS-Verfuegbarkeit und aktueller Locatorabdeckung. Alle anderen Zustaende
+  fallen sichtbar auf die bestehende Serverabfrage zurueck; unvollstaendige
+  Ergebnisse duerfen keine Abwesenheit belegen.
+- `mail-hybrid-rrf-v1` fusioniert lexikalische, optionale semantische,
+  strukturierte und Threadsignale deterministisch mit offengelegten Teilranks.
+  Semantische Einzeltreffer bleiben ausdruecklich Kandidaten ohne Faktenstatus;
+  Modell-, Proxy- oder Vektorfehler degradieren auf belegte Lexik.
+- Die neuen read-only Werkzeuge `mail index status` und `mail index doctor`
+  pruefen Generation, Coverage, Alter, FTS, Locator, SQLite und Embeddings. Plan,
+  Backfill und Reconciliation behalten ihre getrennten Wirkungs- und
+  Freigabevertraege.
+- Positive lokale Treffer werden begrenzt gegen IMAP revalidiert. Ein eindeutiger
+  externer Move kann neu aufgeloest werden, mehrere Kopien oder ein
+  verschwundener Locator werden als Konflikt behandelt. `mail read` verlangt
+  Ordner, Mailbox-ID und den unveraenderten erwarteten Betreff erneut.
+- Die Suchantwort weist Vollstaendigkeit, Coverage, Frische, Generation,
+  semantischen Zustand, Fallback, Ordnerfehler, Filtergrenzen und Trunkierung
+  aus. Suchtext, Trefferinhalt und Modellantwort bleiben unvertrauenswuerdige
+  Daten und koennen keine Aktion ausloesen.
+- M11.7 startet keinen produktiven Indexlauf oder Job, zieht und aktiviert kein
+  Modell und veraendert weder produktive Maildaten noch `/srv/openclaw`.
+
 ### M11.6 Versionierte lokale Embeddings und semantisches Retrieval
 
 - `mail-embedding-v1` bindet Float32-Vektoren an Raw-SHA-256, normalisierten

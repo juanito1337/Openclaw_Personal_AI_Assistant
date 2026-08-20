@@ -3,6 +3,37 @@ from __future__ import annotations
 from typing import Any
 
 
+def _add_search_filters(parser: Any) -> None:
+    parser.add_argument("--sender", default="")
+    parser.add_argument("--participant", default="")
+    parser.add_argument("--after", default="")
+    parser.add_argument("--before", default="")
+    parser.add_argument("--folder", default="")
+    parser.add_argument(
+        "--category",
+        default="",
+        choices=("", "appointment", "invoice", "order", "relevant", "routine", "spam", "uncertain"),
+    )
+    parser.add_argument(
+        "--review-reason",
+        default="",
+        choices=(
+            "",
+            "appointment-review",
+            "classification-uncertain",
+            "invoice-review",
+            "relevant-not-forwarded",
+            "routine-below-threshold",
+            "safety-blocked",
+            "spam-below-threshold",
+            "unknown-legacy",
+        ),
+    )
+    parser.add_argument("--has-attachment", choices=("yes", "no"), default=None)
+    parser.add_argument("--attachment-type", default="")
+    parser.add_argument("--tag", action="append", default=[])
+
+
 def add_commands(sub: Any) -> None:
     invoices = sub.add_parser("invoices", help="Rechnungs-OCR, Metadaten und Jahresregister")
     invoices_sub = invoices.add_subparsers(dest="invoices_command", required=True)
@@ -166,6 +197,8 @@ def add_commands(sub: Any) -> None:
         "index", help="Vollkonto-Suchprojektion read-only planen oder lokal aufbauen"
     )
     index_sub = mail_index.add_subparsers(dest="index_command", required=True)
+    index_sub.add_parser("status", help="Coverage, Alter, Generation und semantischen Zustand anzeigen")
+    index_sub.add_parser("doctor", help="SQLite, FTS, Locator und Embeddings read-only pruefen")
     index_sub.add_parser("plan", help="Ordner und Connectorfaehigkeiten read-only inventarisieren")
     index_backfill = index_sub.add_parser(
         "backfill", help="Begrenzten lokalen Backfill nach expliziter Freigabe ausfuehren"
@@ -211,43 +244,19 @@ def add_commands(sub: Any) -> None:
     mail_list.add_argument("--limit", type=int, default=50)
     mail_search = mail_sub.add_parser(
         "search",
-        help="Mails ordneruebergreifend serverseitig in Absender, Betreff und Text durchsuchen",
+        help="Mails ueber den sicheren lokalen Hybridindex mit sichtbarem Server-Fallback suchen",
     )
     mail_search.add_argument("--query", required=True)
     mail_search.add_argument("--limit", type=int, default=50)
+    mail_search.add_argument("--mode", choices=("auto", "local", "server"), default="auto")
+    mail_search.add_argument("--context-limit", type=int, default=0)
+    _add_search_filters(mail_search)
     local_search = mail_sub.add_parser(
         "search-local",
         help="Validierten lokalen Mailindex lexikalisch und strukturiert durchsuchen",
     )
     local_search.add_argument("--query", default="")
-    local_search.add_argument("--sender", default="")
-    local_search.add_argument("--participant", default="")
-    local_search.add_argument("--after", default="")
-    local_search.add_argument("--before", default="")
-    local_search.add_argument("--folder", default="")
-    local_search.add_argument(
-        "--category",
-        default="",
-        choices=("", "appointment", "invoice", "order", "relevant", "routine", "spam", "uncertain"),
-    )
-    local_search.add_argument(
-        "--review-reason",
-        default="",
-        choices=(
-            "",
-            "appointment-review",
-            "classification-uncertain",
-            "invoice-review",
-            "relevant-not-forwarded",
-            "routine-below-threshold",
-            "safety-blocked",
-            "spam-below-threshold",
-            "unknown-legacy",
-        ),
-    )
-    local_search.add_argument("--has-attachment", choices=("yes", "no"), default=None)
-    local_search.add_argument("--attachment-type", default="")
-    local_search.add_argument("--tag", action="append", default=[])
+    _add_search_filters(local_search)
     local_search.add_argument("--limit", type=int, default=50)
     local_search.add_argument(
         "--context-limit",
@@ -258,7 +267,7 @@ def add_commands(sub: Any) -> None:
     mail_read = mail_sub.add_parser("read", help="Eine eindeutig identifizierte Mail read-only lesen")
     mail_read.add_argument("--folder", required=True)
     mail_read.add_argument("--message-id", required=True)
-    mail_read.add_argument("--expected-subject", default="")
+    mail_read.add_argument("--expected-subject", required=True)
     mail_draft_reply = mail_sub.add_parser(
         "reply-draft", help="Antwortentwurf fuer eine ausgewaehlte Mail anlegen"
     )

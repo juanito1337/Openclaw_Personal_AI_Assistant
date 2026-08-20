@@ -2,9 +2,14 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..mail_hybrid_search import MailHybridSearch, _configured_model
+from ..mail_search import MailSearchFilters
+
 
 class MailApplicationMixin:
     mail_move_service: Any
+    storage: Any
+    config: Any
 
     def mail_move_status(self) -> dict[str, Any]:
         return self.mail_move_service.status()
@@ -12,8 +17,44 @@ class MailApplicationMixin:
     def mail_list_messages(self, folder: str, *, limit: int = 50) -> dict[str, Any]:
         return self.mail_move_service.list_messages(folder, limit=limit)
 
-    def mail_search_messages(self, query: str, *, limit: int = 50) -> dict[str, Any]:
-        return self.mail_move_service.search_messages(query, limit=limit)
+    def mail_search_messages(
+        self,
+        query: str,
+        *,
+        limit: int = 50,
+        filters: MailSearchFilters | None = None,
+        mode: str = "auto",
+        context_limit: int = 0,
+    ) -> dict[str, Any]:
+        return MailHybridSearch(
+            self.storage,
+            self.mail_move_service,
+            self.config.search,
+        ).search(
+            query,
+            limit=limit,
+            filters=filters,
+            mode=mode,
+            context_limit=context_limit,
+        )
+
+    def mail_index_status(self) -> dict[str, Any]:
+        model, configuration = _configured_model(self.config.search)
+        result = self.storage.mail_index_status(
+            max_age_seconds=self.config.search.mail_projection_max_age_seconds,
+            semantic_model=model,
+        )
+        result["semantic_configuration"] = configuration
+        return result
+
+    def mail_index_doctor(self) -> dict[str, Any]:
+        model, configuration = _configured_model(self.config.search)
+        result = self.storage.mail_index_doctor(
+            max_age_seconds=self.config.search.mail_projection_max_age_seconds,
+            semantic_model=model,
+        )
+        result["semantic_configuration"] = configuration
+        return result
 
     def mail_read_message(
         self, folder: str, message_id: str, *, expected_subject: str = ""

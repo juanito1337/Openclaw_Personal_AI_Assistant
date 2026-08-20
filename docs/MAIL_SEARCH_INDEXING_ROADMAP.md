@@ -2,7 +2,7 @@
 
 Stand: 2026-08-20
 Arbeitsbranch: `development/mail-search-indexing-m11`
-Status: M11.0 bis M11.6 implementiert; reale M11.6-Modellabnahme und M11.7 bis M11.8 offen
+Status: M11.0 bis M11.7 implementiert; reale M11.6-Modellabnahme und M11.8 offen
 
 ## Ziel
 
@@ -696,7 +696,8 @@ hermetisch abgenommen. Zwei echte Modelle konnten im Entwicklungscheckout nicht
 gemessen werden, weil der Prioritaetsproxy nicht erreichbar war; es wurde
 bewusst kein Modell gepullt oder gestartet. Die Zielhardwaremessung von
 mindestens zwei digestverifizierten Modellen und jede produktive Auswahl bleiben
-offen und benoetigen eine separate Freigabe. M11.7 wurde nicht begonnen.
+offen und benoetigen eine separate Freigabe. M11.7 verwendet diesen Vertrag
+optional, aktiviert aber weiterhin kein Modell.
 
 ### Scope
 
@@ -756,6 +757,18 @@ Modell und starte keinen Job ohne separate Freigabe. Stoppe nach M11.6.
 ```
 
 ## M11.7 – Agentengerechte Hybrid-Suche und Live-Locator
+
+Implementierungsstatus 2026-08-20: Der kompatible `mail search`-Einstieg routet
+im Standardmodus nur bei vollstaendigem, autoritativem, frischem und
+locatorvollstaendigem Index auf die lokale Hybridsuche. Jeder andere Zustand
+faellt mit sichtbarer Begruendung auf die Serverabfrage zurueck. Lexik,
+strukturierte Filter, optionales semantisches Retrieval und Threadsignale werden
+reproduzierbar fusioniert; semantische Kandidaten bleiben Nicht-Fakten. Positive
+lokale Treffer erhalten erst nach begrenzter IMAP-Revalidierung einen
+Live-Locator, und `mail read` verlangt und prueft zusaetzlich den erwarteten
+Betreff. Status und Doctor sind registrierte read-only Werkzeuge. Kein
+produktiver Backfill, Job, Modellpull oder Modellwechsel wurde ausgefuehrt;
+M11.8 wurde nicht begonnen.
 
 ### Scope
 

@@ -167,6 +167,168 @@ class MailMoveService:
             "failed_folders": len(errors),
         }
 
+    @staticmethod
+    def _locator_terms(subject: str) -> list[str]:
+        terms: list[str] = []
+        seen: set[str] = set()
+        for term in re.findall(r"[\w@.+-]+", str(subject or ""), flags=re.UNICODE):
+            folded = term.casefold()
+            if folded and folded not in seen:
+                terms.append(term)
+                seen.add(folded)
+            if len(terms) >= 12:
+                break
+        return terms
+
+    @staticmethod
+    def _same_envelope(envelope: Envelope, candidate: dict[str, Any]) -> bool:
+        subject = str(candidate.get("title") or candidate.get("subject") or "").strip()
+        sender_value = candidate.get("sender")
+        sender: dict[str, Any] = sender_value if isinstance(sender_value, dict) else {}
+        sender_address = str(sender.get("address") or candidate.get("sender_addr") or "").casefold()
+        if subject and envelope.subject.strip() != subject:
+            return False
+        return not (
+            sender_address and envelope.sender_addr.strip().casefold() != sender_address
+        )
+
+    def resolve_live_locators(self, candidates: list[dict[str, Any]]) -> dict[str, Any]:
+        """Revalidate only candidate locations and resolve a moved hit conservatively."""
+
+        if not self.settings.enabled:
+            raise PermissionError("Direktes Mail-Lesewerkzeug ist deaktiviert")
+        decision = self.policy.decide(self.settings.resource_id, "mail.read", {"live_locator": True})
+        if not decision.allowed:
+            raise PermissionError(decision.reason)
+        client = self._client()
+        folders, error = client.list_folders()
+        calls = {"list_folders": 1, "list_envelopes": 0, "search_envelopes": 0}
+        if error:
+            return {
+                "ok": False,
+                "complete": False,
+                "results": [],
+                "folder_errors": [{"folder": "*", "error": error}],
+                "backend_calls": calls,
+            }
+        folder_map = self._folder_map(folders)
+        envelope_cache: dict[str, tuple[list[Envelope], str]] = {}
+        folder_errors: list[dict[str, str]] = []
+
+        def envelopes(folder: str) -> list[Envelope]:
+            resolved = folder_map.get(folder.strip().casefold())
+            if not resolved:
+                return []
+            if resolved not in envelope_cache:
+                envelope_cache[resolved] = client.list_envelopes(resolved, limit=200)
+                calls["list_envelopes"] += 1
+                if envelope_cache[resolved][1]:
+                    folder_errors.append(
+                        {"folder": resolved, "error": envelope_cache[resolved][1]}
+                    )
+            return envelope_cache[resolved][0] if not envelope_cache[resolved][1] else []
+
+        resolved_results: list[dict[str, Any]] = []
+        for candidate in candidates:
+            locators = [dict(item) for item in candidate.get("locators") or []]
+            live: list[dict[str, Any]] = []
+            for locator in locators:
+                locator["live_state"] = "stale"
+                if not locator.get("current_in_index") or not locator.get("mailbox_id"):
+                    continue
+                folder = str(locator.get("folder") or "")
+                match = next(
+                    (
+                        item
+                        for item in envelopes(folder)
+                        if str(item.mailbox_id) == str(locator.get("mailbox_id"))
+                        and self._same_envelope(item, candidate)
+                    ),
+                    None,
+                )
+                if match is not None:
+                    locator["live_state"] = "validated"
+                    locator["stale"] = False
+                    live.append(locator)
+
+            state = "validated"
+            selected: dict[str, Any] | None = None
+            if live:
+                selected = sorted(
+                    live,
+                    key=lambda item: (
+                        bool(item.get("quarantine")),
+                        str(item.get("folder") or "").casefold(),
+                        str(item.get("mailbox_id") or ""),
+                        str(item.get("occurrence_id") or ""),
+                    ),
+                )[0]
+                selected = {**selected, "selected": True, "selection": "deterministic-live"}
+            else:
+                matches: list[dict[str, Any]] = []
+                terms = self._locator_terms(
+                    str(candidate.get("title") or candidate.get("subject") or "")
+                )
+                if terms:
+                    for folder in sorted(folders, key=str.casefold):
+                        rows, search_error = client.search_envelopes(folder, terms, limit=200)
+                        calls["search_envelopes"] += 1
+                        if search_error:
+                            folder_errors.append({"folder": folder, "error": search_error})
+                            continue
+                        for envelope in rows:
+                            if not self._same_envelope(envelope, candidate):
+                                continue
+                            matches.append(
+                                {
+                                    "occurrence_id": "",
+                                    "locator_id": "",
+                                    "resource_id": self.settings.resource_id,
+                                    "folder_id": "",
+                                    "folder": folder,
+                                    "mailbox_id": str(envelope.mailbox_id),
+                                    "uidvalidity": "",
+                                    "uid": "",
+                                    "observed_at": "",
+                                    "current_in_index": False,
+                                    "stale": False,
+                                    "quarantine": False,
+                                    "source_status": "live-server",
+                                    "source_generation": "",
+                                    "conflict_code": "",
+                                    "live_state": "resolved-after-move",
+                                    "selected": True,
+                                    "selection": "unique-live-reresolution",
+                                }
+                            )
+                unique = {
+                    (str(item["folder"]), str(item["mailbox_id"])): item for item in matches
+                }
+                if len(unique) == 1:
+                    selected = next(iter(unique.values()))
+                    locators.append(dict(selected))
+                    state = "resolved-after-move"
+                elif len(unique) > 1:
+                    state = "conflict"
+                else:
+                    state = "missing"
+            resolved_results.append(
+                {
+                    "content_id": str(candidate.get("content_id") or ""),
+                    "state": state,
+                    "live_locator": selected,
+                    "locators": locators,
+                    "complete": selected is not None,
+                }
+            )
+        return {
+            "ok": all(bool(item["complete"]) for item in resolved_results) and not folder_errors,
+            "complete": all(bool(item["complete"]) for item in resolved_results) and not folder_errors,
+            "results": resolved_results,
+            "folder_errors": folder_errors,
+            "backend_calls": calls,
+        }
+
     def read_message(
         self,
         folder: str,
@@ -196,10 +358,27 @@ class MailMoveService:
         if error:
             raise RuntimeError(error)
         envelope = next((item for item in envelopes if str(item.mailbox_id) == str(message_id)), None)
+        if envelope is None and expected_subject:
+            terms = self._locator_terms(expected_subject)
+            searched, search_error = client.search_envelopes(resolved, terms, limit=200)
+            if search_error:
+                raise RuntimeError(search_error)
+            envelope = next(
+                (
+                    item
+                    for item in searched
+                    if str(item.mailbox_id) == str(message_id)
+                    and item.subject.strip() == expected_subject.strip()
+                ),
+                None,
+            )
         if envelope is not None and expected_subject and envelope.subject.strip() != expected_subject.strip():
             raise PermissionError("Betreff stimmt nicht mit der erwarteten Mail ueberein")
         if envelope is None:
-            envelope = Envelope(mailbox_id=str(message_id))
+            raise RuntimeError(
+                "mail-locator-conflict: Ordner, Mailbox-ID und erwarteter Betreff "
+                "sind auf dem Server nicht mehr gemeinsam aktuell"
+            )
         with tempfile.TemporaryDirectory(prefix="openclaw-contact-mail-") as folder_path:
             os.chmod(folder_path, 0o700)
             destination = Path(folder_path) / "message.eml"
