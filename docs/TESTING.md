@@ -1183,6 +1183,10 @@ die Layoutsperre, eine manipulierte Legacy-`assistant.sh`, read-only Imagecode,
 unveraenderte Instanzkonfiguration beim Neustart, Release-/OCI-Revision,
 tatsaechliche Modul- und Executable-Pfade, Layout 3, getrennte Rollenmounts sowie der
 vollstaendige Image-Artefaktscan.
+Der Datenbanksplit setzt und prueft dabei explizit Core-Schema 1 und das jeweils
+aktuelle Wissensschema. Der anschliessende Statuslauf muss beide Datenbanken ueber
+die produktive Pfadtrennung schreibfaehig wiedereroeffnen koennen; eine bloss
+bereinigte Tabellenmenge mit falscher SQLite-`user_version` gilt als Fehler.
 Ein vorhandener Compose-Stack und `/srv/openclaw` werden nicht verwendet.
 
 ## Dynamische M4-Containerabnahme

@@ -23,7 +23,12 @@ from personal_assistant.runtime_layout import (
     migrate_layout,
     restore_backup,
 )
-from personal_assistant.storage import AssistantStorage, read_only_sqlite_uri
+from personal_assistant.storage import (
+    CORE_SCHEMA_VERSION,
+    KNOWLEDGE_SCHEMA_VERSION,
+    AssistantStorage,
+    read_only_sqlite_uri,
+)
 from personal_assistant.work_scheduler import AdaptiveWorkScheduler
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -540,6 +545,7 @@ enabled = true
                         requires_approval=True,
                     )
                 sync_storage.close()
+
             self.assertEqual(
                 (state / "v3/instance/local-workspace/LOCAL_NOTES.md").read_text(encoding="utf-8"),
                 "keep\n",
@@ -566,6 +572,36 @@ enabled = true
                 .fetchone()[0],
                 "ok",
             )
+
+    def test_split_database_has_domain_schema_versions_and_reopens_writable(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            state, workspace = self._state(folder)
+            migrate_layout(ROOT, state, workspace)
+            core = state / "v3/shared/core/assistant.sqlite3"
+            knowledge_root = state / "v3/domains/knowledge"
+            knowledge = knowledge_root / "knowledge.sqlite3"
+
+            with sqlite3.connect(core) as connection:
+                self.assertEqual(
+                    connection.execute("PRAGMA user_version").fetchone()[0],
+                    CORE_SCHEMA_VERSION,
+                )
+            with sqlite3.connect(knowledge) as connection:
+                self.assertEqual(
+                    connection.execute("PRAGMA user_version").fetchone()[0],
+                    KNOWLEDGE_SCHEMA_VERSION,
+                )
+
+            with patch.dict(
+                os.environ,
+                {"OPENCLAW_KNOWLEDGE_DATA_DIR": str(knowledge_root)},
+                clear=False,
+            ):
+                storage = AssistantStorage(core)
+                try:
+                    self.assertEqual(storage.integrity(), "ok")
+                finally:
+                    storage.close()
 
     def test_preflight_full_or_read_only_disk_changes_nothing(self) -> None:
         Usage = namedtuple("Usage", "total used free")

@@ -579,7 +579,12 @@ def _promote_completed_legacy_workspace_profile(
     return bool(replacements or state_differs)
 
 
-def _prune_assistant_database(path: Path, tables: tuple[str, ...]) -> None:
+def _prune_assistant_database(
+    path: Path,
+    tables: tuple[str, ...],
+    *,
+    schema_version: int | None = None,
+) -> None:
     compacted = path.with_name(
         f".{path.name}.vacuum-{os.getpid()}-{time.monotonic_ns()}"
     )
@@ -589,6 +594,8 @@ def _prune_assistant_database(path: Path, tables: tuple[str, ...]) -> None:
             connection.execute("PRAGMA foreign_keys=OFF")
             for table in tables:
                 connection.execute(f'DROP TABLE IF EXISTS "{table}"')
+            if schema_version is not None:
+                connection.execute(f"PRAGMA user_version={schema_version}")
             connection.commit()
             # Keep the compacted copy explicitly beside the staged database.
             # This ties all required capacity to the state filesystem checked
@@ -622,6 +629,8 @@ def _clear_v3_staging(state_root: Path) -> None:
 
 
 def _split_assistant_database(source: Path, stage: Path) -> None:
+    from .storage import CORE_SCHEMA_VERSION, KNOWLEDGE_SCHEMA_VERSION
+
     if source.is_symlink():
         raise RuntimeError(
             f"Assistant-Datenbank darf fuer die Layoutmigration kein Symlink sein: {source}"
@@ -658,10 +667,12 @@ def _split_assistant_database(source: Path, stage: Path) -> None:
             "documents",
             "sync_state",
         ),
+        schema_version=CORE_SCHEMA_VERSION,
     )
     _prune_assistant_database(
         knowledge,
         ("action_plans", "audit_log", "settings_history", "resources"),
+        schema_version=KNOWLEDGE_SCHEMA_VERSION,
     )
     for suffix in ("", "-wal", "-shm"):
         Path(f"{temporary_seed}{suffix}").unlink(missing_ok=True)

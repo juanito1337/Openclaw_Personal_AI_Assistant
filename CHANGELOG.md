@@ -2,6 +2,18 @@
 
 ## Unreleased – M11 Mail-Suchindex
 
+### M3-CI-Korrektur nach M11.8
+
+- Der Layout-v3-Split versieht die getrennten Core- und Wissensdatenbanken nach
+  der atomaren Tabellenbereinigung wieder mit ihrer jeweiligen SQLite-
+  Schemaversion. Dadurch kann der isolierte M3-Statuslauf ein frisch aus einer
+  kombinierten Datenbank migriertes Layout mit Wissensschema 5 korrekt als
+  getrenntes Core-Schema 1 und Wissensschema 5 oeffnen.
+- Ein Regressionstest prueft beide Schemaversionen und das anschliessende
+  schreibfaehige Wiedereroeffnen ueber die produktive `AssistantStorage`-
+  Pfadtrennung. Produktive Daten, Container und `/srv/openclaw` bleiben
+  unberuehrt.
+
 ### M11.8 Gesamtabnahme und kontrollierte Rolloutgrenze
 
 - Ein eigener hermetischer Compose-Stack prueft den zusammenhaengenden M11-Pfad

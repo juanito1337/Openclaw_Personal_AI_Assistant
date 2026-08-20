@@ -114,6 +114,10 @@ anonymer Sammelschritt noch als timingabhaengiger Erfolg erscheinen.
 Containerseitig restriktiv erzeugte M3-Pfade werden mit einem read-only State-Mount
 im kurzlebigen Pruefcontainer inspiziert. Eine abweichende Host-UID ist damit kein
 Grund, Laufzeitrechte zu lockern oder einen vorhandenen Pfad als fehlend zu melden.
+Der M3-Fixturesplit normalisiert ausserdem die SQLite-`user_version` getrennt auf
+Core- und Wissensschema und oeffnet das Ergebnis anschliessend ueber den echten
+CLI-Statuspfad. Damit kann ein neueres Wissensschema nicht unbemerkt als Core-
+Schemaversion in ein frisch migriertes Layout gelangen.
 Der oeffentliche M4-Testmarker ist auf seinem read-only Mount explizit fuer die
 abweichende Image-UID lesbar; produktive State-, Config- und Secret-Modi bleiben
 davon unberuehrt.
