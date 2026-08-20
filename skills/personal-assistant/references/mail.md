@@ -162,9 +162,35 @@ particular, a `model-proposal` is never an active category. Folder and quarantin
 tags come only from current locators and may change without reclassification.
 
 Query text, addresses and snippets must not be copied into logs or metric labels.
-The returned metrics are technical counters and latency only. Thread context,
-semantic retrieval, live-locator revalidation, automatic fallback and normal
-agent routing are later milestones, not hidden M11.4 behavior.
+The returned metrics are technical counters and latency only. Thread context is
+only the explicit M11.5 option documented below; semantic retrieval,
+live-locator revalidation, automatic fallback and normal agent routing remain
+later milestones, not hidden M11.4 behavior.
+
+## M11.5 conservative threads and bounded context
+
+Use `mail search-local ... --context-limit <0..6>` only when adjacent
+conversation messages help interpret an existing query hit. The top-level result
+remains the query hit. Items below `context` are explicitly
+`role=thread-context`, `query_match=false` and `evidence_for_query=false`; never
+present them as matching the query, count them as separate hits or use them to
+prove a fact or absence. Inspect thread `certainty`, `uncertain`,
+`evidence_type`, version and source generation before describing a relationship.
+
+Canonical Message-ID relationship headers are primary evidence. A subject,
+participant and time fallback is permitted by the index only when no relationship
+header exists, and it remains uncertain. Do not upgrade that fallback to fact,
+infer unknown BCC recipients, merge repeated newsletters/invoices or invent a
+thread from similar wording. A move or folder change does not by itself change a
+content-based thread; current server location still requires the existing live
+read/action checks.
+
+Mail snippets come from the unchanged citable source. The separately versioned
+retrieval text may reduce quote history, signatures and disclaimers only for
+ranking. Never claim that removed repeated text was deleted from the mail, and do
+not use generic file or SQLite access to recover or reinterpret thread state.
+M11.5 does not enable semantic retrieval, embeddings, default local-search
+precedence, live-locator fallback or a productive indexing job.
 
 ## Draft and send contract
 

@@ -11,6 +11,8 @@ from datetime import UTC, date, datetime, timedelta
 from html.parser import HTMLParser
 from typing import Any
 
+from .mail_threads import MAIL_RETRIEVAL_TEXT_VERSION, MAIL_THREAD_VERSION
+
 MAIL_SEARCH_QUERY_VERSION = "mail-query-v1"
 MAIL_SEARCH_RANKING_VERSION = "mail-bm25-v1"
 MAIL_SEARCH_TAG_VERSION = "mail-tags-v1"
@@ -25,6 +27,7 @@ MAX_RESULT_LIMIT = 200
 MAX_RANKED_DOCUMENTS = 10_000
 MAX_MATCHED_CHUNKS = 100_000
 SNIPPET_CHARS = 320
+MAX_THREAD_CONTEXT = 6
 
 TAG_NAMESPACES = frozenset(
     {
@@ -642,6 +645,117 @@ class MailLexicalSearch:
             "coverage": coverage,
         }
 
+    def _thread_metadata(self, content_id: str) -> dict[str, Any] | None:
+        row = self.connection.execute(
+            """
+            SELECT m.thread_id,m.parent_content_id,m.evidence_type,m.certainty,m.position,
+                   t.root_content_id,t.thread_version,t.member_count,t.uncertain,
+                   t.first_at,t.last_at,t.index_generation
+            FROM mail_search_thread_members m
+            JOIN mail_search_threads t ON t.thread_id=m.thread_id
+            WHERE m.content_id=?
+            """,
+            (content_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        return {
+            "thread_id": str(row["thread_id"]),
+            "root_content_id": str(row["root_content_id"]),
+            "version": str(row["thread_version"]),
+            "member_count": int(row["member_count"]),
+            "position": int(row["position"]),
+            "parent_content_id": str(row["parent_content_id"] or ""),
+            "evidence_type": str(row["evidence_type"]),
+            "certainty": str(row["certainty"]),
+            "uncertain": bool(row["uncertain"]),
+            "first_at": str(row["first_at"]),
+            "last_at": str(row["last_at"]),
+            "source_generation": str(row["index_generation"]),
+        }
+
+    def _thread_context(
+        self,
+        content_id: str,
+        *,
+        query_hit_ids: set[str],
+        limit: int,
+    ) -> list[dict[str, Any]]:
+        if limit <= 0:
+            return []
+        current = self.connection.execute(
+            "SELECT thread_id,position FROM mail_search_thread_members WHERE content_id=?",
+            (content_id,),
+        ).fetchone()
+        if current is None:
+            return []
+        rows = self.connection.execute(
+            """
+            SELECT m.content_id,m.position,m.evidence_type,m.certainty,d.id,d.title,
+                   d.uri,d.modified_at,d.metadata_json,d.index_generation,d.source_status,
+                   (SELECT c.text FROM chunks c WHERE c.document_id=d.id
+                    ORDER BY c.chunk_index LIMIT 1) AS source_text
+            FROM mail_search_thread_members m
+            JOIN documents d ON d.content_id=m.content_id
+              AND d.source_type='email' AND d.resource_id='mail-agent'
+            WHERE m.thread_id=? AND m.content_id<>?
+            ORDER BY m.position,m.content_id
+            """,
+            (str(current["thread_id"]), content_id),
+        ).fetchall()
+        position = int(current["position"])
+        eligible = [row for row in rows if str(row["content_id"]) not in query_hit_ids]
+        nearest = sorted(
+            eligible,
+            key=lambda row: (abs(int(row["position"]) - position), int(row["position"])),
+        )[:limit]
+        nearest.sort(key=lambda row: (int(row["position"]), str(row["content_id"])))
+        context: list[dict[str, Any]] = []
+        for row in nearest:
+            try:
+                metadata = json.loads(str(row["metadata_json"] or "{}"))
+            except json.JSONDecodeError:
+                metadata = {}
+            row_position = int(row["position"])
+            context.append(
+                {
+                    "role": "thread-context",
+                    "query_match": False,
+                    "evidence_for_query": False,
+                    "document_id": int(row["id"]),
+                    "content_id": str(row["content_id"]),
+                    "title": str(row["title"]),
+                    "uri": str(row["uri"]),
+                    "date": str(
+                        metadata.get("received_at")
+                        or metadata.get("date")
+                        or row["modified_at"]
+                        or ""
+                    ),
+                    "sender": {
+                        "name": str(metadata.get("sender_name") or ""),
+                        "address": str(metadata.get("sender_addr") or ""),
+                    },
+                    "folders": sorted(
+                        {
+                            str(item.get("folder_name") or "")
+                            for item in metadata.get("locators") or []
+                            if str(item.get("folder_name") or "")
+                        }
+                    ),
+                    "snippet": query_centered_snippet(
+                        str(row["source_text"] or ""), ParsedMailQuery((), "", "")
+                    ),
+                    "thread_position": row_position,
+                    "relative_position": "before" if row_position < position else "after",
+                    "evidence_type": str(row["evidence_type"]),
+                    "certainty": str(row["certainty"]),
+                    "source_generation": str(row["index_generation"] or ""),
+                    "source_status": str(row["source_status"] or ""),
+                }
+            )
+        return context
+
     def search(
         self,
         raw_query: str,
@@ -649,11 +763,17 @@ class MailLexicalSearch:
         filters: MailSearchFilters | None = None,
         limit: int = 20,
         max_age_seconds: int = 7200,
+        context_limit: int = 0,
     ) -> dict[str, Any]:
         started = time.perf_counter()
         query = parse_mail_query(raw_query)
         normalized_filters = (filters or MailSearchFilters()).normalized()
         limit = max(1, min(int(limit), MAX_RESULT_LIMIT))
+        context_limit = int(context_limit)
+        if not 0 <= context_limit <= MAX_THREAD_CONTEXT:
+            raise ValueError(
+                f"Thread-Kontext muss zwischen 0 und {MAX_THREAD_CONTEXT} liegen"
+            )
         if not query.match and not any(
             (
                 normalized_filters.sender,
@@ -699,7 +819,8 @@ class MailLexicalSearch:
         if query.match:
             chunk_rows = self.connection.execute(
                 f"""
-                SELECT d.*,c.text AS matched_text,{rank_expression} AS rank
+                SELECT d.*,c.text AS matched_text,mail_search_fts.body AS retrieval_text,
+                       {rank_expression} AS rank
                 FROM {from_clause}
                 WHERE {where}
                 ORDER BY rank ASC,d.modified_at DESC,d.id DESC,c.chunk_index ASC
@@ -710,7 +831,7 @@ class MailLexicalSearch:
         else:
             chunk_rows = self.connection.execute(
                 f"""
-                SELECT d.*,c.text AS matched_text,0.0 AS rank
+                SELECT d.*,c.text AS matched_text,c.text AS retrieval_text,0.0 AS rank
                 FROM {from_clause}
                 WHERE {where}
                 GROUP BY d.id
@@ -741,7 +862,7 @@ class MailLexicalSearch:
                 normalize_tag_value(str(metadata.get("sender_name") or "")),
             }
             title = normalize_tag_value(str(row["title"] or ""))
-            body = normalize_tag_value(str(row["matched_text"] or ""))
+            body = normalize_tag_value(str(row["retrieval_text"] or ""))
             exact_phrase = bool(query_plain and (query_plain in title or query_plain in body))
             exact_sender = bool(query_plain and query_plain in sender_values)
             lexical = -float(row["rank"] or 0.0)
@@ -826,6 +947,9 @@ class MailLexicalSearch:
                 )
             results.append(
                 {
+                    "role": "query-hit",
+                    "query_match": True,
+                    "evidence_for_query": True,
                     "document_id": document_id,
                     "content_id": content_id,
                     "source_id": str(row["source_id"]),
@@ -853,7 +977,7 @@ class MailLexicalSearch:
                             query,
                             subject=str(snippet_row["matched_subject"] or ""),
                             sender=str(snippet_row["matched_sender"] or ""),
-                            body=str(snippet_row["matched_body"] or ""),
+                            body=str(snippet_row["text"] or ""),
                         )
                         if query.match and snippet_row
                         else str(snippet_row["text"] or "")
@@ -883,10 +1007,27 @@ class MailLexicalSearch:
                         ),
                     },
                     "tags": tags,
+                    "thread": self._thread_metadata(content_id),
+                    "context": [],
+                    "retrieval_text": {
+                        "version": str(
+                            metadata.get("retrieval_text_version")
+                            or MAIL_RETRIEVAL_TEXT_VERSION
+                        ),
+                        "source_body_preserved": True,
+                    },
                     "source_generation": str(row["index_generation"] or ""),
                     "source_status": str(row["source_status"] or ""),
                 }
             )
+        query_hit_ids = {str(item["content_id"]) for item in results}
+        if context_limit:
+            for item in results:
+                item["context"] = self._thread_context(
+                    str(item["content_id"]),
+                    query_hit_ids=query_hit_ids,
+                    limit=context_limit,
+                )
         index_state = self._index_state(max_age_seconds=max_age_seconds)
         latency_ms = round((time.perf_counter() - started) * 1000.0, 3)
         return {
@@ -907,6 +1048,14 @@ class MailLexicalSearch:
                 "exact_phrase_boost": EXACT_PHRASE_BOOST,
                 "exact_sender_boost": EXACT_SENDER_BOOST,
                 "recency_boost_applied": False,
+                "retrieval_text_version": MAIL_RETRIEVAL_TEXT_VERSION,
+            },
+            "thread_context": {
+                "enabled": bool(context_limit),
+                "limit_per_hit": context_limit,
+                "maximum": MAX_THREAD_CONTEXT,
+                "thread_version": MAIL_THREAD_VERSION,
+                "context_is_query_evidence": False,
             },
             "metrics": {
                 "matched_chunks": matched_chunks,
@@ -924,6 +1073,7 @@ __all__ = [
     "MAIL_SEARCH_QUERY_VERSION",
     "MAIL_SEARCH_RANKING_VERSION",
     "MAIL_SEARCH_TAG_VERSION",
+    "MAX_THREAD_CONTEXT",
     "MailLexicalSearch",
     "MailSearchFilters",
     "MailTag",

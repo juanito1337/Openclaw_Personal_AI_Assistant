@@ -35,5 +35,6 @@ verweist mit Status `Superseded` auf den Nachfolger.
 | [0027](0027-begrenzter-mail-vollkonto-backfill.md) | Accepted | begrenzter, wiederaufnehmbarer und fail-closed gescannter Vollkonto-Backfill |
 | [0028](0028-transaktionale-mail-reconciliation.md) | Accepted | autoritative inkrementelle Mail-Reconciliation mit transaktionalem Deltaimport |
 | [0029](0029-sichere-lokale-mail-lexik-und-tags.md) | Accepted | sichere lokale Mail-Lexik, erklaerbares Ranking und belegte Tags |
+| [0030](0030-konservative-mail-threads-und-kontext.md) | Accepted | konservative Headerthreads, unsicherer Fallback und begrenzter Kontext |
 
 Neue ADRs beginnen mit der [Vorlage](0000-template.md).

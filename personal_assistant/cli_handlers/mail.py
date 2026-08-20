@@ -159,6 +159,7 @@ def handle(args: argparse.Namespace, assistant: Any, emit: Callable[[Any], None]
             ),
             limit=args.limit,
             max_age_seconds=assistant.config.search.mail_projection_max_age_seconds,
+            context_limit=args.context_limit,
         )
     elif command == "read":
         result = assistant.mail_read_message(

@@ -249,6 +249,12 @@ def add_commands(sub: Any) -> None:
     local_search.add_argument("--attachment-type", default="")
     local_search.add_argument("--tag", action="append", default=[])
     local_search.add_argument("--limit", type=int, default=50)
+    local_search.add_argument(
+        "--context-limit",
+        type=int,
+        default=0,
+        help="Bis zu 6 direkt benachbarte Threadnachrichten getrennt als Kontext ausgeben",
+    )
     mail_read = mail_sub.add_parser("read", help="Eine eindeutig identifizierte Mail read-only lesen")
     mail_read.add_argument("--folder", required=True)
     mail_read.add_argument("--message-id", required=True)

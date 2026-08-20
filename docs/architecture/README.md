@@ -130,6 +130,13 @@ Importgraphen auf Zyklen.
   Queryschicht vor feldgetrenntes Mail-FTS, filtert ueber belegte lokale Tags und
   gruppiert Chunks vor dem Ergebnislimit. Sie schreibt keine Maildaten und
   ersetzt bis zur Live-Locator-/Fallback-Abnahme nicht die aktuelle Serversuche.
+  Der konservative M11.5-Graph aus
+  [ADR-0030](adr/0030-konservative-mail-threads-und-kontext.md) bildet
+  Headerbeziehungen azyklisch ab, trennt stabile Threadmetadaten von Locatorn und
+  kennzeichnet einen engen Betreff-/Teilnehmerfallback stets als unsicher.
+  Optionaler Kontext bleibt getrennt vom Querytreffer; Rankingtext darf
+  wiederholte Zitate reduzieren, waehrend der zitierbare Originalchunk erhalten
+  bleibt. Semantische Suche und produktive Suchpraeferenz sind nicht aktiviert.
 - Instanzkonfiguration und Secrets liegen getrennt unter `/srv/openclaw/config` und
   `/srv/openclaw/secrets`; Rollen sehen daraus nur benoetigte read-only Dateien.
 - ClamAV-Signaturen liegen im Docker-Volume `clamav-db`; nur `clamav-update` schreibt.

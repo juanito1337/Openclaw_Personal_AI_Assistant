@@ -2,6 +2,29 @@
 
 ## Unreleased – M11 Mail-Suchindex
 
+### M11.5 Konservative Threads und begrenzter Kontext
+
+- Der Wissensindex erzeugt einen versionierten, azyklischen Threadgraphen primaer
+  aus eindeutigen `Message-ID`-, `In-Reply-To`- und `References`-Beziehungen.
+  Fehlende, mehrdeutige, kaputte, selbstbezogene und zyklische Header bleiben
+  sichtbar und koennen keine erfundene Elternbeziehung erzeugen.
+- Ein 21-Tage-Fallback verlangt einen erkannten deutschen/englischen
+  Reply-/Forward-Prefix und reziproke bekannte Teilnehmer. Er greift nur ohne
+  Header-Evidenz, bleibt unsicher und schliesst leere, Newsletter-, Digest-,
+  Rechnungs- und Zahlungsbetreffe aus.
+- Thread-/Memberdaten liegen getrennt von Dokument, Occurrence und Locator. Reine
+  Mailclient-Moves behalten die Threadidentitaet und schreiben kein Body-FTS neu.
+- `mail search-local --context-limit 0..6` liefert kleine chronologische,
+  deduplizierte Kontextfenster. Kontext ist mit `query_match=false` und
+  `evidence_for_query=false` von Trefferzahl, Matchmetriken und Querybeleg
+  getrennt.
+- `mail-retrieval-text-v1` reduziert konservativ wiederholte Zitate, Signaturen
+  und bekannte Disclaimer nur im Rankingtext. Originalchunks und zitierbare
+  Snippets bleiben unveraendert.
+- Die M11.0-Goldkorpusmessung reproduziert 10 Threads und 3 verknuepfte Paare bei
+  Pair-Precision/Recall 1,0 und null Fehlverknuepfungen. M11.5 aktiviert weder
+  semantische Suche, produktive Suchpraeferenz noch einen Job.
+
 ### M11.4 Sichere lokale Lexik und belegte Tags
 
 - Das neue read-only Werkzeug `mail search-local` durchsucht den validierten

@@ -169,6 +169,48 @@ and comes from filter/tag provenance, coverage evidence, document grouping and
 safe snippets; no arbitrary pass/fail threshold is inferred from this small
 synthetic run.
 
+M11.5 adds a conservative conversation graph without changing search precedence
+or enabling semantic retrieval. Canonical `Message-ID`, `In-Reply-To` and
+`References` are the primary evidence. Missing, ambiguous, malformed,
+self-referential and cyclic relationships fail closed. Only when no relationship
+header exists may a 21-day subject/participant fallback connect a recognized
+German or English reply/forward; it requires reciprocal known participants and
+is always marked uncertain. Empty subjects, newsletters, digests, invoices and
+payment subjects never use this fallback.
+
+Thread and member metadata live separately from mail documents. Thread identity
+is rooted in `content_id`, not occurrence or locator, so a client-side move does
+not change it or rewrite body FTS. Search results expose the thread version,
+position, parent evidence and uncertainty. Optional context is requested
+explicitly:
+
+```bash
+./scripts/assistant.sh mail search-local --query "Projekt Aurora" \
+  --context-limit 2 --limit 20
+```
+
+`--context-limit` accepts 0 through 6. Context is chronological, deduplicated and
+stored only below its query hit. Every context item carries
+`role=thread-context`, `query_match=false` and `evidence_for_query=false`; it
+does not increase `count`, matched documents or query evidence. Query hits in the
+same thread are not duplicated as context.
+
+Ranking uses `mail-retrieval-text-v1`, which conservatively reduces strong
+quote-history, quote-line, RFC signature and known disclaimer boundaries. The
+original chunk is never changed and remains the source for snippets and citation.
+The version and `source_body_preserved=true` are returned. Reproduce the M11.5
+thread baseline with:
+
+```bash
+python3 scripts/benchmark_mail_threads_m115.py \
+  --output build/m115-mail-thread-benchmark.json
+```
+
+On the 13-message synthetic M11.0 corpus the graph reproduced all 10 expected
+threads and all 3 linked pairs with Pair-Precision/Recall 1.0, zero missed pairs
+and a mislink rate of 0.0. This small deterministic corpus is a regression
+baseline, not an estimate of productive mailbox quality.
+
 ## Sources
 
 - mail-agent message metadata and summaries

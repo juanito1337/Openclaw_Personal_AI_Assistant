@@ -2,7 +2,7 @@
 
 Stand: 2026-08-20
 Arbeitsbranch: `development/mail-search-indexing-m11`
-Status: M11.0 bis M11.4 abgeschlossen; M11.5 bis M11.8 nicht begonnen
+Status: M11.0 bis M11.5 abgeschlossen; M11.6 bis M11.8 nicht begonnen
 
 ## Ziel
 

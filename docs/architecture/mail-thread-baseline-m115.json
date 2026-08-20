@@ -1,0 +1,25 @@
+{
+  "corpus": "tests/fixtures/mail_search/m110_synthetic_corpus.json",
+  "diagnostics": {
+    "cycle_rejections": 0,
+    "fallback_links": 0,
+    "header_links": 3,
+    "invalid_relations": 0,
+    "unresolved_relations": 0
+  },
+  "expected_linked_pairs": 3,
+  "expected_threads": 10,
+  "false_linked_pairs": [],
+  "messages": 13,
+  "milestone": "M11.5",
+  "mislink_rate": 0.0,
+  "missed_linked_pairs": [],
+  "ok": true,
+  "pair_precision": 1.0,
+  "pair_recall": 1.0,
+  "predicted_linked_pairs": 3,
+  "predicted_threads": 10,
+  "synthetic": true,
+  "thread_version": "mail-thread-v1",
+  "true_linked_pairs": 3
+}

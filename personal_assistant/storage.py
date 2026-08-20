@@ -10,10 +10,15 @@ from typing import Any
 
 from .contracts.time import now_utc_iso
 from .mail_search import MailLexicalSearch, MailSearchFilters, build_mail_tags
+from .mail_threads import (
+    MAIL_RETRIEVAL_TEXT_VERSION,
+    build_mail_threads,
+    normalize_retrieval_text,
+)
 from .models import ActionPlan, SearchResult
 
 CORE_SCHEMA_VERSION = 1
-KNOWLEDGE_SCHEMA_VERSION = 3
+KNOWLEDGE_SCHEMA_VERSION = 4
 # Compatibility export for callers that historically treated the combined
 # development database as the knowledge schema.
 SCHEMA_VERSION = KNOWLEDGE_SCHEMA_VERSION
@@ -115,6 +120,11 @@ class AssistantStorage:
         self.connection.close()
 
     def _migrate(self) -> None:
+        combined_knowledge_version = (
+            int(self.connection.execute("PRAGMA user_version").fetchone()[0])
+            if self.enable_knowledge and self.knowledge_connection is self.connection
+            else None
+        )
         if not self.core_read_only:
             core_target = (
                 KNOWLEDGE_SCHEMA_VERSION
@@ -171,13 +181,18 @@ class AssistantStorage:
             );
                 """
             )
-            self.connection.execute(f"PRAGMA user_version={core_target}")
+            if combined_knowledge_version is None:
+                self.connection.execute(f"PRAGMA user_version={core_target}")
             self.connection.commit()
         if not self.enable_knowledge or self.knowledge_read_only:
             return
 
-        knowledge_version = int(
-            self.knowledge_connection.execute("PRAGMA user_version").fetchone()[0]
+        knowledge_version = (
+            combined_knowledge_version
+            if combined_knowledge_version is not None
+            else int(
+                self.knowledge_connection.execute("PRAGMA user_version").fetchone()[0]
+            )
         )
         if knowledge_version > KNOWLEDGE_SCHEMA_VERSION:
             raise RuntimeError(
@@ -239,6 +254,7 @@ class AssistantStorage:
                 parser_version TEXT NOT NULL,
                 normalization_version TEXT NOT NULL,
                 tag_version TEXT NOT NULL,
+                retrieval_text_version TEXT NOT NULL DEFAULT '',
                 embedding_version TEXT,
                 content_digest TEXT NOT NULL,
                 indexed_at TEXT NOT NULL
@@ -300,9 +316,33 @@ class AssistantStorage:
                 relation_message_id TEXT NOT NULL,
                 related_content_id TEXT,
                 evidence_header TEXT NOT NULL,
+                selected INTEGER NOT NULL DEFAULT 0,
+                certainty TEXT NOT NULL DEFAULT 'certain',
+                reason TEXT NOT NULL DEFAULT '',
                 index_generation TEXT NOT NULL,
                 PRIMARY KEY(content_id, edge_type, relation_message_id)
             );
+            CREATE TABLE IF NOT EXISTS mail_search_threads (
+                thread_id TEXT PRIMARY KEY,
+                root_content_id TEXT NOT NULL REFERENCES mail_search_contents(content_id),
+                thread_version TEXT NOT NULL,
+                member_count INTEGER NOT NULL,
+                first_at TEXT NOT NULL,
+                last_at TEXT NOT NULL,
+                uncertain INTEGER NOT NULL,
+                index_generation TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS mail_search_thread_members (
+                content_id TEXT PRIMARY KEY REFERENCES mail_search_contents(content_id),
+                thread_id TEXT NOT NULL REFERENCES mail_search_threads(thread_id),
+                parent_content_id TEXT,
+                evidence_type TEXT NOT NULL,
+                certainty TEXT NOT NULL,
+                position INTEGER NOT NULL,
+                index_generation TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_mail_search_thread_members_thread
+                ON mail_search_thread_members(thread_id, position);
             """
         )
         document_columns = {
@@ -336,9 +376,37 @@ class AssistantStorage:
                 self.knowledge_connection.execute(
                     f"ALTER TABLE mail_search_tags ADD COLUMN {name} {declaration}"
                 )
+        content_columns = {
+            str(row[1])
+            for row in self.knowledge_connection.execute(
+                "PRAGMA table_info(mail_search_contents)"
+            ).fetchall()
+        }
+        if "retrieval_text_version" not in content_columns:
+            self.knowledge_connection.execute(
+                "ALTER TABLE mail_search_contents "
+                "ADD COLUMN retrieval_text_version TEXT NOT NULL DEFAULT ''"
+            )
+        edge_columns = {
+            str(row[1])
+            for row in self.knowledge_connection.execute(
+                "PRAGMA table_info(mail_search_thread_edges)"
+            ).fetchall()
+        }
+        for name, declaration in {
+            "selected": "INTEGER NOT NULL DEFAULT 0",
+            "certainty": "TEXT NOT NULL DEFAULT 'certain'",
+            "reason": "TEXT NOT NULL DEFAULT ''",
+        }.items():
+            if name not in edge_columns:
+                self.knowledge_connection.execute(
+                    f"ALTER TABLE mail_search_thread_edges ADD COLUMN {name} {declaration}"
+                )
         try:
             self.knowledge_connection.execute(
-                "CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_fts USING fts5(title, text, source_type, resource_id, tokenize='unicode61 remove_diacritics 2')"
+                "CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_fts USING fts5("
+                "title, text, source_type, resource_id, "
+                "tokenize='unicode61 remove_diacritics 2')"
             )
             self.fts_enabled = True
         except sqlite3.OperationalError:
@@ -390,9 +458,25 @@ class AssistantStorage:
                             int(row["id"]),
                             str(row["title"] or ""),
                             sender,
-                            str(row["text"] or ""),
+                            normalize_retrieval_text(str(row["text"] or "")).text,
                         ),
                     )
+            elif knowledge_version < 4:
+                rows = self.knowledge_connection.execute(
+                    "SELECT id,text FROM chunks ORDER BY id"
+                ).fetchall()
+                for row in rows:
+                    self.knowledge_connection.execute(
+                        "UPDATE mail_search_fts SET body=? WHERE rowid=?",
+                        (
+                            normalize_retrieval_text(str(row["text"] or "")).text,
+                            int(row["id"]),
+                        ),
+                    )
+            self.knowledge_connection.execute(
+                "UPDATE mail_search_contents SET retrieval_text_version=?",
+                (MAIL_RETRIEVAL_TEXT_VERSION,),
+            )
         except sqlite3.OperationalError:
             self.mail_search_fts_enabled = False
         self.knowledge_connection.execute(
@@ -409,14 +493,30 @@ class AssistantStorage:
         )
         return "ok" if core == knowledge == "ok" else f"core={core}; knowledge={knowledge}"
 
-    def audit(self, event_type: str, detail: dict[str, Any], *, resource_id: str = "", actor: str = "assistant") -> None:
+    def audit(
+        self,
+        event_type: str,
+        detail: dict[str, Any],
+        *,
+        resource_id: str = "",
+        actor: str = "assistant",
+    ) -> None:
         self.connection.execute(
             "INSERT INTO audit_log(actor,event_type,resource_id,detail_json,created_at) VALUES(?,?,?,?,?)",
             (actor, event_type, resource_id, json.dumps(detail, ensure_ascii=False), now_utc_iso()),
         )
         self.connection.commit()
 
-    def set_sync_state(self, resource_id: str, scope: str, *, cursor: str = "", etag: str = "", status: str, detail: str = "") -> None:
+    def set_sync_state(
+        self,
+        resource_id: str,
+        scope: str,
+        *,
+        cursor: str = "",
+        etag: str = "",
+        status: str,
+        detail: str = "",
+    ) -> None:
         self.knowledge_connection.execute(
             """
             INSERT INTO sync_state(resource_id,scope,cursor,etag,synced_at,status,detail)
@@ -520,7 +620,10 @@ class AssistantStorage:
                 "INSERT INTO chunks(document_id,chunk_index,text) VALUES(?,?,?)",
                 (document_id, index, text),
             )
-            chunk_id = int(cursor.lastrowid)
+            chunk_rowid = cursor.lastrowid
+            if chunk_rowid is None:
+                raise RuntimeError("Chunk-Insert lieferte keine ID")
+            chunk_id = int(chunk_rowid)
             if self.fts_enabled:
                 self.knowledge_connection.execute(
                     "INSERT INTO knowledge_fts(rowid,title,text,source_type,resource_id) VALUES(?,?,?,?,?)",
@@ -566,6 +669,7 @@ class AssistantStorage:
 
         connection = self.knowledge_connection
         timestamp = now_utc_iso()
+        thread_build = build_mail_threads(records, generation=generation)
         metrics = {
             "indexed": 0,
             "unchanged": 0,
@@ -575,6 +679,14 @@ class AssistantStorage:
             "embeddings_reused": 0,
             "embeddings_new": 0,
             "tag_rows_changed": 0,
+            "thread_rows_changed": 0,
+            "thread_count": len(thread_build.threads),
+            "thread_uncertain": sum(
+                int(bool(item["uncertain"])) for item in thread_build.threads
+            ),
+            "thread_cycle_rejections": int(
+                thread_build.diagnostics["cycle_rejections"]
+            ),
         }
 
         def remove_chunks(document_id: int) -> int:
@@ -608,14 +720,17 @@ class AssistantStorage:
             for item in records:
                 content_id = str(item["content_id"])
                 metadata = dict(item.get("metadata") or {})
+                metadata["retrieval_text_version"] = MAIL_RETRIEVAL_TEXT_VERSION
                 connection.execute(
                     """
                     INSERT INTO mail_search_contents(
                         content_id,resource_id,raw_sha256,canonical_message_id,
                         identity_evidence_json,parser_version,normalization_version,
-                        tag_version,embedding_version,content_digest,indexed_at
-                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?)
+                        tag_version,retrieval_text_version,embedding_version,
+                        content_digest,indexed_at
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)
                     ON CONFLICT(content_id) DO UPDATE SET
+                        retrieval_text_version=excluded.retrieval_text_version,
                         embedding_version=excluded.embedding_version,
                         indexed_at=excluded.indexed_at
                     """,
@@ -631,6 +746,7 @@ class AssistantStorage:
                         str(metadata.get("parser_version") or ""),
                         str(metadata.get("normalization_version") or ""),
                         str(metadata.get("tag_version") or ""),
+                        MAIL_RETRIEVAL_TEXT_VERSION,
                         str(metadata.get("embedding_version") or "") or None,
                         str(item.get("sha256") or ""),
                         timestamp,
@@ -775,6 +891,27 @@ class AssistantStorage:
                             ),
                         ).rowcount
                         metrics["fts_rows_changed"] += max(0, int(changed))
+                        chunk_rows = connection.execute(
+                            "SELECT id,text FROM chunks WHERE document_id=? ORDER BY id",
+                            (int(existing["id"]),),
+                        ).fetchall()
+                        for chunk in chunk_rows:
+                            normalized_body = normalize_retrieval_text(
+                                str(chunk["text"] or "")
+                            ).text
+                            current_fts = connection.execute(
+                                "SELECT body FROM mail_search_fts WHERE rowid=?",
+                                (int(chunk["id"]),),
+                            ).fetchone()
+                            if (
+                                current_fts is not None
+                                and str(current_fts["body"] or "") != normalized_body
+                            ):
+                                connection.execute(
+                                    "UPDATE mail_search_fts SET body=? WHERE rowid=?",
+                                    (normalized_body, int(chunk["id"])),
+                                )
+                                metrics["fts_rows_changed"] += 1
                     metrics["unchanged"] += 1
                     metrics["metadata_updated"] += 1
                     if existing["embedding_version"]:
@@ -870,7 +1007,7 @@ class AssistantStorage:
                                 int(chunk_rowid),
                                 str(item.get("title") or "(ohne Betreff)"),
                                 sender,
-                                str(text),
+                                normalize_retrieval_text(str(text)).text,
                             ),
                         )
                     metrics["fts_rows_changed"] += 1
@@ -895,6 +1032,58 @@ class AssistantStorage:
                 metrics["fts_rows_changed"] += remove_chunks(document_id)
                 connection.execute("DELETE FROM documents WHERE id=?", (document_id,))
                 metrics["removed"] += 1
+
+            connection.execute("DELETE FROM mail_search_thread_members")
+            connection.execute("DELETE FROM mail_search_threads")
+            connection.execute("DELETE FROM mail_search_thread_edges")
+            for edge in thread_build.edges:
+                connection.execute(
+                    """
+                    INSERT INTO mail_search_thread_edges(
+                        content_id,edge_type,relation_message_id,related_content_id,
+                        evidence_header,selected,certainty,reason,index_generation
+                    ) VALUES(?,?,?,?,?,?,?,?,?)
+                    """,
+                    (
+                        edge["content_id"], edge["edge_type"],
+                        edge["relation_message_id"], edge["related_content_id"],
+                        edge["evidence_header"], int(bool(edge["selected"])),
+                        edge["certainty"], edge["reason"], edge["index_generation"],
+                    ),
+                )
+                metrics["thread_rows_changed"] += 1
+            for thread in thread_build.threads:
+                connection.execute(
+                    """
+                    INSERT INTO mail_search_threads(
+                        thread_id,root_content_id,thread_version,member_count,
+                        first_at,last_at,uncertain,index_generation
+                    ) VALUES(?,?,?,?,?,?,?,?)
+                    """,
+                    (
+                        thread["thread_id"], thread["root_content_id"],
+                        thread["thread_version"], thread["member_count"],
+                        thread["first_at"], thread["last_at"],
+                        int(bool(thread["uncertain"])), thread["index_generation"],
+                    ),
+                )
+                metrics["thread_rows_changed"] += 1
+            for member in thread_build.members:
+                connection.execute(
+                    """
+                    INSERT INTO mail_search_thread_members(
+                        content_id,thread_id,parent_content_id,evidence_type,
+                        certainty,position,index_generation
+                    ) VALUES(?,?,?,?,?,?,?)
+                    """,
+                    (
+                        member["content_id"], member["thread_id"],
+                        member["parent_content_id"], member["evidence_type"],
+                        member["certainty"], member["position"],
+                        member["index_generation"],
+                    ),
+                )
+                metrics["thread_rows_changed"] += 1
 
             if current_occurrence_ids:
                 placeholders = ",".join("?" for _ in current_occurrence_ids)
@@ -958,6 +1147,7 @@ class AssistantStorage:
         filters: MailSearchFilters | None = None,
         limit: int = 20,
         max_age_seconds: int = 7200,
+        context_limit: int = 0,
     ) -> dict[str, Any]:
         return MailLexicalSearch(
             self.knowledge_connection,
@@ -967,6 +1157,7 @@ class AssistantStorage:
             filters=filters,
             limit=limit,
             max_age_seconds=max_age_seconds,
+            context_limit=context_limit,
         )
 
     def search(
