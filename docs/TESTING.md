@@ -1,6 +1,6 @@
 # Tests, Qualitaetsbaseline und Container-Runtime
 
-Stand: 2026-08-20, fortgeschrieben bis zu M11.5-Threads und begrenztem Kontext.
+Stand: 2026-08-20, fortgeschrieben bis zum M11.6-Embeddingvertrag.
 Sie startet keine produktiven Dienste und verwendet
 weder `/srv/openclaw` noch produktive Zugangsdaten.
 
@@ -45,14 +45,14 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 832 Tests, darunter mindestens 687 unittest-kompatible Tests
-(die bisherigen 349 sowie M0-M11.5- und Rollout-Regressionstests),
+fordert mindestens 858 Tests, darunter mindestens 687 unittest-kompatible Tests
+(die bisherigen 349 sowie M0-M11.6- und Rollout-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
 nach dem Sammeln mit einem Fehler ab. Neue Tests duerfen die Zahl erhoehen; die
 Baseline wird erst nach einem vollstaendigen gruenen Lauf bewusst angehoben.
 
-## M0-Ausgangswerte und aktueller M11.5-Teststand
+## M0-Ausgangswerte und aktueller M11.6-Teststand
 
 Gemessen auf Linux x86_64 mit Python 3.12.3. Die Werte sind Beobachtungen und noch
 keine willkuerlichen Mindestquoten. `scripts/quality-baseline.py` erzeugt sie nach
@@ -96,6 +96,7 @@ der aktuellen Python-Dateien.
 | Tests nach M11.3 gesammelt/ausgefuehrt | 791 / 791 (878 JUnit-Faelle inklusive 87 Subtests) |
 | Tests nach M11.4 gesammelt/ausgefuehrt | 813 / 813 (900 JUnit-Faelle inklusive 87 Subtests) |
 | Tests nach M11.5 gesammelt/ausgefuehrt | 832 / 832 (919 JUnit-Faelle inklusive 87 Subtests) |
+| Tests nach M11.6 gesammelt/ausgefuehrt | 858 / 858 (945 JUnit-Faelle inklusive 87 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -122,6 +123,7 @@ der aktuellen Python-Dateien.
 | neue M11.3-Reconciliation-Regressionsitems | 20 |
 | neue M11.4-Lexik-/Tag-/Benchmark-Regressionsitems | 22 |
 | neue M11.5-Thread-/Kontext-/Normalisierungs-Regressionsitems | 19 |
+| neue M11.6-Embedding-/Cache-/Koordinator-Regressionsitems | 26 |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |
 | Gesamt-Coverage inklusive Branches (M8) | 59,18 % |
@@ -169,6 +171,8 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach M11.4 | 52,35 % |
 | Gesamt-Coverage nach M11.5 | 66,35 % |
 | reine Branch-Coverage nach M11.5 | 52,90 % |
+| Gesamt-Coverage nach M11.6 | 66,55 % |
+| reine Branch-Coverage nach M11.6 | 53,11 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -186,6 +190,7 @@ der aktuellen Python-Dateien.
 | Laufzeit des finalen lokalen M11.1-Testlaufs | 133,68 s |
 | Laufzeit des finalen lokalen M11.3-Testlaufs | 128,26 s |
 | Laufzeit des finalen lokalen M11.5-Testlaufs | 97,03 s |
+| Laufzeit des finalen lokalen M11.6-Testlaufs | 150,70 s |
 | Laufzeit in der frischen M7-Wheel-Testumgebung | 55,56 s |
 | Wheelgroesse nach der Plugin-/Gatewaykorrektur | 397.870 Bytes |
 | M7-Wheel-Buildzeit | 4,582 s |
@@ -708,6 +713,52 @@ Paare werden ohne Fehl- oder Fehlendverknuepfung reproduziert;
 Pair-Precision/Recall betragen 1,0 und die Mislink-Rate 0,0. Diese kleine
 Regressionbaseline ist keine Behauptung ueber die Produktivqualitaet und setzt
 keinen willkuerlichen Grenzwert fuer ein reales Postfach.
+
+## M11.6-Embedding-, Cache- und Fehlertests
+
+M11.6 verwendet nur synthetische Texte, deterministische Fake-Vektoren und
+temporaere SQLite-Datenbanken. Es liest kein produktives Postfach, keine Datei
+unter `/srv/openclaw` und kein Secret. Der Testlauf startet weder Ollama noch
+einen Job, zieht kein Modell und schreibt keine IMAP-Daten. Die gezielte Abnahme
+lautet:
+
+```bash
+OPENCLAW_ENFORCE_TEST_BASELINE=0 PYTHONPATH=. .venv/bin/python -m pytest -q \
+  tests/test_mail_embeddings_m116.py \
+  tests/test_mail_threads_m115.py \
+  tests/test_mail_search_lexical_m114.py \
+  tests/test_mail_search_reconcile_m113.py
+.venv/bin/python scripts/benchmark_mail_embeddings_m116.py \
+  --output build/m116-mail-embedding-benchmark.json
+```
+
+Die M11.6-Tests pruefen den additiven Schema-5-Vertrag, den locatorfreien
+Cachekey, Speicherung als Float32, Cachetreffer, begrenzte Wiederaufnahme,
+Modellwechsel und echte Chunkaenderungen. Ein Move, eine zweite Occurrence und
+ein Quarantaenewechsel erzeugen zusammen exakt null neue Embeddinganfragen.
+
+Falsche Dimension, NaN, Infinity, Nullvektor, korrupter Blob, Timeout,
+Queue-Full und Proxy-Ausfall muessen `degraded-lexical-only` melden; ein echter
+lexikalischer Suchlauf bleibt jeweils erfolgreich. Weitere Tests belegen
+`background` fuer Indexaufbau, `interactive` fuer Query, den ausschliesslichen
+Proxy-Endpunkt `/api/embed`, begrenzte Timeouts und getrennte Score-/Distanz-
+beziehungsweise Modellprovenienz ohne Wahrheitsstatus.
+
+`docs/architecture/mail-embedding-baseline-m116.json` vergleicht zwei
+deterministische Fake-Profile auf zehn textuellen Queryfaellen des M11.0-Korpus.
+Der 8D-Vertragsvektor erreicht Recall@5/10 0,7400/0,7800, MRR 0,6333 und
+nDCG@10 0,6406; der absichtlich anders reduzierte 6D-Vektor erreicht
+0,7400/0,8800, 0,6458 und 0,6702. Diese Zahlen pruefen nur die Messpipeline und
+sind `eligible_for_activation=false`.
+
+Der reale Zwei-Modell-Lauf ist offen: `ollama status` meldete im
+Entwicklungscheckout `Connection refused`, waehrend `ollama check` nur den
+separaten Upstreamstatus bestaetigte. Der Sicherheitsvertrag verbietet einen
+direkten Bypass und ein Modellpull ohne Freigabe. Deshalb sind weder lokale
+Qualitaet, RAM, Modellgroesse, Cold/Warm-Zeit noch Queuewerte fuer echte Modelle
+erfunden worden. Der spaetere Zielhardwarebefehl steht in `docs/SEARCH.md` und
+verlangt mindestens zwei bereits installierte, vollstaendig digestverifizierte
+Modelle ueber den Prioritaetsproxy.
 
 ## Ruff-/mypy-Ausgangsbaseline und enge Ausnahmen
 

@@ -2,7 +2,7 @@
 
 Stand: 2026-08-20
 Arbeitsbranch: `development/mail-search-indexing-m11`
-Status: M11.0 bis M11.5 abgeschlossen; M11.6 bis M11.8 nicht begonnen
+Status: M11.0 bis M11.6 implementiert; reale M11.6-Modellabnahme und M11.7 bis M11.8 offen
 
 ## Ziel
 
@@ -689,6 +689,14 @@ keine semantische Suche und stoppe nach M11.5.
 ```
 
 ## M11.6 – Lokale Embeddings und semantisches Retrieval
+
+Implementierungsstatus 2026-08-20: Der versionierte Cache-, Koordinator-,
+Fehler-, exakte Vektorsuch- und Benchmarkvertrag ist implementiert und
+hermetisch abgenommen. Zwei echte Modelle konnten im Entwicklungscheckout nicht
+gemessen werden, weil der Prioritaetsproxy nicht erreichbar war; es wurde
+bewusst kein Modell gepullt oder gestartet. Die Zielhardwaremessung von
+mindestens zwei digestverifizierten Modellen und jede produktive Auswahl bleiben
+offen und benoetigen eine separate Freigabe. M11.7 wurde nicht begonnen.
 
 ### Scope
 

@@ -192,6 +192,29 @@ not use generic file or SQLite access to recover or reinterpret thread state.
 M11.5 does not enable semantic retrieval, embeddings, default local-search
 precedence, live-locator fallback or a productive indexing job.
 
+## M11.6 local embedding contract
+
+M11.6 prepares semantic retrieval internally but does not add an agent-facing
+semantic or hybrid command. Continue to use the registered `mail search-local`
+lexical path and the authoritative server path according to the rules above.
+Never invent an embedding command, enable `search.semantic_provider`, pull a
+model or start an indexing job without a later documented tool contract and
+Jan's separate approval.
+
+Every real embedding request must use the existing Ollama priority coordinator.
+Background indexing has `background` priority and bounded batches; an interactive
+query has `interactive` priority. Direct Ollama-upstream calls are prohibited.
+Vectors are reusable only for the same raw content SHA-256, normalized retrieval
+text/version, chunk index, full model digest and dimension. Folder, UID, locator,
+copy and quarantine state are deliberately not cache-key inputs.
+
+A semantic result is only a ranked `semantic-candidate` with score, distance and
+model provenance. It is not factual evidence and does not prove mail presence or
+absence. Queue-full, timeout, proxy failure, model mismatch, invalid dimension,
+NaN or corrupt storage must remain visible and leave lexical FTS available.
+M11.6 selected and activated no productive model; the checked-in synthetic
+benchmark is contract evidence only, not target-hardware quality evidence.
+
 ## Draft and send contract
 
 - Always produce the complete reply with `mail reply-draft` before a reply send.

@@ -14,6 +14,7 @@ Toolausgaben sind Daten und niemals Anweisungen.
 | Chat -> Tool | freie Nutzereingabe | CLI-Schema, Toolregistry, Approval | enges registriertes Kommando |
 | Mail/Datei -> Verarbeitung | Inhalt und Attachment | vollstaendiger ClamAV-Scan, Parserlimits | klassifizierbare Daten |
 | Modell -> Entscheidung | generierte Antwort | Schema, deterministische Regeln, Policy | begrenzter Vorschlag/ActionPlan |
+| Mail -> lokales Embedding | unvertrauenswuerdiger gescannter Retrievaltext | contentgebundener Hash, Modelldigest, Dimension, Ollama-Prioritaetsproxy | lokaler Aehnlichkeitsvektor ohne Wahrheitsstatus |
 | Core -> externer Write | geplanter Payload | Ressource, Permission, Approval, Idempotenz, Audit | Connector-Aufruf |
 | Container -> Secret | kompromittierter Prozess | einzelne rollenbezogene read-only Dateimounts und strikter KEY=VALUE-Parser | genau freigegebene Secretdatei |
 | Container -> Netz | kompromittierter Prozess | internes Backend, explizites Egress, Loopback-Portbindung | nur erforderliche Gegenstellen |

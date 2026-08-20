@@ -340,11 +340,11 @@ def test_retrieval_normalization_is_versioned_and_preserves_citable_source(
     assert stored == original
 
 
-def test_schema_four_has_separate_thread_metadata_tables(
+def test_current_schema_has_separate_thread_metadata_tables(
     storage: AssistantStorage, tmp_path: Path
 ) -> None:
-    assert KNOWLEDGE_SCHEMA_VERSION == 4
-    assert storage.knowledge_connection.execute("PRAGMA user_version").fetchone()[0] == 4
+    assert KNOWLEDGE_SCHEMA_VERSION == 5
+    assert storage.knowledge_connection.execute("PRAGMA user_version").fetchone()[0] == 5
     names = {
         row[0]
         for row in storage.knowledge_connection.execute(

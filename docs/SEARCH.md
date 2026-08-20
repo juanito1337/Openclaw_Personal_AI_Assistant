@@ -211,6 +211,64 @@ threads and all 3 linked pairs with Pair-Precision/Recall 1.0, zero missed pairs
 and a mislink rate of 0.0. This small deterministic corpus is a regression
 baseline, not an estimate of productive mailbox quality.
 
+M11.6 adds the internal, versioned `mail-embedding-v1` contract recorded in
+[ADR-0031](architecture/adr/0031-versionierte-lokale-mail-embeddings.md). It does
+not add an agent-facing command and does not change the `mail search-local` or
+server-search precedence. Raw content SHA-256, normalized retrieval text SHA-256,
+`mail-retrieval-text-v1`, chunk position, model name, full model digest and
+dimension form the cache identity. Locator, folder, UID, occurrence and
+quarantine state are excluded, so a move or copy shares existing vectors.
+
+Vectors are little-endian Float32 rows in knowledge schema 5. A changed chunk is
+removed with its vector by SQLite foreign keys, while a changed model digest
+creates a separate cache. Bounded background batches can resume by rescanning
+deterministic keys and skipping cache hits. Every provider response is checked
+for exact cardinality and dimension, finite values and a nonzero norm.
+
+The only real provider adapter calls `/api/embed` through the configured Ollama
+priority coordinator. Background work uses `background`, interactive retrieval
+uses `interactive`, and both carry explicit queue and upstream timeouts. A real
+benchmark first checks `/api/tags` through the same coordinator and accepts only
+the exact configured name plus full SHA-256 digest. Direct upstream access is not
+an allowed fallback.
+
+The initial vector search is exact cosine comparison. It needs no optional
+SQLite ANN extension and is correct for the measured 11-chunk synthetic corpus.
+If the provider, proxy, queue, dimension or stored vector fails, the result is
+`degraded-lexical-only`; the independent FTS table remains available. Returned
+items are `semantic-candidate` records with score, distance and model provenance,
+not factual query evidence.
+
+Two catalog candidates for a later target-hardware run are
+`nomic-embed-text-v2-moe` (768 dimensions, 512-token catalog context, about
+958 MB) and `bge-m3` (1024 dimensions, 8192-token catalog context, about 1.2 GB).
+These are candidate metadata from the Ollama catalog, not measured local quality.
+The development coordinator was unavailable, so no model was pulled, selected
+or activated. The checked-in report compares two deterministic fake profiles
+only to prove the complete measurement and failure contract:
+
+```bash
+.venv/bin/python scripts/benchmark_mail_embeddings_m116.py \
+  --output build/m116-mail-embedding-benchmark.json
+```
+
+It reports Recall@5/10, MRR, nDCG@10, p50/p95, cold index and warm query time,
+queue wait, model/RAM/disk fields and marks both profiles
+`eligible_for_activation=false`. A later real comparison requires two already
+installed models and their exact local digests:
+
+```bash
+.venv/bin/python scripts/benchmark_mail_embeddings_m116.py \
+  --base-url "http://ollama-proxy:11435" \
+  --model "<name-a>|sha256:<64-hex>|<dimension>|<context-chars>" \
+  --model "<name-b>|sha256:<64-hex>|<dimension>|<context-chars>" \
+  --output build/m116-target-hardware.json
+```
+
+This command never pulls a model. A successful target-hardware report still
+needs a separate model-selection and productive activation approval. M11.7 owns
+future hybrid fusion, agent routing and live locators.
+
 ## Sources
 
 - mail-agent message metadata and summaries

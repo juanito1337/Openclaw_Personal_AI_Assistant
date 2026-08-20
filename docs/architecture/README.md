@@ -136,7 +136,13 @@ Importgraphen auf Zyklen.
   kennzeichnet einen engen Betreff-/Teilnehmerfallback stets als unsicher.
   Optionaler Kontext bleibt getrennt vom Querytreffer; Rankingtext darf
   wiederholte Zitate reduzieren, waehrend der zitierbare Originalchunk erhalten
-  bleibt. Semantische Suche und produktive Suchpraeferenz sind nicht aktiviert.
+  bleibt. Der M11.6-Vertrag aus
+  [ADR-0031](adr/0031-versionierte-lokale-mail-embeddings.md) bindet lokale
+  Float32-Vektoren an Content-/Retrieval-SHA, Chunk und vollen Modelldigest.
+  Locatorwechsel teilen den Cache; alle realen Anfragen muessen durch den
+  Ollama-Prioritaetsproxy. Exakte Kosinussuche ist die gemessene korrekte
+  Ausgangsimplementierung und degradiert bei jedem Modellfehler sichtbar auf
+  FTS. Kein echtes Modell, produktiver Job oder neue Suchpraeferenz ist aktiviert.
 - Instanzkonfiguration und Secrets liegen getrennt unter `/srv/openclaw/config` und
   `/srv/openclaw/secrets`; Rollen sehen daraus nur benoetigte read-only Dateien.
 - ClamAV-Signaturen liegen im Docker-Volume `clamav-db`; nur `clamav-update` schreibt.

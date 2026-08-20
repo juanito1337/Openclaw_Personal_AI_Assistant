@@ -36,5 +36,6 @@ verweist mit Status `Superseded` auf den Nachfolger.
 | [0028](0028-transaktionale-mail-reconciliation.md) | Accepted | autoritative inkrementelle Mail-Reconciliation mit transaktionalem Deltaimport |
 | [0029](0029-sichere-lokale-mail-lexik-und-tags.md) | Accepted | sichere lokale Mail-Lexik, erklaerbares Ranking und belegte Tags |
 | [0030](0030-konservative-mail-threads-und-kontext.md) | Accepted | konservative Headerthreads, unsicherer Fallback und begrenzter Kontext |
+| [0031](0031-versionierte-lokale-mail-embeddings.md) | Accepted | contentgebundene lokale Embeddings, Koordinatorpflicht und separate Modellfreigabe |
 
 Neue ADRs beginnen mit der [Vorlage](0000-template.md).

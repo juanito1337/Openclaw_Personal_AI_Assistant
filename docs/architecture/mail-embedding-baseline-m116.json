@@ -1,0 +1,754 @@
+{
+  "contract_version": "mail-embedding-v1",
+  "environment": {
+    "corpus_sha256": "b0e5e79b06f5b493a50db4047b4d8a0630dd1d827700efb6279f6de9d7d97a7d",
+    "ollama_coordinator_required": true,
+    "python": "3.12.3"
+  },
+  "milestone": "M11.6",
+  "mode": "fixture",
+  "model_count": 2,
+  "models": [
+    {
+      "build": {
+        "cache_hits": 0,
+        "candidate_chunks": 11,
+        "contract_version": "mail-embedding-v1",
+        "dimension": 8,
+        "error": null,
+        "latency_ms": 0.2218,
+        "model": "synthetic-contract-8d",
+        "model_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "ok": true,
+        "queue_wait_ms": 0.0,
+        "remaining": 0,
+        "requested": 11,
+        "resumable": true,
+        "state": "complete",
+        "stored": 11
+      },
+      "context_limit_chars": 4096,
+      "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "dimension": 8,
+      "eligible_for_activation": false,
+      "installed_digest_verified": false,
+      "latency": {
+        "cold_index_ms": 7.1481,
+        "p50_ms": 0.5949,
+        "p95_ms": 0.6211,
+        "queue_wait_p50_ms": 0.0,
+        "queue_wait_p95_ms": 0.0,
+        "samples": 10,
+        "warm_p50_ms": 0.5949
+      },
+      "measurement_kind": "synthetic-contract",
+      "model": "synthetic-contract-8d",
+      "model_size_bytes": 0,
+      "quality": {
+        "duplicate_hits": 0,
+        "evaluated_queries": 10,
+        "mean_ndcg_at_10": 0.6406,
+        "mean_recall_at_10": 0.78,
+        "mean_recall_at_5": 0.74,
+        "mrr": 0.6333,
+        "negative_queries": 0,
+        "negative_queries_correct": 0,
+        "scored_queries": 10
+      },
+      "quality_by_kind": {
+        "body": {
+          "duplicate_hits": 0,
+          "evaluated_queries": 2,
+          "mean_ndcg_at_10": 0.75,
+          "mean_recall_at_10": 1.0,
+          "mean_recall_at_5": 1.0,
+          "mrr": 0.6666,
+          "negative_queries": 0,
+          "negative_queries_correct": 0,
+          "scored_queries": 2
+        },
+        "common": {
+          "duplicate_hits": 0,
+          "evaluated_queries": 1,
+          "mean_ndcg_at_10": 0.4409,
+          "mean_recall_at_10": 0.8,
+          "mean_recall_at_5": 0.4,
+          "mrr": 0.5,
+          "negative_queries": 0,
+          "negative_queries_correct": 0,
+          "scored_queries": 1
+        },
+        "context": {
+          "duplicate_hits": 0,
+          "evaluated_queries": 2,
+          "mean_ndcg_at_10": 1.0,
+          "mean_recall_at_10": 1.0,
+          "mean_recall_at_5": 1.0,
+          "mrr": 1.0,
+          "negative_queries": 0,
+          "negative_queries_correct": 0,
+          "scored_queries": 2
+        },
+        "lexical": {
+          "duplicate_hits": 0,
+          "evaluated_queries": 2,
+          "mean_ndcg_at_10": 0.917,
+          "mean_recall_at_10": 1.0,
+          "mean_recall_at_5": 1.0,
+          "mrr": 1.0,
+          "negative_queries": 0,
+          "negative_queries_correct": 0,
+          "scored_queries": 2
+        },
+        "semantic": {
+          "duplicate_hits": 0,
+          "evaluated_queries": 2,
+          "mean_ndcg_at_10": 0.3155,
+          "mean_recall_at_10": 0.5,
+          "mean_recall_at_5": 0.5,
+          "mrr": 0.25,
+          "negative_queries": 0,
+          "negative_queries_correct": 0,
+          "scored_queries": 2
+        },
+        "sender": {
+          "duplicate_hits": 0,
+          "evaluated_queries": 1,
+          "mean_ndcg_at_10": 0.0,
+          "mean_recall_at_10": 0.0,
+          "mean_recall_at_5": 0.0,
+          "mrr": 0.0,
+          "negative_queries": 0,
+          "negative_queries_correct": 0,
+          "scored_queries": 1
+        }
+      },
+      "queries": [
+        {
+          "kind": "lexical",
+          "metrics": {
+            "duplicate_hits": 0,
+            "expected_empty": false,
+            "ndcg_at_10": 0.834,
+            "recall_at_10": 1.0,
+            "recall_at_5": 1.0,
+            "reciprocal_rank": 1.0
+          },
+          "query_id": "lexical-de-exact",
+          "returned_ids": [
+            "maint-reply-de",
+            "maint-request-de",
+            "security-spam-de",
+            "monthly-news-de",
+            "rail-change-de",
+            "roof-reply-de",
+            "aurora-handover-de",
+            "pump-invoice-en",
+            "roof-estimate-de",
+            "board-followup-en"
+          ]
+        },
+        {
+          "kind": "lexical",
+          "metrics": {
+            "duplicate_hits": 0,
+            "expected_empty": false,
+            "ndcg_at_10": 1.0,
+            "recall_at_10": 1.0,
+            "recall_at_5": 1.0,
+            "reciprocal_rank": 1.0
+          },
+          "query_id": "lexical-en-invoice",
+          "returned_ids": [
+            "pump-invoice-en",
+            "security-spam-de",
+            "monthly-news-de",
+            "rail-change-de",
+            "roof-reply-de",
+            "roof-estimate-de",
+            "aurora-handover-de",
+            "maint-reply-de",
+            "board-followup-en",
+            "board-material-en"
+          ]
+        },
+        {
+          "kind": "sender",
+          "metrics": {
+            "duplicate_hits": 0,
+            "expected_empty": false,
+            "ndcg_at_10": 0.0,
+            "recall_at_10": 0.0,
+            "recall_at_5": 0.0,
+            "reciprocal_rank": 0.0
+          },
+          "query_id": "sender-de",
+          "returned_ids": [
+            "security-spam-de",
+            "monthly-news-de",
+            "rail-change-de",
+            "roof-reply-de",
+            "pump-invoice-en",
+            "aurora-handover-de",
+            "maint-reply-de",
+            "roof-estimate-de",
+            "board-followup-en",
+            "board-material-en"
+          ]
+        },
+        {
+          "kind": "body",
+          "metrics": {
+            "duplicate_hits": 0,
+            "expected_empty": false,
+            "ndcg_at_10": 1.0,
+            "recall_at_10": 1.0,
+            "recall_at_5": 1.0,
+            "reciprocal_rank": 1.0
+          },
+          "query_id": "body-de",
+          "returned_ids": [
+            "aurora-handover-de",
+            "security-spam-de",
+            "monthly-news-de",
+            "rail-change-de",
+            "roof-reply-de",
+            "maint-reply-de",
+            "pump-invoice-en",
+            "roof-estimate-de",
+            "board-followup-en",
+            "board-material-en"
+          ]
+        },
+        {
+          "kind": "body",
+          "metrics": {
+            "duplicate_hits": 0,
+            "expected_empty": false,
+            "ndcg_at_10": 0.5,
+            "recall_at_10": 1.0,
+            "recall_at_5": 1.0,
+            "reciprocal_rank": 0.3333
+          },
+          "query_id": "body-en",
+          "returned_ids": [
+            "monthly-news-de",
+            "board-followup-en",
+            "board-material-en",
+            "security-spam-de",
+            "rail-change-de",
+            "roof-reply-de",
+            "aurora-handover-de",
+            "maint-reply-de",
+            "pump-invoice-en",
+            "roof-estimate-de"
+          ]
+        },
+        {
+          "kind": "common",
+          "metrics": {
+            "duplicate_hits": 0,
+            "expected_empty": false,
+            "ndcg_at_10": 0.4409,
+            "recall_at_10": 0.8,
+            "recall_at_5": 0.4,
+            "reciprocal_rank": 0.5
+          },
+          "query_id": "common-term-de",
+          "returned_ids": [
+            "security-spam-de",
+            "monthly-news-de",
+            "rail-change-de",
+            "roof-reply-de",
+            "pump-invoice-en",
+            "aurora-handover-de",
+            "maint-reply-de",
+            "roof-estimate-de",
+            "board-followup-en",
+            "board-material-en"
+          ]
+        },
+        {
+          "kind": "semantic",
+          "metrics": {
+            "duplicate_hits": 0,
+            "expected_empty": false,
+            "ndcg_at_10": 0.6309,
+            "recall_at_10": 1.0,
+            "recall_at_5": 1.0,
+            "reciprocal_rank": 0.5
+          },
+          "query_id": "semantic-de",
+          "returned_ids": [
+            "roof-reply-de",
+            "roof-estimate-de",
+            "security-spam-de",
+            "monthly-news-de",
+            "rail-change-de",
+            "aurora-handover-de",
+            "maint-reply-de",
+            "pump-invoice-en",
+            "board-followup-en",
+            "board-material-en"
+          ]
+        },
+        {
+          "kind": "semantic",
+          "metrics": {
+            "duplicate_hits": 0,
+            "expected_empty": false,
+            "ndcg_at_10": 0.0,
+            "recall_at_10": 0.0,
+            "recall_at_5": 0.0,
+            "reciprocal_rank": 0.0
+          },
+          "query_id": "semantic-en",
+          "returned_ids": [
+            "roof-reply-de",
+            "security-spam-de",
+            "roof-estimate-de",
+            "pump-invoice-en",
+            "monthly-news-de",
+            "rail-change-de",
+            "aurora-handover-de",
+            "maint-reply-de",
+            "board-followup-en",
+            "board-material-en"
+          ]
+        },
+        {
+          "kind": "context",
+          "metrics": {
+            "duplicate_hits": 0,
+            "expected_empty": false,
+            "ndcg_at_10": 1.0,
+            "recall_at_10": 1.0,
+            "recall_at_5": 1.0,
+            "reciprocal_rank": 1.0
+          },
+          "query_id": "context-de",
+          "returned_ids": [
+            "maint-reply-de",
+            "maint-request-de",
+            "security-spam-de",
+            "monthly-news-de",
+            "rail-change-de",
+            "roof-reply-de",
+            "aurora-handover-de",
+            "pump-invoice-en",
+            "roof-estimate-de",
+            "board-followup-en"
+          ]
+        },
+        {
+          "kind": "context",
+          "metrics": {
+            "duplicate_hits": 0,
+            "expected_empty": false,
+            "ndcg_at_10": 1.0,
+            "recall_at_10": 1.0,
+            "recall_at_5": 1.0,
+            "reciprocal_rank": 1.0
+          },
+          "query_id": "context-en",
+          "returned_ids": [
+            "board-followup-en",
+            "board-material-en",
+            "monthly-news-de",
+            "security-spam-de",
+            "rail-change-de",
+            "roof-reply-de",
+            "aurora-handover-de",
+            "maint-reply-de",
+            "pump-invoice-en",
+            "roof-estimate-de"
+          ]
+        }
+      ],
+      "resources": {
+        "database_bytes": 307200,
+        "estimated_vector_bytes_at_100k_chunks": 3200000,
+        "process_peak_rss_delta_kib": 0,
+        "vector_bytes": 352
+      }
+    },
+    {
+      "build": {
+        "cache_hits": 0,
+        "candidate_chunks": 11,
+        "contract_version": "mail-embedding-v1",
+        "dimension": 6,
+        "error": null,
+        "latency_ms": 0.22810000000000002,
+        "model": "synthetic-contract-6d",
+        "model_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "ok": true,
+        "queue_wait_ms": 0.0,
+        "remaining": 0,
+        "requested": 11,
+        "resumable": true,
+        "state": "complete",
+        "stored": 11
+      },
+      "context_limit_chars": 4096,
+      "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "dimension": 6,
+      "eligible_for_activation": false,
+      "installed_digest_verified": false,
+      "latency": {
+        "cold_index_ms": 10.4487,
+        "p50_ms": 0.3666,
+        "p95_ms": 0.8366,
+        "queue_wait_p50_ms": 0.0,
+        "queue_wait_p95_ms": 0.0,
+        "samples": 10,
+        "warm_p50_ms": 0.3666
+      },
+      "measurement_kind": "synthetic-contract",
+      "model": "synthetic-contract-6d",
+      "model_size_bytes": 0,
+      "quality": {
+        "duplicate_hits": 0,
+        "evaluated_queries": 10,
+        "mean_ndcg_at_10": 0.6702,
+        "mean_recall_at_10": 0.88,
+        "mean_recall_at_5": 0.74,
+        "mrr": 0.6458,
+        "negative_queries": 0,
+        "negative_queries_correct": 0,
+        "scored_queries": 10
+      },
+      "quality_by_kind": {
+        "body": {
+          "duplicate_hits": 0,
+          "evaluated_queries": 2,
+          "mean_ndcg_at_10": 0.75,
+          "mean_recall_at_10": 1.0,
+          "mean_recall_at_5": 1.0,
+          "mrr": 0.6666,
+          "negative_queries": 0,
+          "negative_queries_correct": 0,
+          "scored_queries": 2
+        },
+        "common": {
+          "duplicate_hits": 0,
+          "evaluated_queries": 1,
+          "mean_ndcg_at_10": 0.4218,
+          "mean_recall_at_10": 0.8,
+          "mean_recall_at_5": 0.4,
+          "mrr": 0.5,
+          "negative_queries": 0,
+          "negative_queries_correct": 0,
+          "scored_queries": 1
+        },
+        "context": {
+          "duplicate_hits": 0,
+          "evaluated_queries": 2,
+          "mean_ndcg_at_10": 1.0,
+          "mean_recall_at_10": 1.0,
+          "mean_recall_at_5": 1.0,
+          "mrr": 1.0,
+          "negative_queries": 0,
+          "negative_queries_correct": 0,
+          "scored_queries": 2
+        },
+        "lexical": {
+          "duplicate_hits": 0,
+          "evaluated_queries": 2,
+          "mean_ndcg_at_10": 0.917,
+          "mean_recall_at_10": 1.0,
+          "mean_recall_at_5": 1.0,
+          "mrr": 1.0,
+          "negative_queries": 0,
+          "negative_queries_correct": 0,
+          "scored_queries": 2
+        },
+        "semantic": {
+          "duplicate_hits": 0,
+          "evaluated_queries": 2,
+          "mean_ndcg_at_10": 0.3155,
+          "mean_recall_at_10": 0.5,
+          "mean_recall_at_5": 0.5,
+          "mrr": 0.25,
+          "negative_queries": 0,
+          "negative_queries_correct": 0,
+          "scored_queries": 2
+        },
+        "sender": {
+          "duplicate_hits": 0,
+          "evaluated_queries": 1,
+          "mean_ndcg_at_10": 0.3155,
+          "mean_recall_at_10": 1.0,
+          "mean_recall_at_5": 0.0,
+          "mrr": 0.125,
+          "negative_queries": 0,
+          "negative_queries_correct": 0,
+          "scored_queries": 1
+        }
+      },
+      "queries": [
+        {
+          "kind": "lexical",
+          "metrics": {
+            "duplicate_hits": 0,
+            "expected_empty": false,
+            "ndcg_at_10": 0.834,
+            "recall_at_10": 1.0,
+            "recall_at_5": 1.0,
+            "reciprocal_rank": 1.0
+          },
+          "query_id": "lexical-de-exact",
+          "returned_ids": [
+            "maint-reply-de",
+            "maint-request-de",
+            "security-spam-de",
+            "roof-reply-de",
+            "monthly-news-de",
+            "rail-change-de",
+            "pump-invoice-en",
+            "roof-estimate-de",
+            "aurora-handover-de",
+            "board-followup-en"
+          ]
+        },
+        {
+          "kind": "lexical",
+          "metrics": {
+            "duplicate_hits": 0,
+            "expected_empty": false,
+            "ndcg_at_10": 1.0,
+            "recall_at_10": 1.0,
+            "recall_at_5": 1.0,
+            "reciprocal_rank": 1.0
+          },
+          "query_id": "lexical-en-invoice",
+          "returned_ids": [
+            "pump-invoice-en",
+            "security-spam-de",
+            "roof-estimate-de",
+            "roof-reply-de",
+            "monthly-news-de",
+            "rail-change-de",
+            "maint-reply-de",
+            "maint-request-de",
+            "aurora-handover-de",
+            "board-followup-en"
+          ]
+        },
+        {
+          "kind": "sender",
+          "metrics": {
+            "duplicate_hits": 0,
+            "expected_empty": false,
+            "ndcg_at_10": 0.3155,
+            "recall_at_10": 1.0,
+            "recall_at_5": 0.0,
+            "reciprocal_rank": 0.125
+          },
+          "query_id": "sender-de",
+          "returned_ids": [
+            "security-spam-de",
+            "roof-reply-de",
+            "monthly-news-de",
+            "rail-change-de",
+            "maint-reply-de",
+            "roof-estimate-de",
+            "pump-invoice-en",
+            "maint-request-de",
+            "aurora-handover-de",
+            "board-followup-en"
+          ]
+        },
+        {
+          "kind": "body",
+          "metrics": {
+            "duplicate_hits": 0,
+            "expected_empty": false,
+            "ndcg_at_10": 1.0,
+            "recall_at_10": 1.0,
+            "recall_at_5": 1.0,
+            "reciprocal_rank": 1.0
+          },
+          "query_id": "body-de",
+          "returned_ids": [
+            "aurora-handover-de",
+            "security-spam-de",
+            "roof-reply-de",
+            "monthly-news-de",
+            "rail-change-de",
+            "maint-reply-de",
+            "pump-invoice-en",
+            "roof-estimate-de",
+            "maint-request-de",
+            "board-followup-en"
+          ]
+        },
+        {
+          "kind": "body",
+          "metrics": {
+            "duplicate_hits": 0,
+            "expected_empty": false,
+            "ndcg_at_10": 0.5,
+            "recall_at_10": 1.0,
+            "recall_at_5": 1.0,
+            "reciprocal_rank": 0.3333
+          },
+          "query_id": "body-en",
+          "returned_ids": [
+            "monthly-news-de",
+            "board-followup-en",
+            "board-material-en",
+            "security-spam-de",
+            "roof-reply-de",
+            "rail-change-de",
+            "maint-reply-de",
+            "pump-invoice-en",
+            "roof-estimate-de",
+            "maint-request-de"
+          ]
+        },
+        {
+          "kind": "common",
+          "metrics": {
+            "duplicate_hits": 0,
+            "expected_empty": false,
+            "ndcg_at_10": 0.4218,
+            "recall_at_10": 0.8,
+            "recall_at_5": 0.4,
+            "reciprocal_rank": 0.5
+          },
+          "query_id": "common-term-de",
+          "returned_ids": [
+            "security-spam-de",
+            "roof-reply-de",
+            "monthly-news-de",
+            "rail-change-de",
+            "maint-reply-de",
+            "roof-estimate-de",
+            "pump-invoice-en",
+            "maint-request-de",
+            "aurora-handover-de",
+            "board-followup-en"
+          ]
+        },
+        {
+          "kind": "semantic",
+          "metrics": {
+            "duplicate_hits": 0,
+            "expected_empty": false,
+            "ndcg_at_10": 0.6309,
+            "recall_at_10": 1.0,
+            "recall_at_5": 1.0,
+            "reciprocal_rank": 0.5
+          },
+          "query_id": "semantic-de",
+          "returned_ids": [
+            "roof-reply-de",
+            "roof-estimate-de",
+            "pump-invoice-en",
+            "security-spam-de",
+            "monthly-news-de",
+            "rail-change-de",
+            "maint-reply-de",
+            "aurora-handover-de",
+            "maint-request-de",
+            "board-followup-en"
+          ]
+        },
+        {
+          "kind": "semantic",
+          "metrics": {
+            "duplicate_hits": 0,
+            "expected_empty": false,
+            "ndcg_at_10": 0.0,
+            "recall_at_10": 0.0,
+            "recall_at_5": 0.0,
+            "reciprocal_rank": 0.0
+          },
+          "query_id": "semantic-en",
+          "returned_ids": [
+            "roof-reply-de",
+            "roof-estimate-de",
+            "security-spam-de",
+            "pump-invoice-en",
+            "maint-reply-de",
+            "maint-request-de",
+            "monthly-news-de",
+            "rail-change-de",
+            "aurora-handover-de",
+            "board-followup-en"
+          ]
+        },
+        {
+          "kind": "context",
+          "metrics": {
+            "duplicate_hits": 0,
+            "expected_empty": false,
+            "ndcg_at_10": 1.0,
+            "recall_at_10": 1.0,
+            "recall_at_5": 1.0,
+            "reciprocal_rank": 1.0
+          },
+          "query_id": "context-de",
+          "returned_ids": [
+            "maint-reply-de",
+            "maint-request-de",
+            "security-spam-de",
+            "roof-reply-de",
+            "monthly-news-de",
+            "rail-change-de",
+            "aurora-handover-de",
+            "pump-invoice-en",
+            "roof-estimate-de",
+            "board-followup-en"
+          ]
+        },
+        {
+          "kind": "context",
+          "metrics": {
+            "duplicate_hits": 0,
+            "expected_empty": false,
+            "ndcg_at_10": 1.0,
+            "recall_at_10": 1.0,
+            "recall_at_5": 1.0,
+            "reciprocal_rank": 1.0
+          },
+          "query_id": "context-en",
+          "returned_ids": [
+            "board-followup-en",
+            "board-material-en",
+            "monthly-news-de",
+            "security-spam-de",
+            "roof-reply-de",
+            "rail-change-de",
+            "maint-reply-de",
+            "pump-invoice-en",
+            "roof-estimate-de",
+            "maint-request-de"
+          ]
+        }
+      ],
+      "resources": {
+        "database_bytes": 307200,
+        "estimated_vector_bytes_at_100k_chunks": 2400000,
+        "process_peak_rss_delta_kib": 0,
+        "vector_bytes": 264
+      }
+    }
+  ],
+  "ok": true,
+  "privacy": {
+    "mail_content_in_report": false,
+    "productive_data_read": false,
+    "productive_state_written": false,
+    "query_text_in_report": false,
+    "synthetic_only": true
+  },
+  "schema_version": 1,
+  "selection": {
+    "activation_allowed": false,
+    "reason": "Nur synthetischer Vertragsbenchmark; keine Zielhardware- oder echte Modellmessung",
+    "requires_explicit_user_approval": true,
+    "selected": null
+  }
+}

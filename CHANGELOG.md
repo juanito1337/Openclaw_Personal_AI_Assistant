@@ -2,6 +2,32 @@
 
 ## Unreleased – M11 Mail-Suchindex
 
+### M11.6 Versionierte lokale Embeddings und semantisches Retrieval
+
+- `mail-embedding-v1` bindet Float32-Vektoren an Raw-SHA-256, normalisierten
+  Retrievaltext und dessen Version, Chunkposition, Modellname, vollen
+  Modelldigest und Dimension. Ordner, UID, Locator, Quarantaene und Occurrence
+  sind bewusst kein Teil des Cachekeys; Move, Kopie und Quarantaenewechsel
+  erzeugen deshalb keine neue Modellanfrage.
+- Wissensschema 5 speichert Embeddings mit Fremdschluesseln zu Dokument und
+  Chunk. Echte Inhaltsaenderungen invalidieren den alten Vektor, Modellwechsel
+  erzeugen einen getrennten Cache und begrenzte Laeufe werden ohne Wiederholung
+  vorhandener Chunks fortgesetzt.
+- Reale Anfragen verwenden ausschliesslich `/api/embed` des vorhandenen
+  Ollama-Prioritaetsproxies: Aufbau als `background`, Abfrage als `interactive`
+  mit expliziten Queue-/Upstreamlimits. Vor einer Messung muss `/api/tags` den
+  vollstaendigen Digest eines bereits installierten Modells bestaetigen.
+- Die erste lokale Vektorsuche berechnet exakte Kosinusaehnlichkeit und meldet
+  Score, Distanz, Rankingversion und Modellprovenienz. Kandidaten sind keine
+  Fakten. Queue-Full, Timeout, Proxyausfall, falsche Dimension, NaN/Infinity,
+  Nullvektor und korrupte Speicherung degradieren sichtbar, waehrend FTS
+  verfuegbar bleibt.
+- Der reproduzierbare Zwei-Profil-Benchmark misst Recall@5/10, MRR, nDCG@10,
+  p50/p95, Cold/Warm-, Queue-, RAM- und Plattenfelder nur auf synthetischen
+  Daten. Er ist explizit nicht aktivierungsfaehig. Der Entwicklungsproxy war
+  nicht erreichbar; daher wurden keine realen Modellwerte behauptet, kein
+  Modell gepullt oder gewaehlt und kein Job beziehungsweise M11.7 aktiviert.
+
 ### M11.5 Konservative Threads und begrenzter Kontext
 
 - Der Wissensindex erzeugt einen versionierten, azyklischen Threadgraphen primaer

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from .contracts.time import now_utc_iso
+from .mail_embeddings import EmbeddingModel, EmbeddingProvider, MailEmbeddingIndex
 from .mail_search import MailLexicalSearch, MailSearchFilters, build_mail_tags
 from .mail_threads import (
     MAIL_RETRIEVAL_TEXT_VERSION,
@@ -18,7 +19,7 @@ from .mail_threads import (
 from .models import ActionPlan, SearchResult
 
 CORE_SCHEMA_VERSION = 1
-KNOWLEDGE_SCHEMA_VERSION = 4
+KNOWLEDGE_SCHEMA_VERSION = 5
 # Compatibility export for callers that historically treated the combined
 # development database as the knowledge schema.
 SCHEMA_VERSION = KNOWLEDGE_SCHEMA_VERSION
@@ -343,6 +344,27 @@ class AssistantStorage:
             );
             CREATE INDEX IF NOT EXISTS idx_mail_search_thread_members_thread
                 ON mail_search_thread_members(thread_id, position);
+            CREATE TABLE IF NOT EXISTS mail_search_embeddings (
+                embedding_key TEXT PRIMARY KEY,
+                content_id TEXT NOT NULL REFERENCES mail_search_contents(content_id)
+                    ON DELETE CASCADE,
+                document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+                chunk_id INTEGER NOT NULL REFERENCES chunks(id) ON DELETE CASCADE,
+                chunk_index INTEGER NOT NULL,
+                raw_sha256 TEXT NOT NULL,
+                retrieval_sha256 TEXT NOT NULL,
+                retrieval_text_version TEXT NOT NULL,
+                contract_version TEXT NOT NULL,
+                model_name TEXT NOT NULL,
+                model_digest TEXT NOT NULL,
+                dimension INTEGER NOT NULL CHECK(dimension > 0 AND dimension <= 8192),
+                vector BLOB NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_mail_search_embeddings_model
+                ON mail_search_embeddings(model_digest,dimension,content_id,chunk_index);
+            CREATE INDEX IF NOT EXISTS idx_mail_search_embeddings_content
+                ON mail_search_embeddings(content_id,model_digest);
             """
         )
         document_columns = {
@@ -1158,6 +1180,40 @@ class AssistantStorage:
             limit=limit,
             max_age_seconds=max_age_seconds,
             context_limit=context_limit,
+        )
+
+    def build_mail_embeddings(
+        self,
+        *,
+        model: EmbeddingModel,
+        provider: EmbeddingProvider,
+        max_chunks: int = 1000,
+        batch_size: int = 8,
+    ) -> dict[str, Any]:
+        """Populate the content-keyed semantic cache without changing mail state."""
+
+        return MailEmbeddingIndex(self.knowledge_connection).build(
+            model=model,
+            provider=provider,
+            max_chunks=max_chunks,
+            batch_size=batch_size,
+        )
+
+    def search_mail_semantic(
+        self,
+        query: str,
+        *,
+        model: EmbeddingModel,
+        provider: EmbeddingProvider,
+        limit: int = 20,
+    ) -> dict[str, Any]:
+        """Return semantic candidates; M11.7 owns later hybrid/live routing."""
+
+        return MailEmbeddingIndex(self.knowledge_connection).search(
+            query,
+            model=model,
+            provider=provider,
+            limit=limit,
         )
 
     def search(
