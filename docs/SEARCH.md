@@ -311,6 +311,15 @@ The returned top-level fields always include `complete`, `coverage`,
 local-only category, review, attachment or tag filters; these appear under
 `filter_limitations` and keep `complete=false`.
 
+The current Himalaya 1.2 server query also cannot prove that a successful empty
+response represents a complete body-aware account search. On a server zero the
+adapter scans one bounded recent envelope window in every readable folder and
+matches sender name, sender address/domain and subject. This read-only fallback
+finds positive metadata hits after external folder moves, but reports
+`server-query-not-authoritative`, `body-search-not-verified` and
+`bounded-envelope-metadata-only`. Such a zero result never proves absence; inspect
+`search_scope`, `metadata_fallback` and every result's `match` fields.
+
 Before reading a hit, use exactly its `live_locator.folder`,
 `live_locator.mailbox_id` and subject:
 

@@ -39,6 +39,14 @@ class FakeClient:
             mailbox=SimpleNamespace(from_header="Jan <jan@example.de>")
         )
     def list_folders(self): return self.folders, ""
+    def search_contract(self):
+        return {
+            "provider": "synthetic-authoritative-fixture",
+            "authoritative": True,
+            "body_search_verified": True,
+            "metadata_fallback": False,
+            "reason": "synthetic-fixture-exhaustively-evaluates-every-message",
+        }
     def list_envelopes(self, folder, limit=None): return list(self.messages.get(folder, []))[:limit], ""
     def search_envelopes(self, folder, terms, limit=50):
         self.search_calls.append((folder, tuple(terms), limit))

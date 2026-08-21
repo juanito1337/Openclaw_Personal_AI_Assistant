@@ -56,6 +56,14 @@ berichten Coverage, Frische, Generation, SQLite, FTS, Locator und Embeddings.
 freizugebende Reconciliation bleiben getrennte Vertraege. M11.7 startet keinen
 Job, fuehrt keinen Backfill aus und aktiviert kein Embeddingmodell.
 
+Der aktuelle Himalaya-Serverfallback ist nicht autoritativ. Eine technisch
+erfolgreiche leere Backendquery darf deshalb nicht mehr `complete=true` setzen.
+Bei einem globalen Nulltreffer wird bounded je lesbarem Ordner eine aktuelle
+Envelope-Metadatenseite gelesen und lokal gegen Absendername, Adresse/Domain und
+Betreff abgeglichen. Diese Rettung belegt positive verschobene Metadatentreffer,
+aber weder Bodyabdeckung noch ein negatives Vollkontoergebnis. Suchumfang,
+Fallbacklimit, Matchfelder und Einschraenkungen sind Teil des Ergebnisses.
+
 ## Konsequenzen
 
 - Ein frischer vollstaendiger Nulltreffer braucht keine ordnerweise IMAP-Suche
@@ -70,6 +78,9 @@ Job, fuehrt keinen Backfill aus und aktiviert kein Embeddingmodell.
 - Server-Fallback kann lokale Kategorie-, Review-, Anhangs- und freie Tagfilter
   nicht beweisen. Solche Antworten nennen `filter_limitations` und bleiben
   `complete=false`.
+- Himalaya-Nulltreffer bleiben auch ohne technischen Ordnerfehler unvollstaendig.
+  Ein bounded Metadatenfallback kann eine positive verschobene Mail finden; nur
+  ein autoritativ vollstaendiger lokaler Index darf Abwesenheit belegen.
 - Suchquery und Mailbody bleiben Daten. Die Orchestrierung erzeugt weder
   ActionPlan noch Toolaufruf und schreibt weder IMAP noch lokale Tags.
 
@@ -80,3 +91,7 @@ nicht autoritative, locatorlose und FTS-lose Zustaende, Backend-Aufrufzahlen,
 semantische Degradation, RRF-Provenienz, Move-Neuaufloesung, Kopiekonflikte,
 deterministische Mehrfach-Locatorwahl, Read-Konflikt, Prompt-Injection und
 Seiteneffektfreiheit ausschliesslich mit synthetischen Daten.
+`tests/test_mail_server_search_fallback.py` bildet zusaetzlich einen erfolgreichen,
+aber falsch leeren Himalaya-Providerpfad und eine in einen anderen Ordner
+verschobene synthetische Absender-/Betreffmail nach. Es prueft positive Rettung,
+ehrliche Bodygrenzen und fail-closed Nulltreffer ohne Produktivdaten.

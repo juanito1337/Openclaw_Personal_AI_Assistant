@@ -24,6 +24,9 @@ from ..tool_settings import MailMoveToolSettings
 
 
 class MailMoveService:
+    SERVER_METADATA_FALLBACK_LIMIT = 100
+    QUERY_CONNECTORS = frozenset({"and", "or", "und", "oder"})
+
     def __init__(
         self,
         settings: MailMoveToolSettings,
@@ -113,7 +116,12 @@ class MailMoveService:
         seen_terms: set[str] = set()
         for term in re.findall(r"[\w@.+-]+", clean_query, flags=re.UNICODE):
             folded = term.casefold()
-            if folded and folded not in seen_terms:
+            if (
+                folded
+                and any(character.isalnum() for character in folded)
+                and folded not in self.QUERY_CONNECTORS
+                and folded not in seen_terms
+            ):
                 terms.append(term)
                 seen_terms.add(folded)
         if not terms:
@@ -124,6 +132,19 @@ class MailMoveService:
         if not decision.allowed:
             raise PermissionError(decision.reason)
         client = self._client()
+        contract_method = getattr(client, "search_contract", None)
+        contract_value = contract_method() if callable(contract_method) else {}
+        raw_contract = contract_value if isinstance(contract_value, dict) else {}
+        contract = {
+            "provider": str(raw_contract.get("provider") or "undeclared-connector"),
+            "authoritative": raw_contract.get("authoritative") is True,
+            "body_search_verified": raw_contract.get("body_search_verified") is True,
+            "metadata_fallback": raw_contract.get("metadata_fallback") is True,
+            "reason": str(
+                raw_contract.get("reason")
+                or "connector-did-not-declare-authoritative-search"
+            ),
+        }
         folders, error = client.list_folders()
         if error:
             raise RuntimeError(error)
@@ -131,40 +152,121 @@ class MailMoveService:
             raise RuntimeError("Mail-Suche hat keine lesbaren IMAP-Ordner gefunden")
         matches: list[dict[str, Any]] = []
         errors: list[dict[str, str]] = []
+        metadata_errors: list[dict[str, str]] = []
         limited_folders: list[str] = []
         per_folder = max(1, min(200, int(limit)))
         for folder in folders:
             envelopes, error = client.search_envelopes(folder, terms, limit=per_folder)
             if error:
-                errors.append({"folder": folder, "error": error})
+                errors.append(
+                    {"folder": folder, "stage": "provider-query", "error": error}
+                )
                 continue
             if len(envelopes) >= per_folder:
                 limited_folders.append(folder)
             for envelope in envelopes:
                 item = asdict(envelope)
                 item["folder"] = folder
+                item["match_source"] = "server-query"
+                item["match_fields"] = ["provider-query"]
+                item["body_match_verified"] = bool(contract["body_search_verified"])
                 matches.append(item)
-        if folders and len(errors) == len(folders):
+
+        metadata_scanned_folders = 0
+        metadata_scan_limit = max(per_folder, self.SERVER_METADATA_FALLBACK_LIMIT)
+        if not matches and contract["metadata_fallback"]:
+            folded_terms = [term.casefold() for term in terms]
+            for folder in folders:
+                envelopes, metadata_error = client.list_envelopes(
+                    folder,
+                    limit=metadata_scan_limit,
+                )
+                if metadata_error:
+                    metadata_errors.append(
+                        {
+                            "folder": folder,
+                            "stage": "metadata-fallback",
+                            "error": metadata_error,
+                        }
+                    )
+                    continue
+                metadata_scanned_folders += 1
+                if len(envelopes) >= metadata_scan_limit:
+                    limited_folders.append(folder)
+                for envelope in envelopes:
+                    fields = {
+                        "sender-name": envelope.sender_name.casefold(),
+                        "sender-address": envelope.sender_addr.casefold(),
+                        "subject": envelope.subject.casefold(),
+                    }
+                    searchable = "\n".join(fields.values())
+                    if not all(term in searchable for term in folded_terms):
+                        continue
+                    item = asdict(envelope)
+                    item["folder"] = folder
+                    item["match_source"] = "bounded-envelope-metadata"
+                    item["match_fields"] = sorted(
+                        field
+                        for field, value in fields.items()
+                        if any(term in value for term in folded_terms)
+                    )
+                    item["body_match_verified"] = False
+                    matches.append(item)
+
+        if folders and len(errors) == len(folders) and metadata_scanned_folders == 0:
             raise RuntimeError(
                 "Mail-Suche ist in allen Ordnern fehlgeschlagen: "
                 + "; ".join(f"{item['folder']}: {item['error']}" for item in errors)
             )
-        matches.sort(key=lambda item: str(item.get("received_at") or item.get("date") or ""), reverse=True)
+        matches.sort(
+            key=lambda item: str(item.get("received_at") or item.get("date") or ""),
+            reverse=True,
+        )
         selected = matches[:per_folder]
+        limitations: list[str] = []
+        if not contract["authoritative"]:
+            limitations.append("server-query-not-authoritative")
+        if not contract["body_search_verified"]:
+            limitations.append("body-search-not-verified")
+        if metadata_scanned_folders:
+            limitations.append("bounded-envelope-metadata-only")
+        combined_errors = [*errors, *metadata_errors]
+        failed_folders = {item["folder"] for item in combined_errors}
+        truncated = bool(limited_folders or len(matches) > per_folder)
+        complete = bool(contract["authoritative"] and not combined_errors and not truncated)
         return {
             "ok": True,
-            "complete": not errors,
+            "complete": complete,
             "query": query,
             "query_terms": terms,
             "count": len(selected),
             "messages": selected,
             "result_limit": per_folder,
-            "results_may_be_truncated": bool(limited_folders or len(matches) > per_folder),
-            "limited_folders": limited_folders,
-            "folder_errors": errors,
+            "results_may_be_truncated": truncated,
+            "limited_folders": sorted(set(limited_folders), key=str.casefold),
+            "folder_errors": combined_errors,
+            "filter_limitations": limitations,
+            "search_scope": {
+                "provider": contract["provider"],
+                "server_query_authoritative": contract["authoritative"],
+                "body_search_verified": contract["body_search_verified"],
+                "metadata_fields": ["sender-name", "sender-address", "subject"],
+                "reason": contract["reason"],
+            },
+            "metadata_fallback": {
+                "used": bool(metadata_scanned_folders),
+                "bounded": True,
+                "per_folder_limit": metadata_scan_limit,
+                "scanned_folders": metadata_scanned_folders,
+                "failed_folders": len(metadata_errors),
+                "match_count": sum(
+                    item.get("match_source") == "bounded-envelope-metadata"
+                    for item in selected
+                ),
+            },
             "total_folders": len(folders),
             "searched_folders": len(folders) - len(errors),
-            "failed_folders": len(errors),
+            "failed_folders": len(failed_folders),
         }
 
     @staticmethod

@@ -22,6 +22,15 @@ Das ist ausdruecklich **keine produktive Rolloutfreigabe**:
   keine Mailaktion, kein Main-Merge, kein Tag und keine Datei unter
   `/srv/openclaw` veraendert.
 
+Eine produktive Gegenpruefung am 2026-08-21 zeigte zusaetzlich, dass Himalaya
+1.2 fuer mehrere exakte Suchvarianten erfolgreich leere Ergebnisse liefern kann,
+obwohl eine passende Mail in einem anderen aktuellen Ordner existiert. Die
+Nachbesserung behandelt diesen Providerpfad nicht mehr als autoritativ, rettet
+positive Absender-/Adress-/Betrefftreffer ueber einen bounded Metadatenfallback
+und laesst Nulltreffer sowie nicht verifizierte Bodyabdeckung fail-closed. Die
+Regression verwendet ausschliesslich synthetische `example.invalid`-Daten; sie
+aktiviert weiterhin keinen produktiven Vollindex.
+
 ## Reproduzierbare Entwicklungsabnahme
 
 ```bash

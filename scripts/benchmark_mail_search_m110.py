@@ -70,6 +70,16 @@ class FakeImapClient:
         self.raw_fetches = 0
         self.body_fetches = 0
 
+    @staticmethod
+    def search_contract() -> dict[str, object]:
+        return {
+            "provider": "synthetic-authoritative-fixture",
+            "authoritative": True,
+            "body_search_verified": True,
+            "metadata_fallback": False,
+            "reason": "synthetic-fixture-exhaustively-evaluates-every-message",
+        }
+
     def list_folders(self) -> tuple[list[str], str]:
         self.folder_list_calls += 1
         self.response_bytes += len(json.dumps(self.folders).encode("utf-8"))

@@ -2,6 +2,23 @@
 
 ## Unreleased – M11 Mail-Suchindex
 
+### Fail-closed Serverfallback nach produktiver M11-Gegenpruefung
+
+- Der Himalaya-1.2-Pfad behandelt technisch erfolgreiche leere Backendqueries
+  nicht mehr als autoritativen Vollkonto- oder Bodynachweis. Nulltreffer bleiben
+  mit expliziten `filter_limitations` und `complete=false` fail-closed.
+- Wenn die Providerquery keine Nachricht liefert, durchsucht ein bounded
+  read-only Envelope-Fallback alle lesbaren Ordner nach Absendername,
+  Adresse/Domain und Betreff. Dadurch werden positive Metadatentreffer auch nach
+  externen Moves, etwa nach `Agent/Weitergeleitet`, wiedergefunden.
+- Suchantworten nennen Providervertrag, Metadatenlimit, verwendete Matchfelder
+  und fehlende Bodyverifikation. Natuerliche Verknuepfungen wie `Hass und Hatje`
+  werden ohne das bedeutungslose Bindewort als Suchterme behandelt.
+- Verhaltensregressionen bilden den falsch leeren Providerpfad, eine verschobene
+  synthetische Mail, echte Nulltreffer und die Weitergabe aller Grenzen durch den
+  Hybridpfad nach. Produktive Mails, Jobs, Konfiguration und `/srv/openclaw`
+  bleiben unveraendert.
+
 ### M3-CI-Korrektur nach M11.8
 
 - Der Layout-v3-Split versieht die getrennten Core- und Wissensdatenbanken nach

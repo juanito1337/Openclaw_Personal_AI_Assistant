@@ -142,6 +142,12 @@ completeness fields permit that conclusion. If no matching live tool is exposed,
 report the unavailable capability from `tools list`/`capabilities`; do not replace
 it with a filesystem or memory search.
 
+For mail search, a provider call that returned successfully is not automatically
+complete. Read `search_scope`, `metadata_fallback` and `match` in addition to the
+normal completeness fields. A bounded envelope fallback can prove a positive
+sender/address/subject hit in a moved folder, but it does not inspect message
+bodies and its zero result never proves that no matching mail exists.
+
 For portfolio output with `ok: false`, `state: failed`, missing/critical holdings
 or zero coverage, do not answer from quote status alone. Run `portfolio doctor`
 and `jobs check --target all --deep`, then report every independent blocker. In

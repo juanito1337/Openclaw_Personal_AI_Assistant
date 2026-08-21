@@ -30,6 +30,25 @@ class HimalayaClient:
             command += ["--account", self.config.mailbox.account]
         return command
 
+    @staticmethod
+    def search_contract() -> dict[str, object]:
+        """Describe what the current Himalaya/IMAP search can actually prove.
+
+        Himalaya 1.2 can issue backend queries and return bounded envelope pages,
+        but it exposes neither a verified complete-search marker nor the folder
+        cursor identity required to turn a successful empty response into proof
+        of absence.  Callers may therefore use recent envelope metadata to rescue
+        positive sender/subject matches, but must keep zero results incomplete.
+        """
+
+        return {
+            "provider": "himalaya-1.2",
+            "authoritative": False,
+            "body_search_verified": False,
+            "metadata_fallback": True,
+            "reason": "himalaya-search-has-no-authoritative-completion-proof",
+        }
+
     def _run_variants(self, variants: list[list[str]]) -> CommandResult:
         last = CommandResult([], 1, "", "Kein Kommando ausgefuehrt")
         for args in variants:
@@ -145,7 +164,7 @@ class HimalayaClient:
         *,
         limit: int = 50,
     ) -> tuple[list[Envelope], str]:
-        """Search a complete folder through Himalaya's backend query API."""
+        """Issue one bounded provider query without claiming completeness."""
         clean_terms = [str(term).strip() for term in terms if str(term).strip()]
         if not clean_terms:
             return [], "Suchbegriff darf nicht leer sein"
@@ -180,8 +199,9 @@ class HimalayaClient:
         if not result.ok:
             return [], result.combined
         # Himalaya 1.2 exits successfully without writing JSON when a backend
-        # search has no matches.  That is a valid empty result, not a broken
-        # response.  Keep non-empty malformed output fail-closed below.
+        # query reports no matches.  This is a valid transport response but not
+        # authoritative proof of absence; the caller's search contract keeps it
+        # incomplete.  Keep non-empty malformed output fail-closed below.
         if not result.stdout.strip():
             return [], ""
         try:

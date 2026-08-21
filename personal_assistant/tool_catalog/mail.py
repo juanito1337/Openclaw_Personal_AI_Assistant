@@ -393,7 +393,7 @@ TOOLS: tuple[ToolDefinition, ...] = (
     define(
         id="mail.search",
         domain="mail",
-        description="Mails im Standardmodus ueber einen frischen vollstaendigen lokalen Hybridindex suchen, Treffer-Locator live validieren und bei fehlender Coverage oder Frische sichtbar serverseitig fallen; alle Statusfelder pruefen",
+        description="Mails ueber den belegten lokalen Hybridindex oder den sichtbaren fail-closed Serverpfad suchen; dessen bounded Metadatenfallback findet verschobene Absender-/Betrefftreffer, darf Nulltreffer und Bodyabdeckung aber nicht als vollstaendig ausgeben",
         command='./scripts/assistant.sh mail search --query "<Suchbegriff>" --limit 50',
         mode="read",
         writes_external_data=False,

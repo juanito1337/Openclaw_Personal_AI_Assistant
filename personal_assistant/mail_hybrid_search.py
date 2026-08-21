@@ -123,7 +123,14 @@ class MailHybridSearch:
     ) -> dict[str, Any]:
         started = time.perf_counter()
         base = self.server.search_messages(query, limit=limit)
-        limitations = _server_filter_limitations(filters)
+        limitations = list(
+            dict.fromkeys(
+                [
+                    *_server_filter_limitations(filters),
+                    *(str(item) for item in base.get("filter_limitations") or []),
+                ]
+            )
+        )
         messages = [
             dict(item)
             for item in base.get("messages") or []
@@ -171,7 +178,11 @@ class MailHybridSearch:
                     "backend": "server",
                     "score": None,
                 },
-                "match": {"reasons": ["server-query"]},
+                "match": {
+                    "reasons": [str(item.get("match_source") or "server-query")],
+                    "fields": list(item.get("match_fields") or []),
+                    "body_verified": item.get("body_match_verified") is True,
+                },
                 "source_reference": {
                     "resource_id": "mail-agent",
                     "folder": folder,
@@ -208,6 +219,8 @@ class MailHybridSearch:
             "folder_errors": folder_errors,
             "filter_limitations": limitations,
             "results_may_be_truncated": bool(base.get("results_may_be_truncated")),
+            "search_scope": dict(base.get("search_scope") or {}),
+            "metadata_fallback": dict(base.get("metadata_fallback") or {}),
             "count": len(results),
             "results": results,
             "messages": results,

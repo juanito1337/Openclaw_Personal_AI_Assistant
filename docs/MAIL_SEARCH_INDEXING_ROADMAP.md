@@ -771,6 +771,11 @@ Betreff. Status und Doctor sind registrierte read-only Werkzeuge. Kein
 produktiver Backfill, Job, Modellpull oder Modellwechsel wurde ausgefuehrt;
 M11.8 ist synthetisch abgenommen. Der produktive Rollout und die reale
 Modellabnahme bleiben getrennte, nicht ausgefuehrte Betriebsentscheidungen.
+Eine Nachabnahme am 2026-08-21 hat den serverseitigen Fallback zusaetzlich
+fail-closed gehaertet: Himalaya-Nulltreffer sind ohne Autoritaetsnachweis nicht
+vollstaendig; ein bounded Envelope-Metadatenpfad kann positive Treffer nach
+externen Moves ueber Absender, Adresse/Domain und Betreff retten, aber weder
+Bodyabdeckung noch Abwesenheit behaupten.
 
 ### Scope
 
