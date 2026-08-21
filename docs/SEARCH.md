@@ -320,6 +320,13 @@ finds positive metadata hits after external folder moves, but reports
 `bounded-envelope-metadata-only`. Such a zero result never proves absence; inspect
 `search_scope`, `metadata_fallback` and every result's `match` fields.
 
+The container exposes `himalaya` only as a fail-closed agent guard. The verified
+provider binary lives at an internal path used by `HimalayaClient`; ordinary
+agent shell calls receive exit code 64 and the registered `mail search` next
+step. This prevents `himalaya envelope list | grep ...` from being mistaken for
+an all-folder or body-aware search while preserving the internal connector for
+the Assistant CLI and mail worker.
+
 Before reading a hit, use exactly its `live_locator.folder`,
 `live_locator.mailbox_id` and subject:
 

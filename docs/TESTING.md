@@ -45,7 +45,7 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 884 Tests, darunter mindestens 687 unittest-kompatible Tests
+fordert mindestens 888 Tests, darunter mindestens 687 unittest-kompatible Tests
 (die bisherigen 349 sowie M0-M11.8- und Rollout-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
@@ -99,7 +99,7 @@ der aktuellen Python-Dateien.
 | Tests nach M11.6 gesammelt/ausgefuehrt | 858 / 858 (945 JUnit-Faelle inklusive 87 Subtests) |
 | Tests nach M11.7 gesammelt/ausgefuehrt | 873 / 873 (960 JUnit-Faelle inklusive 87 Subtests) |
 | Tests nach M11.8 gesammelt/ausgefuehrt | 879 / 879 (966 JUnit-Faelle inklusive 87 Subtests) |
-| Tests nach der fail-closed Serverfallback-Korrektur gesammelt/ausgefuehrt | 884 / 884 (971 JUnit-Faelle inklusive 87 Subtests) |
+| Tests nach dem fail-closed Mail-Exec-Routing gesammelt/ausgefuehrt | 888 / 888 (975 JUnit-Faelle inklusive 87 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -129,6 +129,7 @@ der aktuellen Python-Dateien.
 | neue M11.6-Embedding-/Cache-/Koordinator-Regressionsitems | 26 |
 | neue M11.7-Hybrid-/Fallback-/Live-Locator-Regressionsitems | 15 |
 | neue M11.8-Abnahme-/Artefakt-/Container-Regressionsitems | 6 |
+| neue Mail-Exec-Routing-Regressionsitems | 4 |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |
 | Gesamt-Coverage inklusive Branches (M8) | 59,18 % |
@@ -184,6 +185,8 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach M11.8 | 53,42 % |
 | Gesamt-Coverage nach der fail-closed Serverfallback-Korrektur | 66,90 % |
 | reine Branch-Coverage nach der fail-closed Serverfallback-Korrektur | 53,50 % |
+| Gesamt-Coverage nach dem fail-closed Mail-Exec-Routing | 66,89 % |
+| reine Branch-Coverage nach dem fail-closed Mail-Exec-Routing | 53,50 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |

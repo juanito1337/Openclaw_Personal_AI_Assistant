@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Mail search: Raw `himalaya` and shell-filter searches are now explicitly
+  prohibited by the always-loaded agent contract. The runtime exposes a
+  fail-closed guard at the public binary path while registered Assistant and
+  worker calls use the verified internal Himalaya binary. This prevents a
+  default-folder `envelope list | grep` miss from being reported as an empty
+  whole-account result.
+
 ## Unreleased – M11 Mail-Suchindex
 
 ### Fail-closed Serverfallback nach produktiver M11-Gegenpruefung

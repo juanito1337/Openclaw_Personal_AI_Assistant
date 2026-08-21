@@ -42,7 +42,14 @@ docker run --rm --network none --entrypoint /bin/sh "$runtime" -c '
   test -s /opt/openclaw-agent/personal_assistant/connectors/nextcloud/calendar.py
   test -s /opt/openclaw-agent/personal_assistant/connectors/nextcloud/contacts.py
   test ! -e /opt/openclaw-agent/skills/openclaw-nextcloud
-  test "$(sha256sum /usr/local/bin/himalaya | cut -d" " -f1)" = 9529d2584add1c4343f32524e6f985e7c98d491f3b854747318020eb1ec1df7f
+  test "$(sha256sum /usr/local/libexec/openclaw/himalaya | cut -d" " -f1)" = 9529d2584add1c4343f32524e6f985e7c98d491f3b854747318020eb1ec1df7f
+  test "$(himalaya --version)" = "$(/usr/local/libexec/openclaw/himalaya --version)"
+  guard_output=$(himalaya envelope list --account synthetic 2>&1) && exit 1 || guard_status=$?
+  test "$guard_status" = 64
+  case "$guard_output" in
+    *"assistant.sh mail search"*"Keine Maildaten mit grep"*) ;;
+    *) printf "%s\n" "$guard_output" >&2; exit 1 ;;
+  esac
   test ! -e /opt/openclaw-agent/tests
   test ! -e /opt/openclaw-agent/docs
   test ! -e /opt/openclaw-agent/docker/scripts

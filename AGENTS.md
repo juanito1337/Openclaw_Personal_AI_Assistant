@@ -77,6 +77,13 @@ A hidden helper is not an agent tool. Do not invent commands or options and do n
 claim that a disabled or misconfigured capability is absent before using its
 registered status/discovery path.
 
+For mailbox contents, never execute the `himalaya` binary directly and never pipe
+mail output through `grep`, `rg`, `find`, `awk` or another shell filter. These paths
+bypass folder coverage, the M11 Hybridindex and its completeness evidence. Use the
+registered `mail list`, `mail search` and `mail read` commands. Exit code 1 from a
+shell filter is not proof that a mail is absent; after any such accidental call,
+discard its conclusion and run the registered search path.
+
 ## Authority and change boundaries
 
 Read-only diagnostics, resource discovery, bounded indexing/cache refresh and

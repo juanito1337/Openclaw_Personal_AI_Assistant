@@ -12,6 +12,13 @@ search` uses the M11.7 auto path: an eligible local Hybridindex first and a
 visible server fallback otherwise. Only a result with `complete=true` may
 establish that a message is absent.
 
+The `himalaya` executable is an internal connector and is never an agent-facing
+search command. Do not call it directly and do not pipe envelope output through
+`grep`, `rg`, `find`, `awk` or another shell filter. Such a pipeline normally sees
+only one default folder and bounded envelope metadata; filter exit code 1 means
+only "no matching input line". Discard that result and use the registered `mail
+search --query "<text>" --limit 50` path, then evaluate its evidence fields.
+
 Inspect `complete`, `coverage`, `freshness`, `index_generation`,
 `semantic_state`, `fallback_used`, `folder_errors`, `filter_limitations` and
 `results_may_be_truncated` on every search. For an incomplete, filter-limited or

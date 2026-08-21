@@ -21,7 +21,8 @@ COPY mail_agent /mail_agent
 COPY personal_assistant /personal_assistant
 COPY skills/personal-assistant /skills/personal-assistant
 COPY scripts/assistant.sh scripts/mail-agent.sh scripts/ollama-priority-proxy.sh /scripts/
-COPY docker/entrypoint.sh docker/healthcheck.sh docker/job_loop.py docker/clamav-update.sh /docker/
+COPY docker/entrypoint.sh docker/healthcheck.sh docker/job_loop.py docker/clamav-update.sh \
+     docker/himalaya-agent-guard.sh /docker/
 
 FROM ${OPENCLAW_BASE_IMAGE} AS openclaw-source
 
@@ -118,21 +119,24 @@ RUN rm -rf /app/node_modules/@vitest/browser \
     && test "$(node -p 'require("/usr/local/lib/node_modules/npm/node_modules/tar/package.json").version')" = "7.5.19" \
     && test "$(openclaw --version)" = "OpenClaw 2026.7.1"
 
-COPY --from=himalaya-builder /opt/himalaya/bin/himalaya /usr/local/bin/himalaya
+COPY --from=himalaya-builder /opt/himalaya/bin/himalaya /usr/local/libexec/openclaw/himalaya
 COPY --from=agent-source / /opt/openclaw-agent
+COPY --from=agent-source /docker/himalaya-agent-guard.sh /usr/local/bin/himalaya
 COPY docker/supply-chain.lock.json /usr/share/openclaw/supply-chain.lock.json
 COPY docker/openclaw-plugins/contract.json /usr/share/openclaw/immutable-plugins.json
 WORKDIR /opt/openclaw-agent
 RUN printf '%s\n' "${OPENCLAW_SOURCE_REVISION}" > /opt/openclaw-agent/SOURCE_REVISION \
     && chmod 0444 /opt/openclaw-agent/SOURCE_REVISION \
     && chmod 0555 /opt/openclaw-agent/scripts/*.sh /opt/openclaw-agent/docker/*.sh \
+       /usr/local/bin/himalaya /usr/local/libexec/openclaw/himalaya \
     && chmod -R a-w /opt/openclaw-agent \
     && mkdir -p /home/node/.openclaw/workspace /home/node/.config/himalaya /var/lib/clamav \
     && chown -R node:node /home/node/.openclaw /home/node/.config \
     && chown -R clamav:clamav /var/lib/clamav \
     && ln -sf /opt/openclaw-agent/scripts/assistant.sh /usr/local/bin/personal-assistant \
     && ln -sf /opt/openclaw-agent/scripts/mail-agent.sh /usr/local/bin/mail-agent \
-    && test "$(sha256sum /usr/local/bin/himalaya | cut -d' ' -f1)" = "${HIMALAYA_SHA256}"
+    && test "$(sha256sum /usr/local/libexec/openclaw/himalaya | cut -d' ' -f1)" = "${HIMALAYA_SHA256}" \
+    && test "$(/usr/local/bin/himalaya --version)" = "$(/usr/local/libexec/openclaw/himalaya --version)"
 
 ENV HOME=/home/node \
     OPENCLAW_RUNTIME=container \
@@ -148,6 +152,7 @@ ENV HOME=/home/node \
     OPENCLAW_TOOLS_CONFIG=/home/node/.openclaw/workspace/personal_assistant/tools.toml \
     OPENCLAW_TOOL_DEFAULTS_CONFIG=/opt/openclaw-agent/personal_assistant/tool_defaults.toml \
     OPENCLAW_POLICY_DEFAULTS_CONFIG=/opt/openclaw-agent/personal_assistant/policy_defaults.toml \
+    OPENCLAW_HIMALAYA_BINARY=/usr/local/libexec/openclaw/himalaya \
     OPENCLAW_LOG_DIR=/home/node/.openclaw/workspace/personal_assistant/data/container_logs \
     OPENCLAW_JOB_STATUS_DIR=/home/node/.openclaw/workspace/personal_assistant/data/container_jobs \
     OLLAMA_PRIORITY_ENV_FILE=/etc/openclaw-agent/ollama-priority.env \

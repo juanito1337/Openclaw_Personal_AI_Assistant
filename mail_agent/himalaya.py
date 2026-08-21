@@ -25,7 +25,17 @@ class HimalayaClient:
         self.log = logging.getLogger(__name__)
 
     def _prefix(self) -> list[str]:
-        command = [self.config.mailbox.himalaya_binary]
+        configured_binary = str(self.config.mailbox.himalaya_binary).strip()
+        internal_binary = os.environ.get("OPENCLAW_HIMALAYA_BINARY", "").strip()
+        if (
+            internal_binary
+            and Path(internal_binary).is_absolute()
+            and configured_binary in {"himalaya", "/usr/local/bin/himalaya"}
+        ):
+            binary = internal_binary
+        else:
+            binary = configured_binary
+        command = [binary]
         if self.config.mailbox.account:
             command += ["--account", self.config.mailbox.account]
         return command

@@ -148,6 +148,16 @@ normal completeness fields. A bounded envelope fallback can prove a positive
 sender/address/subject hit in a moved folder, but it does not inspect message
 bodies and its zero result never proves that no matching mail exists.
 
+Never execute `himalaya` directly for a mail request and never combine its output
+with `grep`, `rg`, `find`, `awk` or another shell pipeline. The raw client is an
+internal connector, not an agent tool: it bypasses the registered all-folder,
+Hybridindex, locator and completeness contract. In particular,
+`himalaya envelope list --account ... | grep ...` searches neither the whole
+account nor the indexed message bodies, and `grep` exit code 1 means only that its
+current input contained no matching line. If such a raw call was attempted, ignore
+its result and immediately execute the exact registered `mail search --query ...`
+command through the installed launcher.
+
 For portfolio output with `ok: false`, `state: failed`, missing/critical holdings
 or zero coverage, do not answer from quote status alone. Run `portfolio doctor`
 and `jobs check --target all --deep`, then report every independent blocker. In
