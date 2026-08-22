@@ -49,10 +49,12 @@ If update access is disabled, the request to complete a task does not itself
 approve the complete operating profile. The `update_setup` returned by `tasks
 status` points to the one-time `setup standard-operations --yes` action through
 the short-lived `agent-cli` role; prefer it over separate per-domain toggles. It
-only activates already selected resources with registered permissions and never
-weakens the concrete action approval or ETag contract. Never run it from the
-gateway, edit `tools.toml`, change the read-only mount or claim that an internal
-note replaced the CalDAV update.
+only activates already selected resources. A missing normal permission is locally
+registered only after current read-only DAV discovery confirms it for that exact
+resource; the profile never changes server ACLs or weakens the concrete action
+approval or ETag contract. Never run it from the gateway, edit `tools.toml`,
+change the read-only mount or claim that an internal note replaced the CalDAV
+update.
 
 ## Durable workspace
 

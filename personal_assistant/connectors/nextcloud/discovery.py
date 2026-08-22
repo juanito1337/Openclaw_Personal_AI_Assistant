@@ -46,6 +46,59 @@ class NextcloudDiscovery:
             "username": self.client.username,
         }
 
+    def file_collection_capabilities(self, path: str) -> dict[str, object]:
+        """Read the effective DAV privileges of one existing file collection.
+
+        This is deliberately a Depth-0 PROPFIND.  It neither creates a probe
+        object nor assumes write access merely because the Nextcloud root is
+        reachable.
+        """
+        cleaned = str(path or "").strip().strip("/")
+        if not cleaned:
+            raise ValueError("Nextcloud-Dateipfad darf nicht leer sein")
+        username = urllib.parse.quote(self.client.username, safe="")
+        encoded_path = "/".join(
+            urllib.parse.quote(part, safe="") for part in cleaned.split("/") if part
+        )
+        remote_path = f"/remote.php/dav/files/{username}/{encoded_path}/"
+        body = b"""<?xml version='1.0' encoding='utf-8'?>
+<d:propfind xmlns:d='DAV:'>
+ <d:prop><d:displayname/><d:resourcetype/><d:current-user-privilege-set/></d:prop>
+</d:propfind>"""
+        response = self.client.request(
+            "PROPFIND",
+            remote_path,
+            data=body,
+            headers={"Depth": "0", "Content-Type": "application/xml; charset=utf-8"},
+            expected={207},
+        )
+        items = parse_multistatus(response.data)
+        if len(items) != 1:
+            raise ValueError("Nextcloud-Datei-Discovery lieferte keine eindeutige Ressource")
+        item = items[0]
+        resource_type = item.raw_properties.get(q(DAV, "resourcetype"))
+        if resource_type is None or resource_type.find(q(DAV, "collection")) is None:
+            raise ValueError("Der konfigurierte Nextcloud-Workspace ist kein Ordner")
+        privileges = self._privileges(
+            item.raw_properties.get(q(DAV, "current-user-privilege-set"))
+        )
+        local = self._local_privileges(privileges)
+        can_move = bool(
+            local & {"all", "write"}
+            or ({"bind", "unbind"}.issubset(local))
+        )
+        return {
+            "ok": True,
+            "read_only": True,
+            "path": cleaned,
+            "href": item.href,
+            "privileges": list(privileges),
+            "can_read": self._can_read(privileges),
+            "can_create": self._can_create(privileges),
+            "can_update": self._can_update(privileges),
+            "can_move": can_move,
+        }
+
     def calendar_collections(self) -> list[DiscoveredCollection]:
         """Discover all CalDAV collections and their advertised capabilities.
 

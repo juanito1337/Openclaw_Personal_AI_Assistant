@@ -256,12 +256,14 @@ def configure_standard_operations_tools(
     *,
     approve_permissions: bool = False,
     path: Path = DEFAULT_TOOL_SETTINGS,
+    registry_path: Path | None = None,
+    verified_resources: dict[str, Resource] | None = None,
 ) -> dict[str, Any]:
     """Enable the complete non-destructive operating surface for configured tools.
 
-    The profile never selects a remote resource and never grants a permission
-    which is absent from the reviewed resource registry.  It only removes the
-    redundant per-tool feature switches after one explicit operator approval.
+    A missing registry permission may only be added from an exact resource that
+    the application service verified read-only immediately before this call.
+    The function itself never selects a remote resource.
     """
     if not approve_permissions:
         raise PermissionError(
@@ -279,7 +281,12 @@ def configure_standard_operations_tools(
         )
 
     existing = load_tool_settings(path)
-    registry = ResourceRegistry(WORKSPACE_ROOT / "personal_assistant/resources.toml")
+    registry = ResourceRegistry(
+        registry_path or WORKSPACE_ROOT / "personal_assistant/resources.toml"
+    )
+    verified_resources = verified_resources or {}
+    resource_updates: dict[str, Resource] = {}
+    permission_expansions: dict[str, list[str]] = {}
     activated: list[str] = []
     skipped: list[dict[str, str]] = []
     blockers: list[str] = []
@@ -295,7 +302,7 @@ def configure_standard_operations_tools(
         if not resource_id:
             skipped.append({"domain": domain, "reason": "not-configured"})
             return False
-        resource = registry.resources.get(resource_id)
+        resource = resource_updates.get(resource_id) or registry.resources.get(resource_id)
         if resource is None:
             blockers.append(f"{domain}: Ressource {resource_id} fehlt")
             return False
@@ -317,11 +324,36 @@ def configure_standard_operations_tools(
             return False
         missing = sorted(permissions - set(resource.permissions))
         if missing:
-            blockers.append(
-                f"{domain}: Ressource {resource_id} hat keine bestaetigten Rechte "
-                + ", ".join(missing)
+            verified = verified_resources.get(resource_id)
+            if not (
+                verified is not None
+                and verified.id == resource.id
+                and verified.enabled
+                and verified.kind == resource.kind
+                and verified.connector == resource.connector
+                and set(missing).issubset(set(verified.permissions))
+                and (not component or _resource_supports_component(verified, component))
+            ):
+                blockers.append(
+                    f"{domain}: Ressource {resource_id} hat keine aktuell bestaetigten Rechte "
+                    + ", ".join(missing)
+                )
+                return False
+            assert verified is not None
+            resource_updates[resource_id] = Resource(
+                id=resource.id,
+                kind=resource.kind,
+                connector=resource.connector,
+                enabled=resource.enabled,
+                remote_id=verified.remote_id or resource.remote_id,
+                permissions=tuple(
+                    dict.fromkeys((*resource.permissions, *verified.permissions))
+                ),
+                metadata={**resource.metadata, **verified.metadata},
             )
-            return False
+            permission_expansions[resource_id] = sorted(
+                set(permission_expansions.get(resource_id, [])) | set(missing)
+            )
         activated.append(domain)
         return True
 
@@ -444,7 +476,29 @@ def configure_standard_operations_tools(
         direct_contacts=contacts,
         deck_orders=deck,
     )
-    backup = _write_tools(Path(path), settings)
+    resource_backup: Path | None = None
+    if resource_updates:
+        registry_existed = registry.path.exists()
+        registry_before = registry.path.read_bytes() if registry_existed else b""
+        resources = [
+            resource_updates.get(resource.id, resource)
+            for resource in registry.resources.values()
+        ]
+        resource_backup = registry.write(resources)
+        try:
+            backup = _write_tools(Path(path), settings)
+        except Exception:
+            restore_tmp = registry.path.with_suffix(registry.path.suffix + ".restore-tmp")
+            if registry_existed:
+                restore_tmp.write_bytes(registry_before)
+                os.chmod(restore_tmp, 0o600)
+                os.replace(restore_tmp, registry.path)
+            else:
+                registry.path.unlink(missing_ok=True)
+            registry.load()
+            raise
+    else:
+        backup = _write_tools(Path(path), settings)
     configured = load_tool_settings(path)
     return {
         "ok": True,
@@ -453,7 +507,9 @@ def configure_standard_operations_tools(
         "backup": str(backup or ""),
         "activated": activated,
         "skipped": skipped,
-        "permissions_expanded_in_registry": False,
+        "permissions_expanded_in_registry": bool(permission_expansions),
+        "registry_permission_expansions": permission_expansions,
+        "resource_backup": str(resource_backup or ""),
         "external_data_changed": False,
         "concrete_write_approval_still_required": True,
         "protections": {

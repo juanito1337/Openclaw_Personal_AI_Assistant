@@ -252,6 +252,185 @@ class PersonalAssistant(
         payload["supports_tasks"] = item.supports("VTODO")
         return payload
 
+    def standard_operations_configure(
+        self, *, approve_permissions: bool = False
+    ) -> dict[str, Any]:
+        """Verify and register the normal non-destructive operating profile.
+
+        Existing permissions need no network refresh.  Missing Nextcloud
+        permissions are accepted only from an exact, current, read-only DAV
+        discovery result.  The selected resources themselves never change.
+        """
+        if not approve_permissions:
+            raise PermissionError(
+                "Standardbetrieb benoetigt die einmalige ausdrueckliche Freigabe --yes"
+            )
+
+        from .tool_setup import configure_standard_operations_tools
+
+        settings = self.tool_settings
+        verified: dict[str, Resource] = {}
+        evidence: dict[str, dict[str, Any]] = {}
+
+        def missing(resource_id: str, required: set[str]) -> set[str]:
+            resource = self.registry.resources.get(resource_id)
+            return required - set(resource.permissions if resource else ())
+
+        def discovered_resource(item, *, component: str = "") -> Resource:
+            permissions: list[str] = []
+            if item.can_read:
+                permissions.append("read")
+            if item.can_create:
+                permissions.append("create")
+            if item.can_update:
+                permissions.append("update")
+            metadata: dict[str, Any] = {
+                "href": item.href,
+                "name": item.name,
+                "description": item.description,
+                "discovered_privileges": list(item.privileges),
+                "server_can_read": item.can_read,
+                "server_can_create": item.can_create,
+                "server_can_update": item.can_update,
+                "discovery_source": "live-caldav" if component else "live-carddav",
+            }
+            if component:
+                metadata["components"] = list(item.components)
+            return Resource(
+                id=item.resource_id,
+                kind=item.kind,
+                connector="nextcloud",
+                enabled=True,
+                remote_id=item.href,
+                permissions=tuple(permissions),
+                metadata=metadata,
+            )
+
+        mail = settings.mail.move
+        if settings.mail.enabled and mail.resource_id and missing(
+            mail.resource_id, {"read", "move", "forward"}
+        ):
+            current = self.registry.resources.get(mail.resource_id)
+            if current and current.kind == "email-service" and current.enabled:
+                verified[mail.resource_id] = Resource(
+                    id=current.id,
+                    kind=current.kind,
+                    connector=current.connector,
+                    enabled=True,
+                    remote_id=current.remote_id,
+                    permissions=tuple(
+                        dict.fromkeys((*current.permissions, "read", "move", "forward"))
+                    ),
+                    metadata=current.metadata,
+                )
+                evidence["mail"] = {
+                    "read_only": True,
+                    "source": "configured-mail-adapter",
+                    "resource_id": current.id,
+                }
+
+        workspace = settings.nextcloud.workspace
+        if workspace.enabled and workspace.resource_id and missing(
+            workspace.resource_id, {"read", "create", "move"}
+        ):
+            current = self.registry.resources.get(workspace.resource_id)
+            if current and current.kind == "file-root" and current.connector == "nextcloud":
+                capabilities = self.nextcloud_discovery.file_collection_capabilities(
+                    workspace.root
+                )
+                permissions = tuple(
+                    permission
+                    for permission, allowed in (
+                        ("read", capabilities["can_read"]),
+                        ("create", capabilities["can_create"]),
+                        ("move", capabilities["can_move"]),
+                    )
+                    if bool(allowed)
+                )
+                verified[current.id] = Resource(
+                    id=current.id,
+                    kind=current.kind,
+                    connector=current.connector,
+                    enabled=current.enabled,
+                    remote_id=str(capabilities["href"] or current.remote_id),
+                    permissions=permissions,
+                    metadata={
+                        **current.metadata,
+                        "discovered_privileges": list(
+                            cast(list[str], capabilities["privileges"])
+                        ),
+                        "server_can_read": bool(capabilities["can_read"]),
+                        "server_can_create": bool(capabilities["can_create"]),
+                        "server_can_move": bool(capabilities["can_move"]),
+                        "discovery_source": "live-webdav-depth-0",
+                    },
+                )
+                evidence["workspace"] = {
+                    "read_only": True,
+                    "source": "live-webdav-depth-0",
+                    "resource_id": current.id,
+                    "path": capabilities["path"],
+                }
+
+        calendar_settings = settings.nextcloud.calendar
+        tasks_settings = settings.nextcloud.tasks
+        calendar_needs = bool(
+            calendar_settings.enabled
+            and calendar_settings.resource_id
+            and missing(calendar_settings.resource_id, {"read", "create", "update"})
+        )
+        tasks_needs = bool(
+            tasks_settings.enabled
+            and tasks_settings.resource_id
+            and missing(tasks_settings.resource_id, {"read", "create", "update"})
+        )
+        if calendar_needs or tasks_needs:
+            collections = self.nextcloud_discovery.calendar_collections()
+            by_id = {item.resource_id: item for item in collections}
+            for domain, selected_id, component in (
+                ("calendar", calendar_settings.resource_id, "VEVENT"),
+                ("tasks", tasks_settings.resource_id, "VTODO"),
+            ):
+                if not ((domain == "calendar" and calendar_needs) or (domain == "tasks" and tasks_needs)):
+                    continue
+                selected = by_id.get(selected_id)
+                if selected is None or not selected.supports(component):
+                    continue
+                verified[selected_id] = discovered_resource(selected, component=component)
+                evidence[domain] = {
+                    "read_only": True,
+                    "source": "live-caldav",
+                    "resource_id": selected_id,
+                    "component": component,
+                }
+
+        contacts = settings.nextcloud.contacts
+        if contacts.enabled and contacts.resource_id and missing(
+            contacts.resource_id, {"read", "create", "update"}
+        ):
+            books = self.nextcloud_discovery.addressbooks()
+            selected = next(
+                (item for item in books if item.resource_id == contacts.resource_id),
+                None,
+            )
+            if selected is not None:
+                verified[selected.resource_id] = discovered_resource(selected)
+                evidence["contacts"] = {
+                    "read_only": True,
+                    "source": "live-carddav",
+                    "resource_id": selected.resource_id,
+                }
+
+        result = configure_standard_operations_tools(
+            approve_permissions=True,
+            path=settings.path,
+            registry_path=self.registry.path,
+            verified_resources=verified,
+        )
+        result["verification"] = evidence
+        result["resource_selection_changed"] = False
+        return result
+
     def calendar_discover(self) -> dict[str, Any]:
         """List reachable VEVENT collections without changing local state."""
         settings = self.tool_settings.nextcloud.calendar

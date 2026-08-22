@@ -7,8 +7,11 @@ from pathlib import Path
 from unittest.mock import patch
 
 from personal_assistant.cli import parser
+from personal_assistant.connectors.nextcloud.discovery import DiscoveredCollection
 from personal_assistant.models import Resource
 from personal_assistant.registry import ResourceRegistry
+from personal_assistant.service import PersonalAssistant
+from personal_assistant.tool_settings import load_tool_settings
 from personal_assistant.tool_setup import configure_standard_operations_tools
 
 
@@ -105,11 +108,14 @@ enabled = false
     def tearDown(self) -> None:
         self.temp.cleanup()
 
-    def activate(self) -> dict[str, object]:
+    def activate(
+        self, *, verified_resources: dict[str, Resource] | None = None
+    ) -> dict[str, object]:
         with patch("personal_assistant.tool_setup.WORKSPACE_ROOT", self.root):
             return configure_standard_operations_tools(
                 approve_permissions=True,
                 path=self.tools,
+                verified_resources=verified_resources,
             )
 
     def test_profile_activates_all_configured_normal_operations_once(self) -> None:
@@ -170,6 +176,168 @@ enabled = false
                 path=self.tools,
             )
 
+        self.assertEqual(self.tools.read_bytes(), tools_before)
+
+    def test_profile_registers_only_exact_preverified_missing_permissions(self) -> None:
+        workspace = self.registry.get("nextcloud-files-main")
+        tasks = self.registry.get("tasks-main")
+        self.registry.upsert(
+            Resource(
+                id=workspace.id,
+                kind=workspace.kind,
+                connector=workspace.connector,
+                permissions=("read", "create"),
+                metadata=workspace.metadata,
+            )
+        )
+        self.registry.upsert(
+            Resource(
+                id=tasks.id,
+                kind=tasks.kind,
+                connector=tasks.connector,
+                permissions=("read", "create"),
+                metadata=tasks.metadata,
+            )
+        )
+        result = self.activate(
+            verified_resources={
+                workspace.id: Resource(
+                    id=workspace.id,
+                    kind=workspace.kind,
+                    connector=workspace.connector,
+                    permissions=("read", "create", "move"),
+                    metadata={**workspace.metadata, "discovery_source": "live-webdav-depth-0"},
+                ),
+                tasks.id: Resource(
+                    id=tasks.id,
+                    kind=tasks.kind,
+                    connector=tasks.connector,
+                    permissions=("read", "create", "update"),
+                    metadata={**tasks.metadata, "discovery_source": "live-caldav"},
+                ),
+            }
+        )
+
+        self.assertTrue(result["permissions_expanded_in_registry"])
+        self.assertEqual(
+            result["registry_permission_expansions"],
+            {"nextcloud-files-main": ["move"], "tasks-main": ["update"]},
+        )
+        refreshed = ResourceRegistry(self.config_dir / "resources.toml")
+        self.assertIn("move", refreshed.get("nextcloud-files-main").permissions)
+        self.assertIn("update", refreshed.get("tasks-main").permissions)
+
+    def test_service_uses_live_dav_evidence_before_registering_permissions(self) -> None:
+        workspace = self.registry.get("nextcloud-files-main")
+        tasks = self.registry.get("tasks-main")
+        self.registry.upsert(
+            Resource(
+                id=workspace.id,
+                kind=workspace.kind,
+                connector=workspace.connector,
+                permissions=("read", "create"),
+                metadata=workspace.metadata,
+            )
+        )
+        self.registry.upsert(
+            Resource(
+                id=tasks.id,
+                kind=tasks.kind,
+                connector=tasks.connector,
+                permissions=("read", "create"),
+                metadata=tasks.metadata,
+            )
+        )
+
+        class Discovery:
+            def file_collection_capabilities(self, path: str) -> dict[str, object]:
+                return {
+                    "ok": True,
+                    "read_only": True,
+                    "path": path,
+                    "href": "/remote.php/dav/files/jan/Assistent/",
+                    "privileges": ["{DAV:}all"],
+                    "can_read": True,
+                    "can_create": True,
+                    "can_update": True,
+                    "can_move": True,
+                }
+
+            def calendar_collections(self) -> list[DiscoveredCollection]:
+                return [
+                    DiscoveredCollection(
+                        kind="calendar",
+                        href="/cal/tasks/",
+                        name="Arbeit",
+                        resource_id="tasks-main",
+                        components=("VTODO",),
+                        privileges=("{DAV:}all",),
+                        can_read=True,
+                        can_create=True,
+                        can_update=True,
+                    )
+                ]
+
+            def addressbooks(self) -> list[DiscoveredCollection]:
+                return []
+
+        assistant = PersonalAssistant.__new__(PersonalAssistant)
+        assistant.tool_settings = load_tool_settings(self.tools)
+        assistant.registry = ResourceRegistry(self.config_dir / "resources.toml")
+        assistant.nextcloud_discovery = Discovery()
+
+        result = assistant.standard_operations_configure(approve_permissions=True)
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(
+            set(result["verification"]),
+            {"workspace", "tasks"},
+        )
+        self.assertTrue(result["verification"]["workspace"]["read_only"])
+        self.assertFalse(result["resource_selection_changed"])
+
+    def test_service_rejects_unconfirmed_live_update_without_partial_write(self) -> None:
+        tasks = self.registry.get("tasks-main")
+        self.registry.upsert(
+            Resource(
+                id=tasks.id,
+                kind=tasks.kind,
+                connector=tasks.connector,
+                permissions=("read", "create"),
+                metadata=tasks.metadata,
+            )
+        )
+        registry_before = (self.config_dir / "resources.toml").read_bytes()
+        tools_before = self.tools.read_bytes()
+
+        class Discovery:
+            def calendar_collections(self) -> list[DiscoveredCollection]:
+                return [
+                    DiscoveredCollection(
+                        kind="calendar",
+                        href="/cal/tasks/",
+                        name="Arbeit",
+                        resource_id="tasks-main",
+                        components=("VTODO",),
+                        privileges=("{DAV:}read",),
+                        can_read=True,
+                        can_create=True,
+                        can_update=False,
+                    )
+                ]
+
+            def addressbooks(self) -> list[DiscoveredCollection]:
+                return []
+
+        assistant = PersonalAssistant.__new__(PersonalAssistant)
+        assistant.tool_settings = load_tool_settings(self.tools)
+        assistant.registry = ResourceRegistry(self.config_dir / "resources.toml")
+        assistant.nextcloud_discovery = Discovery()
+
+        with self.assertRaisesRegex(PermissionError, "tasks:.*update"):
+            assistant.standard_operations_configure(approve_permissions=True)
+
+        self.assertEqual((self.config_dir / "resources.toml").read_bytes(), registry_before)
         self.assertEqual(self.tools.read_bytes(), tools_before)
 
     def test_profile_requires_one_explicit_approval(self) -> None:

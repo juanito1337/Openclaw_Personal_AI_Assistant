@@ -580,11 +580,13 @@ docker compose --env-file .env --profile tools run --rm --no-deps agent-cli \
   /opt/openclaw-agent/scripts/assistant.sh setup standard-operations --yes
 ```
 
-The command changes no remote data, credentials, jobs, mounts or Resource
-Registry permissions. It fails before changing `tools.toml` if a configured
-resource lacks a previously registered required permission. Destructive actions
-and approval for each concrete existing-object update remain protected. See
-[Standard operations](STANDARD_OPERATIONS.md).
+The command changes no remote data, credentials, jobs, mounts or server ACLs. If
+a standard registry permission is missing, it first verifies the exact selected
+resource read-only through DAV and registers only permissions confirmed by that
+response. An unavailable, ambiguous or insufficient resource fails before the
+profile is activated. Destructive actions and approval for each concrete
+existing-object update remain protected. See [Standard
+operations](STANDARD_OPERATIONS.md).
 
 If the mail resource has not yet received its required `read`, `move` and
 `forward` permissions, grant those once before applying the profile:

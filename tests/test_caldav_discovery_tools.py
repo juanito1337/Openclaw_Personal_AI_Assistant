@@ -46,6 +46,24 @@ MULTISTATUS = b"""<?xml version='1.0' encoding='utf-8'?>
 </d:multistatus>
 """
 
+FILE_MULTISTATUS = b"""<?xml version='1.0' encoding='utf-8'?>
+<d:multistatus xmlns:d='DAV:'>
+ <d:response>
+  <d:href>/remote.php/dav/files/openclaw/Assistent/</d:href>
+  <d:propstat><d:prop>
+   <d:displayname>Assistent</d:displayname>
+   <d:resourcetype><d:collection/></d:resourcetype>
+   <d:current-user-privilege-set>
+    <d:privilege><d:read/></d:privilege>
+    <d:privilege><d:bind/></d:privilege>
+    <d:privilege><d:unbind/></d:privilege>
+    <d:privilege><d:write-content/></d:privilege>
+   </d:current-user-privilege-set>
+  </d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat>
+ </d:response>
+</d:multistatus>
+"""
+
 
 class FakeResponse:
     status = 207
@@ -84,6 +102,22 @@ class DiscoveryParsingTests(unittest.TestCase):
         first = {item.href: item.resource_id for item in discovery.calendar_collections()}
         second = {item.href: item.resource_id for item in discovery.calendar_collections()}
         self.assertEqual(first, second)
+
+    def test_file_collection_capabilities_are_read_only_and_exact(self) -> None:
+        client = FakeClient()
+        with patch.object(FakeResponse, "data", FILE_MULTISTATUS):
+            result = NextcloudDiscovery(client).file_collection_capabilities(
+                "Assistent"
+            )
+
+        self.assertTrue(result["read_only"])
+        self.assertTrue(result["can_read"])
+        self.assertTrue(result["can_create"])
+        self.assertTrue(result["can_update"])
+        self.assertTrue(result["can_move"])
+        self.assertEqual(client.last[0], "PROPFIND")
+        self.assertEqual(client.last[2]["headers"]["Depth"], "0")
+        self.assertTrue(client.last[1].endswith("/files/openclaw/Assistent/"))
 
 
 class FakeRegistry:

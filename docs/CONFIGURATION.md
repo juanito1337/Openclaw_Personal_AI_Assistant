@@ -40,9 +40,11 @@ granted permissions remain persistent outside the image.
 
 After the intended resources have been selected, the one-time
 `setup standard-operations --yes` profile enables their complete normal,
-non-destructive operating surface together. It does not select resources, widen
-the Resource Registry, modify credentials, enable jobs or weaken action-level
-approval and conflict guards. See [Standard operations](STANDARD_OPERATIONS.md).
+non-destructive operating surface together. It does not select resources, modify
+credentials, enable jobs, change server ACLs or weaken action-level approval and
+conflict guards. Missing standard registry rights are added only after current
+read-only discovery confirms the exact selected resource. See [Standard
+operations](STANDARD_OPERATIONS.md).
 
 ## Validation
 

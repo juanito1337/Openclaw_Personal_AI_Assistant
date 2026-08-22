@@ -34,7 +34,6 @@ from .tool_setup import (
     configure_mail_move_tools,
     configure_mail_tools,
     configure_portfolio_tools,
-    configure_standard_operations_tools,
     configure_tasks_tools,
     configure_workspace_tools,
 )
@@ -399,17 +398,6 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Portfolio-Setup fehlgeschlagen: {exc}", file=sys.stderr)
             return 1
 
-    if args.command == "setup" and args.setup_command == "standard-operations":
-        try:
-            result = configure_standard_operations_tools(
-                approve_permissions=bool(args.yes),
-            )
-            _print(result)
-            return 0
-        except Exception as exc:
-            print(f"Standard-Betriebsprofil fehlgeschlagen: {exc}", file=sys.stderr)
-            return 1
-
     if args.command == "setup" and args.setup_command == "mail-sources":
         try:
             result = configure_mail_sources(
@@ -525,6 +513,12 @@ def main(argv: list[str] | None = None) -> int:
 
     assistant = create_personal_assistant(config)
     try:
+        if args.command == "setup" and args.setup_command == "standard-operations":
+            result = assistant.standard_operations_configure(
+                approve_permissions=bool(args.yes),
+            )
+            _print(result)
+            return 0
         if args.command == "setup" and args.setup_command == "deck-orders":
             if not args.approve_permissions or not sys.stdin.isatty():
                 raise PermissionError(

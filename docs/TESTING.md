@@ -101,6 +101,7 @@ der aktuellen Python-Dateien.
 | Tests nach M11.8 gesammelt/ausgefuehrt | 879 / 879 (966 JUnit-Faelle inklusive 87 Subtests) |
 | Tests nach Task-Completion-Routing gesammelt/ausgefuehrt | 892 / 892 (979 JUnit-Faelle inklusive 87 Subtests) |
 | Tests nach Standard-Betriebsprofil gesammelt/ausgefuehrt | 898 / 898 (985 JUnit-Faelle inklusive 87 Subtests) |
+| Tests nach DAV-verifiziertem Standardprofil-Hotfix gesammelt/ausgefuehrt | 902 / 902 (989 JUnit-Faelle inklusive 87 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -134,6 +135,7 @@ der aktuellen Python-Dateien.
 | neue CI-Interpreter-Regressionsitems | 1 |
 | neue Task-Completion-Routing-Regressionsitems | 3 |
 | neue Standard-Betriebsprofil-Regressionsitems | 6 |
+| neue DAV-Standardprofil-Hotfix-Regressionsitems | 4 |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |
 | Gesamt-Coverage inklusive Branches (M8) | 59,18 % |
@@ -193,6 +195,8 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach Task-Completion-Routing | 53,52 % |
 | Gesamt-Coverage nach Standard-Betriebsprofil | 66,93 % |
 | reine Branch-Coverage nach Standard-Betriebsprofil | 53,57 % |
+| Gesamt-Coverage nach DAV-verifiziertem Standardprofil-Hotfix | 66,97 % |
+| reine Branch-Coverage nach DAV-verifiziertem Standardprofil-Hotfix | 53,60 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -215,6 +219,7 @@ der aktuellen Python-Dateien.
 | Laufzeit nach Mail-Exec-Routing und CI-Interpreterkorrektur | 135,01 s |
 | Laufzeit nach Task-Completion-Routing | 167,59 s |
 | Laufzeit nach Standard-Betriebsprofil | 162,32 s |
+| Laufzeit nach DAV-verifiziertem Standardprofil-Hotfix | 163,02 s |
 | Laufzeit in der frischen M7-Wheel-Testumgebung | 55,56 s |
 | Wheelgroesse nach der Plugin-/Gatewaykorrektur | 397.870 Bytes |
 | M7-Wheel-Buildzeit | 4,582 s |

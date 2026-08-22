@@ -10,6 +10,13 @@
   ihre UID-/ETag-, Erwartungs- und Nutzerfreigaben, waehrend Loeschen,
   Ueberschreiben, Teilen, Massenaktionen, Credentials, Jobs und unbestaetigter
   Mailversand geschuetzt bleiben.
+- Betrieb: Fehlende lokale Standardrechte blockieren das Profil nicht mehr trotz
+  vorhandener Serverrechte. Der Profilbefehl prueft den exakt ausgewaehlten
+  Workspace per Depth-0-WebDAV sowie Kalender, Aufgaben und Kontakte per
+  CalDAV/CardDAV read-only und registriert nur aktuell bestaetigte Rechte. Eine
+  fehlende, mehrdeutige oder unzureichend berechtigte Ressource bricht weiterhin
+  vor der gemeinsamen Aktivierung ab; Ressourcenwahl, Server-ACLs und externe
+  Daten bleiben unveraendert.
 - Tasks: Das Agentenrouting schliesst bestehende Nextcloud-Aufgaben jetzt ueber
   die registrierte UID-/ETag-geschuetzte `tasks update --status COMPLETED`-
   Operation ab. Deaktivierte Updaterechte liefern einen separaten

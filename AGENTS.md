@@ -89,8 +89,10 @@ The supported normal installation profile is `setup standard-operations --yes`.
 After one explicit operator approval it enables the full non-destructive surface
 of every already selected and permission-verified resource together, so normal
 calendar, task and contact updates do not require separate technical grants.
-This profile never selects resources, expands the Resource Registry, enables jobs
-or weakens the approval and conflict guards for each concrete external action.
+This profile never selects resources, enables jobs or changes server ACLs. Its one
+approval may register a missing standard permission only after current read-only
+discovery confirms that exact selected resource supports it. It never weakens the
+approval and conflict guards for each concrete external action.
 
 For mailbox contents, never execute the `himalaya` binary directly and never pipe
 mail output through `grep`, `rg`, `find`, `awk` or another shell filter. These paths

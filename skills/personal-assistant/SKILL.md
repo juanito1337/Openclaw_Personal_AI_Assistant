@@ -83,10 +83,11 @@ file. Ordinary registered domain commands continue to run from the gateway.
 For a normal installation, prefer the one-time registered `setup
 standard-operations --yes` profile over a sequence of individual calendar, task
 and contact permission toggles. It runs only through `agent-cli`, applies only to
-already selected resources with registered rights and leaves per-action approval,
-UID/ETag guards, mail-draft approval, job control and all destructive-operation
-denials intact. Never execute it without Jan's explicit approval of the complete
-profile.
+already selected resources and may register a missing standard right only after
+current read-only discovery confirms it for that exact resource. It never changes
+server ACLs and leaves per-action approval, UID/ETag guards, mail-draft approval,
+job control and all destructive-operation denials intact. Never execute it without
+Jan's explicit approval of the complete profile.
 
 ## Reference routing
 

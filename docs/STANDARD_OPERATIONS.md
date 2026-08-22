@@ -15,8 +15,8 @@ Konfiguration weiterhin read-only.
 
 ## Aktivierter Umfang
 
-Soweit die jeweilige Ressource bereits eindeutig ausgewaehlt, aktiviert und mit
-den erforderlichen Rechten im Resource Registry belegt ist, aktiviert das Profil:
+Soweit die jeweilige Ressource bereits eindeutig ausgewaehlt und aktiviert ist,
+aktiviert das Profil:
 
 - einzelnes Lesen, Erstellen und kontrolliertes Verschieben von Mail;
 - create-only Schreiben, Hochladen, Ordneranlegen und no-overwrite Verschieben im
@@ -28,10 +28,18 @@ den erforderlichen Rechten im Resource Registry belegt ist, aktiviert das Profil
 - den bereits konfigurierten, agentenverwalteten Bestellkarten-Workflow.
 
 Nicht konfigurierte oder bewusst deaktivierte Ressourcen werden nicht automatisch
-ausgewaehlt oder eingeschaltet. Fehlt einer bereits konfigurierten Ressource ein
-registriertes Recht, bricht der Profilwechsel vor jeder Aenderung ab. Es werden
-weder neue Rechte in die Resource Registry geschrieben noch externe Daten
-veraendert. Die Konfigurationsdatei wird atomar ersetzt und vorher gesichert.
+ausgewaehlt oder eingeschaltet. Bereits registrierte Rechte werden unveraendert
+verwendet. Fehlt ein normales Nextcloud-Recht, prueft das Profil die exakt
+ausgewaehlte Datei-, CalDAV- oder CardDAV-Ressource zuerst aktuell und read-only
+ueber DAV. Nur ein vom Server bestaetigtes Recht wird anschliessend lokal in der
+Resource Registry registriert. Die einmalige `--yes`-Freigabe autorisiert genau
+diese begrenzte lokale Rechtserweiterung.
+
+Die Ressourcenwahl, Nextcloud-ACLs und externe Daten werden dabei nicht
+veraendert. Liefert die aktuelle Discovery keine eindeutige Ressource oder
+bestaetigt sie ein benoetigtes Recht nicht, bricht das Profil vor Registry- und
+Werkzeugaktivierung ab. Registry und Werkzeugkonfiguration werden gesichert; ein
+Fehler beim zweiten Schritt stellt die vorherige Registry wieder her.
 
 ## Weiterhin geschuetzte Aktionen
 
@@ -41,6 +49,7 @@ oder gesondert freigabepflichtig bleiben:
 - Loeschen, Ueberschreiben, Teilen, Massenbearbeitung und ressourcenuebergreifendes
   Verschieben;
 - Aenderungen an Credentials, Ressourcenwahl, erlaubten Wurzeln oder Policies;
+- serverseitige ACL- oder Freigabeaenderungen;
 - Start, Neustart oder Abschalten von Jobs;
 - Mailversand ohne unveraendert praesentierten Entwurf und ausdrueckliche
   Sendefreigabe;
