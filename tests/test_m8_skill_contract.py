@@ -260,6 +260,25 @@ def test_skill_forbids_configuration_patch_fallback_after_tool_failure() -> None
     assert "explicitly approved `agent-cli` path" in portfolio
 
 
+def test_task_completion_uses_registered_update_and_never_memory_or_gateway_setup() -> None:
+    skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
+    groupware = " ".join(
+        (SKILL / "references/groupware.md").read_text(encoding="utf-8").split()
+    )
+    catalog = {definition.id: definition for definition in tool_definitions()}
+    update = catalog["nextcloud.tasks.update"]
+
+    assert "`tasks status`, then `tasks list --include-completed --limit 100`" in skill
+    assert "--status COMPLETED" in update.command
+    assert "The gateway's read-only configuration mount is a successful security control" in skill
+    assert "Never claim the task was “noted internally”" in skill
+    assert "`after.status=COMPLETED`" in skill
+    assert "`after.percent_complete=100`" in skill
+    assert "The `update_setup` returned by `tasks status`" in groupware
+    assert "separate operator-only action" in groupware
+    assert "internal note replaced the CalDAV update" in groupware
+
+
 def test_research_skill_requires_provider_evidence_and_preserves_profile_authority() -> None:
     skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
     portfolio = " ".join((SKILL / "references/portfolio.md").read_text(encoding="utf-8").split())

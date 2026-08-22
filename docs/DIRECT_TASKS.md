@@ -40,6 +40,14 @@ Nur lesend konfigurieren:
 
 `--allow-update` benoetigt Leserechte und live bestaetigten Schreibzugriff auf bestehende CalDAV-Objekte. Es kann deshalb nicht mit `--create-only` kombiniert werden.
 
+Im Container ist diese Berechtigungsaenderung eine getrennte Administratoraktion.
+Der dauerhaft laufende Gateway mountet die Instanzkonfiguration absichtlich
+read-only; dort darf `tasks configure` nicht ausgefuehrt und der Mount nicht
+aufgeweicht werden. Nach separater ausdruecklicher Freigabe wird der oben gezeigte
+registrierte Befehl einmalig ueber die kurzlebige Compose-Rolle `agent-cli`
+ausgefuehrt. `tasks status` liefert dafuer bei deaktiviertem Update den strukturierten
+Block `update_setup`.
+
 ## Lesen und anlegen
 
 ```bash
@@ -80,6 +88,10 @@ Aufgabe abschliessen:
 ```
 
 Dabei werden `STATUS:COMPLETED`, `PERCENT-COMPLETE:100` und ein Abschlusszeitpunkt gesetzt. Eine Aufgabe kann mit `--status NEEDS-ACTION` bewusst wieder geoeffnet werden.
+
+Ein fehlgeschlagenes Remote-Update darf nicht durch eine Notiz im Modellgedaechtnis
+ersetzt werden. Erfolg ist erst belegt, wenn die Antwort `ok=true`,
+`after.status=COMPLETED` und `after.percent_complete=100` enthaelt.
 
 Der Agent liest das Objekt unmittelbar vor dem PUT anhand der exakten UID und schreibt mit `If-Match` gegen die aktuelle ETag. Bei einer parallelen Aenderung wird abgebrochen. Wiederkehrende VTODOs benoetigen zusaetzlich `--allow-recurring`.
 

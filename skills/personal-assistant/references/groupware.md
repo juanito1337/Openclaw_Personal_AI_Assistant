@@ -40,6 +40,17 @@ and task create are bounded registered writes; existing-object update, complete
 or reopen requires exact UID and explicit approval. Do not describe the calendar
 integration as create-only.
 
+For “complete task” requests, run `tasks status` and then `tasks list
+--include-completed --limit 100`; never use memory as the task source. With one
+exact UID/title and live `update_allowed=true`, use `tasks update --uid "<UID>"
+--expected-title "<aktueller Titel>" --status COMPLETED --yes`, then require
+`after.status=COMPLETED` and `after.percent_complete=100` as the success evidence.
+If update access is disabled, the request to complete a task does not itself
+approve permission expansion. The `update_setup` returned by `tasks status` is a
+separate operator-only action through the short-lived `agent-cli` role. Never run
+it from the gateway, edit `tools.toml`, change the read-only mount or claim that an
+internal note replaced the CalDAV update.
+
 ## Durable workspace
 
 Remote paths stay inside the configured `Assistent/` root. Folder creation is

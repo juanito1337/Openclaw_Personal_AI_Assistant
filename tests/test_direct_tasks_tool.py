@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import os
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from personal_assistant.connectors.nextcloud.tasks import NextcloudTasks
 from personal_assistant.models import ActionPlan, PolicyDecision, Resource
@@ -107,6 +109,38 @@ class DirectTasksTests(unittest.TestCase):
         self.assertIn("nextcloud.tasks.status", ids)
         self.assertIn("nextcloud.tasks.list", ids)
         self.assertIn("nextcloud.tasks.create", ids)
+
+    def test_status_reports_separate_agent_cli_setup_when_update_disabled(self) -> None:
+        assistant = self.assistant()
+        assistant.role = "gateway"
+
+        with patch.dict(os.environ, {"OPENCLAW_RUNTIME": "container"}):
+            status = assistant.direct_tasks_status(live=True)
+
+        self.assertTrue(status["ok"])
+        self.assertFalse(status["update_allowed"])
+        self.assertTrue(status["update_setup_required"])
+        self.assertTrue(status["workspace_read_only_expected"])
+        self.assertFalse(status["configuration_write_available_here"])
+        self.assertEqual(status["update_setup"]["container_role"], "agent-cli")
+        self.assertTrue(status["update_setup"]["operator_only"])
+        self.assertFalse(status["update_setup"]["change_gateway_mounts"])
+        self.assertIn("--resource nextcloud-calendar-test", status["update_setup"]["command"])
+        self.assertIn("--allow-update --yes", status["update_setup"]["command"])
+
+    def test_gateway_configuration_fails_before_readonly_workspace_write(self) -> None:
+        assistant = self.assistant()
+        assistant.role = "gateway"
+
+        with (
+            patch.dict(os.environ, {"OPENCLAW_RUNTIME": "container"}),
+            self.assertRaisesRegex(PermissionError, "agent-cli-Rolle") as raised,
+        ):
+            assistant.tasks_configure(resource_id=RESOURCE_ID, allow_update=True)
+
+        detail = str(raised.exception)
+        self.assertIn("schreibgeschuetzt", detail)
+        self.assertIn("Keine Rechte oder Mounts aendern", detail)
 
     def test_create_all_day_task(self) -> None:
         assistant = self.assistant()

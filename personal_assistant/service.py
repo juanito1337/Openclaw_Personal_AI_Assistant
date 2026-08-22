@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import shlex
 from collections.abc import Callable
 from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
@@ -385,6 +386,22 @@ class PersonalAssistant(
         max_future_days: int = 3650,
         allow_update: bool = False,
     ) -> dict[str, Any]:
+        runtime_role = getattr(
+            self,
+            "role",
+            os.environ.get("OPENCLAW_ROLE", "agent-cli").strip(),
+        )
+        if (
+            os.environ.get("OPENCLAW_RUNTIME", "").strip() == "container"
+            and runtime_role != "agent-cli"
+        ):
+            raise PermissionError(
+                "Aufgaben-Konfiguration ist im laufenden Gateway absichtlich gesperrt; "
+                "der Konfigurationsordner bleibt schreibgeschuetzt. Keine Rechte oder "
+                "Mounts aendern. Nach separater ausdruecklicher Freigabe den registrierten "
+                "tasks configure-Befehl ausschliesslich ueber die kurzlebige agent-cli-Rolle "
+                "ausfuehren."
+            )
         from .tool_setup import configure_tasks_tools
 
         selected = self._configure_discovered_caldav(
@@ -1473,6 +1490,15 @@ class PersonalAssistant(
     def direct_tasks_status(self, *, live: bool = True) -> dict[str, Any]:
         settings = self.tool_settings.nextcloud.tasks
         resource = self.registry.get(settings.resource_id) if settings.resource_id else None
+        runtime_role = getattr(
+            self,
+            "role",
+            os.environ.get("OPENCLAW_ROLE", "agent-cli").strip(),
+        )
+        protected_gateway_configuration = bool(
+            os.environ.get("OPENCLAW_RUNTIME", "").strip() == "container"
+            and runtime_role != "agent-cli"
+        )
         base_ok = bool(
             settings.enabled
             and resource
@@ -1498,7 +1524,30 @@ class PersonalAssistant(
             "delete_allowed": False,
             "overwrite_allowed": False,
             "update_allowed": bool(base_ok and settings.allow_update),
+            "configuration_role": "agent-cli",
+            "current_role": runtime_role,
+            "configuration_write_available_here": not protected_gateway_configuration,
+            "workspace_read_only_expected": protected_gateway_configuration,
+            "registered_completion_command": (
+                './scripts/assistant.sh tasks update --uid "<UID>" '
+                '--expected-title "<aktueller Titel>" --status COMPLETED --yes'
+            ),
         }
+        if settings.enabled and settings.allow_list and not settings.allow_update:
+            result["update_setup_required"] = True
+            result["update_setup"] = {
+                "approval": "explicit-user-task-list-selection",
+                "operator_only": True,
+                "container_role": "agent-cli",
+                "command": (
+                    "./scripts/assistant.sh tasks configure --resource "
+                    + shlex.quote(settings.resource_id)
+                    + " --allow-update --yes"
+                ),
+                "change_gateway_mounts": False,
+            }
+        else:
+            result["update_setup_required"] = False
         if live and base_ok and resource:
             collection = self._task_collection(resource)
             try:
@@ -1722,7 +1771,11 @@ class PersonalAssistant(
     ) -> dict[str, Any]:
         settings = self.tool_settings.nextcloud.tasks
         if not settings.enabled or not settings.allow_list or not settings.allow_update:
-            raise PermissionError("Aufgaben-Aktualisierung ist nicht aktiviert")
+            raise PermissionError(
+                "Aufgaben-Aktualisierung ist nicht aktiviert. Mit 'tasks status' den "
+                "registrierten Status und den getrennt freizugebenden agent-cli-Setup-Pfad "
+                "pruefen; den schreibgeschuetzten Gateway-Workspace nicht veraendern."
+            )
         clean_uid = str(uid or "").strip()
         if not clean_uid:
             raise ValueError("Aufgaben-UID fehlt")

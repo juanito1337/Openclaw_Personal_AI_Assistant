@@ -77,6 +77,14 @@ A hidden helper is not an agent tool. Do not invent commands or options and do n
 claim that a disabled or misconfigured capability is absent before using its
 registered status/discovery path.
 
+For an existing Nextcloud task, `tasks status` and `tasks list` are the mandatory
+selection path. Completing it uses the registered `tasks update ... --status
+COMPLETED --yes` command after one exact UID/title selection and explicit approval.
+The gateway configuration mount is intentionally read-only: never edit it, change
+its permissions or claim a private memory note completed the remote task. If
+`update_allowed=false`, report the separate `agent-cli` setup action returned by
+`tasks status` and wait for its own permission-expansion approval.
+
 For mailbox contents, never execute the `himalaya` binary directly and never pipe
 mail output through `grep`, `rg`, `find`, `awk` or another shell filter. These paths
 bypass folder coverage, the M11 Hybridindex and its completeness evidence. Use the

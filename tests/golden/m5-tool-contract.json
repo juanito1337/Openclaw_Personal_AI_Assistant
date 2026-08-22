@@ -993,7 +993,7 @@
   },
   {
     "approval": "explicit-user-task-update-etag-guarded",
-    "command": "./scripts/assistant.sh tasks update --uid \"<UID>\" --expected-title \"<aktueller Titel>\" --due \"<YYYY-MM-DD oder ISO-8601>\" --yes",
+    "command": "./scripts/assistant.sh tasks update --uid \"<UID>\" --expected-title \"<aktueller Titel>\" --status COMPLETED --yes",
     "description": "Eine zuvor eindeutig per UID ausgewaehlte Aufgabe nach ausdruecklichem Nutzerauftrag ETag-geschuetzt aktualisieren oder abschliessen; Serien nur mit gesonderter Freigabe",
     "id": "nextcloud.tasks.update",
     "mode": "write",

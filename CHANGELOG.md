@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Tasks: Das Agentenrouting schliesst bestehende Nextcloud-Aufgaben jetzt ueber
+  die registrierte UID-/ETag-geschuetzte `tasks update --status COMPLETED`-
+  Operation ab. Deaktivierte Updaterechte liefern einen separaten
+  `agent-cli`-Setupplan; der absichtlich schreibgeschuetzte Gateway-Workspace wird
+  nicht mehr als zu reparierender Backupfehler behandelt und eine interne Notiz
+  gilt nie als Remote-Erfolg.
 - CI: Der isolierte Containerjob erzeugt den synthetischen M11-Abnahmenachweis
   jetzt mit seinem durch `actions/setup-python` bereitgestellten Interpreter.
   Er setzt nicht mehr faelschlich die `.venv` eines anderen Jobs voraus.

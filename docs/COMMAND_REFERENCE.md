@@ -172,7 +172,7 @@ Konfigurationsfreie Sicht: `./scripts/assistant.sh tools list --catalog` und
 | `nextcloud.tasks.configure` | `local-write` | nein | `explicit-user-task-list-selection` | `always` | `./scripts/assistant.sh tasks configure --resource "<resource_id>" --allow-update --yes` | `docs/DIRECT_TASKS.md` | `tests/test_direct_tasks_tool.py` |
 | `nextcloud.tasks.status` | `read` | nein | `none` | `tasks` | `./scripts/assistant.sh tasks status` | `docs/DIRECT_TASKS.md` | `tests/test_direct_tasks_tool.py` |
 | `nextcloud.tasks.list` | `read` | nein | `none` | `tasks-list` | `./scripts/assistant.sh tasks list --include-completed --limit 100` | `docs/DIRECT_TASKS.md` | `tests/test_direct_tasks_tool.py` |
-| `nextcloud.tasks.update` | `write` | ja | `explicit-user-task-update-etag-guarded` | `tasks-update` | `./scripts/assistant.sh tasks update --uid "<UID>" --expected-title "<aktueller Titel>" --due "<YYYY-MM-DD oder ISO-8601>" --yes` | `docs/DIRECT_TASKS.md` | `tests/test_direct_tasks_tool.py` |
+| `nextcloud.tasks.update` | `write` | ja | `explicit-user-task-update-etag-guarded` | `tasks-update` | `./scripts/assistant.sh tasks update --uid "<UID>" --expected-title "<aktueller Titel>" --status COMPLETED --yes` | `docs/DIRECT_TASKS.md` | `tests/test_direct_tasks_tool.py` |
 | `nextcloud.tasks.create` | `write` | ja | `configured-tasks-create-only` | `tasks-create` | `./scripts/assistant.sh tasks create --title "<Titel>" --due "<YYYY-MM-DD oder ISO-8601>" --priority <0-9> --description "<Beschreibung>"` | `docs/DIRECT_TASKS.md` | `tests/test_direct_tasks_tool.py` |
 ## orders
 

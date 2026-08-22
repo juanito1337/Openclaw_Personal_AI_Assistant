@@ -122,6 +122,7 @@ launcher shown above:
 | Contacts | `contacts status`, then `contacts list ...` or `contacts search ...` |
 | Calendar events or appointments | `calendar status`, then `calendar list ...` or `calendar search ...` |
 | Tasks or To-Dos | `tasks status`, then `tasks list ...` |
+| Complete or reopen one existing task | `tasks status`, then `tasks list ...`; for one exact UID use the registered `tasks update ... --status COMPLETED --yes` or `--status NEEDS-ACTION --yes` command |
 | Invoices | `invoices status`, then `invoices audit`; use `invoices list ...` or `invoices review ...` only for requested detail |
 | Orders, deliveries or returns | `orders status`, then `orders list ...` |
 | Stocks, securities, depot positions or holdings | `portfolio holdings` |
@@ -157,6 +158,37 @@ account nor the indexed message bodies, and `grep` exit code 1 means only that i
 current input contained no matching line. If such a raw call was attempted, ignore
 its result and immediately execute the exact registered `mail search --query ...`
 command through the installed launcher.
+
+## Existing Nextcloud task completion
+
+Treat “mark task X complete”, “Aufgabe X erledigt” and equivalent wording as an
+existing-object task update, not as a configuration or memory request. First run
+`tasks status`, then `tasks list --include-completed --limit 100`. Continue only
+when exactly one current task matches and preserve its UID and exact title. The
+registered completion command is:
+
+```bash
+/opt/openclaw-agent/scripts/assistant.sh tasks update \
+  --uid "<UID>" \
+  --expected-title "<aktueller Titel>" \
+  --status COMPLETED \
+  --yes
+```
+
+The user's direct request to complete that exact selected task supplies only the
+single-task update approval. It does not approve enabling update permissions.
+When `tasks status` reports `update_allowed=false`, do not execute `tasks
+configure` from the gateway, do not inspect or edit configuration and do not
+change workspace permissions or mounts. Report the exact `update_setup.command`
+as a separate operator-only `agent-cli` action and wait for its own explicit
+permission-expansion approval. The gateway's read-only configuration mount is a
+successful security control, not a broken backup directory.
+
+Never claim the task was “noted internally”, completed in memory or otherwise
+handled when the registered remote update did not return `ok=true`. After a
+successful update, verify the returned `after.status=COMPLETED` and
+`after.percent_complete=100`; on failure preserve the exact error and run `tasks
+status` before reporting the next action.
 
 For portfolio output with `ok: false`, `state: failed`, missing/critical holdings
 or zero coverage, do not answer from quote status alone. Run `portfolio doctor`

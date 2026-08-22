@@ -45,7 +45,7 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 889 Tests, darunter mindestens 687 unittest-kompatible Tests
+fordert mindestens 892 Tests, darunter mindestens 687 unittest-kompatible Tests
 (die bisherigen 349 sowie M0-M11.8- und Rollout-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
@@ -99,7 +99,7 @@ der aktuellen Python-Dateien.
 | Tests nach M11.6 gesammelt/ausgefuehrt | 858 / 858 (945 JUnit-Faelle inklusive 87 Subtests) |
 | Tests nach M11.7 gesammelt/ausgefuehrt | 873 / 873 (960 JUnit-Faelle inklusive 87 Subtests) |
 | Tests nach M11.8 gesammelt/ausgefuehrt | 879 / 879 (966 JUnit-Faelle inklusive 87 Subtests) |
-| Tests nach Mail-Exec-Routing und CI-Interpreterkorrektur gesammelt/ausgefuehrt | 889 / 889 (976 JUnit-Faelle inklusive 87 Subtests) |
+| Tests nach Task-Completion-Routing gesammelt/ausgefuehrt | 892 / 892 (979 JUnit-Faelle inklusive 87 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -131,6 +131,7 @@ der aktuellen Python-Dateien.
 | neue M11.8-Abnahme-/Artefakt-/Container-Regressionsitems | 6 |
 | neue Mail-Exec-Routing-Regressionsitems | 4 |
 | neue CI-Interpreter-Regressionsitems | 1 |
+| neue Task-Completion-Routing-Regressionsitems | 3 |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |
 | Gesamt-Coverage inklusive Branches (M8) | 59,18 % |
@@ -186,8 +187,8 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach M11.8 | 53,42 % |
 | Gesamt-Coverage nach der fail-closed Serverfallback-Korrektur | 66,90 % |
 | reine Branch-Coverage nach der fail-closed Serverfallback-Korrektur | 53,50 % |
-| Gesamt-Coverage nach Mail-Exec-Routing und CI-Interpreterkorrektur | 66,90 % |
-| reine Branch-Coverage nach Mail-Exec-Routing und CI-Interpreterkorrektur | 53,51 % |
+| Gesamt-Coverage nach Task-Completion-Routing | 66,91 % |
+| reine Branch-Coverage nach Task-Completion-Routing | 53,52 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -208,6 +209,7 @@ der aktuellen Python-Dateien.
 | Laufzeit des finalen lokalen M11.6-Testlaufs | 150,70 s |
 | Laufzeit des finalen lokalen M11.8-Testlaufs | 132,82 s |
 | Laufzeit nach Mail-Exec-Routing und CI-Interpreterkorrektur | 135,01 s |
+| Laufzeit nach Task-Completion-Routing | 167,59 s |
 | Laufzeit in der frischen M7-Wheel-Testumgebung | 55,56 s |
 | Wheelgroesse nach der Plugin-/Gatewaykorrektur | 397.870 Bytes |
 | M7-Wheel-Buildzeit | 4,582 s |
