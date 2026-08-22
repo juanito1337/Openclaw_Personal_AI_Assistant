@@ -5,6 +5,14 @@ for `~/.nextcloud` or another local mount, and never expose the central secrets
 file. Start with the registered status/discovery command and let Jan select the
 exact stable `resource_id`; never select the first discovered collection.
 
+The product contains a native Nextcloud/WebDAV connector. Its availability is
+established by the live tool catalog and the registered command result, not by
+looking for a local mount, a generic plugin or credentials in the workspace. A
+configured remote path proves neither success nor failure on its own. In
+particular, archived invoice files are listed with the registered `invoices
+files --limit 100` command after `invoices status`; this command resolves the
+configured invoice root and resource internally.
+
 For questions about current files, contacts, events or tasks, use the matching
 registered list/search tool before memory, workspace or shell search. A local
 index may supplement an explicitly broad search, but it does not prove that a

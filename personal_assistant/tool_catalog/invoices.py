@@ -28,6 +28,18 @@ TOOLS: tuple[ToolDefinition, ...] = (
         test_anchor="tests/test_invoice_ocr_register.py",
     ),
     define(
+        id="assistant.invoices.files",
+        domain="invoices",
+        description="Archivierte Rechnungsdateien aus dem konfigurierten Rechnungsordner read-only ueber den nativen Nextcloud-WebDAV-Connector auflisten",
+        command="./scripts/assistant.sh invoices files --limit 100",
+        mode="read",
+        writes_external_data=False,
+        approval="none",
+        availability="invoices",
+        documentation_anchor="docs/INVOICE_OCR_REGISTER.md",
+        test_anchor="tests/test_nextcloud_workspace_tools.py",
+    ),
+    define(
         id="assistant.invoices.audit",
         domain="invoices",
         description="Rechnungsbestand, Pflichtfeldluecken, Plausibilitaetsfehler, Extraktorversionen und Review-Pfadabweichungen ohne Dokumentinhalte aggregiert anzeigen",

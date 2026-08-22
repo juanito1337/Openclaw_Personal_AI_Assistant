@@ -48,6 +48,11 @@ def add_commands(sub: Any) -> None:
         "--status", default="", choices=("", "confirmed", "confirmed-manual", "review", "error")
     )
     invoices_list.add_argument("--limit", type=int, default=100)
+    invoices_files = invoices_sub.add_parser(
+        "files",
+        help="Archivierte Rechnungsdateien ueber den nativen Nextcloud-Connector auflisten",
+    )
+    invoices_files.add_argument("--limit", type=int, default=100)
     invoices_review = invoices_sub.add_parser("review", help="Unsichere Rechnungsmetadaten anzeigen")
     invoices_review.add_argument("--limit", type=int, default=100)
     invoices_export = invoices_sub.add_parser(

@@ -57,6 +57,17 @@ override arithmetic validation.
 
 The sole productive register is the managed Nextcloud
 `<invoice-root>/<YYYY>/Rechnungen_<YYYY>.csv`. Never create a durable local copy.
+The register view and the remote file view are different read contracts.
+`invoices list` returns recognized database metadata without PDF content;
+`invoices files --limit 100` lists the configured remote invoice archive through
+the native Nextcloud/WebDAV connector. For a request about PDFs, filenames or
+the contents of the invoice archive, run `invoices status` first and then
+`invoices files --limit 100`. The latter resolves `resource_id` and invoice root
+from validated tool settings and reports `complete` plus
+`results_may_be_truncated`. Never infer "no Nextcloud tool", "no key" or an empty
+archive from a local workspace listing, a path string such as
+`nextcloud_folder`, or memory. On failure preserve the exact connector error and
+run the registered status/operational diagnostic path.
 Its narrow replacement path requires ETag, SHA and schema validation. Use
 `invoices export --year <YYYY> --dry-run` for an in-memory preview which changes
 neither SQLite nor Nextcloud. `invoices export --year <YYYY> --yes` is an external

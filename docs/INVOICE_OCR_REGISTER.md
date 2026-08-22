@@ -12,6 +12,25 @@ Assistent/Rechnungen/YYYY/Rechnungen_YYYY.csv
 
 Es wird keine dauerhafte lokale CSV-Kopie gefuehrt. Kurzlebige, geschuetzte Action-Payloads werden unmittelbar nach dem Transfer geloescht.
 
+## Agentenzugriff auf das Remote-Archiv
+
+Der Agent besitzt einen registrierten read-only Zugriff auf die archivierten
+Rechnungsdateien. Er muss weder einen lokalen Nextcloud-Mount noch einen
+zusaetzlichen Skill suchen:
+
+```bash
+./scripts/assistant.sh invoices status
+./scripts/assistant.sh invoices files --limit 100
+```
+
+`invoices status` belegt Konfiguration und Registerzustand. `invoices files`
+ermittelt den konfigurierten Rechnungsordner und die exakte Resource-ID intern
+und listet ihn ueber den nativen Nextcloud-WebDAV-Connector. Das Ergebnis ist
+auf 500 Eintraege begrenzt und weist mit `complete` und
+`results_may_be_truncated` aus, ob die angeforderte Ausgabemenge vollstaendig
+war. `invoices list` bleibt davon getrennt: Es zeigt erkannte Registermetadaten,
+nicht den aktuellen Remote-Dateibaum.
+
 ## Erkennungsstufen
 
 1. `pdftotext` liest zuerst die vorhandene PDF-Textschicht mit Layout-Erhalt.

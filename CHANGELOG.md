@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Rechnungen/Nextcloud: Das neue registrierte read-only Werkzeug `invoices
+  files --limit 100` listet den tatsaechlich konfigurierten Remote-
+  Rechnungsordner ueber den nativen Nextcloud-WebDAV-Connector. Skillrouting,
+  Live-Toolkatalog und Verhaltensregression unterscheiden nun Remote-Dateien
+  vom Rechnungsregister und verhindern die falsche Diagnose, es gebe wegen
+  eines lokalen Workspace-Pfads keinen Nextcloud-Zugriff oder es muesse ein
+  weiterer Skill installiert werden.
 - Betrieb: Das einmalige, `agent-cli`-gebundene Profil `setup
   standard-operations --yes` aktiviert die normalen nicht-destruktiven
   Funktionen aller bereits eindeutig konfigurierten und berechtigungsgeprueften

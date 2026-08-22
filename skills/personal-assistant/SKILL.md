@@ -132,7 +132,8 @@ launcher shown above:
 | Calendar events or appointments | `calendar status`, then `calendar list ...` or `calendar search ...` |
 | Tasks or To-Dos | `tasks status`, then `tasks list ...` |
 | Complete or reopen one existing task | `tasks status`, then `tasks list ...`; for one exact UID use the registered `tasks update ... --status COMPLETED --yes` or `--status NEEDS-ACTION --yes` command |
-| Invoices | `invoices status`, then `invoices audit`; use `invoices list ...` or `invoices review ...` only for requested detail |
+| Invoice register, metadata, quality or review | `invoices status`, then `invoices audit`; use `invoices list ...` or `invoices review ...` only for requested detail |
+| Archived invoice PDFs or files in Nextcloud | `invoices status`, then `invoices files --limit 100`; this reads the configured invoice root through the native Nextcloud/WebDAV connector |
 | Orders, deliveries or returns | `orders status`, then `orders list ...` |
 | Stocks, securities, depot positions or holdings | `portfolio holdings` |
 | Latest/current prices, portfolio value, profit or return | `portfolio quotes status`; if due, stale or missing and configured, `portfolio quotes refresh`; then `portfolio valuation`; report its EUR values only |
@@ -151,6 +152,17 @@ the authoritative registered read completed successfully and its domain-specific
 completeness fields permit that conclusion. If no matching live tool is exposed,
 report the unavailable capability from `tools list`/`capabilities`; do not replace
 it with a filesystem or memory search.
+
+`nextcloud_folder`, `folder` or another configured remote path is routing
+metadata, not evidence that a connector is missing. For a request to list or find
+archived invoice documents, never inspect the local workspace and never claim a
+generic local/cloud separation. Run `invoices status` and then the exact live
+command for Tool-ID `assistant.invoices.files`; the command resolves the configured
+invoice root internally and uses the registered native WebDAV connector. Evaluate
+`ok`, `complete` and `results_may_be_truncated` before claiming that a file is
+absent. If it fails, preserve the exact error and use `invoices status`,
+`capabilities` and the registered operational failure path instead of suggesting
+that Jan install another skill.
 
 For mail search, a provider call that returned successfully is not automatically
 complete. Read `search_scope`, `metadata_fallback` and `match` in addition to the

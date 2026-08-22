@@ -40,6 +40,7 @@ class AgentCapabilityExposureTests(unittest.TestCase):
             "mail index doctor",
             "mail compose-draft --to",
             "mail compose-send --draft-id",
+            "invoices files --limit 100",
             "portfolio import-csv --file",
             "portfolio import-csv --nextcloud-path",
             "portfolio holdings",
@@ -75,6 +76,8 @@ class AgentCapabilityExposureTests(unittest.TestCase):
         self.assertIn("`complete`,", references)
         self.assertIn("`folder_errors` and `results_may_be_truncated`", references)
         self.assertIn("Bei jedem Suchergebnis `complete`", agents)
+        self.assertIn("native Nextcloud/WebDAV connector", references)
+        self.assertIn("`invoices files --limit 100`", references)
         self.assertIn("Do not claim that CSV import is unavailable", references)
         self.assertNotIn("read-only portfolio monitor", documented)
 

@@ -57,7 +57,7 @@
         "docs/archive/AUDIT_INITIAL_IMPORT.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-22T23:19:22+02:00",
+      "last_git_change": "2026-08-23T00:59:49+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -90,7 +90,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-22T23:19:22+02:00",
+      "last_git_change": "2026-08-23T00:59:49+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1071,7 +1071,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-22T23:19:22+02:00",
+      "last_git_change": "2026-08-23T00:59:49+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1189,7 +1189,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-22T23:19:22+02:00",
+      "last_git_change": "2026-08-23T00:59:49+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1762,7 +1762,7 @@
         "docs/DOCKER_DEPLOYMENT.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-22T23:19:22+02:00",
+      "last_git_change": "2026-08-23T00:59:49+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1789,7 +1789,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-22T23:19:22+02:00",
+      "last_git_change": "2026-08-23T00:59:49+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -4853,7 +4853,7 @@
         "docs/archive/AUDIT_INITIAL_IMPORT.md"
       ],
       "line_coverage_percent": 27.97,
-      "last_git_change": "2026-08-22T23:19:22+02:00",
+      "last_git_change": "2026-08-23T00:59:49+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -4962,7 +4962,8 @@
         "tests/ruff-baseline.json",
         "tests/test_invoice_backlog_audit_m107.py",
         "tests/test_invoice_reprocess_apply_m106.py",
-        "tests/test_invoice_reprocess_preview_m105.py"
+        "tests/test_invoice_reprocess_preview_m105.py",
+        "tests/test_nextcloud_workspace_tools.py"
       ],
       "documentation_evidence": [],
       "line_coverage_percent": 35.35,
@@ -5475,7 +5476,7 @@
       ],
       "documentation_evidence": [],
       "line_coverage_percent": 91.72,
-      "last_git_change": "2026-08-06T15:45:31+02:00",
+      "last_git_change": "2026-08-23T00:59:49+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -6586,7 +6587,7 @@
         "docs/architecture/README.md"
       ],
       "line_coverage_percent": 57.52,
-      "last_git_change": "2026-08-22T23:19:22+02:00",
+      "last_git_change": "2026-08-23T00:59:49+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -7235,7 +7236,7 @@
       ],
       "documentation_evidence": [],
       "line_coverage_percent": 36.33,
-      "last_git_change": "2026-08-22T23:19:22+02:00",
+      "last_git_change": "2026-08-23T00:59:49+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -7336,6 +7337,7 @@
         "tests/test_mail_exec_routing.py",
         "tests/test_mail_projection_m96.py",
         "tests/test_mail_search_lexical_m114.py",
+        "tests/test_nextcloud_workspace_tools.py",
         "tests/test_portfolio_mapping.py",
         "tests/test_release_awareness.py"
       ],
@@ -8552,7 +8554,7 @@
         "docs/architecture/legacy-decisions.json"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-22T23:19:22+02:00",
+      "last_git_change": "2026-08-23T00:59:49+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -8601,7 +8603,7 @@
         "skills/personal-assistant/references/commands.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-22T23:19:22+02:00",
+      "last_git_change": "2026-08-23T00:59:49+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -9092,7 +9094,7 @@
       ],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-06T15:45:31+02:00",
+      "last_git_change": "2026-08-23T00:59:49+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -10271,6 +10273,7 @@
       "owner": "Quality Maintainers",
       "classification": "active",
       "productive_callers": [
+        "personal_assistant/tool_catalog/invoices.py",
         "personal_assistant/tool_catalog/nextcloud.py"
       ],
       "test_evidence": [
@@ -10629,7 +10632,7 @@
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-22T23:19:22+02:00",
+      "last_git_change": "2026-08-23T00:59:49+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"

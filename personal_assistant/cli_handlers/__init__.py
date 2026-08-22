@@ -4,7 +4,19 @@ import argparse
 from collections.abc import Callable
 from typing import Any
 
-from . import calendar, contacts, core, mail, nextcloud, orders, portfolio, runtime, security, tasks
+from . import (
+    calendar,
+    contacts,
+    core,
+    invoices,
+    mail,
+    nextcloud,
+    orders,
+    portfolio,
+    runtime,
+    security,
+    tasks,
+)
 
 Emitter = Callable[[Any], None]
 
@@ -13,6 +25,7 @@ HANDLERS = {
     "actions": core.handle,
     "contacts": contacts.handle,
     "index": core.handle,
+    "invoices": invoices.handle,
     "deck": orders.handle,
     "monitor": runtime.handle,
     "mail": mail.handle,

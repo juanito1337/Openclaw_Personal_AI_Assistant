@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import io
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
+from personal_assistant import cli as assistant_cli
 from personal_assistant.actions import ActionService
+from personal_assistant.cli_handlers.invoices import handle as handle_invoice_command
 from personal_assistant.cli_handlers.nextcloud import handle as handle_nextcloud_command
 from personal_assistant.connectors.nextcloud.files import NextcloudFiles
 from personal_assistant.models import ActionPlan, Resource
@@ -15,6 +20,7 @@ from personal_assistant.service import PersonalAssistant
 from personal_assistant.storage import AssistantStorage
 from personal_assistant.tool_registry import build_tool_registry
 from personal_assistant.tool_settings import (
+    InvoiceToolSettings,
     MailToolSettings,
     NextcloudToolSettings,
     NextcloudWorkspaceToolSettings,
@@ -119,6 +125,95 @@ class NextcloudWorkspaceToolTests(unittest.TestCase):
 
         self.assertEqual(exit_code, 1)
         self.assertFalse(emitted[0]["ok"])
+
+    def test_invoice_file_tool_uses_configured_native_nextcloud_root(self) -> None:
+        configured_root = "Mail-Agent/Rechnungen"
+        settings = ToolSettings(
+            path=self.root / "invoice-tools.toml",
+            mail=MailToolSettings(
+                invoices=InvoiceToolSettings(
+                    enabled=True,
+                    resource_id="nextcloud-invoices",
+                    folder=configured_root,
+                )
+            ),
+        )
+        calls: list[tuple[str, int, str]] = []
+        assistant = object.__new__(PersonalAssistant)
+        assistant.tool_settings = settings
+        assistant.list_nextcloud_files = lambda path, *, max_depth, resource_id: (
+            calls.append((path, max_depth, resource_id))
+            or {
+                "root": path,
+                "max_depth": max_depth,
+                "items": [
+                    {"path": f"{path}/2026/b.pdf", "kind": "file"},
+                    {"path": f"{path}/2026/a.pdf", "kind": "file"},
+                ],
+            }
+        )
+        emitted: list[dict[str, object]] = []
+
+        exit_code = handle_invoice_command(
+            SimpleNamespace(invoices_command="files", limit=1),
+            assistant,
+            emitted.append,
+        )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(calls, [(configured_root, 3, "nextcloud-invoices")])
+        self.assertEqual(emitted[0]["connector"], "native-nextcloud-webdav")
+        self.assertEqual(emitted[0]["root"], configured_root)
+        self.assertEqual(emitted[0]["returned"], 1)
+        self.assertFalse(emitted[0]["complete"])
+        self.assertTrue(emitted[0]["results_may_be_truncated"])
+        self.assertEqual(emitted[0]["items"][0]["path"], f"{configured_root}/2026/a.pdf")
+
+        tools = {tool.id: tool for tool in build_tool_registry(settings)}
+        self.assertEqual(
+            tools["assistant.invoices.files"].command,
+            "./scripts/assistant.sh invoices files --limit 100",
+        )
+        self.assertEqual(tools["assistant.invoices.files"].mode, "read")
+
+    def test_invoice_files_cli_uses_registered_handler_not_legacy_subprocess(self) -> None:
+        config_path = self.root / "assistant.toml"
+        config_path.touch()
+        payload = {
+            "ok": True,
+            "connector": "native-nextcloud-webdav",
+            "root": "Assistent/Rechnungen",
+            "complete": True,
+            "results_may_be_truncated": False,
+            "items": [],
+        }
+        assistant = SimpleNamespace(
+            list_invoice_files=lambda *, limit: {**payload, "limit": limit},
+            close=lambda: None,
+        )
+        output = io.StringIO()
+
+        with (
+            patch.object(assistant_cli, "_load_secrets"),
+            patch.object(
+                assistant_cli,
+                "load_config",
+                return_value=SimpleNamespace(runtime=SimpleNamespace(log_file=self.root / "log")),
+            ),
+            patch.object(assistant_cli, "_logging"),
+            patch.object(assistant_cli, "_record_interactive_activity"),
+            patch.object(assistant_cli, "create_personal_assistant", return_value=assistant),
+            patch.object(assistant_cli, "run_invoice_external") as legacy,
+            redirect_stdout(output),
+        ):
+            exit_code = assistant_cli.main(
+                ["--config", str(config_path), "invoices", "files", "--limit", "25"]
+            )
+
+        self.assertEqual(exit_code, 0)
+        legacy.assert_not_called()
+        self.assertIn('"connector": "native-nextcloud-webdav"', output.getvalue())
+        self.assertIn('"limit": 25', output.getvalue())
 
     def test_policy_allows_only_inside_workspace_and_no_overwrite(self) -> None:
         registry_path = self.root / "resources.toml"

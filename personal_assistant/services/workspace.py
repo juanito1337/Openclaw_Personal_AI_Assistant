@@ -18,13 +18,19 @@ class WorkspaceServiceMixin:
     actions: Any
     antivirus: Any
 
-    def list_nextcloud_files(self, path: str = "Assistent", *, max_depth: int = 3) -> dict[str, Any]:
+    def list_nextcloud_files(
+        self,
+        path: str = "Assistent",
+        *,
+        max_depth: int = 3,
+        resource_id: str = "nextcloud-files-main",
+    ) -> dict[str, Any]:
         requested = self.nextcloud_files.clean_path(path or "")
         if not requested:
             raise ValueError("Nextcloud-Pfad darf nicht leer sein")
         if max_depth < 0 or max_depth > 10:
             raise ValueError("max_depth muss zwischen 0 und 10 liegen")
-        resource = self.registry.get("nextcloud-files-main")
+        resource = self.registry.get(resource_id)
         roots = tuple(str(v).strip("/") for v in resource.metadata.get("allowed_roots", []))
         if not roots:
             roots = tuple(str(v).strip("/") for v in self.config.nextcloud.allowed_file_roots)
@@ -53,6 +59,35 @@ class WorkspaceServiceMixin:
                 if entry.is_collection and depth < max_depth:
                     queue.append((entry.path, depth + 1))
         return {"root": requested, "max_depth": max_depth, "items": items}
+
+    def list_invoice_files(self, *, limit: int = 100) -> dict[str, Any]:
+        """List the configured remote invoice archive through controlled WebDAV."""
+        invoices = self.tool_settings.mail.invoices
+        if not invoices.enabled:
+            raise PermissionError("Rechnungswerkzeug ist deaktiviert")
+        bounded_limit = max(1, min(int(limit), 500))
+        listing = self.list_nextcloud_files(
+            invoices.folder,
+            max_depth=3,
+            resource_id=invoices.resource_id,
+        )
+        items = sorted(
+            (item for item in listing["items"] if item.get("kind") == "file"),
+            key=lambda item: (str(item.get("path", "")).casefold(), str(item.get("path", ""))),
+        )
+        truncated = len(items) > bounded_limit
+        return {
+            "ok": True,
+            "connector": "native-nextcloud-webdav",
+            "resource_id": invoices.resource_id,
+            "root": listing["root"],
+            "max_depth": listing["max_depth"],
+            "count": len(items),
+            "returned": min(len(items), bounded_limit),
+            "complete": not truncated,
+            "results_may_be_truncated": truncated,
+            "items": items[:bounded_limit],
+        }
 
     def _workspace(self):
         workspace = self.tool_settings.nextcloud.workspace

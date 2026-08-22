@@ -86,5 +86,8 @@ def run_external(args: argparse.Namespace) -> int:
 
 
 def handle(args: argparse.Namespace, assistant: Any, emit: Any) -> int:
-    del assistant, emit
+    if args.invoices_command == "files":
+        result = assistant.list_invoice_files(limit=max(1, args.limit))
+        emit(result)
+        return 0 if result.get("ok", False) else 1
     return run_external(args)

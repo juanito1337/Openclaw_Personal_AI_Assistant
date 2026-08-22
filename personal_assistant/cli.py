@@ -350,7 +350,7 @@ def main(argv: list[str] | None = None) -> int:
     except (OSError, sqlite3.Error, ValueError) as exc:
         print(f"Scheduler-Warnung: Aktivitaet konnte nicht gespeichert werden: {exc}", file=sys.stderr)
 
-    if args.command == "invoices":
+    if args.command == "invoices" and args.invoices_command != "files":
         return run_invoice_external(args)
 
     if args.command == "setup" and args.setup_command == "tools":

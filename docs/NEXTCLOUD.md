@@ -16,6 +16,20 @@ required folders, calendars, address books, and task lists with that user.
 ./scripts/assistant.sh nextcloud sync
 ```
 
+The immutable runtime includes its own controlled Nextcloud/WebDAV connector;
+no local Nextcloud mount or separately installed agent skill is required. Use
+live `tools list`/`capabilities` and registered command results to determine
+availability. Archived invoice files have the dedicated read-only route:
+
+```bash
+./scripts/assistant.sh invoices status
+./scripts/assistant.sh invoices files --limit 100
+```
+
+The second command reads the invoice root and resource from validated runtime
+tool settings. Its `complete` and `results_may_be_truncated` fields must be
+checked before reporting that a file is absent.
+
 ## Provider rights
 
 - WebDAV: list/read, create folders, create new files with `If-None-Match: *`
