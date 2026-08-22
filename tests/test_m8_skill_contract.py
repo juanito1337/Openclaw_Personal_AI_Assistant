@@ -275,7 +275,7 @@ def test_task_completion_uses_registered_update_and_never_memory_or_gateway_setu
     assert "`after.status=COMPLETED`" in skill
     assert "`after.percent_complete=100`" in skill
     assert "The `update_setup` returned by `tasks status`" in groupware
-    assert "separate operator-only action" in groupware
+    assert "one-time `setup standard-operations --yes` action" in groupware
     assert "internal note replaced the CalDAV update" in groupware
 
 

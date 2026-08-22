@@ -46,10 +46,13 @@ exact UID/title and live `update_allowed=true`, use `tasks update --uid "<UID>"
 --expected-title "<aktueller Titel>" --status COMPLETED --yes`, then require
 `after.status=COMPLETED` and `after.percent_complete=100` as the success evidence.
 If update access is disabled, the request to complete a task does not itself
-approve permission expansion. The `update_setup` returned by `tasks status` is a
-separate operator-only action through the short-lived `agent-cli` role. Never run
-it from the gateway, edit `tools.toml`, change the read-only mount or claim that an
-internal note replaced the CalDAV update.
+approve the complete operating profile. The `update_setup` returned by `tasks
+status` points to the one-time `setup standard-operations --yes` action through
+the short-lived `agent-cli` role; prefer it over separate per-domain toggles. It
+only activates already selected resources with registered permissions and never
+weakens the concrete action approval or ETag contract. Never run it from the
+gateway, edit `tools.toml`, change the read-only mount or claim that an internal
+note replaced the CalDAV update.
 
 ## Durable workspace
 

@@ -80,6 +80,14 @@ an explicit operator action through the short-lived `agent-cli` role; report the
 exact registered setup command and required approval instead of patching the
 file. Ordinary registered domain commands continue to run from the gateway.
 
+For a normal installation, prefer the one-time registered `setup
+standard-operations --yes` profile over a sequence of individual calendar, task
+and contact permission toggles. It runs only through `agent-cli`, applies only to
+already selected resources with registered rights and leaves per-action approval,
+UID/ETag guards, mail-draft approval, job control and all destructive-operation
+denials intact. Never execute it without Jan's explicit approval of the complete
+profile.
+
 ## Reference routing
 
 Read the matching reference completely before using that domain:
@@ -180,9 +188,10 @@ single-task update approval. It does not approve enabling update permissions.
 When `tasks status` reports `update_allowed=false`, do not execute `tasks
 configure` from the gateway, do not inspect or edit configuration and do not
 change workspace permissions or mounts. Report the exact `update_setup.command`
-as a separate operator-only `agent-cli` action and wait for its own explicit
-permission-expansion approval. The gateway's read-only configuration mount is a
-successful security control, not a broken backup directory.
+for the one-time standard operating profile as a separate operator-only
+`agent-cli` action and wait for its own explicit profile approval. The gateway's
+read-only configuration mount is a successful security control, not a broken
+backup directory.
 
 Never claim the task was “noted internally”, completed in memory or otherwise
 handled when the registered remote update did not return `ok=true`. After a

@@ -17,6 +17,7 @@ Konfigurationsfreie Sicht: `./scripts/assistant.sh tools list --catalog` und
 | `assistant.version.history` | `read` | nein | `none` | `always` | `./scripts/assistant.sh version --verify --history --limit 10` | `AGENTS.md` | `tests/test_m5_tool_contract.py` |
 | `assistant.version.since` | `read` | nein | `none` | `always` | `./scripts/assistant.sh version --verify --history --since "<Version>" --limit 20` | `AGENTS.md` | `tests/test_m5_tool_contract.py` |
 | `assistant.search` | `read` | nein | `none` | `always` | `./scripts/assistant.sh search "<Suchbegriff>"` | `AGENTS.md` | `tests/test_m5_tool_contract.py` |
+| `assistant.setup.standard-operations` | `local-write` | nein | `explicit-user-standard-operations-profile` | `always` | `./scripts/assistant.sh setup standard-operations --yes` | `docs/STANDARD_OPERATIONS.md` | `tests/test_standard_operations_profile.py` |
 | `assistant.monitor.status` | `read` | nein | `none` | `always` | `./scripts/assistant.sh monitor status --days 7 --live` | `AGENTS.md` | `tests/test_m5_tool_contract.py` |
 | `assistant.jobs.status` | `read` | nein | `none` | `always` | `./scripts/assistant.sh jobs status --target all` | `AGENTS.md` | `tests/test_m5_tool_contract.py` |
 | `assistant.scheduler.status` | `read` | nein | `none` | `always` | `./scripts/assistant.sh scheduler status` | `AGENTS.md` | `tests/test_m5_tool_contract.py` |

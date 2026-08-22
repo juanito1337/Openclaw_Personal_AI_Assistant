@@ -570,8 +570,24 @@ generic agent file or shell tools cannot patch them after a failed domain call.
 At each layout start the fixed container data paths in `tools.toml` are repaired
 idempotently while resource selections and permission grants remain unchanged.
 Administrative setup therefore runs only in the explicitly selected, short-lived
-`agent-cli` role. For the direct mail tools, approve the required `read`, `move` and
-`forward` permissions once with:
+`agent-cli` role. After all intended resources have been selected, activate their
+complete normal, non-destructive operating surface once instead of granting
+calendar, task and contact updates separately:
+
+```bash
+cd /srv/openclaw/deployment
+docker compose --env-file .env --profile tools run --rm --no-deps agent-cli \
+  /opt/openclaw-agent/scripts/assistant.sh setup standard-operations --yes
+```
+
+The command changes no remote data, credentials, jobs, mounts or Resource
+Registry permissions. It fails before changing `tools.toml` if a configured
+resource lacks a previously registered required permission. Destructive actions
+and approval for each concrete existing-object update remain protected. See
+[Standard operations](STANDARD_OPERATIONS.md).
+
+If the mail resource has not yet received its required `read`, `move` and
+`forward` permissions, grant those once before applying the profile:
 
 ```bash
 cd /srv/openclaw/deployment

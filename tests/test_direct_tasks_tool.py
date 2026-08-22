@@ -125,8 +125,18 @@ class DirectTasksTests(unittest.TestCase):
         self.assertEqual(status["update_setup"]["container_role"], "agent-cli")
         self.assertTrue(status["update_setup"]["operator_only"])
         self.assertFalse(status["update_setup"]["change_gateway_mounts"])
-        self.assertIn("--resource nextcloud-calendar-test", status["update_setup"]["command"])
-        self.assertIn("--allow-update --yes", status["update_setup"]["command"])
+        self.assertEqual(
+            status["update_setup"]["command"],
+            "./scripts/assistant.sh setup standard-operations --yes",
+        )
+        self.assertIn(
+            "--resource nextcloud-calendar-test",
+            status["update_setup"]["domain_fallback_command"],
+        )
+        self.assertIn(
+            "--allow-update --yes",
+            status["update_setup"]["domain_fallback_command"],
+        )
 
     def test_gateway_configuration_fails_before_readonly_workspace_write(self) -> None:
         assistant = self.assistant()

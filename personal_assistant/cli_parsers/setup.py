@@ -7,6 +7,18 @@ def add_commands(sub: Any) -> None:
     setup = sub.add_parser("setup", help="Zentrale Einrichtung")
     setup_sub = setup.add_subparsers(dest="setup_command", required=True)
     setup_sub.add_parser("init", help="Lokale Konfigurationsdateien anlegen")
+    standard_operations = setup_sub.add_parser(
+        "standard-operations",
+        help=(
+            "Normale, nicht-destruktive Funktionen fuer alle bereits "
+            "konfigurierten Ressourcen gemeinsam aktivieren"
+        ),
+    )
+    standard_operations.add_argument(
+        "--yes",
+        action="store_true",
+        help="Einmalige ausdrueckliche Freigabe des Standard-Betriebsprofils",
+    )
     nc_setup = setup_sub.add_parser("nextcloud", help="Nextcloud-Zugang zentral einrichten")
     nc_setup.add_argument("--url")
     nc_setup.add_argument("--username")

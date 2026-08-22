@@ -67,6 +67,21 @@ TOOLS: tuple[ToolDefinition, ...] = (
         test_anchor="tests/test_m5_tool_contract.py",
     ),
     define(
+        id="assistant.setup.standard-operations",
+        domain="runtime",
+        description=(
+            "Normale nicht-destruktive Funktionen fuer alle bereits eindeutig "
+            "konfigurierten Ressourcen nach einmaliger Betreiberfreigabe gemeinsam aktivieren"
+        ),
+        command="./scripts/assistant.sh setup standard-operations --yes",
+        mode="local-write",
+        writes_external_data=False,
+        approval="explicit-user-standard-operations-profile",
+        availability="always",
+        documentation_anchor="docs/STANDARD_OPERATIONS.md",
+        test_anchor="tests/test_standard_operations_profile.py",
+    ),
+    define(
         id="assistant.monitor.status",
         domain="runtime",
         description="Evidenzbasierten Gesundheitswert, Teilwerte und konkrete Probleme anzeigen",

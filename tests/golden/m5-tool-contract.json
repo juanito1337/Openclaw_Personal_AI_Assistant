@@ -40,6 +40,14 @@
     "writes_external_data": false
   },
   {
+    "approval": "explicit-user-standard-operations-profile",
+    "command": "./scripts/assistant.sh setup standard-operations --yes",
+    "description": "Normale nicht-destruktive Funktionen fuer alle bereits eindeutig konfigurierten Ressourcen nach einmaliger Betreiberfreigabe gemeinsam aktivieren",
+    "id": "assistant.setup.standard-operations",
+    "mode": "local-write",
+    "writes_external_data": false
+  },
+  {
     "approval": "none",
     "command": "./scripts/assistant.sh monitor status --days 7 --live",
     "description": "Evidenzbasierten Gesundheitswert, Teilwerte und konkrete Probleme anzeigen",

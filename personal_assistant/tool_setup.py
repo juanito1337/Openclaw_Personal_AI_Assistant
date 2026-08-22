@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import tomllib
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from email.utils import parseaddr
 from pathlib import Path
 from typing import Any
@@ -250,6 +250,256 @@ def _updated_settings(
         security=existing.security,
         portfolio=portfolio or existing.portfolio,
     )
+
+
+def configure_standard_operations_tools(
+    *,
+    approve_permissions: bool = False,
+    path: Path = DEFAULT_TOOL_SETTINGS,
+) -> dict[str, Any]:
+    """Enable the complete non-destructive operating surface for configured tools.
+
+    The profile never selects a remote resource and never grants a permission
+    which is absent from the reviewed resource registry.  It only removes the
+    redundant per-tool feature switches after one explicit operator approval.
+    """
+    if not approve_permissions:
+        raise PermissionError(
+            "Standardbetrieb benoetigt die einmalige ausdrueckliche Freigabe --yes"
+        )
+    runtime_role = os.environ.get("OPENCLAW_ROLE", "agent-cli").strip()
+    if (
+        os.environ.get("OPENCLAW_RUNTIME", "").strip() == "container"
+        and runtime_role != "agent-cli"
+    ):
+        raise PermissionError(
+            "Das Standard-Betriebsprofil darf im Container nur ueber die "
+            "kurzlebige agent-cli-Rolle aktiviert werden; Gateway-Mounts und "
+            "Dateirechte bleiben unveraendert."
+        )
+
+    existing = load_tool_settings(path)
+    registry = ResourceRegistry(WORKSPACE_ROOT / "personal_assistant/resources.toml")
+    activated: list[str] = []
+    skipped: list[dict[str, str]] = []
+    blockers: list[str] = []
+
+    def require_resource(
+        domain: str,
+        resource_id: str,
+        *,
+        kind: str,
+        permissions: set[str],
+        component: str = "",
+    ) -> bool:
+        if not resource_id:
+            skipped.append({"domain": domain, "reason": "not-configured"})
+            return False
+        resource = registry.resources.get(resource_id)
+        if resource is None:
+            blockers.append(f"{domain}: Ressource {resource_id} fehlt")
+            return False
+        if not resource.enabled:
+            blockers.append(f"{domain}: Ressource {resource_id} ist deaktiviert")
+            return False
+        if resource.connector != "nextcloud" and domain != "mail":
+            blockers.append(f"{domain}: Ressource {resource_id} ist nicht Nextcloud")
+            return False
+        if resource.kind != kind:
+            blockers.append(
+                f"{domain}: Ressource {resource_id} hat Typ {resource.kind} statt {kind}"
+            )
+            return False
+        if component and not _resource_supports_component(resource, component):
+            blockers.append(
+                f"{domain}: Ressource {resource_id} unterstuetzt {component} nicht"
+            )
+            return False
+        missing = sorted(permissions - set(resource.permissions))
+        if missing:
+            blockers.append(
+                f"{domain}: Ressource {resource_id} hat keine bestaetigten Rechte "
+                + ", ".join(missing)
+            )
+            return False
+        activated.append(domain)
+        return True
+
+    mail_move = existing.mail.move
+    if existing.mail.enabled:
+        if require_resource(
+            "mail",
+            mail_move.resource_id,
+            kind="email-service",
+            permissions={"read", "move", "forward"},
+        ):
+            mail_move = replace(mail_move, enabled=True)
+    else:
+        skipped.append({"domain": "mail", "reason": "disabled"})
+
+    workspace = existing.nextcloud.workspace
+    if workspace.enabled:
+        if require_resource(
+            "workspace",
+            workspace.resource_id,
+            kind="file-root",
+            permissions={"read", "create", "move"},
+        ):
+            workspace = replace(
+                workspace,
+                allow_mkdir=True,
+                allow_upload=True,
+                allow_write_text=True,
+                allow_move=True,
+            )
+    else:
+        skipped.append({"domain": "workspace", "reason": "disabled"})
+
+    calendar = existing.nextcloud.calendar
+    if calendar.enabled:
+        if require_resource(
+            "calendar",
+            calendar.resource_id,
+            kind="calendar",
+            permissions={"read", "create", "update"},
+            component="VEVENT",
+        ):
+            calendar = replace(
+                calendar,
+                allow_create=True,
+                allow_list=True,
+                allow_update=True,
+            )
+    else:
+        skipped.append({"domain": "calendar", "reason": "disabled"})
+
+    tasks = existing.nextcloud.tasks
+    if tasks.enabled:
+        if require_resource(
+            "tasks",
+            tasks.resource_id,
+            kind="calendar",
+            permissions={"read", "create", "update"},
+            component="VTODO",
+        ):
+            tasks = replace(
+                tasks,
+                allow_create=True,
+                allow_list=True,
+                allow_update=True,
+            )
+    else:
+        skipped.append({"domain": "tasks", "reason": "disabled"})
+
+    contacts = existing.nextcloud.contacts
+    if contacts.enabled:
+        if require_resource(
+            "contacts",
+            contacts.resource_id,
+            kind="addressbook",
+            permissions={"read", "create", "update"},
+        ):
+            contacts = replace(
+                contacts,
+                allow_create=True,
+                allow_list=True,
+                allow_update=True,
+            )
+    else:
+        skipped.append({"domain": "contacts", "reason": "disabled"})
+
+    deck = existing.nextcloud.deck_orders
+    if deck.enabled:
+        if require_resource(
+            "orders",
+            deck.resource_id,
+            kind="deck-board",
+            permissions={"read", "create", "update", "move"},
+        ):
+            deck = replace(
+                deck,
+                allow_read=True,
+                allow_create=True,
+                allow_update=True,
+                allow_move=True,
+            )
+    else:
+        skipped.append({"domain": "orders", "reason": "disabled"})
+
+    if blockers:
+        raise PermissionError(
+            "Standardbetrieb wurde nicht aktiviert; zuerst Ressourcenstatus korrigieren: "
+            + "; ".join(blockers)
+        )
+    if not activated:
+        raise ValueError("Keine bereits konfigurierte Standardfunktion gefunden")
+
+    mail = replace(existing.mail, move=mail_move)
+    settings = _updated_settings(
+        existing,
+        mail=mail,
+        workspace=workspace,
+        direct_calendar=calendar,
+        direct_tasks=tasks,
+        direct_contacts=contacts,
+        deck_orders=deck,
+    )
+    backup = _write_tools(Path(path), settings)
+    configured = load_tool_settings(path)
+    return {
+        "ok": True,
+        "profile": "standard-operations",
+        "tools_file": str(configured.path),
+        "backup": str(backup or ""),
+        "activated": activated,
+        "skipped": skipped,
+        "permissions_expanded_in_registry": False,
+        "external_data_changed": False,
+        "concrete_write_approval_still_required": True,
+        "protections": {
+            "delete": "denied",
+            "overwrite": "denied",
+            "bulk_update": "denied",
+            "share": "denied",
+            "credentials": "separate-explicit-approval",
+            "mail_send": "presented-draft-and-explicit-approval",
+            "jobs": "separate-explicit-approval",
+        },
+        "capabilities": {
+            "mail_move": configured.mail.move.enabled,
+            "workspace": {
+                "mkdir": configured.nextcloud.workspace.allow_mkdir,
+                "upload": configured.nextcloud.workspace.allow_upload,
+                "write_text": configured.nextcloud.workspace.allow_write_text,
+                "move": configured.nextcloud.workspace.allow_move,
+            },
+            "calendar": {
+                "configured": configured.nextcloud.calendar.enabled,
+                "create": configured.nextcloud.calendar.allow_create,
+                "list": configured.nextcloud.calendar.allow_list,
+                "update": configured.nextcloud.calendar.allow_update,
+            },
+            "tasks": {
+                "configured": configured.nextcloud.tasks.enabled,
+                "create": configured.nextcloud.tasks.allow_create,
+                "list": configured.nextcloud.tasks.allow_list,
+                "update": configured.nextcloud.tasks.allow_update,
+            },
+            "contacts": {
+                "configured": configured.nextcloud.contacts.enabled,
+                "create": configured.nextcloud.contacts.allow_create,
+                "list": configured.nextcloud.contacts.allow_list,
+                "update": configured.nextcloud.contacts.allow_update,
+            },
+            "orders": {
+                "configured": configured.nextcloud.deck_orders.enabled,
+                "read": configured.nextcloud.deck_orders.allow_read,
+                "create": configured.nextcloud.deck_orders.allow_create,
+                "update": configured.nextcloud.deck_orders.allow_update,
+                "move": configured.nextcloud.deck_orders.allow_move,
+            },
+        },
+    }
 
 
 def configure_portfolio_tools(

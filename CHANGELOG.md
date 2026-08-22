@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Betrieb: Das einmalige, `agent-cli`-gebundene Profil `setup
+  standard-operations --yes` aktiviert die normalen nicht-destruktiven
+  Funktionen aller bereits eindeutig konfigurierten und berechtigungsgeprueften
+  Ressourcen gemeinsam. Kalender-, Aufgaben- und Kontaktupdates benoetigen damit
+  keine technischen Einzelfreigaben mehr; konkrete externe Aenderungen behalten
+  ihre UID-/ETag-, Erwartungs- und Nutzerfreigaben, waehrend Loeschen,
+  Ueberschreiben, Teilen, Massenaktionen, Credentials, Jobs und unbestaetigter
+  Mailversand geschuetzt bleiben.
 - Tasks: Das Agentenrouting schliesst bestehende Nextcloud-Aufgaben jetzt ueber
   die registrierte UID-/ETag-geschuetzte `tasks update --status COMPLETED`-
   Operation ab. Deaktivierte Updaterechte liefern einen separaten

@@ -20,6 +20,7 @@ Zustand, Instanzkonfiguration und Secrets bleiben ausserhalb des Images unter
 | Recovery-Drill, RTO/RPO, Releasecheckliste und Canary | [M8-Recoveryvertrag](docs/architecture/RECOVERY_AND_RELEASE.md) |
 | Lokale Tests, CI und Baseline | [Testanleitung](docs/TESTING.md) |
 | Toolkatalog und stabile CLI-Kommandos | [Generierte Befehlsreferenz](docs/COMMAND_REFERENCE.md) |
+| Einmalige Freigabe der normalen nicht-destruktiven Funktionen | [Standard-Betriebsprofil](docs/STANDARD_OPERATIONS.md) |
 | Depot, EUR-Bewertung und providergebundene Aktienanalyse | [Portfolio- und Research-Vertrag](docs/PORTFOLIO_ADVISOR.md) |
 | Erweiterungs-, Git-, Review- und Releaseregeln | [Beitragen](CONTRIBUTING.md) |
 | Trust Boundaries und Schwachstellenprozess | [Sicherheit](SECURITY.md) |

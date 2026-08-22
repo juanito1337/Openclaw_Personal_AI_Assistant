@@ -45,8 +45,11 @@ Der dauerhaft laufende Gateway mountet die Instanzkonfiguration absichtlich
 read-only; dort darf `tasks configure` nicht ausgefuehrt und der Mount nicht
 aufgeweicht werden. Nach separater ausdruecklicher Freigabe wird der oben gezeigte
 registrierte Befehl einmalig ueber die kurzlebige Compose-Rolle `agent-cli`
-ausgefuehrt. `tasks status` liefert dafuer bei deaktiviertem Update den strukturierten
-Block `update_setup`.
+ausgefuehrt. `tasks status` liefert dafuer bei deaktiviertem Update den
+strukturierten Block `update_setup`. Dessen primaerer Befehl aktiviert das
+[Standard-Betriebsprofil](STANDARD_OPERATIONS.md) gemeinsam fuer alle bereits
+konfigurierten und berechtigungsgeprueften Funktionen, statt weitere technische
+Einzelfreigaben zu verlangen.
 
 ## Lesen und anlegen
 

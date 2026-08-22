@@ -1536,10 +1536,11 @@ class PersonalAssistant(
         if settings.enabled and settings.allow_list and not settings.allow_update:
             result["update_setup_required"] = True
             result["update_setup"] = {
-                "approval": "explicit-user-task-list-selection",
+                "approval": "explicit-user-standard-operations-profile",
                 "operator_only": True,
                 "container_role": "agent-cli",
-                "command": (
+                "command": "./scripts/assistant.sh setup standard-operations --yes",
+                "domain_fallback_command": (
                     "./scripts/assistant.sh tasks configure --resource "
                     + shlex.quote(settings.resource_id)
                     + " --allow-update --yes"

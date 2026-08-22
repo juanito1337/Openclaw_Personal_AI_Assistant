@@ -85,6 +85,13 @@ its permissions or claim a private memory note completed the remote task. If
 `update_allowed=false`, report the separate `agent-cli` setup action returned by
 `tasks status` and wait for its own permission-expansion approval.
 
+The supported normal installation profile is `setup standard-operations --yes`.
+After one explicit operator approval it enables the full non-destructive surface
+of every already selected and permission-verified resource together, so normal
+calendar, task and contact updates do not require separate technical grants.
+This profile never selects resources, expands the Resource Registry, enables jobs
+or weakens the approval and conflict guards for each concrete external action.
+
 For mailbox contents, never execute the `himalaya` binary directly and never pipe
 mail output through `grep`, `rg`, `find`, `awk` or another shell filter. These paths
 bypass folder coverage, the M11 Hybridindex and its completeness evidence. Use the

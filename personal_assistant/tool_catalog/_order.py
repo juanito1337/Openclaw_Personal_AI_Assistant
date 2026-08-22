@@ -7,6 +7,7 @@ TOOL_ORDER: tuple[str, ...] = (
     "assistant.version.history",
     "assistant.version.since",
     "assistant.search",
+    "assistant.setup.standard-operations",
     "assistant.monitor.status",
     "assistant.jobs.status",
     "assistant.scheduler.status",
