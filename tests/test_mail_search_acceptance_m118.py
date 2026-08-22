@@ -102,3 +102,18 @@ def test_m11_compose_is_hermetic_and_valid() -> None:
         "/srv/openclaw" not in json.dumps(service)
         for service in compose["services"].values()
     )
+
+
+def test_ci_container_acceptance_uses_job_local_setup_python() -> None:
+    workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    container_job = workflow.split("\n  container:\n", 1)[1]
+    command = (
+        "python3 scripts/benchmark_mail_acceptance_m118.py "
+        "--output build/m11-acceptance.json"
+    )
+
+    assert command in container_job
+    assert (
+        ".venv/bin/python scripts/benchmark_mail_acceptance_m118.py"
+        not in container_job
+    )

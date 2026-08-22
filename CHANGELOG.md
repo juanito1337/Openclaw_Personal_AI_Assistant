@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- CI: Der isolierte Containerjob erzeugt den synthetischen M11-Abnahmenachweis
+  jetzt mit seinem durch `actions/setup-python` bereitgestellten Interpreter.
+  Er setzt nicht mehr faelschlich die `.venv` eines anderen Jobs voraus.
 - Mail search: Raw `himalaya` and shell-filter searches are now explicitly
   prohibited by the always-loaded agent contract. The runtime exposes a
   fail-closed guard at the public binary path while registered Assistant and

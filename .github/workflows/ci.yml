@@ -87,7 +87,7 @@ jobs:
           OPENCLAW_M11_RUNTIME_IMAGE: openclaw-agent:m7-ci
         run: ./scripts/check-m11-integration.sh
       - name: Record synthetic M11 acceptance comparison
-        run: .venv/bin/python scripts/benchmark_mail_acceptance_m118.py --output build/m11-acceptance.json
+        run: python3 scripts/benchmark_mail_acceptance_m118.py --output build/m11-acceptance.json
       - name: Record M7 image baseline
         run: |
           python3 scripts/benchmark-m7.py \

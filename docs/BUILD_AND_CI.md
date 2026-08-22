@@ -23,7 +23,10 @@ SIGKILL/Restart und Locator-/UIDVALIDITY-Mutationen bleiben auf den eindeutigen
 Testprojektnamen und temporaere Volumes begrenzt. CI und Releaseworkflow fuehren
 ausserdem `scripts/benchmark_mail_acceptance_m118.py` aus und bewahren
 `build/m11-integration.json` sowie `build/m11-acceptance.json` als inhaltsfreie
-Nachweise. Die Entwicklungsabnahme und der weiterhin nicht ausgefuehrte
+Nachweise. Der separate CI-Containerjob verwendet dafuer das durch
+`actions/setup-python` bereitgestellte `python3`; eine in einem vorherigen Job
+erzeugte `.venv` wird nicht als jobuebergreifender Zustand vorausgesetzt. Die
+Entwicklungsabnahme und der weiterhin nicht ausgefuehrte
 produktive Rollout sind unter
 [`MAIL_SEARCH_M11_ACCEPTANCE_AND_ROLLOUT.md`](MAIL_SEARCH_M11_ACCEPTANCE_AND_ROLLOUT.md)
 getrennt dokumentiert.
