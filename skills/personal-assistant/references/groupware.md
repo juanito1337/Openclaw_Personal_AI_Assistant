@@ -13,6 +13,13 @@ particular, archived invoice files are listed with the registered `invoices
 files --limit 100` command after `invoices status`; this command resolves the
 configured invoice root and resource internally.
 
+If a Nextcloud result reports `missing_environment`, preserve those variable
+names and run the matching registered status/doctor path. Never inspect
+`~/.config/personal-assistant/secrets.env`, list its parent directory, probe
+`/run/openclaw-env` or `/srv/openclaw/secrets`, or use a shell fallback. The
+gateway's generic file tools are workspace-only; connector credentials remain
+role-mounted inputs to the registered command.
+
 For questions about current files, contacts, events or tasks, use the matching
 registered list/search tool before memory, workspace or shell search. A local
 index may supplement an explicitly broad search, but it does not prove that a

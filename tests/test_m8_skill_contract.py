@@ -136,6 +136,26 @@ def test_skill_distinguishes_tool_ids_from_executable_commands() -> None:
     assert "`./scripts/assistant.sh portfolio holdings`" in contract
 
 
+def test_secret_failures_never_route_to_file_or_parent_directory_discovery() -> None:
+    skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
+    runtime = " ".join(
+        (SKILL / "references/runtime-security.md").read_text(encoding="utf-8").split()
+    )
+    groupware = " ".join(
+        (SKILL / "references/groupware.md").read_text(encoding="utf-8").split()
+    )
+
+    for contract in (skill, runtime, groupware):
+        assert "missing_environment" in contract
+        assert "status/doctor" in contract
+        assert "~/.config/personal-assistant" in contract
+        assert "/run/openclaw-env" in contract
+        assert "/srv/openclaw/secrets" in contract
+    assert "A failed access is the expected security boundary" in skill
+    assert "Never search for their values or location" in skill
+    assert "list its parent directory" in groupware
+
+
 def test_skill_refreshes_stale_quotes_before_claiming_current_prices() -> None:
     skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
     portfolio = " ".join((SKILL / "references/portfolio.md").read_text(encoding="utf-8").split())

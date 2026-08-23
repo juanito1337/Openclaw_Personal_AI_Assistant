@@ -889,7 +889,7 @@ def _normalize_container_tool_paths(workspace: Path) -> bool:
 
 
 def _normalize_container_gateway_config(gateway: Path) -> bool:
-    """Enforce the internal proxy in active global and per-agent config."""
+    """Enforce the container runtime boundaries in global and per-agent config."""
 
     config_path = gateway / "openclaw.json"
     global_changed = normalize_gateway_base_url(
@@ -902,6 +902,7 @@ def _normalize_container_gateway_config(gateway: Path) -> bool:
         agent_timeout_seconds=CONTAINER_AGENT_TIMEOUT_SECONDS,
     )
     skills_changed = _normalize_container_skill_root(config_path)
+    filesystem_policy_changed = _normalize_container_filesystem_policy(config_path)
     override_changes = normalize_model_overrides(
         gateway / "agents",
         CONTAINER_OLLAMA_BASE_URL,
@@ -914,6 +915,7 @@ def _normalize_container_gateway_config(gateway: Path) -> bool:
         global_changed
         or timeout_changed
         or skills_changed
+        or filesystem_policy_changed
         or override_changes
         or override_timeout_changes
     )
@@ -959,6 +961,52 @@ def _normalize_container_skill_root(path: Path) -> bool:
     load["extraDirs"] = expected
     temporary = path.with_name(
         f".{path.name}.skills-{os.getpid()}-{time.monotonic_ns()}"
+    )
+    try:
+        temporary.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        os.chmod(temporary, path.stat().st_mode & 0o777)
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return True
+
+
+def _normalize_container_filesystem_policy(path: Path) -> bool:
+    """Keep generic OpenClaw file tools inside the controlled workspace.
+
+    Registered Assistant commands retain their role-specific mounts and
+    environment. This boundary applies only to OpenClaw's generic read/write
+    tools, so a model cannot inspect gateway configuration or secret paths as a
+    fallback after a registered domain command fails.
+    """
+
+    if not path.exists() and not path.is_symlink():
+        return False
+    if path.is_symlink() or not path.is_file():
+        raise RuntimeError(f"OpenClaw-Konfiguration muss eine regulaere Datei sein: {path}")
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"openclaw.json muss ein JSON-Objekt enthalten: {path}")
+    tools = payload.get("tools")
+    if tools is None:
+        tools = {}
+        payload["tools"] = tools
+    if not isinstance(tools, dict):
+        raise RuntimeError(f"tools in openclaw.json muss ein Objekt sein: {path}")
+    filesystem = tools.get("fs")
+    if filesystem is None:
+        filesystem = {}
+        tools["fs"] = filesystem
+    if not isinstance(filesystem, dict):
+        raise RuntimeError(f"tools.fs in openclaw.json muss ein Objekt sein: {path}")
+    if filesystem.get("workspaceOnly") is True:
+        return False
+    filesystem["workspaceOnly"] = True
+    temporary = path.with_name(
+        f".{path.name}.filesystem-{os.getpid()}-{time.monotonic_ns()}"
     )
     try:
         temporary.write_text(

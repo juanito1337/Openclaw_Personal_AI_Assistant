@@ -10,6 +10,11 @@
       "mode": "token"
     }
   },
+  "tools": {
+    "fs": {
+      "workspaceOnly": true
+    }
+  },
   "plugins": {
     "load": {
       "paths": [

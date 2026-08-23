@@ -161,6 +161,11 @@ Importgraphen auf Zyklen.
   UID-/UIDVALIDITY-/stabile-Ordner-ID-Semantik fail-closed.
 - Instanzkonfiguration und Secrets liegen getrennt unter `/srv/openclaw/config` und
   `/srv/openclaw/secrets`; Rollen sehen daraus nur benoetigte read-only Dateien.
+- OpenClaws generische Dateiwerkzeuge werden bei jedem Containerstart mit
+  `tools.fs.workspaceOnly=true` auf den kontrollierten Agent-Workspace begrenzt.
+  Fachwerkzeuge erhalten weiterhin nur ihre rollenbezogenen Env-/Secret-Mounts;
+  ein Fachfehler berechtigt weder zur Secret-Suche noch zum Listen des
+  Elternverzeichnisses.
 - ClamAV-Signaturen liegen im Docker-Volume `clamav-db`; nur `clamav-update` schreibt.
 - Der Agent-Workspace enthaelt Instanzkonfiguration und kontrollierte lokale
   Dokumente. Sessions gehoeren dem Gateway-Teilbaum; fachliche Daten liegen in ihren

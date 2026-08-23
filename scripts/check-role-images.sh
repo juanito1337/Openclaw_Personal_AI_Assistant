@@ -154,7 +154,10 @@ done
   docker exec "$gateway_container" python3 -P -c '
 import json
 import sqlite3
+from pathlib import Path
 
+config = json.loads(Path("/home/node/.openclaw/openclaw.json").read_text())
+assert config["tools"]["fs"]["workspaceOnly"] is True
 connection = sqlite3.connect("/home/node/.openclaw/state/openclaw.sqlite")
 row = connection.execute(
     "SELECT install_records_json FROM installed_plugin_index WHERE index_key = ?",

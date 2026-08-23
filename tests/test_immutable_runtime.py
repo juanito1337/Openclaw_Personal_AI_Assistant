@@ -102,6 +102,7 @@ class ImmutableRuntimeTests(unittest.TestCase):
                 gateway["skills"]["load"]["extraDirs"],
                 ["/opt/openclaw-agent/skills"],
             )
+            self.assertIs(gateway["tools"]["fs"]["workspaceOnly"], True)
             self.assertIsNotNone(report.backup)
             archive = Path(str(report.backup))
             digest = hashlib.sha256(archive.read_bytes()).hexdigest()
@@ -125,6 +126,39 @@ class ImmutableRuntimeTests(unittest.TestCase):
             self.assertEqual((config.read_bytes(), config.stat().st_mtime_ns), before)
             backups = list((state / ".layout-migrations/backups").glob("*.tar.gz"))
             self.assertEqual(len(backups), 1)
+
+    def test_restart_restores_workspace_only_generic_file_policy(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            state, workspace = self._legacy_fixture(folder)
+            migrate_layout(self.root, state, workspace)
+            active = state / "v3/gateway/openclaw.json"
+            payload = json.loads(active.read_text(encoding="utf-8"))
+            payload["tools"] = {
+                "fs": {"workspaceOnly": False, "preserved": "value"},
+                "exec": {"timeoutSec": 1800},
+            }
+            active.write_text(json.dumps(payload), encoding="utf-8")
+
+            repaired = migrate_layout(self.root, state, workspace)
+            normalized = json.loads(active.read_text(encoding="utf-8"))
+
+            self.assertTrue(repaired.changed)
+            self.assertIs(normalized["tools"]["fs"]["workspaceOnly"], True)
+            self.assertEqual(normalized["tools"]["fs"]["preserved"], "value")
+            self.assertEqual(normalized["tools"]["exec"], {"timeoutSec": 1800})
+            self.assertFalse(migrate_layout(self.root, state, workspace).changed)
+
+    def test_invalid_generic_file_policy_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            state, workspace = self._legacy_fixture(folder)
+            migrate_layout(self.root, state, workspace)
+            active = state / "v3/gateway/openclaw.json"
+            payload = json.loads(active.read_text(encoding="utf-8"))
+            payload["tools"] = {"fs": []}
+            active.write_text(json.dumps(payload), encoding="utf-8")
+
+            with self.assertRaisesRegex(RuntimeError, "tools.fs.*Objekt"):
+                migrate_layout(self.root, state, workspace)
 
     def test_layout_normalizes_ollama_in_active_v3_instance_and_on_restart(self) -> None:
         with tempfile.TemporaryDirectory() as folder:

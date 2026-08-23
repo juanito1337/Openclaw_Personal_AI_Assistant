@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Sicherheit/Agentenrouting: OpenClaws generische Dateiwerkzeuge werden bei
+  jedem Containerstart mit `tools.fs.workspaceOnly=true` auf den kontrollierten
+  Workspace begrenzt. Der Skill und die Live-Capabilities verbieten nun
+  ausdruecklich, nach einem Fachfehler `secrets.env`, Secret-Mounts oder deren
+  Elternverzeichnisse zu lesen, aufzulisten oder per Shell zu durchsuchen.
+  `missing_environment` wird ausschliesslich ueber das registrierte
+  Status-/Doctor-Werkzeug und ohne Secretwerte diagnostiziert.
+
 - Betrieb: Das releaseweite Profil `operations.profile = "standard"` wird jetzt
   bei jedem Prozessstart nach den persistenten Instanzwerten angewendet. Bereits
   aktivierte und eindeutig ausgewaehlte Mail-, Workspace-, Kalender-, Aufgaben-,

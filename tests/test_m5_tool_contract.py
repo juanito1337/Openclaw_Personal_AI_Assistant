@@ -135,6 +135,9 @@ class M5ToolContractTests(unittest.TestCase):
         self.assertTrue(payload["configured"])
         self.assertEqual(payload["operations_profile"]["name"], "standard")
         self.assertTrue(payload["operations_profile"]["automatic_at_process_start"])
+        principles = " ".join(payload["principles"])
+        self.assertIn("Secret-Dateien und ihre Verzeichnisse", principles)
+        self.assertIn("Status-/Doctor-Werkzeuge", principles)
         self.assertEqual(payload["tools"], [])
 
     def test_policy_negative_and_approval_contracts_remain_fail_closed(self) -> None:

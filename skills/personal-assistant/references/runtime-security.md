@@ -76,3 +76,12 @@ On every tool failure preserve the exact error and run the domain status/doctor.
 For service-backed tools also run `jobs check --target all --deep`. Do not change
 credentials, policy, permissions, forwarding or security gates as an automatic
 repair.
+
+Generic filesystem tools are restricted to the controlled workspace by
+`tools.fs.workspaceOnly=true`. They are never credential discovery: do not
+read, list, search, glob, stat or retry the parent of
+`~/.config/personal-assistant`, `/run/openclaw-env`,
+`/run/openclaw-secrets`, `/srv/openclaw/secrets`, `secrets.env` or another
+`*.env` credential file. Do not use `exec` to bypass that boundary. A
+`missing_environment` result is diagnosed only with the registered domain
+status/doctor command and may expose variable names, never secret values.

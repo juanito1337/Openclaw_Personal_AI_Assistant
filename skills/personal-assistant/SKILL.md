@@ -80,6 +80,15 @@ an explicit operator action through the short-lived `agent-cli` role; report the
 exact registered setup command and required approval instead of patching the
 file. Ordinary registered domain commands continue to run from the gateway.
 
+Secret paths are never generic tool targets. Never use `read`, `list`, `find`,
+`glob`, `stat`, `exec` or a parent-directory retry against
+`~/.config/personal-assistant`, `/run/openclaw-env`,
+`/run/openclaw-secrets`, `/srv/openclaw/secrets`, `secrets.env` or another
+`*.env` credential file. A failed access is the expected security boundary, not
+evidence that Jan must expose the directory. If a registered result contains
+`missing_environment`, run the exact domain status/doctor command and report
+only the missing variable names. Never search for their values or location.
+
 The release-owned `standard` operations profile is effective at every process
 start. Use all normal non-destructive tools for already enabled and exactly
 selected resources directly; never ask Jan to unlock calendar, task, contact,

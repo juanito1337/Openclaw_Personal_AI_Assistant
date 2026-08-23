@@ -2459,6 +2459,9 @@ class PersonalAssistant(
                 "Der Assistent aendert keinen Core-Code autonom.",
                 "Berechtigungen werden nicht autonom erweitert.",
                 "Secrets werden nie ausgegeben oder in den Workspace geschrieben.",
+                "Secret-Dateien und ihre Verzeichnisse werden nie mit generischen Datei- "
+                "oder Shell-Werkzeugen durchsucht; fehlende Variablen werden nur ueber "
+                "registrierte Status-/Doctor-Werkzeuge diagnostiziert.",
                 "Loeschen und Ueberschreiben externer Daten ist standardmaessig verboten.",
                 "Schreibaktionen laufen ueber ActionPlan, Policy-Pruefung und Audit.",
             ],

@@ -176,6 +176,15 @@ Docker volume clamav-db
                                            read/write in clamav-update
 ```
 
+Die Layoutnormalisierung erzwingt im Gateway zusaetzlich
+`tools.fs.workspaceOnly=true`. Damit koennen OpenClaws generische
+`read`/`list`/`write`/`edit`-Werkzeuge keine Konfigurations- oder Secretpfade
+ausserhalb des kontrollierten Workspaces untersuchen. Die registrierten
+`assistant.sh`-Fachwerkzeuge nutzen unveraendert ihre exakt gemounteten
+rollenbezogenen Eingaben. Ein gemeldetes `missing_environment` wird ueber den
+registrierten Status-/Doctor-Pfad diagnostiziert, nicht durch das Listen von
+`secrets.env` oder dessen Elternverzeichnis.
+
 Die exakte `ro`/`rw`-Zuordnung steht in der
 [Rollenmatrix](architecture/CONTAINER_ROLES.md) und wird gegen gerendertes Compose
 getestet. Ein Fachworker sieht keine unbeteiligte Datenbank beschreibbar.

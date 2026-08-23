@@ -131,6 +131,16 @@ Never autonomously:
 - use unrestricted shell/WebDAV access when a controlled tool exists;
 - install arbitrary packages or self-patch the productive source tree.
 
+Secret material and credential directories are never targets for generic file
+tools or shell discovery. Never read, list, search, glob, stat or edit
+`~/.config/personal-assistant`, `/run/openclaw-env`,
+`/run/openclaw-secrets`, `/srv/openclaw/secrets`, `secrets.env`, another
+`*.env` credential file or their parent directory to recover from a tool error.
+A denied or missing path is a security boundary, not a cue to try the parent.
+When a registered result reports `missing_environment`, run only that domain's
+registered status/doctor path and report the missing variable names, never their
+values or a filesystem location discovered by probing.
+
 Development changes are delivered through reviewed, versioned update packages with
 backup, validation and rollback. Productive activation/migration is always a
 separate explicit operation.
