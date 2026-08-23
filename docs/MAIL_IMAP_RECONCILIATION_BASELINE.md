@@ -71,11 +71,16 @@ eingeführten willkürlichen Qualitätsgrenzen; nur eine kleinere Collection wir
 fail-closed abgewiesen.
 
 Das installierbare M12-Wheel wurde in einer frischen Umgebung mit dem gleichen
-Testpfad geprüft: 576.072 Bytes und 2,463 Sekunden Buildzeit. Der Messlauf vor
-der finalen Race-Härtung umfasste 940 Tests und 87 Subtests in 96,53 Sekunden;
-die endgültige Wheel-Messung wird beim Abschlusslauf neu erfasst. Wheel und
-entpackter Produktbaum bestanden den
+Testpfad geprüft: 576.302 Bytes, 2,487 Sekunden Buildzeit sowie 942 Tests und 87
+Subtests in 96,65 Sekunden. Wheel und entpackter Produktbaum bestanden den
 Artefaktscan ohne produktive Konfiguration, Secrets oder Laufzeitdaten.
+
+Die drei lokalen Rollenimages aus dem Entwicklungscommit wurden mit dem
+gepinnten Buildpfad gebaut und geprüft. Gemessene komprimierte Docker-Größen:
+Runtime 377.021.636 Bytes, Proxy 23.420.998 Bytes und Maintenance 45.631.874
+Bytes. SBOM, Provenance, Rootfs-Artefaktscan und Trivy meldeten in allen drei
+Rollen null Secrets und null kritische CVEs. Der lokale Cache-Build dauerte rund
+88 Sekunden; das ist kein sauberer Erstbuild und daher kein Build-SLA.
 
 ## Noch offene reale Messwerte
 

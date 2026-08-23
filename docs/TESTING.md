@@ -245,9 +245,9 @@ der aktuellen Python-Dateien.
 | M11.8-Wheelgroesse | 552.534 Bytes |
 | M11.8-Wheel-Buildzeit | 2,874 s |
 | M11.8-Wheel-Tests in frischer Umgebung | 879 plus 87 Subtests |
-| M12-Wheelgroesse | 576.072 Bytes |
-| M12-Wheel-Buildzeit | 2,463 s |
-| M12-Wheel-Tests in frischer Umgebung | vor finaler Race-Haertung: 940 plus 87 Subtests in 96,53 s |
+| M12-Wheelgroesse | 576.302 Bytes |
+| M12-Wheel-Buildzeit | 2,487 s |
+| M12-Wheel-Tests in frischer Umgebung | 942 plus 87 Subtests in 96,65 s |
 | Container-Imagegroesse des M6-Testimages | 425.555.866 Bytes |
 | Runtime-Imagegroesse mit gepinnten Brave-/Signal-Plugins | 376.600.036 Bytes |
 | Runtime-Imagegroesse nach der M10-Rollout-Monitor-/Supervisorkorrektur | 376.793.375 Bytes |
