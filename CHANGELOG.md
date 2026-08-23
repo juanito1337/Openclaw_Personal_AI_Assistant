@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Planung/Mailindex: Die M12-Roadmap schliesst die nach M11 bewusst offene
+  Produktivluecke mit einem strikt read-only nativen IMAP-Inventory-Connector,
+  autoritativer Konto-Coverage, effizientem Move-/Copy-/Delete-Tracking,
+  maschinenfesten Negativaussagen und einem getrennten Canary-/Backfill-/Job-
+  Rollout. Die Roadmap allein aktiviert keinen Connector, verarbeitet keine
+  Produktivmail und veraendert weder `/srv/openclaw` noch Jobzustaende.
+
 - Container/ClamAV: Die weiterhin hart begrenzte Maintenance-Rolle erhaelt 2 GiB
   statt 512 MiB Arbeitsspeicher. Damit kann `freshclam` eine vollstaendige neue
   Signaturdatenbank im gesicherten Rolloutfenster validieren, ohne vom

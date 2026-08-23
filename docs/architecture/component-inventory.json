@@ -2,7 +2,7 @@
   "schema_version": 1,
   "inventory_date": "2026-08-06",
   "source_scope": "all Python modules, shell entrypoints, skills, systemd units, migrations and Markdown documents",
-  "component_count": 439,
+  "component_count": 440,
   "classification_values": [
     "active",
     "compatibility",
@@ -46,6 +46,7 @@
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
         "docs/DOCKER_DEPLOYMENT.md",
         "docs/INVOICE_QUALITY_REPROCESSING_ROADMAP.md",
+        "docs/MAIL_IMAP_RECONCILIATION_ROADMAP.md",
         "docs/MAIL_QUALITY_REVIEW_ROADMAP.md",
         "docs/MAIL_SEARCH_INDEXING_ROADMAP.md",
         "docs/architecture/EXTENDING.md",
@@ -90,7 +91,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-23T10:09:04+02:00",
+      "last_git_change": "2026-08-23T10:56:07+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1189,7 +1190,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-23T10:09:04+02:00",
+      "last_git_change": "2026-08-23T10:56:07+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1327,6 +1328,26 @@
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-08-18T08:41:43+02:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "docs/MAIL_IMAP_RECONCILIATION_ROADMAP.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Documentation Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "README.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1663,6 +1684,7 @@
         "README.md",
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
         "docs/INVOICE_QUALITY_REPROCESSING_ROADMAP.md",
+        "docs/MAIL_IMAP_RECONCILIATION_ROADMAP.md",
         "docs/MAIL_QUALITY_REVIEW_ROADMAP.md",
         "docs/MAIL_SEARCH_INDEXING_ROADMAP.md",
         "docs/archive/README_PRE_M1.md"
@@ -7288,7 +7310,7 @@
         "docs/architecture/adr/0007-shared-sqlite-scheduler.md",
         "docs/architecture/state-access.json"
       ],
-      "line_coverage_percent": 85.1,
+      "line_coverage_percent": 84.24,
       "last_git_change": "2026-08-20T00:25:51+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -7933,6 +7955,7 @@
         "docs/INVOICE_M10_ROLLOUT.md",
         "docs/INVOICE_QUALITY_BASELINE_M10.md",
         "docs/INVOICE_QUALITY_REPROCESSING_ROADMAP.md",
+        "docs/MAIL_IMAP_RECONCILIATION_ROADMAP.md",
         "docs/MAIL_QUALITY_REVIEW_ROADMAP.md",
         "docs/MAIL_QUALITY_ROLLOUT.md",
         "docs/MAIL_SEARCH_BASELINE_M110.md",
@@ -9255,7 +9278,7 @@
       ],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-18T19:46:35+02:00",
+      "last_git_change": "2026-08-23T10:56:07+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
