@@ -65,7 +65,7 @@ def add_commands(sub: Any) -> None:
     )
     jobs_status.add_argument(
         "--target",
-        choices=("standard", "all", "supervisor", "mail", "sync", "portfolio", "monitor"),
+        choices=("standard", "all", "supervisor", "mail", "mail-index", "sync", "portfolio", "monitor"),
         default="all",
     )
     jobs_status.add_argument("--deep", action="store_true", help="Zusaetzliche Tool-Health-Checks ausfuehren")
@@ -74,7 +74,7 @@ def add_commands(sub: Any) -> None:
     )
     jobs_check.add_argument(
         "--target",
-        choices=("standard", "all", "supervisor", "mail", "sync", "portfolio", "monitor"),
+        choices=("standard", "all", "supervisor", "mail", "mail-index", "sync", "portfolio", "monitor"),
         default="all",
     )
     jobs_check.add_argument("--deep", action="store_true", help="Zusaetzliche Tool-Health-Checks ausfuehren")
@@ -88,7 +88,7 @@ def add_commands(sub: Any) -> None:
         job_action.add_argument(
             "target",
             nargs="?",
-            choices=("standard", "all", "supervisor", "mail", "sync", "portfolio", "monitor"),
+            choices=("standard", "all", "supervisor", "mail", "mail-index", "sync", "portfolio", "monitor"),
             default="standard",
         )
         if command_name in {"on", "restart"}:

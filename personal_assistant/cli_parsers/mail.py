@@ -202,9 +202,18 @@ def add_commands(sub: Any) -> None:
         "index", help="Vollkonto-Suchprojektion read-only planen oder lokal aufbauen"
     )
     index_sub = mail_index.add_subparsers(dest="index_command", required=True)
+    index_capabilities = index_sub.add_parser(
+        "capabilities", help="Nativen read-only IMAP-Connector inhaltsfrei pruefen"
+    )
+    index_capabilities.add_argument("--no-raw-probe", action="store_true")
     index_sub.add_parser("status", help="Coverage, Alter, Generation und semantischen Zustand anzeigen")
     index_sub.add_parser("doctor", help="SQLite, FTS, Locator und Embeddings read-only pruefen")
     index_sub.add_parser("plan", help="Ordner und Connectorfaehigkeiten read-only inventarisieren")
+    index_shadow = index_sub.add_parser(
+        "shadow", help="Lokale und aktuelle Serversuche inhaltsfrei vergleichen"
+    )
+    index_shadow.add_argument("--query", required=True)
+    index_shadow.add_argument("--limit", type=int, default=50)
     index_backfill = index_sub.add_parser(
         "backfill", help="Begrenzten lokalen Backfill nach expliziter Freigabe ausfuehren"
     )
@@ -216,6 +225,18 @@ def add_commands(sub: Any) -> None:
     index_backfill.add_argument("--max-runtime", type=float, default=3600.0)
     index_backfill.add_argument("--request-interval", type=float, default=0.2)
     index_backfill.add_argument("--yes", action="store_true")
+    index_canary = index_sub.add_parser(
+        "canary", help="Explizit gewaehlte Ordner begrenzt lokal indexieren"
+    )
+    index_canary.add_argument("--folder", action="append", required=True)
+    index_canary.add_argument("--page-size", type=int, default=20)
+    index_canary.add_argument("--max-pages", type=int, default=5)
+    index_canary.add_argument("--max-messages", type=int, default=100)
+    index_canary.add_argument("--max-bytes", type=int, default=100000000)
+    index_canary.add_argument("--max-message-bytes", type=int, default=25000000)
+    index_canary.add_argument("--max-runtime", type=float, default=600.0)
+    index_canary.add_argument("--request-interval", type=float, default=0.2)
+    index_canary.add_argument("--yes", action="store_true")
     index_reconcile = index_sub.add_parser(
         "reconcile", help="Autoritative inkrementelle Mailprojektion lokal abgleichen"
     )

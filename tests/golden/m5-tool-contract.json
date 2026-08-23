@@ -1,1242 +1,1266 @@
 [
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh status",
-    "description": "Core, Ressourcen, Policies und Connector-Status anzeigen",
     "id": "assistant.status",
+    "description": "Core, Ressourcen, Policies und Connector-Status anzeigen",
+    "command": "./scripts/assistant.sh status",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh version --verify",
-    "description": "Installiertes OpenClaw-Local-Personal-Assistant-Produktrelease und Konsistenz aus RELEASE.json pruefen; keine eingebettete Core-, Plugin- oder CLI-Version",
     "id": "assistant.version",
+    "description": "Installiertes OpenClaw-Local-Personal-Assistant-Produktrelease und Konsistenz aus RELEASE.json pruefen; keine eingebettete Core-, Plugin- oder CLI-Version",
+    "command": "./scripts/assistant.sh version --verify",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh version --verify --history --limit 10",
-    "description": "Aenderungen der installierten und vorherigen Updates maschinenlesbar anzeigen",
     "id": "assistant.version.history",
+    "description": "Aenderungen der installierten und vorherigen Updates maschinenlesbar anzeigen",
+    "command": "./scripts/assistant.sh version --verify --history --limit 10",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh version --verify --history --since \"<Version>\" --limit 20",
-    "description": "Alle bekannten Aenderungen seit einer genannten Version anzeigen",
     "id": "assistant.version.since",
+    "description": "Alle bekannten Aenderungen seit einer genannten Version anzeigen",
+    "command": "./scripts/assistant.sh version --verify --history --since \"<Version>\" --limit 20",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh search \"<Suchbegriff>\"",
-    "description": "E-Mails, Nextcloud-Dateien, Kontakte und Kalender lokal durchsuchen",
     "id": "assistant.search",
+    "description": "E-Mails, Nextcloud-Dateien, Kontakte und Kalender lokal durchsuchen",
+    "command": "./scripts/assistant.sh search \"<Suchbegriff>\"",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "explicit-user-standard-operations-profile",
-    "command": "./scripts/assistant.sh setup standard-operations --yes",
-    "description": "Standardprofil einer eingeschraenkten oder unvollstaendig migrierten Instanz pruefen und fuer bestaetigte Ressourcen lokal aktivieren",
     "id": "assistant.setup.standard-operations",
+    "description": "Standardprofil einer eingeschraenkten oder unvollstaendig migrierten Instanz pruefen und fuer bestaetigte Ressourcen lokal aktivieren",
+    "command": "./scripts/assistant.sh setup standard-operations --yes",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "explicit-user-standard-operations-profile"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh monitor status --days 7 --live",
-    "description": "Evidenzbasierten Gesundheitswert, Teilwerte und konkrete Probleme anzeigen",
     "id": "assistant.monitor.status",
+    "description": "Evidenzbasierten Gesundheitswert, Teilwerte und konkrete Probleme anzeigen",
+    "command": "./scripts/assistant.sh monitor status --days 7 --live",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh jobs status --target all",
-    "description": "Soll-/Ist-Zustand der freigegebenen Hintergrundjobs anzeigen",
     "id": "assistant.jobs.status",
+    "description": "Soll-/Ist-Zustand der freigegebenen Hintergrundjobs anzeigen",
+    "command": "./scripts/assistant.sh jobs status --target all",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh scheduler status",
-    "description": "Adaptive Aufgaben-Queue, aktive Leases, Wartezeiten und letzte Laeufe anzeigen",
     "id": "assistant.scheduler.status",
+    "description": "Adaptive Aufgaben-Queue, aktive Leases, Wartezeiten und letzte Laeufe anzeigen",
+    "command": "./scripts/assistant.sh scheduler status",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh scheduler doctor",
-    "description": "Scheduler-Datenbank, Fristverletzungen und abgelaufene Leases pruefen",
     "id": "assistant.scheduler.doctor",
+    "description": "Scheduler-Datenbank, Fristverletzungen und abgelaufene Leases pruefen",
+    "command": "./scripts/assistant.sh scheduler doctor",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh scheduler activity",
-    "description": "Aktive zeitlich begrenzte Themenprioritaeten anzeigen",
     "id": "assistant.scheduler.activity",
+    "description": "Aktive zeitlich begrenzte Themenprioritaeten anzeigen",
+    "command": "./scripts/assistant.sh scheduler activity",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "adaptive-local-focus-only",
-    "command": "./scripts/assistant.sh scheduler focus --topic \"<mail|portfolio|knowledge|planning|operations>\" --minutes 30",
-    "description": "Ein explizites aktuelles Nutzerthema lokal und zeitlich begrenzt priorisieren",
     "id": "assistant.scheduler.focus",
+    "description": "Ein explizites aktuelles Nutzerthema lokal und zeitlich begrenzt priorisieren",
+    "command": "./scripts/assistant.sh scheduler focus --topic \"<mail|portfolio|knowledge|planning|operations>\" --minutes 30",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "adaptive-local-focus-only"
   },
   {
-    "approval": "job-monitoring-and-safe-mail-recovery",
-    "command": "./scripts/assistant.sh jobs check --target all --deep",
-    "description": "Hintergrundjobs pruefen, Alerts aktualisieren und die eng begrenzte Mail-Dry-Run-Sperre automatisch beheben",
     "id": "assistant.jobs.check",
+    "description": "Hintergrundjobs pruefen, Alerts aktualisieren und die eng begrenzte Mail-Dry-Run-Sperre automatisch beheben",
+    "command": "./scripts/assistant.sh jobs check --target all --deep",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "job-monitoring-and-safe-mail-recovery"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh jobs alerts",
-    "description": "Aktive Job-Ausfaelle und den letzten beobachteten Zustand anzeigen",
     "id": "assistant.jobs.alerts",
+    "description": "Aktive Job-Ausfaelle und den letzten beobachteten Zustand anzeigen",
+    "command": "./scripts/assistant.sh jobs alerts",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "explicit-user-start",
-    "command": "./scripts/assistant.sh jobs on standard",
-    "description": "Standardfunktionen nach ausdruecklichem Nutzerauftrag sicher einschalten",
     "id": "assistant.jobs.on",
+    "description": "Standardfunktionen nach ausdruecklichem Nutzerauftrag sicher einschalten",
+    "command": "./scripts/assistant.sh jobs on standard",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "explicit-user-start"
   },
   {
-    "approval": "explicit-user-restart",
-    "command": "./scripts/assistant.sh jobs restart standard",
-    "description": "Standardfunktionen nach ausdruecklichem Nutzerauftrag reparieren und neu starten",
     "id": "assistant.jobs.restart",
+    "description": "Standardfunktionen nach ausdruecklichem Nutzerauftrag reparieren und neu starten",
+    "command": "./scripts/assistant.sh jobs restart standard",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "explicit-user-restart"
   },
   {
-    "approval": "explicit-user-stop",
-    "command": "./scripts/assistant.sh jobs off standard",
-    "description": "Produktive Standardjobs nach ausdruecklichem Nutzerauftrag ausschalten",
     "id": "assistant.jobs.off",
+    "description": "Produktive Standardjobs nach ausdruecklichem Nutzerauftrag ausschalten",
+    "command": "./scripts/assistant.sh jobs off standard",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "explicit-user-stop"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh ollama status",
-    "description": "Ollama-Prioritaetskoordinator, Queue und Upstream-Zustand anzeigen",
     "id": "assistant.ollama.status",
+    "description": "Ollama-Prioritaetskoordinator, Queue und Upstream-Zustand anzeigen",
+    "command": "./scripts/assistant.sh ollama status",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh ollama check",
-    "description": "Ollama-Upstream ueber den lokalen Prioritaetskoordinator live pruefen",
     "id": "assistant.ollama.check",
+    "description": "Ollama-Upstream ueber den lokalen Prioritaetskoordinator live pruefen",
+    "command": "./scripts/assistant.sh ollama check",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh ollama queue",
-    "description": "Aktive und wartende Modellauftraege mit Prioritaeten anzeigen",
     "id": "assistant.ollama.queue",
+    "description": "Aktive und wartende Modellauftraege mit Prioritaeten anzeigen",
+    "command": "./scripts/assistant.sh ollama queue",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "explicit-user-start",
-    "command": "./scripts/assistant.sh ollama start",
-    "description": "Ollama-Prioritaetskoordinator nach ausdruecklichem Nutzerauftrag starten",
     "id": "assistant.ollama.start",
+    "description": "Ollama-Prioritaetskoordinator nach ausdruecklichem Nutzerauftrag starten",
+    "command": "./scripts/assistant.sh ollama start",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "explicit-user-start"
   },
   {
-    "approval": "explicit-user-restart",
-    "command": "./scripts/assistant.sh ollama restart",
-    "description": "Ollama-Prioritaetskoordinator nach ausdruecklichem Nutzerauftrag neu starten und verifizieren",
     "id": "assistant.ollama.restart",
+    "description": "Ollama-Prioritaetskoordinator nach ausdruecklichem Nutzerauftrag neu starten und verifizieren",
+    "command": "./scripts/assistant.sh ollama restart",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "explicit-user-restart"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh performance mail --limit 20",
-    "description": "Privacy-sichere Laufzeit-, Queue- und Ollama-Metriken des Mail-Interfaces auswerten",
     "id": "assistant.performance.mail",
+    "description": "Privacy-sichere Laufzeit-, Queue- und Ollama-Metriken des Mail-Interfaces auswerten",
+    "command": "./scripts/assistant.sh performance mail --limit 20",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "monitoring-local-only",
-    "command": "./scripts/assistant.sh monitor record --days 7 --live",
-    "description": "Monitoring-Snapshot lokal fuer Trendanalyse speichern",
     "id": "assistant.monitor.record",
+    "description": "Monitoring-Snapshot lokal fuer Trendanalyse speichern",
+    "command": "./scripts/assistant.sh monitor record --days 7 --live",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "monitoring-local-only"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh monitor history --days 30",
-    "description": "Gesundheitswert und Trend der letzten 30 Tage anzeigen",
     "id": "assistant.monitor.history",
+    "description": "Gesundheitswert und Trend der letzten 30 Tage anzeigen",
+    "command": "./scripts/assistant.sh monitor history --days 30",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh portfolio status",
-    "description": "Depotbestand, Watchlist, Kursabdeckung und Datenfrische anzeigen",
     "id": "portfolio.status",
+    "description": "Depotbestand, Watchlist, Kursabdeckung und Datenfrische anzeigen",
+    "command": "./scripts/assistant.sh portfolio status",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "explicit-user-permission-setup",
-    "command": "./scripts/assistant.sh setup portfolio --provider eodhd --interval-minutes 15 --approve-permissions",
-    "description": "Portfolio-Monitor fuer den bezahlten EODHD-Zugang auf 15-Minuten-Abrufe konfigurieren; API-Schluessel und Job bleiben getrennt",
     "id": "portfolio.setup",
+    "description": "Portfolio-Monitor fuer den bezahlten EODHD-Zugang auf 15-Minuten-Abrufe konfigurieren; API-Schluessel und Job bleiben getrennt",
+    "command": "./scripts/assistant.sh setup portfolio --provider eodhd --interval-minutes 15 --approve-permissions",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "explicit-user-permission-setup"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh portfolio doctor",
-    "description": "Portfolio-Datenbank, Anbieter-Konfiguration und Pflichtkurse pruefen",
     "id": "portfolio.doctor",
+    "description": "Portfolio-Datenbank, Anbieter-Konfiguration und Pflichtkurse pruefen",
+    "command": "./scripts/assistant.sh portfolio doctor",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "explicit-user-import-with-preview",
-    "command": "./scripts/assistant.sh portfolio import-pp --file \"<Datei-im-Importordner>\" --dry-run",
-    "description": "ClamAV-gepruefte Portfolio-Performance-XML zuerst als Vorschau importieren",
     "id": "portfolio.import.pp",
+    "description": "ClamAV-gepruefte Portfolio-Performance-XML zuerst als Vorschau importieren",
+    "command": "./scripts/assistant.sh portfolio import-pp --file \"<Datei-im-Importordner>\" --dry-run",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "explicit-user-import-with-preview"
   },
   {
-    "approval": "explicit-user-confirmed-import",
-    "command": "./scripts/assistant.sh portfolio import-pp --file \"<Datei-im-Importordner>\" --yes",
-    "description": "Zuvor geprueften Portfolio-Snapshot nach ausdruecklichem Nutzerauftrag lokal importieren",
     "id": "portfolio.import.pp.confirm",
+    "description": "Zuvor geprueften Portfolio-Snapshot nach ausdruecklichem Nutzerauftrag lokal importieren",
+    "command": "./scripts/assistant.sh portfolio import-pp --file \"<Datei-im-Importordner>\" --yes",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "explicit-user-confirmed-import"
   },
   {
-    "approval": "explicit-user-import-with-preview",
-    "command": "./scripts/assistant.sh portfolio import-csv --file \"<Datei-im-Importordner>\" --dry-run",
-    "description": "ClamAV-geprueften DKB-CSV-Depotsnapshot aus dem kontrollierten Importordner zuerst als Vorschau einlesen",
     "id": "portfolio.import.csv",
+    "description": "ClamAV-geprueften DKB-CSV-Depotsnapshot aus dem kontrollierten Importordner zuerst als Vorschau einlesen",
+    "command": "./scripts/assistant.sh portfolio import-csv --file \"<Datei-im-Importordner>\" --dry-run",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "explicit-user-import-with-preview"
   },
   {
-    "approval": "explicit-user-import-with-preview",
-    "command": "./scripts/assistant.sh portfolio import-csv --nextcloud-path \"Assistent/Finanzen/Portfolio/<Datei-DD.MM.YYYY.csv>\" --dry-run",
-    "description": "Exakt ausgewaehlte datierte DKB-CSV aus dem konfigurierten Nextcloud-Portfolioordner herunterladen, scannen und als Vorschau einlesen",
     "id": "portfolio.import.csv.nextcloud",
+    "description": "Exakt ausgewaehlte datierte DKB-CSV aus dem konfigurierten Nextcloud-Portfolioordner herunterladen, scannen und als Vorschau einlesen",
+    "command": "./scripts/assistant.sh portfolio import-csv --nextcloud-path \"Assistent/Finanzen/Portfolio/<Datei-DD.MM.YYYY.csv>\" --dry-run",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "explicit-user-import-with-preview"
   },
   {
-    "approval": "explicit-user-confirmed-import",
-    "command": "./scripts/assistant.sh portfolio import-csv --file \"<Datei-im-Importordner>\" --yes",
-    "description": "Zuvor geprueften lokalen DKB-CSV-Depotsnapshot nach ausdruecklichem Nutzerauftrag importieren",
     "id": "portfolio.import.csv.confirm",
+    "description": "Zuvor geprueften lokalen DKB-CSV-Depotsnapshot nach ausdruecklichem Nutzerauftrag importieren",
+    "command": "./scripts/assistant.sh portfolio import-csv --file \"<Datei-im-Importordner>\" --yes",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "explicit-user-confirmed-import"
   },
   {
-    "approval": "explicit-user-confirmed-import",
-    "command": "./scripts/assistant.sh portfolio import-csv --nextcloud-path \"Assistent/Finanzen/Portfolio/<Datei-DD.MM.YYYY.csv>\" --yes",
-    "description": "Zuvor geprueften DKB-CSV-Depotsnapshot aus dem exakten Nextcloud-Pfad nach ausdruecklichem Nutzerauftrag importieren",
     "id": "portfolio.import.csv.nextcloud.confirm",
+    "description": "Zuvor geprueften DKB-CSV-Depotsnapshot aus dem exakten Nextcloud-Pfad nach ausdruecklichem Nutzerauftrag importieren",
+    "command": "./scripts/assistant.sh portfolio import-csv --nextcloud-path \"Assistent/Finanzen/Portfolio/<Datei-DD.MM.YYYY.csv>\" --yes",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "explicit-user-confirmed-import"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh portfolio holdings",
-    "description": "Eigene Aktien, Wertpapiere und Depotpositionen aus dem letzten unveraenderlich gespeicherten Snapshot anzeigen",
     "id": "portfolio.holdings",
+    "description": "Eigene Aktien, Wertpapiere und Depotpositionen aus dem letzten unveraenderlich gespeicherten Snapshot anzeigen",
+    "command": "./scripts/assistant.sh portfolio holdings",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh portfolio valuation",
-    "description": "Aktuellen Depotwert, Einstand und Gewinn deterministisch immer in EUR aus gespeicherten EODHD-Aktienkursen und zeitgestempelten EODHD-Wechselkursen berechnen; bei fehlender Umrechnung fail-closed",
     "id": "portfolio.valuation",
+    "description": "Aktuellen Depotwert, Einstand und Gewinn deterministisch immer in EUR aus gespeicherten EODHD-Aktienkursen und zeitgestempelten EODHD-Wechselkursen berechnen; bei fehlender Umrechnung fail-closed",
+    "command": "./scripts/assistant.sh portfolio valuation",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh portfolio watchlist list",
-    "description": "Watchlist und bestaetigte ISIN/Symbol/MIC-Zuordnungen anzeigen",
     "id": "portfolio.watchlist",
+    "description": "Watchlist und bestaetigte ISIN/Symbol/MIC-Zuordnungen anzeigen",
+    "command": "./scripts/assistant.sh portfolio watchlist list",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh portfolio mapping suggest --isin \"<ISIN>\"",
-    "description": "Exakte EODHD-ISIN-Treffer abrufen, Ollama nur aus providerseitig belegten Kandidaten auswaehlen lassen und die vollstaendige genehmigungspflichtige watchlist-add-Folgeaktion liefern",
     "id": "portfolio.mapping.suggest",
+    "description": "Exakte EODHD-ISIN-Treffer abrufen, Ollama nur aus providerseitig belegten Kandidaten auswaehlen lassen und die vollstaendige genehmigungspflichtige watchlist-add-Folgeaktion liefern",
+    "command": "./scripts/assistant.sh portfolio mapping suggest --isin \"<ISIN>\"",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh portfolio mapping suggest --query \"<Unternehmen-oder-Symbol>\"",
-    "description": "Wertpapiername oder Symbol bei EODHD suchen, eine eindeutige providerseitige ISIN ermitteln und daraus Vorschlag sowie vollstaendige genehmigungspflichtige watchlist-add-Folgeaktion erzeugen",
     "id": "portfolio.mapping.discover",
+    "description": "Wertpapiername oder Symbol bei EODHD suchen, eine eindeutige providerseitige ISIN ermitteln und daraus Vorschlag sowie vollstaendige genehmigungspflichtige watchlist-add-Folgeaktion erzeugen",
+    "command": "./scripts/assistant.sh portfolio mapping suggest --query \"<Unternehmen-oder-Symbol>\"",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "explicit-user-watchlist-change",
-    "command": "./scripts/assistant.sh portfolio watchlist add --isin \"<ISIN>\" --name \"<Name>\" --symbol \"<Symbol>\" --mic \"<MIC>\" --currency \"<ISO>\" --yes",
-    "description": "Wertpapier nur mit den unveraenderten Feldern einer explizit bestaetigten Mapping-Folgeaktion aufnehmen; portfolio mapping add existiert nicht",
     "id": "portfolio.watchlist.add",
+    "description": "Wertpapier nur mit den unveraenderten Feldern einer explizit bestaetigten Mapping-Folgeaktion aufnehmen; portfolio mapping add existiert nicht",
+    "command": "./scripts/assistant.sh portfolio watchlist add --isin \"<ISIN>\" --name \"<Name>\" --symbol \"<Symbol>\" --mic \"<MIC>\" --currency \"<ISO>\" --yes",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "explicit-user-watchlist-change"
   },
   {
-    "approval": "explicit-user-watchlist-change",
-    "command": "./scripts/assistant.sh portfolio watchlist disable --isin \"<ISIN>\" --yes",
-    "description": "Watchlist-Eintrag nach Nutzerauftrag deaktivieren, ohne Historie zu loeschen",
     "id": "portfolio.watchlist.disable",
+    "description": "Watchlist-Eintrag nach Nutzerauftrag deaktivieren, ohne Historie zu loeschen",
+    "command": "./scripts/assistant.sh portfolio watchlist disable --isin \"<ISIN>\" --yes",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "explicit-user-watchlist-change"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh portfolio quotes status",
-    "description": "Pflichtkurs-Abdeckung, Alter und letzten Abrufstatus anzeigen",
     "id": "portfolio.quotes.status",
+    "description": "Pflichtkurs-Abdeckung, Alter und letzten Abrufstatus anzeigen",
+    "command": "./scripts/assistant.sh portfolio quotes status",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh portfolio quotes get --isin \"<ISIN>\"",
-    "description": "Letzten gespeicherten Kurswert samt verpflichtendem aktuellem EUR-Wert, FX-Nachweis, Quelle und Zeitstempel fuer eine exakte ISIN anzeigen",
     "id": "portfolio.quotes.get",
+    "description": "Letzten gespeicherten Kurswert samt verpflichtendem aktuellem EUR-Wert, FX-Nachweis, Quelle und Zeitstempel fuer eine exakte ISIN anzeigen",
+    "command": "./scripts/assistant.sh portfolio quotes get --isin \"<ISIN>\"",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "scheduled-market-data-refresh",
-    "command": "./scripts/assistant.sh portfolio quotes refresh",
-    "description": "Faellige EODHD-Live/Delayed-Kurse gebuendelt abrufen, Quellzeit und Empfangszeit speichern und Pflichtluecken fail-closed melden",
     "id": "portfolio.quotes.refresh",
+    "description": "Faellige EODHD-Live/Delayed-Kurse gebuendelt abrufen, Quellzeit und Empfangszeit speichern und Pflichtluecken fail-closed melden",
+    "command": "./scripts/assistant.sh portfolio quotes refresh",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "scheduled-market-data-refresh"
   },
   {
-    "approval": "explicit-user-diagnostic-refresh",
-    "command": "./scripts/assistant.sh portfolio quotes refresh --force",
-    "description": "Kursabruf fuer eine gezielte Diagnose vor dem naechsten Faelligkeitszeitpunkt erzwingen",
     "id": "portfolio.quotes.refresh.force",
+    "description": "Kursabruf fuer eine gezielte Diagnose vor dem naechsten Faelligkeitszeitpunkt erzwingen",
+    "command": "./scripts/assistant.sh portfolio quotes refresh --force",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "explicit-user-diagnostic-refresh"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh portfolio analyze --isin \"<ISIN>\"",
-    "description": "Gespeicherte Kursreihe mit deterministischen Trendindikatoren analysieren",
     "id": "portfolio.analyze",
+    "description": "Gespeicherte Kursreihe mit deterministischen Trendindikatoren analysieren",
+    "command": "./scripts/assistant.sh portfolio analyze --isin \"<ISIN>\"",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh portfolio research status",
-    "description": "EODHD-Researchkonfiguration, Tarifnachweis, Modelle und letzten Lauf anzeigen",
     "id": "portfolio.research.status",
+    "description": "EODHD-Researchkonfiguration, Tarifnachweis, Modelle und letzten Lauf anzeigen",
+    "command": "./scripts/assistant.sh portfolio research status",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh portfolio research models",
-    "description": "Versionierte Analysemodelle, Kennzahlgewichte, Mindestabdeckung und Urteilsgrenzen anzeigen",
     "id": "portfolio.research.models",
+    "description": "Versionierte Analysemodelle, Kennzahlgewichte, Mindestabdeckung und Urteilsgrenzen anzeigen",
+    "command": "./scripts/assistant.sh portfolio research models",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "provider-research-cache-local-only",
-    "command": "./scripts/assistant.sh portfolio research screen --strategy \"<auto|balanced|quality-value|quality-growth|dividend-quality>\" --exchange \"<Boerse-optional>\" --sector \"<Sektor-optional>\" --limit 5",
-    "description": "Neue EODHD-Aktien mit allowlist-gefiltertem Screener suchen, Fundamental- und EOD-Daten deterministisch bewerten und den belegten Lauf lokal protokollieren",
     "id": "portfolio.research.screen",
+    "description": "Neue EODHD-Aktien mit allowlist-gefiltertem Screener suchen, Fundamental- und EOD-Daten deterministisch bewerten und den belegten Lauf lokal protokollieren",
+    "command": "./scripts/assistant.sh portfolio research screen --strategy \"<auto|balanced|quality-value|quality-growth|dividend-quality>\" --exchange \"<Boerse-optional>\" --sector \"<Sektor-optional>\" --limit 5",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "provider-research-cache-local-only"
   },
   {
-    "approval": "provider-research-cache-local-only",
-    "command": "./scripts/assistant.sh portfolio research analyze --isin \"<ISIN>\" --strategy \"<auto|balanced|quality-value|quality-growth|dividend-quality>\"",
-    "description": "Eine exakte ISIN anhand providergebundener EODHD-Fundamental- und EOD-Historie mit dem versionierten Mehrfaktormodell analysieren",
     "id": "portfolio.research.analyze",
+    "description": "Eine exakte ISIN anhand providergebundener EODHD-Fundamental- und EOD-Historie mit dem versionierten Mehrfaktormodell analysieren",
+    "command": "./scripts/assistant.sh portfolio research analyze --isin \"<ISIN>\" --strategy \"<auto|balanced|quality-value|quality-growth|dividend-quality>\"",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "provider-research-cache-local-only"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh portfolio research history --limit 20",
-    "description": "Lokal protokollierte Research-Laeufe samt Modellversion und Fehlerstatus anzeigen",
     "id": "portfolio.research.history",
+    "description": "Lokal protokollierte Research-Laeufe samt Modellversion und Fehlerstatus anzeigen",
+    "command": "./scripts/assistant.sh portfolio research history --limit 20",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh portfolio philosophy show",
-    "description": "Letzte ausdruecklich bestaetigte Version der persoenlichen Investmentphilosophie anzeigen",
     "id": "portfolio.philosophy.show",
+    "description": "Letzte ausdruecklich bestaetigte Version der persoenlichen Investmentphilosophie anzeigen",
+    "command": "./scripts/assistant.sh portfolio philosophy show",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh portfolio philosophy review",
-    "description": "Depotkonzentration und Lernsignale nur gegen bestaetigte Profilgrenzen und belegte EUR-/Research-Daten kritisch pruefen",
     "id": "portfolio.philosophy.review",
+    "description": "Depotkonzentration und Lernsignale nur gegen bestaetigte Profilgrenzen und belegte EUR-/Research-Daten kritisch pruefen",
+    "command": "./scripts/assistant.sh portfolio philosophy review",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh portfolio philosophy history --limit 20",
-    "description": "Append-only Historie der bestaetigten Investmentprofil-Versionen anzeigen",
     "id": "portfolio.philosophy.history",
+    "description": "Append-only Historie der bestaetigten Investmentprofil-Versionen anzeigen",
+    "command": "./scripts/assistant.sh portfolio philosophy history --limit 20",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "explicit-user-investment-profile-change",
-    "command": "./scripts/assistant.sh portfolio philosophy set --risk-tolerance \"<conservative|balanced|growth>\" --horizon-years <1-50> --strategy \"<balanced|quality-value|quality-growth|dividend-quality>\" --max-position-pct \"<Prozent>\" --max-sector-pct \"<Prozent>\" --preferred-sectors \"<Kommaliste>\" --excluded-sectors \"<Kommaliste>\" --notes \"<Notiz>\" --yes",
-    "description": "Eine vollstaendige neue Investmentprofil-Version nach ausdruecklicher Bestaetigung append-only speichern; Beobachtungen duerfen sie nie automatisch aendern",
     "id": "portfolio.philosophy.set",
+    "description": "Eine vollstaendige neue Investmentprofil-Version nach ausdruecklicher Bestaetigung append-only speichern; Beobachtungen duerfen sie nie automatisch aendern",
+    "command": "./scripts/assistant.sh portfolio philosophy set --risk-tolerance \"<conservative|balanced|growth>\" --horizon-years <1-50> --strategy \"<balanced|quality-value|quality-growth|dividend-quality>\" --max-position-pct \"<Prozent>\" --max-sector-pct \"<Prozent>\" --preferred-sectors \"<Kommaliste>\" --excluded-sectors \"<Kommaliste>\" --notes \"<Notiz>\" --yes",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "explicit-user-investment-profile-change"
   },
   {
-    "approval": "explicit-user-investment-feedback",
-    "command": "./scripts/assistant.sh portfolio philosophy feedback --candidate-id \"<Research-Kandidaten-ID>\" --decision \"<interested|rejected|watch|bought|sold>\" --reason \"<Begruendung>\" --yes",
-    "description": "Begruendetes Nutzerfeedback zu einer gespeicherten Research-Kandidaten-ID append-only erfassen, ohne das deklarierte Profil automatisch zu aendern",
     "id": "portfolio.philosophy.feedback",
+    "description": "Begruendetes Nutzerfeedback zu einer gespeicherten Research-Kandidaten-ID append-only erfassen, ohne das deklarierte Profil automatisch zu aendern",
+    "command": "./scripts/assistant.sh portfolio philosophy feedback --candidate-id \"<Research-Kandidaten-ID>\" --decision \"<interested|rejected|watch|bought|sold>\" --reason \"<Begruendung>\" --yes",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "explicit-user-investment-feedback"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh portfolio alerts list",
-    "description": "Kursmarken und deduplizierte Uebertrittsereignisse anzeigen",
     "id": "portfolio.alerts",
+    "description": "Kursmarken und deduplizierte Uebertrittsereignisse anzeigen",
+    "command": "./scripts/assistant.sh portfolio alerts list",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "explicit-user-alert-change",
-    "command": "./scripts/assistant.sh portfolio alerts add --isin \"<ISIN>\" --direction \"<above|below>\" --threshold \"<Kurs>\" --currency \"<ISO>\" --yes",
-    "description": "Kursmarke mit Hysterese und Abklingzeit nach Nutzerauftrag anlegen",
     "id": "portfolio.alerts.add",
+    "description": "Kursmarke mit Hysterese und Abklingzeit nach Nutzerauftrag anlegen",
+    "command": "./scripts/assistant.sh portfolio alerts add --isin \"<ISIN>\" --direction \"<above|below>\" --threshold \"<Kurs>\" --currency \"<ISO>\" --yes",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "explicit-user-alert-change"
   },
   {
-    "approval": "explicit-user-alert-change",
-    "command": "./scripts/assistant.sh portfolio alerts disable --id \"<Regel-ID>\" --yes",
-    "description": "Kursalarm nach Nutzerauftrag deaktivieren, ohne Ereignishistorie zu loeschen",
     "id": "portfolio.alerts.disable",
+    "description": "Kursalarm nach Nutzerauftrag deaktivieren, ohne Ereignishistorie zu loeschen",
+    "command": "./scripts/assistant.sh portfolio alerts disable --id \"<Regel-ID>\" --yes",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "explicit-user-alert-change"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh portfolio performance",
-    "description": "Signalqualitaet getrennt von der technischen Agentengesundheit auswerten",
     "id": "portfolio.performance",
+    "description": "Signalqualitaet getrennt von der technischen Agentengesundheit auswerten",
+    "command": "./scripts/assistant.sh portfolio performance",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "explicit-user-start",
-    "command": "./scripts/assistant.sh jobs on portfolio",
-    "description": "Optionalen Portfolio-Kursjob nach ausdruecklichem Nutzerauftrag einschalten",
     "id": "portfolio.job.on",
+    "description": "Optionalen Portfolio-Kursjob nach ausdruecklichem Nutzerauftrag einschalten",
+    "command": "./scripts/assistant.sh jobs on portfolio",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "explicit-user-start"
   },
   {
-    "approval": "explicit-user-restart",
-    "command": "./scripts/assistant.sh jobs restart portfolio",
-    "description": "Portfolio-Kursjob nach ausdruecklichem Nutzerauftrag neu starten",
     "id": "portfolio.job.restart",
+    "description": "Portfolio-Kursjob nach ausdruecklichem Nutzerauftrag neu starten",
+    "command": "./scripts/assistant.sh jobs restart portfolio",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "explicit-user-restart"
   },
   {
-    "approval": "explicit-user-stop",
-    "command": "./scripts/assistant.sh jobs off portfolio",
-    "description": "Portfolio-Kursjob nach ausdruecklichem Nutzerauftrag ausschalten",
     "id": "portfolio.job.off",
+    "description": "Portfolio-Kursjob nach ausdruecklichem Nutzerauftrag ausschalten",
+    "command": "./scripts/assistant.sh jobs off portfolio",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "explicit-user-stop"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh security antivirus doctor",
-    "description": "ClamAV-Dienst, Signaturstand und einen lokalen Testscan pruefen",
     "id": "security.antivirus.doctor",
+    "description": "ClamAV-Dienst, Signaturstand und einen lokalen Testscan pruefen",
+    "command": "./scripts/assistant.sh security antivirus doctor",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh security antivirus self-test",
-    "description": "Harmlosen EICAR-Test ausfuehren und die Malware-Erkennung nachweisen",
     "id": "security.antivirus.self-test",
+    "description": "Harmlosen EICAR-Test ausfuehren und die Malware-Erkennung nachweisen",
+    "command": "./scripts/assistant.sh security antivirus self-test",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "host-antivirus-read-only",
-    "command": "./scripts/assistant.sh security antivirus scan --file \"personal_assistant/data/workspace_outbox/<Datei>\"",
-    "description": "Datei aus der kontrollierten Workspace-Outbox vor weiterer Verwendung auf Schadsoftware pruefen",
     "id": "security.antivirus.scan",
+    "description": "Datei aus der kontrollierten Workspace-Outbox vor weiterer Verwendung auf Schadsoftware pruefen",
+    "command": "./scripts/assistant.sh security antivirus scan --file \"personal_assistant/data/workspace_outbox/<Datei>\"",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "host-antivirus-read-only"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh nextcloud list --path \"Assistent\"",
-    "description": "Dateien innerhalb der erlaubten Nextcloud-Wurzeln auflisten",
     "id": "nextcloud.list",
+    "description": "Dateien innerhalb der erlaubten Nextcloud-Wurzeln auflisten",
+    "command": "./scripts/assistant.sh nextcloud list --path \"Assistent\"",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh nextcloud sync",
-    "description": "Nextcloud-Inhalte inkrementell in den lokalen Index synchronisieren",
     "id": "nextcloud.sync",
+    "description": "Nextcloud-Inhalte inkrementell in den lokalen Index synchronisieren",
+    "command": "./scripts/assistant.sh nextcloud sync",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh mail status",
-    "description": "Status des Mail-Werkzeugs anzeigen",
     "id": "mail.status",
+    "description": "Status des Mail-Werkzeugs anzeigen",
+    "command": "./scripts/assistant.sh mail status",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh mail doctor",
-    "description": "Mail-Werkzeug und Integrationen diagnostizieren",
     "id": "mail.doctor",
+    "description": "Mail-Werkzeug und Integrationen diagnostizieren",
+    "command": "./scripts/assistant.sh mail doctor",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh mail review status --days 7",
-    "description": "Typisierte Review-Gruende, Quellen, Konfidenzbaender und Datenqualitaet ohne Mailinhalte aggregieren",
     "id": "mail.review.status",
+    "description": "Typisierte Review-Gruende, Quellen, Konfidenzbaender und Datenqualitaet ohne Mailinhalte aggregieren",
+    "command": "./scripts/assistant.sh mail review status --days 7",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh mail review list --reason \"<Grund>\" --limit 50",
-    "description": "Aktuelle Review-Metadaten nach einem geschlossenen typisierten Grund auflisten; keine Bodies oder Anhaenge",
     "id": "mail.review.list",
+    "description": "Aktuelle Review-Metadaten nach einem geschlossenen typisierten Grund auflisten; keine Bodies oder Anhaenge",
+    "command": "./scripts/assistant.sh mail review list --reason \"<Grund>\" --limit 50",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh mail review suggest --folder \"<Ordner>\" --message-id \"<ID>\" --expected-subject \"<Betreff>\"",
-    "description": "Eine exakt ausgewaehlte Review-Mail read-only neu klassifizieren und Evidenz, Unsicherheit sowie naechsten erlaubten Schritt anzeigen",
     "id": "mail.review.suggest",
+    "description": "Eine exakt ausgewaehlte Review-Mail read-only neu klassifizieren und Evidenz, Unsicherheit sowie naechsten erlaubten Schritt anzeigen",
+    "command": "./scripts/assistant.sh mail review suggest --folder \"<Ordner>\" --message-id \"<ID>\" --expected-subject \"<Betreff>\"",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "explicit-user-review-correction",
-    "command": "./scripts/assistant.sh mail review correct --source \"Agent/Pruefen\" --message-id \"<ID>\" --expected-subject \"<Betreff>\" --verdict \"<relevant|routine|spam>\" --yes",
-    "description": "Genau eine exakt ausgewaehlte Mail aus dem allgemeinen Review-Ordner nach ausdruecklicher Freigabe in einen allowlisteten Korrekturordner bewegen",
     "id": "mail.review.correct",
+    "description": "Genau eine exakt ausgewaehlte Mail aus dem allgemeinen Review-Ordner nach ausdruecklicher Freigabe in einen allowlisteten Korrekturordner bewegen",
+    "command": "./scripts/assistant.sh mail review correct --source \"Agent/Pruefen\" --message-id \"<ID>\" --expected-subject \"<Betreff>\" --verdict \"<relevant|routine|spam>\" --yes",
     "mode": "write",
-    "writes_external_data": true
+    "writes_external_data": true,
+    "approval": "explicit-user-review-correction"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh mail folders plan",
-    "description": "Konfigurierte und fehlende Agent-Mailordner einschliesslich der expliziten Relevant-Aktivierung read-only anzeigen",
     "id": "mail.folders.plan",
+    "description": "Konfigurierte und fehlende Agent-Mailordner einschliesslich der expliziten Relevant-Aktivierung read-only anzeigen",
+    "command": "./scripts/assistant.sh mail folders plan",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "explicit-user-create-configured-mail-folders",
-    "command": "./scripts/assistant.sh mail folders apply --yes",
-    "description": "Fehlende konfigurierte Agent-Mailordner nach ausdruecklicher Freigabe anlegen; keine Mails verschieben",
     "id": "mail.folders.apply",
+    "description": "Fehlende konfigurierte Agent-Mailordner nach ausdruecklicher Freigabe anlegen; keine Mails verschieben",
+    "command": "./scripts/assistant.sh mail folders apply --yes",
     "mode": "write",
-    "writes_external_data": true
+    "writes_external_data": true,
+    "approval": "explicit-user-create-configured-mail-folders"
   },
   {
-    "approval": "explicit-user-configure-and-create-relevant-folder",
-    "command": "./scripts/assistant.sh mail folders activate-relevant --relevant \"Agent/Relevant\" --yes",
-    "description": "Genau einen Relevant-Zielordner unter dem bestehenden Agent-Wurzelordner konfigurieren und nach ausdruecklicher Freigabe create-only anlegen; keine Mails verschieben",
     "id": "mail.folders.activate-relevant",
+    "description": "Genau einen Relevant-Zielordner unter dem bestehenden Agent-Wurzelordner konfigurieren und nach ausdruecklicher Freigabe create-only anlegen; keine Mails verschieben",
+    "command": "./scripts/assistant.sh mail folders activate-relevant --relevant \"Agent/Relevant\" --yes",
     "mode": "write",
-    "writes_external_data": true
+    "writes_external_data": true,
+    "approval": "explicit-user-configure-and-create-relevant-folder"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh mail index status",
-    "description": "Lokale Mailindex-Coverage, Generation, Alter, Locatorabdeckung und semantischen Zustand read-only anzeigen",
+    "id": "mail.index.capabilities",
+    "description": "Nativen IMAP-Inventurconnector strikt read-only und ohne Inhaltsausgabe auf UID-, Snapshot-, TLS- und Deltafaehigkeiten pruefen",
+    "command": "./scripts/assistant.sh mail index capabilities --no-raw-probe",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
     "id": "mail.index.status",
+    "description": "Lokale Mailindex-Coverage, Generation, Alter, Locatorabdeckung und semantischen Zustand read-only anzeigen",
+    "command": "./scripts/assistant.sh mail index status",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh mail index doctor",
-    "description": "SQLite-, FTS-, Generation-, Locator- und Embeddingintegritaet des lokalen Mailindex read-only pruefen",
     "id": "mail.index.doctor",
+    "description": "SQLite-, FTS-, Generation-, Locator- und Embeddingintegritaet des lokalen Mailindex read-only pruefen",
+    "command": "./scripts/assistant.sh mail index doctor",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh mail index plan",
-    "description": "Alle lesbaren Mailordner und belegten Connectorfaehigkeiten fuer den begrenzten Vollkonto-Index read-only inventarisieren",
     "id": "mail.index.plan",
+    "description": "Alle lesbaren Mailordner und belegten Connectorfaehigkeiten fuer den begrenzten Vollkonto-Index read-only inventarisieren",
+    "command": "./scripts/assistant.sh mail index plan",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "explicit-user-local-mail-index-backfill",
-    "command": "./scripts/assistant.sh mail index backfill --page-size 50 --max-pages 200 --max-messages 10000 --max-bytes 1000000000 --max-message-bytes 100000000 --max-runtime 3600 --request-interval 0.2 --yes",
-    "description": "Begrenzten wiederaufnehmbaren Vollkonto-Backfill nach expliziter Freigabe in eine lokale v2-Stagingprojektion schreiben; IMAP bleibt read-only",
+    "id": "mail.index.shadow",
+    "description": "Lokale und aktuelle Serversuche read-only anhand technischer Counts und Vollstaendigkeitsbelege vergleichen; unvollstaendige Servernulltreffer sind keine Ground Truth",
+    "command": "./scripts/assistant.sh mail index shadow --query \"<Suchbegriff>\" --limit 50",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
+    "id": "mail.index.canary",
+    "description": "Genau benannte Ordner unter engen Limits nach expliziter Freigabe in das lokale Staging indexieren; IMAP bleibt read-only",
+    "command": "./scripts/assistant.sh mail index canary --folder \"<exakter Ordner>\" --page-size 20 --max-pages 5 --max-messages 100 --max-bytes 100000000 --max-message-bytes 25000000 --max-runtime 600 --request-interval 0.2 --yes",
+    "mode": "local-write",
+    "writes_external_data": false,
+    "approval": "explicit-user-local-mail-index-canary"
+  },
+  {
     "id": "mail.index.backfill",
+    "description": "Begrenzten wiederaufnehmbaren Vollkonto-Backfill nach expliziter Freigabe in eine lokale v2-Stagingprojektion schreiben; IMAP bleibt read-only",
+    "command": "./scripts/assistant.sh mail index backfill --page-size 50 --max-pages 200 --max-messages 10000 --max-bytes 1000000000 --max-message-bytes 100000000 --max-runtime 3600 --request-interval 0.2 --yes",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "explicit-user-local-mail-index-backfill"
   },
   {
-    "approval": "explicit-user-local-mail-index-reconcile",
-    "command": "./scripts/assistant.sh mail index reconcile --max-folders 500 --max-messages 100000 --max-bytes 2000000000 --max-message-bytes 100000000 --max-runtime 3600 --request-interval 0.2 --retention-generations 2 --yes",
-    "description": "Vollstaendige autoritative Ordnergenerationen inkrementell in die lokale v2-Mailprojektion uebernehmen; IMAP bleibt read-only",
     "id": "mail.index.reconcile",
+    "description": "Vollstaendige autoritative Ordnergenerationen inkrementell in die lokale v2-Mailprojektion uebernehmen; IMAP bleibt read-only",
+    "command": "./scripts/assistant.sh mail index reconcile --max-folders 500 --max-messages 100000 --max-bytes 2000000000 --max-message-bytes 100000000 --max-runtime 3600 --request-interval 0.2 --retention-generations 2 --yes",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "explicit-user-local-mail-index-reconcile"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh mail search-local --query \"<Suchbegriff>\" --limit 50",
-    "description": "Validierten lokalen Mailindex mit sicherer lexikalischer Query, strukturierten Filtern, belegten Tags und deduplizierten Treffern lesen",
     "id": "mail.search.local",
+    "description": "Validierten lokalen Mailindex mit sicherer lexikalischer Query, strukturierten Filtern, belegten Tags und deduplizierten Treffern lesen",
+    "command": "./scripts/assistant.sh mail search-local --query \"<Suchbegriff>\" --limit 50",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh mail learning status",
-    "description": "Korrekturlernen, gemischte Absender, Musterkonflikte und Lernordner anzeigen",
     "id": "mail.learning.status",
+    "description": "Korrekturlernen, gemischte Absender, Musterkonflikte und Lernordner anzeigen",
+    "command": "./scripts/assistant.sh mail learning status",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh mail learning feedback --limit 50",
-    "description": "Letzte Nutzerkorrekturen mit Muster, Typ-Label und Match-Metadaten ohne Mailtext anzeigen",
     "id": "mail.learning.feedback",
+    "description": "Letzte Nutzerkorrekturen mit Muster, Typ-Label und Match-Metadaten ohne Mailtext anzeigen",
+    "command": "./scripts/assistant.sh mail learning feedback --limit 50",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh mail learning not-spam --limit 100",
-    "description": "Nicht-Spam-Gegenbelege mit Ursprung INBOX-Restore oder Korrekturordner ohne Mailinhalte anzeigen",
     "id": "mail.learning.not-spam",
+    "description": "Nicht-Spam-Gegenbelege mit Ursprung INBOX-Restore oder Korrekturordner ohne Mailinhalte anzeigen",
+    "command": "./scripts/assistant.sh mail learning not-spam --limit 100",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh mail learning mixed-senders --limit 100",
-    "description": "Absender anzeigen, die nach Nutzerfeedback verschiedene Mailtypen senden",
     "id": "mail.learning.mixed-senders",
+    "description": "Absender anzeigen, die nach Nutzerfeedback verschiedene Mailtypen senden",
+    "command": "./scripts/assistant.sh mail learning mixed-senders --limit 100",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh mail learning conflicts --limit 100",
-    "description": "Widerspruechliche Korrekturen mit stabiler conflict_id und betroffenen Feedback-IDs anzeigen",
     "id": "mail.learning.conflicts",
+    "description": "Widerspruechliche Korrekturen mit stabiler conflict_id und betroffenen Feedback-IDs anzeigen",
+    "command": "./scripts/assistant.sh mail learning conflicts --limit 100",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "explicit-user-feedback-delete",
-    "command": "./scripts/assistant.sh mail learning forget-feedback --id <ID> --yes",
-    "description": "Genau einen zuvor angezeigten widerspruechlichen Korrekturbeleg entfernen",
     "id": "mail.learning.feedback-forget",
+    "description": "Genau einen zuvor angezeigten widerspruechlichen Korrekturbeleg entfernen",
+    "command": "./scripts/assistant.sh mail learning forget-feedback --id <ID> --yes",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "explicit-user-feedback-delete"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh mail learning evaluate --limit 5000",
-    "description": "Lernqualitaet chronologisch gegen die alte Absenderlogik und gespeicherte Klassifikationen auswerten",
     "id": "mail.learning.evaluate",
+    "description": "Lernqualitaet chronologisch gegen die alte Absenderlogik und gespeicherte Klassifikationen auswerten",
+    "command": "./scripts/assistant.sh mail learning evaluate --limit 5000",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "learning-dataset-local-only",
-    "command": "./scripts/assistant.sh mail learning dataset-export --output \"mail_agent/data/learning_dataset.json\" --limit 5000",
-    "description": "Pseudonymisierten Lern-Datensatz ohne Mailtexte, Betreffe, Adressen oder Message-IDs lokal exportieren",
     "id": "mail.learning.dataset-export",
+    "description": "Pseudonymisierten Lern-Datensatz ohne Mailtexte, Betreffe, Adressen oder Message-IDs lokal exportieren",
+    "command": "./scripts/assistant.sh mail learning dataset-export --output \"mail_agent/data/learning_dataset.json\" --limit 5000",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "learning-dataset-local-only"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh mail learning folder-list",
-    "description": "Kontrollierte dynamische Korrektur-Unterordner anzeigen",
     "id": "mail.learning.folder-list",
+    "description": "Kontrollierte dynamische Korrektur-Unterordner anzeigen",
+    "command": "./scripts/assistant.sh mail learning folder-list",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "explicit-user-create-correction-folder",
-    "command": "./scripts/assistant.sh mail learning folder-create --parent \"<routine|important|spam|not-spam>\" --name \"<Name>\" --label \"<Typ>\" --yes",
-    "description": "Korrektur-Unterordner nach ausdruecklichem Nutzerauftrag anlegen und registrieren",
     "id": "mail.learning.folder-create",
+    "description": "Korrektur-Unterordner nach ausdruecklichem Nutzerauftrag anlegen und registrieren",
+    "command": "./scripts/assistant.sh mail learning folder-create --parent \"<routine|important|spam|not-spam>\" --name \"<Name>\" --label \"<Typ>\" --yes",
     "mode": "write",
-    "writes_external_data": true
+    "writes_external_data": true,
+    "approval": "explicit-user-create-correction-folder"
   },
   {
-    "approval": "explicit-user-disable-learning-folder",
-    "command": "./scripts/assistant.sh mail learning folder-disable --folder \"<Ordner>\" --yes",
-    "description": "Lernzuordnung eines dynamischen Korrekturordners nach Nutzerauftrag deaktivieren, ohne den IMAP-Ordner zu loeschen",
     "id": "mail.learning.folder-disable",
+    "description": "Lernzuordnung eines dynamischen Korrekturordners nach Nutzerauftrag deaktivieren, ohne den IMAP-Ordner zu loeschen",
+    "command": "./scripts/assistant.sh mail learning folder-disable --folder \"<Ordner>\" --yes",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "explicit-user-disable-learning-folder"
   },
   {
-    "approval": "safe-settings",
-    "command": "./scripts/assistant.sh setup mail-sources --primary \"INBOX\" --quarantine-folder \"Spamverdacht\"",
-    "description": "Primaer- und Provider-Spam-/Quarantaeneordner kontrolliert konfigurieren",
     "id": "mail.sources.configure",
+    "description": "Primaer- und Provider-Spam-/Quarantaeneordner kontrolliert konfigurieren",
+    "command": "./scripts/assistant.sh setup mail-sources --primary \"INBOX\" --quarantine-folder \"Spamverdacht\"",
     "mode": "local-write",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "safe-settings"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh mail dry-run --limit 20",
-    "description": "Mail-Pipeline ohne externe Aenderungen pruefen",
     "id": "mail.dry-run",
+    "description": "Mail-Pipeline ohne externe Aenderungen pruefen",
+    "command": "./scripts/assistant.sh mail dry-run --limit 20",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "configured-policy",
-    "command": "./scripts/assistant.sh mail run --limit 20",
-    "description": "Mail-Pipeline produktiv ausfuehren",
     "id": "mail.run",
-    "mode": "write",
-    "writes_external_data": true
-  },
-  {
-    "approval": "quarantine-rescue-policy",
-    "command": "./scripts/assistant.sh mail spam-review --limit 20",
-    "description": "Provider-Spamordner als Quarantaene pruefen und klare Fehlklassifizierungen retten",
-    "id": "mail.spam-review",
-    "mode": "write",
-    "writes_external_data": true
-  },
-  {
-    "approval": "none",
-    "command": "./scripts/assistant.sh mail move-status",
-    "description": "Berechtigungen, vorhandene Ordner und gesperrte Ziele des Mail-Verschiebewerkzeugs pruefen",
-    "id": "mail.move-status",
-    "mode": "read",
-    "writes_external_data": false
-  },
-  {
-    "approval": "none",
-    "command": "./scripts/assistant.sh mail list --folder \"<Ordner>\" --limit 50",
-    "description": "Mail-Metadaten eines vorhandenen Ordners lesen, um eine Mail eindeutig auszuwaehlen",
-    "id": "mail.list",
-    "mode": "read",
-    "writes_external_data": false
-  },
-  {
-    "approval": "none",
-    "command": "./scripts/assistant.sh mail search --query \"<Suchbegriff>\" --limit 50",
-    "description": "Mails ausschliesslich ueber den belegten lokalen Hybridindex oder den sichtbaren fail-closed Serverpfad suchen; nie rohes Himalaya oder Shell-Filter verwenden; der bounded Metadatenfallback findet verschobene Absender-/Betrefftreffer, darf Nulltreffer und Bodyabdeckung aber nicht als vollstaendig ausgeben",
-    "id": "mail.search",
-    "mode": "read",
-    "writes_external_data": false
-  },
-  {
-    "approval": "none",
-    "command": "./scripts/assistant.sh mail read --folder \"<Ordner>\" --message-id \"<ID>\" --expected-subject \"<Betreff>\"",
-    "description": "Eine per Ordner und Mail-ID eindeutig ausgewaehlte Mail read-only mit Inhalt lesen",
-    "id": "mail.read",
-    "mode": "read",
-    "writes_external_data": false
-  },
-  {
-    "approval": "draft-only-no-send",
-    "command": "./scripts/assistant.sh mail reply-draft --folder \"<Ordner>\" --message-id \"<ID>\" --expected-subject \"<Betreff>\" --body \"<Entwurf>\"",
-    "description": "Antwortentwurf zu einer eindeutig ausgewaehlten Mail anlegen und vollstaendig anzeigen",
-    "id": "mail.reply-draft",
-    "mode": "local-write",
-    "writes_external_data": false
-  },
-  {
-    "approval": "explicit-user-approved-presented-draft",
-    "command": "./scripts/assistant.sh mail reply-send --draft-id \"<Entwurfs-ID>\" --yes",
-    "description": "Nur einen zuvor angezeigten Antwortentwurf nach ausdruecklicher Nutzerfreigabe versenden",
-    "id": "mail.reply-send",
-    "mode": "write",
-    "writes_external_data": true
-  },
-  {
-    "approval": "draft-only-no-send",
-    "command": "./scripts/assistant.sh mail compose-draft --to \"<Empfaenger>\" --subject \"<Betreff>\" --body \"<Entwurf>\"",
-    "description": "Vollstaendigen Entwurf fuer eine neue Mail anlegen und ohne Versand anzeigen",
-    "id": "mail.compose-draft",
-    "mode": "local-write",
-    "writes_external_data": false
-  },
-  {
-    "approval": "explicit-user-approved-presented-draft",
-    "command": "./scripts/assistant.sh mail compose-send --draft-id \"<Entwurfs-ID>\" --yes",
-    "description": "Nur einen zuvor angezeigten neuen Mailentwurf nach ausdruecklicher Nutzerfreigabe versenden",
-    "id": "mail.compose-send",
-    "mode": "write",
-    "writes_external_data": true
-  },
-  {
-    "approval": "configured-mail-organize-single-message",
-    "command": "./scripts/assistant.sh mail move --source \"<Quelle>\" --destination \"<Ziel>\" --message-id \"<ID>\" --expected-subject \"<Betreff>\"",
-    "description": "Eine eindeutig per Mail-ID ausgewaehlte Mail zwischen vorhandenen, nicht-destruktiven Ordnern verschieben",
-    "id": "mail.move",
-    "mode": "write",
-    "writes_external_data": true
-  },
-  {
-    "approval": "none",
-    "command": "./scripts/assistant.sh contacts discover",
-    "description": "Erreichbare Nextcloud-CardDAV-Adressbuecher read-only mit Serverrechten auflisten",
-    "id": "nextcloud.contacts.discover",
-    "mode": "read",
-    "writes_external_data": false
-  },
-  {
-    "approval": "explicit-user-addressbook-selection",
-    "command": "./scripts/assistant.sh contacts configure --resource \"<resource_id>\" --allow-update --yes",
-    "description": "Ein zuvor entdecktes Adressbuch nach ausdruecklicher Nutzerwahl konfigurieren; Aktualisierungsrecht nur mit --allow-update",
-    "id": "nextcloud.contacts.configure",
-    "mode": "local-write",
-    "writes_external_data": false
-  },
-  {
-    "approval": "none",
-    "command": "./scripts/assistant.sh calendar discover",
-    "description": "Erreichbare Nextcloud-Kalender read-only mit VEVENT-Unterstuetzung und Serverrechten auflisten",
-    "id": "nextcloud.calendar.discover",
-    "mode": "read",
-    "writes_external_data": false
-  },
-  {
-    "approval": "explicit-user-calendar-selection",
-    "command": "./scripts/assistant.sh calendar configure --resource \"<resource_id>\" --allow-update --yes",
-    "description": "Einen zuvor entdeckten Kalender nach ausdruecklicher Nutzerwahl konfigurieren; Aktualisierungsrecht nur mit --allow-update",
-    "id": "nextcloud.calendar.configure",
-    "mode": "local-write",
-    "writes_external_data": false
-  },
-  {
-    "approval": "none",
-    "command": "./scripts/assistant.sh tasks discover",
-    "description": "Erreichbare Nextcloud-Aufgabenlisten read-only mit VTODO-Unterstuetzung und Serverrechten auflisten",
-    "id": "nextcloud.tasks.discover",
-    "mode": "read",
-    "writes_external_data": false
-  },
-  {
-    "approval": "explicit-user-task-list-selection",
-    "command": "./scripts/assistant.sh tasks configure --resource \"<resource_id>\" --allow-update --yes",
-    "description": "Eine zuvor entdeckte Aufgabenliste nach ausdruecklicher Nutzerwahl konfigurieren; Aktualisierungsrecht nur mit --allow-update",
-    "id": "nextcloud.tasks.configure",
-    "mode": "local-write",
-    "writes_external_data": false
-  },
-  {
-    "approval": "workspace-create",
-    "command": "./scripts/assistant.sh nextcloud mkdir --path \"Assistent/<Ordner>\"",
-    "description": "Ordner innerhalb des Nextcloud-Arbeitsbereichs idempotent anlegen",
-    "id": "nextcloud.workspace.mkdir",
-    "mode": "write",
-    "writes_external_data": true
-  },
-  {
-    "approval": "workspace-create-only",
-    "command": "printf \"%s\" \"<Inhalt>\" | ./scripts/assistant.sh nextcloud write-text --path \"Assistent/<Datei>.md\"",
-    "description": "Neue UTF-8-Textdatei create-only aus stdin im Nextcloud-Arbeitsbereich anlegen",
-    "id": "nextcloud.workspace.write-text",
-    "mode": "write",
-    "writes_external_data": true
-  },
-  {
-    "approval": "workspace-create-only",
-    "command": "./scripts/assistant.sh nextcloud upload --local \"personal_assistant/data/workspace_outbox/<Datei>\" --path \"Assistent/<Ziel>\"",
-    "description": "Virengepruefte neue Datei create-only aus der kontrollierten Workspace-Outbox nach Nextcloud hochladen",
-    "id": "nextcloud.workspace.upload",
-    "mode": "write",
-    "writes_external_data": true
-  },
-  {
-    "approval": "workspace-organize-no-overwrite",
-    "command": "./scripts/assistant.sh nextcloud move --source \"Assistent/<Quelle>\" --destination \"Assistent/<Ziel>\"",
-    "description": "Datei oder Ordner innerhalb des Arbeitsbereichs ohne Ueberschreiben verschieben oder umbenennen",
-    "id": "nextcloud.workspace.move",
-    "mode": "write",
-    "writes_external_data": true
-  },
-  {
-    "approval": "explicit-user-permission",
-    "command": "./scripts/assistant.sh setup workspace --root \"Assistent\" --approve-permissions",
-    "description": "Nextcloud-Arbeitsbereich und Rechte konfigurieren",
-    "id": "nextcloud.workspace.configure",
-    "mode": "local-write",
-    "writes_external_data": false
-  },
-  {
-    "approval": "none",
-    "command": "./scripts/assistant.sh calendar status",
-    "description": "Konfiguration sowie Lese-, Anlege- und Aktualisierungsrechte des direkten Nextcloud-Kalenderwerkzeugs pruefen",
-    "id": "nextcloud.calendar.status",
-    "mode": "read",
-    "writes_external_data": false
-  },
-  {
-    "approval": "none",
-    "command": "./scripts/assistant.sh calendar list --limit 100",
-    "description": "Termine aus dem freigegebenen Nextcloud-Kalender mit UID lesen",
-    "id": "nextcloud.calendar.list",
-    "mode": "read",
-    "writes_external_data": false
-  },
-  {
-    "approval": "none",
-    "command": "./scripts/assistant.sh calendar search --query \"<Suchbegriff>\" --limit 50",
-    "description": "Termine nach Titel, Ort, Beschreibung oder UID suchen",
-    "id": "nextcloud.calendar.search",
-    "mode": "read",
-    "writes_external_data": false
-  },
-  {
-    "approval": "explicit-user-calendar-update-etag-guarded",
-    "command": "./scripts/assistant.sh calendar update --uid \"<UID>\" --expected-title \"<aktueller Titel>\" --start \"<ISO-8601>\" --yes",
-    "description": "Einen zuvor eindeutig per UID ausgewaehlten Termin nach ausdruecklichem Nutzerauftrag ETag-geschuetzt aktualisieren; Serien nur mit gesonderter Freigabe",
-    "id": "nextcloud.calendar.update",
-    "mode": "write",
-    "writes_external_data": true
-  },
-  {
-    "approval": "configured-calendar-create-only",
-    "command": "./scripts/assistant.sh calendar create --title \"<Titel>\" --start \"<ISO-8601>\" --end \"<ISO-8601>\" --location \"<Ort>\" --description \"<Beschreibung>\"",
-    "description": "Neuen Termin direkt in den freigegebenen Nextcloud-Kalender eintragen; calendar create akzeptiert kein --yes",
-    "id": "nextcloud.calendar.create",
-    "mode": "write",
-    "writes_external_data": true
-  },
-  {
-    "approval": "none",
-    "command": "./scripts/assistant.sh tasks status",
-    "description": "Konfiguration sowie Lese-, Anlege- und Aktualisierungsrechte des Nextcloud-Aufgabenwerkzeugs pruefen",
-    "id": "nextcloud.tasks.status",
-    "mode": "read",
-    "writes_external_data": false
-  },
-  {
-    "approval": "none",
-    "command": "./scripts/assistant.sh tasks list --include-completed --limit 100",
-    "description": "Aufgaben aus der freigegebenen Nextcloud-Aufgabenliste mit UID lesen",
-    "id": "nextcloud.tasks.list",
-    "mode": "read",
-    "writes_external_data": false
-  },
-  {
-    "approval": "explicit-user-task-update-etag-guarded",
-    "command": "./scripts/assistant.sh tasks update --uid \"<UID>\" --expected-title \"<aktueller Titel>\" --status COMPLETED --yes",
-    "description": "Eine zuvor eindeutig per UID ausgewaehlte Aufgabe nach ausdruecklichem Nutzerauftrag ETag-geschuetzt aktualisieren oder abschliessen; Serien nur mit gesonderter Freigabe",
-    "id": "nextcloud.tasks.update",
-    "mode": "write",
-    "writes_external_data": true
-  },
-  {
-    "approval": "configured-tasks-create-only",
-    "command": "./scripts/assistant.sh tasks create --title \"<Titel>\" --due \"<YYYY-MM-DD oder ISO-8601>\" --priority <0-9> --description \"<Beschreibung>\"",
-    "description": "Neue Aufgabe in der freigegebenen Nextcloud-Aufgabenliste anlegen",
-    "id": "nextcloud.tasks.create",
-    "mode": "write",
-    "writes_external_data": true
-  },
-  {
-    "approval": "none",
-    "command": "./scripts/assistant.sh contacts status",
-    "description": "Konfiguration sowie Lese-, Anlege- und Aktualisierungsrechte des CardDAV-Kontaktwerkzeugs pruefen",
-    "id": "nextcloud.contacts.status",
-    "mode": "read",
-    "writes_external_data": false
-  },
-  {
-    "approval": "none",
-    "command": "./scripts/assistant.sh contacts list --limit 100",
-    "description": "Kontakte aus dem freigegebenen CardDAV-Adressbuch lesen",
-    "id": "nextcloud.contacts.list",
-    "mode": "read",
-    "writes_external_data": false
-  },
-  {
-    "approval": "none",
-    "command": "./scripts/assistant.sh contacts search --query \"<Suchbegriff>\" --limit 50",
-    "description": "Kontakte nach Name, E-Mail, Telefon oder Organisation suchen",
-    "id": "nextcloud.contacts.search",
-    "mode": "read",
-    "writes_external_data": false
-  },
-  {
-    "approval": "explicit-user-contact-update-etag-guarded",
-    "command": "./scripts/assistant.sh contacts update --uid \"<UID>\" --expected-name \"<aktueller Name>\" --phone \"<neue Telefonnummer>\" --yes",
-    "description": "Einen zuvor eindeutig gesuchten Kontakt per UID nach ausdruecklichem Nutzerauftrag ETag-geschuetzt aktualisieren; kein Loeschen oder Merge",
-    "id": "nextcloud.contacts.update",
-    "mode": "write",
-    "writes_external_data": true
-  },
-  {
-    "approval": "explicit-user-contact-create-only",
-    "command": "./scripts/assistant.sh contacts create --name \"<Name>\" --email \"<E-Mail>\" --phone \"<Telefon>\" --organization \"<Firma>\" --yes",
-    "description": "Neuen Kontakt nach ausdruecklichem Nutzerauftrag create-only anlegen; bestehende Kontakte werden nicht veraendert",
-    "id": "nextcloud.contacts.create",
-    "mode": "write",
-    "writes_external_data": true
-  },
-  {
-    "approval": "none",
-    "command": "./scripts/assistant.sh contacts from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --dry-run",
-    "description": "Absender und konservativ erkannte Signaturdaten einer eindeutig ausgewaehlten Mail als Kontaktvorschlag pruefen",
-    "id": "nextcloud.contacts.from-mail-preview",
-    "mode": "read",
-    "writes_external_data": false
-  },
-  {
-    "approval": "explicit-user-contact-from-mail-create-only",
-    "command": "./scripts/assistant.sh contacts from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --yes",
-    "description": "Kontakt aus einer eindeutig ausgewaehlten Mail nach Vorschau und ausdruecklichem Nutzerauftrag create-only anlegen",
-    "id": "nextcloud.contacts.from-mail-create",
-    "mode": "write",
-    "writes_external_data": true
-  },
-  {
-    "approval": "none",
-    "command": "./scripts/assistant.sh orders status",
-    "description": "Nextcloud Deck-Bestellboard, Rechte und lokale Bestelldatenbank pruefen",
-    "id": "nextcloud.deck.orders.status",
-    "mode": "read",
-    "writes_external_data": false
-  },
-  {
-    "approval": "none",
-    "command": "./scripts/assistant.sh orders list --limit 100",
-    "description": "Laufende Bestellungen mit Status, Liefertermin, Tracking und Retouren ausgeben",
-    "id": "nextcloud.deck.orders.list",
-    "mode": "read",
-    "writes_external_data": false
-  },
-  {
-    "approval": "none",
-    "command": "./scripts/assistant.sh deck discover",
-    "description": "Verfuegbare Nextcloud Deck-Boards read-only auflisten",
-    "id": "nextcloud.deck.discover",
-    "mode": "read",
-    "writes_external_data": false
-  },
-  {
-    "approval": "none",
-    "command": "./scripts/assistant.sh mail orders-import --limit 500 --dry-run",
-    "description": "Bereits lokal indexierte Mails kontrolliert auf laufende Bestellungen nachklassifizieren",
-    "id": "mail.orders.import",
-    "mode": "read",
-    "writes_external_data": false
-  },
-  {
-    "approval": "managed-order-cards-only",
-    "command": "./scripts/assistant.sh orders sync --limit 500",
-    "description": "Ausstehende Aktualisierungen agentenverwalteter Bestellkarten nach Nextcloud Deck synchronisieren",
-    "id": "nextcloud.deck.orders.sync",
-    "mode": "write",
-    "writes_external_data": true
-  },
-  {
-    "approval": "none",
-    "command": "./scripts/assistant.sh orders due-date-backfill --limit 500 --dry-run",
-    "description": "Agentenverwaltete Bestellkarten ohne Faelligkeitsdatum read-only pruefen und plausible Quellen anzeigen",
-    "id": "nextcloud.deck.orders.due-date-preview",
-    "mode": "read",
-    "writes_external_data": false
-  },
-  {
-    "approval": "managed-order-cards-missing-due-only",
-    "command": "./scripts/assistant.sh orders due-date-backfill --limit 500 --yes",
-    "description": "Fehlende Faelligkeitsdaten agentenverwalteter Bestellkarten nach ausdruecklichem Auftrag ergaenzen",
-    "id": "nextcloud.deck.orders.due-date-backfill",
-    "mode": "write",
-    "writes_external_data": true
-  },
-  {
-    "approval": "configured-invoice-archive-and-managed-register-sync",
+    "description": "Mail-Pipeline produktiv ausfuehren",
     "command": "./scripts/assistant.sh mail run --limit 20",
-    "description": "Virengepruefte Rechnungs-PDFs create-only archivieren und bei konfiguriertem Rechnungsworkflow das verwaltete Jahresregister ETag-geschuetzt synchronisieren",
+    "mode": "write",
+    "writes_external_data": true,
+    "approval": "configured-policy"
+  },
+  {
+    "id": "mail.spam-review",
+    "description": "Provider-Spamordner als Quarantaene pruefen und klare Fehlklassifizierungen retten",
+    "command": "./scripts/assistant.sh mail spam-review --limit 20",
+    "mode": "write",
+    "writes_external_data": true,
+    "approval": "quarantine-rescue-policy"
+  },
+  {
+    "id": "mail.move-status",
+    "description": "Berechtigungen, vorhandene Ordner und gesperrte Ziele des Mail-Verschiebewerkzeugs pruefen",
+    "command": "./scripts/assistant.sh mail move-status",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
+    "id": "mail.list",
+    "description": "Mail-Metadaten eines vorhandenen Ordners lesen, um eine Mail eindeutig auszuwaehlen",
+    "command": "./scripts/assistant.sh mail list --folder \"<Ordner>\" --limit 50",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
+    "id": "mail.search",
+    "description": "Mails ausschliesslich ueber den belegten lokalen Hybridindex oder den sichtbaren fail-closed Serverpfad suchen; nie rohes Himalaya oder Shell-Filter verwenden; der bounded Metadatenfallback findet verschobene Absender-/Betrefftreffer, darf Nulltreffer und Bodyabdeckung aber nicht als vollstaendig ausgeben",
+    "command": "./scripts/assistant.sh mail search --query \"<Suchbegriff>\" --limit 50",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
+    "id": "mail.read",
+    "description": "Eine per Ordner und Mail-ID eindeutig ausgewaehlte Mail read-only mit Inhalt lesen",
+    "command": "./scripts/assistant.sh mail read --folder \"<Ordner>\" --message-id \"<ID>\" --expected-subject \"<Betreff>\"",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
+    "id": "mail.reply-draft",
+    "description": "Antwortentwurf zu einer eindeutig ausgewaehlten Mail anlegen und vollstaendig anzeigen",
+    "command": "./scripts/assistant.sh mail reply-draft --folder \"<Ordner>\" --message-id \"<ID>\" --expected-subject \"<Betreff>\" --body \"<Entwurf>\"",
+    "mode": "local-write",
+    "writes_external_data": false,
+    "approval": "draft-only-no-send"
+  },
+  {
+    "id": "mail.reply-send",
+    "description": "Nur einen zuvor angezeigten Antwortentwurf nach ausdruecklicher Nutzerfreigabe versenden",
+    "command": "./scripts/assistant.sh mail reply-send --draft-id \"<Entwurfs-ID>\" --yes",
+    "mode": "write",
+    "writes_external_data": true,
+    "approval": "explicit-user-approved-presented-draft"
+  },
+  {
+    "id": "mail.compose-draft",
+    "description": "Vollstaendigen Entwurf fuer eine neue Mail anlegen und ohne Versand anzeigen",
+    "command": "./scripts/assistant.sh mail compose-draft --to \"<Empfaenger>\" --subject \"<Betreff>\" --body \"<Entwurf>\"",
+    "mode": "local-write",
+    "writes_external_data": false,
+    "approval": "draft-only-no-send"
+  },
+  {
+    "id": "mail.compose-send",
+    "description": "Nur einen zuvor angezeigten neuen Mailentwurf nach ausdruecklicher Nutzerfreigabe versenden",
+    "command": "./scripts/assistant.sh mail compose-send --draft-id \"<Entwurfs-ID>\" --yes",
+    "mode": "write",
+    "writes_external_data": true,
+    "approval": "explicit-user-approved-presented-draft"
+  },
+  {
+    "id": "mail.move",
+    "description": "Eine eindeutig per Mail-ID ausgewaehlte Mail zwischen vorhandenen, nicht-destruktiven Ordnern verschieben",
+    "command": "./scripts/assistant.sh mail move --source \"<Quelle>\" --destination \"<Ziel>\" --message-id \"<ID>\" --expected-subject \"<Betreff>\"",
+    "mode": "write",
+    "writes_external_data": true,
+    "approval": "configured-mail-organize-single-message"
+  },
+  {
+    "id": "nextcloud.contacts.discover",
+    "description": "Erreichbare Nextcloud-CardDAV-Adressbuecher read-only mit Serverrechten auflisten",
+    "command": "./scripts/assistant.sh contacts discover",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
+    "id": "nextcloud.contacts.configure",
+    "description": "Ein zuvor entdecktes Adressbuch nach ausdruecklicher Nutzerwahl konfigurieren; Aktualisierungsrecht nur mit --allow-update",
+    "command": "./scripts/assistant.sh contacts configure --resource \"<resource_id>\" --allow-update --yes",
+    "mode": "local-write",
+    "writes_external_data": false,
+    "approval": "explicit-user-addressbook-selection"
+  },
+  {
+    "id": "nextcloud.calendar.discover",
+    "description": "Erreichbare Nextcloud-Kalender read-only mit VEVENT-Unterstuetzung und Serverrechten auflisten",
+    "command": "./scripts/assistant.sh calendar discover",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
+    "id": "nextcloud.calendar.configure",
+    "description": "Einen zuvor entdeckten Kalender nach ausdruecklicher Nutzerwahl konfigurieren; Aktualisierungsrecht nur mit --allow-update",
+    "command": "./scripts/assistant.sh calendar configure --resource \"<resource_id>\" --allow-update --yes",
+    "mode": "local-write",
+    "writes_external_data": false,
+    "approval": "explicit-user-calendar-selection"
+  },
+  {
+    "id": "nextcloud.tasks.discover",
+    "description": "Erreichbare Nextcloud-Aufgabenlisten read-only mit VTODO-Unterstuetzung und Serverrechten auflisten",
+    "command": "./scripts/assistant.sh tasks discover",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
+    "id": "nextcloud.tasks.configure",
+    "description": "Eine zuvor entdeckte Aufgabenliste nach ausdruecklicher Nutzerwahl konfigurieren; Aktualisierungsrecht nur mit --allow-update",
+    "command": "./scripts/assistant.sh tasks configure --resource \"<resource_id>\" --allow-update --yes",
+    "mode": "local-write",
+    "writes_external_data": false,
+    "approval": "explicit-user-task-list-selection"
+  },
+  {
+    "id": "nextcloud.workspace.mkdir",
+    "description": "Ordner innerhalb des Nextcloud-Arbeitsbereichs idempotent anlegen",
+    "command": "./scripts/assistant.sh nextcloud mkdir --path \"Assistent/<Ordner>\"",
+    "mode": "write",
+    "writes_external_data": true,
+    "approval": "workspace-create"
+  },
+  {
+    "id": "nextcloud.workspace.write-text",
+    "description": "Neue UTF-8-Textdatei create-only aus stdin im Nextcloud-Arbeitsbereich anlegen",
+    "command": "printf \"%s\" \"<Inhalt>\" | ./scripts/assistant.sh nextcloud write-text --path \"Assistent/<Datei>.md\"",
+    "mode": "write",
+    "writes_external_data": true,
+    "approval": "workspace-create-only"
+  },
+  {
+    "id": "nextcloud.workspace.upload",
+    "description": "Virengepruefte neue Datei create-only aus der kontrollierten Workspace-Outbox nach Nextcloud hochladen",
+    "command": "./scripts/assistant.sh nextcloud upload --local \"personal_assistant/data/workspace_outbox/<Datei>\" --path \"Assistent/<Ziel>\"",
+    "mode": "write",
+    "writes_external_data": true,
+    "approval": "workspace-create-only"
+  },
+  {
+    "id": "nextcloud.workspace.move",
+    "description": "Datei oder Ordner innerhalb des Arbeitsbereichs ohne Ueberschreiben verschieben oder umbenennen",
+    "command": "./scripts/assistant.sh nextcloud move --source \"Assistent/<Quelle>\" --destination \"Assistent/<Ziel>\"",
+    "mode": "write",
+    "writes_external_data": true,
+    "approval": "workspace-organize-no-overwrite"
+  },
+  {
+    "id": "nextcloud.workspace.configure",
+    "description": "Nextcloud-Arbeitsbereich und Rechte konfigurieren",
+    "command": "./scripts/assistant.sh setup workspace --root \"Assistent\" --approve-permissions",
+    "mode": "local-write",
+    "writes_external_data": false,
+    "approval": "explicit-user-permission"
+  },
+  {
+    "id": "nextcloud.calendar.status",
+    "description": "Konfiguration sowie Lese-, Anlege- und Aktualisierungsrechte des direkten Nextcloud-Kalenderwerkzeugs pruefen",
+    "command": "./scripts/assistant.sh calendar status",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
+    "id": "nextcloud.calendar.list",
+    "description": "Termine aus dem freigegebenen Nextcloud-Kalender mit UID lesen",
+    "command": "./scripts/assistant.sh calendar list --limit 100",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
+    "id": "nextcloud.calendar.search",
+    "description": "Termine nach Titel, Ort, Beschreibung oder UID suchen",
+    "command": "./scripts/assistant.sh calendar search --query \"<Suchbegriff>\" --limit 50",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
+    "id": "nextcloud.calendar.update",
+    "description": "Einen zuvor eindeutig per UID ausgewaehlten Termin nach ausdruecklichem Nutzerauftrag ETag-geschuetzt aktualisieren; Serien nur mit gesonderter Freigabe",
+    "command": "./scripts/assistant.sh calendar update --uid \"<UID>\" --expected-title \"<aktueller Titel>\" --start \"<ISO-8601>\" --yes",
+    "mode": "write",
+    "writes_external_data": true,
+    "approval": "explicit-user-calendar-update-etag-guarded"
+  },
+  {
+    "id": "nextcloud.calendar.create",
+    "description": "Neuen Termin direkt in den freigegebenen Nextcloud-Kalender eintragen; calendar create akzeptiert kein --yes",
+    "command": "./scripts/assistant.sh calendar create --title \"<Titel>\" --start \"<ISO-8601>\" --end \"<ISO-8601>\" --location \"<Ort>\" --description \"<Beschreibung>\"",
+    "mode": "write",
+    "writes_external_data": true,
+    "approval": "configured-calendar-create-only"
+  },
+  {
+    "id": "nextcloud.tasks.status",
+    "description": "Konfiguration sowie Lese-, Anlege- und Aktualisierungsrechte des Nextcloud-Aufgabenwerkzeugs pruefen",
+    "command": "./scripts/assistant.sh tasks status",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
+    "id": "nextcloud.tasks.list",
+    "description": "Aufgaben aus der freigegebenen Nextcloud-Aufgabenliste mit UID lesen",
+    "command": "./scripts/assistant.sh tasks list --include-completed --limit 100",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
+    "id": "nextcloud.tasks.update",
+    "description": "Eine zuvor eindeutig per UID ausgewaehlte Aufgabe nach ausdruecklichem Nutzerauftrag ETag-geschuetzt aktualisieren oder abschliessen; Serien nur mit gesonderter Freigabe",
+    "command": "./scripts/assistant.sh tasks update --uid \"<UID>\" --expected-title \"<aktueller Titel>\" --status COMPLETED --yes",
+    "mode": "write",
+    "writes_external_data": true,
+    "approval": "explicit-user-task-update-etag-guarded"
+  },
+  {
+    "id": "nextcloud.tasks.create",
+    "description": "Neue Aufgabe in der freigegebenen Nextcloud-Aufgabenliste anlegen",
+    "command": "./scripts/assistant.sh tasks create --title \"<Titel>\" --due \"<YYYY-MM-DD oder ISO-8601>\" --priority <0-9> --description \"<Beschreibung>\"",
+    "mode": "write",
+    "writes_external_data": true,
+    "approval": "configured-tasks-create-only"
+  },
+  {
+    "id": "nextcloud.contacts.status",
+    "description": "Konfiguration sowie Lese-, Anlege- und Aktualisierungsrechte des CardDAV-Kontaktwerkzeugs pruefen",
+    "command": "./scripts/assistant.sh contacts status",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
+    "id": "nextcloud.contacts.list",
+    "description": "Kontakte aus dem freigegebenen CardDAV-Adressbuch lesen",
+    "command": "./scripts/assistant.sh contacts list --limit 100",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
+    "id": "nextcloud.contacts.search",
+    "description": "Kontakte nach Name, E-Mail, Telefon oder Organisation suchen",
+    "command": "./scripts/assistant.sh contacts search --query \"<Suchbegriff>\" --limit 50",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
+    "id": "nextcloud.contacts.update",
+    "description": "Einen zuvor eindeutig gesuchten Kontakt per UID nach ausdruecklichem Nutzerauftrag ETag-geschuetzt aktualisieren; kein Loeschen oder Merge",
+    "command": "./scripts/assistant.sh contacts update --uid \"<UID>\" --expected-name \"<aktueller Name>\" --phone \"<neue Telefonnummer>\" --yes",
+    "mode": "write",
+    "writes_external_data": true,
+    "approval": "explicit-user-contact-update-etag-guarded"
+  },
+  {
+    "id": "nextcloud.contacts.create",
+    "description": "Neuen Kontakt nach ausdruecklichem Nutzerauftrag create-only anlegen; bestehende Kontakte werden nicht veraendert",
+    "command": "./scripts/assistant.sh contacts create --name \"<Name>\" --email \"<E-Mail>\" --phone \"<Telefon>\" --organization \"<Firma>\" --yes",
+    "mode": "write",
+    "writes_external_data": true,
+    "approval": "explicit-user-contact-create-only"
+  },
+  {
+    "id": "nextcloud.contacts.from-mail-preview",
+    "description": "Absender und konservativ erkannte Signaturdaten einer eindeutig ausgewaehlten Mail als Kontaktvorschlag pruefen",
+    "command": "./scripts/assistant.sh contacts from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --dry-run",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
+    "id": "nextcloud.contacts.from-mail-create",
+    "description": "Kontakt aus einer eindeutig ausgewaehlten Mail nach Vorschau und ausdruecklichem Nutzerauftrag create-only anlegen",
+    "command": "./scripts/assistant.sh contacts from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --yes",
+    "mode": "write",
+    "writes_external_data": true,
+    "approval": "explicit-user-contact-from-mail-create-only"
+  },
+  {
+    "id": "nextcloud.deck.orders.status",
+    "description": "Nextcloud Deck-Bestellboard, Rechte und lokale Bestelldatenbank pruefen",
+    "command": "./scripts/assistant.sh orders status",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
+    "id": "nextcloud.deck.orders.list",
+    "description": "Laufende Bestellungen mit Status, Liefertermin, Tracking und Retouren ausgeben",
+    "command": "./scripts/assistant.sh orders list --limit 100",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
+    "id": "nextcloud.deck.discover",
+    "description": "Verfuegbare Nextcloud Deck-Boards read-only auflisten",
+    "command": "./scripts/assistant.sh deck discover",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
+    "id": "mail.orders.import",
+    "description": "Bereits lokal indexierte Mails kontrolliert auf laufende Bestellungen nachklassifizieren",
+    "command": "./scripts/assistant.sh mail orders-import --limit 500 --dry-run",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
+    "id": "nextcloud.deck.orders.sync",
+    "description": "Ausstehende Aktualisierungen agentenverwalteter Bestellkarten nach Nextcloud Deck synchronisieren",
+    "command": "./scripts/assistant.sh orders sync --limit 500",
+    "mode": "write",
+    "writes_external_data": true,
+    "approval": "managed-order-cards-only"
+  },
+  {
+    "id": "nextcloud.deck.orders.due-date-preview",
+    "description": "Agentenverwaltete Bestellkarten ohne Faelligkeitsdatum read-only pruefen und plausible Quellen anzeigen",
+    "command": "./scripts/assistant.sh orders due-date-backfill --limit 500 --dry-run",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
+    "id": "nextcloud.deck.orders.due-date-backfill",
+    "description": "Fehlende Faelligkeitsdaten agentenverwalteter Bestellkarten nach ausdruecklichem Auftrag ergaenzen",
+    "command": "./scripts/assistant.sh orders due-date-backfill --limit 500 --yes",
+    "mode": "write",
+    "writes_external_data": true,
+    "approval": "managed-order-cards-missing-due-only"
+  },
+  {
     "id": "mail.invoice-archive",
+    "description": "Virengepruefte Rechnungs-PDFs create-only archivieren und bei konfiguriertem Rechnungsworkflow das verwaltete Jahresregister ETag-geschuetzt synchronisieren",
+    "command": "./scripts/assistant.sh mail run --limit 20",
     "mode": "write",
-    "writes_external_data": true
+    "writes_external_data": true,
+    "approval": "configured-invoice-archive-and-managed-register-sync"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh invoices status",
-    "description": "Rechnungs-OCR, Abhaengigkeiten, Jahresregister und offene Prueffaelle anzeigen",
     "id": "assistant.invoices.status",
+    "description": "Rechnungs-OCR, Abhaengigkeiten, Jahresregister und offene Prueffaelle anzeigen",
+    "command": "./scripts/assistant.sh invoices status",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh invoices files --limit 100",
-    "description": "Archivierte Rechnungsdateien aus dem konfigurierten Rechnungsordner read-only ueber den nativen Nextcloud-WebDAV-Connector auflisten",
     "id": "assistant.invoices.files",
+    "description": "Archivierte Rechnungsdateien aus dem konfigurierten Rechnungsordner read-only ueber den nativen Nextcloud-WebDAV-Connector auflisten",
+    "command": "./scripts/assistant.sh invoices files --limit 100",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh invoices audit",
-    "description": "Rechnungsbestand, Pflichtfeldluecken, Plausibilitaetsfehler, Extraktorversionen und Review-Pfadabweichungen ohne Dokumentinhalte aggregiert anzeigen",
     "id": "assistant.invoices.audit",
+    "description": "Rechnungsbestand, Pflichtfeldluecken, Plausibilitaetsfehler, Extraktorversionen und Review-Pfadabweichungen ohne Dokumentinhalte aggregiert anzeigen",
+    "command": "./scripts/assistant.sh invoices audit",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh invoices list --year <YYYY> --limit 100",
-    "description": "Erkannte Rechnungsmetadaten eines Jahres ohne PDF-Inhalt anzeigen",
     "id": "assistant.invoices.list",
+    "description": "Erkannte Rechnungsmetadaten eines Jahres ohne PDF-Inhalt anzeigen",
+    "command": "./scripts/assistant.sh invoices list --year <YYYY> --limit 100",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh invoices review --limit 100",
-    "description": "Unsichere Rechnungsdaten mit Hash und Erkennungsquelle zur Korrektur auflisten",
     "id": "assistant.invoices.review",
+    "description": "Unsichere Rechnungsdaten mit Hash und Erkennungsquelle zur Korrektur auflisten",
+    "command": "./scripts/assistant.sh invoices review --limit 100",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh invoices export --year <YYYY> --dry-run",
-    "description": "Jahresregister schreibfrei im Speicher rendern; SQLite und Nextcloud bleiben unveraendert",
     "id": "assistant.invoices.export",
+    "description": "Jahresregister schreibfrei im Speicher rendern; SQLite und Nextcloud bleiben unveraendert",
+    "command": "./scripts/assistant.sh invoices export --year <YYYY> --dry-run",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "explicit-user-managed-register-replace",
-    "command": "./scripts/assistant.sh invoices export --year <YYYY> --yes",
-    "description": "Verwaltetes Jahresregister nach ausdruecklichem Nutzerauftrag mit ETag-, SHA- und Schemaschutz in Nextcloud anlegen oder bedingt ersetzen",
     "id": "assistant.invoices.export-nextcloud",
+    "description": "Verwaltetes Jahresregister nach ausdruecklichem Nutzerauftrag mit ETag-, SHA- und Schemaschutz in Nextcloud anlegen oder bedingt ersetzen",
+    "command": "./scripts/assistant.sh invoices export --year <YYYY> --yes",
     "mode": "write",
-    "writes_external_data": true
+    "writes_external_data": true,
+    "approval": "explicit-user-managed-register-replace"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh invoices backfill --year <YYYY> --limit 500 --dry-run",
-    "description": "Archivierte Rechnungs-PDFs eines Jahres nur lesen und auswerten; SQLite und Nextcloud bleiben unveraendert",
     "id": "assistant.invoices.backfill-preview",
+    "description": "Archivierte Rechnungs-PDFs eines Jahres nur lesen und auswerten; SQLite und Nextcloud bleiben unveraendert",
+    "command": "./scripts/assistant.sh invoices backfill --year <YYYY> --limit 500 --dry-run",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "explicit-user-backfill-and-managed-register-replace",
-    "command": "./scripts/assistant.sh invoices backfill --year <YYYY> --limit 500 --yes",
-    "description": "Archivierte Rechnungs-PDFs nach ausdruecklichem Nutzerauftrag neu auswerten, SQLite aendern und verwaltete Nextcloud-Jahresregister bedingt ersetzen",
     "id": "assistant.invoices.backfill",
+    "description": "Archivierte Rechnungs-PDFs nach ausdruecklichem Nutzerauftrag neu auswerten, SQLite aendern und verwaltete Nextcloud-Jahresregister bedingt ersetzen",
+    "command": "./scripts/assistant.sh invoices backfill --year <YYYY> --limit 500 --yes",
     "mode": "write",
-    "writes_external_data": true
+    "writes_external_data": true,
+    "approval": "explicit-user-backfill-and-managed-register-replace"
   },
   {
-    "approval": "none",
-    "command": "./scripts/assistant.sh invoices reprocess --status \"<review|unclassified>\" --source-year <YYYY> --limit 100 --dry-run",
-    "description": "Exakt review oder unklassifiziert markierte Rechnungen eines eindeutigen Quelljahres read-only neu bewerten und mit Alt/Neu-Evidenz sowie Vorschau-Digest anzeigen",
     "id": "assistant.invoices.reprocess-preview",
+    "description": "Exakt review oder unklassifiziert markierte Rechnungen eines eindeutigen Quelljahres read-only neu bewerten und mit Alt/Neu-Evidenz sowie Vorschau-Digest anzeigen",
+    "command": "./scripts/assistant.sh invoices reprocess --status \"<review|unclassified>\" --source-year <YYYY> --limit 100 --dry-run",
     "mode": "read",
-    "writes_external_data": false
+    "writes_external_data": false,
+    "approval": "none"
   },
   {
-    "approval": "explicit-user-single-invoice-reprocess",
-    "command": "./scripts/assistant.sh invoices reprocess-apply --hash \"<SHA256>\" --expected-preview-sha256 \"<Digest>\" --yes",
-    "description": "Genau einen unveraenderten, eindeutig verbesserten Reprocessing-Vorschlag nach explizitem Nutzerauftrag uebernehmen und betroffene verwaltete Jahresregister bedingt synchronisieren",
     "id": "assistant.invoices.reprocess-apply",
+    "description": "Genau einen unveraenderten, eindeutig verbesserten Reprocessing-Vorschlag nach explizitem Nutzerauftrag uebernehmen und betroffene verwaltete Jahresregister bedingt synchronisieren",
+    "command": "./scripts/assistant.sh invoices reprocess-apply --hash \"<SHA256>\" --expected-preview-sha256 \"<Digest>\" --yes",
     "mode": "write",
-    "writes_external_data": true
+    "writes_external_data": true,
+    "approval": "explicit-user-single-invoice-reprocess"
   },
   {
-    "approval": "explicit-user-correction-and-managed-register-replace",
-    "command": "./scripts/assistant.sh invoices correct --hash <SHA256> --date <YYYY-MM-DD> --number \"<Nr>\" --supplier \"<Steller>\" --category \"<Kategorie>\" --gross \"<Betrag>\" --yes",
-    "description": "Rechnungsmetadaten nach ausdruecklichem Nutzerauftrag in SQLite korrigieren und betroffene Nextcloud-Jahresregister bedingt ersetzen",
     "id": "assistant.invoices.correct",
+    "description": "Rechnungsmetadaten nach ausdruecklichem Nutzerauftrag in SQLite korrigieren und betroffene Nextcloud-Jahresregister bedingt ersetzen",
+    "command": "./scripts/assistant.sh invoices correct --hash <SHA256> --date <YYYY-MM-DD> --number \"<Nr>\" --supplier \"<Steller>\" --category \"<Kategorie>\" --gross \"<Betrag>\" --yes",
     "mode": "write",
-    "writes_external_data": true
+    "writes_external_data": true,
+    "approval": "explicit-user-correction-and-managed-register-replace"
   },
   {
-    "approval": "trusted-owner-command",
-    "command": "Subject: [ASSISTENT TERMIN] <Terminbeschreibung>",
-    "description": "Termin aus einer autorisierten Befehlsmail in den konfigurierten Nextcloud-Kalender eintragen",
     "id": "mail.calendar-command",
+    "description": "Termin aus einer autorisierten Befehlsmail in den konfigurierten Nextcloud-Kalender eintragen",
+    "command": "Subject: [ASSISTENT TERMIN] <Terminbeschreibung>",
     "mode": "write",
-    "writes_external_data": true
+    "writes_external_data": true,
+    "approval": "trusted-owner-command"
   }
 ]

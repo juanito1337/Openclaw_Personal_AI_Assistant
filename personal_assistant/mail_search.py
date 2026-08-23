@@ -11,6 +11,7 @@ from datetime import UTC, date, datetime, timedelta
 from html.parser import HTMLParser
 from typing import Any
 
+from .contracts.mail_index_authority import MailSearchEvidence
 from .mail_threads import MAIL_RETRIEVAL_TEXT_VERSION, MAIL_THREAD_VERSION
 
 MAIL_SEARCH_QUERY_VERSION = "mail-query-v1"
@@ -1090,15 +1091,37 @@ class MailLexicalSearch:
                 )
         index_state = self._index_state(max_age_seconds=max_age_seconds)
         latency_ms = round((time.perf_counter() - started) * 1000.0, 3)
+        truncated = (
+            matched_chunks > MAX_MATCHED_CHUNKS
+            or matched_documents > MAX_RANKED_DOCUMENTS
+        )
+        complete = bool(index_state.get("absence_proven"))
+        decision = MailSearchEvidence(
+            len(results),
+            complete,
+            bool(index_state.get("authoritative")),
+            bool(index_state.get("fresh")),
+            (),
+            (),
+            truncated,
+        ).to_contract()
         return {
+            **decision,
             "ok": True,
             "path": "local-mail-lexical",
             "read_only": True,
-            "complete": bool(index_state.get("absence_proven")),
-            "results_may_be_truncated": (
-                matched_chunks > MAX_MATCHED_CHUNKS
-                or matched_documents > MAX_RANKED_DOCUMENTS
-            ),
+            "complete": complete,
+            "coverage": {
+                "authoritative": bool(index_state.get("authoritative")),
+                "complete": bool(index_state.get("complete")),
+            },
+            "freshness": {
+                "fresh": bool(index_state.get("fresh")),
+                "age_seconds": index_state.get("age_seconds"),
+            },
+            "folder_errors": [],
+            "filter_limitations": [],
+            "results_may_be_truncated": truncated,
             "count": len(results),
             "results": results,
             "index": index_state,

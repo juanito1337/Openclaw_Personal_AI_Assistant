@@ -27,6 +27,7 @@ def _resolve_path(value: str | Path, base: Path = WORKSPACE_ROOT) -> Path:
 class MailboxConfig:
     himalaya_binary: str = "himalaya"
     account: str = ""
+    index_connector: str = "native-imap-readonly"
     source_folder: str = "INBOX"
     quarantine_folders: list[str] = field(default_factory=lambda: ["Spam"])
     quarantine_max_per_run: int = 10
@@ -271,6 +272,10 @@ def _validate_config(config: Config) -> None:
         return text
 
     safe_text(config.mailbox.himalaya_binary, "mailbox.himalaya_binary")
+    require(
+        config.mailbox.index_connector in {"native-imap-readonly", "himalaya-bounded"},
+        "mailbox.index_connector muss native-imap-readonly oder himalaya-bounded sein",
+    )
     source_folder = safe_text(config.mailbox.source_folder, "mailbox.source_folder")
     quarantine_folders = [
         safe_text(folder, f"mailbox.quarantine_folders[{index}]")

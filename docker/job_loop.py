@@ -58,7 +58,9 @@ def config(
         ]
         return (
             [
-                "python3", "-P", "-m", "personal_assistant.mail_worker", "--", *productive,
+                "python3", "-P", "-m", "personal_assistant.mail_owner_cycle",
+                "--image-root", str(image_root),
+                "--", "python3", "-P", "-m", "personal_assistant.mail_worker", "--", *productive,
             ],
             int(os.environ.get("MAIL_INTERVAL_SECONDS", "1200")),
             int(os.environ.get("MAIL_INITIAL_DELAY_SECONDS", "120")),

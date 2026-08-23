@@ -6,6 +6,7 @@ import time
 from collections.abc import Callable
 from typing import Any, Protocol
 
+from .contracts.mail_index_authority import MailSearchEvidence
 from .mail_embeddings import EmbeddingModel, OllamaCoordinatorEmbeddingClient
 from .mail_search import (
     MAX_THREAD_CONTEXT,
@@ -194,7 +195,18 @@ class MailHybridSearch:
             results.append(result)
         complete = bool(base.get("complete")) and not limitations
         folder_errors = list(base.get("folder_errors") or [])
+        truncated = bool(base.get("results_may_be_truncated"))
+        decision = MailSearchEvidence(
+            len(results),
+            complete,
+            bool(base.get("complete")),
+            True,
+            tuple(str(item) for item in folder_errors),
+            tuple(limitations),
+            truncated,
+        ).to_contract()
         return {
+            **decision,
             "ok": bool(base.get("ok")),
             "path": "server-mail-search",
             "backend": "server",
@@ -218,7 +230,7 @@ class MailHybridSearch:
             "fallback_reason": fallback_reason,
             "folder_errors": folder_errors,
             "filter_limitations": limitations,
-            "results_may_be_truncated": bool(base.get("results_may_be_truncated")),
+            "results_may_be_truncated": truncated,
             "search_scope": dict(base.get("search_scope") or {}),
             "metadata_fallback": dict(base.get("metadata_fallback") or {}),
             "count": len(results),
@@ -660,24 +672,40 @@ class MailHybridSearch:
         semantic_state = str(semantic.get("state") or semantic_configuration)
         folder_error_value = locator_result.get("folder_errors")
         folder_errors = folder_error_value if isinstance(folder_error_value, list) else []
+        truncated = bool(lexical.get("results_may_be_truncated"))
+        freshness_value = index_status.get("freshness")
+        freshness = freshness_value if isinstance(freshness_value, dict) else {}
+        coverage_value = index_status.get("coverage")
+        coverage = coverage_value if isinstance(coverage_value, dict) else {}
+        decision = MailSearchEvidence(
+            len(results),
+            complete,
+            bool(coverage.get("authoritative")),
+            bool(freshness.get("fresh")),
+            tuple(str(item) for item in folder_errors),
+            (),
+            truncated,
+        ).to_contract()
         lexical_metrics_value = lexical.get("metrics")
         semantic_metrics_value = semantic.get("metrics")
         locator_metrics_value = locator_result.get("backend_calls")
         return {
+            **decision,
             "ok": bool(lexical.get("ok")),
             "path": "local-mail-hybrid",
             "backend": "local-hybrid",
             "mode": mode,
             "read_only": True,
             "complete": complete,
-            "coverage": dict(index_status.get("coverage") or {}),
-            "freshness": dict(index_status.get("freshness") or {}),
+            "coverage": dict(coverage),
+            "freshness": dict(freshness),
             "index_generation": str(index_status.get("generation") or ""),
             "semantic_state": semantic_state,
             "fallback_used": False,
             "fallback_reason": [],
             "folder_errors": folder_errors,
-            "results_may_be_truncated": bool(lexical.get("results_may_be_truncated")),
+            "filter_limitations": [],
+            "results_may_be_truncated": truncated,
             "count": len(results),
             "results": results,
             "messages": results,

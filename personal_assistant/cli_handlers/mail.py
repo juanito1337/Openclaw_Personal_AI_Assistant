@@ -61,7 +61,13 @@ def run_external(args: argparse.Namespace) -> int:
             command.append("--yes")
     elif args.mail_command == "index":
         command += ["index", args.index_command]
-        if args.index_command == "backfill":
+        if args.index_command == "capabilities":
+            if args.no_raw_probe:
+                command.append("--no-raw-probe")
+        elif args.index_command in {"backfill", "canary"}:
+            if args.index_command == "canary":
+                for folder in args.folder:
+                    command += ["--folder", folder]
             command += [
                 "--page-size",
                 str(args.page_size),
@@ -137,6 +143,8 @@ def handle(args: argparse.Namespace, assistant: Any, emit: Callable[[Any], None]
         result = assistant.mail_index_status()
     elif command == "index" and args.index_command == "doctor":
         result = assistant.mail_index_doctor()
+    elif command == "index" and args.index_command == "shadow":
+        result = assistant.mail_index_shadow(args.query, limit=args.limit)
     elif command == "move-status":
         result = assistant.mail_move_status()
     elif command == "list":

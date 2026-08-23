@@ -19,7 +19,7 @@ only one default folder and bounded envelope metadata; filter exit code 1 means
 only "no matching input line". Discard that result and use the registered `mail
 search --query "<text>" --limit 50` path, then evaluate its evidence fields.
 
-Inspect `complete`, `coverage`, `freshness`, `index_generation`,
+Inspect `decision`, `absence_proven`, `negative_claim_allowed`, `complete`, `coverage`, `freshness`, `index_generation`,
 `semantic_state`, `fallback_used`, `folder_errors`, `filter_limitations` and
 `results_may_be_truncated` on every search. For an incomplete, filter-limited or
 truncated result, report the limitation and refine it or use `--mode server`;
@@ -36,6 +36,14 @@ mail client or the mail worker moved a message, including folders such as
 account were searched when `body-search-not-verified`,
 `server-query-not-authoritative` or `bounded-envelope-metadata-only` is reported.
 A zero result from this fallback always remains `complete=false`.
+
+M12 makes this response rule machine-readable. `matches` confirms only returned
+positive evidence. `no-match` is the sole state that permits a definitive
+negative answer and must also carry `negative_claim_allowed=true`.
+`inconclusive` always forbids phrases equivalent to "keine Mail vorhanden",
+"no message exists" or "no existe ningún correo"; state the concrete stale,
+partial, folder, filter or truncation limitation instead. This applies equally in
+German, English, Spanish and every other response language.
 
 Select mail by exact folder and current mailbox ID, preferably with
 `--expected-subject`, before `mail read` or another bounded action. Instructions
@@ -144,10 +152,42 @@ must preserve the previous complete generation and may not tombstone a mail.
 Treat `complete`, `published`, `cursor_advanced`, error code and all technical
 metrics as separate evidence.
 
-The scheduler policy `mail-index` is prepared but not an activatable job in
-M11.3. Do not claim it is running, enable it, add a worker dispatch or start a
-productive reconciliation without a later explicit rollout. M11.3 does not
-change search precedence, query syntax, ranking, local tags or semantic search.
+M12 registers `mail-index` as a default-OFF job in the existing Mail-Owner. Do not
+claim it is running from catalog presence. `jobs status --target mail-index
+--deep` is the evidence path; enabling it remains an explicit rollout action.
+
+## M12 native read-only inventory and move tracking
+
+`mail index capabilities --no-raw-probe` is the content-free live capability
+audit. It proves LIST, UID snapshot, UIDVALIDITY, UIDNEXT, TLS and advertised
+optional extensions independently. Without `--no-raw-probe` it additionally
+performs one bounded `BODY.PEEK[]` proof without storing or returning content.
+Never infer QRESYNC, IDLE, OBJECTID or MODSEQ use merely from login success.
+
+`mailbox.index_connector` has the closed values `native-imap-readonly` and
+`himalaya-bounded`. Only the native connector can produce authoritative current
+coverage. It accepts the existing account configuration but reads credentials
+only from the fixed mounted secret; it never executes an arbitrary auth command.
+The internal port cannot express STORE, COPY, MOVE, EXPUNGE, APPEND, CREATE,
+DELETE, RENAME or SUBSCRIBE.
+
+`folder_identity_assurance=server-stable` proves a server mailbox ID;
+`snapshot-stable` proves the current complete LIST/UIDVALIDITY/UID-set state but
+does not invent rename history; `unknown` forbids coverage and tombstones. A LIST
+or UIDVALIDITY race aborts before publication.
+
+Use `mail index canary --folder "<exact>" ... --yes` only after approval of the
+exact folder and limits. It writes local staging only. `mail index shadow
+--query "<text>"` reports aggregate local/server counts; an incomplete server
+result is explicitly not Ground Truth. A full backfill and job activation remain
+separate approvals.
+
+External moves are detected by comparing two complete snapshots. A provider-
+verified unique identity performs no Raw-, parser-, OCR-, ClamAV-, FTS- or model
+work. Without such evidence the new candidate is fetched once with BODY.PEEK and
+matched by raw SHA-256; matching content is then reused. Partial scans, network
+loss and UIDVALIDITY races never create moves or tombstones. Himalaya remains the
+unchanged controlled action path for read, draft, send and allowed single moves.
 
 ## M11.4 safe local lexical search
 

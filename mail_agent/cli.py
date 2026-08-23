@@ -22,7 +22,8 @@ from .assistant_bridge import PersonalAssistantActionBridge
 from .command import CommandRunner
 from .config import Config, load_config
 from .envfile import default_env_file, load_env_file
-from .himalaya import HimalayaClient
+from .imap_inventory import native_backend
+from .index_backend import backfill_backend, reconcile_backend
 from .invoice_extract import InvoiceExtractor, amount_to_cents
 from .invoice_register import InvoiceRegister
 from .invoice_reprocess import ReadOnlyInvoicePdfReader, run_reprocess_preview
@@ -33,9 +34,8 @@ from .lock import ProcessLock, ProcessLockError, inspect_process_lock
 from .models import ParsedMessage
 from .nextcloud import NextcloudSkillClient, NextcloudSkillError
 from .nextcloud_setup import interactive_nextcloud_setup
-from .search_backfill import BackfillLimits, HimalayaBackfillBackend, MailSearchBackfill
+from .search_backfill import BackfillLimits, MailSearchBackfill
 from .search_reconcile import (
-    HimalayaReconcileBackend,
     MailSearchReconciler,
     ReconcileLimits,
 )
@@ -143,6 +143,12 @@ def build_parser() -> argparse.ArgumentParser:
     folders_activate.add_argument("--yes", action="store_true")
     index = sub.add_parser("index", help="Vollkonto-Suchprojektion planen oder lokal aufbauen")
     index_sub = index.add_subparsers(dest="index_command", required=True)
+    index_capabilities = index_sub.add_parser(
+        "capabilities", help="Read-only IMAP-Faehigkeiten inhaltsfrei pruefen"
+    )
+    index_capabilities.add_argument(
+        "--no-raw-probe", action="store_true", help="Keinen BODY.PEEK-Nachweis abrufen"
+    )
     index_sub.add_parser("plan", help="Ordner und Connectorfaehigkeiten read-only inventarisieren")
     index_backfill = index_sub.add_parser(
         "backfill", help="Begrenzten lokalen Read-only-Backfill explizit ausfuehren"
@@ -155,6 +161,18 @@ def build_parser() -> argparse.ArgumentParser:
     index_backfill.add_argument("--max-runtime", type=float, default=3600.0)
     index_backfill.add_argument("--request-interval", type=float, default=0.2)
     index_backfill.add_argument("--yes", action="store_true")
+    index_canary = index_sub.add_parser(
+        "canary", help="Explizit gewaehlten Ordner begrenzt in lokales Staging indexieren"
+    )
+    index_canary.add_argument("--folder", action="append", required=True)
+    index_canary.add_argument("--page-size", type=int, default=20)
+    index_canary.add_argument("--max-pages", type=int, default=5)
+    index_canary.add_argument("--max-messages", type=int, default=100)
+    index_canary.add_argument("--max-bytes", type=int, default=100000000)
+    index_canary.add_argument("--max-message-bytes", type=int, default=25000000)
+    index_canary.add_argument("--max-runtime", type=float, default=600.0)
+    index_canary.add_argument("--request-interval", type=float, default=0.2)
+    index_canary.add_argument("--yes", action="store_true")
     index_reconcile = index_sub.add_parser(
         "reconcile", help="Autoritative inkrementelle Mailprojektion lokal abgleichen"
     )
@@ -1388,6 +1406,29 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "index":
+        if args.index_command == "capabilities":
+            try:
+                with native_backend(config) as backend:
+                    payload = backend.capability_probe(
+                        probe_raw_fetch=not bool(args.no_raw_probe)
+                    )
+                print(json.dumps(payload, indent=2, ensure_ascii=False))
+                return 0 if payload.get("ok") else 1
+            except Exception:
+                logging.getLogger(__name__).exception("IMAP-Capability-Probe fehlgeschlagen")
+                print(
+                    json.dumps(
+                        {
+                            "ok": False,
+                            "connector": "native-imap-readonly",
+                            "read_only": True,
+                            "writes_imap": False,
+                            "error": {"category": "configuration-or-connection"},
+                        },
+                        indent=2,
+                    )
+                )
+                return 1
         if args.index_command == "reconcile":
             reconcile_limits = ReconcileLimits(
                 max_folders=int(args.max_folders),
@@ -1400,9 +1441,6 @@ def main(argv: list[str] | None = None) -> int:
             ).validated()
             state_root = config.runtime.database.parent / "search_backfill_v2"
             runner = CommandRunner(config.runtime.command_timeout_seconds)
-            reconcile_backend = HimalayaReconcileBackend(
-                HimalayaBackfillBackend(HimalayaClient(config, runner, dry_run=True))
-            )
             reconcile_antivirus: HostAntivirus | None = None
             reconcile_tags: LocalMailTagResolver | None = None
             try:
@@ -1419,19 +1457,20 @@ def main(argv: list[str] | None = None) -> int:
                     )
                 reconcile_antivirus = HostAntivirus(settings)
                 reconcile_tags = LocalMailTagResolver(config.runtime.database)
-                reconciler = MailSearchReconciler(
-                    reconcile_backend,
-                    reconcile_antivirus,
-                    projection_root=state_root / "projection",
-                    state_path=config.runtime.database.parent
-                    / "search_reconcile_v3"
-                    / "state.json",
-                    quarantine_folders=tuple(config.mailbox.quarantine_folders),
-                    limits=reconcile_limits,
-                    tag_resolver=reconcile_tags.resolve,
-                )
-                with ProcessLock(config.runtime.lock_file):
-                    payload = reconciler.run(approved=bool(args.yes))
+                with reconcile_backend(config, runner) as selected_backend:
+                    reconciler = MailSearchReconciler(
+                        selected_backend,
+                        reconcile_antivirus,
+                        projection_root=state_root / "projection",
+                        state_path=config.runtime.database.parent
+                        / "search_reconcile_v3"
+                        / "state.json",
+                        quarantine_folders=tuple(config.mailbox.quarantine_folders),
+                        limits=reconcile_limits,
+                        tag_resolver=reconcile_tags.resolve,
+                    )
+                    with ProcessLock(config.runtime.lock_file):
+                        payload = reconciler.run(approved=bool(args.yes))
                 print(json.dumps(payload, indent=2, ensure_ascii=False))
                 return 0 if payload.get("ok") else 1
             except (ValueError, PermissionError, ProcessLockError) as exc:
@@ -1457,11 +1496,10 @@ def main(argv: list[str] | None = None) -> int:
         ).validated()
         state_root = config.runtime.database.parent / "search_backfill_v2"
         runner = CommandRunner(config.runtime.command_timeout_seconds)
-        backend = HimalayaBackfillBackend(HimalayaClient(config, runner, dry_run=True))
         antivirus: HostAntivirus | None = None
         search_tags: LocalMailTagResolver | None = None
         try:
-            if args.index_command == "backfill":
+            if args.index_command in {"backfill", "canary"}:
                 tools = load_tool_settings()
                 settings = tools.security.antivirus
                 if not (
@@ -1475,20 +1513,22 @@ def main(argv: list[str] | None = None) -> int:
                     )
                 antivirus = HostAntivirus(settings)
                 search_tags = LocalMailTagResolver(config.runtime.database)
-            crawler = MailSearchBackfill(
-                backend,
-                antivirus,
-                projection_root=state_root / "projection",
-                checkpoint_path=state_root / "checkpoint.json",
-                quarantine_folders=tuple(config.mailbox.quarantine_folders),
-                limits=limits,
-                tag_resolver=search_tags.resolve if search_tags is not None else None,
-            )
-            if args.index_command == "plan":
-                payload = crawler.plan()
-            else:
-                with ProcessLock(config.runtime.lock_file):
-                    payload = crawler.run(approved=bool(args.yes))
+            with backfill_backend(config, runner) as selected_backend:
+                crawler = MailSearchBackfill(
+                    selected_backend,
+                    antivirus,
+                    projection_root=state_root / "projection",
+                    checkpoint_path=state_root / "checkpoint.json",
+                    quarantine_folders=tuple(config.mailbox.quarantine_folders),
+                    limits=limits,
+                    tag_resolver=search_tags.resolve if search_tags is not None else None,
+                    include_folders=tuple(getattr(args, "folder", ()) or ()),
+                )
+                if args.index_command == "plan":
+                    payload = crawler.plan()
+                else:
+                    with ProcessLock(config.runtime.lock_file):
+                        payload = crawler.run(approved=bool(args.yes))
             print(json.dumps(payload, indent=2, ensure_ascii=False))
             return 0 if payload.get("ok") else 1
         except (ValueError, PermissionError, ProcessLockError) as exc:

@@ -393,9 +393,11 @@ class ImmutableRuntimeTests(unittest.TestCase):
         )
         command = json.loads(result.stdout)
         self.assertEqual(
-            command[:6],
-            ["python3", "-P", "-m", "personal_assistant.mail_worker", "--", "/image/scripts/mail-agent.sh"],
+            command[:4],
+            ["python3", "-P", "-m", "personal_assistant.mail_owner_cycle"],
         )
+        self.assertIn("personal_assistant.mail_worker", command)
+        self.assertIn("/image/scripts/mail-agent.sh", command)
         self.assertIn("production-check", (self.root / "personal_assistant/mail_worker.py").read_text())
         self.assertNotIn("/state/workspace", " ".join(command))
 

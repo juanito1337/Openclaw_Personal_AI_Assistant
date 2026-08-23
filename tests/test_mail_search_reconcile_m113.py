@@ -617,6 +617,8 @@ def test_tool_cli_scheduler_and_approval_contract(monkeypatch: pytest.MonkeyPatc
         policy = scheduler.policy("mail-index")
         assert policy.topic == "knowledge"
         assert policy.max_runtime_seconds == 3600
-        assert "mail-index" not in {item.name for item in default_job_specs()}
+        index_job = {item.name: item for item in default_job_specs()}["mail-index"]
+        assert index_job.default_on is False
+        assert index_job.service_unit == "mail-agent.service"
     finally:
         scheduler.close()

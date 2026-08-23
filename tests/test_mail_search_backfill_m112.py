@@ -178,6 +178,7 @@ def _crawler(
     *,
     limits: BackfillLimits | None = None,
     after_partition=None,
+    include_folders: tuple[str, ...] = (),
 ) -> MailSearchBackfill:
     return MailSearchBackfill(
         backend,
@@ -187,6 +188,7 @@ def _crawler(
         quarantine_folders=("Spamverdacht",),
         limits=limits or BackfillLimits(page_size=2, request_interval_seconds=0),
         after_partition=after_partition,
+        include_folders=include_folders,
     )
 
 
@@ -412,6 +414,27 @@ def test_backfill_requires_explicit_approval_and_catalog_contract(tmp_path: Path
     assert catalog["mail.index.backfill"].mode == "local-write"
     assert catalog["mail.index.backfill"].approval == "explicit-user-local-mail-index-backfill"
     assert catalog["mail.index.backfill"].writes_external_data is False
+    assert catalog["mail.index.canary"].approval == "explicit-user-local-mail-index-canary"
+
+
+def test_canary_indexes_only_exact_selected_folder_and_rejects_missing_folder(
+    tmp_path: Path,
+) -> None:
+    backend = FakeImap(
+        {"INBOX": [_mail(1, message_id="inbox@test")], "Archive": [_mail(2, message_id="archive@test")]}
+    )
+    plan = _crawler(tmp_path, backend, include_folders=("Archive",)).plan()
+    assert plan["folder_count"] == 1
+    assert [item["name"] for item in plan["folders"]] == ["Archive"]
+    assert plan["execution_policy"]["initial_scan"] == "bounded-folder-canary"
+
+    result = _crawler(tmp_path, backend, include_folders=("Archive",)).run(approved=True)
+    assert result["complete"] is True
+    assert {folder for folder, _page, _size in backend.page_calls} == {"Archive"}
+
+    with pytest.raises(BackfillBackendError) as raised:
+        _crawler(tmp_path / "missing", backend, include_folders=("Nicht da",)).plan()
+    assert raised.value.kind == "canary-folder-missing"
 
 
 def test_stable_assistant_cli_forwards_bounded_backfill(monkeypatch: pytest.MonkeyPatch) -> None:

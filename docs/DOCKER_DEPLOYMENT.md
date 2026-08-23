@@ -670,6 +670,30 @@ Vollbackfill, Automatik, Modell und inkrementellen Job jeweils separat freigeben
 Bei Verschlechterung wird auf Serversuche zurueckgeschaltet. Ein lokaler
 Image-/Indexrollback stellt keine externe Mail wieder her und behauptet dies nie.
 
+### M12 autoritativer IMAP-Canary und Job
+
+Eine grüne M12-Entwicklungs- oder Containerabnahme aktiviert weiterhin nichts.
+Nach Installation des signierten Testimages werden zunächst ausschließlich die
+read-only Belege erhoben:
+
+```bash
+docker compose --env-file .env --profile tools run --rm --no-deps agent-cli \
+  /opt/openclaw-agent/scripts/assistant.sh mail index capabilities --no-raw-probe
+docker compose --env-file .env --profile tools run --rm --no-deps agent-cli \
+  /opt/openclaw-agent/scripts/assistant.sh mail index plan
+docker compose --env-file .env --profile tools run --rm --no-deps agent-cli \
+  /opt/openclaw-agent/scripts/assistant.sh jobs status --target mail-index --deep
+```
+
+Erst nach separater Freigabe und verifiziertem Backup darf genau ein kleiner
+Ordner-Canary mit dem registrierten `mail index canary`-Befehl laufen. Vollbackfill
+und `jobs on mail-index` sind zwei weitere getrennte Freigaben. Der Job bleibt im
+Mail-Worker, teilt dessen Prozesslock und ist standardmäßig OFF; es wird kein
+zweiter Projektionswriter gestartet. Die genaue Stufenfolge, sieben Tage
+Beobachtung und Rollbackgrenze stehen in der
+[M12-Roadmap](MAIL_IMAP_RECONCILIATION_ROADMAP.md). Ein lokales Zurückrollen kann
+keine bereits extern verschobene oder entfernte Mail wiederherstellen.
+
 ### Erste M9-Mailordner-Aktivierung
 
 Eine vor M9 bestehende Mailkonfiguration besitzt noch kein `folders.relevant`.

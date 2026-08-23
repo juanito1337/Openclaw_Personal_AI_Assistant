@@ -36,6 +36,7 @@ class ConnectorCapabilities:
     qresync: bool = False
     idle: bool = False
     folder_stable_id: bool = False
+    folder_identity_assurance: str = "unknown"
     cursor_contract: str = "page-number"
 
     def to_dict(self) -> dict[str, Any]:
@@ -225,6 +226,7 @@ class MailSearchBackfill:
         sleep: Callable[[float], None] = time.sleep,
         after_partition: Callable[[str, int], None] | None = None,
         tag_resolver: Callable[[ParsedMessage], tuple[dict[str, Any], ...]] | None = None,
+        include_folders: tuple[str, ...] = (),
     ) -> None:
         self.backend = backend
         self.antivirus = antivirus
@@ -237,6 +239,21 @@ class MailSearchBackfill:
         self.sleep = sleep
         self.after_partition = after_partition
         self.tag_resolver = tag_resolver
+        self.include_folders = {item.casefold() for item in include_folders if item.strip()}
+
+    def _selected_folders(self, folders: list[BackfillFolder]) -> list[BackfillFolder]:
+        if not self.include_folders:
+            return folders
+        selected = [row for row in folders if row.name.casefold() in self.include_folders]
+        missing = sorted(
+            self.include_folders - {row.name.casefold() for row in selected}
+        )
+        if missing:
+            raise BackfillBackendError(
+                "canary-folder-missing",
+                "Mindestens ein explizit gewaehlter Canary-Ordner fehlt",
+            )
+        return selected
 
     def _load_checkpoint(self) -> dict[str, Any] | None:
         try:
@@ -262,7 +279,7 @@ class MailSearchBackfill:
 
     def plan(self) -> dict[str, Any]:
         capabilities = self.backend.capabilities()
-        folders = self.backend.inventory()
+        folders = self._selected_folders(self.backend.inventory())
         previous = self._load_checkpoint()
         previous_inventory = {
             str(row.get("folder_id")): str(row.get("name"))
@@ -313,7 +330,9 @@ class MailSearchBackfill:
             "capabilities": capabilities.to_dict(),
             "capability_issues": capability_issues,
             "execution_policy": {
-                "initial_scan": "bounded-full-scan",
+                "initial_scan": (
+                    "bounded-folder-canary" if self.include_folders else "bounded-full-scan"
+                ),
                 "delta_cursor_used": False,
                 "idle_used": False,
                 "fallback": capabilities.cursor_contract,
@@ -350,7 +369,7 @@ class MailSearchBackfill:
         capabilities = self.backend.capabilities()
         if not capabilities.paging or not capabilities.raw_fetch:
             raise RuntimeError("Connector belegt kein Paging und vollstaendiges Raw-Fetch")
-        folders = self.backend.inventory()
+        folders = self._selected_folders(self.backend.inventory())
         inventory = self._inventory_payload(folders)
         scanner_identity = self.antivirus.scanner_identity(refresh=False)
         fingerprint = self._fingerprint(inventory, capabilities, self.limits, scanner_identity)

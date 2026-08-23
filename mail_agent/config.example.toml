@@ -3,6 +3,7 @@
 
 [mailbox]
 himalaya_binary = "himalaya"
+index_connector = "native-imap-readonly"
 account = ""
 source_folder = "INBOX"
 quarantine_folders = ["Spam"]

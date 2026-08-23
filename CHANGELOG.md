@@ -2,12 +2,29 @@
 
 ## Unreleased
 
-- Planung/Mailindex: Die M12-Roadmap schliesst die nach M11 bewusst offene
-  Produktivluecke mit einem strikt read-only nativen IMAP-Inventory-Connector,
-  autoritativer Konto-Coverage, effizientem Move-/Copy-/Delete-Tracking,
-  maschinenfesten Negativaussagen und einem getrennten Canary-/Backfill-/Job-
-  Rollout. Die Roadmap allein aktiviert keinen Connector, verarbeitet keine
-  Produktivmail und veraendert weder `/srv/openclaw` noch Jobzustaende.
+- Mailindex/M12: Ein strikt read-only nativer IMAP-Inventory-Connector liefert
+  vollständige LIST-/UID-Snapshots, UIDVALIDITY, UIDNEXT, gezielte
+  `BODY.PEEK`-Nachweise und abgestufte Ordneridentität. Sein Port kann keine
+  IMAP-Schreiboperation ausdrücken; TLS, fester Secret-Mount, Laufzeitlimits und
+  inhaltsfreie Fehlerkategorien bleiben fail-closed.
+- Mailindex/M12: Backfill und Reconcile wählen den Connector typisiert. Ein
+  externer Move, Copy oder Delete wird aus vollständigen Snapshots abgeleitet;
+  bereits gescannter und geparster Inhalt bleibt erhalten. Ohne serverseitigen
+  Objektnachweis wird höchstens der neue Kandidat einmal gehasht, nicht erneut
+  klassifiziert, per OCR verarbeitet, in FTS aufgebaut oder eingebettet.
+- Mailindex/M12: Capability-Probe, enger Ordner-Canary, technischer
+  Shadowvergleich und der standardmäßig ausgeschaltete `mail-index`-Job sind
+  registrierte Werkzeuge. Der Job läuft nach gesonderter Aktivierung seriell im
+  vorhandenen Mail-Owner und besitzt eigenen Sollzustand und Heartbeat.
+- Agent/M12: Jede Hybrid- und lokale Mail-Suche liefert ein maschinenlesbares
+  Urteil `matches`, `no-match` oder `inconclusive`. Nur `no-match` erlaubt eine
+  definitive Negativaussage; Teilscan, Stale-Status, Filtergrenze, Ordnerfehler
+  oder Trunkierung verbieten sie explizit.
+- Abnahme/M12: CI führt zusätzlich eine isolierte native
+  Inventory-/Move-/Copy-/Delete-Integration im unveränderlichen Rollenimage aus.
+  Produktiver Capability-Probe, Canary, Vollbackfill und Jobstart bleiben
+  getrennte Betriebsstufen; diese Entwicklung verändert weder `/srv/openclaw`
+  noch ein produktives Postfach oder einen Jobzustand.
 
 - Container/ClamAV: Die weiterhin hart begrenzte Maintenance-Rolle erhaelt 2 GiB
   statt 512 MiB Arbeitsspeicher. Damit kann `freshclam` eine vollstaendige neue

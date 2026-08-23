@@ -108,6 +108,23 @@ registered `mail list`, `mail search` and `mail read` commands. Exit code 1 from
 shell filter is not proof that a mail is absent; after any such accidental call,
 discard its conclusion and run the registered search path.
 
+Every registered mail search returns `decision`, `absence_proven`,
+`negative_claim_allowed`, `complete`, `freshness`, `coverage`, `folder_errors`,
+`filter_limitations` and `results_may_be_truncated`. A definitive statement that
+no mail exists is allowed only for `decision=no-match` together with
+`negative_claim_allowed=true`. For `inconclusive`, report the exact coverage or
+filter limitation and the registered safe next step in every language; never
+translate it into a negative claim. `matches` proves only the returned positive
+evidence. A historical hit without a validated live locator cannot authorize a
+read, move, reply or sender-trust decision.
+
+The native M12 IMAP inventory connector is internal and strictly read-only. Its
+registered capability, plan, canary and reconcile tools do not expose a generic
+IMAP command. Do not call `imaplib`, open sockets or construct STORE/COPY/MOVE/
+EXPUNGE/APPEND/folder commands through shell. `mail-index` is a persistent but
+default-OFF job in the existing Mail-Owner; enabling or restarting it still
+requires the typed jobs approval and a separately accepted initial index.
+
 ## Authority and change boundaries
 
 Read-only diagnostics, resource discovery, bounded indexing/cache refresh and

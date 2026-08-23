@@ -102,6 +102,15 @@ def default_job_specs() -> tuple[JobSpec, ...]:
             ),
         ),
         JobSpec(
+            name="mail-index",
+            description="Gleicht den autoritativen read-only IMAP-Bestand beim einzigen Mail-Owner ab.",
+            timer_unit="mail-agent.timer",
+            service_unit="mail-agent.service",
+            default_on=False,
+            standard=False,
+            health_command=("scripts/assistant.sh", "mail", "index", "doctor"),
+        ),
+        JobSpec(
             name="monitor",
             description="Erfasst technische Performance, Datenfrische und Scheduler-Zustand.",
             timer_unit="personal-assistant-monitor.timer",
@@ -1049,7 +1058,8 @@ class JobController:
 
     def _container_activate(self, spec: JobSpec, *, restart: bool, run_now: bool) -> dict[str, Any]:
         self.container_status_dir.mkdir(parents=True, exist_ok=True)
-        wake = self.container_status_dir / f"{spec.name}.wake"
+        wake_name = "mail" if spec.name == "mail-index" else spec.name
+        wake = self.container_status_dir / f"{wake_name}.wake"
         if run_now or restart:
             wake.touch()
         return {
@@ -1264,7 +1274,8 @@ class JobController:
             self.state["desired"][spec.name] = False
             if self.container_mode:
                 self.container_status_dir.mkdir(parents=True, exist_ok=True)
-                wake = self.container_status_dir / f"{spec.name}.wake"
+                wake_name = "mail" if spec.name == "mail-index" else spec.name
+                wake = self.container_status_dir / f"{wake_name}.wake"
                 with suppress(FileNotFoundError):
                     wake.unlink()
                 actions.append({

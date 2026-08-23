@@ -33,7 +33,7 @@ from .search_backfill import (
 from .search_projection_v2 import PartitionedSearchSnapshotWriter
 from .utils import atomic_write_bytes, now_utc_iso
 
-STATE_SCHEMA = 1
+STATE_SCHEMA = 2
 
 
 @dataclass(frozen=True, slots=True)
@@ -275,8 +275,15 @@ class MailSearchReconciler:
             payload = _read_json(self.state_path)
         except FileNotFoundError:
             return {}
-        if payload.get("schema") != STATE_SCHEMA:
+        if payload.get("schema") not in {1, STATE_SCHEMA}:
             raise ValueError("Ungueltiger M11.3-Reconcile-State")
+        if payload.get("schema") == 1:
+            payload = {
+                **payload,
+                "schema": STATE_SCHEMA,
+                "folder_identity_assurance": "unknown",
+                "metrics": {},
+            }
         return payload
 
     def _write_state(
@@ -285,6 +292,8 @@ class MailSearchReconciler:
         generation: str,
         scanner_identity: str,
         cursors: dict[str, str],
+        folder_identity_assurance: str,
+        metrics: dict[str, Any],
     ) -> None:
         atomic_write_bytes(
             self.state_path,
@@ -294,6 +303,18 @@ class MailSearchReconciler:
                     "root_generation": generation,
                     "scanner_identity": scanner_identity,
                     "folder_cursors": dict(sorted(cursors.items())),
+                    "folder_identity_assurance": folder_identity_assurance,
+                    "metrics": {
+                        key: value
+                        for key, value in metrics.items()
+                        if key
+                        in {
+                            "seen", "new", "changed", "moved", "copied", "removed",
+                            "unchanged", "body_fetches", "bytes", "parser_calls",
+                            "ocr_calls", "clamav_calls", "model_calls", "fts_rows_changed",
+                            "embeddings_reused", "embeddings_new",
+                        }
+                    },
                     "updated_at": now_utc_iso(),
                 }
             ),
@@ -466,12 +487,15 @@ class MailSearchReconciler:
             and capabilities.raw_fetch
             and capabilities.uid
             and capabilities.uidvalidity
-            and capabilities.folder_stable_id
+            and (
+                capabilities.folder_stable_id
+                or capabilities.folder_identity_assurance != "unknown"
+            )
         )
         if not required:
             return self._failed(
                 "authoritative-connector-required",
-                "UID, UIDVALIDITY, stabile Ordner-ID, Paging und Raw-Fetch sind erforderlich",
+                "UID, UIDVALIDITY, belegte Snapshot-Identitaet, Paging und Raw-Fetch sind erforderlich",
                 metrics,
             )
         try:
@@ -487,7 +511,7 @@ class MailSearchReconciler:
         if any(not folder.folder_id or not folder.uidvalidity for folder in folders):
             return self._failed(
                 "authoritative-folder-identity-required",
-                "Jeder Ordner benoetigt stabile ID und UIDVALIDITY",
+                "Jeder Ordner benoetigt Snapshot-ID und UIDVALIDITY",
                 metrics,
             )
         state = self._state()
@@ -845,6 +869,8 @@ class MailSearchReconciler:
                 generation=str(previous_root["root_generation"]),
                 scanner_identity=scanner_identity,
                 cursors=cursors,
+                folder_identity_assurance=capabilities.folder_identity_assurance,
+                metrics=metrics,
             )
             return {
                 "ok": True,
@@ -894,6 +920,8 @@ class MailSearchReconciler:
             generation=verified.generation,
             scanner_identity=scanner_identity,
             cursors=cursors,
+            folder_identity_assurance=capabilities.folder_identity_assurance,
+            metrics=metrics,
         )
         self._event("after-cursor")
         return {

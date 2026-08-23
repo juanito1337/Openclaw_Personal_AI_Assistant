@@ -230,6 +230,9 @@ def test_fresh_complete_index_uses_local_hybrid_without_folderwise_server_search
     assert result["ok"] is True
     assert result["backend"] == "local-hybrid"
     assert result["complete"] is True
+    assert result["decision"] == "matches"
+    assert result["absence_proven"] is False
+    assert result["negative_claim_allowed"] is False
     assert result["fallback_used"] is False
     assert result["coverage"]["ratio"] == 1.0
     assert result["freshness"]["fresh"] is True
@@ -288,6 +291,7 @@ def test_auto_falls_back_visibly_for_partial_non_authoritative_or_stale_index(
     assert result["backend"] == "server"
     assert result["fallback_used"] is True
     assert reason in result["fallback_reason"]
+    assert result["decision"] == "matches"
     assert server.search_calls == 1
     assert server.resolve_calls == 0
 
@@ -321,6 +325,7 @@ def test_locatorless_index_falls_back_and_explicit_local_never_proves_absence(
     assert "missing-current-locator" in automatic["fallback_reason"]
     assert local["backend"] == "local-hybrid"
     assert local["complete"] is False
+    assert local["decision"] == "matches"
     assert local["results"][0]["live_locator"] is None
 
 
@@ -616,18 +621,30 @@ def test_index_status_doctor_cli_and_typed_catalog_are_consistent(
         config=SimpleNamespace(search=_config()),
         mail_index_status=lambda: status,
         mail_index_doctor=lambda: doctor,
+        mail_index_shadow=lambda query, limit=50: {
+            "ok": True, "query": query, "limit": limit, "comparable": False
+        },
     )
     emitted: list[dict[str, Any]] = []
     status_args = assistant_parser().parse_args(["mail", "index", "status"])
     doctor_args = assistant_parser().parse_args(["mail", "index", "doctor"])
+    shadow_args = assistant_parser().parse_args(
+        ["mail", "index", "shadow", "--query", "needle", "--limit", "7"]
+    )
     assert handle_mail(status_args, assistant, emitted.append) == 0
     assert handle_mail(doctor_args, assistant, emitted.append) == 0
-    assert emitted == [status, doctor]
+    assert handle_mail(shadow_args, assistant, emitted.append) == 0
+    assert emitted == [
+        status,
+        doctor,
+        {"ok": True, "query": "needle", "limit": 7, "comparable": False},
+    ]
 
     by_id = {tool.id: tool for tool in TOOLS}
     assert by_id["mail.index.status"].mode == "read"
     assert by_id["mail.index.doctor"].mode == "read"
     assert by_id["mail.index.plan"].mode == "read"
+    assert by_id["mail.index.shadow"].mode == "read"
     assert by_id["mail.index.backfill"].approval == "explicit-user-local-mail-index-backfill"
     assert by_id["mail.index.reconcile"].approval == "explicit-user-local-mail-index-reconcile"
     assert by_id["mail.search"].test_anchor == "tests/test_mail_hybrid_search_m117.py"
@@ -655,7 +672,39 @@ def test_server_mode_reports_unsupported_structured_filters_as_incomplete(
     assert result["count"] == 1
     assert result["complete"] is False
     assert result["filter_limitations"] == ["category"]
+    assert result["decision"] == "matches"
+    assert result["negative_claim_allowed"] is False
     assert result["fallback_used"] is False
+
+
+def test_complete_local_zero_result_is_no_match_but_partial_server_zero_is_inconclusive(
+    storage: AssistantStorage,
+) -> None:
+    _publish(storage, [_record("none", subject="Andere Mail", body="anderer Inhalt")])
+    complete = MailHybridSearch(storage, RecordingServer(), _config()).search(
+        "nichtvorhandenesnadelwort", mode="local"
+    )
+    assert complete["count"] == 0
+    assert complete["decision"] == "no-match"
+    assert complete["absence_proven"] is True
+    assert complete["negative_claim_allowed"] is True
+
+    partial_server = RecordingServer()
+    original_search = partial_server.search_messages
+
+    def incomplete_search(query: str, *, limit: int = 50) -> dict[str, Any]:
+        result = original_search(query, limit=limit)
+        result["complete"] = False
+        return result
+
+    partial_server.search_messages = incomplete_search  # type: ignore[method-assign]
+    partial = MailHybridSearch(storage, partial_server, _config()).search(
+        "nichtvorhandenesnadelwort", mode="server"
+    )
+    assert partial["count"] == 0
+    assert partial["decision"] == "inconclusive"
+    assert partial["negative_claim_allowed"] is False
+    assert partial["answer_contract"] == "negative-claim-prohibited-report-inconclusive"
 
 
 def test_cli_keeps_compatible_search_entry_and_adds_typed_modes_filters_and_required_read_guard() -> None:

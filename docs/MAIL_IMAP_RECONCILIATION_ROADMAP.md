@@ -2,8 +2,8 @@
 
 Stand: 2026-08-23
 Vorgesehener Arbeitsbranch: `development/authoritative-imap-reconciliation-m12`
-Status: geplant; noch keine Implementierung, kein produktiver Backfill und kein
-Jobstart
+Status: M12.0 bis M12.8 als Entwicklungsstand implementiert; produktiver
+Capability-Canary, Vollbackfill, Jobstart und siebentägige Beobachtung offen
 
 ## Ausgangslage und Ziel
 

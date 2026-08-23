@@ -1,6 +1,6 @@
 # Tests, Qualitaetsbaseline und Container-Runtime
 
-Stand: 2026-08-20, fortgeschrieben bis zur M11.8-Gesamtabnahme.
+Stand: 2026-08-23, fortgeschrieben bis zur M12-Entwicklungsabnahme.
 Sie startet keine produktiven Dienste und verwendet
 weder `/srv/openclaw` noch produktive Zugangsdaten.
 
@@ -45,7 +45,7 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 898 Tests, darunter mindestens 693 unittest-kompatible Tests
+fordert mindestens 942 Tests, darunter mindestens 711 unittest-kompatible Tests
 (die bisherigen 349 sowie M0-M11.8- und Rollout-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
@@ -102,6 +102,7 @@ der aktuellen Python-Dateien.
 | Tests nach Task-Completion-Routing gesammelt/ausgefuehrt | 892 / 892 (979 JUnit-Faelle inklusive 87 Subtests) |
 | Tests nach Standard-Betriebsprofil gesammelt/ausgefuehrt | 898 / 898 (985 JUnit-Faelle inklusive 87 Subtests) |
 | Tests nach DAV-verifiziertem Standardprofil-Hotfix gesammelt/ausgefuehrt | 902 / 902 (989 JUnit-Faelle inklusive 87 Subtests) |
+| Tests nach M12-Entwicklungsabnahme gesammelt/ausgefuehrt | 942 / 942 (1.029 JUnit-Faelle inklusive 87 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -136,6 +137,7 @@ der aktuellen Python-Dateien.
 | neue Task-Completion-Routing-Regressionsitems | 3 |
 | neue Standard-Betriebsprofil-Regressionsitems | 6 |
 | neue DAV-Standardprofil-Hotfix-Regressionsitems | 4 |
+| neue M12-IMAP-Inventory-/Reconciliation-Regressionsitems | 28 |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |
 | Gesamt-Coverage inklusive Branches (M8) | 59,18 % |
@@ -197,6 +199,8 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach Standard-Betriebsprofil | 53,57 % |
 | Gesamt-Coverage nach DAV-verifiziertem Standardprofil-Hotfix | 66,97 % |
 | reine Branch-Coverage nach DAV-verifiziertem Standardprofil-Hotfix | 53,60 % |
+| Gesamt-Coverage nach M12 | 67,52 % |
+| reine Branch-Coverage nach M12 | 54,33 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -241,6 +245,9 @@ der aktuellen Python-Dateien.
 | M11.8-Wheelgroesse | 552.534 Bytes |
 | M11.8-Wheel-Buildzeit | 2,874 s |
 | M11.8-Wheel-Tests in frischer Umgebung | 879 plus 87 Subtests |
+| M12-Wheelgroesse | 576.072 Bytes |
+| M12-Wheel-Buildzeit | 2,463 s |
+| M12-Wheel-Tests in frischer Umgebung | vor finaler Race-Haertung: 940 plus 87 Subtests in 96,53 s |
 | Container-Imagegroesse des M6-Testimages | 425.555.866 Bytes |
 | Runtime-Imagegroesse mit gepinnten Brave-/Signal-Plugins | 376.600.036 Bytes |
 | Runtime-Imagegroesse nach der M10-Rollout-Monitor-/Supervisorkorrektur | 376.793.375 Bytes |
@@ -866,6 +873,40 @@ aktuelle Connector belegt UID, UIDVALIDITY und stabile Ordneridentitaet noch
 nicht autoritativ; ein echtes Embeddingmodell wurde nicht auf Zielhardware
 ausgewaehlt. Der getrennte Rolloutvertrag steht in
 [MAIL_SEARCH_M11_ACCEPTANCE_AND_ROLLOUT.md](MAIL_SEARCH_M11_ACCEPTANCE_AND_ROLLOUT.md).
+
+## M12 native IMAP-, Reconcile- und Suchentscheidungstests
+
+Die M12-Tests verwenden ausschließlich temporäre Dateien, synthetische
+`example.invalid`-Nachrichten und kontrollierte Transport-Fakes. Sie prüfen den
+festen Secret-Mount-Vertrag, TLS ohne Unsicher-Schalter, modifiziertes UTF-7,
+vollständige UID-Snapshots, UIDVALIDITY-Races, `EXAMINE`, `BODY.PEEK` und die
+präventive Sperre sämtlicher IMAP-Schreibkommandos. Capabilityberichte dürfen
+weder Header, Body noch Credential enthalten.
+
+Backfill-/Reconcile-Regressionen decken No-op, neue Mail, eindeutigen und
+mehrdeutigen Move, Copy, Delete, Wiederkehr, Quarantäne, Rename,
+UIDVALIDITY-Reset, Teilscan, Crash und Resume ab. Der enge Ordner-Canary und der
+technische Shadowvergleich schreiben keine Providerdaten. Der default-OFF
+`mail-index`-Job wird ausschließlich als serieller Teil des bestehenden
+Mail-Owners getestet.
+
+Jede lokale und hybride Suche wird zusätzlich auf `matches`, `no-match` oder
+`inconclusive` geprüft. Nur ein frischer, vollständiger, autoritativer und für
+alle Filter gültiger Nulltreffer setzt `negative_claim_allowed=true`.
+
+Die zusammenhängende Imageabnahme lautet:
+
+```bash
+OPENCLAW_M12_RUNTIME_IMAGE=openclaw-agent:m12-candidate \
+  ./scripts/check-m12-integration.sh
+```
+
+Der Container läuft ohne Netzwerk, ohne Hostport und ohne produktiven Mount. Er
+erstellt einen synthetischen Erstindex, simuliert externen Move, Copy und Delete,
+belegt die einmalige Hash-Auflösung des mehrdeutigen Moves sowie null erneute
+Parser-/ClamAV-Arbeit und schreibt ausschließlich technische Aggregate nach
+`build/m12-integration.json`. CI und Containerworkflow führen denselben Pfad mit
+dem zuvor gebauten Rollenimage aus.
 
 ## Ruff-/mypy-Ausgangsbaseline und enge Ausnahmen
 
