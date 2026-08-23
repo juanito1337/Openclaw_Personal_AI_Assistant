@@ -9,6 +9,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest import mock
 
+from personal_assistant import cli as assistant_cli
 from personal_assistant import container_entrypoint
 from personal_assistant.clamav_health import inspect_database
 from personal_assistant.clamav_transport import CURLOPT_URL, LIBCURL, probe_tls_transport
@@ -259,6 +260,92 @@ raise SystemExit(86)
                 container_entrypoint.parse_env_file(env_file)
             with self.assertRaisesRegex(ValueError, "Mountwurzeln"):
                 container_entrypoint.parse_env_file(env_file)
+
+    def test_assistant_cli_reloads_mounted_gateway_environment_for_docker_exec(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            marker = root / "executed"
+            files = tuple(root / name for name in ("mail.env", "assistant.env", "gateway.env"))
+            files[0].write_text("HIMALAYA_CONFIG=/fixture/himalaya.toml\n", encoding="utf-8")
+            files[1].write_text(
+                "NEXTCLOUD_URL=https://cloud.example.invalid\n"
+                "NEXTCLOUD_USER=openclaw\n"
+                f"NEXTCLOUD_TOKEN='$(touch {marker})'\n",
+                encoding="utf-8",
+            )
+            files[2].write_text("OPENCLAW_GATEWAY_TOKEN=fixture-token\n", encoding="utf-8")
+            role_files = {**container_entrypoint.ROLE_ENV_FILES, "gateway": tuple(map(str, files))}
+            with (
+                mock.patch.object(container_entrypoint, "ENV_ROOTS", (root,)),
+                mock.patch.object(container_entrypoint, "ROLE_ENV_FILES", role_files),
+                mock.patch.object(assistant_cli, "DEFAULT_SECRETS", root / "missing.env"),
+                mock.patch.dict(
+                    os.environ,
+                    {
+                        "HOME": str(root),
+                        "OPENCLAW_RUNTIME": "container",
+                        "OPENCLAW_ROLE": "gateway",
+                    },
+                    clear=True,
+                ),
+            ):
+                assistant_cli._load_secrets()
+                self.assertEqual(os.environ["NEXTCLOUD_URL"], "https://cloud.example.invalid")
+                self.assertEqual(os.environ["NEXTCLOUD_USER"], "openclaw")
+                self.assertEqual(os.environ["NEXTCLOUD_TOKEN"], f"$(touch {marker})")
+                self.assertEqual(os.environ["OPENCLAW_GATEWAY_TOKEN"], "fixture-token")
+            self.assertFalse(marker.exists())
+
+    def test_assistant_cli_without_mounted_role_files_keeps_image_smoke_usable(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            role_files = {
+                **container_entrypoint.ROLE_ENV_FILES,
+                "gateway": (str(root / "mail.env"), str(root / "assistant.env")),
+            }
+            with (
+                mock.patch.object(container_entrypoint, "ENV_ROOTS", (root,)),
+                mock.patch.object(container_entrypoint, "ROLE_ENV_FILES", role_files),
+                mock.patch.object(assistant_cli, "DEFAULT_SECRETS", root / "missing.env"),
+                mock.patch.dict(
+                    os.environ,
+                    {
+                        "HOME": str(root),
+                        "OPENCLAW_RUNTIME": "container",
+                        "OPENCLAW_ROLE": "gateway",
+                    },
+                    clear=True,
+                ),
+            ):
+                assistant_cli._load_secrets()
+                self.assertNotIn("NEXTCLOUD_URL", os.environ)
+
+    def test_assistant_cli_rejects_partially_mounted_role_environment(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            present = root / "assistant.env"
+            missing = root / "gateway.env"
+            present.write_text("NEXTCLOUD_URL=https://cloud.example.invalid\n", encoding="utf-8")
+            role_files = {
+                **container_entrypoint.ROLE_ENV_FILES,
+                "gateway": (str(present), str(missing)),
+            }
+            with (
+                mock.patch.object(container_entrypoint, "ENV_ROOTS", (root,)),
+                mock.patch.object(container_entrypoint, "ROLE_ENV_FILES", role_files),
+                mock.patch.object(assistant_cli, "DEFAULT_SECRETS", root / "missing.env"),
+                mock.patch.dict(
+                    os.environ,
+                    {
+                        "HOME": str(root),
+                        "OPENCLAW_RUNTIME": "container",
+                        "OPENCLAW_ROLE": "gateway",
+                    },
+                    clear=True,
+                ),
+                self.assertRaisesRegex(ValueError, "Erforderliche Env-Datei fehlt"),
+            ):
+                assistant_cli._load_secrets()
 
     def test_proxy_loopback_is_translated_and_listener_is_pinned(self) -> None:
         environment = {"OLLAMA_PRIORITY_UPSTREAM": "http://127.0.0.1:11434"}

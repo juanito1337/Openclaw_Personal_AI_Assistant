@@ -139,6 +139,26 @@ def load_role_environment(role: str, environment: dict[str, str]) -> None:
         environment.update(parse_env_file(path))
 
 
+def load_mounted_role_environment(role: str, environment: dict[str, str]) -> bool:
+    """Reload a role's mounted env files for a process started after PID 1.
+
+    ``docker exec`` processes do not inherit variables which the container
+    entrypoint added only to its child process.  The registered assistant CLI
+    therefore uses this bounded variant: no mounted role file means that the
+    command is a standalone image smoke; one visible role file makes the full
+    role contract mandatory and is parsed with the same fail-closed loader as
+    PID 1.
+    """
+    try:
+        files = ROLE_ENV_FILES[role]
+    except KeyError as exc:
+        raise ValueError(f"Unbekannte Containerrolle: {role}") from exc
+    if not files or not any(Path(name).is_file() for name in files):
+        return False
+    load_role_environment(role, environment)
+    return True
+
+
 def normalize_proxy_network(environment: dict[str, str]) -> None:
     """Pin the container listener and translate the former host-loopback default."""
     environment["OLLAMA_PRIORITY_LISTEN_HOST"] = "0.0.0.0"

@@ -72,3 +72,11 @@ Anschliessend zeigen `tools list`, `capabilities`, `calendar status`, `tasks sta
 und `contacts status` die tatsaechlich verfuegbaren Funktionen. Der Profilbefehl
 ist idempotent: Ein erneuter Lauf aendert eine bereits passende Konfiguration
 nicht.
+
+Ein direkt mit `docker exec` gestarteter `assistant.sh`-Diagnosebefehl erbt die
+vom PID-1-Entrypoint geladenen Variablen technisch nicht. Der Launcher laedt
+deshalb in diesem Sonderfall dieselben bereits gemounteten, rollenbezogenen
+Env-Dateien erneut mit dem strikten Datenparser. Er durchsucht keine Verzeichnisse,
+wertet keinen Shell-Code aus und erweitert weder Secret-Mounts noch Rechte. Die
+Gateway-Konfiguration bleibt dabei read-only; Profilaktivierung erfolgt weiterhin
+nur ueber `agent-cli`.

@@ -588,6 +588,14 @@ profile is activated. Destructive actions and approval for each concrete
 existing-object update remain protected. See [Standard
 operations](STANDARD_OPERATIONS.md).
 
+Direkte `docker exec`-Diagnosen starten nach dem PID-1-Entrypoint und erben dessen
+nur fuer den Gateway-Prozess geladene Variablen nicht. Der registrierte
+`assistant.sh`-Launcher laedt bei vorhandenen Rollenmounts deshalb exakt den
+festen Env-Dateisatz dieser Rolle erneut mit demselben fail-closed Datenparser.
+Das ist keine zusaetzliche Berechtigung: Ohne Rollenmount wird nichts geladen,
+bei einem nur teilweise vorhandenen Satz bricht der Befehl ab, und die
+Gateway-Konfiguration bleibt read-only.
+
 If the mail resource has not yet received its required `read`, `move` and
 `forward` permissions, grant those once before applying the profile:
 

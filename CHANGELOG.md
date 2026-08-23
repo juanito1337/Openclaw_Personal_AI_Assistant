@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Container-Diagnosen ueber einen direkt gestarteten `assistant.sh` laden die
+  bereits gemounteten rollenbezogenen Env-Dateien nun mit demselben strikten
+  Parser wie PID 1. Dadurch melden Gateway-Checks via `docker exec` nicht mehr
+  faelschlich fehlende Nextcloud-Zugangsdaten; Mount-, Rollen- und
+  Schreibschutzgrenzen bleiben unveraendert.
+
 - Rechnungen/Nextcloud: Das neue registrierte read-only Werkzeug `invoices
   files --limit 100` listet den tatsaechlich konfigurierten Remote-
   Rechnungsordner ueber den nativen Nextcloud-WebDAV-Connector. Skillrouting,
