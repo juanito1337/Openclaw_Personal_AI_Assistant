@@ -53,6 +53,9 @@ def _write_tools(path: Path, settings: ToolSettings) -> Path | None:
         "# Central tool configuration for the Personal Assistant.",
         "# Secrets stay in ~/.config/personal-assistant/secrets.env.",
         "",
+        "[operations]",
+        f"profile = {_toml_string(settings.operations_profile)}",
+        "",
         "[mail]",
         f"enabled = {'true' if mail.enabled else 'false'}",
         "",
@@ -229,6 +232,7 @@ def _choose_calendar(registry: ResourceRegistry, *, component: str = "VEVENT") -
 def _updated_settings(
     existing: ToolSettings,
     *,
+    operations_profile: str | None = None,
     mail: MailToolSettings | None = None,
     workspace: NextcloudWorkspaceToolSettings | None = None,
     direct_calendar: DirectCalendarToolSettings | None = None,
@@ -239,6 +243,7 @@ def _updated_settings(
 ) -> ToolSettings:
     return ToolSettings(
         path=existing.path,
+        operations_profile=operations_profile or existing.operations_profile,
         mail=mail or existing.mail,
         nextcloud=NextcloudToolSettings(
             workspace=workspace or existing.nextcloud.workspace,
@@ -469,6 +474,7 @@ def configure_standard_operations_tools(
     mail = replace(existing.mail, move=mail_move)
     settings = _updated_settings(
         existing,
+        operations_profile="standard",
         mail=mail,
         workspace=workspace,
         direct_calendar=calendar,

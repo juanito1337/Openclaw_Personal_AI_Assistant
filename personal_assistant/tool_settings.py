@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import tomllib
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -169,6 +169,7 @@ class PortfolioToolSettings:
 @dataclass(slots=True)
 class ToolSettings:
     path: Path
+    operations_profile: str = "restricted"
     mail: MailToolSettings = field(default_factory=MailToolSettings)
     nextcloud: NextcloudToolSettings = field(default_factory=NextcloudToolSettings)
     security: SecurityToolSettings = field(default_factory=SecurityToolSettings)
@@ -259,6 +260,10 @@ def load_tool_settings(
     override_data = _read_toml(config_path)
     data = _merge_settings(release_data, override_data)
 
+    operations_data = _section(data, "operations")
+    operations_profile = str(operations_data.get("profile") or "standard").strip().casefold()
+    if operations_profile not in {"standard", "restricted"}:
+        raise ValueError("tools.toml: operations.profile muss standard oder restricted sein")
     mail_data = _section(data, "mail")
     invoice_data = _section(mail_data, "invoices")
     calendar_data = _section(mail_data, "calendar_mail")
@@ -321,6 +326,7 @@ def load_tool_settings(
         if str(value).strip()
     )
     denied_sources = tuple(dict.fromkeys((*release_denied_sources, *override_denied_sources)))
+    mail_enabled = bool(mail_data.get("enabled", True))
     mail_move = MailMoveToolSettings(
         enabled=bool(move_data.get("enabled", False)),
         resource_id=str(move_data.get("resource_id") or "mail-agent").strip(),
@@ -328,6 +334,8 @@ def load_tool_settings(
         denied_destinations=denied_destinations or MailMoveToolSettings().denied_destinations,
         denied_sources=denied_sources or MailMoveToolSettings().denied_sources,
     )
+    if not mail_enabled:
+        mail_move = replace(mail_move, enabled=False)
     direct_calendar = DirectCalendarToolSettings(
         enabled=bool(direct_calendar_data.get("enabled", False)),
         resource_id=str(direct_calendar_data.get("resource_id") or "").strip(),
@@ -501,6 +509,51 @@ def load_tool_settings(
         allow_move=bool(workspace_data.get("allow_move", True)),
     )
 
+    # The released standard profile is applied after instance overrides.  This
+    # deliberately upgrades legacy installations whose old tools.toml still
+    # contains per-domain false switches.  It does not select or enable a
+    # resource and it does not alter the Resource Registry or server ACLs.
+    if operations_profile == "standard":
+        if mail_enabled:
+            mail_move = replace(mail_move, enabled=True)
+        if workspace.enabled:
+            workspace = replace(
+                workspace,
+                allow_mkdir=True,
+                allow_upload=True,
+                allow_write_text=True,
+                allow_move=True,
+            )
+        if direct_calendar.enabled:
+            direct_calendar = replace(
+                direct_calendar,
+                allow_create=True,
+                allow_list=True,
+                allow_update=True,
+            )
+        if direct_tasks.enabled:
+            direct_tasks = replace(
+                direct_tasks,
+                allow_create=True,
+                allow_list=True,
+                allow_update=True,
+            )
+        if direct_contacts.enabled:
+            direct_contacts = replace(
+                direct_contacts,
+                allow_list=True,
+                allow_create=True,
+                allow_update=True,
+            )
+        if deck_orders.enabled:
+            deck_orders = replace(
+                deck_orders,
+                allow_read=True,
+                allow_create=True,
+                allow_update=True,
+                allow_move=True,
+            )
+
     if calendar_mail.enabled:
         if not calendar_mail.sender_addresses:
             raise ValueError("tools.toml: mail.calendar_mail.sender_addresses ist leer")
@@ -539,8 +592,9 @@ def load_tool_settings(
 
     return ToolSettings(
         path=config_path,
+        operations_profile=operations_profile,
         mail=MailToolSettings(
-            enabled=bool(mail_data.get("enabled", True)),
+            enabled=mail_enabled,
             invoices=invoices,
             calendar_mail=calendar_mail,
             move=mail_move,

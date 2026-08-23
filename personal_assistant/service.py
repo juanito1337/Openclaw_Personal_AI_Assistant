@@ -746,6 +746,7 @@ class PersonalAssistant(
         )
         result: dict[str, Any] = {
             "ok": base_ok,
+            "operations_profile": self.tool_settings.operations_profile,
             "enabled": settings.enabled,
             "allow_list": settings.allow_list,
             "allow_create": settings.allow_create,
@@ -754,7 +755,7 @@ class PersonalAssistant(
             "resource_name": str(resource.metadata.get("name") or "") if resource else "",
             "max_results": settings.max_results,
             "resource_permissions": list(resource.permissions) if resource else [],
-            "update_allowed": settings.allow_update,
+            "update_allowed": bool(base_ok and settings.allow_update),
             "delete_allowed": False,
             "create_only": settings.allow_create and not settings.allow_update,
         }
@@ -1280,6 +1281,7 @@ class PersonalAssistant(
         )
         return {
             "ok": base_ok,
+            "operations_profile": self.tool_settings.operations_profile,
             "enabled": settings.enabled,
             "allow_create": settings.allow_create,
             "allow_list": settings.allow_list,
@@ -1690,6 +1692,7 @@ class PersonalAssistant(
         )
         result: dict[str, Any] = {
             "ok": base_ok,
+            "operations_profile": self.tool_settings.operations_profile,
             "enabled": settings.enabled,
             "allow_create": settings.allow_create,
             "allow_list": settings.allow_list,
@@ -2430,9 +2433,21 @@ class PersonalAssistant(
         return result
 
     def capabilities(self) -> dict[str, Any]:
+        operations_profile = getattr(
+            getattr(self, "tool_settings", None),
+            "operations_profile",
+            "unknown",
+        )
         return {
             "view": "live-capabilities",
             "configured": True,
+            "operations_profile": {
+                "name": operations_profile,
+                "automatic_at_process_start": operations_profile == "standard",
+                "resource_selection_unchanged": True,
+                "server_permissions_unchanged": True,
+                "concrete_write_approval_still_required": True,
+            },
             "resources": [asdict(item) for item in self.registry.list()],
             "hard_denied": sorted(DEFAULT_DENIED_ACTIONS),
             "safe_settings": self.settings.list_safe(),

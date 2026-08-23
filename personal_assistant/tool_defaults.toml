@@ -1,5 +1,9 @@
 # Release-owned defaults. This file is delivered by the immutable image.
-# Instance-specific selections and grants belong in tools.toml.
+# Instance-specific selections and confirmed rights belong in tools.toml.
+# The standard profile makes normal non-destructive switches effective on load.
+
+[operations]
+profile = "standard"
 
 [mail]
 enabled = true
@@ -17,7 +21,7 @@ sender_addresses = []
 calendar_resource_id = ""
 
 [mail.move]
-enabled = false
+enabled = true
 resource_id = "mail-agent"
 max_batch = 1
 denied_destinations = ["trash", "papierkorb", "deleted", "deleted messages", "gelöscht", "junk", "spam", "spamverdacht", "agent/virusverdacht"]
@@ -69,7 +73,7 @@ enabled = false
 resource_id = ""
 allow_create = true
 allow_list = true
-allow_update = false
+allow_update = true
 timezone = "Europe/Berlin"
 default_duration_minutes = 60
 max_duration_hours = 168
@@ -80,7 +84,7 @@ enabled = false
 resource_id = ""
 allow_create = true
 allow_list = true
-allow_update = false
+allow_update = true
 timezone = "Europe/Berlin"
 max_future_days = 3650
 
@@ -88,8 +92,8 @@ max_future_days = 3650
 enabled = false
 resource_id = ""
 allow_list = true
-allow_create = false
-allow_update = false
+allow_create = true
+allow_update = true
 max_results = 500
 
 [nextcloud.deck_orders]

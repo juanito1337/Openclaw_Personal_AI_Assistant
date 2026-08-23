@@ -39,5 +39,6 @@ verweist mit Status `Superseded` auf den Nachfolger.
 | [0031](0031-versionierte-lokale-mail-embeddings.md) | Accepted | contentgebundene lokale Embeddings, Koordinatorpflicht und separate Modellfreigabe |
 | [0032](0032-hybrid-mail-search-und-live-locator.md) | Accepted | agentengerechte Hybrid-Mail-Suche, sichtbarer Server-Fallback und fail-closed Live-Locator |
 | [0033](0033-m11-abnahme-und-rolloutgrenze.md) | Accepted | hermetische M11-Entwicklungsabnahme getrennt von produktivem Index- und Modellrollout |
+| [0034](0034-standardbetriebsprofil-bei-jedem-start.md) | Accepted | normale Werkzeuge bereits konfigurierter Ressourcen sind bei jedem Start direkt wirksam |
 
 Neue ADRs beginnen mit der [Vorlage](0000-template.md).

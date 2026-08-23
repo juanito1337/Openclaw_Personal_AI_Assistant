@@ -86,6 +86,7 @@ def capability_schema() -> dict[str, Any]:
         "required": [
             "view",
             "configured",
+            "operations_profile",
             "resources",
             "hard_denied",
             "safe_settings",
@@ -96,6 +97,18 @@ def capability_schema() -> dict[str, Any]:
         "properties": {
             "view": {"const": "live-capabilities"},
             "configured": {"const": True},
+            "operations_profile": {
+                "type": "object",
+                "required": ["name", "automatic_at_process_start"],
+                "properties": {
+                    "name": {"enum": ["standard", "restricted"]},
+                    "automatic_at_process_start": {"type": "boolean"},
+                    "resource_selection_unchanged": {"const": True},
+                    "server_permissions_unchanged": {"const": True},
+                    "concrete_write_approval_still_required": {"const": True},
+                },
+                "additionalProperties": True,
+            },
             "resources": {"type": "array"},
             "hard_denied": {"type": "array", "items": {"type": "string"}},
             "safe_settings": {"type": ["object", "array"]},

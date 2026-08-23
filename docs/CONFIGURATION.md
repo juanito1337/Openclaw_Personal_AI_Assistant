@@ -38,13 +38,15 @@ Release-owned deny and approval rules are additive and cannot be removed by an
 older local file. Account/resource selections, folder names and explicitly
 granted permissions remain persistent outside the image.
 
-After the intended resources have been selected, the one-time
-`setup standard-operations --yes` profile enables their complete normal,
-non-destructive operating surface together. It does not select resources, modify
-credentials, enable jobs, change server ACLs or weaken action-level approval and
-conflict guards. Missing standard registry rights are added only after current
-read-only discovery confirms the exact selected resource. See [Standard
-operations](STANDARD_OPERATIONS.md).
+The release-owned `operations.profile = "standard"` is applied after instance
+overrides at every process start. It makes the complete normal, non-destructive
+operating surface effective for resources that the instance already enabled and
+selected, including legacy files with old per-domain `false` switches. It does
+not select resources, modify credentials, enable jobs, change server ACLs or
+weaken action-level approval and conflict guards. `restricted` is the explicit
+operator escape hatch. The registered `setup standard-operations --yes` command
+remains only for compatibility/repair when confirmed Registry rights are missing.
+See [Standard operations](STANDARD_OPERATIONS.md).
 
 ## Validation
 

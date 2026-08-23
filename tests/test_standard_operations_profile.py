@@ -11,6 +11,7 @@ from personal_assistant.connectors.nextcloud.discovery import DiscoveredCollecti
 from personal_assistant.models import Resource
 from personal_assistant.registry import ResourceRegistry
 from personal_assistant.service import PersonalAssistant
+from personal_assistant.tool_registry import build_tool_registry
 from personal_assistant.tool_settings import load_tool_settings
 from personal_assistant.tool_setup import configure_standard_operations_tools
 
@@ -24,6 +25,9 @@ class StandardOperationsProfileTests(unittest.TestCase):
         self.tools = self.config_dir / "tools.toml"
         self.tools.write_text(
             """
+[operations]
+profile = "restricted"
+
 [mail]
 enabled = true
 
@@ -145,6 +149,113 @@ enabled = false
             registry_before,
         )
         self.assertTrue(Path(str(result["backup"])).is_file())
+        self.assertIn(
+            '[operations]\nprofile = "standard"',
+            self.tools.read_text(encoding="utf-8"),
+        )
+
+    def test_standard_profile_is_effective_on_every_legacy_config_load(self) -> None:
+        legacy = self.root / "legacy-tools.toml"
+        legacy.write_text(
+            self.tools.read_text(encoding="utf-8").replace(
+                '[operations]\nprofile = "restricted"\n\n',
+                "",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        before = legacy.read_bytes()
+
+        first = load_tool_settings(legacy)
+        second = load_tool_settings(legacy)
+
+        self.assertEqual(first.operations_profile, "standard")
+        self.assertEqual(second.operations_profile, "standard")
+        self.assertTrue(first.mail.move.enabled)
+        self.assertTrue(first.nextcloud.workspace.allow_move)
+        for domain in (
+            first.nextcloud.calendar,
+            first.nextcloud.tasks,
+            first.nextcloud.contacts,
+        ):
+            self.assertTrue(domain.allow_create)
+            self.assertTrue(domain.allow_list)
+            self.assertTrue(domain.allow_update)
+        self.assertEqual(legacy.read_bytes(), before)
+
+        ids = {tool.id for tool in build_tool_registry(first)}
+        self.assertIn("mail.move", ids)
+        self.assertIn("nextcloud.calendar.update", ids)
+        self.assertIn("nextcloud.tasks.update", ids)
+        self.assertIn("nextcloud.contacts.update", ids)
+
+        assistant = PersonalAssistant.__new__(PersonalAssistant)
+        assistant.tool_settings = first
+        assistant.registry = self.registry
+        assistant.role = "gateway"
+        status = assistant.direct_tasks_status(live=False)
+        self.assertTrue(status["ok"])
+        self.assertTrue(status["update_allowed"])
+        self.assertFalse(status["update_setup_required"])
+        self.assertEqual(status["operations_profile"], "standard")
+
+    def test_restricted_profile_preserves_explicit_local_switches(self) -> None:
+        settings = load_tool_settings(self.tools)
+
+        self.assertEqual(settings.operations_profile, "restricted")
+        self.assertFalse(settings.mail.move.enabled)
+        self.assertFalse(settings.nextcloud.workspace.allow_move)
+        self.assertFalse(settings.nextcloud.calendar.allow_update)
+        self.assertFalse(settings.nextcloud.tasks.allow_update)
+        self.assertFalse(settings.nextcloud.contacts.allow_create)
+        self.assertFalse(settings.nextcloud.contacts.allow_update)
+
+    def test_standard_profile_does_not_enable_unselected_domains(self) -> None:
+        path = self.root / "disabled-tools.toml"
+        path.write_text(
+            """
+[operations]
+profile = "standard"
+
+[mail]
+enabled = false
+
+[nextcloud.workspace]
+enabled = false
+
+[nextcloud.calendar]
+enabled = false
+
+[nextcloud.tasks]
+enabled = false
+
+[nextcloud.contacts]
+enabled = false
+
+[nextcloud.deck_orders]
+enabled = false
+""".strip()
+            + "\n",
+            encoding="utf-8",
+        )
+
+        settings = load_tool_settings(path)
+        ids = {tool.id for tool in build_tool_registry(settings)}
+
+        self.assertFalse(settings.mail.move.enabled)
+        self.assertFalse(settings.nextcloud.workspace.enabled)
+        self.assertFalse(settings.nextcloud.calendar.enabled)
+        self.assertFalse(settings.nextcloud.tasks.enabled)
+        self.assertFalse(settings.nextcloud.contacts.enabled)
+        self.assertNotIn("mail.move", ids)
+        self.assertNotIn("nextcloud.tasks.update", ids)
+
+    def test_unknown_operations_profile_fails_closed(self) -> None:
+        path = self.root / "invalid-tools.toml"
+        path.write_text('[operations]\nprofile = "everything"\n', encoding="utf-8")
+
+        with self.assertRaisesRegex(ValueError, "operations.profile"):
+            load_tool_settings(path)
 
     def test_profile_is_idempotent(self) -> None:
         first = self.activate()

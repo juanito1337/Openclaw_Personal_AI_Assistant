@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Betrieb: Das releaseweite Profil `operations.profile = "standard"` wird jetzt
+  bei jedem Prozessstart nach den persistenten Instanzwerten angewendet. Bereits
+  aktivierte und eindeutig ausgewaehlte Mail-, Workspace-, Kalender-, Aufgaben-,
+  Kontakt- und Deck-Ressourcen stellen dadurch ihre normalen nicht-destruktiven
+  Werkzeuge sofort bereit, auch wenn eine alte `tools.toml` noch einzelne
+  `allow_* = false`-Schalter enthaelt. Deaktivierte oder nicht ausgewaehlte
+  Ressourcen, Credentials, Registry-/Serverrechte und konkrete Action-/UID-/
+  ETag-Freigaben werden nicht erfunden oder erweitert; `restricted` bleibt die
+  ausdrueckliche Betreiber-Notbremse.
+
 - Container-Diagnosen ueber einen direkt gestarteten `assistant.sh` laden die
   bereits gemounteten rollenbezogenen Env-Dateien nun mit demselben strikten
   Parser wie PID 1. Dadurch melden Gateway-Checks via `docker exec` nicht mehr

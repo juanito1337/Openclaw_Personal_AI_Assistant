@@ -128,10 +128,13 @@ class M5ToolContractTests(unittest.TestCase):
         assistant.registry = SimpleNamespace(list=lambda: [], resources={})
         assistant.settings = SimpleNamespace(list_safe=lambda: {})
         assistant.config = SimpleNamespace(self_management=SelfManagementConfig(enabled=False))
+        assistant.tool_settings = SimpleNamespace(operations_profile="standard")
         assistant.tools = lambda: []
         payload = PersonalAssistant.capabilities(assistant)
         self.assertEqual(payload["view"], "live-capabilities")
         self.assertTrue(payload["configured"])
+        self.assertEqual(payload["operations_profile"]["name"], "standard")
+        self.assertTrue(payload["operations_profile"]["automatic_at_process_start"])
         self.assertEqual(payload["tools"], [])
 
     def test_policy_negative_and_approval_contracts_remain_fail_closed(self) -> None:

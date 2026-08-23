@@ -77,22 +77,29 @@ A hidden helper is not an agent tool. Do not invent commands or options and do n
 claim that a disabled or misconfigured capability is absent before using its
 registered status/discovery path.
 
+The release-owned `standard` operations profile is applied at every process
+start. All normal non-destructive tools for resources already enabled and exactly
+selected by the instance must therefore be used directly; do not ask Jan for a
+second technical unlock first. A resource, credential or confirmed server right
+is never inferred by this profile. Missing live prerequisites stay a visible
+fail-closed status error, and each concrete external update retains its typed
+approval, stable-ID, expectation and ETag contract.
+
 For an existing Nextcloud task, `tasks status` and `tasks list` are the mandatory
 selection path. Completing it uses the registered `tasks update ... --status
 COMPLETED --yes` command after one exact UID/title selection and explicit approval.
 The gateway configuration mount is intentionally read-only: never edit it, change
 its permissions or claim a private memory note completed the remote task. If
-`update_allowed=false`, report the separate `agent-cli` setup action returned by
-`tasks status` and wait for its own permission-expansion approval.
+`update_allowed=false`, report the exact missing resource, credential or
+permission evidence. Use a separate `agent-cli` repair action only when returned
+by `tasks status`, and wait for its permission-expansion approval.
 
-The supported normal installation profile is `setup standard-operations --yes`.
-After one explicit operator approval it enables the full non-destructive surface
-of every already selected and permission-verified resource together, so normal
-calendar, task and contact updates do not require separate technical grants.
-This profile never selects resources, enables jobs or changes server ACLs. Its one
-approval may register a missing standard permission only after current read-only
-discovery confirms that exact selected resource supports it. It never weakens the
-approval and conflict guards for each concrete external action.
+`setup standard-operations --yes` is not a normal startup step. It is the
+operator-only compatibility/repair path for an explicitly restricted or
+incompletely migrated installation. It never selects resources, enables jobs or
+changes server ACLs. Its approval may register a missing standard permission only
+after current read-only discovery confirms that exact selected resource supports
+it, and never weakens the approval and conflict guards for a concrete action.
 
 For mailbox contents, never execute the `himalaya` binary directly and never pipe
 mail output through `grep`, `rg`, `find`, `awk` or another shell filter. These paths

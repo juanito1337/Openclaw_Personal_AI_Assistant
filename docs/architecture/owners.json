@@ -42,6 +42,7 @@
     {"path": "docs/architecture/adr/0030-konservative-mail-threads-und-kontext.md", "owner": "Data Maintainers"},
     {"path": "docs/architecture/adr/0031-versionierte-lokale-mail-embeddings.md", "owner": "Data Maintainers"},
     {"path": "docs/architecture/adr/0032-hybrid-mail-search-und-live-locator.md", "owner": "Security Maintainers"},
-    {"path": "docs/architecture/adr/0033-m11-abnahme-und-rolloutgrenze.md", "owner": "Security Maintainers"}
+    {"path": "docs/architecture/adr/0033-m11-abnahme-und-rolloutgrenze.md", "owner": "Security Maintainers"},
+    {"path": "docs/architecture/adr/0034-standardbetriebsprofil-bei-jedem-start.md", "owner": "Architecture Maintainers"}
   ]
 }

@@ -1,53 +1,58 @@
 # Standard-Betriebsprofil
 
-Das Profil `standard-operations` aktiviert nach einer einzigen ausdruecklichen
-Betreiberfreigabe alle normalen, nicht-destruktiven Funktionen der bereits
-eindeutig konfigurierten Ressourcen. Danach muss nicht jedes Kalender-, Aufgaben-
-oder Kontaktwerkzeug noch einmal separat technisch freigeschaltet werden.
+Das Releaseprofil `standard` ist der normale Betriebsmodus und wird bei jedem
+Prozessstart angewendet. Ein Agent muss deshalb nach Installation, Update oder
+Containerneustart nicht erneut fuer Kalender-, Aufgaben-, Kontakt-, Mail- oder
+Workspace-Funktionen technisch freigeschaltet werden.
 
-```bash
-./scripts/assistant.sh setup standard-operations --yes
-```
+Die aktive Instanzdatei waehlt weiterhin Konten und Ressourcen aus. Das
+Standardprofil macht nur fuer bereits aktivierte und eindeutig ausgewaehlte
+Ressourcen die vollstaendige nicht-destruktive Werkzeugoberflaeche wirksam. Es
+ueberstimmt dabei alte, vor dieser Entscheidung gespeicherte einzelne
+`allow_* = false`-Schalter bei jedem Laden der Konfiguration. Die Instanzdatei
+wird dazu nicht heimlich umgeschrieben.
 
-Im Docker-Stack wird der Befehl ausschliesslich ueber die kurzlebige
-`agent-cli`-Rolle ausgefuehrt. Der Gateway bleibt unveraendert und mountet seine
-Konfiguration weiterhin read-only.
+## Direkt verfuegbarer Umfang
 
-## Aktivierter Umfang
+Soweit die jeweilige Ressource bereits aktiviert und eindeutig ausgewaehlt ist,
+stehen nach jedem Start direkt bereit:
 
-Soweit die jeweilige Ressource bereits eindeutig ausgewaehlt und aktiviert ist,
-aktiviert das Profil:
-
-- einzelnes Lesen, Erstellen und kontrolliertes Verschieben von Mail;
+- einzelnes Lesen und kontrolliertes Verschieben von Mail;
 - create-only Schreiben, Hochladen, Ordneranlegen und no-overwrite Verschieben im
   begrenzten Nextcloud-Workspace;
 - Lesen, Anlegen und ETag-geschuetztes Aktualisieren bestehender Kalendertermine;
 - Lesen, Anlegen und ETag-geschuetztes Aktualisieren beziehungsweise Abschliessen
   bestehender Aufgaben;
 - Lesen, create-only Anlegen und ETag-geschuetztes Aktualisieren von Kontakten;
-- den bereits konfigurierten, agentenverwalteten Bestellkarten-Workflow.
+- der bereits konfigurierte, agentenverwaltete Bestellkarten-Workflow.
 
-Nicht konfigurierte oder bewusst deaktivierte Ressourcen werden nicht automatisch
-ausgewaehlt oder eingeschaltet. Bereits registrierte Rechte werden unveraendert
-verwendet. Fehlt ein normales Nextcloud-Recht, prueft das Profil die exakt
-ausgewaehlte Datei-, CalDAV- oder CardDAV-Ressource zuerst aktuell und read-only
-ueber DAV. Nur ein vom Server bestaetigtes Recht wird anschliessend lokal in der
-Resource Registry registriert. Die einmalige `--yes`-Freigabe autorisiert genau
-diese begrenzte lokale Rechtserweiterung.
+Nicht konfigurierte oder bewusst deaktivierte Ressourcen werden nicht
+automatisch ausgewaehlt oder eingeschaltet. Das Profil erzeugt keine
+Zugangsdaten, aendert keine Nextcloud-ACL und registriert keine vom Server nicht
+bestaetigten Rechte. Fehlt eine ausgewaehlte Ressource oder ein benoetigtes
+Registry-/Serverrecht, meldet der jeweilige Status das als Fehler; der Agent darf
+den Funktionsumfang dann nicht vortaeuschen.
 
-Die Ressourcenwahl, Nextcloud-ACLs und externe Daten werden dabei nicht
-veraendert. Liefert die aktuelle Discovery keine eindeutige Ressource oder
-bestaetigt sie ein benoetigtes Recht nicht, bricht das Profil vor Registry- und
-Werkzeugaktivierung ab. Registry und Werkzeugkonfiguration werden gesichert; ein
-Fehler beim zweiten Schritt stellt die vorherige Registry wieder her.
+`./scripts/assistant.sh capabilities` nennt das wirksame Profil unter
+`operations_profile`. Kalender-, Aufgaben- und Kontaktstatus geben denselben Wert
+aus. Bei normalem Betrieb gilt:
+
+```json
+{
+  "operations_profile": {
+    "name": "standard",
+    "automatic_at_process_start": true
+  }
+}
+```
 
 ## Weiterhin geschuetzte Aktionen
 
-Das Betriebsprofil ist keine pauschale Handlungsvollmacht. Unveraendert gesperrt
+Das Standardprofil ist keine pauschale Handlungsvollmacht. Unveraendert gesperrt
 oder gesondert freigabepflichtig bleiben:
 
-- Loeschen, Ueberschreiben, Teilen, Massenbearbeitung und ressourcenuebergreifendes
-  Verschieben;
+- Loeschen, Ueberschreiben, Teilen, Massenbearbeitung und
+  ressourcenuebergreifendes Verschieben;
 - Aenderungen an Credentials, Ressourcenwahl, erlaubten Wurzeln oder Policies;
 - serverseitige ACL- oder Freigabeaenderungen;
 - Start, Neustart oder Abschalten von Jobs;
@@ -56,11 +61,29 @@ oder gesondert freigabepflichtig bleiben:
 - eine konkrete Aenderung eines bestehenden Kontakts, Termins oder einer Aufgabe
   ohne eindeutigen Nutzerauftrag, UID-/ID-Auswahl, ETag und Erwartungspruefung.
 
-Der einmalige Profilwechsel beseitigt somit technische Doppelfreigaben. Die
-fachliche Freigabe fuer eine konkrete externe Aenderung bleibt bestehen und kann
-durch den eindeutigen direkten Nutzerauftrag erteilt werden.
+Technische Verfuegbarkeit und fachliche Autorisierung bleiben damit getrennt:
+Der Agent kennt und erreicht seine normalen Werkzeuge sofort, darf aber eine
+konkrete externe Aenderung erst innerhalb ihres typisierten Approval-Vertrags
+ausfuehren.
 
-## Docker-Ausfuehrung
+## Kompatibilitaets- und Reparaturbefehl
+
+Der bestehende Befehl bleibt fuer eine absichtlich auf `restricted` gesetzte oder
+unvollstaendig migrierte Altinstallation erhalten:
+
+```bash
+./scripts/assistant.sh setup standard-operations --yes
+```
+
+Er prueft die exakt ausgewaehlten Ressourcen read-only ueber WebDAV, CalDAV oder
+CardDAV. Nur ein vom Server bestaetigtes normales Recht darf lokal in die Resource
+Registry aufgenommen werden. Ressourcenwahl, Nextcloud-ACLs und externe Daten
+bleiben unveraendert. Eine fehlende, mehrdeutige oder unzureichend berechtigte
+Ressource bricht den Vorgang atomar ab.
+
+Im Docker-Stack laeuft diese administrative Kompatibilitaetsoperation nur ueber
+die kurzlebige `agent-cli`-Rolle. Sie ist fuer eine gesunde Standardinstallation
+nicht Teil des normalen Starts:
 
 ```bash
 sg docker -c 'cd /srv/openclaw/deployment && \
@@ -68,15 +91,18 @@ docker compose --env-file .env --profile tools run --rm --no-deps agent-cli \
 /opt/openclaw-agent/scripts/assistant.sh setup standard-operations --yes'
 ```
 
-Anschliessend zeigen `tools list`, `capabilities`, `calendar status`, `tasks status`
-und `contacts status` die tatsaechlich verfuegbaren Funktionen. Der Profilbefehl
-ist idempotent: Ein erneuter Lauf aendert eine bereits passende Konfiguration
-nicht.
+Ein Operator kann eine Instanz fuer Diagnose oder Notbetrieb explizit auf
+`operations.profile = "restricted"` setzen. Dann gelten die einzelnen
+`allow_*`-Schalter wieder unveraendert. Unbekannte Profilwerte brechen das Laden
+fail-closed ab.
 
-Ein direkt mit `docker exec` gestarteter `assistant.sh`-Diagnosebefehl erbt die
-vom PID-1-Entrypoint geladenen Variablen technisch nicht. Der Launcher laedt
-deshalb in diesem Sonderfall dieselben bereits gemounteten, rollenbezogenen
-Env-Dateien erneut mit dem strikten Datenparser. Er durchsucht keine Verzeichnisse,
-wertet keinen Shell-Code aus und erweitert weder Secret-Mounts noch Rechte. Die
-Gateway-Konfiguration bleibt dabei read-only; Profilaktivierung erfolgt weiterhin
-nur ueber `agent-cli`.
+## Containergrenzen
+
+Der Gateway mountet seine Administrationskonfiguration weiterhin read-only.
+Der automatische Standardmodus benoetigt dort keinen Schreibzugriff, weil er die
+effektive Werkzeugansicht beim Laden erzeugt. Rollenbezogene Secret-Mounts,
+Netzwerke, Datenowner und Single-Writer-Grenzen werden dadurch nicht erweitert.
+
+Ein direkt mit `docker exec` gestarteter `assistant.sh`-Diagnosebefehl laedt nur
+die fuer seine Rolle bereits gemounteten Env-Dateien mit dem strikten Datenparser.
+Ohne passenden Rollenmount entstehen weder Zugangsdaten noch neue Rechte.

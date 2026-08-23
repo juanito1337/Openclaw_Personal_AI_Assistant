@@ -563,16 +563,22 @@ not overwrite the productive `.env` or active local hooks.
 
 Tool code plus release-owned defaults and baseline policies are read from the
 new image on every update. Persistent `tools.toml` and `policies.toml` files are
-instance overrides; account/resource selections and explicit permission grants
-remain outside the image. New write permissions are never granted by an image
-update. The gateway mounts both instance configuration directories read-only;
-generic agent file or shell tools cannot patch them after a failed domain call.
-At each layout start the fixed container data paths in `tools.toml` are repaired
+instance overrides; account/resource selections and confirmed Registry rights
+remain outside the image. The release-owned `operations.profile = "standard"`
+is applied after those instance values at every process start. It makes the
+normal non-destructive switches effective for resources already enabled and
+exactly selected by the instance, including legacy files with old per-domain
+`false` values. It neither enables an unselected domain nor grants a missing
+Registry-/Serverrecht.
+
+The gateway mounts both instance configuration directories read-only; generic
+agent file or shell tools cannot patch them after a failed domain call. At each
+layout start the fixed container data paths in `tools.toml` are repaired
 idempotently while resource selections and permission grants remain unchanged.
 Administrative setup therefore runs only in the explicitly selected, short-lived
-`agent-cli` role. After all intended resources have been selected, activate their
-complete normal, non-destructive operating surface once instead of granting
-calendar, task and contact updates separately:
+`agent-cli` role. The following command is a compatibility/repair path for an
+explicitly `restricted` or incompletely migrated installation, not a normal
+post-start activation step:
 
 ```bash
 cd /srv/openclaw/deployment
@@ -581,12 +587,11 @@ docker compose --env-file .env --profile tools run --rm --no-deps agent-cli \
 ```
 
 The command changes no remote data, credentials, jobs, mounts or server ACLs. If
-a standard registry permission is missing, it first verifies the exact selected
+a standard Registry permission is missing, it first verifies the exact selected
 resource read-only through DAV and registers only permissions confirmed by that
 response. An unavailable, ambiguous or insufficient resource fails before the
-profile is activated. Destructive actions and approval for each concrete
-existing-object update remain protected. See [Standard
-operations](STANDARD_OPERATIONS.md).
+profile is repaired. Destructive actions and approval for each concrete
+existing-object update remain protected. See [Standard operations](STANDARD_OPERATIONS.md).
 
 Direkte `docker exec`-Diagnosen starten nach dem PID-1-Entrypoint und erben dessen
 nur fuer den Gateway-Prozess geladene Variablen nicht. Der registrierte

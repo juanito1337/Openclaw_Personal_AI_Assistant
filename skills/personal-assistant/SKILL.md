@@ -80,14 +80,16 @@ an explicit operator action through the short-lived `agent-cli` role; report the
 exact registered setup command and required approval instead of patching the
 file. Ordinary registered domain commands continue to run from the gateway.
 
-For a normal installation, prefer the one-time registered `setup
-standard-operations --yes` profile over a sequence of individual calendar, task
-and contact permission toggles. It runs only through `agent-cli`, applies only to
-already selected resources and may register a missing standard right only after
-current read-only discovery confirms it for that exact resource. It never changes
-server ACLs and leaves per-action approval, UID/ETag guards, mail-draft approval,
-job control and all destructive-operation denials intact. Never execute it without
-Jan's explicit approval of the complete profile.
+The release-owned `standard` operations profile is effective at every process
+start. Use all normal non-destructive tools for already enabled and exactly
+selected resources directly; never ask Jan to unlock calendar, task, contact,
+mail-move or workspace functions a second time. This runtime profile does not
+select a resource, invent credentials or grant a server permission. A failed
+resource/permission status remains fail-closed, and every concrete external
+update retains its action approval, UID/ETag guards, mail-draft approval and all
+destructive-operation denials. `setup standard-operations --yes` is only the
+registered operator compatibility/repair path for an explicitly restricted or
+incompletely migrated installation; never execute it without Jan's approval.
 
 ## Reference routing
 

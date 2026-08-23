@@ -1,5 +1,8 @@
 # Central tool configuration. Secrets are never stored here.
 
+[operations]
+profile = "standard"
+
 [mail]
 enabled = true
 
@@ -16,7 +19,7 @@ sender_addresses = []
 calendar_resource_id = ""
 
 [mail.move]
-enabled = false
+enabled = true
 resource_id = "mail-agent"
 max_batch = 1
 denied_destinations = ["trash", "papierkorb", "deleted", "deleted messages", "gelöscht", "junk", "spam", "spamverdacht", "agent/virusverdacht"]
@@ -68,7 +71,7 @@ enabled = true
 resource_id = "nextcloud-calendar-example"
 allow_create = true
 allow_list = true
-allow_update = false
+allow_update = true
 timezone = "Europe/Berlin"
 default_duration_minutes = 60
 max_duration_hours = 168
@@ -79,7 +82,7 @@ enabled = true
 resource_id = "nextcloud-calendar-example"
 allow_create = true
 allow_list = true
-allow_update = false
+allow_update = true
 timezone = "Europe/Berlin"
 max_future_days = 3650
 
@@ -88,7 +91,7 @@ enabled = false
 resource_id = ""
 allow_list = true
 allow_create = true
-allow_update = false
+allow_update = true
 max_results = 500
 
 [nextcloud.deck_orders]

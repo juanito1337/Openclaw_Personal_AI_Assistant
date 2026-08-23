@@ -53,16 +53,18 @@ For “complete task” requests, run `tasks status` and then `tasks list
 exact UID/title and live `update_allowed=true`, use `tasks update --uid "<UID>"
 --expected-title "<aktueller Titel>" --status COMPLETED --yes`, then require
 `after.status=COMPLETED` and `after.percent_complete=100` as the success evidence.
-If update access is disabled, the request to complete a task does not itself
-approve the complete operating profile. The `update_setup` returned by `tasks
-status` points to the one-time `setup standard-operations --yes` action through
-the short-lived `agent-cli` role; prefer it over separate per-domain toggles. It
-only activates already selected resources. A missing normal permission is locally
-registered only after current read-only DAV discovery confirms it for that exact
-resource; the profile never changes server ACLs or weakens the concrete action
-approval or ETag contract. Never run it from the gateway, edit `tools.toml`,
-change the read-only mount or claim that an internal note replaced the CalDAV
-update.
+The release-owned `standard` profile exposes update access for an already enabled
+and exactly selected task resource at every process start. Therefore use the
+registered completion command directly when `tasks status` reports
+`update_allowed=true`; do not ask Jan for another technical unlock. If status is
+still false, treat the missing resource, credential or confirmed permission as an
+operational failure and do not bypass it. `setup standard-operations --yes` is
+only the operator compatibility/repair action for an explicitly restricted or
+incompletely migrated installation. It may register a missing normal permission
+only after current read-only DAV discovery confirms the exact resource and never
+changes server ACLs or weakens concrete action approval and ETag guards. Never run
+it from the gateway, edit `tools.toml`, change the read-only mount or claim that an
+internal note replaced the CalDAV update.
 
 ## Durable workspace
 

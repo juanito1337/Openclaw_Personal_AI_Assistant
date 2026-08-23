@@ -70,8 +70,8 @@ TOOLS: tuple[ToolDefinition, ...] = (
         id="assistant.setup.standard-operations",
         domain="runtime",
         description=(
-            "Normale nicht-destruktive Funktionen fuer alle bereits eindeutig "
-            "konfigurierten Ressourcen nach einmaliger Betreiberfreigabe gemeinsam aktivieren"
+            "Standardprofil einer eingeschraenkten oder unvollstaendig migrierten "
+            "Instanz pruefen und fuer bestaetigte Ressourcen lokal aktivieren"
         ),
         command="./scripts/assistant.sh setup standard-operations --yes",
         mode="local-write",

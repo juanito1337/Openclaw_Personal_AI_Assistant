@@ -42,7 +42,7 @@
   {
     "approval": "explicit-user-standard-operations-profile",
     "command": "./scripts/assistant.sh setup standard-operations --yes",
-    "description": "Normale nicht-destruktive Funktionen fuer alle bereits eindeutig konfigurierten Ressourcen nach einmaliger Betreiberfreigabe gemeinsam aktivieren",
+    "description": "Standardprofil einer eingeschraenkten oder unvollstaendig migrierten Instanz pruefen und fuer bestaetigte Ressourcen lokal aktivieren",
     "id": "assistant.setup.standard-operations",
     "mode": "local-write",
     "writes_external_data": false

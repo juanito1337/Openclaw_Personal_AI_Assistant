@@ -274,8 +274,8 @@ def test_task_completion_uses_registered_update_and_never_memory_or_gateway_setu
     assert "Never claim the task was “noted internally”" in skill
     assert "`after.status=COMPLETED`" in skill
     assert "`after.percent_complete=100`" in skill
-    assert "The `update_setup` returned by `tasks status`" in groupware
-    assert "one-time `setup standard-operations --yes` action" in groupware
+    assert "release-owned `standard` profile" in groupware
+    assert "do not ask Jan for another technical unlock" in groupware
     assert "internal note replaced the CalDAV update" in groupware
 
 
