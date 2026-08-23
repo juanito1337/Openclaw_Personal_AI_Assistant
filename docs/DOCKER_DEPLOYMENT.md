@@ -360,7 +360,11 @@ certificate-verified libcurl TLS handshake with `database.clamav.net`. The same
 behavioral preflight runs in the CI role smoke. A loader/ABI, certificate, DNS or
 transport failure therefore stops the rollout before the production interruption;
 the later real signature update remains fail-closed and still triggers rollback if
-it fails after the verified backup.
+it fails after the verified backup. The maintenance role retains a hard 2 GiB
+memory limit because `freshclam` loads and validates a complete replacement
+signature database before publishing it; the former 512 MiB limit could terminate
+that bounded validation with signal 9 even though the downloaded database was
+valid.
 
 ### Fast live-test loop
 

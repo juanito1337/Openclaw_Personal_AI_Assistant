@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Container/ClamAV: Die weiterhin hart begrenzte Maintenance-Rolle erhaelt 2 GiB
+  statt 512 MiB Arbeitsspeicher. Damit kann `freshclam` eine vollstaendige neue
+  Signaturdatenbank im gesicherten Rolloutfenster validieren, ohne vom
+  Container-Memory-Limit mit Signal 9 beendet zu werden; Download-, TLS-,
+  Datenbanktest-, Backup- und Rollback-Gates bleiben unveraendert fail-closed.
+
 - Sicherheit/Agentenrouting: OpenClaws generische Dateiwerkzeuge werden bei
   jedem Containerstart mit `tools.fs.workspaceOnly=true` auf den kontrollierten
   Workspace begrenzt. Der Skill und die Live-Capabilities verbieten nun

@@ -381,7 +381,10 @@ services:
       - /var/log/clamav:rw,nosuid,nodev,noexec,size=16m,mode=0750
     pids_limit: 128
     cpus: 1.0
-    mem_limit: 512m
+    # freshclam validates a complete replacement database before publishing it.
+    # Current signature sets can exceed 512 MiB while being loaded and otherwise
+    # get killed by the container memory limit in the protected rollout window.
+    mem_limit: 2g
     logging:
       driver: local
       options:
