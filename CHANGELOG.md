@@ -29,6 +29,11 @@
   des unprivilegierten Runner-Benutzers; State-Tmpfs und Ergebnis-Mount besitzen
   damit denselben Schreibvertrag. Root-Ausführung bleibt verboten, während der
   Abnahmenachweis auf lokalen Hosts und GitHub-Runnern reproduzierbar entsteht.
+- Betrieb/M12: Der Container-Jobstatus unterscheidet den logischen
+  `mail-index`-Sollzustand vom gemeinsam genutzten Mail-Worker. Ein laufender
+  Mail-Owner bei bewusst ausgeschaltetem Index gilt damit korrekt als
+  `mail=ON` und `mail-index=OFF`, statt den gesicherten Rollout mit einem
+  falschen `unexpected-on` abzubrechen.
 
 - Container/ClamAV: Die weiterhin hart begrenzte Maintenance-Rolle erhaelt 2 GiB
   statt 512 MiB Arbeitsspeicher. Damit kann `freshclam` eine vollstaendige neue

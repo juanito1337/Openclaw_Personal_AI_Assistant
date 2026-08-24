@@ -265,8 +265,13 @@ class JobController:
                 return spec
         return None
 
-    def _container_runtime_status(self, unit: str) -> dict[str, Any]:
-        spec = self._container_spec_for_unit(unit)
+    def _container_runtime_status(
+        self,
+        unit: str,
+        *,
+        spec: JobSpec | None = None,
+    ) -> dict[str, Any]:
+        spec = spec or self._container_spec_for_unit(unit)
         if spec is None:
             return {
                 "unit": unit,
@@ -323,9 +328,14 @@ class JobController:
             "heartbeat": str(heartbeat_path),
         }
 
-    def _unit_status(self, unit: str) -> dict[str, Any]:
+    def _unit_status(
+        self,
+        unit: str,
+        *,
+        spec: JobSpec | None = None,
+    ) -> dict[str, Any]:
         if self.container_mode:
-            return self._container_runtime_status(unit)
+            return self._container_runtime_status(unit, spec=spec)
         command = [
             "systemctl", "--user", "show", unit, "--no-pager",
             "--property=LoadState,ActiveState,SubState,UnitFileState,Result,ExecMainStatus,ExecMainStartTimestamp,ExecMainExitTimestamp",
@@ -503,7 +513,7 @@ class JobController:
     def _wait_for_mail_idle(self, spec: JobSpec, *, attempts: int = 12, interval_seconds: float = 2.0) -> dict[str, Any]:
         observations: list[dict[str, Any]] = []
         for attempt in range(1, attempts + 1):
-            service = self._unit_status(spec.service_unit)
+            service = self._unit_status(spec.service_unit, spec=spec)
             lock = self._mail_lock_status()
             idle_service = service.get("ActiveState") in {"", "inactive", "failed"}
             lock_free = bool(lock.get("ok") and not lock.get("locked"))
@@ -527,7 +537,7 @@ class JobController:
             "ok": False,
             "transient": True,
             "attempts": attempts,
-            "service": self._unit_status(spec.service_unit),
+            "service": self._unit_status(spec.service_unit, spec=spec),
             "lock": last.get("lock") or self._mail_lock_status(),
             "observations": observations[-3:],
             "detail": "Mail-Interface oder Prozesssperre blieb waehrend der begrenzten Wartezeit aktiv",
@@ -805,8 +815,8 @@ class JobController:
 
     def _job_status(self, spec: JobSpec, *, deep: bool = False) -> dict[str, Any]:
         desired_on = bool(self.state["desired"].get(spec.name, spec.default_on))
-        timer = self._unit_status(spec.timer_unit)
-        service = self._unit_status(spec.service_unit)
+        timer = self._unit_status(spec.timer_unit, spec=spec)
+        service = self._unit_status(spec.service_unit, spec=spec)
         issues: list[dict[str, str]] = []
 
         if not timer.get("available"):

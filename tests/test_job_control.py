@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -12,6 +13,7 @@ from personal_assistant.job_control import (
     JobController,
     JobSpec,
     _system_event_command,
+    default_job_specs,
 )
 from personal_assistant.portfolio import _system_event_command as _portfolio_event_command
 from personal_assistant.tool_registry import build_tool_registry
@@ -280,6 +282,59 @@ class JobControlTests(unittest.TestCase):
             [str(image_root / "scripts/ollama-priority-proxy.sh"), "status"],
         )
         self.assertNotIn(str(writable_workspace), self.system.commands[-1][0])
+
+    def test_container_shared_mail_owner_can_run_while_mail_index_is_off(self) -> None:
+        specs = {
+            spec.name: spec
+            for spec in default_job_specs()
+            if spec.name in {"mail", "mail-index"}
+        }
+        status_dir = self.root / "container-jobs"
+        status_dir.mkdir()
+        (status_dir / "mail.json").write_text(
+            json.dumps(
+                {
+                    "job": "mail",
+                    "state": "waiting",
+                    "result": "success",
+                    "last_exit_code": 0,
+                    "updated_at": datetime.now(UTC).isoformat(),
+                }
+            ),
+            encoding="utf-8",
+        )
+        state_path = self.root / "container-job-control.json"
+        state_path.write_text(
+            json.dumps({"desired": {"mail": True, "mail-index": False}}),
+            encoding="utf-8",
+        )
+        with patch.dict(
+            "os.environ",
+            {
+                "OPENCLAW_RUNTIME": "container",
+                "OPENCLAW_JOB_STATUS_DIR": str(status_dir),
+            },
+            clear=False,
+        ):
+            controller = JobController(
+                state_path=state_path,
+                workspace_root=self.workspace,
+                unit_dir=self.unit_dir,
+                runner=self.system,
+                specs=(specs["mail"], specs["mail-index"]),
+                sleeper=lambda _seconds: None,
+            )
+            report = controller.status(target="all")
+
+        self.assertTrue(report["ok"])
+        jobs = {job["name"]: job for job in report["jobs"]}
+        self.assertEqual(jobs["mail"]["state"], "on")
+        self.assertEqual(jobs["mail"]["timer"]["ActiveState"], "active")
+        self.assertEqual(jobs["mail-index"]["state"], "off")
+        self.assertTrue(jobs["mail-index"]["ok"])
+        self.assertEqual(jobs["mail-index"]["timer"]["ActiveState"], "inactive")
+        self.assertEqual(jobs["mail-index"]["timer"]["UnitFileState"], "disabled")
+        self.assertEqual(jobs["mail-index"]["issues"], [])
 
     def test_supervisor_reports_scheduler_database_failure(self) -> None:
         spec = JobSpec(
