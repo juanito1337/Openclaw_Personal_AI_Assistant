@@ -5,7 +5,7 @@ d1383ffff37a355f384976fef186e9de4bba65eaaca7c4eece4a39ab52ba1502  ./.dockerignor
 35e7c1a83ee8f31a3dd54503d0132a15e998b573479ddad9fe7ca676b76aac24  ./.gitignore
 1b6baf17377ad89b09ac3596ef0092ea0171e85ca6109206f135b84744561150  ./.hadolint.yaml
 9dd449325879c6bb8e11040884a95f8ee07e75ff1069b7ada85ea4679eaa13e9  ./AGENTS.md
-2c723e68e5c6c7d51634cfa61ed676fdc5faff9aca25b6d2f7b49836a3e73390  ./CHANGELOG.md
+b37e1039d527be3c0334677b7ce9fbcfb631160f276b90f180a0996f71a302e0  ./CHANGELOG.md
 f38e641eaf48ada58510f6c6c1db64ee57390be2838493350b591f87f7e3908f  ./CONTRIBUTING.md
 cbd4aeb86ec260bbc0b1995f299de3c494816673c6fcbb0c38c9e90522eb970f  ./Dockerfile
 dd2bd2aa9bed882e4a7942981299d0e87c70ac8ddd50ca67126eca0af0055e94  ./HEARTBEAT.md
@@ -363,7 +363,7 @@ bf4d976d5256a5e1fc2c7fdf65b29a43cf3a6f0dc16ac0380369c3dfb7c0a1db  ./scripts/chec
 d0b6febd3421769e03a9207eda1cc6ac6d346a8470adb8006a64de859ec3e3b3  ./scripts/check-image-supply-chain.sh
 cbb83b2f1dc6001ed743b775dad292038d5f1b62a81bbd5530daef40125855a1  ./scripts/check-local-signature.sh
 0ab08629b852387ef6f1610a69f0f2b2beadd9e978162217a59eb83a0c4da646  ./scripts/check-m11-integration.sh
-dc4a4da432d87cde6f86f9acf8b54a3923bfb4d49006f2ef470e9c6e0b9aa4ad  ./scripts/check-m12-integration.sh
+401d9ad81f723fd42d7f19b0bfac6f5629676dc6d8a8bd1c6566bfcf89fa0742  ./scripts/check-m12-integration.sh
 715ff950464d323cf05f4a0b7cac9d5fd4e116966eed818e14f56f75cadf3631  ./scripts/check-m8-integration.sh
 123e6644ccdc32dad0bcf72dc74fb5c9b70780366791445267115ce18b1ca3b0  ./scripts/check-mypy.py
 461473d9773842d3a22f3e1ed7e89ef11bd25a593ebc7e2c9ccd223b340442e5  ./scripts/check-repo.sh

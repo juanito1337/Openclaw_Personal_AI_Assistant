@@ -25,6 +25,10 @@
   Produktiver Capability-Probe, Canary, Vollbackfill und Jobstart bleiben
   getrennte Betriebsstufen; diese Entwicklung verändert weder `/srv/openclaw`
   noch ein produktives Postfach oder einen Jobzustand.
+- CI/M12: Der gehärtete Integrationscontainer läuft mit der numerischen UID/GID
+  des unprivilegierten Runner-Benutzers; State-Tmpfs und Ergebnis-Mount besitzen
+  damit denselben Schreibvertrag. Root-Ausführung bleibt verboten, während der
+  Abnahmenachweis auf lokalen Hosts und GitHub-Runnern reproduzierbar entsteht.
 
 - Container/ClamAV: Die weiterhin hart begrenzte Maintenance-Rolle erhaelt 2 GiB
   statt 512 MiB Arbeitsspeicher. Damit kann `freshclam` eine vollstaendige neue
