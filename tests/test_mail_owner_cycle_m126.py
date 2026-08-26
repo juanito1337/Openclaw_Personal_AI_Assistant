@@ -100,3 +100,34 @@ def test_failed_mail_cycle_blocks_reconcile(tmp_path: Path) -> None:
     assert run.call_count == 1
     heartbeat = json.loads((status / "mail-index.json").read_text(encoding="utf-8"))
     assert heartbeat["result"] == "degraded"
+
+
+def test_mail_lock_contention_is_deferred_without_starting_reconcile(
+    tmp_path: Path,
+) -> None:
+    state = tmp_path / "coordination/job_control.json"
+    status = tmp_path / "status"
+    _state(state, True)
+    argv = [
+        "mail_owner_cycle",
+        "--state-path",
+        str(state),
+        "--status-dir",
+        str(status),
+        "--image-root",
+        str(tmp_path / "image"),
+        "--",
+        "mail-command",
+    ]
+    with mock.patch("sys.argv", argv), mock.patch(
+        "subprocess.run", return_value=SimpleNamespace(returncode=3)
+    ) as run:
+        assert mail_owner_cycle.main() == 0
+
+    assert run.call_count == 1
+    heartbeat = json.loads((status / "mail-index.json").read_text(encoding="utf-8"))
+    assert heartbeat["state"] == "waiting"
+    assert heartbeat["result"] == "deferred"
+    assert heartbeat["last_exit_code"] is None
+    assert "Single-Writer-Sperre" in heartbeat["detail"]
+    assert "last_success_at" not in heartbeat

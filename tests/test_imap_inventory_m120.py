@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import pytest
 
@@ -15,8 +17,10 @@ from mail_agent.imap_inventory import (
     _decode_modified_utf7,
     _encode_modified_utf7,
     load_imap_settings,
+    native_backend,
     parse_list_name,
 )
+from mail_agent.index_backend import backfill_backend, reconcile_backend
 from mail_agent.search_backfill import BackfillFolder
 from personal_assistant.contracts.mail_index_authority import (
     FolderIdentityAssurance,
@@ -95,6 +99,48 @@ def _settings(tmp_path: Path) -> ImapConnectionSettings:
     secret = tmp_path / "imap-password"
     secret.write_text("fixture-value\n", encoding="utf-8")
     return ImapConnectionSettings("gmx", "imap.example.invalid", 993, "user", "tls", secret)
+
+
+def test_native_backend_uses_explicit_operation_budget_without_changing_default(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(tmp_path)
+    with patch("mail_agent.imap_inventory.load_imap_settings", return_value=settings):
+        with native_backend(SimpleNamespace(), transport_factory=FakeTransport) as backend:
+            assert backend.settings.total_timeout_seconds == 120.0
+        with native_backend(
+            SimpleNamespace(),
+            transport_factory=FakeTransport,
+            total_timeout_seconds=600.0,
+        ) as backend:
+            assert backend.settings.total_timeout_seconds == 600.0
+
+
+@pytest.mark.parametrize("factory", (backfill_backend, reconcile_backend))
+def test_index_backend_forwards_validated_operation_budget(factory) -> None:
+    captured: dict[str, object] = {}
+    sentinel = object()
+
+    @contextmanager
+    def fake_native_backend(config, *, total_timeout_seconds=None):
+        captured["config"] = config
+        captured["total_timeout_seconds"] = total_timeout_seconds
+        yield sentinel
+
+    config = SimpleNamespace(
+        mailbox=SimpleNamespace(index_connector="native-imap-readonly")
+    )
+    with patch("mail_agent.index_backend.native_backend", fake_native_backend), factory(
+        config,
+        SimpleNamespace(),
+        total_timeout_seconds=600.0,
+    ) as backend:
+        assert backend is sentinel
+
+    assert captured == {
+        "config": config,
+        "total_timeout_seconds": 600.0,
+    }
 
 
 def test_himalaya_config_is_deep_merged_but_auth_command_is_fixed(tmp_path: Path) -> None:

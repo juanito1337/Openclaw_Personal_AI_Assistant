@@ -1457,7 +1457,11 @@ def main(argv: list[str] | None = None) -> int:
                     )
                 reconcile_antivirus = HostAntivirus(settings)
                 reconcile_tags = LocalMailTagResolver(config.runtime.database)
-                with reconcile_backend(config, runner) as selected_backend:
+                with reconcile_backend(
+                    config,
+                    runner,
+                    total_timeout_seconds=reconcile_limits.max_runtime_seconds,
+                ) as selected_backend:
                     reconciler = MailSearchReconciler(
                         selected_backend,
                         reconcile_antivirus,
@@ -1513,7 +1517,16 @@ def main(argv: list[str] | None = None) -> int:
                     )
                 antivirus = HostAntivirus(settings)
                 search_tags = LocalMailTagResolver(config.runtime.database)
-            with backfill_backend(config, runner) as selected_backend:
+            connector_timeout = (
+                limits.max_runtime_seconds
+                if args.index_command in {"backfill", "canary"}
+                else None
+            )
+            with backfill_backend(
+                config,
+                runner,
+                total_timeout_seconds=connector_timeout,
+            ) as selected_backend:
                 crawler = MailSearchBackfill(
                     selected_backend,
                     antivirus,

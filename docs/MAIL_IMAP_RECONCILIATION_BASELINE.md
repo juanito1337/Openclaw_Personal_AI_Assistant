@@ -96,3 +96,18 @@ offen und dürfen nicht als bestanden dargestellt werden:
 Die Anfangsintervalle werden deshalb nicht als Qualitätsgrenze festgeschrieben.
 Der Rollout misst sie zunächst im Canary und dokumentiert eine spätere Anpassung
 als eigene Betriebsentscheidung.
+
+## Erster produktiver Canary-Befund
+
+Der am 26. August 2026 ausdrücklich freigegebene Ordner-Canary für
+`Agent/Relevant` brach vor einer Abnahme mit
+`IMAP-Gesamtlaufzeitlimit erreicht` ab. Ursache war kein Providerwrite und kein
+600-Sekunden-Budgetverbrauch: Der bereits validierte CLI-Wert wurde nicht an den
+nativen Connector weitergereicht, dessen unabhängiger Standard deshalb nach 120
+Sekunden auslöste. Gleichzeitig blockierte der Canary den planmäßigen Maillauf
+korrekt über den gemeinsamen Single-Writer-Lock; dessen erwarteter Exitcode wurde
+jedoch fälschlich als Dienstausfall gewertet.
+
+Beide Befunde sind im Quellstand durch Verhaltensregressionen korrigiert. Eine
+erneute produktive Canary-Abnahme bleibt bis zur Installation und Verifikation
+des daraus gebauten signierten Images ausdrücklich offen.

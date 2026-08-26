@@ -45,7 +45,7 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 942 Tests, darunter mindestens 711 unittest-kompatible Tests
+fordert mindestens 948 Tests, darunter mindestens 711 unittest-kompatible Tests
 (die bisherigen 349 sowie M0-M11.8- und Rollout-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
@@ -103,6 +103,7 @@ der aktuellen Python-Dateien.
 | Tests nach Standard-Betriebsprofil gesammelt/ausgefuehrt | 898 / 898 (985 JUnit-Faelle inklusive 87 Subtests) |
 | Tests nach DAV-verifiziertem Standardprofil-Hotfix gesammelt/ausgefuehrt | 902 / 902 (989 JUnit-Faelle inklusive 87 Subtests) |
 | Tests nach M12-Entwicklungsabnahme gesammelt/ausgefuehrt | 942 / 942 (1.029 JUnit-Faelle inklusive 87 Subtests) |
+| Tests nach M12-Canary-Laufzeitkorrektur gesammelt/ausgefuehrt | 948 / 948 (1.035 JUnit-Faelle inklusive 87 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -138,6 +139,7 @@ der aktuellen Python-Dateien.
 | neue Standard-Betriebsprofil-Regressionsitems | 6 |
 | neue DAV-Standardprofil-Hotfix-Regressionsitems | 4 |
 | neue M12-IMAP-Inventory-/Reconciliation-Regressionsitems | 28 |
+| neue M12-Canary-Budget-/Single-Writer-Regressionsitems | 5 |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |
 | Gesamt-Coverage inklusive Branches (M8) | 59,18 % |
@@ -201,6 +203,8 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach DAV-verifiziertem Standardprofil-Hotfix | 53,60 % |
 | Gesamt-Coverage nach M12 | 67,52 % |
 | reine Branch-Coverage nach M12 | 54,33 % |
+| Gesamt-Coverage nach M12-Canary-Laufzeitkorrektur | 67,69 % |
+| reine Branch-Coverage nach M12-Canary-Laufzeitkorrektur | 54,52 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -889,6 +893,13 @@ UIDVALIDITY-Reset, Teilscan, Crash und Resume ab. Der enge Ordner-Canary und der
 technische Shadowvergleich schreiben keine Providerdaten. Der default-OFF
 `mail-index`-Job wird ausschließlich als serieller Teil des bestehenden
 Mail-Owners getestet.
+
+Die produktiv beobachtete Canary-Regression ist ohne Netzwerk nachgestellt:
+Das validierte `--max-runtime 600` muss sowohl den Backfill-Controller als auch
+die native IMAP-Sitzung begrenzen, während Capability-Probes beim separaten
+120-Sekunden-Standard bleiben. Ein gleichzeitig fälliger Mail-Worker mit
+Exitcode 3 wird als belegte Single-Writer-Vertagung behandelt und darf weder ein
+zweites Reconcile starten noch andere Fehlercodes verdecken.
 
 Jede lokale und hybride Suche wird zusätzlich auf `matches`, `no-match` oder
 `inconclusive` geprüft. Nur ein frischer, vollständiger, autoritativer und für

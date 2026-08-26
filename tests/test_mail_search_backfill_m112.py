@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
@@ -474,6 +475,86 @@ def test_stable_assistant_cli_forwards_bounded_backfill(monkeypatch: pytest.Monk
     assert command[3:5] == ["index", "backfill"]
     assert "--yes" in command
     assert command[command.index("--page-size") + 1] == "7"
+
+
+def test_mail_agent_canary_passes_approved_runtime_to_native_connector(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from mail_agent.cli import main as mail_cli_main
+
+    captured: dict[str, object] = {}
+    backend = object()
+
+    class Closable:
+        def close(self) -> None:
+            return None
+
+        def resolve(self, _message) -> tuple[()]:
+            return ()
+
+    class Crawler:
+        def __init__(self, selected_backend, _antivirus, **kwargs) -> None:
+            captured["backend"] = selected_backend
+            captured["limits"] = kwargs["limits"]
+            captured["folders"] = kwargs["include_folders"]
+
+        def run(self, *, approved: bool) -> dict[str, object]:
+            captured["approved"] = approved
+            return {"ok": True}
+
+    @contextmanager
+    def selected_backend(_config, _runner, *, total_timeout_seconds=None):
+        captured["connector_timeout"] = total_timeout_seconds
+        yield backend
+
+    config = SimpleNamespace(
+        runtime=SimpleNamespace(
+            command_timeout_seconds=30,
+            database=tmp_path / "mail.sqlite3",
+            lock_file=tmp_path / "mail.lock",
+            log_file=tmp_path / "mail.log",
+        ),
+        mailbox=SimpleNamespace(quarantine_folders=("Spamverdacht",)),
+    )
+    antivirus_settings = SimpleNamespace(
+        enabled=True,
+        fail_closed=True,
+        scan_raw_mail=True,
+        scan_attachments=True,
+    )
+    monkeypatch.setattr("mail_agent.cli.load_env_file", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("mail_agent.cli.load_config", lambda *_args, **_kwargs: config)
+    monkeypatch.setattr("mail_agent.cli._configure_logging", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        "mail_agent.cli.load_tool_settings",
+        lambda: SimpleNamespace(
+            security=SimpleNamespace(antivirus=antivirus_settings)
+        ),
+    )
+    monkeypatch.setattr("mail_agent.cli.HostAntivirus", lambda _settings: Closable())
+    monkeypatch.setattr("mail_agent.cli.LocalMailTagResolver", lambda _path: Closable())
+    monkeypatch.setattr("mail_agent.cli.backfill_backend", selected_backend)
+    monkeypatch.setattr("mail_agent.cli.MailSearchBackfill", Crawler)
+
+    code = mail_cli_main(
+        [
+            "index",
+            "canary",
+            "--folder",
+            "Agent/Relevant",
+            "--max-runtime",
+            "600",
+            "--yes",
+        ]
+    )
+
+    assert code == 0
+    assert captured["backend"] is backend
+    assert captured["connector_timeout"] == 600.0
+    assert captured["folders"] == ("Agent/Relevant",)
+    assert captured["approved"] is True
+    assert captured["limits"].max_runtime_seconds == 600.0
 
 
 def test_connector_page_cap_and_per_invocation_resume_budget(tmp_path: Path) -> None:

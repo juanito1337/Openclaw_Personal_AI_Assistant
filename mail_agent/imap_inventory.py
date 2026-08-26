@@ -11,7 +11,7 @@ import time
 import tomllib
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager, suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from email import policy
 from email.header import decode_header, make_header
 from email.parser import BytesParser
@@ -797,9 +797,22 @@ def native_backend(
     config_paths: list[Path] | None = None,
     password_file: Path = FIXED_IMAP_PASSWORD_FILE,
     transport_factory: TransportFactory = StdlibImapTransport,
+    total_timeout_seconds: float | None = None,
 ) -> Iterator[NativeImapInventoryBackend]:
+    settings = load_imap_settings(
+        config,
+        config_paths=config_paths,
+        password_file=password_file,
+    )
+    if total_timeout_seconds is not None:
+        if not 0 < total_timeout_seconds <= 604_800:
+            raise ValueError("total_timeout_seconds ist ungueltig")
+        settings = replace(
+            settings,
+            total_timeout_seconds=float(total_timeout_seconds),
+        )
     backend = NativeImapInventoryBackend(
-        load_imap_settings(config, config_paths=config_paths, password_file=password_file),
+        settings,
         transport_factory=transport_factory,
     )
     try:

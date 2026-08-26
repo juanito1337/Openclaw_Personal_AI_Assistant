@@ -694,6 +694,13 @@ Beobachtung und Rollbackgrenze stehen in der
 [M12-Roadmap](MAIL_IMAP_RECONCILIATION_ROADMAP.md). Ein lokales Zurückrollen kann
 keine bereits extern verschobene oder entfernte Mail wiederherstellen.
 
+Das bei Canary, Backfill oder Reconcile angegebene `--max-runtime` ist zugleich
+das Gesamtlaufzeitlimit der nativen IMAP-Sitzung. Verbindungs- und einzelne
+Leseoperationen behalten ihre engeren Timeouts. Hält ein manueller Indexlauf den
+gemeinsamen Mail-Lock, vertagt der planmäßige Mail-Worker genau diesen belegten
+Sperrkonflikt; er startet weder einen parallelen Maillauf noch ein Reconcile.
+Andere Exitcodes bleiben als echte Fehler sichtbar.
+
 ### Erste M9-Mailordner-Aktivierung
 
 Eine vor M9 bestehende Mailkonfiguration besitzt noch kein `folders.relevant`.

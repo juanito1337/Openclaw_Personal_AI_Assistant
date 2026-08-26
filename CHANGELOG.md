@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Mailindex/M12: Das explizit freigegebene `--max-runtime`-Budget von Canary,
+  Backfill und Reconcile wird nun bis zur nativen IMAP-Sitzung durchgereicht.
+  Der enge Capability-Probe behaelt sein unabhaengiges 120-Sekunden-Limit;
+  dadurch kann ein 600-Sekunden-Canary nicht mehr nach 120 Sekunden mit
+  `IMAP-Gesamtlaufzeitlimit erreicht` abbrechen.
+- Mailindex/M12: Trifft der planmaessige Mail-Worker waehrend eines manuellen
+  Canary auf die belegte Single-Writer-Sperre, wird genau dieser bekannte
+  Exitcode kontrolliert vertagt. Es startet kein Reconcile und der erwartete
+  Sperrkonflikt erzeugt keinen falschen Mail-Dienstausfall; alle anderen
+  Fehlercodes bleiben unveraendert sichtbar.
 - Mailindex/M12: Ein strikt read-only nativer IMAP-Inventory-Connector liefert
   vollständige LIST-/UID-Snapshots, UIDVALIDITY, UIDNEXT, gezielte
   `BODY.PEEK`-Nachweise und abgestufte Ordneridentität. Sein Port kann keine

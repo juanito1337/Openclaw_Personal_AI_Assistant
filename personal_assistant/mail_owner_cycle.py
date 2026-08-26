@@ -92,6 +92,18 @@ def main() -> int:
 
     mail_result = subprocess.run(mail_command, check=False)
     status_path = status_dir / "mail-index.json"
+    if mail_result.returncode == 3:
+        index_enabled = _desired(state_path, "mail-index")
+        _heartbeat(
+            status_path,
+            state="waiting" if index_enabled else "disabled",
+            result="deferred",
+            exit_code=None,
+            detail=(
+                "Mail-Owner-Lauf wegen belegter Single-Writer-Sperre kontrolliert vertagt"
+            ),
+        )
+        return 0
     if mail_result.returncode != 0:
         _heartbeat(
             status_path,
