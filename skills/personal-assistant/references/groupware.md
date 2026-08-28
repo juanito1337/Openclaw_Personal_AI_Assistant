@@ -25,6 +25,16 @@ registered list/search tool before memory, workspace or shell search. A local
 index may supplement an explicitly broad search, but it does not prove that a
 remote object or configured capability is absent.
 
+A request mentioning a Nextcloud file, document, WebDAV path or the `Assistent/`
+tree is already enough to trigger this connector. Run `nextcloud list --path
+"Assistent"` before asking Jan for a local mount, host path, API, another skill or
+an upload. For a filename/content query without an exact path, use the registered
+broad `search "<Suchbegriff>"` path as supplementary indexed evidence and verify
+the live file metadata through `nextcloud list`. If the requested operation needs
+full binary content that no registered command exposes, report only that precise
+operation as unavailable after these attempts; never claim that Nextcloud access
+or its native connector is missing.
+
 ## Shared existing-object contract
 
 - List/search current objects, target exactly one UID and use expectation guards

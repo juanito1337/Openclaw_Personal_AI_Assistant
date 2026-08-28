@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Agent/Nextcloud: Der Skill-Trigger nennt Nextcloud-Dateien, Cloud-Dokumente,
+  WebDAV und Rechnungsarchive jetzt explizit. Der Agent muss den registrierten
+  nativen Connector zuerst ueber `nextcloud list`, bei Rechnungen ueber
+  `invoices status`/`invoices files` und bei Inhaltsbegriffen ergaenzend ueber
+  `search` verwenden; er darf nicht mehr vorab nach lokalem Mount, Hostpfad, API,
+  weiterem Skill oder Upload fragen. Die Live-Dateiliste kennzeichnet
+  tiefenbegrenzte Ergebnisse nun maschinenlesbar als unvollstaendig, statt einen
+  falschen Nulltreffer zu ermoeglichen.
+
 - Mailindex/M12: Das explizit freigegebene `--max-runtime`-Budget von Canary,
   Backfill und Reconcile wird nun bis zur nativen IMAP-Sitzung durchgereicht.
   Der enge Capability-Probe behaelt sein unabhaengiges 120-Sekunden-Limit;

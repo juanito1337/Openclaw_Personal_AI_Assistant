@@ -104,6 +104,7 @@ der aktuellen Python-Dateien.
 | Tests nach DAV-verifiziertem Standardprofil-Hotfix gesammelt/ausgefuehrt | 902 / 902 (989 JUnit-Faelle inklusive 87 Subtests) |
 | Tests nach M12-Entwicklungsabnahme gesammelt/ausgefuehrt | 942 / 942 (1.029 JUnit-Faelle inklusive 87 Subtests) |
 | Tests nach M12-Canary-Laufzeitkorrektur gesammelt/ausgefuehrt | 948 / 948 (1.035 JUnit-Faelle inklusive 87 Subtests) |
+| Tests nach Nextcloud-Skillrouting-Korrektur gesammelt/ausgefuehrt | 951 / 951 (1.038 JUnit-Faelle inklusive 87 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -205,6 +206,8 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach M12 | 54,33 % |
 | Gesamt-Coverage nach M12-Canary-Laufzeitkorrektur | 67,69 % |
 | reine Branch-Coverage nach M12-Canary-Laufzeitkorrektur | 54,52 % |
+| Gesamt-Coverage nach Nextcloud-Skillrouting-Korrektur | 67,78 % |
+| reine Branch-Coverage nach Nextcloud-Skillrouting-Korrektur | 54,65 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |

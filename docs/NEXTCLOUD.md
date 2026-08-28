@@ -19,7 +19,21 @@ required folders, calendars, address books, and task lists with that user.
 The immutable runtime includes its own controlled Nextcloud/WebDAV connector;
 no local Nextcloud mount or separately installed agent skill is required. Use
 live `tools list`/`capabilities` and registered command results to determine
-availability. Archived invoice files have the dedicated read-only route:
+availability. A request for a current remote file starts with the live read-only
+listing, not with a question about a host path, API or upload:
+
+```bash
+./scripts/assistant.sh nextcloud list --path "Assistent"
+```
+
+The result identifies the native connector and reports `complete`,
+`results_may_be_truncated` and `unexpanded_folder_count`. A depth-limited result
+cannot prove that a file is absent; continue with the exact returned subfolder or
+use the registered broad `search "<Suchbegriff>"` path as supplementary indexed
+evidence. Listing metadata does not by itself expose arbitrary binary file
+content.
+
+Archived invoice files have the dedicated read-only route:
 
 ```bash
 ./scripts/assistant.sh invoices status

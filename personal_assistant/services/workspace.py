@@ -40,6 +40,7 @@ class WorkspaceServiceMixin:
         queue: list[tuple[str, int]] = [(requested, 0)]
         seen: set[str] = set()
         items: list[dict[str, Any]] = []
+        unexpanded_folders = 0
         while queue:
             folder, depth = queue.pop(0)
             if folder in seen:
@@ -56,9 +57,23 @@ class WorkspaceServiceMixin:
                     "etag": entry.etag,
                 }
                 items.append(item)
-                if entry.is_collection and depth < max_depth:
-                    queue.append((entry.path, depth + 1))
-        return {"root": requested, "max_depth": max_depth, "items": items}
+                if entry.is_collection:
+                    if depth < max_depth:
+                        queue.append((entry.path, depth + 1))
+                    else:
+                        unexpanded_folders += 1
+        return {
+            "ok": True,
+            "connector": "native-nextcloud-webdav",
+            "resource_id": resource_id,
+            "root": requested,
+            "max_depth": max_depth,
+            "count": len(items),
+            "complete": unexpanded_folders == 0,
+            "results_may_be_truncated": unexpanded_folders > 0,
+            "unexpanded_folder_count": unexpanded_folders,
+            "items": items,
+        }
 
     def list_invoice_files(self, *, limit: int = 100) -> dict[str, Any]:
         """List the configured remote invoice archive through controlled WebDAV."""

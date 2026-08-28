@@ -12,7 +12,7 @@ from personal_assistant import cli as assistant_cli
 from personal_assistant.actions import ActionService
 from personal_assistant.cli_handlers.invoices import handle as handle_invoice_command
 from personal_assistant.cli_handlers.nextcloud import handle as handle_nextcloud_command
-from personal_assistant.connectors.nextcloud.files import NextcloudFiles
+from personal_assistant.connectors.nextcloud.files import NextcloudFiles, RemoteFile
 from personal_assistant.models import ActionPlan, Resource
 from personal_assistant.policy import PolicyEngine
 from personal_assistant.registry import ResourceRegistry
@@ -125,6 +125,98 @@ class NextcloudWorkspaceToolTests(unittest.TestCase):
 
         self.assertEqual(exit_code, 1)
         self.assertFalse(emitted[0]["ok"])
+
+    def test_nextcloud_list_command_uses_native_service_without_local_mount(self) -> None:
+        calls: list[tuple[str, int]] = []
+        emitted: list[dict[str, object]] = []
+        assistant = SimpleNamespace(
+            list_nextcloud_files=lambda path, *, max_depth: (
+                calls.append((path, max_depth))
+                or {
+                    "ok": True,
+                    "connector": "native-nextcloud-webdav",
+                    "root": path,
+                    "complete": True,
+                    "results_may_be_truncated": False,
+                    "items": [],
+                }
+            )
+        )
+
+        exit_code = handle_nextcloud_command(
+            SimpleNamespace(
+                nextcloud_command="list",
+                path="Assistent",
+                max_depth=3,
+            ),
+            assistant,
+            emitted.append,
+        )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(calls, [("Assistent", 3)])
+        self.assertEqual(emitted[0]["connector"], "native-nextcloud-webdav")
+        self.assertTrue(emitted[0]["complete"])
+        self.assertFalse(emitted[0]["results_may_be_truncated"])
+
+    def test_nextcloud_listing_marks_unexpanded_depth_as_incomplete(self) -> None:
+        registry = ResourceRegistry(self.root / "resources.toml")
+        registry.write(
+            [
+                Resource(
+                    id="nextcloud-files-main",
+                    kind="file-root",
+                    connector="nextcloud",
+                    enabled=True,
+                    permissions=("read",),
+                    metadata={"allowed_roots": ["Assistent"]},
+                )
+            ]
+        )
+        tree = {
+            "Assistent": [
+                RemoteFile(
+                    href="/Assistent/Projekte/",
+                    path="Assistent/Projekte",
+                    name="Projekte",
+                    is_collection=True,
+                    content_type="",
+                    size=0,
+                    etag="folder-1",
+                    modified_at="",
+                )
+            ],
+            "Assistent/Projekte": [
+                RemoteFile(
+                    href="/Assistent/Projekte/Alpha/",
+                    path="Assistent/Projekte/Alpha",
+                    name="Alpha",
+                    is_collection=True,
+                    content_type="",
+                    size=0,
+                    etag="folder-2",
+                    modified_at="",
+                )
+            ],
+        }
+        assistant = object.__new__(PersonalAssistant)
+        assistant.nextcloud_files = SimpleNamespace(
+            clean_path=NextcloudFiles.clean_path,
+            list_folder=lambda path: tree[path],
+        )
+        assistant.registry = registry
+        assistant.config = SimpleNamespace(
+            nextcloud=SimpleNamespace(allowed_file_roots=("Assistent",))
+        )
+
+        result = assistant.list_nextcloud_files("Assistent", max_depth=1)
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["connector"], "native-nextcloud-webdav")
+        self.assertEqual(result["count"], 2)
+        self.assertFalse(result["complete"])
+        self.assertTrue(result["results_may_be_truncated"])
+        self.assertEqual(result["unexpanded_folder_count"], 1)
 
     def test_invoice_file_tool_uses_configured_native_nextcloud_root(self) -> None:
         configured_root = "Mail-Agent/Rechnungen"

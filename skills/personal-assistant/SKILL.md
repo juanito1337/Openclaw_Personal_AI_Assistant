@@ -1,6 +1,6 @@
 ---
 name: personal-assistant
-description: Use for Jan's OpenClaw Personal Assistant product version/release/update/status, mail/groupware, portfolio/stocks/holdings/quotes/research/investment philosophy, and runtime operations. Use the exact referenced command—not a dotted tool ID—before memory, workspace or shell search; obey approvals and conflict guards.
+description: Use for Jan's OpenClaw Personal Assistant product version/release/update/status, mail/email, Nextcloud files/documents/WebDAV, invoices, contacts/calendar/tasks, portfolio/stocks/holdings/quotes/research/investment philosophy, and runtime. Use exact registered commands—not a dotted tool ID—before claiming a tool, API, path, connector or access is missing.
 ---
 
 # Personal Assistant
@@ -156,6 +156,28 @@ launcher shown above:
 | Add a new watchlist security by company name or symbol | `portfolio mapping suggest --query "<Unternehmen-oder-Symbol>"`; present the returned candidate for approval |
 | Missing portfolio symbol/MIC mapping | `portfolio mapping suggest --isin "<ISIN>"`; then present the exact returned candidate for approval |
 | Antivirus state, self-test or controlled file scan | `security antivirus doctor`, `security antivirus self-test` or `security antivirus scan ...` |
+
+### Nextcloud file requests are operational requests
+
+Treat every mention of a Nextcloud file, cloud document, WebDAV path, archived
+PDF or a document under `Assistent/` as a direct Personal-Assistant tool request.
+Do not answer from memory and do not ask Jan for a local mount, host path, API,
+additional connector, skill installation or file upload before attempting the
+registered read path.
+
+- For a generic or path-oriented file request, first execute `nextcloud list
+  --path "Assistent"`. Use returned folder paths for a narrower registered list
+  when needed.
+- For an archived invoice document, first execute `invoices status`, then
+  `invoices files --limit 100`; the configured remote root is resolved internally.
+- For a filename or content query without an exact live path, execute `search
+  "<Suchbegriff>"` and verify the candidate against `nextcloud list` metadata.
+
+The generic Nextcloud tool lists live remote metadata; the local knowledge search
+may return indexed text. Neither is permission to invent full file content. If no
+registered command can return the exact content needed for the requested action,
+report that narrow content-read limitation only after the registered list/search
+attempts. Never broaden it into “no Nextcloud access” or “no connector configured”.
 
 After a successful call, distinguish a valid empty result from disabled
 configuration, incomplete output and a tool failure. Claim "not found" only when

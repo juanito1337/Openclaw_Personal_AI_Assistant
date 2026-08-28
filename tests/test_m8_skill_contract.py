@@ -50,9 +50,10 @@ def test_skill_trigger_is_short_precise_and_routes_every_domain() -> None:
         "Use for Jan's OpenClaw Personal Assistant product version/release/update/status"
         in description.group(1)
     )
+    assert "Nextcloud files/documents/WebDAV" in description.group(1)
     assert "portfolio/stocks/holdings/quotes" in description.group(1)
     assert "not a dotted tool ID" in description.group(1)
-    assert "before memory, workspace or shell search" in description.group(1)
+    assert "before claiming a tool, API, path, connector or access is missing" in description.group(1)
     for name in (
         "runtime-security.md",
         "mail.md",
@@ -120,6 +121,26 @@ def test_skill_routes_registered_domain_commands_before_generic_fallbacks() -> N
     assert "Only a successful registered holdings result may establish" in normalized_references
     assert "not memory, local workspace files or generic shell search" in normalized_references
     assert "Eigene Aktien, Wertpapiere und Depotpositionen" in catalog["portfolio.holdings"].description
+
+
+def test_nextcloud_file_request_never_claims_connector_missing_before_registered_reads() -> None:
+    skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
+    groupware = " ".join(
+        (SKILL / "references/groupware.md").read_text(encoding="utf-8").split()
+    )
+    catalog = {definition.id: definition for definition in tool_definitions()}
+
+    assert "Nextcloud file, cloud document, WebDAV path" in skill
+    assert "do not ask Jan for a local mount, host path, API" in skill
+    assert '`nextcloud list --path "Assistent"`' in skill
+    assert '`invoices files --limit 100`' in skill
+    assert '`search "<Suchbegriff>"`' in skill
+    assert "never claim that Nextcloud access or its native connector is missing" in groupware
+    assert catalog["nextcloud.list"].command == (
+        './scripts/assistant.sh nextcloud list --path "Assistent"'
+    )
+    assert "nativen Nextcloud-WebDAV-Connector" in catalog["nextcloud.list"].description
+    assert "kein lokaler Mount" in catalog["nextcloud.list"].description
 
 
 def test_skill_distinguishes_tool_ids_from_executable_commands() -> None:
