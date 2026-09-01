@@ -5,7 +5,7 @@ a332f7a1b4dd378967b4292fa2eea9ca64ed18aae827731505533718dab91f6d  ./.github/work
 35e7c1a83ee8f31a3dd54503d0132a15e998b573479ddad9fe7ca676b76aac24  ./.gitignore
 1b6baf17377ad89b09ac3596ef0092ea0171e85ca6109206f135b84744561150  ./.hadolint.yaml
 819c1d94fc52f30f3a6a0aafd43adb3db27b33fdc93f6726724c52a80f1650b3  ./AGENTS.md
-5eb195fa58c7b4142e606fc5edc5fb444bc56d8041ffa80b919212ae43370697  ./CHANGELOG.md
+498a66513b296ee2192eb531f7cc77611f7e3a56d53fa60f675852219fcdb2e5  ./CHANGELOG.md
 f38e641eaf48ada58510f6c6c1db64ee57390be2838493350b591f87f7e3908f  ./CONTRIBUTING.md
 9d1ac42a698219bb47d552cfa82d8784bf73272343b023fe04856c087a5624f3  ./Dockerfile
 dd2bd2aa9bed882e4a7942981299d0e87c70ac8ddd50ca67126eca0af0055e94  ./HEARTBEAT.md
@@ -31,7 +31,7 @@ c1abcf31e0cdb250de1b75cea434951788977688345de9437381851f81a166bc  ./docker/deplo
 8d38ac026c4b8444769de4209e127b2481432e52918326af866788b74adeebbc  ./docker/job_loop.py
 aada5d9b0e378934b93b645a96c156d9774b74db2bbb4922de1c3d020beee708  ./docker/openclaw-personal-assistant-plugin/evidence.schema.json
 2398b809e4e8f83cceda6bd993f897113a43ac9f6769d559a325f86afff067ad  ./docker/openclaw-personal-assistant-plugin/generated-tools.json
-0c9387b29e2fee5fb2552471fba4b18376fda57fb77f14545dd23b8317448598  ./docker/openclaw-personal-assistant-plugin/index.js
+f7eb9a5e3d8abe3785d7e58eeb2fa29ab7601be4f16708ac53044dfda0d64a3e  ./docker/openclaw-personal-assistant-plugin/index.js
 5f7ac8776c6e8183de0be1d776de51342a7c9bcae093dc5b1b28d59a9379836c  ./docker/openclaw-personal-assistant-plugin/openclaw.plugin.json
 98d41ba0f1526a2f65b5b77c9d862d29a1b1ddb76d4b3321c3ab5f9b9532850e  ./docker/openclaw-personal-assistant-plugin/package.json
 a22a706073e2cc59032e89e7dfce6ba7d6babad408623d16ee0c8906e69977eb  ./docker/openclaw-personal-assistant-plugin/runtime.js
@@ -102,7 +102,7 @@ e96b135f6a4a78cb6d67ffdd6cd4bc2abeb57c4f039a25d322198052229a2f72  ./docs/ROADMAP
 c05dae661dfebb9f3dad052b3d98697b15e5fd4277805197789ffb84e4e9e106  ./docs/SECURITY.md
 a163eda40d0d6e5f9d585e7f51a90c9a7cb670a963ee3bd07eef2203386de394  ./docs/SELF_MANAGEMENT.md
 15b05786df3f00c77adc355d45fb061fce39b60a6ca9534cc32a88d4f4665466  ./docs/STANDARD_OPERATIONS.md
-3458939addf377dfc7f870c19e7e2429f93505231a8e3e1393159539fe5be96b  ./docs/TESTING.md
+782258a1a42096f4abbbfecbd517c69f1104de6e08bbdf16b815ddad26497c1b  ./docs/TESTING.md
 9695e7afef10ac8d1a1434abe891d0ec02699a097f972c67b1c07e45894a7599  ./docs/architecture/CONTAINER_ROLES.md
 07d530fc6f1f335acb15b5fbfc66dbbb2122d4d22552da38ab4248e7fc495bc3  ./docs/architecture/DATA_CATALOG.md
 d43ef8d9ebe22c01489f1fbddb58b2bbdd59cc72d69b815c2a02ca05067ccaa6  ./docs/architecture/EXTENDING.md
@@ -376,7 +376,7 @@ d0b6febd3421769e03a9207eda1cc6ac6d346a8470adb8006a64de859ec3e3b3  ./scripts/chec
 cbb83b2f1dc6001ed743b775dad292038d5f1b62a81bbd5530daef40125855a1  ./scripts/check-local-signature.sh
 0ab08629b852387ef6f1610a69f0f2b2beadd9e978162217a59eb83a0c4da646  ./scripts/check-m11-integration.sh
 401d9ad81f723fd42d7f19b0bfac6f5629676dc6d8a8bd1c6566bfcf89fa0742  ./scripts/check-m12-integration.sh
-532d3ca7147ae3d3c83d29590a5bf0bfaf9e455ecb00537981460cd0dce67790  ./scripts/check-m13-integration.sh
+487a48f399a31021a2915b29e61016a70fe8a0310fd2b5a4fd9fe5dff08461d5  ./scripts/check-m13-integration.sh
 715ff950464d323cf05f4a0b7cac9d5fd4e116966eed818e14f56f75cadf3631  ./scripts/check-m8-integration.sh
 123e6644ccdc32dad0bcf72dc74fb5c9b70780366791445267115ce18b1ca3b0  ./scripts/check-mypy.py
 52f368329825df285e22866f49b214abb54871f12eeadfe9de5f97001240ef4b  ./scripts/check-repo.sh

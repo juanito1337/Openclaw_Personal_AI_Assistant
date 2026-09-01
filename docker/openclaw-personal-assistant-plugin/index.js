@@ -1,9 +1,9 @@
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
+import { readFileSync } from "node:fs";
 import {
   compileInvocation,
   createApprovalLedger,
   guardAnswer,
-  loadContract,
   makeEvidence,
   routePrompt,
   shouldBlockGenericTool,
@@ -11,7 +11,13 @@ import {
   tokenizeCommand,
 } from "./runtime.js";
 
-const contract = await loadContract();
+// OpenClaw loads plugin entrypoints through its synchronous discovery loader.
+// Top-level await works when this file is imported directly by Node, but is not
+// supported by that loader. Keep initialization synchronous so discovery and the
+// actual gateway runtime exercise the same code path.
+const contract = JSON.parse(
+  readFileSync(new URL("./generated-tools.json", import.meta.url), "utf8"),
+);
 const operationById = new Map(contract.operations.map((operation) => [operation.tool_id, operation]));
 const groupByName = new Map(contract.native_tools.map((group) => [group.name, group]));
 const routeByRun = new Map();

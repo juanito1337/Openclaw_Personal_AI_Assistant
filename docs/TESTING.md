@@ -144,6 +144,7 @@ der aktuellen Python-Dateien.
 | neue M12-IMAP-Inventory-/Reconciliation-Regressionsitems | 28 |
 | neue M12-Canary-Budget-/Single-Writer-Regressionsitems | 5 |
 | neue M13-Toolbridge-/Router-/Evidenz-Regressionsitems | 15 |
+| M13-Image-Runtime-Abnahme | Pluginstatus `loaded`, 19 Toolfabriken, 5 typisierte Hooks, keine Diagnosen |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |
 | Gesamt-Coverage inklusive Branches (M8) | 59,18 % |

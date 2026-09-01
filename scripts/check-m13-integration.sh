@@ -16,14 +16,27 @@ docker image inspect "$image" >/dev/null
 
 fixture="$root/tests/fixtures/container/immutable-plugins-openclaw.json"
 fake_assistant="$root/tests/fixtures/m13/fake-assistant.sh"
-docker run --rm --network none --read-only \
+runtime_inspect=$(docker run --rm --network none --read-only \
   --cap-drop ALL \
   --security-opt no-new-privileges:true \
   --tmpfs /tmp:rw,nosuid,nodev,noexec,size=32m,mode=1777 \
   --tmpfs /home/node/.openclaw:rw,nosuid,nodev,noexec,size=32m,mode=0700,uid=1000,gid=1000 \
   --mount "type=bind,src=$fixture,dst=/home/node/.openclaw/openclaw.json,readonly" \
   --entrypoint openclaw \
-  "$image" plugins inspect personal-assistant-tools --runtime --json >/dev/null
+  "$image" plugins inspect personal-assistant-tools --runtime --json)
+
+python3 - "$runtime_inspect" <<'PY'
+import json
+import sys
+
+payload = json.loads(sys.argv[1])
+plugin = payload["plugin"]
+assert plugin["status"] == "loaded", payload
+assert plugin["activated"] is True, payload
+assert len(payload["tools"]) == 19, payload
+assert len(payload["typedHooks"]) == 5, payload
+assert payload["diagnostics"] == [], payload
+PY
 
 result=$(docker run --rm --network none --read-only \
   --cap-drop ALL \

@@ -17,6 +17,12 @@
   genau einem Revisionsversuch ersetzt er die Antwort fail-closed. Ein
   synthetisches 15-Fall-Korpus, Generator-/Driftchecks und ein hermetischer
   OpenClaw-Pluginlauf sichern das Verhalten ohne produktive Daten oder Writes ab.
+- Agent/M13: Die Plugininitialisierung ist mit dem synchronen OpenClaw-
+  Discovery-Loader kompatibel und verwendet kein Top-Level-`await` mehr. Der
+  hermetische Image-Test wertet den Runtime-Inspect nun inhaltlich aus und
+  verlangt `loaded`, 19 registrierte Toolfabriken, fünf typisierte Hooks sowie
+  eine leere Diagnoseliste; ein nur mit Exitcode 0 beendeter, intern jedoch
+  fehlgeschlagener Pluginload kann dadurch nicht mehr grün bleiben.
 
 - Agent/Nextcloud: Der Skill-Trigger nennt Nextcloud-Dateien, Cloud-Dokumente,
   WebDAV und Rechnungsarchive jetzt explizit. Der Agent muss den registrierten
