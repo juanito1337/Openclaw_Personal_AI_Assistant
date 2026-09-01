@@ -6,6 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from personal_assistant.agent_tool_orchestration import build_native_tool_contract
 from personal_assistant.tool_registry import tool_definitions
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -14,6 +15,15 @@ SKILL = ROOT / "skills/personal-assistant"
 
 def _markdown_cell(value: str) -> str:
     return value.replace("|", r"\|").replace("\n", " ")
+
+
+def _documented_contract() -> str:
+    parts = [(SKILL / "SKILL.md").read_text(encoding="utf-8")]
+    parts.extend(
+        path.read_text(encoding="utf-8")
+        for path in sorted((SKILL / "references").glob("*.md"))
+    )
+    return " ".join("\n".join(parts).split())
 
 
 def test_generated_skill_contract_matches_typed_registry_and_release() -> None:
@@ -46,14 +56,17 @@ def test_skill_trigger_is_short_precise_and_routes_every_domain() -> None:
     description = re.search(r"^description:\s*(.+)$", frontmatter, re.MULTILINE)
     assert description is not None
     assert 120 <= len(description.group(1)) <= 360
-    assert (
-        "Use for Jan's OpenClaw Personal Assistant product version/release/update/status"
-        in description.group(1)
-    )
-    assert "Nextcloud files/documents/WebDAV" in description.group(1)
-    assert "portfolio/stocks/holdings/quotes" in description.group(1)
-    assert "not a dotted tool ID" in description.group(1)
-    assert "before claiming a tool, API, path, connector or access is missing" in description.group(1)
+    for phrase in (
+        "product version",
+        "mail",
+        "Nextcloud files",
+        "invoices",
+        "portfolio",
+        "personal_assistant_*",
+        "raw Himalaya",
+        "generic exec",
+    ):
+        assert phrase in description.group(1)
     for name in (
         "runtime-security.md",
         "mail.md",
@@ -72,11 +85,9 @@ def test_unqualified_version_question_routes_to_verified_product_release() -> No
     catalog = {definition.id: definition for definition in tool_definitions()}
     version_tool = catalog["assistant.version"]
 
-    assert '"Welche Version verwendest du?"' in skill
-    assert '"What version are you?"' in skill
-    assert "OpenClaw Local Personal Assistant product release" in skill
-    assert "Never use `openclaw --version`" in skill
-    assert "never answer `OpenClaw 2026.7.1`" in skill
+    assert "OpenClaw Personal Assistant product" in skill
+    assert "authoritative" in skill
+    assert "embedded OpenClaw core version" in skill
     assert "An unqualified version question always means" in runtime
     assert version_tool.command == "./scripts/assistant.sh version --verify"
     assert "Produktrelease" in version_tool.description
@@ -85,11 +96,7 @@ def test_unqualified_version_question_routes_to_verified_product_release() -> No
 
 def test_skill_routes_registered_domain_commands_before_generic_fallbacks() -> None:
     skill = (SKILL / "SKILL.md").read_text(encoding="utf-8")
-    references = "\n".join(
-        path.read_text(encoding="utf-8")
-        for path in sorted((SKILL / "references").glob("*.md"))
-        if path.name != "tool-contract.md"
-    )
+    references = _documented_contract()
     normalized_skill = " ".join(skill.split())
     normalized_references = " ".join(references.split())
     catalog = {definition.id: definition for definition in tool_definitions()}
@@ -104,20 +111,23 @@ def test_skill_routes_registered_domain_commands_before_generic_fallbacks() -> N
         ),
         "security": ("security antivirus doctor",),
         "nextcloud": ('nextcloud list --path "Assistent"',),
-        "mail": ("mail list ...", "mail search ...", "mail read ..."),
-        "contacts": ("contacts status", "contacts list ..."),
-        "calendar": ("calendar status", "calendar list ..."),
-        "tasks": ("tasks status", "tasks list ..."),
-        "orders": ("orders status", "orders list ..."),
-        "invoices": ("invoices status", "invoices list ..."),
+        "mail": ("mail list --folder", "mail search --query", "mail read --folder"),
+        "contacts": ("contacts status", "contacts list --limit"),
+        "calendar": ("calendar status", "calendar list --limit"),
+        "tasks": ("tasks status", "tasks list --include-completed"),
+        "orders": ("orders status", "orders list --limit"),
+        "invoices": ("invoices status", "invoices list --year"),
     }
 
     assert set(first_evidence_tools) == {definition.domain for definition in catalog.values()}
     for domain, command_suffixes in first_evidence_tools.items():
         for command_suffix in command_suffixes:
-            assert f"`{command_suffix}`" in skill, (domain, command_suffix)
+            assert command_suffix in references, (domain, command_suffix)
 
-    assert "they never prove that registered data or a capability is absent" in normalized_skill
+    contract = build_native_tool_contract()
+    generated_domains = {tool["domain"] for tool in contract["native_tools"]}
+    assert set(first_evidence_tools) == generated_domains
+    assert "Do not use generic `exec`" in normalized_skill
     assert "Only a successful registered holdings result may establish" in normalized_references
     assert "not memory, local workspace files or generic shell search" in normalized_references
     assert "Eigene Aktien, Wertpapiere und Depotpositionen" in catalog["portfolio.holdings"].description
@@ -130,11 +140,12 @@ def test_nextcloud_file_request_never_claims_connector_missing_before_registered
     )
     catalog = {definition.id: definition for definition in tool_definitions()}
 
-    assert "Nextcloud file, cloud document, WebDAV path" in skill
-    assert "do not ask Jan for a local mount, host path, API" in skill
-    assert '`nextcloud list --path "Assistent"`' in skill
-    assert '`invoices files --limit 100`' in skill
-    assert '`search "<Suchbegriff>"`' in skill
+    assert "Nextcloud files" in skill
+    assert "A request mentioning a Nextcloud file, document, WebDAV path" in groupware
+    assert "before asking Jan for a local mount, host path, API" in groupware
+    assert '`nextcloud list --path "Assistent"`' in groupware
+    assert '`invoices files --limit 100`' in groupware
+    assert '`search "<Suchbegriff>"`' in groupware
     assert "never claim that Nextcloud access or its native connector is missing" in groupware
     assert catalog["nextcloud.list"].command == (
         './scripts/assistant.sh nextcloud list --path "Assistent"'
@@ -146,12 +157,16 @@ def test_nextcloud_file_request_never_claims_connector_missing_before_registered
 def test_skill_distinguishes_tool_ids_from_executable_commands() -> None:
     skill = (SKILL / "SKILL.md").read_text(encoding="utf-8")
     contract = (SKILL / "references/tool-contract.md").read_text(encoding="utf-8")
-    installed_launcher = "/opt/openclaw-agent/scripts/assistant.sh"
+    generated = json.loads(
+        (ROOT / "docker/openclaw-personal-assistant-plugin/generated-tools.json").read_text(
+            encoding="utf-8"
+        )
+    )
 
-    assert "A dotted Tool-ID identifies a catalog entry; it is never CLI syntax" in skill
-    assert f"{installed_launcher} portfolio holdings" in skill
-    assert f"{installed_launcher} portfolio.holdings" in skill
-    assert "Invalid; never execute this form" in skill
+    assert "Tool IDs such as `mail.search` are selectors inside these tools" in skill
+    assert "Do not translate them to shell syntax" in skill
+    portfolio = next(tool for tool in generated["native_tools"] if tool["domain"] == "portfolio")
+    assert "portfolio.holdings" in portfolio["operations"]
     assert "Tool-IDs in der ersten Spalte sind ausschliesslich Bezeichner" in contract
     assert "`assistant.sh <gepunktete-tool-id>`" in contract
     assert "`./scripts/assistant.sh portfolio holdings`" in contract
@@ -166,14 +181,13 @@ def test_secret_failures_never_route_to_file_or_parent_directory_discovery() -> 
         (SKILL / "references/groupware.md").read_text(encoding="utf-8").split()
     )
 
-    for contract in (skill, runtime, groupware):
+    for contract in (runtime, groupware):
         assert "missing_environment" in contract
-        assert "status/doctor" in contract
         assert "~/.config/personal-assistant" in contract
         assert "/run/openclaw-env" in contract
         assert "/srv/openclaw/secrets" in contract
-    assert "A failed access is the expected security boundary" in skill
-    assert "Never search for their values or location" in skill
+    assert "Never read or edit" in skill
+    assert "/srv/openclaw/secrets" in skill
     assert "list its parent directory" in groupware
 
 
@@ -181,11 +195,7 @@ def test_skill_refreshes_stale_quotes_before_claiming_current_prices() -> None:
     skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
     portfolio = " ".join((SKILL / "references/portfolio.md").read_text(encoding="utf-8").split())
 
-    expected_refresh_flow = (
-        "`portfolio quotes status`; if due, stale or missing and configured, "
-        "`portfolio quotes refresh`; then `portfolio valuation`"
-    )
-    assert expected_refresh_flow in skill
+    assert "never invent a ticker, mapping, price or research fact" in skill
     assert "first use `portfolio quotes status`" in portfolio
     assert "use `portfolio quotes refresh`; then use `portfolio valuation`" in portfolio
     assert "`--force` is only for an explicitly requested diagnostic refresh" in portfolio
@@ -193,11 +203,8 @@ def test_skill_refreshes_stale_quotes_before_claiming_current_prices() -> None:
 
 
 def test_skill_requires_current_portfolio_values_to_be_reported_in_eur() -> None:
-    skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
     portfolio = " ".join((SKILL / "references/portfolio.md").read_text(encoding="utf-8").split())
 
-    assert "report its EUR values only" in skill
-    assert "report `price_eur`, not an unconverted foreign amount" in skill
     assert "Treat EUR as the mandatory reporting currency" in portfolio
     assert "Report `price_eur` from `portfolio quotes get`, and report `current_price_eur`" in portfolio
     assert "Never calculate a conversion in the model" in portfolio
@@ -209,13 +216,14 @@ def test_failed_portfolio_status_requires_complete_diagnosis_and_next_action() -
     skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
     portfolio = " ".join((SKILL / "references/portfolio.md").read_text(encoding="utf-8").split())
 
-    for contract in (skill, portfolio):
-        assert "`portfolio doctor`" in contract
-        assert "`jobs check --target all --deep`" in contract
-        assert "`configuration_ok`" in contract
-        assert "`api_key_present`" in contract
-    assert "do not answer from quote status alone" in skill
-    assert "A failure explanation without the next bounded action is incomplete" in skill
+    for phrase in (
+        "`portfolio doctor`",
+        "`jobs check --target all --deep`",
+        "`configuration_ok`",
+        "`api_key_present`",
+    ):
+        assert phrase in portfolio
+    assert "On a failed native call" in skill
     assert "request one exact mapping approval" in portfolio
     assert "Secret provisioning remains Jan's host action" in portfolio
 
@@ -224,25 +232,22 @@ def test_critical_quote_failure_never_guesses_mapping_or_offers_web_fallback() -
     skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
     portfolio = " ".join((SKILL / "references/portfolio.md").read_text(encoding="utf-8").split())
 
-    for contract in (skill, portfolio):
+    for contract in (portfolio,):
         assert "Aktienkurs fehlt oder ist kritisch veraltet" in contract
         assert "`mapping_confirmed`" in contract
         assert "`provider_symbol`" in contract
         assert "`registered_next_commands`" in contract
         assert "generic web search" in contract
-    assert "the stored provider mapping is not an unresolved cause" in skill
-    assert "never propose alternate tickers" in skill
+    assert "never invent a ticker, mapping, price or research fact" in skill
     assert "Never invent or mention plausible alternatives such as `RHM.DE` or `RHN`" in portfolio
     assert "never call a temporary provider outage without registered evidence" in portfolio
 
 
 def test_missing_mapping_uses_provider_bounded_ollama_suggestion() -> None:
-    skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
     portfolio = " ".join((SKILL / "references/portfolio.md").read_text(encoding="utf-8").split())
     runtime = " ".join((SKILL / "references/runtime-security.md").read_text(encoding="utf-8").split())
 
     command = '`portfolio mapping suggest --isin "<ISIN>"`'
-    assert command in skill
     assert command in portfolio
     assert command in runtime
     assert "select only a returned candidate plus one of its allowlisted MICs" in portfolio
@@ -252,11 +257,9 @@ def test_missing_mapping_uses_provider_bounded_ollama_suggestion() -> None:
 
 
 def test_new_watchlist_security_is_discovered_before_asking_for_isin() -> None:
-    skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
     portfolio = " ".join((SKILL / "references/portfolio.md").read_text(encoding="utf-8").split())
 
     command = '`portfolio mapping suggest --query "<Unternehmen-oder-Symbol>"`'
-    assert command in skill
     assert command in portfolio
     assert "Do not ask Jan for the ISIN before this registered lookup was attempted" in portfolio
     assert "multiple distinct identities fail closed" in portfolio
@@ -267,9 +270,7 @@ def test_agent_executes_approved_portfolio_workflow_instead_of_delegating_it() -
     skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
     portfolio = " ".join((SKILL / "references/portfolio.md").read_text(encoding="utf-8").split())
 
-    assert "Execute registered assistant commands yourself" in skill
-    assert "Never delegate them to Jan as `docker exec` or shell instructions" in skill
-    assert "present one bounded action and wait" in skill
+    assert "Do not hand host shell commands to Jan" in skill
     assert (
         "Run the registered setup, mapping, doctor, refresh, status, valuation and job commands yourself"
     ) in portfolio
@@ -277,7 +278,7 @@ def test_agent_executes_approved_portfolio_workflow_instead_of_delegating_it() -
     assert "exact ISIN, name, symbol, MIC and currency" in portfolio
     assert "complete `next_action.command` verbatim" in portfolio
     assert "`portfolio mapping add` is not a command" in portfolio
-    assert "`next_action.command` from that unchanged proposal verbatim" in skill
+    assert "the proposal's complete `next_action.command` verbatim" in portfolio
     assert "`jobs on portfolio` yourself" in portfolio
     assert "`jobs status --target portfolio --deep`" in portfolio
     assert "Do not broaden an approval to another ISIN, mapping, job or permission" in portfolio
@@ -286,35 +287,31 @@ def test_agent_executes_approved_portfolio_workflow_instead_of_delegating_it() -
 def test_skill_forbids_configuration_patch_fallback_after_tool_failure() -> None:
     skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
     portfolio = " ".join((SKILL / "references/portfolio.md").read_text(encoding="utf-8").split())
+    runtime = " ".join(
+        (SKILL / "references/runtime-security.md").read_text(encoding="utf-8").split()
+    )
 
-    assert "Runtime configuration is administrator-owned" in skill
-    for tool_name in ("`read`", "`write`", "`edit`", "`apply_patch`"):
-        assert tool_name in skill
-    for protected in (
-        "personal_assistant/tools.toml",
-        "mail_agent/config.toml",
-        "openclaw.json",
-    ):
+    assert "A tool error is not permission to edit configuration" in skill
+    for protected in ("openclaw.json", "tools.toml", "config.toml"):
         assert protected in skill
-    assert "Do not try `--help`, workspace file discovery or configuration edits" in skill
+    assert "Do not use `exec` to bypass that boundary" in runtime
     assert "Never inspect or edit `personal_assistant/tools.toml`" in portfolio
     assert "explicitly approved `agent-cli` path" in portfolio
 
 
 def test_task_completion_uses_registered_update_and_never_memory_or_gateway_setup() -> None:
-    skill = " ".join((SKILL / "SKILL.md").read_text(encoding="utf-8").split())
     groupware = " ".join(
         (SKILL / "references/groupware.md").read_text(encoding="utf-8").split()
     )
     catalog = {definition.id: definition for definition in tool_definitions()}
     update = catalog["nextcloud.tasks.update"]
 
-    assert "`tasks status`, then `tasks list --include-completed --limit 100`" in skill
+    assert "`tasks status` and then `tasks list --include-completed --limit 100`" in groupware
     assert "--status COMPLETED" in update.command
-    assert "The gateway's read-only configuration mount is a successful security control" in skill
-    assert "Never claim the task was “noted internally”" in skill
-    assert "`after.status=COMPLETED`" in skill
-    assert "`after.percent_complete=100`" in skill
+    assert "gateway" in groupware and "read-only mount" in groupware
+    assert "internal note replaced the CalDAV update" in groupware
+    assert "`after.status=COMPLETED`" in groupware
+    assert "`after.percent_complete=100`" in groupware
     assert "release-owned `standard` profile" in groupware
     assert "do not ask Jan for another technical unlock" in groupware
     assert "internal note replaced the CalDAV update" in groupware
@@ -325,7 +322,7 @@ def test_research_skill_requires_provider_evidence_and_preserves_profile_authori
     portfolio = " ".join((SKILL / "references/portfolio.md").read_text(encoding="utf-8").split())
     catalog = {definition.id: definition for definition in tool_definitions()}
 
-    assert "portfolio/stocks/holdings/quotes/research/investment philosophy" in skill
+    assert "portfolio" in skill and "research" in skill
     for command in (
         "`portfolio research status`",
         "`portfolio philosophy show`",

@@ -12,6 +12,7 @@ Konfigurationsfreie Sicht: `./scripts/assistant.sh tools list --catalog` und
 
 | Tool-ID | Modus | externe Wirkung | Approval | Verfuegbarkeit | Kommando | Doku | Test |
 |---|---|---:|---|---|---|---|---|
+| `assistant.agent-tools.status` | `read` | nein | `none` | `always` | `./scripts/assistant.sh agent-tools status` | `docs/AGENT_TOOL_ORCHESTRATION_M13_ACCEPTANCE.md` | `tests/test_agent_tool_orchestration_m13.py` |
 | `assistant.status` | `read` | nein | `none` | `always` | `./scripts/assistant.sh status` | `AGENTS.md` | `tests/test_m5_tool_contract.py` |
 | `assistant.version` | `read` | nein | `none` | `always` | `./scripts/assistant.sh version --verify` | `AGENTS.md` | `tests/test_m5_tool_contract.py` |
 | `assistant.version.history` | `read` | nein | `none` | `always` | `./scripts/assistant.sh version --verify --history --limit 10` | `AGENTS.md` | `tests/test_m5_tool_contract.py` |

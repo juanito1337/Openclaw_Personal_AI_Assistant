@@ -36,6 +36,13 @@ First read-only commands for an operational session:
 ./scripts/assistant.sh capabilities
 ```
 
+Inside the OpenClaw agent runtime, Personal-Assistant domain work uses the native
+`personal_assistant_<domain>_<read|write>` tools generated from the typed catalog.
+A dotted catalog ID is only the structured `operation` selector. Generic `exec`,
+raw Himalaya and hand-built `assistant.sh` domain commands are not fallback paths.
+Current version, remote state, negative results and write success require a
+matching current-turn evidence envelope; the reply guard fails closed otherwise.
+
 ## System identity and container runtime
 
 OpenClaw is one local Personal Assistant. Mail is a registered tool/subsystem, not
@@ -70,6 +77,12 @@ A supported capability exists in all four places:
 2. typed registry and `tools list`,
 3. this contract or the `personal-assistant` skill/domain reference,
 4. behavioral regression test.
+
+M13 additionally projects that contract into the generated immutable OpenClaw
+plugin. `./scripts/assistant.sh agent-tools status` verifies its catalog digest,
+schema and operation counts. Local-write and Write calls require an OpenClaw
+allow-once approval bound to turn, tool call, operation, argument digest and
+expiry; this never weakens the underlying ActionPlan/ETag/audit contract.
 
 The typed catalog defines known IDs, commands, modes, effects and approvals. Live
 `tools list`/`capabilities` defines configured availability and current permissions.

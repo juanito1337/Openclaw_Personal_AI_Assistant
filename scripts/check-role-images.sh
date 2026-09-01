@@ -37,6 +37,12 @@ docker run --rm --network none --entrypoint /bin/sh "$runtime" -c '
   test "$(readlink /opt/openclaw-plugins/node_modules/@openclaw/signal/node_modules/openclaw)" = /app
   test ! -w /opt/openclaw-plugins/node_modules/@openclaw/brave-plugin
   test ! -w /opt/openclaw-plugins/node_modules/@openclaw/signal
+  test -s /opt/openclaw-plugins/personal-assistant-tools/generated-tools.json
+  test -s /opt/openclaw-plugins/personal-assistant-tools/openclaw.plugin.json
+  test -s /opt/openclaw-plugins/personal-assistant-tools/runtime.js
+  test ! -w /opt/openclaw-plugins/personal-assistant-tools
+  node --check /opt/openclaw-plugins/personal-assistant-tools/runtime.js
+  node --check /opt/openclaw-plugins/personal-assistant-tools/index.js
   python3 -P -c "from mail_agent.nextcloud import NextcloudSkillClient; assert NextcloudSkillClient"
   test -s /opt/openclaw-agent/personal_assistant/connectors/nextcloud/client.py
   test -s /opt/openclaw-agent/personal_assistant/connectors/nextcloud/calendar.py
@@ -60,7 +66,7 @@ docker run --rm --network none \
 docker run --rm --network none --entrypoint /opt/openclaw-agent/scripts/assistant.sh "$runtime" version --verify >/dev/null
 
 plugin_config="$root/tests/fixtures/container/immutable-plugins-openclaw.json"
-for plugin in brave signal; do
+for plugin in brave signal personal-assistant-tools; do
   docker run --rm --network none --read-only \
     --cap-drop ALL \
     --security-opt no-new-privileges:true \

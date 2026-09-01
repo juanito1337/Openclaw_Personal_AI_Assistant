@@ -313,19 +313,20 @@ class InvoiceBacklogAuditM107Tests(unittest.TestCase):
 
     def test_skill_orders_status_audit_preview_and_explicit_single_apply(self) -> None:
         root = Path(__file__).resolve().parents[1]
-        skill = (root / "skills/personal-assistant/SKILL.md").read_text(encoding="utf-8")
-        workflow = skill.split("## Invoice backlog workflow", 1)[1]
+        workflow = (
+            root / "skills/personal-assistant/references/records.md"
+        ).read_text(encoding="utf-8")
 
         positions = [
             workflow.index("`invoices status`"),
             workflow.index("`invoices audit`"),
-            workflow.index("`invoices\nreprocess ... --dry-run`"),
-            workflow.index("`invoices reprocess-apply ... --yes`"),
+            workflow.index("`invoices reprocess --status"),
+            workflow.index("`invoices reprocess-apply --hash"),
         ]
         self.assertEqual(positions, sorted(positions))
-        self.assertIn("Never add\n`--yes` autonomously", workflow)
-        self.assertIn("memory, filename, mail text or Ollama", workflow)
-        self.assertIn("do not move them", workflow)
+        self.assertIn("Never infer `--yes`", workflow)
+        self.assertIn("memory, filename, mail text or\nOllama", workflow)
+        self.assertIn("without moving or\nreplacing it", workflow)
 
 
 if __name__ == "__main__":

@@ -68,7 +68,7 @@ def test_mail_contract_forbids_raw_client_and_shell_filter_fallback() -> None:
     )
 
     assert "never execute the `himalaya` binary directly" in contracts
-    assert "Never execute `himalaya` directly" in contracts
+    assert "Do not call it directly" in contracts
     assert "`himalaya` executable is an internal connector" in contracts
-    assert "grep` exit code 1" in contracts
+    assert "filter exit code 1" in contracts
     assert 'mail search --query "<text>" --limit 50' in contracts

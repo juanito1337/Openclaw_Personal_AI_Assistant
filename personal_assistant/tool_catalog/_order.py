@@ -2,6 +2,7 @@ from __future__ import annotations
 
 # Compatibility order of the historical live ``tools list`` projection.
 TOOL_ORDER: tuple[str, ...] = (
+    "assistant.agent-tools.status",
     "assistant.status",
     "assistant.version",
     "assistant.version.history",

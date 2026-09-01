@@ -4,6 +4,20 @@ from personal_assistant.contracts.tools import ToolDefinition, define
 
 TOOLS: tuple[ToolDefinition, ...] = (
     define(
+        id="assistant.agent-tools.status",
+        domain="runtime",
+        description=(
+            "Native OpenClaw-Toolbridge, Katalogdigest, Schemazahl und argv-only-Vertrag pruefen"
+        ),
+        command="./scripts/assistant.sh agent-tools status",
+        mode="read",
+        writes_external_data=False,
+        approval="none",
+        availability="always",
+        documentation_anchor="docs/AGENT_TOOL_ORCHESTRATION_M13_ACCEPTANCE.md",
+        test_anchor="tests/test_agent_tool_orchestration_m13.py",
+    ),
+    define(
         id="assistant.status",
         domain="runtime",
         description="Core, Ressourcen, Policies und Connector-Status anzeigen",

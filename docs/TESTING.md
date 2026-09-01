@@ -1,6 +1,6 @@
 # Tests, Qualitaetsbaseline und Container-Runtime
 
-Stand: 2026-08-23, fortgeschrieben bis zur M12-Entwicklungsabnahme.
+Stand: 2026-09-01, fortgeschrieben bis zur M13-Entwicklungsabnahme.
 Sie startet keine produktiven Dienste und verwendet
 weder `/srv/openclaw` noch produktive Zugangsdaten.
 
@@ -31,7 +31,8 @@ GitHub Actions ruft genau diese beiden Befehle auf Python 3.11, 3.12 und 3.13 au
 4. ShellCheck und Hadolint,
 5. beide Compose-Varianten mit `docker/deployment.env.example`,
 6. `git diff --check`, den Architekturdokumentationsvertrag, die generierte
-   M5-Befehlsreferenz und den generierten M8-Skill-Toolvertrag,
+   M5-Befehlsreferenz, den generierten M8-Skill-Toolvertrag sowie den
+   M13-OpenClaw-Tool-/Evidenzvertrag und dessen 15-Fall-Replay,
 7. Ruff und mypy,
 8. Python-Kompilierung,
 9. die vollstaendige pytest-Suite mit Branch-Coverage,
@@ -45,14 +46,14 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 948 Tests, darunter mindestens 711 unittest-kompatible Tests
-(die bisherigen 349 sowie M0-M11.8- und Rollout-Regressionstests),
+fordert mindestens 966 Tests, darunter mindestens 711 unittest-kompatible Tests
+(die bisherigen 349 sowie M0-M13- und Rollout-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
 nach dem Sammeln mit einem Fehler ab. Neue Tests duerfen die Zahl erhoehen; die
 Baseline wird erst nach einem vollstaendigen gruenen Lauf bewusst angehoben.
 
-## M0-Ausgangswerte und aktueller M11.8-Teststand
+## M0-Ausgangswerte und aktueller M13-Teststand
 
 Gemessen auf Linux x86_64 mit Python 3.12.3. Die Werte sind Beobachtungen und noch
 keine willkuerlichen Mindestquoten. `scripts/quality-baseline.py` erzeugt sie nach
@@ -105,6 +106,7 @@ der aktuellen Python-Dateien.
 | Tests nach M12-Entwicklungsabnahme gesammelt/ausgefuehrt | 942 / 942 (1.029 JUnit-Faelle inklusive 87 Subtests) |
 | Tests nach M12-Canary-Laufzeitkorrektur gesammelt/ausgefuehrt | 948 / 948 (1.035 JUnit-Faelle inklusive 87 Subtests) |
 | Tests nach Nextcloud-Skillrouting-Korrektur gesammelt/ausgefuehrt | 951 / 951 (1.038 JUnit-Faelle inklusive 87 Subtests) |
+| Tests nach M13 gesammelt/ausgefuehrt | 966 / 966 (1.071 JUnit-Faelle inklusive 105 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -141,6 +143,7 @@ der aktuellen Python-Dateien.
 | neue DAV-Standardprofil-Hotfix-Regressionsitems | 4 |
 | neue M12-IMAP-Inventory-/Reconciliation-Regressionsitems | 28 |
 | neue M12-Canary-Budget-/Single-Writer-Regressionsitems | 5 |
+| neue M13-Toolbridge-/Router-/Evidenz-Regressionsitems | 15 |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |
 | Gesamt-Coverage inklusive Branches (M8) | 59,18 % |
@@ -208,6 +211,8 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach M12-Canary-Laufzeitkorrektur | 54,52 % |
 | Gesamt-Coverage nach Nextcloud-Skillrouting-Korrektur | 67,78 % |
 | reine Branch-Coverage nach Nextcloud-Skillrouting-Korrektur | 54,65 % |
+| Gesamt-Coverage nach M13 | 67,91 % |
+| reine Branch-Coverage nach M13 | 54,90 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -517,8 +522,10 @@ und Sicherheitsdienste als Anwendungs-Mixins. Die Portfolio-Importparser liegen 
 einem eigenen Modul. Die 124 bei M5 charakterisierten Werkzeuge, zwei spaeter
 registrierte read-only Mappingvorschlaege und zehn Research-/Philosophiewerkzeuge
 ergaben zunaechst 136 Toolprojektionen in
-`tests/golden/m5-tool-contract.json`; einschliesslich der spaeteren M9-/M10-/M11-
-Werkzeuge sind es aktuell 151 Toolprojektionen. Die stabile Top-Level-Hilfe steht in
+`tests/golden/m5-tool-contract.json`; einschliesslich der spaeteren M9-/M10-/M11-/M13-
+Werkzeuge sind es aktuell 159 Toolprojektionen. M13 bildet davon 158 ohne manuelle
+Parallelliste auf 19 native OpenClaw-Werkzeuge ab; die interne Mail-Kalender-
+Betreffsaktion bleibt begruendet ausserhalb der CLI-Bridge. Die stabile Top-Level-Hilfe steht in
 `tests/golden/m5-cli-help.txt`. Aktuelle Modul- und Funktionsgroessen werden
 weiterhin ausschliesslich durch `scripts/quality-baseline.py` gemessen.
 

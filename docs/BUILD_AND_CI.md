@@ -1,6 +1,6 @@
 # Build- und CI-Nachweise
 
-Stand: M11.8, 2026-08-20. Der detaillierte Sicherheitsvertrag steht unter
+Stand: M13.8, 2026-09-01. Der detaillierte Sicherheitsvertrag steht unter
 [`architecture/IMAGE_SUPPLY_CHAIN.md`](architecture/IMAGE_SUPPLY_CHAIN.md).
 
 ## Gemeinsame Qualitaetspruefung
@@ -15,6 +15,17 @@ Drei-Szenarien-Recovery-Drill gegen temporaere Roots aus. Der Docker-Containerjo
 ruft `scripts/check-m8-integration.sh` auf und bewahrt
 `build/m8-integration.json`; keine Fixture publiziert Hostports oder nutzt
 produktive Konten, Secrets, Mounts oder Netze.
+M13 validiert zusaetzlich den aus demselben typisierten Katalog generierten
+OpenClaw-Tool-/Evidenzvertrag und das synthetische 15-Fall-Routingkorpus. Nach dem
+Rollenbuild fuehrt `scripts/check-m13-integration.sh` das echte imageeigene Plugin
+mit OpenClaw 2026.7.1, ohne Netz und auf read-only Rootfs aus. Der Test belegt
+native Toolregistrierung, argv-only Versionsaufruf, Roh-Exec-Block,
+eine argumentgebundene `allow-once`-Writefreigabe, den genau einmal ausgefuehrten
+synthetischen Aufgaben-Write samt verifiziertem Nachzustand und Replay-Sperre
+sowie die fail-closed Ersetzung einer unbelegten Negativaussage. Der Write trifft
+nur den gemounteten Fake-Launcher; externe und produktive Writes bleiben null.
+Der Nachweis `build/m13-integration.json` enthaelt keine Prompts, Resultate,
+Adressen oder Secrets.
 M11.8 baut im selben Containerjob zuerst die drei Rollenimages und startet danach
 `scripts/check-m11-integration.sh` mit dem Kandidaten-Runtimeimage. Der eigene
 Compose-Stack verwendet Fake-IMAP, Fake-ClamAV und einen Fake-Embeddingdienst auf

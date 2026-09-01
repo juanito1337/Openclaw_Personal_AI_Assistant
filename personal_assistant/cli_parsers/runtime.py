@@ -6,6 +6,12 @@ from personal_assistant.work_scheduler import VALID_TOPICS
 
 
 def add_commands(sub: Any) -> None:
+    agent_tools = sub.add_parser(
+        "agent-tools", help="Native Agentenwerkzeuge, Routing und Evidenzvertrag pruefen"
+    )
+    agent_tools_sub = agent_tools.add_subparsers(dest="agent_tools_command", required=True)
+    agent_tools_sub.add_parser("status")
+
     sub.add_parser("doctor", help="Core, Index, Policies und Nextcloud pruefen")
     sub.add_parser("status", help="Kompakten Status anzeigen")
     capabilities = sub.add_parser("capabilities", help="Maschinenlesbare Rechte und Grenzen anzeigen")

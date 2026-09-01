@@ -11,6 +11,7 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any
 
+from .agent_tool_orchestration import status as agent_tool_status
 from .bootstrap import create_personal_assistant
 from .cli_handlers import dispatch as dispatch_domain_command
 from .cli_handlers.invoices import run_external as run_invoice_external
@@ -321,6 +322,17 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "capabilities" and args.schema:
         _print(capability_schema())
         return 0
+
+    if args.command == "agent-tools":
+        candidates = (
+            Path(__file__).resolve().parents[1]
+            / "docker/openclaw-personal-assistant-plugin/generated-tools.json",
+            Path("/opt/openclaw-plugins/personal-assistant-tools/generated-tools.json"),
+        )
+        contract = next((candidate for candidate in candidates if candidate.is_file()), candidates[0])
+        payload = agent_tool_status(contract)
+        _print(payload)
+        return 0 if payload["ok"] else 1
 
     if args.command == "jobs":
         return _handle_jobs(args)

@@ -14,17 +14,32 @@ Der geplante Folgemilestone fuer eine vollstaendige, schnelle und kontextuelle
 Mail-Suche mit lokalem Volltextindex, belegten Tags, Threadkontext und evaluierten
 lokalen Embeddings steht in
 [`MAIL_SEARCH_INDEXING_ROADMAP.md`](MAIL_SEARCH_INDEXING_ROADMAP.md).
+Der darauf aufbauende Milestone fuer einen autoritativen read-only
+IMAP-Connector, inkrementelles Move-Tracking und einen kontrollierten
+Produktivrollout steht in
+[`MAIL_IMAP_RECONCILIATION_ROADMAP.md`](MAIL_IMAP_RECONCILIATION_ROADMAP.md).
+Der geplante M13-Milestone fuer native strukturierte Agentenwerkzeuge,
+deterministische Werkzeugpflicht, turngebundene Evidenz und belegte Antworten
+steht in
+[`AGENT_TOOL_ORCHESTRATION_ROADMAP.md`](AGENT_TOOL_ORCHESTRATION_ROADMAP.md).
 
 M0 bis M10 sind kumulativ in `3.4.0-r28` enthalten. Die Roadmaps bleiben als
 Umsetzungs- und Testevidenz bestehen; die aktuelle Release-, Upgrade- und
 Rollbackbeschreibung steht im
 [`3.4.0-r28`-Releasebericht](RELEASE_3_4_0_R28.md). Eine Main-Promotion ist noch
 keine produktive Installation oder Freigabe historischer Mail-/Rechnungsdaten.
-M11.0 ist auf `development/mail-search-indexing-m11` als rein synthetische,
-schreibfreie Such-, Coverage- und Ressourcenbaseline abgeschlossen. M11.1 bis
-M11.8 sind noch nicht implementiert oder produktiv aktiviert. Messwerte und
-bekannte Luecken stehen in
-[`MAIL_SEARCH_BASELINE_M110.md`](MAIL_SEARCH_BASELINE_M110.md).
+M11.0 bis M11.8 und M12.0 bis M12.8 sind als Entwicklungsstand implementiert.
+Messwerte und bekannte Ausgangsluecken stehen in
+[`MAIL_SEARCH_BASELINE_M110.md`](MAIL_SEARCH_BASELINE_M110.md) und
+[`MAIL_IMAP_RECONCILIATION_BASELINE.md`](MAIL_IMAP_RECONCILIATION_BASELINE.md).
+Produktiver M12-Vollbackfill, Jobstart und Beobachtungsfenster bleiben getrennte
+Betriebsaktionen. M13.0 bis M13.7 sind als Entwicklungsstand implementiert:
+Kataloggenerierte native Agentenwerkzeuge, argv-only Bridge, read-only Router,
+gebundene Einzelfreigaben und turnbezogener Antwortguard sind vorhanden. Die
+lokale/hermetische M13.8-Abnahme steht unter
+[`AGENT_TOOL_ORCHESTRATION_M13_ACCEPTANCE.md`](AGENT_TOOL_ORCHESTRATION_M13_ACCEPTANCE.md);
+signiertes CI-Image und produktiver read-only Canary bleiben getrennt und sind
+nicht durch den Entwicklungsstand aktiviert.
 
 ## 3.4.x foundation
 

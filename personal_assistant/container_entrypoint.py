@@ -89,6 +89,8 @@ ALLOWED_KEYS = {
 }
 KEY_RE = re.compile(r"([A-Z][A-Z0-9_]*)=(.*)")
 MAX_ENV_BYTES = 64 * 1024
+PERSONAL_ASSISTANT_PLUGIN_ID = "personal-assistant-tools"
+PERSONAL_ASSISTANT_PLUGIN_PATH = "/opt/openclaw-plugins/personal-assistant-tools"
 
 
 def parse_env_file(path: Path) -> dict[str, str]:
@@ -194,6 +196,49 @@ def configure_custom_ca(environment: dict[str, str]) -> None:
         environment[key] = str(bundle)
 
 
+def ensure_personal_assistant_plugin_config(path: Path) -> bool:
+    """Enable the immutable image-owned bridge without weakening other plugin policy."""
+
+    if not path.is_file():
+        raise ValueError(f"Gateway-Konfiguration fehlt: {path}")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError("openclaw.json muss ein JSON-Objekt sein")
+    plugins = data.setdefault("plugins", {})
+    if not isinstance(plugins, dict):
+        raise ValueError("openclaw.json plugins muss ein JSON-Objekt sein")
+    load = plugins.setdefault("load", {})
+    if not isinstance(load, dict):
+        raise ValueError("openclaw.json plugins.load muss ein JSON-Objekt sein")
+    paths = load.setdefault("paths", [])
+    if not isinstance(paths, list) or not all(isinstance(item, str) for item in paths):
+        raise ValueError("openclaw.json plugins.load.paths muss eine String-Liste sein")
+    entries = plugins.setdefault("entries", {})
+    if not isinstance(entries, dict):
+        raise ValueError("openclaw.json plugins.entries muss ein JSON-Objekt sein")
+    entry = entries.setdefault(PERSONAL_ASSISTANT_PLUGIN_ID, {})
+    if not isinstance(entry, dict):
+        raise ValueError("Personal-Assistant-Pluginkonfiguration muss ein JSON-Objekt sein")
+    hooks = entry.setdefault("hooks", {})
+    if not isinstance(hooks, dict):
+        raise ValueError("Personal-Assistant-Plugin-Hooks muessen ein JSON-Objekt sein")
+
+    before = json.dumps(data, ensure_ascii=False, sort_keys=True)
+    if PERSONAL_ASSISTANT_PLUGIN_PATH not in paths:
+        paths.append(PERSONAL_ASSISTANT_PLUGIN_PATH)
+    entry["enabled"] = True
+    hooks["allowConversationAccess"] = True
+    hooks["allowPromptInjection"] = True
+    if before == json.dumps(data, ensure_ascii=False, sort_keys=True):
+        return False
+
+    temporary = path.with_name(f".{path.name}.personal-assistant-{os.getpid()}")
+    temporary.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    os.chmod(temporary, path.stat().st_mode & 0o777)
+    os.replace(temporary, path)
+    return True
+
+
 def verify_layout(workspace: Path) -> None:
     marker = workspace / ".layout-version.json"
     payload = json.loads(marker.read_text(encoding="utf-8"))
@@ -279,8 +324,9 @@ def main(argv: list[str] | None = None) -> int:
             synchronize_installed_plugin_index,
         )
 
-        plugin_contract = load_contract(Path("/usr/share/openclaw/immutable-plugins.json"))
         gateway_data = Path(environment["OPENCLAW_GATEWAY_DATA_DIR"])
+        ensure_personal_assistant_plugin_config(gateway_data / "openclaw.json")
+        plugin_contract = load_contract(Path("/usr/share/openclaw/immutable-plugins.json"))
         plugin_report = synchronize_installed_plugin_index(
             gateway_data / "state/openclaw.sqlite",
             plugin_contract,

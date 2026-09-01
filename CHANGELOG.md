@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- Agent/M13: Ein imageeigenes OpenClaw-Plugin exponiert 158 registrierte
+  Katalogoperationen als 19 strukturierte Domaenenwerkzeuge. Argumente werden
+  streng validiert und ausschliesslich als argv/stdin an den festen
+  Personal-Assistant-Launcher uebergeben; rohe Fach-Execs, gepunktete Tool-IDs
+  und generische Secretpfade werden technisch blockiert.
+- Agent/M13: Ein deterministischer Router fordert fuer explizite Fachdomaenen
+  aktuelle read-only Evidenz, ohne selbst Writes, Jobs oder Rechte ausloesen zu
+  koennen. Local-write/Write behalten ihren bestehenden Vertrag und benoetigen
+  eine an Turn, ToolCall, Operation, Argumentdigest und Ablaufzeit gebundene
+  `allow-once`-Freigabe.
+- Agent/M13: Der turnbezogene Evidenz- und Antwortguard verhindert unbelegte
+  Produktversions-, Nulltreffer-, Zustands- und Schreiberfolgsbehauptungen. Nach
+  genau einem Revisionsversuch ersetzt er die Antwort fail-closed. Ein
+  synthetisches 15-Fall-Korpus, Generator-/Driftchecks und ein hermetischer
+  OpenClaw-Pluginlauf sichern das Verhalten ohne produktive Daten oder Writes ab.
+
 - Agent/Nextcloud: Der Skill-Trigger nennt Nextcloud-Dateien, Cloud-Dokumente,
   WebDAV und Rechnungsarchive jetzt explizit. Der Agent muss den registrierten
   nativen Connector zuerst ueber `nextcloud list`, bei Rechnungen ueber

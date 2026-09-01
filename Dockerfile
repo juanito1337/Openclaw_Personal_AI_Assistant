@@ -121,6 +121,7 @@ RUN rm -rf /app/node_modules/@vitest/browser \
 
 COPY --from=himalaya-builder /opt/himalaya/bin/himalaya /usr/local/libexec/openclaw/himalaya
 COPY --from=agent-source / /opt/openclaw-agent
+COPY docker/openclaw-personal-assistant-plugin /opt/openclaw-plugins/personal-assistant-tools
 COPY --from=agent-source /docker/himalaya-agent-guard.sh /usr/local/bin/himalaya
 COPY docker/supply-chain.lock.json /usr/share/openclaw/supply-chain.lock.json
 COPY docker/openclaw-plugins/contract.json /usr/share/openclaw/immutable-plugins.json
@@ -130,6 +131,11 @@ RUN printf '%s\n' "${OPENCLAW_SOURCE_REVISION}" > /opt/openclaw-agent/SOURCE_REV
     && chmod 0555 /opt/openclaw-agent/scripts/*.sh /opt/openclaw-agent/docker/*.sh \
        /usr/local/bin/himalaya /usr/local/libexec/openclaw/himalaya \
     && chmod -R a-w /opt/openclaw-agent \
+    && chmod -R a-w /opt/openclaw-plugins/personal-assistant-tools \
+    && test -s /opt/openclaw-plugins/personal-assistant-tools/generated-tools.json \
+    && test -s /opt/openclaw-plugins/personal-assistant-tools/openclaw.plugin.json \
+    && node --check /opt/openclaw-plugins/personal-assistant-tools/runtime.js \
+    && node --check /opt/openclaw-plugins/personal-assistant-tools/index.js \
     && mkdir -p /home/node/.openclaw/workspace /home/node/.config/himalaya /var/lib/clamav \
     && chown -R node:node /home/node/.openclaw /home/node/.config \
     && chown -R clamav:clamav /var/lib/clamav \

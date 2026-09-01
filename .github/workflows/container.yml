@@ -107,6 +107,10 @@ jobs:
         env:
           OPENCLAW_M12_RUNTIME_IMAGE: openclaw-agent:m7-candidate
         run: ./scripts/check-m12-integration.sh
+      - name: Hermetic M13 native tool orchestration
+        env:
+          OPENCLAW_M13_RUNTIME_IMAGE: openclaw-agent:m7-candidate
+        run: ./scripts/check-m13-integration.sh
       - name: Record synthetic M11 acceptance comparison
         run: python3 scripts/benchmark_mail_acceptance_m118.py --output build/m11-acceptance.json
       - name: Rebuild twice and require identical OCI artifacts

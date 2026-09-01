@@ -233,7 +233,18 @@ class ContainerMigrationTests(unittest.TestCase):
                 [
                     "/opt/openclaw-plugins/node_modules/@openclaw/brave-plugin",
                     "/opt/openclaw-plugins/node_modules/@openclaw/signal",
+                    "/opt/openclaw-plugins/personal-assistant-tools",
                 ],
+            )
+            self.assertEqual(
+                migrated["plugins"]["entries"]["personal-assistant-tools"],
+                {
+                    "enabled": True,
+                    "hooks": {
+                        "allowConversationAccess": True,
+                        "allowPromptInjection": True,
+                    },
+                },
             )
 
             second = subprocess.run(command, text=True, capture_output=True, check=True)

@@ -1,0 +1,37 @@
+{
+  "id": "personal-assistant-tools",
+  "name": "Personal Assistant Tools",
+  "description": "Native structured tools, deterministic routing and evidence guards for the local Personal Assistant",
+  "version": "3.4.0-r28",
+  "contracts": {
+    "tools": [
+      "personal_assistant_runtime_read",
+      "personal_assistant_runtime_write",
+      "personal_assistant_mail_read",
+      "personal_assistant_mail_write",
+      "personal_assistant_nextcloud_read",
+      "personal_assistant_nextcloud_write",
+      "personal_assistant_contacts_read",
+      "personal_assistant_contacts_write",
+      "personal_assistant_calendar_read",
+      "personal_assistant_calendar_write",
+      "personal_assistant_tasks_read",
+      "personal_assistant_tasks_write",
+      "personal_assistant_orders_read",
+      "personal_assistant_orders_write",
+      "personal_assistant_invoices_read",
+      "personal_assistant_invoices_write",
+      "personal_assistant_portfolio_read",
+      "personal_assistant_portfolio_write",
+      "personal_assistant_security_read"
+    ]
+  },
+  "activation": {
+    "onStartup": true
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

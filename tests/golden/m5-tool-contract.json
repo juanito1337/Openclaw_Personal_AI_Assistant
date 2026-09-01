@@ -1,5 +1,13 @@
 [
   {
+    "id": "assistant.agent-tools.status",
+    "description": "Native OpenClaw-Toolbridge, Katalogdigest, Schemazahl und argv-only-Vertrag pruefen",
+    "command": "./scripts/assistant.sh agent-tools status",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
     "id": "assistant.status",
     "description": "Core, Ressourcen, Policies und Connector-Status anzeigen",
     "command": "./scripts/assistant.sh status",

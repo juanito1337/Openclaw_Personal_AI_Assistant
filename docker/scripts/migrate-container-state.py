@@ -173,7 +173,10 @@ def ensure_immutable_plugin_config(
     if not isinstance(configured_paths, list) or not all(isinstance(item, str) for item in configured_paths):
         raise RuntimeError("openclaw.json plugins.load.paths muss eine String-Liste sein")
 
-    immutable_paths = [contract["path"] for contract in contracts.values()]
+    personal_assistant_path = "/opt/openclaw-plugins/personal-assistant-tools"
+    immutable_paths = [contract["path"] for contract in contracts.values()] + [
+        personal_assistant_path
+    ]
     preserved: list[str] = []
     for configured in configured_paths:
         if configured == source_state_root or configured.startswith(source_state_root + "/"):
@@ -185,9 +188,27 @@ def ensure_immutable_plugin_config(
         if configured not in preserved:
             preserved.append(configured)
     updated_paths = preserved + [item for item in immutable_paths if item not in preserved]
-    changed = updated_paths != configured_paths
+    entries = plugins.setdefault("entries", {})
+    if not isinstance(entries, dict):
+        raise RuntimeError("openclaw.json plugins.entries muss ein JSON-Objekt sein")
+    agent_entry = entries.setdefault("personal-assistant-tools", {})
+    if not isinstance(agent_entry, dict):
+        raise RuntimeError("Personal-Assistant-Pluginkonfiguration muss ein JSON-Objekt sein")
+    hooks = agent_entry.setdefault("hooks", {})
+    if not isinstance(hooks, dict):
+        raise RuntimeError("Personal-Assistant-Plugin-Hooks muessen ein JSON-Objekt sein")
+    changed = updated_paths != configured_paths or any(
+        (
+            agent_entry.get("enabled") is not True,
+            hooks.get("allowConversationAccess") is not True,
+            hooks.get("allowPromptInjection") is not True,
+        )
+    )
     if changed:
         load["paths"] = updated_paths
+        agent_entry["enabled"] = True
+        hooks["allowConversationAccess"] = True
+        hooks["allowPromptInjection"] = True
         atomic_write(path, json.dumps(data, ensure_ascii=False, indent=2) + "\n")
     return {"config_present": True, "changed": changed, "paths": immutable_paths}
 

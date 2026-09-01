@@ -44,6 +44,7 @@
     {"path": "docs/architecture/adr/0032-hybrid-mail-search-und-live-locator.md", "owner": "Security Maintainers"},
     {"path": "docs/architecture/adr/0033-m11-abnahme-und-rolloutgrenze.md", "owner": "Security Maintainers"},
     {"path": "docs/architecture/adr/0034-standardbetriebsprofil-bei-jedem-start.md", "owner": "Architecture Maintainers"},
-    {"path": "docs/architecture/adr/0035-nativer-readonly-imap-inventory-connector.md", "owner": "Security Maintainers"}
+    {"path": "docs/architecture/adr/0035-nativer-readonly-imap-inventory-connector.md", "owner": "Security Maintainers"},
+    {"path": "docs/architecture/adr/0036-native-agent-tools-und-evidence-guard.md", "owner": "Security Maintainers"}
   ]
 }

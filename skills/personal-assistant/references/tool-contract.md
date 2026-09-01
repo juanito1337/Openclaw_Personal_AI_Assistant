@@ -14,6 +14,7 @@ den fuehrenden Launcher durch `/opt/openclaw-agent/scripts/assistant.sh` ersetze
 
 | Tool-ID | Modus | externe Wirkung | Approval | Verfuegbarkeit | Kommando | Test |
 |---|---|---:|---|---|---|---|
+| `assistant.agent-tools.status` | `read` | nein | `none` | `always` | `./scripts/assistant.sh agent-tools status` | `tests/test_agent_tool_orchestration_m13.py` |
 | `assistant.status` | `read` | nein | `none` | `always` | `./scripts/assistant.sh status` | `tests/test_m5_tool_contract.py` |
 | `assistant.version` | `read` | nein | `none` | `always` | `./scripts/assistant.sh version --verify` | `tests/test_m5_tool_contract.py` |
 | `assistant.version.history` | `read` | nein | `none` | `always` | `./scripts/assistant.sh version --verify --history --limit 10` | `tests/test_m5_tool_contract.py` |
