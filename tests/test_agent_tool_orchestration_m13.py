@@ -240,12 +240,17 @@ console.log(JSON.stringify({invocation, researchInvocation, accepted, replay, ch
                 payload["plugins"]["load"]["paths"],
             )
             entry = payload["plugins"]["entries"]["personal-assistant-tools"]
+            self.assertEqual(payload["tools"]["alsoAllow"], ["personal-assistant-tools"])
             self.assertTrue(entry["enabled"])
             self.assertTrue(entry["hooks"]["allowConversationAccess"])
             self.assertTrue(entry["hooks"]["allowPromptInjection"])
 
             path.write_text('{"plugins":{"load":{"paths":"unsafe"}}}\n', encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "String-Liste"):
+                ensure_personal_assistant_plugin_config(path)
+
+            path.write_text('{"tools":{"alsoAllow":"unsafe"}}\n', encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "tools.alsoAllow"):
                 ensure_personal_assistant_plugin_config(path)
 
     def test_plugin_manifest_contract_matches_generated_tools(self) -> None:

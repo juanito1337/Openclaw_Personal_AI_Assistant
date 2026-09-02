@@ -20,6 +20,9 @@ OpenClaw-Tool-/Evidenzvertrag und das synthetische 15-Fall-Routingkorpus. Nach d
 Rollenbuild fuehrt `scripts/check-m13-integration.sh` das echte imageeigene Plugin
 mit OpenClaw 2026.7.1, ohne Netz und auf read-only Rootfs aus. Der Test belegt
 native Toolregistrierung, argv-only Versionsaufruf, Roh-Exec-Block,
+die exakte Veröffentlichung aller 19 statischen Toolnamen im effektiven
+OpenClaw-Plugininventar und über ein hermetisches Gateway-RPC ihre tatsächliche
+Verfügbarkeit im begrenzten `coding`-Profil,
 eine argumentgebundene `allow-once`-Writefreigabe, den genau einmal ausgefuehrten
 synthetischen Aufgaben-Write samt verifiziertem Nachzustand und Replay-Sperre
 sowie die fail-closed Ersetzung einer unbelegten Negativaussage. Der Write trifft

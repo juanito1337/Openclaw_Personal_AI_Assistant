@@ -246,6 +246,10 @@ class ContainerMigrationTests(unittest.TestCase):
                     },
                 },
             )
+            self.assertEqual(
+                migrated["tools"]["alsoAllow"],
+                ["personal-assistant-tools"],
+            )
 
             second = subprocess.run(command, text=True, capture_output=True, check=True)
             second_report = json.loads(second.stdout)

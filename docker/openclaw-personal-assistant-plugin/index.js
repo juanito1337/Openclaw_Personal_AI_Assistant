@@ -148,14 +148,20 @@ export default definePluginEntry({
   description: "Structured Personal Assistant operations with deterministic routing and evidence guards.",
   register(api) {
     for (const group of contract.native_tools) {
-      api.registerTool((toolContext) => ({
-        name: group.name,
-        label: group.name.replaceAll("_", " "),
-        description: group.description,
-        parameters: group.parameters,
-        execute: async (toolCallId, rawParams) =>
-          await executeOperation(group.name, toolContext, toolCallId, rawParams),
-      }));
+      api.registerTool(
+        (toolContext) => ({
+          name: group.name,
+          label: group.name.replaceAll("_", " "),
+          description: group.description,
+          parameters: group.parameters,
+          execute: async (toolCallId, rawParams) =>
+            await executeOperation(group.name, toolContext, toolCallId, rawParams),
+        }),
+        // OpenClaw cannot infer a factory-backed tool's name during discovery.
+        // Without this static registration metadata the plugin loads, but the
+        // tool is absent from the agent's effective tool set.
+        { name: group.name },
+      );
     }
 
     api.on("before_prompt_build", async (event, ctx) => {

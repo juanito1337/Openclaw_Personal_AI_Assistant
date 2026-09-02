@@ -87,8 +87,8 @@ RUN apk add --no-cache \
        bash=5.2.37-r0 \
        ca-certificates=20260611-r0 \
        curl=8.14.1-r3 \
-       jq=1.8.1-r0 \
-       rsync=3.4.3-r0 \
+       jq=1.8.2-r0 \
+       rsync=3.5.0-r0 \
        sqlite=3.49.2-r1 \
        zstd=1.5.7-r0 \
        procps-ng=4.0.4-r3 \

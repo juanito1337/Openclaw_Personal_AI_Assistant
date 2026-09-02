@@ -23,6 +23,20 @@
   verlangt `loaded`, 19 registrierte Toolfabriken, fünf typisierte Hooks sowie
   eine leere Diagnoseliste; ein nur mit Exitcode 0 beendeter, intern jedoch
   fehlgeschlagener Pluginload kann dadurch nicht mehr grün bleiben.
+- Agent/M13: Fabrikbasierte native Werkzeuge werden OpenClaw zusätzlich mit
+  ihrem statischen Namen registriert. Damit sind unter anderem
+  `personal_assistant_portfolio_read` und die übrigen 18 Domänenwerkzeuge im
+  tatsächlichen Agentenlauf auswählbar. Der Image-Test vergleicht nun die
+  veröffentlichten Runtime-Namen exakt mit dem generierten Vertrag und erkennt
+  eine nur intern vorhandene, aber für den Agenten unsichtbare Toolfabrik.
+- Agent/M13: Das weiterhin begrenzte OpenClaw-Profil `coding` nimmt das
+  imageeigene Plugin nun explizit und ausschließlich über
+  `tools.alsoAllow: ["personal-assistant-tools"]` hinzu. Dadurch passieren die
+  19 registrierten Namen auch den effektiven Laufzeitfilter; fremde Plugins und
+  Fachrechte werden nicht mitfreigeschaltet.
+- Build: Die weiterhin exakten Alpine-3.22-Paketlocks fuer `jq` und `rsync`
+  folgen den aktuell im gepinnten Repository verfuegbaren Revisionen, damit der
+  Rollenbuild den M13-Runtimefix reproduzierbar erzeugen kann.
 
 - Agent/Nextcloud: Der Skill-Trigger nennt Nextcloud-Dateien, Cloud-Dokumente,
   WebDAV und Rechnungsarchive jetzt explizit. Der Agent muss den registrierten

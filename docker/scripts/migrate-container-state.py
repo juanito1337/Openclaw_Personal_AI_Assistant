@@ -163,6 +163,12 @@ def ensure_immutable_plugin_config(
     data = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
         raise RuntimeError("openclaw.json muss ein JSON-Objekt enthalten")
+    tools = data.setdefault("tools", {})
+    if not isinstance(tools, dict):
+        raise RuntimeError("openclaw.json tools muss ein JSON-Objekt sein")
+    also_allow = tools.setdefault("alsoAllow", [])
+    if not isinstance(also_allow, list) or not all(isinstance(item, str) for item in also_allow):
+        raise RuntimeError("openclaw.json tools.alsoAllow muss eine String-Liste sein")
     plugins = data.setdefault("plugins", {})
     if not isinstance(plugins, dict):
         raise RuntimeError("openclaw.json plugins muss ein JSON-Objekt sein")
@@ -199,12 +205,15 @@ def ensure_immutable_plugin_config(
         raise RuntimeError("Personal-Assistant-Plugin-Hooks muessen ein JSON-Objekt sein")
     changed = updated_paths != configured_paths or any(
         (
+            "personal-assistant-tools" not in also_allow,
             agent_entry.get("enabled") is not True,
             hooks.get("allowConversationAccess") is not True,
             hooks.get("allowPromptInjection") is not True,
         )
     )
     if changed:
+        if "personal-assistant-tools" not in also_allow:
+            also_allow.append("personal-assistant-tools")
         load["paths"] = updated_paths
         agent_entry["enabled"] = True
         hooks["allowConversationAccess"] = True

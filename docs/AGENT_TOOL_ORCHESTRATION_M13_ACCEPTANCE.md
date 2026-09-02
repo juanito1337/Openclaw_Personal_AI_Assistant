@@ -9,6 +9,8 @@ read-only Canary ausdrücklich voneinander.
 - 159 Katalogoperationen, davon 158 nativ unterstützt und eine begründet
   ausgeschlossene interne Mail-Kalenderoperation.
 - 19 native, domänen-/effektbezogene OpenClaw-Werkzeuge mit strengem JSON-Schema.
+- gezielte Aufnahme genau dieses Plugins in das begrenzte `coding`-Profil über
+  `tools.alsoAllow`; keine pauschale Freigabe aller Plugins.
 - feste argv-Ausführung ohne Shell sowie Blockierung roher Fach-Execs und
   generischer Secretpfade.
 - deterministisches read-only Routing aus dem aktuellen Nutzerprompt.
@@ -49,7 +51,14 @@ OPENCLAW_M13_RUNTIME_IMAGE=openclaw-agent:m13-candidate \
 
 Der M13-Integrationslauf verwendet `--network none`, ein read-only Image,
 Capability-Drops und temporäre Dateisysteme. Er registriert die echten nativen
-Tools im gepinnten OpenClaw, führt strukturierte Leseaufrufe für Runtime, Mail,
+Tools im gepinnten OpenClaw und verlangt, dass dessen Runtime-Inspect exakt alle
+19 statischen Toolnamen veröffentlicht. Eine geladene Pluginfabrik ohne im
+Agentenlauf auswählbare Namen gilt ausdrücklich als Fehler. Der Test führt
+außerdem ein isoliertes Gateway mit dem produktionsgleichen `coding`-Profil aus
+und vergleicht dessen RPC-Inventar `tools.effective` exakt mit dem generierten
+19-Werkzeug-Vertrag. Damit wird auch eine fehlende `tools.alsoAllow`-Freigabe
+erkannt. Der Test führt
+strukturierte Leseaufrufe für Runtime, Mail,
 Nextcloud, Aufgaben und Portfolio aus, blockiert einen rohen Fach-Exec und ersetzt
 eine unbelegte Mail-Negativaussage. Der Schreib-Canary aktualisiert ausschließlich
 eine synthetische Aufgabe über den gemounteten Fake-Launcher. Er belegt den

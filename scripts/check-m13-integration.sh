@@ -15,6 +15,7 @@ command -v docker >/dev/null 2>&1 || {
 docker image inspect "$image" >/dev/null
 
 fixture="$root/tests/fixtures/container/immutable-plugins-openclaw.json"
+effective_fixture="$root/tests/fixtures/m13/effective-tools-openclaw.json"
 fake_assistant="$root/tests/fixtures/m13/fake-assistant.sh"
 runtime_inspect=$(docker run --rm --network none --read-only \
   --cap-drop ALL \
@@ -31,11 +32,77 @@ import sys
 
 payload = json.loads(sys.argv[1])
 plugin = payload["plugin"]
+expected = set(plugin["contracts"]["tools"])
 assert plugin["status"] == "loaded", payload
 assert plugin["activated"] is True, payload
+assert len(expected) == 19, payload
+assert set(plugin["toolNames"]) == expected, payload
 assert len(payload["tools"]) == 19, payload
+assert {name for row in payload["tools"] for name in row["names"]} == expected, payload
 assert len(payload["typedHooks"]) == 5, payload
 assert payload["diagnostics"] == [], payload
+PY
+
+effective_container="openclaw-m13-effective-$$-${RANDOM}"
+effective_token="m13-hermetic-probe-token"
+cleanup_effective_container() {
+  docker rm -f "$effective_container" >/dev/null 2>&1 || true
+}
+trap cleanup_effective_container EXIT
+docker run --detach --name "$effective_container" --network none --read-only \
+  --cap-drop ALL \
+  --security-opt no-new-privileges:true \
+  --tmpfs /tmp:rw,nosuid,nodev,noexec,size=32m,mode=1777 \
+  --tmpfs /home/node/.openclaw:rw,nosuid,nodev,noexec,size=32m,mode=0700,uid=1000,gid=1000 \
+  --mount "type=bind,src=$effective_fixture,dst=/home/node/.openclaw/openclaw.json,readonly" \
+  --env "OPENCLAW_GATEWAY_TOKEN=$effective_token" \
+  --entrypoint openclaw \
+  "$image" gateway run --bind loopback --port 18789 >/dev/null
+
+effective_ready=false
+for _attempt in $(seq 1 30); do
+  if docker exec "$effective_container" openclaw gateway call health \
+    --url ws://127.0.0.1:18789 --token "$effective_token" --timeout 1000 --json \
+    >/dev/null 2>&1; then
+    effective_ready=true
+    break
+  fi
+  sleep 1
+done
+if [[ "$effective_ready" != true ]]; then
+  docker logs "$effective_container" >&2
+  echo "Hermetisches M13-Gateway wurde nicht rechtzeitig bereit." >&2
+  exit 1
+fi
+
+# tools.effective requires an existing session. This synthetic entry lives only
+# in the container tmpfs and contains neither a prompt nor productive metadata.
+docker exec "$effective_container" sh -c \
+  'mkdir -p /home/node/.openclaw/agents/main/sessions && printf '\''{"agent:main:main":{"sessionId":"m13-probe","updatedAt":0}}\n'\'' > /home/node/.openclaw/agents/main/sessions/sessions.json'
+effective_tools=$(docker exec "$effective_container" openclaw gateway call tools.effective \
+  --url ws://127.0.0.1:18789 --token "$effective_token" --timeout 5000 \
+  --params '{"agentId":"main","sessionKey":"agent:main:main"}' --json)
+cleanup_effective_container
+trap - EXIT
+
+python3 - "$effective_tools" "$root/docker/openclaw-personal-assistant-plugin/openclaw.plugin.json" <<'PY'
+import json
+from pathlib import Path
+import sys
+
+payload = json.loads(sys.argv[1])
+manifest = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
+expected = set(manifest["contracts"]["tools"])
+effective = {
+    tool["id"]
+    for group in payload["groups"]
+    for tool in group["tools"]
+    if tool.get("pluginId") == "personal-assistant-tools"
+}
+assert payload["profile"] == "coding", payload
+assert len(expected) == 19, payload
+assert effective == expected, payload
+assert "personal_assistant_portfolio_read" in effective, payload
 PY
 
 result=$(docker run --rm --network none --read-only \
@@ -49,14 +116,18 @@ import plugin from "/opt/openclaw-plugins/personal-assistant-tools/index.js";
 const factories = [];
 const hooks = new Map();
 plugin.register({
-  registerTool(factory) { factories.push(factory); },
+  registerTool(factory, options) { factories.push({factory, options}); },
   on(name, handler) { hooks.set(name, handler); },
   logger: {warn() {}, info() {}, debug() {}},
 });
+const registeredNames = factories.map(({options}) => options?.name);
+if (registeredNames.length !== 19 || new Set(registeredNames).size !== 19 || registeredNames.some((name) => !name)) {
+  throw new Error(`invalid static native tool registrations: ${JSON.stringify(registeredNames)}`);
+}
 function nativeTool(name, runId) {
-  const factory = factories.find((candidate) => candidate({runId:"probe"}).name === name);
-  if (!factory) throw new Error(`native tool missing: ${name}`);
-  return factory({runId,sessionId:`session-${runId}`});
+  const registration = factories.find(({options}) => options.name === name);
+  if (!registration) throw new Error(`native tool missing: ${name}`);
+  return registration.factory({runId,sessionId:`session-${runId}`});
 }
 async function invoke(name, operation, args, runId, callId) {
   const result = await nativeTool(name, runId).execute(callId, {operation,arguments:args});
@@ -154,6 +225,7 @@ if (!guarded?.payload?.text?.includes("nicht belegen")) throw new Error("reply g
 console.log(JSON.stringify({
   ok:true,
   native_tool_count:factories.length,
+  static_tool_names:registeredNames.length,
   domains_executed:["runtime","mail","nextcloud","tasks","portfolio"],
   version_evidence:true,
   complete_positive_mail:true,
@@ -179,6 +251,7 @@ import sys
 payload = json.loads(sys.argv[1])
 assert payload["ok"] is True
 assert payload["native_tool_count"] == 19
+assert payload["static_tool_names"] == 19
 assert payload["external_writes"] == 0
 assert payload["productive_writes"] == 0
 assert payload["synthetic_write_executed"] is True

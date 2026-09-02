@@ -204,6 +204,12 @@ def ensure_personal_assistant_plugin_config(path: Path) -> bool:
     data = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(data, dict):
         raise ValueError("openclaw.json muss ein JSON-Objekt sein")
+    tools = data.setdefault("tools", {})
+    if not isinstance(tools, dict):
+        raise ValueError("openclaw.json tools muss ein JSON-Objekt sein")
+    also_allow = tools.setdefault("alsoAllow", [])
+    if not isinstance(also_allow, list) or not all(isinstance(item, str) for item in also_allow):
+        raise ValueError("openclaw.json tools.alsoAllow muss eine String-Liste sein")
     plugins = data.setdefault("plugins", {})
     if not isinstance(plugins, dict):
         raise ValueError("openclaw.json plugins muss ein JSON-Objekt sein")
@@ -224,6 +230,8 @@ def ensure_personal_assistant_plugin_config(path: Path) -> bool:
         raise ValueError("Personal-Assistant-Plugin-Hooks muessen ein JSON-Objekt sein")
 
     before = json.dumps(data, ensure_ascii=False, sort_keys=True)
+    if PERSONAL_ASSISTANT_PLUGIN_ID not in also_allow:
+        also_allow.append(PERSONAL_ASSISTANT_PLUGIN_ID)
     if PERSONAL_ASSISTANT_PLUGIN_PATH not in paths:
         paths.append(PERSONAL_ASSISTANT_PLUGIN_PATH)
     entry["enabled"] = True
