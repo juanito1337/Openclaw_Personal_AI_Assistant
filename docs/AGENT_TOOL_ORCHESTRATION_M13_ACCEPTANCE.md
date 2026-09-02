@@ -1,6 +1,6 @@
 # M13-Abnahme: verlässliche Werkzeugsteuerung
 
-Stand: 2026-09-01. M13.0 bis M13.7 sind als Entwicklungsstand implementiert.
+Stand: 2026-09-02. M13.0 bis M13.7 sind als Entwicklungsstand implementiert.
 M13.8 trennt lokale/hermetische Abnahme, CI-Attestierung und produktiven
 read-only Canary ausdrücklich voneinander.
 
@@ -16,6 +16,9 @@ read-only Canary ausdrücklich voneinander.
   `tools.alsoAllow`; keine pauschale Freigabe aller Plugins.
 - feste argv-Ausführung ohne Shell sowie Blockierung roher Fach-Execs und
   generischer Secretpfade.
+- strukturierte Argumentfehler vor dem CLI-Prozess, genau ein veraenderter
+  Korrekturversuch, keine Freigabe fuer ungueltige Writes und ein bei jedem
+  Gatewaystart erzwungener OpenClaw-Tool-Loop-Circuit-Breaker.
 - deterministisches read-only Routing aus dem aktuellen Nutzerprompt.
 - Einzelfreigaben für Local-write und Write, gebunden an Turn, ToolCall,
   Operation, Argumentdigest und Ablaufzeit; Gateway-Schweregrade sind
@@ -65,7 +68,10 @@ erkannt. Der Test führt
 strukturierte Leseaufrufe für Runtime, Mail,
 Nextcloud, Aufgaben und Portfolio einschließlich eines exakten read-only
 ISIN-Mappingvorschlags aus, blockiert einen rohen Fach-Exec und ersetzt
-eine unbelegte Mail-Negativaussage. Der Schreib-Canary aktualisiert ausschließlich
+eine unbelegte Mail-Negativaussage. Zwei identische leere `mail.list`-Aufrufe
+belegen die strukturierte Erstdiagnose und das anschliessende
+`retry_allowed=false`; ein unvollstaendiger Aufgaben-Write wird vor jeder
+Freigabe blockiert. Der Schreib-Canary aktualisiert ausschließlich
 eine synthetische Aufgabe über den gemounteten Fake-Launcher. Er belegt den
 Nachzustand, verwirft die verbrauchte Freigabe bei einem Replay und berührt weder
 einen externen Dienst noch produktive Daten. Externe und produktive
@@ -74,17 +80,17 @@ vom Gateway unterstützten Schweregrade, bevor ein Release grün werden kann.
 
 ## Lokal gemessener Abnahmestand
 
-Die folgenden Werte wurden am 1. September 2026 mit den oben dokumentierten
+Die folgenden Werte wurden am 2. September 2026 mit den oben dokumentierten
 Befehlen und der gepinnten Werkzeugumgebung erhoben:
 
 | Prüfung | Ergebnis |
 | --- | --- |
-| pytest-Collection | 966 von 966 Items erfolgreich; 1.071 JUnit-Fälle einschließlich 105 Subtests |
-| Coverage | 67,91 % gesamt; 54,90 % Branch-Coverage |
-| Wheel | frische Installation erfolgreich; 584.363 Bytes; Build 5.471 ms; vollständiger Testlauf grün |
-| Runtimeimage | 377.094.735 Bytes; Cold-Start/Import Median 2.606,447 ms; 38.272 KiB Peak RSS |
-| Proxyimage | 23.421.993 Bytes; Cold-Start/Import Median 2.148,793 ms; 24.764 KiB Peak RSS |
-| Maintenanceimage | 45.631.733 Bytes; Cold-Start/Import Median 1.275,995 ms; 14.572 KiB Peak RSS |
+| pytest-Collection | 970 von 970 Items erfolgreich; 1.076 JUnit-Fälle einschließlich 106 Subtests |
+| Coverage | 67,97 % gesamt; 55,00 % Branch-Coverage |
+| Wheel | frische Installation erfolgreich; 586.151 Bytes; Build 5.345 ms; 970 Tests plus 106 Subtests in 148,31 s |
+| Runtimeimage | 377.132.354 Bytes; Cold-Start/Import Median 2.577,879 ms; 38.300 KiB Peak RSS |
+| Proxyimage | 23.422.371 Bytes; Cold-Start/Import Median 2.044,511 ms; 24.660 KiB Peak RSS |
+| Maintenanceimage | 45.631.919 Bytes; Cold-Start/Import Median 1.274,007 ms; 14.468 KiB Peak RSS |
 | cacheloser reproduzierbarer Doppelbuild | erster Lauf 260 s; zweiter Lauf 244 s; alle drei OCI-SHA-256 paarweise identisch |
 | Supply Chain | drei SBOMs und Provenance-Nachweise; Rootfs-/Secretprüfung grün; Trivy Critical 0 und Secrets 0 |
 | Containerverträge | Rollen-, Runtime-, Hardening-, M8-, M11-, M12- und M13-Integration grün |

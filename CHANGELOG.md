@@ -46,6 +46,16 @@
   akzeptierten Schweregrade `warning` und `critical` statt der ungueltigen
   Werte `medium` und `high`. `allow-once`, Nonce-/Argumentbindung und
   fail-closed Timeout bleiben unveraendert.
+- Agent/M13: Ungueltige native Toolargumente werden vor jedem CLI-Prozess als
+  strukturierter `invalid-arguments`-Befund zurueckgegeben. Danach darf innerhalb
+  desselben Laufs genau ein veraenderter und vollstaendiger Korrekturaufruf
+  folgen; ein erneut ungueltiger Versuch wird vor der Ausfuehrung blockiert und
+  ungueltige Writes erhalten keine Freigabe. Das verpflichtend
+  aktivierte OpenClaw-`tools.loopDetection` warnt ab zwei Wiederholungen und
+  blockiert einen unveraenderten Aufruf nach drei identischen No-Progress-
+  Ergebnissen; der vierte identische Versuch wird nicht mehr ausgefuehrt.
+  Damit kann ein Modellfehler nicht mehr dutzendfach denselben Connector
+  aufrufen.
 - Build: Die weiterhin exakten Alpine-3.22-Paketlocks fuer `jq` und `rsync`
   folgen den aktuell im gepinnten Repository verfuegbaren Revisionen, damit der
   Rollenbuild den M13-Runtimefix reproduzierbar erzeugen kann.

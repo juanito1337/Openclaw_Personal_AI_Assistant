@@ -561,7 +561,17 @@ def build_native_tool_contract() -> dict[str, Any]:
             group_operations = [item["tool_id"] for item in selected]
             argument_contract = _group_argument_contract(selected)
             domain_guidance = ""
-            if domain == "portfolio" and kind == "read":
+            if domain == "mail" and kind == "read":
+                domain_guidance = (
+                    " Fuer letzte oder aktuelle Mails mail.list mit arguments.folder verwenden "
+                    "(ohne andere Nutzerangabe normalerweise INBOX); fuer Absender-, Betreff- "
+                    "oder Inhaltssuche mail.search mit arguments.query. mail.read erst nach einem "
+                    "Treffer mit arguments.folder, arguments.message_id und "
+                    "arguments.expected_subject aufrufen. Nie ein leeres arguments-Objekt senden. "
+                    "Nach invalid-arguments hoechstens einmal mit vollstaendigen geaenderten "
+                    "Argumenten korrigieren; bei retry_allowed=false sofort stoppen."
+                )
+            elif domain == "portfolio" and kind == "read":
                 domain_guidance = (
                     " Bei bereits bekannter ISIN immer portfolio.mapping.suggest mit "
                     "arguments.isin verwenden; portfolio.mapping.discover ist nur fuer einen "
@@ -637,6 +647,7 @@ def build_native_tool_contract() -> dict[str, Any]:
             "conversation_guard_fail_closed": True,
             "router_may_execute_writes": False,
             "content_may_change_route": False,
+            "tool_loop_detection_required": True,
         },
     }
 

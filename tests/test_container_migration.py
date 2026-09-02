@@ -250,6 +250,22 @@ class ContainerMigrationTests(unittest.TestCase):
                 migrated["tools"]["alsoAllow"],
                 ["personal-assistant-tools"],
             )
+            self.assertEqual(
+                migrated["tools"]["loopDetection"],
+                {
+                    "enabled": True,
+                    "historySize": 30,
+                    "warningThreshold": 2,
+                    "unknownToolThreshold": 2,
+                    "criticalThreshold": 3,
+                    "globalCircuitBreakerThreshold": 4,
+                    "detectors": {
+                        "genericRepeat": True,
+                        "knownPollNoProgress": True,
+                        "pingPong": True,
+                    },
+                },
+            )
 
             second = subprocess.run(command, text=True, capture_output=True, check=True)
             second_report = json.loads(second.stdout)

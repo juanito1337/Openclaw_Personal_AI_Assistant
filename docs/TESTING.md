@@ -46,7 +46,7 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 968 Tests, darunter mindestens 713 unittest-kompatible Tests
+fordert mindestens 970 Tests, darunter mindestens 715 unittest-kompatible Tests
 (die bisherigen 349 sowie M0-M13- und Rollout-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
@@ -106,7 +106,7 @@ der aktuellen Python-Dateien.
 | Tests nach M12-Entwicklungsabnahme gesammelt/ausgefuehrt | 942 / 942 (1.029 JUnit-Faelle inklusive 87 Subtests) |
 | Tests nach M12-Canary-Laufzeitkorrektur gesammelt/ausgefuehrt | 948 / 948 (1.035 JUnit-Faelle inklusive 87 Subtests) |
 | Tests nach Nextcloud-Skillrouting-Korrektur gesammelt/ausgefuehrt | 951 / 951 (1.038 JUnit-Faelle inklusive 87 Subtests) |
-| Tests nach M13 und produktivem Tool-Schema-Hotfix gesammelt/ausgefuehrt | 968 / 968 (1.074 JUnit-Faelle inklusive 106 Subtests) |
+| Tests nach M13-Argumentfehler-/Loop-Schutz gesammelt/ausgefuehrt | 970 / 970 (1.076 JUnit-Faelle inklusive 106 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -143,7 +143,7 @@ der aktuellen Python-Dateien.
 | neue DAV-Standardprofil-Hotfix-Regressionsitems | 4 |
 | neue M12-IMAP-Inventory-/Reconciliation-Regressionsitems | 28 |
 | neue M12-Canary-Budget-/Single-Writer-Regressionsitems | 5 |
-| neue M13-Toolbridge-/Router-/Evidenz-Regressionsitems | 17 |
+| neue M13-Toolbridge-/Router-/Evidenz-Regressionsitems | 19 |
 | M13-Image-Runtime-Abnahme | Pluginstatus `loaded`, 19 Toolfabriken, 5 typisierte Hooks, keine Diagnosen |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |
@@ -214,6 +214,8 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach Nextcloud-Skillrouting-Korrektur | 54,65 % |
 | Gesamt-Coverage nach M13 und produktivem Tool-Schema-Hotfix | 67,94 % |
 | reine Branch-Coverage nach M13 und produktivem Tool-Schema-Hotfix | 54,96 % |
+| Gesamt-Coverage nach M13-Argumentfehler-/Loop-Schutz | 67,97 % |
+| reine Branch-Coverage nach M13-Argumentfehler-/Loop-Schutz | 55,00 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -261,6 +263,9 @@ der aktuellen Python-Dateien.
 | M12-Wheelgroesse | 576.302 Bytes |
 | M12-Wheel-Buildzeit | 2,487 s |
 | M12-Wheel-Tests in frischer Umgebung | 942 plus 87 Subtests in 96,65 s |
+| M13-Argumentfehler-/Loop-Schutz-Wheelgroesse | 586.151 Bytes |
+| M13-Argumentfehler-/Loop-Schutz-Wheel-Buildzeit | 5,345 s |
+| M13-Argumentfehler-/Loop-Schutz-Wheel-Tests | 970 plus 106 Subtests in 148,31 s |
 | Container-Imagegroesse des M6-Testimages | 425.555.866 Bytes |
 | Runtime-Imagegroesse mit gepinnten Brave-/Signal-Plugins | 376.600.036 Bytes |
 | Runtime-Imagegroesse nach der M10-Rollout-Monitor-/Supervisorkorrektur | 376.793.375 Bytes |

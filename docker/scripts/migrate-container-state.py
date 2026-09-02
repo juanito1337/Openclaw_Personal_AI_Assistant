@@ -27,6 +27,7 @@ except ModuleNotFoundError:
 
 load_contract = immutable_plugins.load_contract
 synchronize_installed_plugin_index = immutable_plugins.synchronize_installed_plugin_index
+ensure_tool_loop_detection_config = immutable_plugins.ensure_tool_loop_detection_config
 
 try:
     ollama_priority_config = importlib.import_module(
@@ -169,6 +170,7 @@ def ensure_immutable_plugin_config(
     also_allow = tools.setdefault("alsoAllow", [])
     if not isinstance(also_allow, list) or not all(isinstance(item, str) for item in also_allow):
         raise RuntimeError("openclaw.json tools.alsoAllow muss eine String-Liste sein")
+    loop_detection_changed = ensure_tool_loop_detection_config(tools)
     plugins = data.setdefault("plugins", {})
     if not isinstance(plugins, dict):
         raise RuntimeError("openclaw.json plugins muss ein JSON-Objekt sein")
@@ -205,6 +207,7 @@ def ensure_immutable_plugin_config(
         raise RuntimeError("Personal-Assistant-Plugin-Hooks muessen ein JSON-Objekt sein")
     changed = updated_paths != configured_paths or any(
         (
+            loop_detection_changed,
             "personal-assistant-tools" not in also_allow,
             agent_entry.get("enabled") is not True,
             hooks.get("allowConversationAccess") is not True,

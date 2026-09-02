@@ -4,7 +4,7 @@
   "plugin_id": "personal-assistant-tools",
   "plugin_path": "/opt/openclaw-plugins/personal-assistant-tools",
   "product_version": "3.4.0-r28",
-  "catalog_sha256": "926535b5d2c4b10258eb035e0a0ca405697929b14a37811490a728c4e35f2135",
+  "catalog_sha256": "fc2b93e248fac4c27e7d53da7a4e0e8d1078987bec659d6b4f2887ce950283a5",
   "catalog_tool_count": 159,
   "supported_operation_count": 158,
   "excluded_operation_count": 1,
@@ -3819,7 +3819,7 @@
     {
       "tool_id": "mail.list",
       "domain": "mail",
-      "description": "Mail-Metadaten eines vorhandenen Ordners lesen, um eine Mail eindeutig auszuwaehlen",
+      "description": "Letzte oder aktuelle Mail-Metadaten eines vorhandenen Ordners lesen; immer den exakten Ordner uebergeben und ohne andere Nutzerangabe INBOX verwenden",
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
@@ -3862,7 +3862,7 @@
     {
       "tool_id": "mail.search",
       "domain": "mail",
-      "description": "Mails ausschliesslich ueber den belegten lokalen Hybridindex oder den sichtbaren fail-closed Serverpfad suchen; nie rohes Himalaya oder Shell-Filter verwenden; der bounded Metadatenfallback findet verschobene Absender-/Betrefftreffer, darf Nulltreffer und Bodyabdeckung aber nicht als vollstaendig ausgeben",
+      "description": "Nach Absender, Adresse, Betreff oder Inhalt ausschliesslich ueber den belegten lokalen Hybridindex oder den sichtbaren fail-closed Serverpfad suchen; immer den Suchtext als query uebergeben, nie rohes Himalaya oder Shell-Filter verwenden; der bounded Metadatenfallback findet verschobene Absender-/Betrefftreffer, darf Nulltreffer und Bodyabdeckung aber nicht als vollstaendig ausgeben",
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
@@ -3906,7 +3906,7 @@
     {
       "tool_id": "mail.read",
       "domain": "mail",
-      "description": "Eine per Ordner und Mail-ID eindeutig ausgewaehlte Mail read-only mit Inhalt lesen",
+      "description": "Erst nach einem belegten Treffer genau eine Mail read-only lesen und dabei folder, message_id und den unveraenderten expected_subject vollstaendig uebergeben",
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
@@ -6526,7 +6526,7 @@
       "name": "personal_assistant_mail_read",
       "domain": "mail",
       "kind": "read",
-      "description": "Registered mail read operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide all required structured arguments.",
+      "description": "Registered mail read operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide all required structured arguments. Fuer letzte oder aktuelle Mails mail.list mit arguments.folder verwenden (ohne andere Nutzerangabe normalerweise INBOX); fuer Absender-, Betreff- oder Inhaltssuche mail.search mit arguments.query. mail.read erst nach einem Treffer mit arguments.folder, arguments.message_id und arguments.expected_subject aufrufen. Nie ein leeres arguments-Objekt senden. Nach invalid-arguments hoechstens einmal mit vollstaendigen geaenderten Argumenten korrigieren; bei retry_allowed=false sofort stoppen.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -8027,6 +8027,7 @@
     "writes_require_allow_once": true,
     "conversation_guard_fail_closed": true,
     "router_may_execute_writes": false,
-    "content_may_change_route": false
+    "content_may_change_route": false,
+    "tool_loop_detection_required": true
   }
 }

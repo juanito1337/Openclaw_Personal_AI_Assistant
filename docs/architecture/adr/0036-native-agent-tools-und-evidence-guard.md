@@ -53,6 +53,22 @@ Pflichtfeldsignaturen und die Portfolio-Regel „bekannte ISIN =
 `mapping.suggest` mit `arguments.isin`“ verhindern leere, wiederholte
 Mappingaufrufe; Websuche bleibt kein Ersatz für den registrierten Providerpfad.
 
+Ungueltige Argumente werden bereits in der Bridge erkannt und als strukturierte
+`invalid-arguments`-Evidenz zurueckgegeben, ohne den CLI-Prozess zu starten. Der
+erste Fehler darf genau einen korrigierten Folgeversuch anfordern. Ist auch
+dieser Aufruf ungueltig, blockiert `before_tool_call` ihn vor der Ausfuehrung;
+der defensive Ausfuehrungspfad lautet dann `retry_allowed=false` und
+`fatal=true`. Ein syntaktisch ungueltiger Write wird bereits in
+`before_tool_call` blockiert und erhaelt keinen Approval-Nonce.
+
+Zusaetzlich normalisieren Migration und jeder Gatewaystart OpenClaws eigenen
+`tools.loopDetection`-Vertrag: Warnung ab zwei Wiederholungen, kritische Sperre
+ab drei erkannten identischen No-Progress-Ergebnissen und globaler Circuit
+Breaker ab vier identischen Ergebnissen desselben Aufrufs. Alle drei gepinnten Detektoren
+(`genericRepeat`, `knownPollNoProgress`, `pingPong`) bleiben eingeschaltet.
+Unbekannte zukuenftige Konfigurationsfelder werden erhalten; ein typwidriger
+Bestandswert ist ein Start-/Migrationsfehler und wird nicht ueberschrieben.
+
 Der Router verarbeitet ausschließlich den aktuellen Nutzerprompt. Er darf
 höchstens bekannte Leseoperationen verlangen und kann keinen Write, Jobstart,
 Versand oder Permission-Setup auslösen. Mail- und Dokumentinhalt wird nie erneut
@@ -89,6 +105,9 @@ erkannten Fachintent bleibt unberührt.
   Image-Smoke fehlschlagen.
 - Fehlende Live-Fähigkeit, Timeout, Konfiguration oder unvollständige Ausgabe
   bleibt typisiert; die Bridge sucht keine Secrets und repariert nichts.
+- Ungueltige Pflichtargumente starten keinen Fachprozess. Der zweite identische
+  Versuch muss enden; OpenClaws zusaetzlicher Circuit Breaker begrenzt auch
+  andere wiederholte beziehungsweise wechselnde No-Progress-Schleifen.
 - Approval-Timeout, veränderte Argumente, Wiederverwendung oder fremder Turn
   blockiert vor dem CLI-Aufruf.
 - Ein Hookfehler darf keine Berechtigung erzeugen. Der Antwortguard endet nach

@@ -8,6 +8,41 @@ import sqlite3
 from pathlib import Path
 
 SHA1_RE = re.compile(r"^[0-9a-f]{40}$")
+TOOL_LOOP_DETECTION_POLICY: dict[str, object] = {
+    "enabled": True,
+    "historySize": 30,
+    "warningThreshold": 2,
+    "unknownToolThreshold": 2,
+    "criticalThreshold": 3,
+    "globalCircuitBreakerThreshold": 4,
+}
+TOOL_LOOP_DETECTORS = {
+    "genericRepeat": True,
+    "knownPollNoProgress": True,
+    "pingPong": True,
+}
+
+
+def ensure_tool_loop_detection_config(tools: dict[str, object]) -> bool:
+    """Enforce the bounded OpenClaw tool-loop circuit breaker without dropping extensions."""
+
+    current = tools.get("loopDetection")
+    if current is None:
+        current = {}
+        tools["loopDetection"] = current
+    if not isinstance(current, dict):
+        raise ValueError("openclaw.json tools.loopDetection muss ein JSON-Objekt sein")
+    detectors = current.get("detectors")
+    if detectors is None:
+        detectors = {}
+        current["detectors"] = detectors
+    if not isinstance(detectors, dict):
+        raise ValueError("openclaw.json tools.loopDetection.detectors muss ein JSON-Objekt sein")
+
+    before = json.dumps(current, ensure_ascii=False, sort_keys=True)
+    current.update(TOOL_LOOP_DETECTION_POLICY)
+    detectors.update(TOOL_LOOP_DETECTORS)
+    return before != json.dumps(current, ensure_ascii=False, sort_keys=True)
 
 
 def load_contract(path: Path) -> dict[str, dict[str, str]]:

@@ -9,7 +9,9 @@ import {
   routePrompt,
   shouldBlockGenericTool,
   spawnJson,
+  stableDigest,
   tokenizeCommand,
+  validateArguments,
 } from "./runtime.js";
 
 // OpenClaw loads plugin entrypoints through its synchronous discovery loader.
@@ -24,6 +26,7 @@ const groupByName = new Map(contract.native_tools.map((group) => [group.name, gr
 const routeByRun = new Map();
 const evidenceByRun = new Map();
 const retryByRun = new Set();
+const invalidArgumentsByRun = new Map();
 const liveToolsCache = { expiresAt: 0, value: null };
 const ledger = createApprovalLedger(contract.limits.approval_ttl_seconds);
 const metrics = {
@@ -31,6 +34,8 @@ const metrics = {
   unresolved: 0,
   native_calls: 0,
   native_failures: 0,
+  invalid_arguments: 0,
+  repeated_invalid_arguments: 0,
   generic_blocks: 0,
   approvals_requested: 0,
   guard_revisions: 0,
@@ -81,6 +86,49 @@ async function executeOperation(toolName, toolContext, toolCallId, rawParams) {
   const operation = operationFromCall(toolName, rawParams);
   const args = rawParams?.arguments ?? {};
   const currentRun = runKey(toolContext, toolCallId);
+  try {
+    validateArguments(operation.argument_schema, args);
+  } catch (error) {
+    const issue = String(error?.message ?? error);
+    const signature = `${operation.tool_id}:${stableDigest(args)}:${issue}`;
+    const seen = invalidArgumentsByRun.get(currentRun) ?? new Map();
+    const previousInvalidCount = [...seen.values()].reduce((total, value) => total + value, 0);
+    const count = (seen.get(signature) ?? 0) + 1;
+    seen.set(signature, count);
+    invalidArgumentsByRun.set(currentRun, seen);
+    const retryAllowed = previousInvalidCount === 0;
+    const result = {
+      returncode: 2,
+      stdout: "",
+      stderr: "",
+      error: `invalid-arguments:${issue}`,
+    };
+    const evidence = makeEvidence(operation, result, null, currentRun, toolCallId);
+    const rows = evidenceByRun.get(currentRun) ?? [];
+    rows.push(evidence);
+    evidenceByRun.set(currentRun, rows.slice(-32));
+    metrics.native_calls += 1;
+    metrics.native_failures += 1;
+    metrics.invalid_arguments += 1;
+    if (!retryAllowed) metrics.repeated_invalid_arguments += 1;
+    return jsonToolResult(
+      {
+        evidence,
+        result: null,
+        diagnostic: {
+          category: "invalid-arguments",
+          detail: issue,
+          required_arguments: operation.argument_schema?.required ?? [],
+          retry_allowed: retryAllowed,
+          fatal: !retryAllowed,
+          instruction: retryAllowed
+            ? "Argumente genau einmal mit allen Pflichtfeldern korrigieren. Den unveraenderten Aufruf nicht wiederholen."
+            : "Sofort stoppen, den identischen Aufruf nicht erneut versuchen und den konkreten Argumentfehler berichten.",
+        },
+      },
+      { personalAssistantEvidence: evidence },
+    );
+  }
   if (operation.mode !== "read") {
     const accepted = ledger.consume({
       nonce: rawParams?.__approval_nonce,
@@ -133,6 +181,9 @@ function buildRoutingContext(route) {
     "PERSONAL_ASSISTANT_TOOL_ROUTE_V1",
     "Aktueller Zustand darf nur aus einem strukturierten Personal-Assistant-Tool dieses Laufs beantwortet werden.",
     "Keine gepunktete Katalog-ID und keinen assistant.sh-/Himalaya-Befehl ueber exec ausfuehren.",
+    "Jeden nativen Aufruf mit operation und allen Pflichtfeldern unter arguments ausfuehren; arguments niemals leer lassen, wenn die Signatur Pflichtfelder nennt.",
+    "Nach invalid-arguments genau einmal mit geaenderten vollstaendigen Argumenten korrigieren. Bei retry_allowed=false sofort stoppen und den Fehler berichten.",
+    "Mail: letzte Mails mit mail.list und arguments.folder (normalerweise INBOX); Suche mit mail.search und arguments.query; mail.read erst nach einem Treffer mit folder, message_id und expected_subject.",
     "Bei Schreibwuenschen zuerst nur read-only identifizieren/vorschauen; das Schreibtool verlangt seine eigene Einzel-Freigabe.",
     `Route: ${JSON.stringify(route)}`,
   ];
@@ -171,6 +222,7 @@ export default definePluginEntry({
       routeByRun.set(key, route);
       evidenceByRun.set(key, []);
       retryByRun.delete(key);
+      invalidArgumentsByRun.delete(key);
       if (!route.resolved) {
         metrics.unresolved += 1;
         return undefined;
@@ -192,6 +244,26 @@ export default definePluginEntry({
         operation = operationFromCall(event.toolName, event.params);
       } catch (error) {
         return { block: true, blockReason: String(error?.message ?? error) };
+      }
+      try {
+        validateArguments(operation.argument_schema, event.params?.arguments ?? {});
+      } catch (error) {
+        if (operation.mode !== "read") {
+          return {
+            block: true,
+            blockReason: `invalid-arguments:${String(error?.message ?? error)}; keine Freigabe erzeugt`,
+          };
+        }
+        const key = runKey(ctx, event.toolCallId);
+        const previousInvalidCount = [
+          ...(invalidArgumentsByRun.get(key)?.values() ?? []),
+        ].reduce((total, value) => total + value, 0);
+        if (previousInvalidCount > 0) {
+          return {
+            block: true,
+            blockReason: `invalid-arguments:${String(error?.message ?? error)}; Korrekturversuch bereits verbraucht`,
+          };
+        }
       }
       if (operation.mode === "read") return undefined;
       const args = event.params?.arguments ?? {};

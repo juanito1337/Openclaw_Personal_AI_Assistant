@@ -199,6 +199,8 @@ def configure_custom_ca(environment: dict[str, str]) -> None:
 def ensure_personal_assistant_plugin_config(path: Path) -> bool:
     """Enable the immutable image-owned bridge without weakening other plugin policy."""
 
+    from personal_assistant.immutable_plugins import ensure_tool_loop_detection_config
+
     if not path.is_file():
         raise ValueError(f"Gateway-Konfiguration fehlt: {path}")
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -234,6 +236,7 @@ def ensure_personal_assistant_plugin_config(path: Path) -> bool:
         also_allow.append(PERSONAL_ASSISTANT_PLUGIN_ID)
     if PERSONAL_ASSISTANT_PLUGIN_PATH not in paths:
         paths.append(PERSONAL_ASSISTANT_PLUGIN_PATH)
+    ensure_tool_loop_detection_config(tools)
     entry["enabled"] = True
     hooks["allowConversationAccess"] = True
     hooks["allowPromptInjection"] = True

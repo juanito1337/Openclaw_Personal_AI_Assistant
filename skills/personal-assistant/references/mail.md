@@ -12,6 +12,17 @@ search` uses the M11.7 auto path: an eligible local Hybridindex first and a
 visible server fallback otherwise. Only a result with `complete=true` may
 establish that a message is absent.
 
+For "latest", "current" or "recent" mail without another folder named, call the
+native mail read tool exactly as `{"operation":"mail.list","arguments":{"folder":"INBOX"}}`.
+For a sender, address, subject or content term, call
+`{"operation":"mail.search","arguments":{"query":"<Suchtext>"}}`. Only after a
+returned hit may `mail.read` be called, with all three exact fields `folder`,
+`message_id` and `expected_subject`. Never submit `{}` for an operation whose
+signature names required arguments. After `invalid-arguments`, change and
+complete the arguments at most once. If the diagnostic says
+`retry_allowed=false`, stop immediately and report the exact argument error;
+never repeat the unchanged call.
+
 The `himalaya` executable is an internal connector and is never an agent-facing
 search command. Do not call it directly and do not pipe envelope output through
 `grep`, `rg`, `find`, `awk` or another shell filter. Such a pipeline normally sees

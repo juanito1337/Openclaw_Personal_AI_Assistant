@@ -17,6 +17,19 @@
     ],
     "fs": {
       "workspaceOnly": true
+    },
+    "loopDetection": {
+      "enabled": true,
+      "historySize": 30,
+      "warningThreshold": 2,
+      "unknownToolThreshold": 2,
+      "criticalThreshold": 3,
+      "globalCircuitBreakerThreshold": 4,
+      "detectors": {
+        "genericRepeat": true,
+        "knownPollNoProgress": true,
+        "pingPong": true
+      }
     }
   },
   "plugins": {

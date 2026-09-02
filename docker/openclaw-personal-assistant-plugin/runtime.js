@@ -234,6 +234,7 @@ function parseJsonOutput(output) {
 
 function classifyError(result, payload) {
   const detail = `${result.error ?? ""}\n${result.stderr ?? ""}`.toLowerCase();
+  if (detail.includes("invalid-arguments")) return "invalid-arguments";
   if (result.returncode === 124 || detail.includes("timeout")) return "timeout";
   if (detail.includes("permission") || detail.includes("freigabe")) return "permission-denied";
   if (detail.includes("configuration") || detail.includes("umgebungsvariable")) {

@@ -1,6 +1,6 @@
 # Build- und CI-Nachweise
 
-Stand: M13.8, 2026-09-01. Der detaillierte Sicherheitsvertrag steht unter
+Stand: M13.8, 2026-09-02. Der detaillierte Sicherheitsvertrag steht unter
 [`architecture/IMAGE_SUPPLY_CHAIN.md`](architecture/IMAGE_SUPPLY_CHAIN.md).
 
 ## Gemeinsame Qualitaetspruefung
@@ -24,6 +24,10 @@ die exakte Veröffentlichung aller 19 statischen Toolnamen im effektiven
 OpenClaw-Plugininventar und über ein hermetisches Gateway-RPC ihre tatsächliche
 Verfügbarkeit im begrenzten `coding`-Profil,
 einen exakten ISIN-Mappingaufruf mit sichtbarem `isin`-Pflichtargument, eine
+strukturierte `invalid-arguments`-Antwort ohne Fachprozess, den Abbruch eines
+zweiten identischen fehlerhaften Mailaufrufs, die Sperre unvollstaendiger Writes
+vor dem Approval sowie den produktionsgleichen OpenClaw-Tool-Loop-Circuit-Breaker,
+eine
 argumentgebundene `allow-once`-Writefreigabe mit den vom Gateway akzeptierten
 Schweregraden `warning`/`critical`, den genau einmal ausgefuehrten
 synthetischen Aufgaben-Write samt verifiziertem Nachzustand und Replay-Sperre

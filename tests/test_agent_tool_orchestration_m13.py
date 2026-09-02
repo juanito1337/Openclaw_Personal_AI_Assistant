@@ -17,6 +17,7 @@ from personal_assistant.agent_tool_orchestration import (
     verify_contract,
 )
 from personal_assistant.container_entrypoint import ensure_personal_assistant_plugin_config
+from personal_assistant.immutable_plugins import ensure_tool_loop_detection_config
 from personal_assistant.tool_registry import tool_definitions
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -92,6 +93,20 @@ class AgentToolContractTests(unittest.TestCase):
         self.assertIn("portfolio.mapping.suggest: isin", arguments["description"])
         self.assertIn("portfolio.mapping.discover: query", arguments["description"])
         self.assertIn("nie durch Websuche ersetzen", group["description"])
+
+    def test_mail_group_explains_required_arguments_and_bounded_retry(self) -> None:
+        payload = build_native_tool_contract()
+        group = next(
+            item
+            for item in payload["native_tools"]
+            if item["name"] == "personal_assistant_mail_read"
+        )
+        self.assertIn("mail.list", group["description"])
+        self.assertIn("arguments.folder", group["description"])
+        self.assertIn("mail.search", group["description"])
+        self.assertIn("arguments.query", group["description"])
+        self.assertIn("retry_allowed=false", group["description"])
+        self.assertTrue(payload["security"]["tool_loop_detection_required"])
 
     def test_shell_and_unknown_executable_templates_are_rejected(self) -> None:
         for command in (
@@ -275,6 +290,22 @@ console.log(JSON.stringify({invocation, researchInvocation, mappingSuggestInvoca
             )
             entry = payload["plugins"]["entries"]["personal-assistant-tools"]
             self.assertEqual(payload["tools"]["alsoAllow"], ["personal-assistant-tools"])
+            self.assertEqual(
+                payload["tools"]["loopDetection"],
+                {
+                    "enabled": True,
+                    "historySize": 30,
+                    "warningThreshold": 2,
+                    "unknownToolThreshold": 2,
+                    "criticalThreshold": 3,
+                    "globalCircuitBreakerThreshold": 4,
+                    "detectors": {
+                        "genericRepeat": True,
+                        "knownPollNoProgress": True,
+                        "pingPong": True,
+                    },
+                },
+            )
             self.assertTrue(entry["enabled"])
             self.assertTrue(entry["hooks"]["allowConversationAccess"])
             self.assertTrue(entry["hooks"]["allowPromptInjection"])
@@ -286,6 +317,32 @@ console.log(JSON.stringify({invocation, researchInvocation, mappingSuggestInvoca
             path.write_text('{"tools":{"alsoAllow":"unsafe"}}\n', encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "tools.alsoAllow"):
                 ensure_personal_assistant_plugin_config(path)
+
+            path.write_text('{"tools":{"loopDetection":"unsafe"}}\n', encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "tools.loopDetection"):
+                ensure_personal_assistant_plugin_config(path)
+
+    def test_tool_loop_policy_is_mandatory_idempotent_and_preserves_extensions(self) -> None:
+        tools: dict[str, object] = {
+            "loopDetection": {
+                "enabled": False,
+                "criticalThreshold": 99,
+                "detectors": {"genericRepeat": False, "futureDetector": True},
+                "postCompactionGuard": {"enabled": True},
+            }
+        }
+        self.assertTrue(ensure_tool_loop_detection_config(tools))
+        self.assertFalse(ensure_tool_loop_detection_config(tools))
+        policy = tools["loopDetection"]
+        self.assertIsInstance(policy, dict)
+        assert isinstance(policy, dict)
+        self.assertTrue(policy["enabled"])
+        self.assertEqual(policy["warningThreshold"], 2)
+        self.assertEqual(policy["criticalThreshold"], 3)
+        self.assertEqual(policy["globalCircuitBreakerThreshold"], 4)
+        self.assertEqual(policy["postCompactionGuard"], {"enabled": True})
+        self.assertEqual(policy["detectors"]["futureDetector"], True)
+        self.assertEqual(policy["detectors"]["genericRepeat"], True)
 
     def test_plugin_uses_gateway_supported_approval_severities(self) -> None:
         script = r"""

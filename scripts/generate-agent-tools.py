@@ -110,6 +110,7 @@ def render_evidence_schema() -> str:
                     None,
                     "configuration-error",
                     "incomplete-result",
+                    "invalid-arguments",
                     "operation-failed",
                     "permission-denied",
                     "timeout",

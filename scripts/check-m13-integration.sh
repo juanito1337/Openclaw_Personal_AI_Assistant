@@ -152,6 +152,28 @@ const finalVerdict = await hooks.get("before_agent_finalize")(
   {runId:"run-version",sessionId:"session-version"},
 );
 if (finalVerdict !== undefined) throw new Error("grounded version was rejected");
+const invalidMailFirst = await invoke(
+  "personal_assistant_mail_read", "mail.list", {}, "run-mail-invalid", "call-mail-invalid-1",
+);
+const invalidMailRepeatBlock = await hooks.get("before_tool_call")(
+  {toolName:"personal_assistant_mail_read",params:{operation:"mail.list",arguments:{}},toolCallId:"call-mail-invalid-2"},
+  {runId:"run-mail-invalid"},
+);
+const invalidMailSecond = await invoke(
+  "personal_assistant_mail_read", "mail.list", {}, "run-mail-invalid", "call-mail-invalid-2",
+);
+if (
+  invalidMailFirst.diagnostic?.category !== "invalid-arguments" ||
+  invalidMailFirst.diagnostic?.retry_allowed !== true ||
+  invalidMailFirst.diagnostic?.fatal !== false ||
+  invalidMailRepeatBlock?.block !== true ||
+  !invalidMailRepeatBlock.blockReason.includes("Korrekturversuch bereits verbraucht") ||
+  invalidMailSecond.diagnostic?.retry_allowed !== false ||
+  invalidMailSecond.diagnostic?.fatal !== true ||
+  invalidMailFirst.evidence?.error !== "invalid-arguments"
+) {
+  throw new Error("bounded invalid-argument result failed");
+}
 const statusPayload = await invoke(
   "personal_assistant_runtime_read", "assistant.status", {}, "run-status", "call-status",
 );
@@ -190,6 +212,13 @@ const rawBlock = await hooks.get("before_tool_call")(
 );
 if (rawBlock?.block !== true) throw new Error("raw domain exec not blocked");
 const writeArgs = {uid:"synthetic-uid",expected_title:"Synthetic task"};
+const invalidWrite = await hooks.get("before_tool_call")(
+  {toolName:"personal_assistant_tasks_write",params:{operation:"nextcloud.tasks.update",arguments:{}},toolCallId:"invalid-write"},
+  {runId:"run-invalid-write"},
+);
+if (invalidWrite?.block !== true || !invalidWrite.blockReason.includes("keine Freigabe erzeugt")) {
+  throw new Error("invalid write received an approval path");
+}
 const writeApproval = await hooks.get("before_tool_call")(
   {toolName:"personal_assistant_tasks_write",params:{operation:"nextcloud.tasks.update",arguments:writeArgs},toolCallId:"write"},
   {runId:"run-write"},
@@ -255,6 +284,10 @@ console.log(JSON.stringify({
   domains_executed:["runtime","mail","nextcloud","tasks","portfolio"],
   version_evidence:true,
   complete_positive_mail:true,
+  invalid_argument_structured:true,
+  identical_invalid_retry_stopped:true,
+  invalid_read_repeat_blocked:true,
+  invalid_write_not_approved:true,
   exact_isin_mapping:true,
   partial_negative_blocked:true,
   single_retry:true,
@@ -287,6 +320,10 @@ assert payload["write_postcondition_verified"] is True
 assert payload["approval_replay_blocked"] is True
 assert payload["approval_severity_valid"] is True
 assert payload["exact_isin_mapping"] is True
+assert payload["invalid_argument_structured"] is True
+assert payload["identical_invalid_retry_stopped"] is True
+assert payload["invalid_read_repeat_blocked"] is True
+assert payload["invalid_write_not_approved"] is True
 assert payload["domains_executed"] == ["runtime", "mail", "nextcloud", "tasks", "portfolio"]
 assert payload["partial_negative_blocked"] is True
 PY

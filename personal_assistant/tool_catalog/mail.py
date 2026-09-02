@@ -417,7 +417,7 @@ TOOLS: tuple[ToolDefinition, ...] = (
     define(
         id="mail.list",
         domain="mail",
-        description="Mail-Metadaten eines vorhandenen Ordners lesen, um eine Mail eindeutig auszuwaehlen",
+        description="Letzte oder aktuelle Mail-Metadaten eines vorhandenen Ordners lesen; immer den exakten Ordner uebergeben und ohne andere Nutzerangabe INBOX verwenden",
         command='./scripts/assistant.sh mail list --folder "<Ordner>" --limit 50',
         mode="read",
         writes_external_data=False,
@@ -429,7 +429,7 @@ TOOLS: tuple[ToolDefinition, ...] = (
     define(
         id="mail.search",
         domain="mail",
-        description="Mails ausschliesslich ueber den belegten lokalen Hybridindex oder den sichtbaren fail-closed Serverpfad suchen; nie rohes Himalaya oder Shell-Filter verwenden; der bounded Metadatenfallback findet verschobene Absender-/Betrefftreffer, darf Nulltreffer und Bodyabdeckung aber nicht als vollstaendig ausgeben",
+        description="Nach Absender, Adresse, Betreff oder Inhalt ausschliesslich ueber den belegten lokalen Hybridindex oder den sichtbaren fail-closed Serverpfad suchen; immer den Suchtext als query uebergeben, nie rohes Himalaya oder Shell-Filter verwenden; der bounded Metadatenfallback findet verschobene Absender-/Betrefftreffer, darf Nulltreffer und Bodyabdeckung aber nicht als vollstaendig ausgeben",
         command='./scripts/assistant.sh mail search --query "<Suchbegriff>" --limit 50',
         mode="read",
         writes_external_data=False,
@@ -441,7 +441,7 @@ TOOLS: tuple[ToolDefinition, ...] = (
     define(
         id="mail.read",
         domain="mail",
-        description="Eine per Ordner und Mail-ID eindeutig ausgewaehlte Mail read-only mit Inhalt lesen",
+        description="Erst nach einem belegten Treffer genau eine Mail read-only lesen und dabei folder, message_id und den unveraenderten expected_subject vollstaendig uebergeben",
         command='./scripts/assistant.sh mail read --folder "<Ordner>" --message-id "<ID>" --expected-subject "<Betreff>"',
         mode="read",
         writes_external_data=False,
