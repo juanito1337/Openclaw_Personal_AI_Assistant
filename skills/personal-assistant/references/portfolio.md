@@ -69,6 +69,14 @@ commands yourself; never ask Jan to copy a `docker exec` wrapper. If an instrume
 has no confirmed mapping, first read holdings and watchlist, then run `portfolio
 mapping suggest --isin "<ISIN>"` yourself. For a new watchlist security without
 an ISIN, run `portfolio mapping suggest --query "<Unternehmen-oder-Symbol>"`.
+Through the native OpenClaw bridge this means
+`personal_assistant_portfolio_read` with exactly
+`{"operation":"portfolio.mapping.suggest","arguments":{"isin":"<ISIN>"}}`
+for each known ISIN. Use
+`{"operation":"portfolio.mapping.discover","arguments":{"query":"<Name oder Ticker>"}}`
+only when no ISIN is known. Never send an empty `arguments` object for either
+operation. After a `missing-argument` error, correct the payload once; do not
+repeat the identical invalid call and do not offer web search as a substitute.
 The command must call Ollama through
 the coordinator and reject every symbol, currency, candidate ID or MIC that was
 not bounded by the exact EODHD response. Present one bounded plan containing the

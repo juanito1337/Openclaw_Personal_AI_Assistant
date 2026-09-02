@@ -8,14 +8,18 @@ read-only Canary ausdrücklich voneinander.
 
 - 159 Katalogoperationen, davon 158 nativ unterstützt und eine begründet
   ausgeschlossene interne Mail-Kalenderoperation.
-- 19 native, domänen-/effektbezogene OpenClaw-Werkzeuge mit strengem JSON-Schema.
+- 19 native, domänen-/effektbezogene OpenClaw-Werkzeuge mit einem
+  providerkompatiblen flachen JSON-Schema; ein Operations-Discriminator und
+  sichtbare Pflichtfeldsignaturen werden zur Laufzeit weiterhin gegen das
+  exakte operationsspezifische Schema validiert.
 - gezielte Aufnahme genau dieses Plugins in das begrenzte `coding`-Profil über
   `tools.alsoAllow`; keine pauschale Freigabe aller Plugins.
 - feste argv-Ausführung ohne Shell sowie Blockierung roher Fach-Execs und
   generischer Secretpfade.
 - deterministisches read-only Routing aus dem aktuellen Nutzerprompt.
 - Einzelfreigaben für Local-write und Write, gebunden an Turn, ToolCall,
-  Operation, Argumentdigest und Ablaufzeit; kein `allow-always`.
+  Operation, Argumentdigest und Ablaufzeit; Gateway-Schweregrade sind
+  `warning` beziehungsweise `critical`, kein `allow-always`.
 - Evidenzschema v1 und fail-closed Guard für Zustands-, Negativ-, Versions- und
   Schreiberfolgsbehauptungen.
 - inhaltsfreie Laufzeitmetriken; keine Queries, Adressen, Resultate oder Secrets.
@@ -59,12 +63,14 @@ und vergleicht dessen RPC-Inventar `tools.effective` exakt mit dem generierten
 19-Werkzeug-Vertrag. Damit wird auch eine fehlende `tools.alsoAllow`-Freigabe
 erkannt. Der Test führt
 strukturierte Leseaufrufe für Runtime, Mail,
-Nextcloud, Aufgaben und Portfolio aus, blockiert einen rohen Fach-Exec und ersetzt
+Nextcloud, Aufgaben und Portfolio einschließlich eines exakten read-only
+ISIN-Mappingvorschlags aus, blockiert einen rohen Fach-Exec und ersetzt
 eine unbelegte Mail-Negativaussage. Der Schreib-Canary aktualisiert ausschließlich
 eine synthetische Aufgabe über den gemounteten Fake-Launcher. Er belegt den
 Nachzustand, verwirft die verbrauchte Freigabe bei einem Replay und berührt weder
 einen externen Dienst noch produktive Daten. Externe und produktive
-Schreibaktionen: jeweils null.
+Schreibaktionen: jeweils null. Der Approval-Canary verwirft außerdem alle nicht
+vom Gateway unterstützten Schweregrade, bevor ein Release grün werden kann.
 
 ## Lokal gemessener Abnahmestand
 

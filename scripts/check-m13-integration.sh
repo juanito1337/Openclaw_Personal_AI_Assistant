@@ -170,6 +170,17 @@ const taskPayload = await invoke(
 const portfolioPayload = await invoke(
   "personal_assistant_portfolio_read", "portfolio.holdings", {}, "run-portfolio", "call-portfolio",
 );
+const mappingPayload = await invoke(
+  "personal_assistant_portfolio_read", "portfolio.mapping.suggest",
+  {isin:"US4592001014"}, "run-mapping", "call-mapping",
+);
+if (
+  !mappingPayload.evidence.ok ||
+  mappingPayload.result?.candidate?.isin !== "US4592001014" ||
+  mappingPayload.result?.stored !== false
+) {
+  throw new Error("exact ISIN mapping evidence failed");
+}
 if (![statusPayload,nextcloudPayload,taskPayload,portfolioPayload].every((payload) => payload.evidence.ok)) {
   throw new Error("cross-domain read evidence failed");
 }
@@ -183,8 +194,23 @@ const writeApproval = await hooks.get("before_tool_call")(
   {toolName:"personal_assistant_tasks_write",params:{operation:"nextcloud.tasks.update",arguments:writeArgs},toolCallId:"write"},
   {runId:"run-write"},
 );
-if (!writeApproval?.requireApproval || writeApproval.requireApproval.allowedDecisions.join(",") !== "allow-once,deny") {
+if (
+  !writeApproval?.requireApproval ||
+  writeApproval.requireApproval.allowedDecisions.join(",") !== "allow-once,deny" ||
+  writeApproval.requireApproval.severity !== "critical"
+) {
   throw new Error("bound approval missing");
+}
+const localWriteApproval = await hooks.get("before_tool_call")(
+  {toolName:"personal_assistant_runtime_write",params:{operation:"assistant.jobs.check",arguments:{}},toolCallId:"local-write"},
+  {runId:"run-local-write"},
+);
+if (
+  !localWriteApproval?.requireApproval ||
+  localWriteApproval.requireApproval.severity !== "warning" ||
+  localWriteApproval.requireApproval.allowedDecisions.join(",") !== "allow-once,deny"
+) {
+  throw new Error("local write approval contract invalid");
 }
 const writeResult = await nativeTool("personal_assistant_tasks_write", "run-write").execute(
   "write", writeApproval.params,
@@ -229,6 +255,7 @@ console.log(JSON.stringify({
   domains_executed:["runtime","mail","nextcloud","tasks","portfolio"],
   version_evidence:true,
   complete_positive_mail:true,
+  exact_isin_mapping:true,
   partial_negative_blocked:true,
   single_retry:true,
   raw_exec_blocked:true,
@@ -236,6 +263,7 @@ console.log(JSON.stringify({
   write_postcondition_verified:true,
   approval_replay_blocked:true,
   allow_once_only:true,
+  approval_severity_valid:true,
   ungrounded_reply_replaced:true,
   external_writes:0,
   productive_writes:0,
@@ -257,6 +285,8 @@ assert payload["productive_writes"] == 0
 assert payload["synthetic_write_executed"] is True
 assert payload["write_postcondition_verified"] is True
 assert payload["approval_replay_blocked"] is True
+assert payload["approval_severity_valid"] is True
+assert payload["exact_isin_mapping"] is True
 assert payload["domains_executed"] == ["runtime", "mail", "nextcloud", "tasks", "portfolio"]
 assert payload["partial_negative_blocked"] is True
 PY

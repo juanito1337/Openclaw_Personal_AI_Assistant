@@ -1,6 +1,7 @@
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import { readFileSync } from "node:fs";
 import {
+  approvalSeverity,
   compileInvocation,
   createApprovalLedger,
   guardAnswer,
@@ -206,7 +207,10 @@ export default definePluginEntry({
         requireApproval: {
           title: `Personal Assistant: ${operation.tool_id}`,
           description: `Einmalige Freigabe ${operation.approval} fuer exakt diese Argumente.`,
-          severity: operation.writes_external_data ? "high" : "medium",
+          // OpenClaw's plugin approval protocol accepts info/warning/critical.
+          // Keep all external writes at the strongest supported level and local
+          // state changes visibly below that without weakening allow-once.
+          severity: approvalSeverity(operation),
           allowedDecisions: ["allow-once", "deny"],
           timeoutMs: contract.limits.approval_timeout_seconds * 1000,
           timeoutBehavior: "deny",

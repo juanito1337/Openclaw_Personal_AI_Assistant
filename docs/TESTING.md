@@ -32,7 +32,7 @@ GitHub Actions ruft genau diese beiden Befehle auf Python 3.11, 3.12 und 3.13 au
 5. beide Compose-Varianten mit `docker/deployment.env.example`,
 6. `git diff --check`, den Architekturdokumentationsvertrag, die generierte
    M5-Befehlsreferenz, den generierten M8-Skill-Toolvertrag sowie den
-   M13-OpenClaw-Tool-/Evidenzvertrag und dessen 15-Fall-Replay,
+   M13-OpenClaw-Tool-/Evidenzvertrag und dessen 16-Fall-Replay,
 7. Ruff und mypy,
 8. Python-Kompilierung,
 9. die vollstaendige pytest-Suite mit Branch-Coverage,
@@ -46,7 +46,7 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 966 Tests, darunter mindestens 711 unittest-kompatible Tests
+fordert mindestens 968 Tests, darunter mindestens 713 unittest-kompatible Tests
 (die bisherigen 349 sowie M0-M13- und Rollout-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
@@ -106,7 +106,7 @@ der aktuellen Python-Dateien.
 | Tests nach M12-Entwicklungsabnahme gesammelt/ausgefuehrt | 942 / 942 (1.029 JUnit-Faelle inklusive 87 Subtests) |
 | Tests nach M12-Canary-Laufzeitkorrektur gesammelt/ausgefuehrt | 948 / 948 (1.035 JUnit-Faelle inklusive 87 Subtests) |
 | Tests nach Nextcloud-Skillrouting-Korrektur gesammelt/ausgefuehrt | 951 / 951 (1.038 JUnit-Faelle inklusive 87 Subtests) |
-| Tests nach M13 gesammelt/ausgefuehrt | 966 / 966 (1.071 JUnit-Faelle inklusive 105 Subtests) |
+| Tests nach M13 und produktivem Tool-Schema-Hotfix gesammelt/ausgefuehrt | 968 / 968 (1.074 JUnit-Faelle inklusive 106 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -143,7 +143,7 @@ der aktuellen Python-Dateien.
 | neue DAV-Standardprofil-Hotfix-Regressionsitems | 4 |
 | neue M12-IMAP-Inventory-/Reconciliation-Regressionsitems | 28 |
 | neue M12-Canary-Budget-/Single-Writer-Regressionsitems | 5 |
-| neue M13-Toolbridge-/Router-/Evidenz-Regressionsitems | 15 |
+| neue M13-Toolbridge-/Router-/Evidenz-Regressionsitems | 17 |
 | M13-Image-Runtime-Abnahme | Pluginstatus `loaded`, 19 Toolfabriken, 5 typisierte Hooks, keine Diagnosen |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |
@@ -212,8 +212,8 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach M12-Canary-Laufzeitkorrektur | 54,52 % |
 | Gesamt-Coverage nach Nextcloud-Skillrouting-Korrektur | 67,78 % |
 | reine Branch-Coverage nach Nextcloud-Skillrouting-Korrektur | 54,65 % |
-| Gesamt-Coverage nach M13 | 67,91 % |
-| reine Branch-Coverage nach M13 | 54,90 % |
+| Gesamt-Coverage nach M13 und produktivem Tool-Schema-Hotfix | 67,94 % |
+| reine Branch-Coverage nach M13 und produktivem Tool-Schema-Hotfix | 54,96 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |

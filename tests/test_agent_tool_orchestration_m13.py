@@ -75,6 +75,24 @@ class AgentToolContractTests(unittest.TestCase):
         self.assertNotIn("sector", operation["argument_schema"]["required"])
         self.assertIn("strategy", operation["argument_schema"]["required"])
 
+    def test_native_group_schema_is_provider_friendly_and_mapping_is_explicit(self) -> None:
+        payload = build_native_tool_contract()
+        group = next(
+            item
+            for item in payload["native_tools"]
+            if item["name"] == "personal_assistant_portfolio_read"
+        )
+        schema = group["parameters"]
+        self.assertEqual(schema["type"], "object")
+        self.assertNotIn("oneOf", schema)
+        self.assertIn("portfolio.mapping.suggest", schema["properties"]["operation"]["enum"])
+        arguments = schema["properties"]["arguments"]
+        self.assertIn("isin", arguments["properties"])
+        self.assertIn("query", arguments["properties"])
+        self.assertIn("portfolio.mapping.suggest: isin", arguments["description"])
+        self.assertIn("portfolio.mapping.discover: query", arguments["description"])
+        self.assertIn("nie durch Websuche ersetzen", group["description"])
+
     def test_shell_and_unknown_executable_templates_are_rejected(self) -> None:
         for command in (
             "./scripts/assistant.sh status && touch /tmp/unsafe",
@@ -185,6 +203,12 @@ const args = {
 const invocation = compileInvocation(op, args);
 const researchOp = contract.operations.find((row) => row.tool_id === 'portfolio.research.screen');
 const researchInvocation = compileInvocation(researchOp, {strategy:'quality-value'});
+const mappingSuggestOp = contract.operations.find((row) => row.tool_id === 'portfolio.mapping.suggest');
+const mappingSuggestInvocation = compileInvocation(mappingSuggestOp, {isin:'US4592001014'});
+const mappingDiscoverOp = contract.operations.find((row) => row.tool_id === 'portfolio.mapping.discover');
+const mappingDiscoverInvocation = compileInvocation(mappingDiscoverOp, {query:'Synthetic Industries'});
+let missingMappingArgument = '';
+try { compileInvocation(mappingSuggestOp, {}); } catch (error) { missingMappingArgument = String(error); }
 const ledger = createApprovalLedger(180);
 const nonce = ledger.issue({operation: op.tool_id, args, toolCallId: 'call-1', runId: 'run-1'});
 const accepted = ledger.consume({nonce, operation: op.tool_id, args, toolCallId: 'call-1', runId: 'run-1'});
@@ -201,7 +225,8 @@ const incomplete = makeEvidence(
 );
 const route = routePrompt(contract, 'Gibt es eine Mail zum Test?');
 const guard = guardAnswer(contract, route, 'Nein, es gibt keine Mail.', [incomplete]);
-console.log(JSON.stringify({invocation, researchInvocation, accepted, replay, changed, guard,
+console.log(JSON.stringify({invocation, researchInvocation, mappingSuggestInvocation,
+  mappingDiscoverInvocation, missingMappingArgument, accepted, replay, changed, guard,
   execBlocked: shouldBlockGenericTool('exec',{
     command:'/opt/openclaw-agent/scripts/assistant.sh mail search --query Test'
   }),
@@ -221,6 +246,15 @@ console.log(JSON.stringify({invocation, researchInvocation, accepted, replay, ch
         self.assertIn("$(id) && echo unsafe", payload["invocation"]["argv"])
         self.assertNotIn("--exchange", payload["researchInvocation"]["argv"])
         self.assertNotIn("--sector", payload["researchInvocation"]["argv"])
+        self.assertEqual(
+            payload["mappingSuggestInvocation"]["argv"],
+            ["portfolio", "mapping", "suggest", "--isin", "US4592001014"],
+        )
+        self.assertEqual(
+            payload["mappingDiscoverInvocation"]["argv"],
+            ["portfolio", "mapping", "suggest", "--query", "Synthetic Industries"],
+        )
+        self.assertIn("missing-argument:isin", payload["missingMappingArgument"])
         self.assertTrue(payload["accepted"])
         self.assertFalse(payload["replay"])
         self.assertFalse(payload["changed"])
@@ -252,6 +286,26 @@ console.log(JSON.stringify({invocation, researchInvocation, accepted, replay, ch
             path.write_text('{"tools":{"alsoAllow":"unsafe"}}\n', encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "tools.alsoAllow"):
                 ensure_personal_assistant_plugin_config(path)
+
+    def test_plugin_uses_gateway_supported_approval_severities(self) -> None:
+        script = r"""
+import {approvalSeverity} from './docker/openclaw-personal-assistant-plugin/runtime.js';
+console.log(JSON.stringify({
+  localWrite:approvalSeverity({writes_external_data:false}),
+  externalWrite:approvalSeverity({writes_external_data:true})
+}));
+"""
+        result = subprocess.run(
+            ["node", "--input-type=module", "-e", script],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["localWrite"], "warning")
+        self.assertEqual(payload["externalWrite"], "critical")
 
     def test_plugin_manifest_contract_matches_generated_tools(self) -> None:
         manifest = json.loads((PLUGIN / "openclaw.plugin.json").read_text(encoding="utf-8"))

@@ -4,7 +4,7 @@
   "plugin_id": "personal-assistant-tools",
   "plugin_path": "/opt/openclaw-plugins/personal-assistant-tools",
   "product_version": "3.4.0-r28",
-  "catalog_sha256": "3f557959f42b6da78ef4324c572c211f7648de0e82608c86e2e39b6cf9f2452c",
+  "catalog_sha256": "926535b5d2c4b10258eb035e0a0ca405697929b14a37811490a728c4e35f2135",
   "catalog_tool_count": 159,
   "supported_operation_count": 158,
   "excluded_operation_count": 1,
@@ -1279,7 +1279,7 @@
     {
       "tool_id": "portfolio.mapping.suggest",
       "domain": "portfolio",
-      "description": "Exakte EODHD-ISIN-Treffer abrufen, Ollama nur aus providerseitig belegten Kandidaten auswaehlen lassen und die vollstaendige genehmigungspflichtige watchlist-add-Folgeaktion liefern",
+      "description": "Bei bereits bekannter ISIN immer diese Operation mit dem Pflichtargument isin verwenden: exakte EODHD-ISIN-Treffer abrufen, Ollama nur aus providerseitig belegten Kandidaten auswaehlen lassen und die vollstaendige genehmigungspflichtige watchlist-add-Folgeaktion liefern",
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
@@ -1321,7 +1321,7 @@
     {
       "tool_id": "portfolio.mapping.discover",
       "domain": "portfolio",
-      "description": "Wertpapiername oder Symbol bei EODHD suchen, eine eindeutige providerseitige ISIN ermitteln und daraus Vorschlag sowie vollstaendige genehmigungspflichtige watchlist-add-Folgeaktion erzeugen",
+      "description": "Nur wenn noch keine ISIN bekannt ist, diese Operation mit dem Pflichtargument query verwenden: Wertpapiername oder Symbol bei EODHD suchen, eine eindeutige providerseitige ISIN ermitteln und daraus Vorschlag sowie vollstaendige genehmigungspflichtige watchlist-add-Folgeaktion erzeugen",
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
@@ -6392,349 +6392,56 @@
       "name": "personal_assistant_runtime_read",
       "domain": "runtime",
       "kind": "read",
-      "description": "Registered runtime read operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide only its structured arguments.",
+      "description": "Registered runtime read operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide all required structured arguments.",
       "parameters": {
-        "oneOf": [
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.agent-tools.status"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "assistant.agent-tools.status",
+              "assistant.status",
+              "assistant.version",
+              "assistant.version.history",
+              "assistant.version.since",
+              "assistant.search",
+              "assistant.monitor.status",
+              "assistant.jobs.status",
+              "assistant.scheduler.status",
+              "assistant.scheduler.doctor",
+              "assistant.scheduler.activity",
+              "assistant.jobs.alerts",
+              "assistant.ollama.status",
+              "assistant.ollama.check",
+              "assistant.ollama.queue",
+              "assistant.performance.mail",
+              "assistant.monitor.history"
             ],
-            "additionalProperties": false
+            "description": "Exakt eine registrierte Katalogoperation auswaehlen."
           },
-          {
+          "arguments": {
             "type": "object",
             "properties": {
-              "operation": {
-                "const": "assistant.status"
+              "since": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
               },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
+              "query": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 20000
               }
             },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.version"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.version.history"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.version.since"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "since": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  }
-                },
-                "required": [
-                  "since"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.search"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "query": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 20000
-                  }
-                },
-                "required": [
-                  "query"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.monitor.status"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.jobs.status"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.scheduler.status"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.scheduler.doctor"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.scheduler.activity"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.jobs.alerts"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.ollama.status"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.ollama.check"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.ollama.queue"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.performance.mail"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.monitor.history"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
+            "additionalProperties": false,
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: assistant.agent-tools.status: keine; assistant.status: keine; assistant.version: keine; assistant.version.history: keine; assistant.version.since: since; assistant.search: query; assistant.monitor.status: keine; assistant.jobs.status: keine; assistant.scheduler.status: keine; assistant.scheduler.doctor: keine; assistant.scheduler.activity: keine; assistant.jobs.alerts: keine; assistant.ollama.status: keine; assistant.ollama.check: keine; assistant.ollama.queue: keine; assistant.performance.mail: keine; assistant.monitor.history: keine"
           }
-        ]
+        },
+        "required": [
+          "operation",
+          "arguments"
+        ],
+        "additionalProperties": false
       },
       "operations": [
         "assistant.agent-tools.status",
@@ -6760,194 +6467,48 @@
       "name": "personal_assistant_runtime_write",
       "domain": "runtime",
       "kind": "write",
-      "description": "Registered runtime write operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide only its structured arguments.",
+      "description": "Registered runtime write operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide all required structured arguments.",
       "parameters": {
-        "oneOf": [
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.setup.standard-operations"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "assistant.setup.standard-operations",
+              "assistant.scheduler.focus",
+              "assistant.jobs.check",
+              "assistant.jobs.on",
+              "assistant.jobs.restart",
+              "assistant.jobs.off",
+              "assistant.ollama.start",
+              "assistant.ollama.restart",
+              "assistant.monitor.record"
             ],
-            "additionalProperties": false
+            "description": "Exakt eine registrierte Katalogoperation auswaehlen."
           },
-          {
+          "arguments": {
             "type": "object",
             "properties": {
-              "operation": {
-                "const": "assistant.scheduler.focus"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "topic": {
-                    "type": "string",
-                    "enum": [
-                      "mail",
-                      "portfolio",
-                      "knowledge",
-                      "planning",
-                      "operations"
-                    ]
-                  }
-                },
-                "required": [
-                  "topic"
-                ],
-                "additionalProperties": false
+              "topic": {
+                "type": "string",
+                "enum": [
+                  "mail",
+                  "portfolio",
+                  "knowledge",
+                  "planning",
+                  "operations"
+                ]
               }
             },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.jobs.check"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.jobs.on"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.jobs.restart"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.jobs.off"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.ollama.start"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.ollama.restart"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.monitor.record"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
+            "additionalProperties": false,
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: assistant.setup.standard-operations: keine; assistant.scheduler.focus: topic; assistant.jobs.check: keine; assistant.jobs.on: keine; assistant.jobs.restart: keine; assistant.jobs.off: keine; assistant.ollama.start: keine; assistant.ollama.restart: keine; assistant.monitor.record: keine"
           }
-        ]
+        },
+        "required": [
+          "operation",
+          "arguments"
+        ],
+        "additionalProperties": false
       },
       "operations": [
         "assistant.setup.standard-operations",
@@ -6965,546 +6526,78 @@
       "name": "personal_assistant_mail_read",
       "domain": "mail",
       "kind": "read",
-      "description": "Registered mail read operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide only its structured arguments.",
+      "description": "Registered mail read operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide all required structured arguments.",
       "parameters": {
-        "oneOf": [
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.status"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "mail.status",
+              "mail.doctor",
+              "mail.review.status",
+              "mail.review.list",
+              "mail.review.suggest",
+              "mail.folders.plan",
+              "mail.index.capabilities",
+              "mail.index.status",
+              "mail.index.doctor",
+              "mail.index.plan",
+              "mail.index.shadow",
+              "mail.search.local",
+              "mail.learning.status",
+              "mail.learning.feedback",
+              "mail.learning.not-spam",
+              "mail.learning.mixed-senders",
+              "mail.learning.conflicts",
+              "mail.learning.evaluate",
+              "mail.learning.folder-list",
+              "mail.dry-run",
+              "mail.move-status",
+              "mail.list",
+              "mail.search",
+              "mail.read"
             ],
-            "additionalProperties": false
+            "description": "Exakt eine registrierte Katalogoperation auswaehlen."
           },
-          {
+          "arguments": {
             "type": "object",
             "properties": {
-              "operation": {
-                "const": "mail.doctor"
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 20000
               },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
+              "folder": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024
+              },
+              "message_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "expected_subject": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "query": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 20000
               }
             },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.review.status"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.review.list"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "reason": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 20000
-                  }
-                },
-                "required": [
-                  "reason"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.review.suggest"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "folder": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 1024
-                  },
-                  "message_id": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "expected_subject": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  }
-                },
-                "required": [
-                  "expected_subject",
-                  "folder",
-                  "message_id"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.folders.plan"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.index.capabilities"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.index.status"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.index.doctor"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.index.plan"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.index.shadow"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "query": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 20000
-                  }
-                },
-                "required": [
-                  "query"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.search.local"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "query": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 20000
-                  }
-                },
-                "required": [
-                  "query"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.learning.status"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.learning.feedback"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.learning.not-spam"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.learning.mixed-senders"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.learning.conflicts"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.learning.evaluate"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.learning.folder-list"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.dry-run"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.move-status"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.list"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "folder": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 1024
-                  }
-                },
-                "required": [
-                  "folder"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.search"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "query": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 20000
-                  }
-                },
-                "required": [
-                  "query"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.read"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "folder": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 1024
-                  },
-                  "message_id": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "expected_subject": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  }
-                },
-                "required": [
-                  "expected_subject",
-                  "folder",
-                  "message_id"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
+            "additionalProperties": false,
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: mail.status: keine; mail.doctor: keine; mail.review.status: keine; mail.review.list: reason; mail.review.suggest: expected_subject, folder, message_id; mail.folders.plan: keine; mail.index.capabilities: keine; mail.index.status: keine; mail.index.doctor: keine; mail.index.plan: keine; mail.index.shadow: query; mail.search.local: query; mail.learning.status: keine; mail.learning.feedback: keine; mail.learning.not-spam: keine; mail.learning.mixed-senders: keine; mail.learning.conflicts: keine; mail.learning.evaluate: keine; mail.learning.folder-list: keine; mail.dry-run: keine; mail.move-status: keine; mail.list: folder; mail.search: query; mail.read: expected_subject, folder, message_id"
           }
-        ]
+        },
+        "required": [
+          "operation",
+          "arguments"
+        ],
+        "additionalProperties": false
       },
       "operations": [
         "mail.status",
@@ -7537,511 +6630,124 @@
       "name": "personal_assistant_mail_write",
       "domain": "mail",
       "kind": "write",
-      "description": "Registered mail write operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide only its structured arguments.",
+      "description": "Registered mail write operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide all required structured arguments.",
       "parameters": {
-        "oneOf": [
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.review.correct"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "message_id": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "expected_subject": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "verdict": {
-                    "type": "string",
-                    "enum": [
-                      "relevant",
-                      "routine",
-                      "spam"
-                    ]
-                  }
-                },
-                "required": [
-                  "expected_subject",
-                  "message_id",
-                  "verdict"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "mail.review.correct",
+              "mail.folders.apply",
+              "mail.folders.activate-relevant",
+              "mail.index.canary",
+              "mail.index.backfill",
+              "mail.index.reconcile",
+              "mail.learning.feedback-forget",
+              "mail.learning.dataset-export",
+              "mail.learning.folder-create",
+              "mail.learning.folder-disable",
+              "mail.sources.configure",
+              "mail.run",
+              "mail.spam-review",
+              "mail.reply-draft",
+              "mail.reply-send",
+              "mail.compose-draft",
+              "mail.compose-send",
+              "mail.move"
             ],
-            "additionalProperties": false
+            "description": "Exakt eine registrierte Katalogoperation auswaehlen."
           },
-          {
+          "arguments": {
             "type": "object",
             "properties": {
-              "operation": {
-                "const": "mail.folders.apply"
+              "message_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
               },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
+              "expected_subject": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "verdict": {
+                "type": "string",
+                "enum": [
+                  "relevant",
+                  "routine",
+                  "spam"
+                ]
+              },
+              "folder": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024
+              },
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "parent": {
+                "type": "string",
+                "enum": [
+                  "routine",
+                  "important",
+                  "spam",
+                  "not-spam"
+                ]
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "body": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 20000
+              },
+              "draft_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "to": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "subject": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "source": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024
+              },
+              "destination": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024
               }
             },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.folders.activate-relevant"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.index.canary"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "folder": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 1024
-                  }
-                },
-                "required": [
-                  "folder"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.index.backfill"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.index.reconcile"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.learning.feedback-forget"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  }
-                },
-                "required": [
-                  "id"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.learning.dataset-export"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.learning.folder-create"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "parent": {
-                    "type": "string",
-                    "enum": [
-                      "routine",
-                      "important",
-                      "spam",
-                      "not-spam"
-                    ]
-                  },
-                  "name": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "label": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  }
-                },
-                "required": [
-                  "label",
-                  "name",
-                  "parent"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.learning.folder-disable"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "folder": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 1024
-                  }
-                },
-                "required": [
-                  "folder"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.sources.configure"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.run"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.spam-review"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.reply-draft"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "folder": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 1024
-                  },
-                  "message_id": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "expected_subject": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "body": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 20000
-                  }
-                },
-                "required": [
-                  "body",
-                  "expected_subject",
-                  "folder",
-                  "message_id"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.reply-send"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "draft_id": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  }
-                },
-                "required": [
-                  "draft_id"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.compose-draft"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "to": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "subject": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "body": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 20000
-                  }
-                },
-                "required": [
-                  "body",
-                  "subject",
-                  "to"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.compose-send"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "draft_id": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  }
-                },
-                "required": [
-                  "draft_id"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.move"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "source": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 1024
-                  },
-                  "destination": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 1024
-                  },
-                  "message_id": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "expected_subject": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  }
-                },
-                "required": [
-                  "destination",
-                  "expected_subject",
-                  "message_id",
-                  "source"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
+            "additionalProperties": false,
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: mail.review.correct: expected_subject, message_id, verdict; mail.folders.apply: keine; mail.folders.activate-relevant: keine; mail.index.canary: folder; mail.index.backfill: keine; mail.index.reconcile: keine; mail.learning.feedback-forget: id; mail.learning.dataset-export: keine; mail.learning.folder-create: label, name, parent; mail.learning.folder-disable: folder; mail.sources.configure: keine; mail.run: keine; mail.spam-review: keine; mail.reply-draft: body, expected_subject, folder, message_id; mail.reply-send: draft_id; mail.compose-draft: body, subject, to; mail.compose-send: draft_id; mail.move: destination, expected_subject, message_id, source"
           }
-        ]
+        },
+        "required": [
+          "operation",
+          "arguments"
+        ],
+        "additionalProperties": false
       },
       "operations": [
         "mail.review.correct",
@@ -8068,48 +6774,30 @@
       "name": "personal_assistant_nextcloud_read",
       "domain": "nextcloud",
       "kind": "read",
-      "description": "Registered nextcloud read operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide only its structured arguments.",
+      "description": "Registered nextcloud read operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide all required structured arguments.",
       "parameters": {
-        "oneOf": [
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "nextcloud.list"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "nextcloud.list",
+              "nextcloud.sync"
             ],
-            "additionalProperties": false
+            "description": "Exakt eine registrierte Katalogoperation auswaehlen."
           },
-          {
+          "arguments": {
             "type": "object",
-            "properties": {
-              "operation": {
-                "const": "nextcloud.sync"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
+            "properties": {},
+            "additionalProperties": false,
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: nextcloud.list: keine; nextcloud.sync: keine"
           }
-        ]
+        },
+        "required": [
+          "operation",
+          "arguments"
+        ],
+        "additionalProperties": false
       },
       "operations": [
         "nextcloud.list",
@@ -8120,155 +6808,59 @@
       "name": "personal_assistant_nextcloud_write",
       "domain": "nextcloud",
       "kind": "write",
-      "description": "Registered nextcloud write operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide only its structured arguments.",
+      "description": "Registered nextcloud write operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide all required structured arguments.",
       "parameters": {
-        "oneOf": [
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "nextcloud.workspace.mkdir"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "path": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  }
-                },
-                "required": [
-                  "path"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "nextcloud.workspace.mkdir",
+              "nextcloud.workspace.write-text",
+              "nextcloud.workspace.upload",
+              "nextcloud.workspace.move",
+              "nextcloud.workspace.configure"
             ],
-            "additionalProperties": false
+            "description": "Exakt eine registrierte Katalogoperation auswaehlen."
           },
-          {
+          "arguments": {
             "type": "object",
             "properties": {
-              "operation": {
-                "const": "nextcloud.workspace.write-text"
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
               },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "content": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 20000
-                  },
-                  "path": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  }
-                },
-                "required": [
-                  "content",
-                  "path"
-                ],
-                "additionalProperties": false
+              "content": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 20000
+              },
+              "local": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "source": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024
+              },
+              "destination": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024
               }
             },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "nextcloud.workspace.upload"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "local": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "path": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  }
-                },
-                "required": [
-                  "local",
-                  "path"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "nextcloud.workspace.move"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "source": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 1024
-                  },
-                  "destination": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 1024
-                  }
-                },
-                "required": [
-                  "destination",
-                  "source"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "nextcloud.workspace.configure"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
+            "additionalProperties": false,
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: nextcloud.workspace.mkdir: path; nextcloud.workspace.write-text: content, path; nextcloud.workspace.upload: local, path; nextcloud.workspace.move: destination, source; nextcloud.workspace.configure: keine"
           }
-        ]
+        },
+        "required": [
+          "operation",
+          "arguments"
+        ],
+        "additionalProperties": false
       },
       "operations": [
         "nextcloud.workspace.mkdir",
@@ -8282,133 +6874,54 @@
       "name": "personal_assistant_contacts_read",
       "domain": "contacts",
       "kind": "read",
-      "description": "Registered contacts read operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide only its structured arguments.",
+      "description": "Registered contacts read operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide all required structured arguments.",
       "parameters": {
-        "oneOf": [
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "nextcloud.contacts.discover"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "nextcloud.contacts.discover",
+              "nextcloud.contacts.status",
+              "nextcloud.contacts.list",
+              "nextcloud.contacts.search",
+              "nextcloud.contacts.from-mail-preview"
             ],
-            "additionalProperties": false
+            "description": "Exakt eine registrierte Katalogoperation auswaehlen."
           },
-          {
+          "arguments": {
             "type": "object",
             "properties": {
-              "operation": {
-                "const": "nextcloud.contacts.status"
+              "query": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 20000
               },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
+              "folder": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024
+              },
+              "message_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "expected_subject": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
               }
             },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "nextcloud.contacts.list"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "nextcloud.contacts.search"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "query": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 20000
-                  }
-                },
-                "required": [
-                  "query"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "nextcloud.contacts.from-mail-preview"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "folder": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 1024
-                  },
-                  "message_id": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "expected_subject": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  }
-                },
-                "required": [
-                  "expected_subject",
-                  "folder",
-                  "message_id"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
+            "additionalProperties": false,
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: nextcloud.contacts.discover: keine; nextcloud.contacts.status: keine; nextcloud.contacts.list: keine; nextcloud.contacts.search: query; nextcloud.contacts.from-mail-preview: expected_subject, folder, message_id"
           }
-        ]
+        },
+        "required": [
+          "operation",
+          "arguments"
+        ],
+        "additionalProperties": false
       },
       "operations": [
         "nextcloud.contacts.discover",
@@ -8422,160 +6935,83 @@
       "name": "personal_assistant_contacts_write",
       "domain": "contacts",
       "kind": "write",
-      "description": "Registered contacts write operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide only its structured arguments.",
+      "description": "Registered contacts write operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide all required structured arguments.",
       "parameters": {
-        "oneOf": [
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "nextcloud.contacts.configure"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "resource": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  }
-                },
-                "required": [
-                  "resource"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "nextcloud.contacts.configure",
+              "nextcloud.contacts.update",
+              "nextcloud.contacts.create",
+              "nextcloud.contacts.from-mail-create"
             ],
-            "additionalProperties": false
+            "description": "Exakt eine registrierte Katalogoperation auswaehlen."
           },
-          {
+          "arguments": {
             "type": "object",
             "properties": {
-              "operation": {
-                "const": "nextcloud.contacts.update"
+              "resource": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
               },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "uid": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "expected_name": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "phone": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  }
-                },
-                "required": [
-                  "expected_name",
-                  "phone",
-                  "uid"
-                ],
-                "additionalProperties": false
+              "uid": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "expected_name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "phone": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "email": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "organization": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "folder": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024
+              },
+              "message_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "expected_subject": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
               }
             },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "nextcloud.contacts.create"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "name": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "email": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "phone": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "organization": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  }
-                },
-                "required": [
-                  "email",
-                  "name",
-                  "organization",
-                  "phone"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "nextcloud.contacts.from-mail-create"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "folder": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 1024
-                  },
-                  "message_id": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "expected_subject": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  }
-                },
-                "required": [
-                  "expected_subject",
-                  "folder",
-                  "message_id"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
+            "additionalProperties": false,
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: nextcloud.contacts.configure: resource; nextcloud.contacts.update: expected_name, phone, uid; nextcloud.contacts.create: email, name, organization, phone; nextcloud.contacts.from-mail-create: expected_subject, folder, message_id"
           }
-        ]
+        },
+        "required": [
+          "operation",
+          "arguments"
+        ],
+        "additionalProperties": false
       },
       "operations": [
         "nextcloud.contacts.configure",
@@ -8588,94 +7024,38 @@
       "name": "personal_assistant_calendar_read",
       "domain": "calendar",
       "kind": "read",
-      "description": "Registered calendar read operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide only its structured arguments.",
+      "description": "Registered calendar read operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide all required structured arguments.",
       "parameters": {
-        "oneOf": [
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "nextcloud.calendar.discover"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "nextcloud.calendar.discover",
+              "nextcloud.calendar.status",
+              "nextcloud.calendar.list",
+              "nextcloud.calendar.search"
             ],
-            "additionalProperties": false
+            "description": "Exakt eine registrierte Katalogoperation auswaehlen."
           },
-          {
+          "arguments": {
             "type": "object",
             "properties": {
-              "operation": {
-                "const": "nextcloud.calendar.status"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
+              "query": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 20000
               }
             },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "nextcloud.calendar.list"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "nextcloud.calendar.search"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "query": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 20000
-                  }
-                },
-                "required": [
-                  "query"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
+            "additionalProperties": false,
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: nextcloud.calendar.discover: keine; nextcloud.calendar.status: keine; nextcloud.calendar.list: keine; nextcloud.calendar.search: query"
           }
-        ]
+        },
+        "required": [
+          "operation",
+          "arguments"
+        ],
+        "additionalProperties": false
       },
       "operations": [
         "nextcloud.calendar.discover",
@@ -8688,127 +7068,72 @@
       "name": "personal_assistant_calendar_write",
       "domain": "calendar",
       "kind": "write",
-      "description": "Registered calendar write operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide only its structured arguments.",
+      "description": "Registered calendar write operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide all required structured arguments.",
       "parameters": {
-        "oneOf": [
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "nextcloud.calendar.configure"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "resource": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  }
-                },
-                "required": [
-                  "resource"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "nextcloud.calendar.configure",
+              "nextcloud.calendar.update",
+              "nextcloud.calendar.create"
             ],
-            "additionalProperties": false
+            "description": "Exakt eine registrierte Katalogoperation auswaehlen."
           },
-          {
+          "arguments": {
             "type": "object",
             "properties": {
-              "operation": {
-                "const": "nextcloud.calendar.update"
+              "resource": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
               },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "uid": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "expected_title": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "start": {
-                    "type": "string",
-                    "minLength": 10,
-                    "maxLength": 64
-                  }
-                },
-                "required": [
-                  "expected_title",
-                  "start",
-                  "uid"
-                ],
-                "additionalProperties": false
+              "uid": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "expected_title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "start": {
+                "type": "string",
+                "minLength": 10,
+                "maxLength": 64
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "end": {
+                "type": "string",
+                "minLength": 10,
+                "maxLength": 64
+              },
+              "location": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 20000
               }
             },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "nextcloud.calendar.create"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "title": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "start": {
-                    "type": "string",
-                    "minLength": 10,
-                    "maxLength": 64
-                  },
-                  "end": {
-                    "type": "string",
-                    "minLength": 10,
-                    "maxLength": 64
-                  },
-                  "location": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "description": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 20000
-                  }
-                },
-                "required": [
-                  "description",
-                  "end",
-                  "location",
-                  "start",
-                  "title"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
+            "additionalProperties": false,
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: nextcloud.calendar.configure: resource; nextcloud.calendar.update: expected_title, start, uid; nextcloud.calendar.create: description, end, location, start, title"
           }
-        ]
+        },
+        "required": [
+          "operation",
+          "arguments"
+        ],
+        "additionalProperties": false
       },
       "operations": [
         "nextcloud.calendar.configure",
@@ -8820,67 +7145,31 @@
       "name": "personal_assistant_tasks_read",
       "domain": "tasks",
       "kind": "read",
-      "description": "Registered tasks read operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide only its structured arguments.",
+      "description": "Registered tasks read operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide all required structured arguments.",
       "parameters": {
-        "oneOf": [
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "nextcloud.tasks.discover"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "nextcloud.tasks.discover",
+              "nextcloud.tasks.status",
+              "nextcloud.tasks.list"
             ],
-            "additionalProperties": false
+            "description": "Exakt eine registrierte Katalogoperation auswaehlen."
           },
-          {
+          "arguments": {
             "type": "object",
-            "properties": {
-              "operation": {
-                "const": "nextcloud.tasks.status"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "nextcloud.tasks.list"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
+            "properties": {},
+            "additionalProperties": false,
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: nextcloud.tasks.discover: keine; nextcloud.tasks.status: keine; nextcloud.tasks.list: keine"
           }
-        ]
+        },
+        "required": [
+          "operation",
+          "arguments"
+        ],
+        "additionalProperties": false
       },
       "operations": [
         "nextcloud.tasks.discover",
@@ -8892,115 +7181,67 @@
       "name": "personal_assistant_tasks_write",
       "domain": "tasks",
       "kind": "write",
-      "description": "Registered tasks write operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide only its structured arguments.",
+      "description": "Registered tasks write operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide all required structured arguments.",
       "parameters": {
-        "oneOf": [
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "nextcloud.tasks.configure"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "resource": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  }
-                },
-                "required": [
-                  "resource"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "nextcloud.tasks.configure",
+              "nextcloud.tasks.update",
+              "nextcloud.tasks.create"
             ],
-            "additionalProperties": false
+            "description": "Exakt eine registrierte Katalogoperation auswaehlen."
           },
-          {
+          "arguments": {
             "type": "object",
             "properties": {
-              "operation": {
-                "const": "nextcloud.tasks.update"
+              "resource": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
               },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "uid": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "expected_title": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  }
-                },
-                "required": [
-                  "expected_title",
-                  "uid"
-                ],
-                "additionalProperties": false
+              "uid": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "expected_title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "due": {
+                "type": "string",
+                "minLength": 10,
+                "maxLength": 64
+              },
+              "priority": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 20000
               }
             },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "nextcloud.tasks.create"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "title": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "due": {
-                    "type": "string",
-                    "minLength": 10,
-                    "maxLength": 64
-                  },
-                  "priority": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 9
-                  },
-                  "description": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 20000
-                  }
-                },
-                "required": [
-                  "description",
-                  "due",
-                  "priority",
-                  "title"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
+            "additionalProperties": false,
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: nextcloud.tasks.configure: resource; nextcloud.tasks.update: expected_title, uid; nextcloud.tasks.create: description, due, priority, title"
           }
-        ]
+        },
+        "required": [
+          "operation",
+          "arguments"
+        ],
+        "additionalProperties": false
       },
       "operations": [
         "nextcloud.tasks.configure",
@@ -9012,105 +7253,33 @@
       "name": "personal_assistant_orders_read",
       "domain": "orders",
       "kind": "read",
-      "description": "Registered orders read operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide only its structured arguments.",
+      "description": "Registered orders read operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide all required structured arguments.",
       "parameters": {
-        "oneOf": [
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "nextcloud.deck.orders.status"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "nextcloud.deck.orders.status",
+              "nextcloud.deck.orders.list",
+              "nextcloud.deck.discover",
+              "mail.orders.import",
+              "nextcloud.deck.orders.due-date-preview"
             ],
-            "additionalProperties": false
+            "description": "Exakt eine registrierte Katalogoperation auswaehlen."
           },
-          {
+          "arguments": {
             "type": "object",
-            "properties": {
-              "operation": {
-                "const": "nextcloud.deck.orders.list"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "nextcloud.deck.discover"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.orders.import"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "nextcloud.deck.orders.due-date-preview"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
+            "properties": {},
+            "additionalProperties": false,
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: nextcloud.deck.orders.status: keine; nextcloud.deck.orders.list: keine; nextcloud.deck.discover: keine; mail.orders.import: keine; nextcloud.deck.orders.due-date-preview: keine"
           }
-        ]
+        },
+        "required": [
+          "operation",
+          "arguments"
+        ],
+        "additionalProperties": false
       },
       "operations": [
         "nextcloud.deck.orders.status",
@@ -9124,48 +7293,30 @@
       "name": "personal_assistant_orders_write",
       "domain": "orders",
       "kind": "write",
-      "description": "Registered orders write operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide only its structured arguments.",
+      "description": "Registered orders write operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide all required structured arguments.",
       "parameters": {
-        "oneOf": [
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "nextcloud.deck.orders.sync"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "nextcloud.deck.orders.sync",
+              "nextcloud.deck.orders.due-date-backfill"
             ],
-            "additionalProperties": false
+            "description": "Exakt eine registrierte Katalogoperation auswaehlen."
           },
-          {
+          "arguments": {
             "type": "object",
-            "properties": {
-              "operation": {
-                "const": "nextcloud.deck.orders.due-date-backfill"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
+            "properties": {},
+            "additionalProperties": false,
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: nextcloud.deck.orders.sync: keine; nextcloud.deck.orders.due-date-backfill: keine"
           }
-        ]
+        },
+        "required": [
+          "operation",
+          "arguments"
+        ],
+        "additionalProperties": false
       },
       "operations": [
         "nextcloud.deck.orders.sync",
@@ -9176,202 +7327,54 @@
       "name": "personal_assistant_invoices_read",
       "domain": "invoices",
       "kind": "read",
-      "description": "Registered invoices read operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide only its structured arguments.",
+      "description": "Registered invoices read operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide all required structured arguments.",
       "parameters": {
-        "oneOf": [
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.invoices.status"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "assistant.invoices.status",
+              "assistant.invoices.files",
+              "assistant.invoices.audit",
+              "assistant.invoices.list",
+              "assistant.invoices.review",
+              "assistant.invoices.export",
+              "assistant.invoices.backfill-preview",
+              "assistant.invoices.reprocess-preview"
             ],
-            "additionalProperties": false
+            "description": "Exakt eine registrierte Katalogoperation auswaehlen."
           },
-          {
+          "arguments": {
             "type": "object",
             "properties": {
-              "operation": {
-                "const": "assistant.invoices.files"
+              "year": {
+                "type": "integer",
+                "minimum": 1970,
+                "maximum": 2200
               },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
+              "status": {
+                "type": "string",
+                "enum": [
+                  "review",
+                  "unclassified"
+                ]
+              },
+              "source_year": {
+                "type": "integer",
+                "minimum": 1970,
+                "maximum": 2200
               }
             },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.invoices.audit"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.invoices.list"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "year": {
-                    "type": "integer",
-                    "minimum": 1970,
-                    "maximum": 2200
-                  }
-                },
-                "required": [
-                  "year"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.invoices.review"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.invoices.export"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "year": {
-                    "type": "integer",
-                    "minimum": 1970,
-                    "maximum": 2200
-                  }
-                },
-                "required": [
-                  "year"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.invoices.backfill-preview"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "year": {
-                    "type": "integer",
-                    "minimum": 1970,
-                    "maximum": 2200
-                  }
-                },
-                "required": [
-                  "year"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.invoices.reprocess-preview"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "status": {
-                    "type": "string",
-                    "enum": [
-                      "review",
-                      "unclassified"
-                    ]
-                  },
-                  "source_year": {
-                    "type": "integer",
-                    "minimum": 1970,
-                    "maximum": 2200
-                  }
-                },
-                "required": [
-                  "source_year",
-                  "status"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
+            "additionalProperties": false,
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: assistant.invoices.status: keine; assistant.invoices.files: keine; assistant.invoices.audit: keine; assistant.invoices.list: year; assistant.invoices.review: keine; assistant.invoices.export: year; assistant.invoices.backfill-preview: year; assistant.invoices.reprocess-preview: source_year, status"
           }
-        ]
+        },
+        "required": [
+          "operation",
+          "arguments"
+        ],
+        "additionalProperties": false
       },
       "operations": [
         "assistant.invoices.status",
@@ -9388,169 +7391,71 @@
       "name": "personal_assistant_invoices_write",
       "domain": "invoices",
       "kind": "write",
-      "description": "Registered invoices write operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide only its structured arguments.",
+      "description": "Registered invoices write operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide all required structured arguments.",
       "parameters": {
-        "oneOf": [
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "mail.invoice-archive"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "mail.invoice-archive",
+              "assistant.invoices.export-nextcloud",
+              "assistant.invoices.backfill",
+              "assistant.invoices.reprocess-apply",
+              "assistant.invoices.correct"
             ],
-            "additionalProperties": false
+            "description": "Exakt eine registrierte Katalogoperation auswaehlen."
           },
-          {
+          "arguments": {
             "type": "object",
             "properties": {
-              "operation": {
-                "const": "assistant.invoices.export-nextcloud"
+              "year": {
+                "type": "integer",
+                "minimum": 1970,
+                "maximum": 2200
               },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "year": {
-                    "type": "integer",
-                    "minimum": 1970,
-                    "maximum": 2200
-                  }
-                },
-                "required": [
-                  "year"
-                ],
-                "additionalProperties": false
+              "hash": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "expected_preview_sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "date": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              "number": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "supplier": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "category": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "gross": {
+                "type": "string",
+                "pattern": "^-?\\d+(?:[.,]\\d+)?$",
+                "maxLength": 40
               }
             },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.invoices.backfill"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "year": {
-                    "type": "integer",
-                    "minimum": 1970,
-                    "maximum": 2200
-                  }
-                },
-                "required": [
-                  "year"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.invoices.reprocess-apply"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "hash": {
-                    "type": "string",
-                    "pattern": "^[0-9a-f]{64}$"
-                  },
-                  "expected_preview_sha256": {
-                    "type": "string",
-                    "pattern": "^[0-9a-f]{64}$"
-                  }
-                },
-                "required": [
-                  "expected_preview_sha256",
-                  "hash"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "assistant.invoices.correct"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "hash": {
-                    "type": "string",
-                    "pattern": "^[0-9a-f]{64}$"
-                  },
-                  "date": {
-                    "type": "string",
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
-                  },
-                  "number": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "supplier": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "category": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "gross": {
-                    "type": "string",
-                    "pattern": "^-?\\d+(?:[.,]\\d+)?$",
-                    "maxLength": 40
-                  }
-                },
-                "required": [
-                  "category",
-                  "date",
-                  "gross",
-                  "hash",
-                  "number",
-                  "supplier"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
+            "additionalProperties": false,
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: mail.invoice-archive: keine; assistant.invoices.export-nextcloud: year; assistant.invoices.backfill: year; assistant.invoices.reprocess-apply: expected_preview_sha256, hash; assistant.invoices.correct: category, date, gross, hash, number, supplier"
           }
-        ]
+        },
+        "required": [
+          "operation",
+          "arguments"
+        ],
+        "additionalProperties": false
       },
       "operations": [
         "mail.invoice-archive",
@@ -9564,381 +7469,56 @@
       "name": "personal_assistant_portfolio_read",
       "domain": "portfolio",
       "kind": "read",
-      "description": "Registered portfolio read operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide only its structured arguments.",
+      "description": "Registered portfolio read operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide all required structured arguments. Bei bereits bekannter ISIN immer portfolio.mapping.suggest mit arguments.isin verwenden; portfolio.mapping.discover ist nur fuer einen Namen oder Ticker ohne bekannte ISIN und verlangt arguments.query. Nie mit leerem arguments-Objekt aufrufen und nie durch Websuche ersetzen.",
       "parameters": {
-        "oneOf": [
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.status"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "portfolio.status",
+              "portfolio.doctor",
+              "portfolio.holdings",
+              "portfolio.valuation",
+              "portfolio.watchlist",
+              "portfolio.mapping.suggest",
+              "portfolio.mapping.discover",
+              "portfolio.quotes.status",
+              "portfolio.quotes.get",
+              "portfolio.analyze",
+              "portfolio.research.status",
+              "portfolio.research.models",
+              "portfolio.research.history",
+              "portfolio.philosophy.show",
+              "portfolio.philosophy.review",
+              "portfolio.philosophy.history",
+              "portfolio.alerts",
+              "portfolio.performance"
             ],
-            "additionalProperties": false
+            "description": "Exakt eine registrierte Katalogoperation auswaehlen."
           },
-          {
+          "arguments": {
             "type": "object",
             "properties": {
-              "operation": {
-                "const": "portfolio.doctor"
+              "isin": {
+                "type": "string",
+                "pattern": "^[A-Z]{2}[A-Z0-9]{9}[0-9]$"
               },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
+              "query": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 20000
               }
             },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.holdings"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.valuation"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.watchlist"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.mapping.suggest"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "isin": {
-                    "type": "string",
-                    "pattern": "^[A-Z]{2}[A-Z0-9]{9}[0-9]$"
-                  }
-                },
-                "required": [
-                  "isin"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.mapping.discover"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "query": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 20000
-                  }
-                },
-                "required": [
-                  "query"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.quotes.status"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.quotes.get"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "isin": {
-                    "type": "string",
-                    "pattern": "^[A-Z]{2}[A-Z0-9]{9}[0-9]$"
-                  }
-                },
-                "required": [
-                  "isin"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.analyze"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "isin": {
-                    "type": "string",
-                    "pattern": "^[A-Z]{2}[A-Z0-9]{9}[0-9]$"
-                  }
-                },
-                "required": [
-                  "isin"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.research.status"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.research.models"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.research.history"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.philosophy.show"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.philosophy.review"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.philosophy.history"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.alerts"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.performance"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
+            "additionalProperties": false,
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: portfolio.status: keine; portfolio.doctor: keine; portfolio.holdings: keine; portfolio.valuation: keine; portfolio.watchlist: keine; portfolio.mapping.suggest: isin; portfolio.mapping.discover: query; portfolio.quotes.status: keine; portfolio.quotes.get: isin; portfolio.analyze: isin; portfolio.research.status: keine; portfolio.research.models: keine; portfolio.research.history: keine; portfolio.philosophy.show: keine; portfolio.philosophy.review: keine; portfolio.philosophy.history: keine; portfolio.alerts: keine; portfolio.performance: keine"
           }
-        ]
+        },
+        "required": [
+          "operation",
+          "arguments"
+        ],
+        "additionalProperties": false
       },
       "operations": [
         "portfolio.status",
@@ -9965,631 +7545,176 @@
       "name": "personal_assistant_portfolio_write",
       "domain": "portfolio",
       "kind": "write",
-      "description": "Registered portfolio write operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide only its structured arguments.",
+      "description": "Registered portfolio write operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide all required structured arguments.",
       "parameters": {
-        "oneOf": [
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.setup"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "portfolio.setup",
+              "portfolio.import.pp",
+              "portfolio.import.pp.confirm",
+              "portfolio.import.csv",
+              "portfolio.import.csv.nextcloud",
+              "portfolio.import.csv.confirm",
+              "portfolio.import.csv.nextcloud.confirm",
+              "portfolio.watchlist.add",
+              "portfolio.watchlist.disable",
+              "portfolio.quotes.refresh",
+              "portfolio.quotes.refresh.force",
+              "portfolio.research.screen",
+              "portfolio.research.analyze",
+              "portfolio.philosophy.set",
+              "portfolio.philosophy.feedback",
+              "portfolio.alerts.add",
+              "portfolio.alerts.disable",
+              "portfolio.job.on",
+              "portfolio.job.restart",
+              "portfolio.job.off"
             ],
-            "additionalProperties": false
+            "description": "Exakt eine registrierte Katalogoperation auswaehlen."
           },
-          {
+          "arguments": {
             "type": "object",
             "properties": {
-              "operation": {
-                "const": "portfolio.import.pp"
+              "file": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024
               },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "file": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 1024
-                  }
-                },
-                "required": [
-                  "file"
-                ],
-                "additionalProperties": false
+              "nextcloud_path": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "isin": {
+                "type": "string",
+                "pattern": "^[A-Z]{2}[A-Z0-9]{9}[0-9]$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "symbol": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "mic": {
+                "type": "string",
+                "pattern": "^[A-Z0-9]{4}$"
+              },
+              "currency": {
+                "type": "string",
+                "pattern": "^[A-Z]{3}$"
+              },
+              "strategy": {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "balanced",
+                  "dividend-quality",
+                  "quality-growth",
+                  "quality-value"
+                ]
+              },
+              "exchange": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "sector": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "risk_tolerance": {
+                "type": "string",
+                "enum": [
+                  "conservative",
+                  "balanced",
+                  "growth"
+                ]
+              },
+              "horizon_years": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 50
+              },
+              "max_position_pct": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "max_sector_pct": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "preferred_sectors": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "excluded_sectors": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "notes": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 20000
+              },
+              "candidate_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "decision": {
+                "type": "string",
+                "enum": [
+                  "interested",
+                  "rejected",
+                  "watch",
+                  "bought",
+                  "sold"
+                ]
+              },
+              "reason": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 20000
+              },
+              "direction": {
+                "type": "string",
+                "enum": [
+                  "above",
+                  "below"
+                ]
+              },
+              "threshold": {
+                "type": "string",
+                "pattern": "^-?\\d+(?:[.,]\\d+)?$",
+                "maxLength": 40
+              },
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
               }
             },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.import.pp.confirm"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "file": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 1024
-                  }
-                },
-                "required": [
-                  "file"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.import.csv"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "file": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 1024
-                  }
-                },
-                "required": [
-                  "file"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.import.csv.nextcloud"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "nextcloud_path": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  }
-                },
-                "required": [
-                  "nextcloud_path"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.import.csv.confirm"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "file": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 1024
-                  }
-                },
-                "required": [
-                  "file"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.import.csv.nextcloud.confirm"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "nextcloud_path": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  }
-                },
-                "required": [
-                  "nextcloud_path"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.watchlist.add"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "isin": {
-                    "type": "string",
-                    "pattern": "^[A-Z]{2}[A-Z0-9]{9}[0-9]$"
-                  },
-                  "name": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "symbol": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "mic": {
-                    "type": "string",
-                    "pattern": "^[A-Z0-9]{4}$"
-                  },
-                  "currency": {
-                    "type": "string",
-                    "pattern": "^[A-Z]{3}$"
-                  }
-                },
-                "required": [
-                  "currency",
-                  "isin",
-                  "mic",
-                  "name",
-                  "symbol"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.watchlist.disable"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "isin": {
-                    "type": "string",
-                    "pattern": "^[A-Z]{2}[A-Z0-9]{9}[0-9]$"
-                  }
-                },
-                "required": [
-                  "isin"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.quotes.refresh"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.quotes.refresh.force"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.research.screen"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "strategy": {
-                    "type": "string",
-                    "enum": [
-                      "auto",
-                      "balanced",
-                      "quality-value",
-                      "quality-growth",
-                      "dividend-quality"
-                    ]
-                  },
-                  "exchange": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "sector": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  }
-                },
-                "required": [
-                  "strategy"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.research.analyze"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "isin": {
-                    "type": "string",
-                    "pattern": "^[A-Z]{2}[A-Z0-9]{9}[0-9]$"
-                  },
-                  "strategy": {
-                    "type": "string",
-                    "enum": [
-                      "auto",
-                      "balanced",
-                      "quality-value",
-                      "quality-growth",
-                      "dividend-quality"
-                    ]
-                  }
-                },
-                "required": [
-                  "isin",
-                  "strategy"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.philosophy.set"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "risk_tolerance": {
-                    "type": "string",
-                    "enum": [
-                      "conservative",
-                      "balanced",
-                      "growth"
-                    ]
-                  },
-                  "horizon_years": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 50
-                  },
-                  "strategy": {
-                    "type": "string",
-                    "enum": [
-                      "balanced",
-                      "quality-value",
-                      "quality-growth",
-                      "dividend-quality"
-                    ]
-                  },
-                  "max_position_pct": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "max_sector_pct": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "preferred_sectors": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "excluded_sectors": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "notes": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 20000
-                  }
-                },
-                "required": [
-                  "excluded_sectors",
-                  "horizon_years",
-                  "max_position_pct",
-                  "max_sector_pct",
-                  "notes",
-                  "preferred_sectors",
-                  "risk_tolerance",
-                  "strategy"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.philosophy.feedback"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "candidate_id": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  },
-                  "decision": {
-                    "type": "string",
-                    "enum": [
-                      "interested",
-                      "rejected",
-                      "watch",
-                      "bought",
-                      "sold"
-                    ]
-                  },
-                  "reason": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 20000
-                  }
-                },
-                "required": [
-                  "candidate_id",
-                  "decision",
-                  "reason"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.alerts.add"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "isin": {
-                    "type": "string",
-                    "pattern": "^[A-Z]{2}[A-Z0-9]{9}[0-9]$"
-                  },
-                  "direction": {
-                    "type": "string",
-                    "enum": [
-                      "above",
-                      "below"
-                    ]
-                  },
-                  "threshold": {
-                    "type": "string",
-                    "pattern": "^-?\\d+(?:[.,]\\d+)?$",
-                    "maxLength": 40
-                  },
-                  "currency": {
-                    "type": "string",
-                    "pattern": "^[A-Z]{3}$"
-                  }
-                },
-                "required": [
-                  "currency",
-                  "direction",
-                  "isin",
-                  "threshold"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.alerts.disable"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2048
-                  }
-                },
-                "required": [
-                  "id"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.job.on"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.job.restart"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "portfolio.job.off"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
+            "additionalProperties": false,
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: portfolio.setup: keine; portfolio.import.pp: file; portfolio.import.pp.confirm: file; portfolio.import.csv: file; portfolio.import.csv.nextcloud: nextcloud_path; portfolio.import.csv.confirm: file; portfolio.import.csv.nextcloud.confirm: nextcloud_path; portfolio.watchlist.add: currency, isin, mic, name, symbol; portfolio.watchlist.disable: isin; portfolio.quotes.refresh: keine; portfolio.quotes.refresh.force: keine; portfolio.research.screen: strategy, exchange?, sector?; portfolio.research.analyze: isin, strategy; portfolio.philosophy.set: excluded_sectors, horizon_years, max_position_pct, max_sector_pct, notes, preferred_sectors, risk_tolerance, strategy; portfolio.philosophy.feedback: candidate_id, decision, reason; portfolio.alerts.add: currency, direction, isin, threshold; portfolio.alerts.disable: id; portfolio.job.on: keine; portfolio.job.restart: keine; portfolio.job.off: keine"
           }
-        ]
+        },
+        "required": [
+          "operation",
+          "arguments"
+        ],
+        "additionalProperties": false
       },
       "operations": [
         "portfolio.setup",
@@ -10618,75 +7743,37 @@
       "name": "personal_assistant_security_read",
       "domain": "security",
       "kind": "read",
-      "description": "Registered security read operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide only its structured arguments.",
+      "description": "Registered security read operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide all required structured arguments.",
       "parameters": {
-        "oneOf": [
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "security.antivirus.doctor"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "enum": [
+              "security.antivirus.doctor",
+              "security.antivirus.self-test",
+              "security.antivirus.scan"
             ],
-            "additionalProperties": false
+            "description": "Exakt eine registrierte Katalogoperation auswaehlen."
           },
-          {
+          "arguments": {
             "type": "object",
             "properties": {
-              "operation": {
-                "const": "security.antivirus.self-test"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {},
-                "required": [],
-                "additionalProperties": false
+              "file": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024
               }
             },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "properties": {
-              "operation": {
-                "const": "security.antivirus.scan"
-              },
-              "arguments": {
-                "type": "object",
-                "properties": {
-                  "file": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 1024
-                  }
-                },
-                "required": [
-                  "file"
-                ],
-                "additionalProperties": false
-              }
-            },
-            "required": [
-              "operation",
-              "arguments"
-            ],
-            "additionalProperties": false
+            "additionalProperties": false,
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: security.antivirus.doctor: keine; security.antivirus.self-test: keine; security.antivirus.scan: file"
           }
-        ]
+        },
+        "required": [
+          "operation",
+          "arguments"
+        ],
+        "additionalProperties": false
       },
       "operations": [
         "security.antivirus.doctor",
@@ -10851,7 +7938,8 @@
         "\\bdepot\\b",
         "\\baktie(?:n)?\\b",
         "\\bwatchlist\\b",
-        "\\b(?:kurs|kurse|boerse|boersenplatz)\\b"
+        "\\b(?:kurs|kurse|boerse|boersenplatz)\\b",
+        "\\b(?:isin|ticker|mapping|kursmapping|symbol)\\b"
       ],
       "tool": "personal_assistant_portfolio_read",
       "operations": [

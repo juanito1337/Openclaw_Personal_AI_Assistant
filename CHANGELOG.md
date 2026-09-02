@@ -15,7 +15,7 @@
 - Agent/M13: Der turnbezogene Evidenz- und Antwortguard verhindert unbelegte
   Produktversions-, Nulltreffer-, Zustands- und Schreiberfolgsbehauptungen. Nach
   genau einem Revisionsversuch ersetzt er die Antwort fail-closed. Ein
-  synthetisches 15-Fall-Korpus, Generator-/Driftchecks und ein hermetischer
+  synthetisches 16-Fall-Korpus, Generator-/Driftchecks und ein hermetischer
   OpenClaw-Pluginlauf sichern das Verhalten ohne produktive Daten oder Writes ab.
 - Agent/M13: Die Plugininitialisierung ist mit dem synchronen OpenClaw-
   Discovery-Loader kompatibel und verwendet kein Top-Level-`await` mehr. Der
@@ -34,6 +34,18 @@
   `tools.alsoAllow: ["personal-assistant-tools"]` hinzu. Dadurch passieren die
   19 registrierten Namen auch den effektiven Laufzeitfilter; fremde Plugins und
   Fachrechte werden nicht mitfreigeschaltet.
+- Agent/M13: Die 19 nativen Domaenenwerkzeuge verwenden nun ein von lokalen
+  Providern verlaesslich sichtbares, flaches JSON-Schema mit explizitem
+  Operations-Discriminator und operationbezogenen Pflichtfeldsignaturen. Bei
+  bekannter ISIN verlangt der Portfoliovertrag eindeutig
+  `portfolio.mapping.suggest` mit `arguments.isin`; `mapping.discover` bleibt
+  auf Namen/Ticker ohne bekannte ISIN begrenzt. Ein leerer, wiederholt
+  fehlschlagender Mappingaufruf und Websuche als Ersatz werden dadurch nicht
+  mehr als gueltiger Ablauf beschrieben.
+- Agent/M13: Plugin-Freigaben verwenden die vom gepinnten OpenClaw-Gateway
+  akzeptierten Schweregrade `warning` und `critical` statt der ungueltigen
+  Werte `medium` und `high`. `allow-once`, Nonce-/Argumentbindung und
+  fail-closed Timeout bleiben unveraendert.
 - Build: Die weiterhin exakten Alpine-3.22-Paketlocks fuer `jq` und `rsync`
   folgen den aktuell im gepinnten Repository verfuegbaren Revisionen, damit der
   Rollenbuild den M13-Runtimefix reproduzierbar erzeugen kann.

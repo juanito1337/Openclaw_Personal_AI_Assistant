@@ -16,14 +16,16 @@ ruft `scripts/check-m8-integration.sh` auf und bewahrt
 `build/m8-integration.json`; keine Fixture publiziert Hostports oder nutzt
 produktive Konten, Secrets, Mounts oder Netze.
 M13 validiert zusaetzlich den aus demselben typisierten Katalog generierten
-OpenClaw-Tool-/Evidenzvertrag und das synthetische 15-Fall-Routingkorpus. Nach dem
+OpenClaw-Tool-/Evidenzvertrag und das synthetische 16-Fall-Routingkorpus. Nach dem
 Rollenbuild fuehrt `scripts/check-m13-integration.sh` das echte imageeigene Plugin
 mit OpenClaw 2026.7.1, ohne Netz und auf read-only Rootfs aus. Der Test belegt
 native Toolregistrierung, argv-only Versionsaufruf, Roh-Exec-Block,
 die exakte Veröffentlichung aller 19 statischen Toolnamen im effektiven
 OpenClaw-Plugininventar und über ein hermetisches Gateway-RPC ihre tatsächliche
 Verfügbarkeit im begrenzten `coding`-Profil,
-eine argumentgebundene `allow-once`-Writefreigabe, den genau einmal ausgefuehrten
+einen exakten ISIN-Mappingaufruf mit sichtbarem `isin`-Pflichtargument, eine
+argumentgebundene `allow-once`-Writefreigabe mit den vom Gateway akzeptierten
+Schweregraden `warning`/`critical`, den genau einmal ausgefuehrten
 synthetischen Aufgaben-Write samt verifiziertem Nachzustand und Replay-Sperre
 sowie die fail-closed Ersetzung einer unbelegten Negativaussage. Der Write trifft
 nur den gemounteten Fake-Launcher; externe und produktive Writes bleiben null.

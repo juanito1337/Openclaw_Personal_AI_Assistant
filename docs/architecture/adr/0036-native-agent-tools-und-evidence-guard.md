@@ -43,6 +43,16 @@ wird intern als stdin an den festen Prozess übergeben; es gibt keine Pipeline.
 Für konfigurationsabhängige Operationen wird die aktuelle Live-Toolprojektion
 geprüft.
 
+Die 19 Gruppentools veröffentlichen den Operations-Discriminator und die
+Vereinigung ihrer benannten Argumentfelder in einem flachen JSON-Schema. Das ist
+mit lokalen Providern kompatibel, die verschachtelte `oneOf`-Zweige nicht
+zuverlässig an das Modell vermitteln. Die Vereinigung erteilt keine zusätzliche
+Berechtigung: Vor jeder argv-Kompilierung validiert die Bridge weiterhin gegen
+das strengere Schema genau der ausgewählten Katalogoperation. Sichtbare
+Pflichtfeldsignaturen und die Portfolio-Regel „bekannte ISIN =
+`mapping.suggest` mit `arguments.isin`“ verhindern leere, wiederholte
+Mappingaufrufe; Websuche bleibt kein Ersatz für den registrierten Providerpfad.
+
 Der Router verarbeitet ausschließlich den aktuellen Nutzerprompt. Er darf
 höchstens bekannte Leseoperationen verlangen und kann keinen Write, Jobstart,
 Versand oder Permission-Setup auslösen. Mail- und Dokumentinhalt wird nie erneut
@@ -53,7 +63,10 @@ Entscheidungen `allow-once` oder `deny`. Ein flüchtiger Nonce bindet Freigabe a
 Turn, ToolCall, exakte Katalog-ID, kanonischen Argumentdigest und 180 Sekunden.
 Er wird vor Ausführung einmalig verbraucht. Die bestehende CLI bleibt danach für
 Policy, ActionPlan, UID/ETag, Idempotenz, Audit, ClamAV und Nachzustand
-verantwortlich.
+verantwortlich. Das Gateway-Protokoll erhält ausschließlich seine gültigen
+Schweregrade `warning` für lokale Zustandsänderungen und `critical` für externe
+Writes; die früher verwendeten, protokollfremden Werte `medium`/`high` sind
+verboten.
 
 Ein inhaltsarmes, flüchtiges Ledger speichert nur Evidenzfelder des aktuellen
 Laufs. Der Antwortguard prüft Versions-, Zustands-, Negativ- und Schreiberfolgs-
@@ -92,4 +105,3 @@ Vertrag. Die Pluginfläche und der Gesprächshook sind zusätzlicher prüfpflich
 Supply-Chain-Code. Deshalb gehören Generatorcheck, tatsächliches
 `openclaw plugins inspect`, hermetischer Hook-/Toollauf, Rollenimage-Scan, SBOM,
 Provenance und Signatur in denselben Releasepfad.
-

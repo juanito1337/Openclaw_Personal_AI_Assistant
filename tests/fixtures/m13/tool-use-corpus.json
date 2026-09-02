@@ -113,6 +113,17 @@
       "legacy_failure": "asked-user-for-isin-before-provider-search"
     },
     {
+      "id": "portfolio-exact-isin-mapping",
+      "language": "de",
+      "prompt": "Behebe das fehlende Kursmapping für IBM mit der ISIN US4592001014.",
+      "expected_domains": ["portfolio"],
+      "allowed_first_operations": ["portfolio.mapping.suggest"],
+      "forbidden_tools": ["exec", "web_search", "portfolio.mapping.discover"],
+      "required_evidence": ["tool_id", "ok"],
+      "answer_claim": "portfolio-state",
+      "legacy_failure": "repeated-empty-mapping-discover-arguments"
+    },
+    {
       "id": "runtime-job-status",
       "language": "de",
       "prompt": "Sind die Jobs und der Scheduler gesund?",

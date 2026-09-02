@@ -23,6 +23,10 @@ export function stableDigest(value) {
   return createHash("sha256").update(JSON.stringify(canonical(value))).digest("hex");
 }
 
+export function approvalSeverity(operation) {
+  return operation?.writes_external_data ? "critical" : "warning";
+}
+
 export function tokenizeCommand(command) {
   if (typeof command !== "string" || command.length === 0 || command.includes("\0")) {
     throw new Error("invalid-command-template");

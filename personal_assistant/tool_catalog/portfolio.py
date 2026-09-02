@@ -150,7 +150,7 @@ TOOLS: tuple[ToolDefinition, ...] = (
     define(
         id="portfolio.mapping.suggest",
         domain="portfolio",
-        description="Exakte EODHD-ISIN-Treffer abrufen, Ollama nur aus providerseitig belegten Kandidaten auswaehlen lassen und die vollstaendige genehmigungspflichtige watchlist-add-Folgeaktion liefern",
+        description="Bei bereits bekannter ISIN immer diese Operation mit dem Pflichtargument isin verwenden: exakte EODHD-ISIN-Treffer abrufen, Ollama nur aus providerseitig belegten Kandidaten auswaehlen lassen und die vollstaendige genehmigungspflichtige watchlist-add-Folgeaktion liefern",
         command='./scripts/assistant.sh portfolio mapping suggest --isin "<ISIN>"',
         mode="read",
         writes_external_data=False,
@@ -162,7 +162,7 @@ TOOLS: tuple[ToolDefinition, ...] = (
     define(
         id="portfolio.mapping.discover",
         domain="portfolio",
-        description="Wertpapiername oder Symbol bei EODHD suchen, eine eindeutige providerseitige ISIN ermitteln und daraus Vorschlag sowie vollstaendige genehmigungspflichtige watchlist-add-Folgeaktion erzeugen",
+        description="Nur wenn noch keine ISIN bekannt ist, diese Operation mit dem Pflichtargument query verwenden: Wertpapiername oder Symbol bei EODHD suchen, eine eindeutige providerseitige ISIN ermitteln und daraus Vorschlag sowie vollstaendige genehmigungspflichtige watchlist-add-Folgeaktion erzeugen",
         command='./scripts/assistant.sh portfolio mapping suggest --query "<Unternehmen-oder-Symbol>"',
         mode="read",
         writes_external_data=False,

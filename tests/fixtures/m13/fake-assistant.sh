@@ -30,6 +30,9 @@ case "$command_line" in
   "portfolio holdings")
     printf '%s\n' '{"ok":true,"complete":true,"holdings":[]}'
     ;;
+  "portfolio mapping suggest --isin US4592001014")
+    printf '%s\n' '{"ok":true,"complete":true,"status":"candidate","read_only":true,"stored":false,"candidate":{"isin":"US4592001014","symbol":"IBM","mic":"XNYS","currency":"USD"},"approval_required":true}'
+    ;;
   *)
     printf '%s\n' "synthetic unsupported invocation: $command_line" >&2
     exit 64

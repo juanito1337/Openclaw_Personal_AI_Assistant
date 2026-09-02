@@ -345,6 +345,7 @@ def _route_definitions() -> list[dict[str, Any]]:
                 r"\baktie(?:n)?\b",
                 r"\bwatchlist\b",
                 r"\b(?:kurs|kurse|boerse|boersenplatz)\b",
+                r"\b(?:isin|ticker|mapping|kursmapping|symbol)\b",
             ],
             "tool": _DOMAIN_TOOL_NAMES["portfolio"]["read"],
             "operations": [
@@ -505,6 +506,45 @@ def _operation_entry(definition: Any) -> dict[str, Any]:
     }
 
 
+def _merge_group_argument_properties(selected: list[dict[str, Any]]) -> dict[str, Any]:
+    """Build a provider-friendly union while runtime validation stays operation-specific."""
+
+    properties: dict[str, Any] = {}
+    for item in selected:
+        for name, definition in item["argument_schema"]["properties"].items():
+            current = properties.get(name)
+            if current is None or current == definition:
+                properties[name] = definition
+                continue
+            if (
+                current.get("type") == definition.get("type") == "string"
+                and "enum" in current
+                and "enum" in definition
+            ):
+                properties[name] = {
+                    "type": "string",
+                    "enum": sorted(set(current["enum"]) | set(definition["enum"])),
+                }
+                continue
+            variants = list(current.get("anyOf", [current]))
+            if definition not in variants:
+                variants.append(definition)
+            properties[name] = {"anyOf": variants}
+    return properties
+
+
+def _group_argument_contract(selected: list[dict[str, Any]]) -> str:
+    signatures: list[str] = []
+    for item in selected:
+        schema = item["argument_schema"]
+        required = list(schema["required"])
+        optional = sorted(set(schema["properties"]) - set(required))
+        fields = [*required, *(f"{name}?" for name in optional)]
+        rendered = ", ".join(fields) if fields else "keine"
+        signatures.append(f"{item['tool_id']}: {rendered}")
+    return "; ".join(signatures)
+
+
 def build_native_tool_contract() -> dict[str, Any]:
     operations = [_operation_entry(definition) for definition in tool_definitions()]
     supported = [item for item in operations if item["supported"]]
@@ -518,18 +558,16 @@ def build_native_tool_contract() -> dict[str, Any]:
             ]
             if not selected:
                 continue
-            alternatives = [
-                {
-                    "type": "object",
-                    "properties": {
-                        "operation": {"const": item["tool_id"]},
-                        "arguments": item["argument_schema"],
-                    },
-                    "required": ["operation", "arguments"],
-                    "additionalProperties": False,
-                }
-                for item in selected
-            ]
+            group_operations = [item["tool_id"] for item in selected]
+            argument_contract = _group_argument_contract(selected)
+            domain_guidance = ""
+            if domain == "portfolio" and kind == "read":
+                domain_guidance = (
+                    " Bei bereits bekannter ISIN immer portfolio.mapping.suggest mit "
+                    "arguments.isin verwenden; portfolio.mapping.discover ist nur fuer einen "
+                    "Namen oder Ticker ohne bekannte ISIN und verlangt arguments.query. "
+                    "Nie mit leerem arguments-Objekt aufrufen und nie durch Websuche ersetzen."
+                )
             groups.append(
                 {
                     "name": native_name,
@@ -537,10 +575,35 @@ def build_native_tool_contract() -> dict[str, Any]:
                     "kind": kind,
                     "description": (
                         f"Registered {domain} {kind} operations of the OpenClaw Personal Assistant. "
-                        "Choose exactly one catalog operation and provide only its structured arguments."
+                        "Choose exactly one catalog operation and provide all required structured "
+                        f"arguments.{domain_guidance}"
                     ),
-                    "parameters": {"oneOf": alternatives},
-                    "operations": [item["tool_id"] for item in selected],
+                    # Some local providers do not expose nested JSON-Schema oneOf branches to
+                    # the model reliably. Keep a simple top-level discriminator and a visible
+                    # union of argument properties. executeOperation still validates the exact
+                    # selected operation schema before compiling argv.
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "operation": {
+                                "type": "string",
+                                "enum": group_operations,
+                                "description": "Exakt eine registrierte Katalogoperation auswaehlen.",
+                            },
+                            "arguments": {
+                                "type": "object",
+                                "properties": _merge_group_argument_properties(selected),
+                                "additionalProperties": False,
+                                "description": (
+                                    "Argumente der gewaehlten Operation. Pflichtfelder nie "
+                                    f"weglassen. Signaturen: {argument_contract}"
+                                ),
+                            },
+                        },
+                        "required": ["operation", "arguments"],
+                        "additionalProperties": False,
+                    },
+                    "operations": group_operations,
                 }
             )
     release = json.loads(release_path().read_text(encoding="utf-8"))
