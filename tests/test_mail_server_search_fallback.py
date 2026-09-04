@@ -111,6 +111,35 @@ def test_false_empty_server_query_finds_moved_mail_in_bounded_metadata_fallback(
         storage.close()
 
 
+def test_low_information_am_does_not_hide_moved_sender_metadata_hit(tmp_path: Path) -> None:
+    client = FalseEmptyHimalayaLikeConnector()
+    client.metadata["Agent/Weitergeleitet"] = [
+        Envelope(
+            "92",
+            "Neutrale Nachricht",
+            "Synthetisches Buero",
+            "kontakt@praxis-lessing-platz.example.invalid",
+            "2026-08-21T08:00:00+00:00",
+            "2026-08-21T08:00:00+00:00",
+        )
+    ]
+    service, storage = _service(tmp_path, client)
+    try:
+        result = service.search_messages("Praxis am Lessing Platz", limit=50)
+    finally:
+        storage.close()
+
+    assert result["count"] == 1
+    assert result["messages"][0]["folder"] == "Agent/Weitergeleitet"
+    assert result["messages"][0]["mailbox_id"] == "92"
+    assert result["messages"][0]["match_source"] == "bounded-envelope-metadata"
+    assert result["complete"] is False
+    assert client.search_calls == [
+        ("INBOX", ("Praxis", "Lessing", "Platz")),
+        ("Agent/Weitergeleitet", ("Praxis", "Lessing", "Platz")),
+    ]
+
+
 def test_himalaya_zero_result_never_proves_absence_or_body_coverage(tmp_path: Path) -> None:
     client = FalseEmptyHimalayaLikeConnector()
     client.metadata["Agent/Weitergeleitet"] = []

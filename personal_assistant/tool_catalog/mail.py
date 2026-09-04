@@ -441,7 +441,7 @@ TOOLS: tuple[ToolDefinition, ...] = (
     define(
         id="mail.search",
         domain="mail",
-        description="Nach Absender, Adresse, Betreff oder Inhalt ausschliesslich ueber den belegten lokalen Hybridindex oder den sichtbaren fail-closed Serverpfad suchen; immer den Suchtext als query uebergeben, nie rohes Himalaya oder Shell-Filter verwenden; der bounded Metadatenfallback findet verschobene Absender-/Betrefftreffer, darf Nulltreffer und Bodyabdeckung aber nicht als vollstaendig ausgeben",
+        description="Nach Absender, Adresse, Betreff oder Inhalt ausschliesslich ueber den belegten lokalen Hybridindex oder den sichtbaren fail-closed Serverpfad suchen; immer den vollstaendigen Suchtext als query uebergeben, nie rohes Himalaya oder Shell-Filter verwenden; die Suche ignoriert nur eng definierte logische Fuellwoerter wie 'und' oder 'am' und verknuepft alle bedeutungstragenden Begriffe; der bounded Metadatenfallback findet verschobene Absender-/Betrefftreffer, darf Nulltreffer und Bodyabdeckung aber nicht als vollstaendig ausgeben",
         command='./scripts/assistant.sh mail search --query "<Suchbegriff>" --limit 50',
         mode="read",
         writes_external_data=False,

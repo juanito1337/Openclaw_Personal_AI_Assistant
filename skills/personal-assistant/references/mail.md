@@ -62,11 +62,19 @@ account were searched when `body-search-not-verified`,
 `server-query-not-authoritative` or `bounded-envelope-metadata-only` is reported.
 A zero result from this fallback always remains `complete=false`.
 
+Always pass the complete user phrase to `mail.search`. The registered search
+normalizes only its closed set of low-information logical words and German
+prepositions, including `und`, `oder` and `am`, while all remaining meaningful
+terms stay conjunctive. For example, `Praxis am Marktplatz` is matched using the
+meaningful terms `Praxis` and `Marktplatz`; do not manually split the phrase or
+drop content-bearing names.
+
 M12 makes this response rule machine-readable. `matches` confirms only returned
 positive evidence. `no-match` is the sole state that permits a definitive
 negative answer and must also carry `negative_claim_allowed=true`.
 `inconclusive` always forbids phrases equivalent to "keine Mail vorhanden",
-"no message exists" or "no existe ningún correo"; state the concrete stale,
+"konnte keine entsprechende E-Mail finden", "no message exists" or
+"no existe ningún correo"; state the concrete stale,
 partial, folder, filter or truncation limitation instead. This applies equally in
 German, English, Spanish and every other response language.
 

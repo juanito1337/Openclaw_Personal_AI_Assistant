@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Mail/Agent: Die kontoweite Suche normalisiert nun auch die eng begrenzte
+  deutsche Orts-/Namenspraeposition `am`, waehrend alle bedeutungstragenden
+  Begriffe weiterhin gemeinsam erfuellt sein muessen. Dadurch verdeckt ein
+  Suchtext wie `Praxis am Marktplatz` keinen vorhandenen Absender-/Betrefftreffer
+  mehr. Ein synthetischer Verhaltensfall und der Antwortguard verhindern
+  zugleich, dass ein unvollstaendiger Nulltreffer als definitive Abwesenheit
+  formuliert wird.
 - Mail/Agent: Die neue read-only Operation `mail.recent` ermittelt die letzten
   eingegangenen Nachrichten kontoweit aus ihren aktuellen IMAP-Ordnern. Sie
   bleibt damit auch korrekt, wenn Mail-Worker oder Mailclient den Posteingang

@@ -26,7 +26,9 @@ from ..tool_settings import MailMoveToolSettings
 
 class MailMoveService:
     SERVER_METADATA_FALLBACK_LIMIT = 100
-    QUERY_CONNECTORS = frozenset({"and", "or", "und", "oder"})
+    # Keep meaningful terms conjunctive, but do not let a low-information
+    # connector/preposition hide an otherwise exact organisation/location hit.
+    QUERY_IGNORED_TERMS = frozenset({"and", "or", "und", "oder", "am"})
     NON_INCOMING_FOLDER_NAMES = frozenset(
         {
             "draft",
@@ -225,7 +227,7 @@ class MailMoveService:
             if (
                 folded
                 and any(character.isalnum() for character in folded)
-                and folded not in self.QUERY_CONNECTORS
+                and folded not in self.QUERY_IGNORED_TERMS
                 and folded not in seen_terms
             ):
                 terms.append(term)

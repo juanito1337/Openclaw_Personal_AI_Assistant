@@ -4,7 +4,7 @@
   "plugin_id": "personal-assistant-tools",
   "plugin_path": "/opt/openclaw-plugins/personal-assistant-tools",
   "product_version": "3.4.0-r28",
-  "catalog_sha256": "7fdc26bdd2b6897769b7da6ba461a1e3eab14bb48203702825d57aac9cc671b8",
+  "catalog_sha256": "29f49a6ba471ea254eddb3beddbb81c054f684c5cc8f29ca67be9ac3cd832f02",
   "catalog_tool_count": 160,
   "supported_operation_count": 159,
   "excluded_operation_count": 1,
@@ -3891,7 +3891,7 @@
     {
       "tool_id": "mail.search",
       "domain": "mail",
-      "description": "Nach Absender, Adresse, Betreff oder Inhalt ausschliesslich ueber den belegten lokalen Hybridindex oder den sichtbaren fail-closed Serverpfad suchen; immer den Suchtext als query uebergeben, nie rohes Himalaya oder Shell-Filter verwenden; der bounded Metadatenfallback findet verschobene Absender-/Betrefftreffer, darf Nulltreffer und Bodyabdeckung aber nicht als vollstaendig ausgeben",
+      "description": "Nach Absender, Adresse, Betreff oder Inhalt ausschliesslich ueber den belegten lokalen Hybridindex oder den sichtbaren fail-closed Serverpfad suchen; immer den vollstaendigen Suchtext als query uebergeben, nie rohes Himalaya oder Shell-Filter verwenden; die Suche ignoriert nur eng definierte logische Fuellwoerter wie 'und' oder 'am' und verknuepft alle bedeutungstragenden Begriffe; der bounded Metadatenfallback findet verschobene Absender-/Betrefftreffer, darf Nulltreffer und Bodyabdeckung aber nicht als vollstaendig ausgeben",
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
@@ -6555,7 +6555,7 @@
       "name": "personal_assistant_mail_read",
       "domain": "mail",
       "kind": "read",
-      "description": "Registered mail read operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide all required structured arguments. Fuer die letzten oder zuletzt eingegangenen Mails des Kontos mail.recent mit leerem arguments-Objekt verwenden; INBOX kann nach automatischen Verschiebungen leer sein. mail.list nur fuer einen ausdruecklich genannten Einzelordner mit arguments.folder verwenden; fuer Absender-, Betreff- oder Inhaltssuche mail.search mit arguments.query. mail.read erst nach einem Treffer mit arguments.folder, arguments.message_id und arguments.expected_subject aufrufen. Ein leeres arguments-Objekt ist nur bei Operationen ohne Pflichtfelder wie mail.recent zulaessig. Nach invalid-arguments hoechstens einmal mit vollstaendigen geaenderten Argumenten korrigieren; bei retry_allowed=false sofort stoppen.",
+      "description": "Registered mail read operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide all required structured arguments. Fuer die letzten oder zuletzt eingegangenen Mails des Kontos mail.recent mit leerem arguments-Objekt verwenden; INBOX kann nach automatischen Verschiebungen leer sein. mail.list nur fuer einen ausdruecklich genannten Einzelordner mit arguments.folder verwenden; fuer Absender-, Betreff- oder Inhaltssuche mail.search mit dem vollstaendigen Suchtext in arguments.query; die Suche normalisiert eng definierte Fuellwoerter selbst. mail.read erst nach einem Treffer mit arguments.folder, arguments.message_id und arguments.expected_subject aufrufen. Ein leeres arguments-Objekt ist nur bei Operationen ohne Pflichtfelder wie mail.recent zulaessig. Nach invalid-arguments hoechstens einmal mit vollstaendigen geaenderten Argumenten korrigieren; bei retry_allowed=false sofort stoppen.",
       "parameters": {
         "type": "object",
         "properties": {

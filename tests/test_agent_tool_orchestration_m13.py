@@ -177,6 +177,27 @@ class AgentRoutingAndGuardTests(unittest.TestCase):
         self.assertFalse(verdict["ok"])
         self.assertIn("negative-claim-not-authorized", verdict["issues"])
 
+    def test_reported_polite_no_mail_phrase_is_blocked_without_complete_evidence(self) -> None:
+        verdict = guard_claims(
+            route=route_intent("Suche nach der synthetischen Praxis am Marktplatz"),
+            answer=(
+                "Ich habe Ihr Postfach nach der Praxis durchsucht, konnte aber leider "
+                "keine entsprechende E-Mail finden."
+            ),
+            evidence=[
+                {
+                    "tool_id": "mail.search",
+                    "domain": "mail",
+                    "ok": True,
+                    "complete": False,
+                    "allowed_claims": ["tool-status", "positive-evidence"],
+                }
+            ],
+        )
+
+        self.assertFalse(verdict["ok"])
+        self.assertIn("negative-claim-not-authorized", verdict["issues"])
+
     def test_unverified_write_cannot_authorize_success_claim(self) -> None:
         case = next(item for item in self.corpus["cases"] if item["id"] == "unverified-write-success")
         verdict = guard_claims(
