@@ -486,6 +486,7 @@ def main(argv: list[str] | None = None) -> int:
 
     direct_mail_commands = {
         "move-status",
+        "recent",
         "list",
         "search",
         "search-local",

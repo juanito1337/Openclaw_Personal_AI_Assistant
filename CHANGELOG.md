@@ -12,6 +12,9 @@
   eine unvollstaendige `INBOX`-Liste. `mail.list` bleibt auf einen vom Nutzer
   konkret genannten Ordner begrenzt; synthetische Regressionstests sichern
   Verschiebungen, globale Sortierung, Ordnerausschluesse und Fehlertransparenz.
+  Der Produkt-CLI-Dispatcher fuehrt die Operation nun nachweislich ueber den
+  registrierten internen Handler aus und faellt nicht mehr in den inkompatiblen
+  Mail-Agent-Unterprozess zurueck.
 
 - Agent/M13: Ein imageeigenes OpenClaw-Plugin exponiert 158 registrierte
   Katalogoperationen als 19 strukturierte Domaenenwerkzeuge. Argumente werden

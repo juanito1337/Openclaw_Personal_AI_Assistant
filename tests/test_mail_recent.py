@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import io
+from contextlib import redirect_stdout
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import pytest
 
 from mail_agent.command import CommandResult
 from mail_agent.himalaya import HimalayaClient
 from mail_agent.models import Envelope
+from personal_assistant import cli as assistant_cli
 from personal_assistant.adapters.mail import MailMoveService
 from personal_assistant.agent_tool_orchestration import build_native_tool_contract, route_intent
 from personal_assistant.cli import parser
@@ -149,3 +153,37 @@ def test_recent_cli_and_native_contract_have_no_required_arguments() -> None:
         "mail.recent"
         in route_intent("Welche 20 E-Mails sind zuletzt eingegangen?")["routes"][0]["operations"]
     )
+
+
+def test_recent_cli_uses_registered_handler_not_external_mail_process(tmp_path) -> None:
+    config_path = tmp_path / "assistant.toml"
+    config_path.touch()
+    calls: list[int] = []
+
+    def recent_messages(*, limit: int):
+        calls.append(limit)
+        return {"ok": True, "count": 20, "messages": []}
+
+    assistant = SimpleNamespace(mail_recent_messages=recent_messages, close=lambda: None)
+    output = io.StringIO()
+    with (
+        patch.object(assistant_cli, "_load_secrets"),
+        patch.object(
+            assistant_cli,
+            "load_config",
+            return_value=SimpleNamespace(runtime=SimpleNamespace(log_file=tmp_path / "log")),
+        ),
+        patch.object(assistant_cli, "_logging"),
+        patch.object(assistant_cli, "_record_interactive_activity"),
+        patch.object(assistant_cli, "create_personal_assistant", return_value=assistant),
+        patch.object(assistant_cli, "run_mail_external") as external,
+        redirect_stdout(output),
+    ):
+        exit_code = assistant_cli.main(
+            ["--config", str(config_path), "mail", "recent", "--limit", "20"]
+        )
+
+    assert exit_code == 0
+    assert calls == [20]
+    external.assert_not_called()
+    assert '"count": 20' in output.getvalue()

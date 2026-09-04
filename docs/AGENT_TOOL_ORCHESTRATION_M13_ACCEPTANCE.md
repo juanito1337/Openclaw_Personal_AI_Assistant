@@ -90,9 +90,9 @@ vom 2. September 2026:
 
 | Prüfung | Ergebnis |
 | --- | --- |
-| pytest-Collection | 975 von 975 Items erfolgreich; 1.082 JUnit-Fälle einschließlich 107 Subtests |
-| Coverage | 68,06 % gesamt; 55,15 % Branch-Coverage |
-| Wheel | frische Installation erfolgreich; 587.350 Bytes; Build 4.495 ms; 975 Tests plus 107 Subtests in 141,05 s |
+| pytest-Collection | 976 von 976 Items erfolgreich; 1.083 JUnit-Fälle einschließlich 107 Subtests |
+| Coverage | 68,07 % gesamt; 55,16 % Branch-Coverage |
+| Wheel | frische Installation erfolgreich; 587.354 Bytes; Build 4.564 ms; 976 Tests plus 107 Subtests in 149,40 s |
 | Runtimeimage | 377.136.666 Bytes; Rollen-Smoke erfolgreich |
 | Proxyimage | 23.422.388 Bytes; Rollen-Smoke erfolgreich |
 | Maintenanceimage | 45.631.820 Bytes; Rollen-Smoke und HTTPS-Transport erfolgreich |
