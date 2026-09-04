@@ -65,9 +65,7 @@ def add_commands(sub: Any) -> None:
         action="store_true",
         help="Kompatibilitaetsoption ohne eigene Schreibfreigabe",
     )
-    invoices_export.add_argument(
-        "--filename", default="", help="Nur Rechnungen_YYYY.csv ist erlaubt"
-    )
+    invoices_export.add_argument("--filename", default="", help="Nur Rechnungen_YYYY.csv ist erlaubt")
     invoices_export_effect = invoices_export.add_mutually_exclusive_group()
     invoices_export_effect.add_argument(
         "--dry-run",
@@ -99,9 +97,7 @@ def add_commands(sub: Any) -> None:
         "reprocess",
         help="Review- oder unklassifizierte Rechnungen schreibfrei neu bewerten",
     )
-    invoices_reprocess.add_argument(
-        "--status", required=True, choices=("review", "unclassified")
-    )
+    invoices_reprocess.add_argument("--status", required=True, choices=("review", "unclassified"))
     invoices_reprocess.add_argument("--source-year", type=int, required=True)
     invoices_reprocess.add_argument("--limit", type=int, default=100)
     invoices_reprocess.add_argument(
@@ -161,18 +157,14 @@ def add_commands(sub: Any) -> None:
     mail_sub.add_parser("status")
     mail_sub.add_parser("doctor")
     mail_sub.add_parser("guide")
-    mail_review = mail_sub.add_parser(
-        "review", help="Review-Gruende und Einzelfaelle read-only untersuchen"
-    )
+    mail_review = mail_sub.add_parser("review", help="Review-Gruende und Einzelfaelle read-only untersuchen")
     review_sub = mail_review.add_subparsers(dest="review_command", required=True)
     review_status = review_sub.add_parser("status", help="Review-Gruende aggregiert anzeigen")
     review_status.add_argument("--days", type=int, default=7)
     review_list = review_sub.add_parser("list", help="Review-Metadaten nach Grund anzeigen")
     review_list.add_argument("--reason", required=True)
     review_list.add_argument("--limit", type=int, default=50)
-    review_suggest = review_sub.add_parser(
-        "suggest", help="Genau eine Mail read-only neu einschaetzen"
-    )
+    review_suggest = review_sub.add_parser("suggest", help="Genau eine Mail read-only neu einschaetzen")
     review_suggest.add_argument("--folder", required=True)
     review_suggest.add_argument("--message-id", required=True)
     review_suggest.add_argument("--expected-subject", required=True)
@@ -225,9 +217,7 @@ def add_commands(sub: Any) -> None:
     index_backfill.add_argument("--max-runtime", type=float, default=3600.0)
     index_backfill.add_argument("--request-interval", type=float, default=0.2)
     index_backfill.add_argument("--yes", action="store_true")
-    index_canary = index_sub.add_parser(
-        "canary", help="Explizit gewaehlte Ordner begrenzt lokal indexieren"
-    )
+    index_canary = index_sub.add_parser("canary", help="Explizit gewaehlte Ordner begrenzt lokal indexieren")
     index_canary.add_argument("--folder", action="append", required=True)
     index_canary.add_argument("--page-size", type=int, default=20)
     index_canary.add_argument("--max-pages", type=int, default=5)
@@ -268,6 +258,11 @@ def add_commands(sub: Any) -> None:
     mail_list = mail_sub.add_parser("list", help="Mail-Metadaten eines vorhandenen Ordners auflisten")
     mail_list.add_argument("--folder", required=True)
     mail_list.add_argument("--limit", type=int, default=50)
+    mail_recent = mail_sub.add_parser(
+        "recent",
+        help="Letzte eingegangene Mails kontoübergreifend an ihren aktuellen Ordnern auflisten",
+    )
+    mail_recent.add_argument("--limit", type=int, default=20)
     mail_search = mail_sub.add_parser(
         "search",
         help="Mails ueber den sicheren lokalen Hybridindex mit sichtbarem Server-Fallback suchen",

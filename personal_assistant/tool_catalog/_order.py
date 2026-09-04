@@ -105,6 +105,7 @@ TOOL_ORDER: tuple[str, ...] = (
     "mail.run",
     "mail.spam-review",
     "mail.move-status",
+    "mail.recent",
     "mail.list",
     "mail.search",
     "mail.read",

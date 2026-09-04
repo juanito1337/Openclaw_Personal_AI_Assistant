@@ -183,7 +183,7 @@ function buildRoutingContext(route) {
     "Keine gepunktete Katalog-ID und keinen assistant.sh-/Himalaya-Befehl ueber exec ausfuehren.",
     "Jeden nativen Aufruf mit operation und allen Pflichtfeldern unter arguments ausfuehren; arguments niemals leer lassen, wenn die Signatur Pflichtfelder nennt.",
     "Nach invalid-arguments genau einmal mit geaenderten vollstaendigen Argumenten korrigieren. Bei retry_allowed=false sofort stoppen und den Fehler berichten.",
-    "Mail: letzte Mails mit mail.list und arguments.folder (normalerweise INBOX); Suche mit mail.search und arguments.query; mail.read erst nach einem Treffer mit folder, message_id und expected_subject.",
+    "Mail: letzte eingegangene Mails des gesamten Kontos mit mail.recent und leerem arguments-Objekt; INBOX kann nach automatischen Verschiebungen leer sein. mail.list nur fuer einen ausdruecklich genannten Einzelordner mit arguments.folder; Suche mit mail.search und arguments.query; mail.read erst nach einem Treffer mit folder, message_id und expected_subject.",
     "Bei Schreibwuenschen zuerst nur read-only identifizieren/vorschauen; das Schreibtool verlangt seine eigene Einzel-Freigabe.",
     `Route: ${JSON.stringify(route)}`,
   ];

@@ -224,7 +224,7 @@ def main():
         registry_tools = build_tool_registry(ts)
         ids={x.id for x in registry_tools}
         assert {
-            'mail.move-status','mail.list','mail.search','mail.read',
+            'mail.move-status','mail.recent','mail.list','mail.search','mail.read',
             'mail.reply-draft','mail.reply-send',
             'mail.compose-draft','mail.compose-send','mail.move',
         } <= ids

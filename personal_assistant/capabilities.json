@@ -22,6 +22,7 @@
     "nextcloud.deck.orders.read",
     "nextcloud.deck.orders.sync_managed_only",
     "mail.orders.import_dry_run",
+    "mail.recent",
     "mail.list",
     "mail.search",
     "mail.read",

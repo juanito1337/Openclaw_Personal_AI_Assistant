@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Mail/Agent: Die neue read-only Operation `mail.recent` ermittelt die letzten
+  eingegangenen Nachrichten kontoweit aus ihren aktuellen IMAP-Ordnern. Sie
+  bleibt damit auch korrekt, wenn Mail-Worker oder Mailclient den Posteingang
+  bereits geleert haben, schliesst bekannte Gesendet-/Entwurfsordner aus und
+  macht Teilfehler, Trunkierung, Sortierung und aktuelle Fundordner explizit.
+- Mail/Agent: Der native Werkzeugvertrag routet Fragen nach den letzten oder
+  zuletzt eingegangenen Mails ohne Pflichtargumente auf `mail.recent` statt auf
+  eine unvollstaendige `INBOX`-Liste. `mail.list` bleibt auf einen vom Nutzer
+  konkret genannten Ordner begrenzt; synthetische Regressionstests sichern
+  Verschiebungen, globale Sortierung, Ordnerausschluesse und Fehlertransparenz.
+
 - Agent/M13: Ein imageeigenes OpenClaw-Plugin exponiert 158 registrierte
   Katalogoperationen als 19 strukturierte Domaenenwerkzeuge. Argumente werden
   streng validiert und ausschliesslich als argv/stdin an den festen

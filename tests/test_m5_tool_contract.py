@@ -62,7 +62,7 @@ class M5ToolContractTests(unittest.TestCase):
             tool.to_dict() for tool in build_tool_registry(fully_enabled_settings(Path("/tmp/m5-tools.toml")))
         ]
         self.assertEqual(actual, expected)
-        self.assertEqual(len(actual), 159)
+        self.assertEqual(len(actual), 160)
 
     def test_top_level_help_matches_characterized_output(self) -> None:
         expected = (GOLDEN / "m5-cli-help.txt").read_text(encoding="utf-8")
@@ -82,7 +82,7 @@ class M5ToolContractTests(unittest.TestCase):
 
     def test_static_catalog_is_typed_complete_and_has_real_anchors(self) -> None:
         definitions = tool_definitions()
-        self.assertEqual(len(definitions), 159)
+        self.assertEqual(len(definitions), 160)
         self.assertEqual(len({tool.id for tool in definitions}), len(definitions))
         for tool in definitions:
             self.assertIn(tool.mode, {"read", "local-write", "write"})
@@ -120,7 +120,7 @@ class M5ToolContractTests(unittest.TestCase):
         self.assertEqual(catalog["view"], "static-catalog")
         self.assertFalse(catalog["configured"])
         self.assertFalse(catalog["authoritative_for_permissions"])
-        self.assertEqual(len(catalog["tools"]), 159)
+        self.assertEqual(len(catalog["tools"]), 160)
         self.assertEqual(capability_schema()["properties"]["view"]["const"], "live-capabilities")
 
     def test_live_capabilities_are_explicitly_separate_from_catalog(self) -> None:

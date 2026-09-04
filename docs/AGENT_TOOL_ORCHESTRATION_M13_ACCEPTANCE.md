@@ -1,12 +1,12 @@
 # M13-Abnahme: verlässliche Werkzeugsteuerung
 
-Stand: 2026-09-02. M13.0 bis M13.7 sind als Entwicklungsstand implementiert.
+Stand: 2026-09-04. M13.0 bis M13.7 sind als Entwicklungsstand implementiert.
 M13.8 trennt lokale/hermetische Abnahme, CI-Attestierung und produktiven
 read-only Canary ausdrücklich voneinander.
 
 ## Implementierter Vertrag
 
-- 159 Katalogoperationen, davon 158 nativ unterstützt und eine begründet
+- 160 Katalogoperationen, davon 159 nativ unterstützt und eine begründet
   ausgeschlossene interne Mail-Kalenderoperation.
 - 19 native, domänen-/effektbezogene OpenClaw-Werkzeuge mit einem
   providerkompatiblen flachen JSON-Schema; ein Operations-Discriminator und
@@ -68,8 +68,11 @@ erkannt. Der Test führt
 strukturierte Leseaufrufe für Runtime, Mail,
 Nextcloud, Aufgaben und Portfolio einschließlich eines exakten read-only
 ISIN-Mappingvorschlags aus, blockiert einen rohen Fach-Exec und ersetzt
-eine unbelegte Mail-Negativaussage. Zwei identische leere `mail.list`-Aufrufe
-belegen die strukturierte Erstdiagnose und das anschliessende
+eine unbelegte Mail-Negativaussage. Die kontoweite Operation `mail.recent`
+benoetigt fuer die Standardgrenze von 20 Nachrichten keine Argumente und darf
+deshalb mit `{}` aufgerufen werden; `mail.list` bleibt dagegen einem konkret
+benannten Ordner vorbehalten. Zwei identische, ungueltige leere
+`mail.list`-Aufrufe belegen die strukturierte Erstdiagnose und das anschliessende
 `retry_allowed=false`; ein unvollstaendiger Aufgaben-Write wird vor jeder
 Freigabe blockiert. Der Schreib-Canary aktualisiert ausschließlich
 eine synthetische Aufgabe über den gemounteten Fake-Launcher. Er belegt den
@@ -80,18 +83,21 @@ vom Gateway unterstützten Schweregrade, bevor ein Release grün werden kann.
 
 ## Lokal gemessener Abnahmestand
 
-Die folgenden Werte wurden am 2. September 2026 mit den oben dokumentierten
-Befehlen und der gepinnten Werkzeugumgebung erhoben:
+Die Python-, Wheel- und Rollenimagewerte wurden am 4. September 2026 mit den
+oben dokumentierten Befehlen und der gepinnten Werkzeugumgebung erhoben. Die
+gekennzeichneten Reproduzierbarkeits- und Cold-Startwerte bleiben die Baseline
+vom 2. September 2026:
 
 | Prüfung | Ergebnis |
 | --- | --- |
-| pytest-Collection | 970 von 970 Items erfolgreich; 1.076 JUnit-Fälle einschließlich 106 Subtests |
-| Coverage | 67,97 % gesamt; 55,00 % Branch-Coverage |
-| Wheel | frische Installation erfolgreich; 586.151 Bytes; Build 5.345 ms; 970 Tests plus 106 Subtests in 148,31 s |
-| Runtimeimage | 377.132.354 Bytes; Cold-Start/Import Median 2.577,879 ms; 38.300 KiB Peak RSS |
-| Proxyimage | 23.422.371 Bytes; Cold-Start/Import Median 2.044,511 ms; 24.660 KiB Peak RSS |
-| Maintenanceimage | 45.631.919 Bytes; Cold-Start/Import Median 1.274,007 ms; 14.468 KiB Peak RSS |
-| cacheloser reproduzierbarer Doppelbuild | erster Lauf 260 s; zweiter Lauf 244 s; alle drei OCI-SHA-256 paarweise identisch |
+| pytest-Collection | 975 von 975 Items erfolgreich; 1.082 JUnit-Fälle einschließlich 107 Subtests |
+| Coverage | 68,06 % gesamt; 55,15 % Branch-Coverage |
+| Wheel | frische Installation erfolgreich; 587.350 Bytes; Build 4.495 ms; 975 Tests plus 107 Subtests in 141,05 s |
+| Runtimeimage | 377.136.666 Bytes; Rollen-Smoke erfolgreich |
+| Proxyimage | 23.422.388 Bytes; Rollen-Smoke erfolgreich |
+| Maintenanceimage | 45.631.820 Bytes; Rollen-Smoke und HTTPS-Transport erfolgreich |
+| Cold-Start-Baseline vom 2. September | Runtime 2.577,879 ms / 38.300 KiB; Proxy 2.044,511 ms / 24.660 KiB; Maintenance 1.274,007 ms / 14.468 KiB |
+| cacheloser reproduzierbarer Doppelbuild vom 2. September | erster Lauf 260 s; zweiter Lauf 244 s; alle drei OCI-SHA-256 paarweise identisch |
 | Supply Chain | drei SBOMs und Provenance-Nachweise; Rootfs-/Secretprüfung grün; Trivy Critical 0 und Secrets 0 |
 | Containerverträge | Rollen-, Runtime-, Hardening-, M8-, M11-, M12- und M13-Integration grün |
 | Signatur | lokaler positiver und negativer Cosign-Blobtest grün; Registry-/keyless-Signatur erst in CI nach Push belegbar |

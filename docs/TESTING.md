@@ -46,7 +46,7 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 970 Tests, darunter mindestens 715 unittest-kompatible Tests
+fordert mindestens 975 Tests, darunter mindestens 715 unittest-kompatible Tests
 (die bisherigen 349 sowie M0-M13- und Rollout-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
@@ -107,6 +107,7 @@ der aktuellen Python-Dateien.
 | Tests nach M12-Canary-Laufzeitkorrektur gesammelt/ausgefuehrt | 948 / 948 (1.035 JUnit-Faelle inklusive 87 Subtests) |
 | Tests nach Nextcloud-Skillrouting-Korrektur gesammelt/ausgefuehrt | 951 / 951 (1.038 JUnit-Faelle inklusive 87 Subtests) |
 | Tests nach M13-Argumentfehler-/Loop-Schutz gesammelt/ausgefuehrt | 970 / 970 (1.076 JUnit-Faelle inklusive 106 Subtests) |
+| Tests nach kontoweiter Letzte-Mail-Korrektur gesammelt/ausgefuehrt | 975 / 975 (1.082 JUnit-Faelle inklusive 107 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -216,6 +217,8 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach M13 und produktivem Tool-Schema-Hotfix | 54,96 % |
 | Gesamt-Coverage nach M13-Argumentfehler-/Loop-Schutz | 67,97 % |
 | reine Branch-Coverage nach M13-Argumentfehler-/Loop-Schutz | 55,00 % |
+| Gesamt-Coverage nach kontoweiter Letzte-Mail-Korrektur | 68,06 % |
+| reine Branch-Coverage nach kontoweiter Letzte-Mail-Korrektur | 55,15 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -266,6 +269,9 @@ der aktuellen Python-Dateien.
 | M13-Argumentfehler-/Loop-Schutz-Wheelgroesse | 586.151 Bytes |
 | M13-Argumentfehler-/Loop-Schutz-Wheel-Buildzeit | 5,345 s |
 | M13-Argumentfehler-/Loop-Schutz-Wheel-Tests | 970 plus 106 Subtests in 148,31 s |
+| Letzte-Mail-Korrektur-Wheelgroesse | 587.350 Bytes |
+| Letzte-Mail-Korrektur-Wheel-Buildzeit | 4,495 s |
+| Letzte-Mail-Korrektur-Wheel-Tests | 975 plus 107 Subtests in 141,05 s |
 | Container-Imagegroesse des M6-Testimages | 425.555.866 Bytes |
 | Runtime-Imagegroesse mit gepinnten Brave-/Signal-Plugins | 376.600.036 Bytes |
 | Runtime-Imagegroesse nach der M10-Rollout-Monitor-/Supervisorkorrektur | 376.793.375 Bytes |

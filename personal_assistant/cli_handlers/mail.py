@@ -88,13 +88,20 @@ def run_external(args: argparse.Namespace) -> int:
                 command.append("--yes")
         elif args.index_command == "reconcile":
             command += [
-                "--max-folders", str(args.max_folders),
-                "--max-messages", str(args.max_messages),
-                "--max-bytes", str(args.max_bytes),
-                "--max-message-bytes", str(args.max_message_bytes),
-                "--max-runtime", str(args.max_runtime),
-                "--request-interval", str(args.request_interval),
-                "--retention-generations", str(args.retention_generations),
+                "--max-folders",
+                str(args.max_folders),
+                "--max-messages",
+                str(args.max_messages),
+                "--max-bytes",
+                str(args.max_bytes),
+                "--max-message-bytes",
+                str(args.max_message_bytes),
+                "--max-runtime",
+                str(args.max_runtime),
+                "--request-interval",
+                str(args.request_interval),
+                "--retention-generations",
+                str(args.retention_generations),
             ]
             if args.yes:
                 command.append("--yes")
@@ -147,12 +154,12 @@ def handle(args: argparse.Namespace, assistant: Any, emit: Callable[[Any], None]
         result = assistant.mail_index_shadow(args.query, limit=args.limit)
     elif command == "move-status":
         result = assistant.mail_move_status()
+    elif command == "recent":
+        result = assistant.mail_recent_messages(limit=args.limit)
     elif command == "list":
         result = assistant.mail_list_messages(args.folder, limit=args.limit)
     elif command == "search":
-        has_attachment = (
-            None if args.has_attachment is None else args.has_attachment == "yes"
-        )
+        has_attachment = None if args.has_attachment is None else args.has_attachment == "yes"
         result = assistant.mail_search_messages(
             args.query,
             limit=args.limit,
@@ -172,9 +179,7 @@ def handle(args: argparse.Namespace, assistant: Any, emit: Callable[[Any], None]
             ),
         )
     elif command == "search-local":
-        has_attachment = (
-            None if args.has_attachment is None else args.has_attachment == "yes"
-        )
+        has_attachment = None if args.has_attachment is None else args.has_attachment == "yes"
         result = assistant.storage.search_mail_lexical(
             args.query,
             filters=MailSearchFilters(

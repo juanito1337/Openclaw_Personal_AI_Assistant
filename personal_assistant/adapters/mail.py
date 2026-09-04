@@ -5,7 +5,8 @@ import os
 import re
 import tempfile
 from dataclasses import asdict
-from email.utils import parseaddr
+from datetime import UTC, datetime
+from email.utils import parseaddr, parsedate_to_datetime
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +27,25 @@ from ..tool_settings import MailMoveToolSettings
 class MailMoveService:
     SERVER_METADATA_FALLBACK_LIMIT = 100
     QUERY_CONNECTORS = frozenset({"and", "or", "und", "oder"})
+    NON_INCOMING_FOLDER_NAMES = frozenset(
+        {
+            "draft",
+            "drafts",
+            "entwuerfe",
+            "entwürfe",
+            "gesendet",
+            "gesendete elemente",
+            "gesendete nachrichten",
+            "gesendete objekte",
+            "outbox",
+            "postausgang",
+            "sent",
+            "sent items",
+            "sent messages",
+            "templates",
+            "vorlagen",
+        }
+    )
 
     def __init__(
         self,
@@ -105,6 +125,92 @@ class MailMoveService:
             "messages": [asdict(item) for item in envelopes],
         }
 
+    @classmethod
+    def _is_non_incoming_folder(cls, folder: str) -> bool:
+        leaf = folder.strip().rstrip("/").rsplit("/", 1)[-1].casefold()
+        return leaf in cls.NON_INCOMING_FOLDER_NAMES
+
+    @staticmethod
+    def _envelope_timestamp(item: dict[str, Any]) -> float:
+        value = str(item.get("received_at") or item.get("date") or "").strip()
+        if not value:
+            return float("-inf")
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            try:
+                parsed = parsedate_to_datetime(value)
+            except (TypeError, ValueError, OverflowError):
+                return float("-inf")
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=UTC)
+        return parsed.timestamp()
+
+    def recent_messages(self, *, limit: int = 20) -> dict[str, Any]:
+        """List the latest incoming envelopes across their current IMAP folders."""
+
+        if not self.settings.enabled:
+            raise PermissionError("Direktes Mail-Lesewerkzeug ist deaktiviert")
+        safe_limit = max(1, min(int(limit), 200))
+        decision = self.policy.decide(
+            self.settings.resource_id,
+            "mail.read",
+            {"scope": "account-recent-incoming", "limit": safe_limit},
+        )
+        if not decision.allowed:
+            raise PermissionError(decision.reason)
+        client = self._client()
+        folders, error = client.list_folders()
+        if error:
+            raise RuntimeError(error)
+        if not folders:
+            raise RuntimeError("Keine lesbaren IMAP-Ordner gefunden")
+
+        selected_folders = [folder for folder in folders if not self._is_non_incoming_folder(folder)]
+        excluded_folders = [folder for folder in folders if self._is_non_incoming_folder(folder)]
+        if not selected_folders:
+            raise RuntimeError("Keine Ordner fuer eingegangene Mails gefunden")
+
+        messages: list[dict[str, Any]] = []
+        folder_errors: list[dict[str, str]] = []
+        list_recent = getattr(client, "list_recent_envelopes", None)
+        for folder in selected_folders:
+            if callable(list_recent):
+                envelopes, folder_error = list_recent(folder, limit=safe_limit)
+            else:
+                envelopes, folder_error = client.list_envelopes(folder, limit=safe_limit)
+            if folder_error:
+                folder_errors.append({"folder": folder, "error": folder_error})
+                continue
+            for envelope in envelopes:
+                item = asdict(envelope)
+                item["folder"] = folder
+                messages.append(item)
+
+        if len(folder_errors) == len(selected_folders):
+            raise RuntimeError(
+                "Abruf letzter Mails ist in allen Ordnern fehlgeschlagen: "
+                + "; ".join(f"{item['folder']}: {item['error']}" for item in folder_errors)
+            )
+        messages.sort(key=self._envelope_timestamp, reverse=True)
+        selected = messages[:safe_limit]
+        return {
+            "ok": True,
+            "read_only": True,
+            "scope": "account-recent-incoming",
+            "count": len(selected),
+            "limit": safe_limit,
+            "messages": selected,
+            "complete": not folder_errors,
+            "results_may_be_truncated": len(messages) > safe_limit,
+            "folder_errors": folder_errors,
+            "folders_total": len(folders),
+            "folders_scanned": len(selected_folders) - len(folder_errors),
+            "excluded_folders": excluded_folders,
+            "ordering": "server-date-desc-per-folder+global-received-date-desc",
+            "writes_imap": False,
+        }
+
     def search_messages(self, query: str, *, limit: int = 50) -> dict[str, Any]:
         """Search every readable IMAP folder, including review folders."""
         if not self.settings.enabled:
@@ -140,10 +246,7 @@ class MailMoveService:
             "authoritative": raw_contract.get("authoritative") is True,
             "body_search_verified": raw_contract.get("body_search_verified") is True,
             "metadata_fallback": raw_contract.get("metadata_fallback") is True,
-            "reason": str(
-                raw_contract.get("reason")
-                or "connector-did-not-declare-authoritative-search"
-            ),
+            "reason": str(raw_contract.get("reason") or "connector-did-not-declare-authoritative-search"),
         }
         folders, error = client.list_folders()
         if error:
@@ -158,9 +261,7 @@ class MailMoveService:
         for folder in folders:
             envelopes, error = client.search_envelopes(folder, terms, limit=per_folder)
             if error:
-                errors.append(
-                    {"folder": folder, "stage": "provider-query", "error": error}
-                )
+                errors.append({"folder": folder, "stage": "provider-query", "error": error})
                 continue
             if len(envelopes) >= per_folder:
                 limited_folders.append(folder)
@@ -260,8 +361,7 @@ class MailMoveService:
                 "scanned_folders": metadata_scanned_folders,
                 "failed_folders": len(metadata_errors),
                 "match_count": sum(
-                    item.get("match_source") == "bounded-envelope-metadata"
-                    for item in selected
+                    item.get("match_source") == "bounded-envelope-metadata" for item in selected
                 ),
             },
             "total_folders": len(folders),
@@ -290,9 +390,7 @@ class MailMoveService:
         sender_address = str(sender.get("address") or candidate.get("sender_addr") or "").casefold()
         if subject and envelope.subject.strip() != subject:
             return False
-        return not (
-            sender_address and envelope.sender_addr.strip().casefold() != sender_address
-        )
+        return not (sender_address and envelope.sender_addr.strip().casefold() != sender_address)
 
     def resolve_live_locators(self, candidates: list[dict[str, Any]]) -> dict[str, Any]:
         """Revalidate only candidate locations and resolve a moved hit conservatively."""
@@ -325,9 +423,7 @@ class MailMoveService:
                 envelope_cache[resolved] = client.list_envelopes(resolved, limit=200)
                 calls["list_envelopes"] += 1
                 if envelope_cache[resolved][1]:
-                    folder_errors.append(
-                        {"folder": resolved, "error": envelope_cache[resolved][1]}
-                    )
+                    folder_errors.append({"folder": resolved, "error": envelope_cache[resolved][1]})
             return envelope_cache[resolved][0] if not envelope_cache[resolved][1] else []
 
         resolved_results: list[dict[str, Any]] = []
@@ -368,9 +464,7 @@ class MailMoveService:
                 selected = {**selected, "selected": True, "selection": "deterministic-live"}
             else:
                 matches: list[dict[str, Any]] = []
-                terms = self._locator_terms(
-                    str(candidate.get("title") or candidate.get("subject") or "")
-                )
+                terms = self._locator_terms(str(candidate.get("title") or candidate.get("subject") or ""))
                 if terms:
                     for folder in sorted(folders, key=str.casefold):
                         rows, search_error = client.search_envelopes(folder, terms, limit=200)
@@ -403,9 +497,7 @@ class MailMoveService:
                                     "selection": "unique-live-reresolution",
                                 }
                             )
-                unique = {
-                    (str(item["folder"]), str(item["mailbox_id"])): item for item in matches
-                }
+                unique = {(str(item["folder"]), str(item["mailbox_id"])): item for item in matches}
                 if len(unique) == 1:
                     selected = next(iter(unique.values()))
                     locators.append(dict(selected))
@@ -875,9 +967,7 @@ class MailMoveService:
             raise PermissionError(
                 "Review-Korrektur ist nur aus dem konfigurierten allgemeinen Review-Ordner erlaubt"
             )
-        destination = str(
-            getattr(config.folders, destination_fields[selected_verdict])
-        ).strip()
+        destination = str(getattr(config.folders, destination_fields[selected_verdict])).strip()
         selected_label = str(label or "").strip().casefold()
         if selected_label:
             matches = [
@@ -928,11 +1018,7 @@ class MailMoveService:
         envelope = next((item for item in envelopes if str(item.mailbox_id) == selected_id), None)
         if envelope is None:
             previous = next(
-                (
-                    item
-                    for item in self.storage.list_actions(limit=200)
-                    if item.idempotency_key == key
-                ),
+                (item for item in self.storage.list_actions(limit=200) if item.idempotency_key == key),
                 None,
             )
             if previous is not None and previous.status == "completed":

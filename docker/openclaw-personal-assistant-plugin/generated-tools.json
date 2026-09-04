@@ -4,9 +4,9 @@
   "plugin_id": "personal-assistant-tools",
   "plugin_path": "/opt/openclaw-plugins/personal-assistant-tools",
   "product_version": "3.4.0-r28",
-  "catalog_sha256": "fc2b93e248fac4c27e7d53da7a4e0e8d1078987bec659d6b4f2887ce950283a5",
-  "catalog_tool_count": 159,
-  "supported_operation_count": 158,
+  "catalog_sha256": "7fdc26bdd2b6897769b7da6ba461a1e3eab14bb48203702825d57aac9cc671b8",
+  "catalog_tool_count": 160,
+  "supported_operation_count": 159,
   "excluded_operation_count": 1,
   "operations": [
     {
@@ -3817,9 +3817,38 @@
       ]
     },
     {
+      "tool_id": "mail.recent",
+      "domain": "mail",
+      "description": "Die letzten 20 eingegangenen Mails kontoübergreifend an ihren aktuellen IMAP-Ordnern lesen; nach Verschiebungen nicht auf den leeren INBOX beschraenken; Ausgangs-, Entwurfs- und Vorlagenordner ausschliessen",
+      "mode": "read",
+      "writes_external_data": false,
+      "approval": "none",
+      "availability": "mail-move",
+      "command": "./scripts/assistant.sh mail recent --limit 20",
+      "argument_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "parameter_bindings": [],
+      "stdin_parameter": null,
+      "supported": true,
+      "exclusion_reason": "",
+      "allowed_claims": [
+        "tool-status",
+        "positive-evidence",
+        "tool-error"
+      ],
+      "error_codes": [
+        "configuration-error",
+        "operation-failed"
+      ]
+    },
+    {
       "tool_id": "mail.list",
       "domain": "mail",
-      "description": "Letzte oder aktuelle Mail-Metadaten eines vorhandenen Ordners lesen; immer den exakten Ordner uebergeben und ohne andere Nutzerangabe INBOX verwenden",
+      "description": "Mail-Metadaten eines ausdruecklich genannten vorhandenen Einzelordners lesen; fuer die letzten eingegangenen Mails des gesamten Kontos stattdessen mail.recent verwenden",
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
@@ -6526,7 +6555,7 @@
       "name": "personal_assistant_mail_read",
       "domain": "mail",
       "kind": "read",
-      "description": "Registered mail read operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide all required structured arguments. Fuer letzte oder aktuelle Mails mail.list mit arguments.folder verwenden (ohne andere Nutzerangabe normalerweise INBOX); fuer Absender-, Betreff- oder Inhaltssuche mail.search mit arguments.query. mail.read erst nach einem Treffer mit arguments.folder, arguments.message_id und arguments.expected_subject aufrufen. Nie ein leeres arguments-Objekt senden. Nach invalid-arguments hoechstens einmal mit vollstaendigen geaenderten Argumenten korrigieren; bei retry_allowed=false sofort stoppen.",
+      "description": "Registered mail read operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide all required structured arguments. Fuer die letzten oder zuletzt eingegangenen Mails des Kontos mail.recent mit leerem arguments-Objekt verwenden; INBOX kann nach automatischen Verschiebungen leer sein. mail.list nur fuer einen ausdruecklich genannten Einzelordner mit arguments.folder verwenden; fuer Absender-, Betreff- oder Inhaltssuche mail.search mit arguments.query. mail.read erst nach einem Treffer mit arguments.folder, arguments.message_id und arguments.expected_subject aufrufen. Ein leeres arguments-Objekt ist nur bei Operationen ohne Pflichtfelder wie mail.recent zulaessig. Nach invalid-arguments hoechstens einmal mit vollstaendigen geaenderten Argumenten korrigieren; bei retry_allowed=false sofort stoppen.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -6554,6 +6583,7 @@
               "mail.learning.folder-list",
               "mail.dry-run",
               "mail.move-status",
+              "mail.recent",
               "mail.list",
               "mail.search",
               "mail.read"
@@ -6590,7 +6620,7 @@
               }
             },
             "additionalProperties": false,
-            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: mail.status: keine; mail.doctor: keine; mail.review.status: keine; mail.review.list: reason; mail.review.suggest: expected_subject, folder, message_id; mail.folders.plan: keine; mail.index.capabilities: keine; mail.index.status: keine; mail.index.doctor: keine; mail.index.plan: keine; mail.index.shadow: query; mail.search.local: query; mail.learning.status: keine; mail.learning.feedback: keine; mail.learning.not-spam: keine; mail.learning.mixed-senders: keine; mail.learning.conflicts: keine; mail.learning.evaluate: keine; mail.learning.folder-list: keine; mail.dry-run: keine; mail.move-status: keine; mail.list: folder; mail.search: query; mail.read: expected_subject, folder, message_id"
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: mail.status: keine; mail.doctor: keine; mail.review.status: keine; mail.review.list: reason; mail.review.suggest: expected_subject, folder, message_id; mail.folders.plan: keine; mail.index.capabilities: keine; mail.index.status: keine; mail.index.doctor: keine; mail.index.plan: keine; mail.index.shadow: query; mail.search.local: query; mail.learning.status: keine; mail.learning.feedback: keine; mail.learning.not-spam: keine; mail.learning.mixed-senders: keine; mail.learning.conflicts: keine; mail.learning.evaluate: keine; mail.learning.folder-list: keine; mail.dry-run: keine; mail.move-status: keine; mail.recent: keine; mail.list: folder; mail.search: query; mail.read: expected_subject, folder, message_id"
           }
         },
         "required": [
@@ -6621,6 +6651,7 @@
         "mail.learning.folder-list",
         "mail.dry-run",
         "mail.move-status",
+        "mail.recent",
         "mail.list",
         "mail.search",
         "mail.read"
@@ -7807,6 +7838,7 @@
       ],
       "tool": "personal_assistant_mail_read",
       "operations": [
+        "mail.recent",
         "mail.search",
         "mail.list",
         "mail.read"

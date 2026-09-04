@@ -19,6 +19,9 @@ class MailApplicationMixin:
     def mail_list_messages(self, folder: str, *, limit: int = 50) -> dict[str, Any]:
         return self.mail_move_service.list_messages(folder, limit=limit)
 
+    def mail_recent_messages(self, *, limit: int = 20) -> dict[str, Any]:
+        return self.mail_move_service.recent_messages(limit=limit)
+
     def mail_search_messages(
         self,
         query: str,
@@ -96,7 +99,9 @@ class MailApplicationMixin:
                 "classification": (
                     "equal-count"
                     if comparable and local_count == server_count
-                    else "different-count" if comparable else "inconclusive"
+                    else "different-count"
+                    if comparable
+                    else "inconclusive"
                 ),
             },
         }
@@ -155,6 +160,7 @@ class MailApplicationMixin:
             label=label,
             approved=approved,
         )
+
     def _reconcile_runtime_status(self) -> dict[str, Any]:
         projection = Path(self.config.search.mail_snapshot_dir)
         state_path = projection.parent.parent / "search_reconcile_v3" / "state.json"
@@ -180,9 +186,7 @@ class MailApplicationMixin:
             "state": "ready",
             "updated_at": str(payload.get("updated_at") or ""),
             "last_complete_generation": str(payload.get("root_generation") or ""),
-            "folder_identity_assurance": str(
-                payload.get("folder_identity_assurance") or "unknown"
-            ),
+            "folder_identity_assurance": str(payload.get("folder_identity_assurance") or "unknown"),
             "folder_cursor_count": len(cursors) if isinstance(cursors, dict) else 0,
             "metrics": dict(metrics) if isinstance(metrics, dict) else {},
         }

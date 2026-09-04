@@ -68,11 +68,13 @@ class HimalayaClient:
         return last
 
     def list_folders(self) -> tuple[list[str], str]:
-        result = self._run_variants([
-            ["folder", "list", "--output", "json"],
-            ["folder", "list", "-o", "json"],
-            ["folder", "list"],
-        ])
+        result = self._run_variants(
+            [
+                ["folder", "list", "--output", "json"],
+                ["folder", "list", "-o", "json"],
+                ["folder", "list"],
+            ]
+        )
         if not result.ok:
             return [], result.combined
         text = result.stdout.strip()
@@ -125,22 +127,68 @@ class HimalayaClient:
             if self.dry_run:
                 results.append(OperationResult(True, "would-create", destination=folder))
                 continue
-            result = self._run_variants([
-                ["folder", "add", folder],
-                ["folder", "create", folder],
-            ])
-            results.append(OperationResult(result.ok, "created" if result.ok else "create-failed", result.combined, folder))
+            result = self._run_variants(
+                [
+                    ["folder", "add", folder],
+                    ["folder", "create", folder],
+                ]
+            )
+            results.append(
+                OperationResult(
+                    result.ok, "created" if result.ok else "create-failed", result.combined, folder
+                )
+            )
         return results
 
     def list_envelopes(self, folder: str, limit: int | None = None) -> tuple[list[Envelope], str]:
         page_size = min(limit or self.config.mailbox.page_size, self.config.mailbox.page_size)
-        result = self._run_variants([
-            ["envelope", "list", "--folder", folder, "--page-size", str(page_size), "--output", "json"],
-            ["envelope", "list", "--folder", folder, "--page-size", str(page_size), "-o", "json"],
-            ["envelope", "list", "--folder", folder, "--output", "json"],
-            ["envelope", "list", "--folder", folder, "-o", "json"],
-        ])
+        result = self._run_variants(
+            [
+                ["envelope", "list", "--folder", folder, "--page-size", str(page_size), "--output", "json"],
+                ["envelope", "list", "--folder", folder, "--page-size", str(page_size), "-o", "json"],
+                ["envelope", "list", "--folder", folder, "--output", "json"],
+                ["envelope", "list", "--folder", folder, "-o", "json"],
+            ]
+        )
         return self._parse_envelopes(result, limit=limit, folder=folder)
+
+    def list_recent_envelopes(self, folder: str, *, limit: int = 20) -> tuple[list[Envelope], str]:
+        """Return one bounded newest-first envelope page for an exact folder."""
+
+        page_size = max(1, min(int(limit), self.config.mailbox.page_size, 200))
+        result = self._run_variants(
+            [
+                [
+                    "envelope",
+                    "list",
+                    "--folder",
+                    folder,
+                    "--page-size",
+                    str(page_size),
+                    "--output",
+                    "json",
+                    "order",
+                    "by",
+                    "date",
+                    "desc",
+                ],
+                [
+                    "envelope",
+                    "list",
+                    "--folder",
+                    folder,
+                    "--page-size",
+                    str(page_size),
+                    "-o",
+                    "json",
+                    "order",
+                    "by",
+                    "date",
+                    "desc",
+                ],
+            ]
+        )
+        return self._parse_envelopes(result, limit=page_size, folder=folder)
 
     def list_envelopes_page(
         self,
@@ -153,18 +201,42 @@ class HimalayaClient:
 
         safe_page = max(1, int(page))
         safe_size = max(1, min(int(page_size), self.config.mailbox.page_size))
-        result = self._run_variants([
+        result = self._run_variants(
             [
-                "envelope", "list", "--folder", folder,
-                "--page", str(safe_page), "--page-size", str(safe_size),
-                "--output", "json", "order", "by", "date", "asc",
-            ],
-            [
-                "envelope", "list", "--folder", folder,
-                "--page", str(safe_page), "--page-size", str(safe_size),
-                "-o", "json", "order", "by", "date", "asc",
-            ],
-        ])
+                [
+                    "envelope",
+                    "list",
+                    "--folder",
+                    folder,
+                    "--page",
+                    str(safe_page),
+                    "--page-size",
+                    str(safe_size),
+                    "--output",
+                    "json",
+                    "order",
+                    "by",
+                    "date",
+                    "asc",
+                ],
+                [
+                    "envelope",
+                    "list",
+                    "--folder",
+                    folder,
+                    "--page",
+                    str(safe_page),
+                    "--page-size",
+                    str(safe_size),
+                    "-o",
+                    "json",
+                    "order",
+                    "by",
+                    "date",
+                    "asc",
+                ],
+            ]
+        )
         return self._parse_envelopes(result, limit=safe_size, folder=folder)
 
     def search_envelopes(
@@ -183,20 +255,56 @@ class HimalayaClient:
         for index, term in enumerate(clean_terms):
             if index:
                 query.append("and")
-            query.extend([
-                "(", "(", "from", term, "or", "subject", term, ")",
-                "or", "body", term, ")",
-            ])
-        result = self._run_variants([
+            query.extend(
+                [
+                    "(",
+                    "(",
+                    "from",
+                    term,
+                    "or",
+                    "subject",
+                    term,
+                    ")",
+                    "or",
+                    "body",
+                    term,
+                    ")",
+                ]
+            )
+        result = self._run_variants(
             [
-                "envelope", "list", "--folder", folder, "--page-size", str(page_size),
-                "--output", "json", *query, "order", "by", "date", "desc",
-            ],
-            [
-                "envelope", "list", "--folder", folder, "--page-size", str(page_size),
-                "-o", "json", *query, "order", "by", "date", "desc",
-            ],
-        ])
+                [
+                    "envelope",
+                    "list",
+                    "--folder",
+                    folder,
+                    "--page-size",
+                    str(page_size),
+                    "--output",
+                    "json",
+                    *query,
+                    "order",
+                    "by",
+                    "date",
+                    "desc",
+                ],
+                [
+                    "envelope",
+                    "list",
+                    "--folder",
+                    folder,
+                    "--page-size",
+                    str(page_size),
+                    "-o",
+                    "json",
+                    *query,
+                    "order",
+                    "by",
+                    "date",
+                    "desc",
+                ],
+            ]
+        )
         return self._parse_envelopes(result, limit=page_size, folder=folder)
 
     @staticmethod
@@ -233,21 +341,23 @@ class HimalayaClient:
                 sender = {"name": sender}
             if not isinstance(sender, dict):
                 sender = {}
-            envelopes.append(Envelope(
-                mailbox_id=str(item.get("id")),
-                subject=decode_header_value(item.get("subject")),
-                sender_name=decode_header_value(sender.get("name")),
-                sender_addr=str(sender.get("addr") or sender.get("address") or ""),
-                date=str(item.get("date") or ""),
-                received_at=str(
-                    item.get("internalDate")
-                    or item.get("internal_date")
-                    or item.get("receivedAt")
-                    or item.get("received_at")
-                    or item.get("date")
-                    or ""
-                ),
-            ))
+            envelopes.append(
+                Envelope(
+                    mailbox_id=str(item.get("id")),
+                    subject=decode_header_value(item.get("subject")),
+                    sender_name=decode_header_value(sender.get("name")),
+                    sender_addr=str(sender.get("addr") or sender.get("address") or ""),
+                    date=str(item.get("date") or ""),
+                    received_at=str(
+                        item.get("internalDate")
+                        or item.get("internal_date")
+                        or item.get("receivedAt")
+                        or item.get("received_at")
+                        or item.get("date")
+                        or ""
+                    ),
+                )
+            )
         return envelopes, ""
 
     def export_message(self, folder: str, message_id: str, destination: Path) -> OperationResult:
@@ -276,12 +386,16 @@ class HimalayaClient:
             return OperationResult(True, "already-there", destination=destination_folder)
         if self.dry_run:
             return OperationResult(True, "would-move", destination=destination_folder)
-        result = self._run_variants([
-            ["message", "move", message_id, destination_folder, "--folder", source_folder],
-            ["message", "move", "--folder", source_folder, destination_folder, message_id],
-            ["message", "move", destination_folder, message_id, "--folder", source_folder],
-        ])
-        return OperationResult(result.ok, "moved" if result.ok else "move-failed", result.combined, destination_folder)
+        result = self._run_variants(
+            [
+                ["message", "move", message_id, destination_folder, "--folder", source_folder],
+                ["message", "move", "--folder", source_folder, destination_folder, message_id],
+                ["message", "move", destination_folder, message_id, "--folder", source_folder],
+            ]
+        )
+        return OperationResult(
+            result.ok, "moved" if result.ok else "move-failed", result.combined, destination_folder
+        )
 
     @staticmethod
     def _default_config_path() -> Path | None:

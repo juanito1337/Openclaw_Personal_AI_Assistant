@@ -101,6 +101,9 @@ class AgentToolContractTests(unittest.TestCase):
             for item in payload["native_tools"]
             if item["name"] == "personal_assistant_mail_read"
         )
+        self.assertIn("mail.recent", group["description"])
+        self.assertIn("leerem arguments-Objekt", group["description"])
+        self.assertIn("INBOX kann nach automatischen Verschiebungen leer sein", group["description"])
         self.assertIn("mail.list", group["description"])
         self.assertIn("arguments.folder", group["description"])
         self.assertIn("mail.search", group["description"])

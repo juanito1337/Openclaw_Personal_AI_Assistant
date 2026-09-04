@@ -824,8 +824,16 @@
     "approval": "none"
   },
   {
+    "id": "mail.recent",
+    "description": "Die letzten 20 eingegangenen Mails kontoübergreifend an ihren aktuellen IMAP-Ordnern lesen; nach Verschiebungen nicht auf den leeren INBOX beschraenken; Ausgangs-, Entwurfs- und Vorlagenordner ausschliessen",
+    "command": "./scripts/assistant.sh mail recent --limit 20",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
     "id": "mail.list",
-    "description": "Letzte oder aktuelle Mail-Metadaten eines vorhandenen Ordners lesen; immer den exakten Ordner uebergeben und ohne andere Nutzerangabe INBOX verwenden",
+    "description": "Mail-Metadaten eines ausdruecklich genannten vorhandenen Einzelordners lesen; fuer die letzten eingegangenen Mails des gesamten Kontos stattdessen mail.recent verwenden",
     "command": "./scripts/assistant.sh mail list --folder \"<Ordner>\" --limit 50",
     "mode": "read",
     "writes_external_data": false,

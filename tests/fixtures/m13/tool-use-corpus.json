@@ -14,6 +14,17 @@
       "legacy_failure": "reported-openclaw-core-version"
     },
     {
+      "id": "mail-recent-account-wide",
+      "language": "de",
+      "prompt": "Welche 20 E-Mails sind zuletzt in meinem Konto eingegangen?",
+      "expected_domains": ["mail"],
+      "allowed_first_operations": ["mail.recent"],
+      "forbidden_tools": ["exec", "himalaya", "mail.list"],
+      "required_evidence": ["complete", "results_may_be_truncated", "coverage"],
+      "answer_claim": "mail-state",
+      "legacy_failure": "empty-inbox-treated-as-no-recent-mail"
+    },
+    {
       "id": "mail-sender-context-de",
       "language": "de",
       "prompt": "Durchsuche mein Postfach nach Nachrichten von Beispiel Holzbau.",

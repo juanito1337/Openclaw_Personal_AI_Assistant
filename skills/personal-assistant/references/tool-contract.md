@@ -142,6 +142,7 @@ den fuehrenden Launcher durch `/opt/openclaw-agent/scripts/assistant.sh` ersetze
 | `mail.run` | `write` | ja | `configured-policy` | `always` | `./scripts/assistant.sh mail run --limit 20` | `tests/test_agent_tool_architecture.py` |
 | `mail.spam-review` | `write` | ja | `quarantine-rescue-policy` | `always` | `./scripts/assistant.sh mail spam-review --limit 20` | `tests/test_agent_tool_architecture.py` |
 | `mail.move-status` | `read` | nein | `none` | `mail-move` | `./scripts/assistant.sh mail move-status` | `tests/test_agent_tool_architecture.py` |
+| `mail.recent` | `read` | nein | `none` | `mail-move` | `./scripts/assistant.sh mail recent --limit 20` | `tests/test_mail_recent.py` |
 | `mail.list` | `read` | nein | `none` | `mail-move` | `./scripts/assistant.sh mail list --folder "<Ordner>" --limit 50` | `tests/test_agent_tool_architecture.py` |
 | `mail.search` | `read` | nein | `none` | `mail-move` | `./scripts/assistant.sh mail search --query "<Suchbegriff>" --limit 50` | `tests/test_mail_hybrid_search_m117.py` |
 | `mail.read` | `read` | nein | `none` | `mail-move` | `./scripts/assistant.sh mail read --folder "<Ordner>" --message-id "<ID>" --expected-subject "<Betreff>"` | `tests/test_agent_tool_architecture.py` |

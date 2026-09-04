@@ -222,12 +222,8 @@ def compile_command_contract(command: str) -> CompiledCommand:
 
 def strict_argument_schema(command: str) -> tuple[dict[str, Any], CompiledCommand]:
     compiled = compile_command_contract(command)
-    properties = {
-        name: _parameter_schema(raw, name) for raw, name in compiled.bindings
-    }
-    required = [
-        name for raw, name in compiled.bindings if not raw.casefold().endswith("-optional")
-    ]
+    properties = {name: _parameter_schema(raw, name) for raw, name in compiled.bindings}
+    required = [name for raw, name in compiled.bindings if not raw.casefold().endswith("-optional")]
     schema: dict[str, Any] = {
         "type": "object",
         "properties": properties,
@@ -272,7 +268,7 @@ def _route_definitions() -> list[dict[str, Any]]:
                 r"\bcorreo(?:s)?\b",
             ],
             "tool": _DOMAIN_TOOL_NAMES["mail"]["read"],
-            "operations": ["mail.search", "mail.list", "mail.read"],
+            "operations": ["mail.recent", "mail.search", "mail.list", "mail.read"],
             "claim_classes": ["mail-state", "negative"],
         },
         {
@@ -388,13 +384,7 @@ def route_intent(prompt: str) -> dict[str, Any]:
     routes: list[dict[str, Any]] = []
     for definition in _route_definitions():
         if any(re.search(pattern, normalized, flags=re.IGNORECASE) for pattern in definition["patterns"]):
-            routes.append(
-                {
-                    key: value
-                    for key, value in definition.items()
-                    if key not in {"patterns"}
-                }
-            )
+            routes.append({key: value for key, value in definition.items() if key not in {"patterns"}})
     routes = routes[:MAX_ROUTED_DOMAINS]
     return {
         "schema_version": SCHEMA_VERSION,
@@ -445,9 +435,7 @@ def guard_claims(
         domain = str(item.get("domain") or "")
         operations = set(item.get("operations") or [])
         matching = [
-            row
-            for row in evidence_rows
-            if row.get("domain") == domain and row.get("tool_id") in operations
+            row for row in evidence_rows if row.get("domain") == domain and row.get("tool_id") in operations
         ]
         if not matching:
             issues.append(f"missing-current-evidence:{domain}")
@@ -463,11 +451,13 @@ def guard_claims(
         for row in evidence_rows
     ):
         issues.append("version-claim-not-authorized")
-    if "write-success" in claims and any(
-        "write-success" in set(item.get("claim_classes") or []) for item in routes
-    ) and not any(
-        bool(row.get("ok")) and "write-success" in set(row.get("allowed_claims") or [])
-        for row in evidence_rows
+    if (
+        "write-success" in claims
+        and any("write-success" in set(item.get("claim_classes") or []) for item in routes)
+        and not any(
+            bool(row.get("ok")) and "write-success" in set(row.get("allowed_claims") or [])
+            for row in evidence_rows
+        )
     ):
         issues.append("write-success-not-authorized")
     return {
@@ -563,11 +553,14 @@ def build_native_tool_contract() -> dict[str, Any]:
             domain_guidance = ""
             if domain == "mail" and kind == "read":
                 domain_guidance = (
-                    " Fuer letzte oder aktuelle Mails mail.list mit arguments.folder verwenden "
-                    "(ohne andere Nutzerangabe normalerweise INBOX); fuer Absender-, Betreff- "
-                    "oder Inhaltssuche mail.search mit arguments.query. mail.read erst nach einem "
+                    " Fuer die letzten oder zuletzt eingegangenen Mails des Kontos mail.recent "
+                    "mit leerem arguments-Objekt verwenden; INBOX kann nach automatischen "
+                    "Verschiebungen leer sein. mail.list nur fuer einen ausdruecklich genannten "
+                    "Einzelordner mit arguments.folder verwenden; fuer Absender-, Betreff- oder "
+                    "Inhaltssuche mail.search mit arguments.query. mail.read erst nach einem "
                     "Treffer mit arguments.folder, arguments.message_id und "
-                    "arguments.expected_subject aufrufen. Nie ein leeres arguments-Objekt senden. "
+                    "arguments.expected_subject aufrufen. Ein leeres arguments-Objekt ist nur bei "
+                    "Operationen ohne Pflichtfelder wie mail.recent zulaessig. "
                     "Nach invalid-arguments hoechstens einmal mit vollstaendigen geaenderten "
                     "Argumenten korrigieren; bei retry_allowed=false sofort stoppen."
                 )
@@ -676,13 +669,9 @@ def verify_contract(path: Path) -> list[str]:
     if len(names) != len(set(names)):
         return ["Native Toolnamen sind nicht eindeutig"]
     exposed = {
-        operation
-        for item in payload.get("native_tools", [])
-        for operation in item.get("operations", [])
+        operation for item in payload.get("native_tools", []) for operation in item.get("operations", [])
     }
-    supported = {
-        item["tool_id"] for item in payload.get("operations", []) if item.get("supported")
-    }
+    supported = {item["tool_id"] for item in payload.get("operations", []) if item.get("supported")}
     if exposed != supported:
         return ["Native Toolgruppen und unterstuetzte Katalogoperationen driften"]
     return []

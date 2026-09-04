@@ -12,9 +12,16 @@ search` uses the M11.7 auto path: an eligible local Hybridindex first and a
 visible server fallback otherwise. Only a result with `complete=true` may
 establish that a message is absent.
 
-For "latest", "current" or "recent" mail without another folder named, call the
-native mail read tool exactly as `{"operation":"mail.list","arguments":{"folder":"INBOX"}}`.
-For a sender, address, subject or content term, call
+For "latest", "last received" or "recent" mail across the account without a
+specific folder named, call the native mail read tool exactly as
+`{"operation":"mail.recent","arguments":{}}`. It reads only bounded envelope
+metadata from all current incoming/archive/review/quarantine folders, excludes
+known Sent, Drafts, Outbox and Templates folders, and returns the current folder
+with every hit. Do not substitute `mail.list` on `INBOX`: the mail worker may
+already have moved every received message out of that folder. Use `mail.list`
+only when Jan explicitly names one folder, with
+`{"operation":"mail.list","arguments":{"folder":"<exact>"}}`. For a sender,
+address, subject or content term, call
 `{"operation":"mail.search","arguments":{"query":"<Suchtext>"}}`. Only after a
 returned hit may `mail.read` be called, with all three exact fields `folder`,
 `message_id` and `expected_subject`. Never submit `{}` for an operation whose
@@ -22,6 +29,13 @@ signature names required arguments. After `invalid-arguments`, change and
 complete the arguments at most once. If the diagnostic says
 `retry_allowed=false`, stop immediately and report the exact argument error;
 never repeat the unchanged call.
+
+For `mail.recent`, inspect `complete`, `folder_errors`,
+`results_may_be_truncated`, `excluded_folders` and `ordering`. Positive returned
+rows are live envelope evidence. If one or more folders failed, report that the
+list may be incomplete. The command never reads bodies, changes flags or writes
+IMAP data; use the returned exact `folder`, `mailbox_id` and `subject` for a later
+single `mail.read` call.
 
 The `himalaya` executable is an internal connector and is never an agent-facing
 search command. Do not call it directly and do not pipe envelope output through
