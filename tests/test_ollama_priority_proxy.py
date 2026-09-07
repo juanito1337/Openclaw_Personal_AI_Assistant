@@ -212,9 +212,12 @@ class ProxyIntegrationTests(unittest.TestCase):
         _UpstreamHandler.release_parallel = threading.Event()
         _UpstreamHandler.parallel_active = 0
         _UpstreamHandler.parallel_max_active = 0
-        upstream_port = _free_port()
+        # Bind the upstream before reserving the proxy port. Calling the
+        # ephemeral-port probe twice before either server owns its socket can
+        # return the same port on fast CI runners.
+        self.upstream = ThreadingHTTPServer(("127.0.0.1", 0), _UpstreamHandler)
+        upstream_port = int(self.upstream.server_address[1])
         proxy_port = _free_port()
-        self.upstream = ThreadingHTTPServer(("127.0.0.1", upstream_port), _UpstreamHandler)
         self.upstream_thread = threading.Thread(target=self.upstream.serve_forever, daemon=True)
         self.upstream_thread.start()
         config = ProxyConfig(
