@@ -6,14 +6,17 @@ TOOLS: tuple[ToolDefinition, ...] = (
     define(
         id="security.antivirus.doctor",
         domain="security",
-        description="ClamAV-Dienst, Signaturstand und einen lokalen Testscan pruefen",
+        description=(
+            "ClamAV-Scannerfunktion, Daemon-Readiness, Signaturstand, aktiven Transport, "
+            "Fallback und Mailindex-Readiness mit einem lokalen Testscan pruefen"
+        ),
         command="./scripts/assistant.sh security antivirus doctor",
         mode="read",
         writes_external_data=False,
         approval="none",
         availability="always",
-        documentation_anchor="AGENTS.md#host-antivirus-and-attachment-gate",
-        test_anchor="tests/test_antivirus_tool.py",
+        documentation_anchor="AGENTS.md#untrusted-content-and-antivirus",
+        test_anchor="tests/test_clamd_socket_m14.py",
     ),
     define(
         id="security.antivirus.self-test",
@@ -24,8 +27,8 @@ TOOLS: tuple[ToolDefinition, ...] = (
         writes_external_data=False,
         approval="none",
         availability="always",
-        documentation_anchor="AGENTS.md#host-antivirus-and-attachment-gate",
-        test_anchor="tests/test_antivirus_tool.py",
+        documentation_anchor="AGENTS.md#untrusted-content-and-antivirus",
+        test_anchor="tests/test_clamd_socket_m14.py",
     ),
     define(
         id="security.antivirus.scan",
@@ -36,7 +39,7 @@ TOOLS: tuple[ToolDefinition, ...] = (
         writes_external_data=False,
         approval="host-antivirus-read-only",
         availability="always",
-        documentation_anchor="AGENTS.md#host-antivirus-and-attachment-gate",
+        documentation_anchor="AGENTS.md#untrusted-content-and-antivirus",
         test_anchor="tests/test_antivirus_tool.py",
     ),
 )

@@ -32,6 +32,7 @@ target_maintenance_image=${3:-${OPENCLAW_TARGET_MAINTENANCE_IMAGE:-}}
 previous_image=${OPENCLAW_IMAGE:-}
 previous_proxy_image=${OPENCLAW_PROXY_IMAGE:-$previous_image}
 previous_maintenance_image=${OPENCLAW_MAINTENANCE_IMAGE:-$previous_image}
+previous_clamd_image=${OPENCLAW_CLAMD_IMAGE:-}
 previous_runtime=${OPENCLAW_CURRENT_RUNTIME:-docker}
 expected_source_revision=${OPENCLAW_EXPECTED_SOURCE_REVISION:-}
 mail_relevant_folder=${OPENCLAW_MAIL_RELEVANT_FOLDER:-}
@@ -223,7 +224,7 @@ if [[ "$previous_runtime" == "legacy-systemd" ]]; then
   done
   assert_legacy_writers_disabled
 else
-  compose stop mail-worker sync-worker supervisor-worker portfolio-worker monitor-worker gateway ollama-proxy
+  compose stop mail-worker sync-worker supervisor-worker portfolio-worker monitor-worker gateway ollama-proxy clamd
   assert_container_writers_stopped
 fi
 
@@ -237,6 +238,7 @@ fi
 export PREVIOUS_IMAGE="$previous_image" PREVIOUS_PROXY_IMAGE="$previous_proxy_image" \
   PREVIOUS_MAINTENANCE_IMAGE="$previous_maintenance_image" TARGET_IMAGE="$target_image" \
   TARGET_PROXY_IMAGE="$target_proxy_image" TARGET_MAINTENANCE_IMAGE="$target_maintenance_image" \
+  PREVIOUS_CLAMD_IMAGE="$previous_clamd_image" TARGET_CLAMD_IMAGE="$target_maintenance_image" \
   EXTERNAL_BACKUP_REFERENCE="$external_reference" PREVIOUS_RUNTIME="$previous_runtime"
 backup_id=$("$SCRIPT_DIR/backup.sh" "${previous_image##*:}-to-${target_image##*:}")
 echo "Verifiziertes Release-Backup: $backup_id"
@@ -256,17 +258,23 @@ trap rollback_on_failure ERR
 update_env_value OPENCLAW_IMAGE "$target_image"
 update_env_value OPENCLAW_PROXY_IMAGE "$target_proxy_image"
 update_env_value OPENCLAW_MAINTENANCE_IMAGE "$target_maintenance_image"
+update_env_value OPENCLAW_CLAMD_IMAGE "$target_maintenance_image"
 export OPENCLAW_IMAGE="$target_image"
 export OPENCLAW_PROXY_IMAGE="$target_proxy_image"
 export OPENCLAW_MAINTENANCE_IMAGE="$target_maintenance_image"
+export OPENCLAW_CLAMD_IMAGE="$target_maintenance_image"
 
 compose --profile maintenance run --rm --no-deps --entrypoint freshclam clamav-update \
   --stdout --datadir=/var/lib/clamav --verbose
 compose --profile maintenance run --rm --no-deps --entrypoint python3 clamav-update \
   -P -m personal_assistant.clamav_health
+compose up -d clamd
+wait_for_healthy clamd 300
 compose up -d ollama-proxy gateway
 wait_for_healthy ollama-proxy 180
 wait_for_healthy gateway 300
+compose --profile tools run --rm --no-deps agent-cli \
+  /opt/openclaw-agent/scripts/assistant.sh security antivirus self-test
 # The single-quoted expression intentionally runs inside the container shell.
 # shellcheck disable=SC2016
 compose --profile tools run --rm --no-deps agent-cli \

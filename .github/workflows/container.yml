@@ -111,6 +111,10 @@ jobs:
         env:
           OPENCLAW_M13_RUNTIME_IMAGE: openclaw-agent:m7-candidate
         run: ./scripts/check-m13-integration.sh
+      - name: Hermetic M14 resident antivirus daemon
+        env:
+          OPENCLAW_M14_MAINTENANCE_IMAGE: openclaw-agent:m7-candidate-maintenance
+        run: ./scripts/check-m14-integration.sh
       - name: Record synthetic M11 acceptance comparison
         run: python3 scripts/benchmark_mail_acceptance_m118.py --output build/m11-acceptance.json
       - name: Rebuild twice and require identical OCI artifacts

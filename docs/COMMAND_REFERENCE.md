@@ -84,9 +84,9 @@ Konfigurationsfreie Sicht: `./scripts/assistant.sh tools list --catalog` und
 
 | Tool-ID | Modus | externe Wirkung | Approval | Verfuegbarkeit | Kommando | Doku | Test |
 |---|---|---:|---|---|---|---|---|
-| `security.antivirus.doctor` | `read` | nein | `none` | `always` | `./scripts/assistant.sh security antivirus doctor` | `AGENTS.md#host-antivirus-and-attachment-gate` | `tests/test_antivirus_tool.py` |
-| `security.antivirus.self-test` | `read` | nein | `none` | `always` | `./scripts/assistant.sh security antivirus self-test` | `AGENTS.md#host-antivirus-and-attachment-gate` | `tests/test_antivirus_tool.py` |
-| `security.antivirus.scan` | `read` | nein | `host-antivirus-read-only` | `always` | `./scripts/assistant.sh security antivirus scan --file "personal_assistant/data/workspace_outbox/<Datei>"` | `AGENTS.md#host-antivirus-and-attachment-gate` | `tests/test_antivirus_tool.py` |
+| `security.antivirus.doctor` | `read` | nein | `none` | `always` | `./scripts/assistant.sh security antivirus doctor` | `AGENTS.md#untrusted-content-and-antivirus` | `tests/test_clamd_socket_m14.py` |
+| `security.antivirus.self-test` | `read` | nein | `none` | `always` | `./scripts/assistant.sh security antivirus self-test` | `AGENTS.md#untrusted-content-and-antivirus` | `tests/test_clamd_socket_m14.py` |
+| `security.antivirus.scan` | `read` | nein | `host-antivirus-read-only` | `always` | `./scripts/assistant.sh security antivirus scan --file "personal_assistant/data/workspace_outbox/<Datei>"` | `AGENTS.md#untrusted-content-and-antivirus` | `tests/test_antivirus_tool.py` |
 ## nextcloud
 
 | Tool-ID | Modus | externe Wirkung | Approval | Verfuegbarkeit | Kommando | Doku | Test |

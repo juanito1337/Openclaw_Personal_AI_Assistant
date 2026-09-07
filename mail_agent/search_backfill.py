@@ -122,9 +122,25 @@ class BackfillBackend(Protocol):
 
 
 class AntivirusGate(Protocol):
+    def index_readiness(self) -> dict[str, Any]: ...
+
     def scanner_identity(self, *, refresh: bool = False) -> str: ...
 
     def scan_bytes(self, data: bytes, *, name: str, source_type: str, use_cache: bool = True) -> Any: ...
+
+
+def require_index_antivirus_ready(antivirus: AntivirusGate) -> dict[str, Any]:
+    """Require an explicit, successful M14 daemon preflight."""
+
+    readiness_method = getattr(antivirus, "index_readiness", None)
+    if not callable(readiness_method):
+        raise RuntimeError("Mail-Index Antivirus-Preflight fehlt")
+    readiness = readiness_method()
+    if not isinstance(readiness, dict) or not readiness.get("index_ready"):
+        reasons = readiness.get("reasons", []) if isinstance(readiness, dict) else []
+        detail = ", ".join(str(item) for item in reasons) or "unbekannter Readinessfehler"
+        raise RuntimeError(f"Mail-Index Antivirus-Preflight fehlgeschlagen: {detail}")
+    return readiness
 
 
 def _folder_name_id(resource_id: str, name: str) -> str:
@@ -365,6 +381,7 @@ class MailSearchBackfill:
             raise PermissionError("Lokaler Mail-Index-Backfill benoetigt --yes und explizite Freigabe")
         if self.antivirus is None:
             raise RuntimeError("Fail-closed Antivirus-Gate fehlt")
+        antivirus_readiness = require_index_antivirus_ready(self.antivirus)
         started = self.monotonic()
         capabilities = self.backend.capabilities()
         if not capabilities.paging or not capabilities.raw_fetch:
@@ -388,6 +405,7 @@ class MailSearchBackfill:
                 "status": "running",
                 "fingerprint": fingerprint,
                 "scanner_identity": scanner_identity,
+                "antivirus_readiness": antivirus_readiness,
                 "inventory": inventory,
                 "capabilities": capabilities.to_dict(),
                 "folders": {
@@ -416,6 +434,7 @@ class MailSearchBackfill:
             }
             self._write_checkpoint(checkpoint)
         assert checkpoint is not None
+        checkpoint["antivirus_readiness"] = antivirus_readiness
         metrics = checkpoint["metrics"]
         if resumed:
             metrics["backend_calls"] += 1  # Current read-only folder inventory.

@@ -60,6 +60,8 @@ gemeinsamer Commit + Release 3.4.0-r28
 ├── proxy-runtime
 │   └── ollama-proxy
 └── maintenance-runtime
+    ├── clamav-socket-init    (kurzlebige enge Volume-Initialisierung)
+    ├── clamd                 (resident, netzlos, Signaturen read-only)
     └── clamav-update         (Maintenance-Profil, separates Schreibrecht)
 ```
 
@@ -166,7 +168,12 @@ Importgraphen auf Zyklen.
   Fachwerkzeuge erhalten weiterhin nur ihre rollenbezogenen Env-/Secret-Mounts;
   ein Fachfehler berechtigt weder zur Secret-Suche noch zum Listen des
   Elternverzeichnisses.
-- ClamAV-Signaturen liegen im Docker-Volume `clamav-db`; nur `clamav-update` schreibt.
+- ClamAV-Signaturen liegen im Docker-Volume `clamav-db`; nur `clamav-update`
+  schreibt. Der netzlose non-root `clamd` liest sie resident und bietet nur
+  scanberechtigten Rollen den privaten Unix-Socket aus `clamav-socket` an.
+  ADR-0037 trennt Scannerfunktion, Daemonreadiness und Standalone-Fallback; die
+  Entwicklungsgrenzen stehen in
+  [`clamd-operating-budget-m14.json`](clamd-operating-budget-m14.json).
 - Der Agent-Workspace enthaelt Instanzkonfiguration und kontrollierte lokale
   Dokumente. Sessions gehoeren dem Gateway-Teilbaum; fachliche Daten liegen in ihren
   Owner-Teilbaeumen. `AGENTS.md`, `HEARTBEAT.md` und der Runtime-Skill stammen

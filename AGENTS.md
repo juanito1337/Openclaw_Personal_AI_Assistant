@@ -207,6 +207,13 @@ same scanner/signature identity. Infected content is quarantined, never deleted;
 scanner errors block forwarding and writes. Never submit suspicious files to an
 external service automatically or bypass scanning to make an action succeed.
 
+In the Docker runtime `clamav-update` only updates signatures; it is not the
+scanner daemon. `clamd` readiness requires the registered socket PING/VERSION and
+fresh active signature identity. A successful `clamscan` fallback proves only one
+bounded scan, never daemon or mail-index readiness. Backfill and reconcile must
+stop before Raw-Fetch when `index_readiness.index_ready=false`; do not start or
+enable the index job as an automatic repair.
+
 ## Job, scheduler and failure contract
 
 `ON`, `OFF` and `FAILED/DEGRADED` are distinct. Never report a job/tool healthy

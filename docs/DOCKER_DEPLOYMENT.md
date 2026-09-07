@@ -60,7 +60,7 @@ empfohlene Abkuerzung.
 The stack does not build a separate image for every subsystem. Gateway, background
 workers and the command-line tool start from the immutable `OPENCLAW_IMAGE`.
 `OPENCLAW_PROXY_IMAGE` and `OPENCLAW_MAINTENANCE_IMAGE` are measured minimal
-targets for the independent proxy and updater. All carry the same release and exact
+targets for the independent proxy and ClamAV roles. All carry the same release and exact
 Git revision:
 
 ```text
@@ -92,8 +92,12 @@ One immutable OpenClaw release
 │   └── openclaw-ollama-proxy
 │       └── ollama-priority-proxy.sh serve
 
-└── maintenance-runtime image (Maintenance profile)
-    └── openclaw-clamav-update
+└── maintenance-runtime image
+    ├── openclaw-clamav-socket-init
+    │   └── one-shot private socket-volume ownership
+    ├── openclaw-clamd
+    │   └── resident scanner without a network
+    └── openclaw-clamav-update (Maintenance profile)
         └── freshclam loop for the shared signature volume
 ```
 
@@ -114,6 +118,8 @@ assistant, not autonomous agents.
 | `openclaw-monitor-worker` | Local operational snapshots, freshness and reliability evidence | starts after the gateway is healthy |
 | `openclaw-supervisor-worker` | Desired/actual job-state checks, heartbeats and alerts | remains outside the business-job scheduler |
 | `openclaw-agent-cli` | Runs one registered administrative or diagnostic command | created only through the Compose `tools` profile |
+| `openclaw-clamav-socket-init` | Prepares only the private Unix-socket volume | one-shot root role with only `CHOWN` and `DAC_OVERRIDE`, no network |
+| `openclaw-clamd` | Keeps the verified signature database resident and scans bounded streams | no network, secrets or domain state; signature volume read-only |
 | `openclaw-clamav-update` | Updates the shared ClamAV databases | owns write access to the `clamav-db` volume |
 
 Each long-running service has its own Docker healthcheck and
@@ -174,6 +180,10 @@ Danach werden nur die benoetigten Teilbaeume gemountet:
 Docker volume clamav-db
     -> /var/lib/clamav                      read-only in normal containers
                                            read/write in clamav-update
+
+Docker volume clamav-socket
+    -> /run/clamav                          read/write only in clamd
+                                           read-only in gateway/mail-worker/agent-cli
 ```
 
 Die Layoutnormalisierung erzwingt im Gateway zusaetzlich
@@ -549,6 +559,15 @@ incomplete, rollback verifies and restores it from the migration archive linked
 in the release backup before stopping the current containers. If no verified
 legacy source is available, rollback aborts while the current runtime is still
 running.
+
+M14 records `OPENCLAW_CLAMD_IMAGE` separately from the updater image. For the
+first rollback to a pre-M14 release, that older Maintenance-Image cannot run the
+new Compose `clamd` service. The rollback therefore retains only the already
+signature-verified M14 scanner image as compatibility infrastructure while it
+restores the previous Runtime-, Proxy- and Updater-Digests and the previous
+state. Pre-M14 application code continues to use its original fail-closed scan
+path. Every later M14 backup contains a previous scanner digest and restores it
+exactly. No index or external mail is deleted by either path.
 
 The deployment also verifies that all legacy writer services are inactive and
 their timers disabled before and after the container workers start. A remaining

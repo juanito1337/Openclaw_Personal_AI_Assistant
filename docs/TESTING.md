@@ -1,6 +1,6 @@
 # Tests, Qualitaetsbaseline und Container-Runtime
 
-Stand: 2026-09-01, fortgeschrieben bis zur M13-Entwicklungsabnahme.
+Stand: 2026-09-07, fortgeschrieben bis zur M14-Entwicklungsabnahme.
 Sie startet keine produktiven Dienste und verwendet
 weder `/srv/openclaw` noch produktive Zugangsdaten.
 
@@ -40,13 +40,28 @@ GitHub Actions ruft genau diese beiden Befehle auf Python 3.11, 3.12 und 3.13 au
 11. den M8-Backup-/Restore-Drill in temporaeren Fixture-Roots unter
     `build/m8-recovery.json`.
 
+Der Containerworkflow baut danach die drei Rollenimages und fuehrt neben M11,
+M12 und M13 auch den realen, hermetischen M14-Daemontest aus:
+
+```bash
+OPENCLAW_M14_MAINTENANCE_IMAGE=openclaw-agent:m7-candidate-maintenance \
+  ./scripts/check-m14-integration.sh
+```
+
+Der Test startet das echte gepinnte `clamd` ohne Netz, Root oder Capabilities,
+verwendet eine private synthetische Signatur und prueft Clean-/Malware-Streams,
+Socketrechte und Containerhaertung. Die Python-Verhaltenstests pruefen
+zusaetzlich Timeout-/Protokoll-/Oversizefehler, Cacheidentitaet,
+Standalone-Fallback und den verpflichtenden Index-Preflight. Produktive
+Mailinhalte und `/srv/openclaw` werden dabei nicht verwendet.
+
 CI bewahrt JUnit, Coverage-JSON und diese Baseline fuer jede Python-Version als
 Build-Artefakt auf. Damit bleiben spaetere Aenderungen sichtbar, ohne in M0 bereits
 willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 978 Tests, darunter mindestens 715 unittest-kompatible Tests
+fordert mindestens 994 Tests, darunter mindestens 715 unittest-kompatible Tests
 (die bisherigen 349 sowie M0-M13- und Rollout-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
@@ -110,6 +125,7 @@ der aktuellen Python-Dateien.
 | Tests nach kontoweiter Letzte-Mail-Korrektur gesammelt/ausgefuehrt | 975 / 975 (1.082 JUnit-Faelle inklusive 107 Subtests) |
 | Tests nach Letzte-Mail-Dispatcher-Hotfix gesammelt/ausgefuehrt | 976 / 976 (1.083 JUnit-Faelle inklusive 107 Subtests) |
 | Tests nach Suchphrasen-/Nulltreffer-Korrektur gesammelt/ausgefuehrt | 978 / 978 (1.085 JUnit-Faelle inklusive 107 Subtests) |
+| Tests nach M14-Entwicklungsabnahme gesammelt/ausgefuehrt | 994 / 994 (1.101 JUnit-Faelle inklusive 107 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -147,6 +163,7 @@ der aktuellen Python-Dateien.
 | neue M12-IMAP-Inventory-/Reconciliation-Regressionsitems | 28 |
 | neue M12-Canary-Budget-/Single-Writer-Regressionsitems | 5 |
 | neue M13-Toolbridge-/Router-/Evidenz-Regressionsitems | 19 |
+| neue M14-Daemon-/Socket-/Compose-Regressionsitems | 16 |
 | M13-Image-Runtime-Abnahme | Pluginstatus `loaded`, 19 Toolfabriken, 5 typisierte Hooks, keine Diagnosen |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |
@@ -223,6 +240,8 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach kontoweiter Letzte-Mail-Korrektur | 55,15 % |
 | Gesamt-Coverage nach Suchphrasen-/Nulltreffer-Korrektur | 68,08 % |
 | reine Branch-Coverage nach Suchphrasen-/Nulltreffer-Korrektur | 55,17 % |
+| Gesamt-Coverage nach M14 | 68,27 % |
+| reine Branch-Coverage nach M14 | 55,44 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -279,6 +298,10 @@ der aktuellen Python-Dateien.
 | Suchphrasen-/Nulltreffer-Korrektur-Wheelgroesse | 587.583 Bytes |
 | Suchphrasen-/Nulltreffer-Korrektur-Wheel-Buildzeit | 4,488 s |
 | Suchphrasen-/Nulltreffer-Korrektur-Wheel-Tests | 978 plus 107 Subtests in 142,13 s |
+| M14-Wheelgroesse | 593.188 Bytes |
+| M14-Wheel-Buildzeit | 3,893 s |
+| M14-Wheel-Tests in frischer Umgebung | 994 plus 107 Subtests in 141,81 s |
+| Laufzeit des finalen lokalen M14-Gesamtchecks | 199,67 s |
 | Container-Imagegroesse des M6-Testimages | 425.555.866 Bytes |
 | Runtime-Imagegroesse mit gepinnten Brave-/Signal-Plugins | 376.600.036 Bytes |
 | Runtime-Imagegroesse nach der M10-Rollout-Monitor-/Supervisorkorrektur | 376.793.375 Bytes |

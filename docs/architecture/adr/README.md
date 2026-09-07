@@ -42,5 +42,6 @@ verweist mit Status `Superseded` auf den Nachfolger.
 | [0034](0034-standardbetriebsprofil-bei-jedem-start.md) | Accepted | normale Werkzeuge bereits konfigurierter Ressourcen sind bei jedem Start direkt wirksam |
 | [0035](0035-nativer-readonly-imap-inventory-connector.md) | Accepted | nativer read-only IMAP-Inventurconnector mit abgestufter Ordneridentität und autoritativer aktueller Coverage |
 | [0036](0036-native-agent-tools-und-evidence-guard.md) | Accepted | native strukturierte Agentenwerkzeuge, gebundene Einzelfreigabe und turnbezogener Antwortguard |
+| [0037](0037-residenter-clamav-daemon-fuer-mailindex.md) | Accepted | getrennter residenter ClamAV-Daemon über rollenbegrenzten Unix-Socket |
 
 Neue ADRs beginnen mit der [Vorlage](0000-template.md).

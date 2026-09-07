@@ -4,7 +4,7 @@
   "plugin_id": "personal-assistant-tools",
   "plugin_path": "/opt/openclaw-plugins/personal-assistant-tools",
   "product_version": "3.4.0-r28",
-  "catalog_sha256": "29f49a6ba471ea254eddb3beddbb81c054f684c5cc8f29ca67be9ac3cd832f02",
+  "catalog_sha256": "5c3b15c1cef778c17ad5fb5c38a5ec68551f763a9e6123658e9fdedfd34d9986",
   "catalog_tool_count": 160,
   "supported_operation_count": 159,
   "excluded_operation_count": 1,
@@ -2448,7 +2448,7 @@
     {
       "tool_id": "security.antivirus.doctor",
       "domain": "security",
-      "description": "ClamAV-Dienst, Signaturstand und einen lokalen Testscan pruefen",
+      "description": "ClamAV-Scannerfunktion, Daemon-Readiness, Signaturstand, aktiven Transport, Fallback und Mailindex-Readiness mit einem lokalen Testscan pruefen",
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",

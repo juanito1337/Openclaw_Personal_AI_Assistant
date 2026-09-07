@@ -38,6 +38,7 @@ def _backup(root: Path, *, external_reference: str = "") -> Path:
                 "target_image": "fixture.invalid/openclaw:new",
                 "previous_proxy_image": "fixture.invalid/openclaw:old-proxy",
                 "previous_maintenance_image": "fixture.invalid/openclaw:old-maintenance",
+                "target_maintenance_image": "fixture.invalid/openclaw:new-maintenance",
                 "archive_sha256": digest,
                 "external_backup_reference": external_reference,
                 "previous_runtime": "docker",
@@ -171,6 +172,8 @@ def test_failed_external_restore_still_starts_verified_old_local_state(tmp_path:
     assert "up -d mail-worker sync-worker supervisor-worker portfolio-worker monitor-worker" in commands
     deployed = env_file.read_text(encoding="utf-8")
     assert "OPENCLAW_IMAGE=fixture.invalid/openclaw:old\n" in deployed
+    assert "OPENCLAW_MAINTENANCE_IMAGE=fixture.invalid/openclaw:old-maintenance\n" in deployed
+    assert "OPENCLAW_CLAMD_IMAGE=fixture.invalid/openclaw:new-maintenance\n" in deployed
     assert "OPENCLAW_CURRENT_RUNTIME=docker\n" in deployed
 
 

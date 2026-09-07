@@ -9,8 +9,9 @@ mit `scripts/audit-state-access.py` unter `strace` inventarisiert werden.
 Mount-Kuerzel: `I` Instanzkonfiguration, `G` Gateway/Sessions, `M` Mail, `O` Orders,
 `P` Portfolio, `N` Monitoring, `W` Wissensindex, `C` Core/ActionPlan, `S` Security und `Q`
 geteilte Koordination. `H` ist Himalaya-Konfiguration, `K` externe Konfiguration,
-`E` einzelne Env-Dateien, `X` einzelne Secretdateien und `V` das
-ClamAV-Signaturvolume. Ganze Config- oder Secretwurzeln werden nicht gemountet.
+`E` einzelne Env-Dateien, `X` einzelne Secretdateien, `V` das
+ClamAV-Signaturvolume und `D` der private ClamAV-Daemonsocket. Ganze Config-
+oder Secretwurzeln werden nicht gemountet.
 
 Die Rolle bestimmt ab M7 auch das kleinste belegte Runtime-Target. Alle Targets
 tragen denselben Release und Commit; Inhalt, Messung und Freigabe beschreibt der
@@ -22,19 +23,23 @@ tragen denselben Release und Commit; Inhalt, Messung und Freigabe beschreibt der
 | --- | --- | --- | --- | --- |
 | `layout-init` | `runtime` | Layoutmigration | gesamter State `rw`; kein E/X | einziger Prozess mit universellem State-Mount; ohne Netzwerk; beendet sich vor allen Rollen |
 | `ollama-proxy` | `proxy-runtime` | In-Memory-Modellqueue | I `ro`, eine Proxy-Envdatei | kein OpenClaw/Mail/OCR/ClamAV, keine Secrets/Fachdaten; einzige Host-Gateway-Ausnahme |
-| `gateway` | `runtime` | Gateway/Sessions und Toolaufrufe | G/M/O/P/N/W/C/S/Q `rw`; I-Profil/Memory `rw`, I-Konfigurationsordner `ro`; H/E/X/V `ro` | interaktive Universalrolle; Konfigurationssetup ausschliesslich ueber `agent-cli`, fachliche Rechte bleiben Policy-/Approval-gebunden |
-| `mail-worker` | `runtime` | Mail, Orders, delegierte ActionPlans | I `ro`, M/O/C/S/Q `rw`, H/E/X/V `ro` | nur Mail-/PA-Secrets; einziger produktiver Mailwriter |
+| `gateway` | `runtime` | Gateway/Sessions und Toolaufrufe | G/M/O/P/N/W/C/S/Q `rw`; I-Profil/Memory `rw`, I-Konfigurationsordner `ro`; H/E/X/V/D `ro` | interaktive Universalrolle; Konfigurationssetup ausschliesslich ueber `agent-cli`, fachliche Rechte bleiben Policy-/Approval-gebunden |
+| `mail-worker` | `runtime` | Mail, Orders, delegierte ActionPlans | I `ro`, M/O/C/S/Q `rw`, H/E/X/V/D `ro` | nur Mail-/PA-Secrets; einziger produktiver Mailwriter und Indexowner |
 | `sync-worker` | `runtime` | Index und Syncstatus | I/M/C `ro`, W/Q `rw`, E/X `ro` | Live-Discovery ohne Core-Persistierung; nur Nextcloud/Mail-Envdateien; keine Orders-/Portfolio-/Monitoring-DB |
 | `supervisor-worker` | `runtime` | Job-Sollzustand und Heartbeats | I `ro`, Q `rw`; kein E/X | nur Beobachter; internes `backend`, keine direkte Egress-Route; 1 GiB fuer die belegte OpenClaw-CLI-Spitze |
 | `portfolio-worker` | `runtime` | Portfolio/Kurse | I `ro`, P/Q `rw`, E/X `ro` | nur Portfolio-Secrets; Events ueber Q, keine Gateway-Secrets oder Maildaten |
 | `monitor-worker` | `runtime` | Monitoring-Snapshots | I/M/P/W/C/S `ro`, N/Q `rw`, E/X `ro` | Quellzustand technisch read-only; einzelne benoetigte Envdateien |
-| `agent-cli` | `runtime` | explizit gewaehltes Tool | G/I/M/O/P/N/W/C/S/Q `rw`, H/E/X/V `ro` | kurzlebige Universalrolle; breit nur wegen explizit gewaehlter Tools |
+| `agent-cli` | `runtime` | explizit gewaehltes Tool | G/I/M/O/P/N/W/C/S/Q `rw`, H/E/X/V/D `ro` | kurzlebige Universalrolle; breit nur wegen explizit gewaehlter Tools |
+| `clamav-socket-init` | `maintenance-runtime` | Socketvolume initialisieren | D `rw`; kein anderer State | beendet sich vor `clamd`; einzige enge Root-Ausnahme mit `CHOWN` und `DAC_OVERRIDE`, ohne Netzwerk |
+| `clamd` | `maintenance-runtime` | residenter Streamscanner | V `ro`, D `rw` | non-root, kein Netzwerk, keine Secrets/Fachstates; nur PING, VERSION und INSTREAM für Clients |
 | `clamav-update` | `maintenance-runtime` | ClamAV-Signaturen | V `rw` | nur ClamAV/Health; keine OpenClaw-State- oder Secret-Mounts |
 
-Alle Rollen laufen mit read-only Rootfs, `cap_drop: ALL`,
+Alle langlebigen Rollen laufen mit read-only Rootfs, `cap_drop: ALL`,
 `no-new-privileges`, explizitem Nicht-root-Benutzer, sicherem `tmpfs`, PID-/CPU-/
-RAM-Grenzen und begrenzter lokaler Docker-Logrotation. Root- und Hostnetz-Ausnahmen
-existieren nicht. Details und exakte Zahlen stehen im maschinenlesbaren Vertrag.
+RAM-Grenzen und begrenzter lokaler Docker-Logrotation. Nur der kurzlebige
+`clamav-socket-init` startet als Root und erhält ausschließlich `CHOWN` und
+`DAC_OVERRIDE` für sein einziges Socketvolume. Hostnetz-Ausnahmen existieren
+nicht. Details und exakte Zahlen stehen im maschinenlesbaren Vertrag.
 
 Der Monitor behaelt Core, Wissen und Mail technisch `ro`. Bei einer
 geschlossenen WAL-Datenbank ohne `-wal` verwendet er die dokumentierte
@@ -58,8 +63,9 @@ Subsystemkonfigurationen veraendern. Die kurzlebige, nur explizit gestartete
 ## Netzmatrix
 
 `backend` ist `internal: true`; `egress` erlaubt erforderliche externe Zugriffe.
-Nur Gateway publiziert `127.0.0.1:18789`. Supervisor besitzt nur `backend`,
-`layout-init` gar kein Netzwerk. Nur der Proxy erhaelt gemaess
+Nur Gateway publiziert `127.0.0.1:18789`. Supervisor besitzt nur `backend`;
+`layout-init`, `clamav-socket-init` und `clamd` besitzen gar kein Netzwerk. Nur
+der Proxy erhaelt gemaess
 [ADR-0008](adr/0008-container-netze-host-ollama.md) den Host-Gateway-Alias.
 
 ## Instrumentierte Zugriffsinventur
@@ -90,7 +96,9 @@ Ticket, Owner, Token und Ablaufzeit gebunden.
 
 ## Healthchecks
 
-Gateway und Proxy besitzen direkte Liveness-Probes. Worker-Dockerhealth prueft nur
+Gateway, Proxy und `clamd` besitzen direkte Liveness-/Readiness-Probes. Die
+`clamd`-Probe verlangt einen echten PING-/VERSION-Kontakt und eine frische
+vollständige Signaturdatenbank. Worker-Dockerhealth prueft nur
 Prozess-Liveness: frischer Heartbeat und nicht `stopped`. Readiness prueft separat
 Start-/Stopzustand und Schedulerfehler. `business_status` und
 `consecutive_failures` bleiben im Heartbeat sichtbar; wiederholte Fehler koennen

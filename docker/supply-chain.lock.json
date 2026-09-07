@@ -64,8 +64,8 @@
       "reason": "The proxy uses only the Python standard library, CA certificates, curl health checks and tini."
     },
     "maintenance-runtime": {
-      "services": ["clamav-update"],
-      "reason": "The updater needs only freshclam, clamscan, the freshness module and tini."
+      "services": ["clamav-socket-init", "clamd", "clamav-update"],
+      "reason": "The isolated ClamAV roles share one minimal image containing freshclam, clamd, clamscan, private socket health modules and tini; only the updater receives egress and signature write access."
     }
   }
 }

@@ -29,6 +29,7 @@ from .search_backfill import (
     ConnectorCapabilities,
     HimalayaBackfillBackend,
     physical_attachments,
+    require_index_antivirus_ready,
 )
 from .search_projection_v2 import PartitionedSearchSnapshotWriter
 from .utils import atomic_write_bytes, now_utc_iso
@@ -457,6 +458,7 @@ class MailSearchReconciler:
     def run(self, *, approved: bool) -> dict[str, Any]:
         if not approved:
             raise PermissionError("Mail-Reconciliation benoetigt --yes und explizite Freigabe")
+        require_index_antivirus_ready(self.antivirus)
         started = self.monotonic()
         self._run_started = started
         self._last_request_at = None

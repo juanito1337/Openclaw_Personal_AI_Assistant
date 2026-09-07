@@ -42,6 +42,8 @@ enabled = true
 binary = "clamdscan"
 fallback_binary = "clamscan"
 allow_standalone_fallback = true
+daemon_socket = ""
+require_daemon_for_index = true
 daemon_service = "clamav-daemon.service"
 freshclam_service = "clamav-freshclam.service"
 fail_closed = true
@@ -50,6 +52,7 @@ scan_attachments = true
 cache_hours = 24
 max_scan_bytes = 100000000
 timeout_seconds = 120
+signature_max_age_seconds = 172800
 temp_dir = "personal_assistant/data/antivirus_tmp"
 
 [portfolio]

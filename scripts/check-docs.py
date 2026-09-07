@@ -172,7 +172,7 @@ def validate_matrices(root: Path) -> list[str]:
     expected_roles = {
         "ollama-proxy", "gateway", "mail-worker", "sync-worker",
         "supervisor-worker", "portfolio-worker", "monitor-worker",
-        "agent-cli", "clamav-update",
+        "agent-cli", "clamav-socket-init", "clamd", "clamav-update",
     }
     for role in sorted(expected_roles - roles):
         errors.append(f"CONTAINER_ROLES.md: Rolle {role} fehlt in der Rollenmatrix")

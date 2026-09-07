@@ -22,6 +22,11 @@ Der geplante M13-Milestone fuer native strukturierte Agentenwerkzeuge,
 deterministische Werkzeugpflicht, turngebundene Evidenz und belegte Antworten
 steht in
 [`AGENT_TOOL_ORCHESTRATION_ROADMAP.md`](AGENT_TOOL_ORCHESTRATION_ROADMAP.md).
+Der darauf folgende M14-Milestone behebt den real gemessenen ClamAV-
+Performanceengpass mit einem gehaerteten residenten Daemon und fuehrt den
+autoritativen Mailindex anschliessend kontrolliert bis zur produktiven
+Jobfreigabe. Die getrennten Entwicklungs- und Betriebsprompts stehen in
+[`MAIL_ANTIVIRUS_INDEX_ROLLOUT_ROADMAP.md`](MAIL_ANTIVIRUS_INDEX_ROLLOUT_ROADMAP.md).
 
 M0 bis M10 sind kumulativ in `3.4.0-r28` enthalten. Die Roadmaps bleiben als
 Umsetzungs- und Testevidenz bestehen; die aktuelle Release-, Upgrade- und
@@ -40,6 +45,11 @@ lokale/hermetische M13.8-Abnahme steht unter
 [`AGENT_TOOL_ORCHESTRATION_M13_ACCEPTANCE.md`](AGENT_TOOL_ORCHESTRATION_M13_ACCEPTANCE.md);
 signiertes CI-Image und produktiver read-only Canary bleiben getrennt und sind
 nicht durch den Entwicklungsstand aktiviert.
+M14.0 bis M14.7 sind als Entwicklungsstand implementiert: Der private
+Unix-Socket-Scanner, der fail-closed Index-Preflight und die gehärteten
+ClamAV-Rollen sind lokal und hermetisch geprüft. Die Abgrenzung zum noch offenen
+produktiven Deploy, Canary, Vollbackfill und Jobstart steht in
+[`MAIL_ANTIVIRUS_INDEX_M14_ACCEPTANCE.md`](MAIL_ANTIVIRUS_INDEX_M14_ACCEPTANCE.md).
 
 ## 3.4.x foundation
 

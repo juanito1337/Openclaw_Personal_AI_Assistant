@@ -132,6 +132,8 @@ class AntivirusToolSettings:
     binary: str = "clamdscan"
     fallback_binary: str = "clamscan"
     allow_standalone_fallback: bool = True
+    daemon_socket: str = ""
+    require_daemon_for_index: bool = True
     daemon_service: str = "clamav-daemon.service"
     freshclam_service: str = "clamav-freshclam.service"
     fail_closed: bool = True
@@ -140,6 +142,7 @@ class AntivirusToolSettings:
     cache_hours: int = 24
     max_scan_bytes: int = 100_000_000
     timeout_seconds: int = 120
+    signature_max_age_seconds: int = 172_800
     temp_dir: Path = DEFAULT_ANTIVIRUS_TEMP
 
 
@@ -395,6 +398,12 @@ def load_tool_settings(
         binary=str(antivirus_data.get("binary") or "clamdscan").strip(),
         fallback_binary=str(antivirus_data.get("fallback_binary") or "clamscan").strip(),
         allow_standalone_fallback=bool(antivirus_data.get("allow_standalone_fallback", True)),
+        daemon_socket=str(
+            os.environ.get("OPENCLAW_CLAMD_SOCKET")
+            or antivirus_data.get("daemon_socket")
+            or ""
+        ).strip(),
+        require_daemon_for_index=bool(antivirus_data.get("require_daemon_for_index", True)),
         daemon_service=str(antivirus_data.get("daemon_service") or "clamav-daemon.service").strip(),
         freshclam_service=str(antivirus_data.get("freshclam_service") or "clamav-freshclam.service").strip(),
         fail_closed=bool(antivirus_data.get("fail_closed", True)),
@@ -403,6 +412,16 @@ def load_tool_settings(
         cache_hours=max(0, min(int(antivirus_data.get("cache_hours", 24)), 720)),
         max_scan_bytes=max(1024, min(int(antivirus_data.get("max_scan_bytes", 100_000_000)), 1_000_000_000)),
         timeout_seconds=max(5, min(int(antivirus_data.get("timeout_seconds", 120)), 1800)),
+        signature_max_age_seconds=max(
+            300,
+            min(
+                int(
+                    os.environ.get("CLAMAV_SIGNATURE_MAX_AGE_SECONDS")
+                    or antivirus_data.get("signature_max_age_seconds", 172_800)
+                ),
+                2_592_000,
+            ),
+        ),
         temp_dir=_runtime_path(
             "OPENCLAW_SECURITY_DATA_DIR",
             "tmp",

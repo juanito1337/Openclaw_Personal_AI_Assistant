@@ -27,6 +27,9 @@ PY
 previous_image=$(read_manifest previous_image)
 previous_proxy_image=$(read_manifest previous_proxy_image)
 previous_maintenance_image=$(read_manifest previous_maintenance_image)
+target_maintenance_image=$(read_manifest target_maintenance_image)
+previous_clamd_image=$(read_manifest previous_clamd_image)
+target_clamd_image=$(read_manifest target_clamd_image)
 previous_runtime=$(read_manifest previous_runtime)
 legacy_home=$(read_manifest legacy_home)
 legacy_migration_backup=$(read_manifest legacy_migration_backup)
@@ -35,6 +38,10 @@ external_reference=$(read_manifest external_backup_reference)
 previous_runtime=${previous_runtime:-docker}
 previous_proxy_image=${previous_proxy_image:-$previous_image}
 previous_maintenance_image=${previous_maintenance_image:-$previous_image}
+# A pre-M14 roll set has no scanner reference. The current M14 compose contract
+# still needs a compatible clamd for dependency health, so retain only the
+# already verified target scanner during this one transition rollback.
+rollback_clamd_image=${previous_clamd_image:-${target_clamd_image:-${target_maintenance_image:-$previous_maintenance_image}}}
 restore_hook=${OPENCLAW_EXTERNAL_RESTORE_HOOK:-}
 
 # The executable contract is checked before stopping anything. The hook can
@@ -162,6 +169,7 @@ if [[ "$previous_runtime" == "legacy-systemd" ]]; then
   update_env_value OPENCLAW_IMAGE "$previous_image"
   update_env_value OPENCLAW_PROXY_IMAGE "$previous_proxy_image"
   update_env_value OPENCLAW_MAINTENANCE_IMAGE "$previous_maintenance_image"
+  update_env_value OPENCLAW_CLAMD_IMAGE "$rollback_clamd_image"
   update_env_value OPENCLAW_CURRENT_RUNTIME legacy-systemd
   units_file="$OPENCLAW_CONFIG_DIR/legacy-active-units.txt"
   if [[ -s "$units_file" ]]; then
@@ -174,14 +182,19 @@ else
   update_env_value OPENCLAW_IMAGE "$previous_image"
   update_env_value OPENCLAW_PROXY_IMAGE "$previous_proxy_image"
   update_env_value OPENCLAW_MAINTENANCE_IMAGE "$previous_maintenance_image"
+  update_env_value OPENCLAW_CLAMD_IMAGE "$rollback_clamd_image"
   update_env_value OPENCLAW_CURRENT_RUNTIME docker
   export OPENCLAW_IMAGE="$previous_image"
   export OPENCLAW_PROXY_IMAGE="$previous_proxy_image"
   export OPENCLAW_MAINTENANCE_IMAGE="$previous_maintenance_image"
+  export OPENCLAW_CLAMD_IMAGE="$rollback_clamd_image"
   docker pull "$previous_image" >/dev/null
   docker pull "$previous_proxy_image" >/dev/null
   docker pull "$previous_maintenance_image" >/dev/null
+  docker pull "$rollback_clamd_image" >/dev/null
   compose --profile maintenance run --rm --entrypoint freshclam clamav-update --verbose || true
+  compose up -d clamd
+  wait_for_healthy clamd 300
   compose up -d ollama-proxy gateway
   wait_for_healthy ollama-proxy 180
   wait_for_healthy gateway 300

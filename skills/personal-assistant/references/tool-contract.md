@@ -88,8 +88,8 @@ den fuehrenden Launcher durch `/opt/openclaw-agent/scripts/assistant.sh` ersetze
 
 | Tool-ID | Modus | externe Wirkung | Approval | Verfuegbarkeit | Kommando | Test |
 |---|---|---:|---|---|---|---|
-| `security.antivirus.doctor` | `read` | nein | `none` | `always` | `./scripts/assistant.sh security antivirus doctor` | `tests/test_antivirus_tool.py` |
-| `security.antivirus.self-test` | `read` | nein | `none` | `always` | `./scripts/assistant.sh security antivirus self-test` | `tests/test_antivirus_tool.py` |
+| `security.antivirus.doctor` | `read` | nein | `none` | `always` | `./scripts/assistant.sh security antivirus doctor` | `tests/test_clamd_socket_m14.py` |
+| `security.antivirus.self-test` | `read` | nein | `none` | `always` | `./scripts/assistant.sh security antivirus self-test` | `tests/test_clamd_socket_m14.py` |
 | `security.antivirus.scan` | `read` | nein | `host-antivirus-read-only` | `always` | `./scripts/assistant.sh security antivirus scan --file "personal_assistant/data/workspace_outbox/<Datei>"` | `tests/test_antivirus_tool.py` |
 
 ## nextcloud

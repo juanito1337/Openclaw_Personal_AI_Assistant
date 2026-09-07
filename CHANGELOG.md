@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Security/M14: Der vorhandene Signatur-Updater bleibt alleiniger Writer,
+  während ein neuer non-root `clamd` ohne Netzwerk die Datenbank resident lädt.
+  Gateway, Mailworker und Operator-CLI streamen Scanbytes über einen privaten,
+  read-only gemounteten Unix-Socket; Clean, Malware, Socketfehler und
+  Standalone-Fallback werden getrennt und ohne Inhaltsdaten diagnostiziert.
+- Mailindex/M14: Backfill und Reconcile verlangen vor jedem Lauf einen gesunden
+  Daemon mit frischer belegter Signaturidentität. Ein funktionierender, aber
+  langsamer `clamscan`-Fallback bleibt für begrenzte Einzeloperationen erhalten,
+  kann jedoch keine Indexbereitschaft oder vollständige Generation vortäuschen.
+  Produktiver Canary, Vollbackfill und Jobaktivierung bleiben getrennt
+  freizugebende M14.8-Betriebsaktionen.
+
 - Mail/Agent: Die kontoweite Suche normalisiert nun auch die eng begrenzte
   deutsche Orts-/Namenspraeposition `am`, waehrend alle bedeutungstragenden
   Begriffe weiterhin gemeinsam erfuellt sein muessen. Dadurch verdeckt ein

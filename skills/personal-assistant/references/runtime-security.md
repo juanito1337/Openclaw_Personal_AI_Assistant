@@ -65,6 +65,13 @@ scanner/signature identity. Infected mail goes to the configured quarantine;
 scanner errors block forwarding and writes. Never upload suspicious material to
 an external scanner or disable antivirus to make an operation succeed.
 
+In Docker, `clamav-update` is only the signature writer. The separate netless
+`clamd` service keeps the verified database resident and accepts bounded streams
+through the private role-mounted Unix socket. Interpret `scanner_works`,
+`daemon_ready`, `signatures_fresh`, `transport`, `fallback_used` and
+`index_readiness` separately. A clean standalone `clamscan` fallback is not a
+healthy daemon and cannot authorize mail backfill, reconciliation or job start.
+
 ## Monitoring and failure handling
 
 Use `monitor status --days 7 --live`, `monitor record` and `monitor history` for

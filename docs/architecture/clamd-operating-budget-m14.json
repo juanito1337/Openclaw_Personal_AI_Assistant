@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "status": "development-candidate",
+  "measured_at": "2026-09-07",
+  "release": "3.4.0-r28",
+  "transport": "unix-instream",
+  "container": {
+    "network_mode": "none",
+    "user": "100:101",
+    "read_only_root": true,
+    "cap_drop": ["ALL"],
+    "cpus": 2.0,
+    "memory_bytes": 2147483648,
+    "pids": 64,
+    "tmpfs_bytes": 134217728
+  },
+  "scanner": {
+    "max_stream_bytes": 100000000,
+    "max_threads": 2,
+    "max_queue": 16,
+    "scan_timeout_seconds": 120,
+    "self_check_seconds": 600,
+    "signature_max_age_seconds": 172800
+  },
+  "acceptance": {
+    "hermetic_real_daemon": true,
+    "clean_stream": true,
+    "synthetic_malware_stream": true,
+    "production_capacity_measured": false,
+    "production_backfill_window_accepted": false,
+    "seven_day_observation_complete": false
+  }
+}

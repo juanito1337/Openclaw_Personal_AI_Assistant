@@ -2,7 +2,7 @@
   "schema_version": 1,
   "inventory_date": "2026-08-06",
   "source_scope": "all Python modules, shell entrypoints, skills, systemd units, migrations and Markdown documents",
-  "component_count": 461,
+  "component_count": 472,
   "classification_values": [
     "active",
     "compatibility",
@@ -47,6 +47,7 @@
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
         "docs/DOCKER_DEPLOYMENT.md",
         "docs/INVOICE_QUALITY_REPROCESSING_ROADMAP.md",
+        "docs/MAIL_ANTIVIRUS_INDEX_ROLLOUT_ROADMAP.md",
         "docs/MAIL_IMAP_RECONCILIATION_ROADMAP.md",
         "docs/MAIL_QUALITY_REVIEW_ROADMAP.md",
         "docs/MAIL_SEARCH_INDEXING_ROADMAP.md",
@@ -92,7 +93,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-02T20:32:12+02:00",
+      "last_git_change": "2026-09-04T12:05:58+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -244,6 +245,29 @@
       "rollback_relevance": "none"
     },
     {
+      "path": "docker/clamav-socket-init.sh",
+      "types": [
+        "shell-entrypoint"
+      ],
+      "owner": "Operations Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "Dockerfile",
+        "compose.yaml",
+        "scripts/check-m14-integration.sh",
+        "scripts/check-role-images.sh"
+      ],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
       "path": "docker/clamav-update.sh",
       "types": [
         "shell-entrypoint"
@@ -258,6 +282,28 @@
       "documentation_evidence": [],
       "line_coverage_percent": null,
       "last_git_change": "2026-08-06T15:45:31+02:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "docker/clamd.sh",
+      "types": [
+        "shell-entrypoint"
+      ],
+      "owner": "Operations Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "Dockerfile",
+        "compose.yaml",
+        "scripts/check-role-images.sh"
+      ],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -923,7 +969,7 @@
         "docs/ROADMAP.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-02T20:32:12+02:00",
+      "last_git_change": "2026-09-04T09:23:19+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -980,7 +1026,9 @@
       "classification": "active",
       "productive_callers": [],
       "test_evidence": [],
-      "documentation_evidence": [],
+      "documentation_evidence": [
+        "docs/MAIL_ANTIVIRUS_INDEX_ROLLOUT_ROADMAP.md"
+      ],
       "line_coverage_percent": null,
       "last_git_change": "2026-07-28T00:07:47+02:00",
       "runtime_telemetry": {
@@ -1121,7 +1169,7 @@
         "docs/architecture/adr/0009-typisierte-domaenen-toolvertraege.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-01T21:40:11+02:00",
+      "last_git_change": "2026-09-04T08:45:49+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1402,6 +1450,69 @@
       "rollback_relevance": "none"
     },
     {
+      "path": "docs/MAIL_ANTIVIRUS_INDEX_BASELINE_M140.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Documentation Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "README.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "docs/MAIL_ANTIVIRUS_INDEX_M14_ACCEPTANCE.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Documentation Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "README.md",
+        "docs/ROADMAP.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "docs/MAIL_ANTIVIRUS_INDEX_ROLLOUT_ROADMAP.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Documentation Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "README.md",
+        "docs/ANTIVIRUS.md",
+        "docs/ROADMAP.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
       "path": "docs/MAIL_IMAP_RECONCILIATION_BASELINE.md",
       "types": [
         "document"
@@ -1582,6 +1693,7 @@
         "README.md",
         "docs/BUILD_AND_CI.md",
         "docs/DOCKER_DEPLOYMENT.md",
+        "docs/MAIL_ANTIVIRUS_INDEX_M14_ACCEPTANCE.md",
         "docs/MAIL_SEARCH_INDEXING_ROADMAP.md",
         "docs/SEARCH.md",
         "docs/TESTING.md",
@@ -1773,9 +1885,11 @@
       "documentation_evidence": [
         "README.md",
         "docs/AGENT_TOOL_ORCHESTRATION_ROADMAP.md",
+        "docs/ANTIVIRUS.md",
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
         "docs/DOCKER_DEPLOYMENT.md",
         "docs/INVOICE_QUALITY_REPROCESSING_ROADMAP.md",
+        "docs/MAIL_ANTIVIRUS_INDEX_ROLLOUT_ROADMAP.md",
         "docs/MAIL_IMAP_RECONCILIATION_ROADMAP.md",
         "docs/MAIL_QUALITY_REVIEW_ROADMAP.md",
         "docs/MAIL_SEARCH_INDEXING_ROADMAP.md",
@@ -1903,7 +2017,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-02T20:32:12+02:00",
+      "last_git_change": "2026-09-04T12:05:58+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -2904,6 +3018,27 @@
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-09-02T20:32:12+02:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "docs/architecture/adr/0037-residenter-clamav-daemon-fuer-mailindex.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Architecture Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/architecture/adr/README.md",
+        "docs/architecture/owners.json"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -4034,7 +4169,7 @@
       ],
       "documentation_evidence": [],
       "line_coverage_percent": 40.05,
-      "last_git_change": "2026-08-22T01:48:37+02:00",
+      "last_git_change": "2026-09-04T08:45:49+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -4551,12 +4686,13 @@
       "test_evidence": [
         "tests/integration/m11/scenario.py",
         "tests/integration/m12/scenario.py",
+        "tests/test_clamd_socket_m14.py",
         "tests/test_imap_inventory_m120.py",
         "tests/test_mail_search_backfill_m112.py",
         "tests/test_mail_search_reconcile_m113.py"
       ],
       "documentation_evidence": [],
-      "line_coverage_percent": 82.58,
+      "line_coverage_percent": 83.16,
       "last_git_change": "2026-08-23T17:42:29+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -4600,7 +4736,7 @@
         "tests/test_mail_search_reconcile_m113.py"
       ],
       "documentation_evidence": [],
-      "line_coverage_percent": 85.55,
+      "line_coverage_percent": 85.58,
       "last_git_change": "2026-08-23T17:42:29+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -4912,7 +5048,7 @@
       ],
       "documentation_evidence": [],
       "line_coverage_percent": 58.61,
-      "last_git_change": "2026-08-21T23:28:31+02:00",
+      "last_git_change": "2026-09-04T12:05:58+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -4937,7 +5073,7 @@
       ],
       "documentation_evidence": [],
       "line_coverage_percent": 82.25,
-      "last_git_change": "2026-09-02T20:32:12+02:00",
+      "last_git_change": "2026-09-04T12:05:58+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -4962,6 +5098,7 @@
         "tests/ruff-baseline.json",
         "tests/test_antivirus_tool.py",
         "tests/test_carddav_contact_tools.py",
+        "tests/test_clamd_socket_m14.py",
         "tests/test_mail_agent.py",
         "tests/test_portfolio_tool.py"
       ],
@@ -4970,7 +5107,7 @@
         "docs/architecture/DATA_CATALOG.md",
         "docs/architecture/state-access.json"
       ],
-      "line_coverage_percent": 63.54,
+      "line_coverage_percent": 80.82,
       "last_git_change": "2026-08-06T15:45:31+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -5011,6 +5148,7 @@
       "productive_callers": [
         "Dockerfile",
         "compose.yaml",
+        "docker/clamd.sh",
         "docker/healthcheck.sh",
         "docker/scripts/deploy.sh",
         "scripts/benchmark-m7.py",
@@ -5050,6 +5188,55 @@
       "documentation_evidence": [],
       "line_coverage_percent": 77.36,
       "last_git_change": "2026-08-17T16:56:00+02:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "personal_assistant/clamd_client.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Core Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "Dockerfile",
+        "docker/scripts/check-maintenance-runtime.sh",
+        "scripts/check-m14-integration.sh",
+        "scripts/check-role-images.sh"
+      ],
+      "test_evidence": [
+        "tests/test_clamd_socket_m14.py"
+      ],
+      "documentation_evidence": [],
+      "line_coverage_percent": 77.99,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "personal_assistant/clamd_health.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Core Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "Dockerfile",
+        "compose.yaml",
+        "docker/healthcheck.sh",
+        "docker/scripts/check-maintenance-runtime.sh",
+        "scripts/check-role-images.sh"
+      ],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": 0.0,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -5107,7 +5294,7 @@
         "docs/archive/AUDIT_INITIAL_IMPORT.md"
       ],
       "line_coverage_percent": 44.44,
-      "last_git_change": "2026-09-01T21:40:11+02:00",
+      "last_git_change": "2026-09-04T09:23:19+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -5243,8 +5430,8 @@
         "tests/test_mail_search_reconcile_m113.py"
       ],
       "documentation_evidence": [],
-      "line_coverage_percent": 37.27,
-      "last_git_change": "2026-08-23T17:42:29+02:00",
+      "line_coverage_percent": 38.18,
+      "last_git_change": "2026-09-04T08:45:49+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -5431,7 +5618,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": 100.0,
-      "last_git_change": "2026-08-23T17:42:29+02:00",
+      "last_git_change": "2026-09-04T08:45:49+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -5642,6 +5829,7 @@
       "owner": "Core Maintainers",
       "classification": "active",
       "productive_callers": [
+        "Dockerfile",
         "mail_agent/invoice_reprocess.py",
         "mail_agent/nextcloud.py",
         "scripts/check-role-images.sh"
@@ -6935,7 +7123,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": 39.06,
-      "last_git_change": "2026-08-23T17:42:29+02:00",
+      "last_git_change": "2026-09-04T08:45:49+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -7191,7 +7379,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": 100.0,
-      "last_git_change": "2026-09-01T21:40:11+02:00",
+      "last_git_change": "2026-09-04T08:45:49+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -7276,7 +7464,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": 100.0,
-      "last_git_change": "2026-09-02T20:32:12+02:00",
+      "last_git_change": "2026-09-04T12:05:58+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -7492,6 +7680,7 @@
         "tests/test_caldav_update_tools.py",
         "tests/test_carddav_contact_tools.py",
         "tests/test_carddav_contact_update.py",
+        "tests/test_clamd_socket_m14.py",
         "tests/test_direct_calendar_tool.py",
         "tests/test_direct_tasks_tool.py",
         "tests/test_invoice_effect_contract_m101.py",
@@ -7521,7 +7710,7 @@
         "tests/test_work_scheduler.py"
       ],
       "documentation_evidence": [],
-      "line_coverage_percent": 82.0,
+      "line_coverage_percent": 82.13,
       "last_git_change": "2026-08-23T02:59:16+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -7687,6 +7876,7 @@
         "docs/INVOICE_QUALITY_BASELINE_M10.md",
         "docs/INVOICE_QUALITY_REPROCESSING_ROADMAP.md",
         "docs/JOB_CONTROL.md",
+        "docs/MAIL_ANTIVIRUS_INDEX_BASELINE_M140.md",
         "docs/MAIL_IMAP_RECONCILIATION_BASELINE.md",
         "docs/MAIL_MOVE.md",
         "docs/MAIL_QUALITY_REVIEW_ROADMAP.md",
@@ -8233,6 +8423,31 @@
       "rollback_relevance": "none"
     },
     {
+      "path": "scripts/check-m14-integration.sh",
+      "types": [
+        "shell-entrypoint"
+      ],
+      "owner": "Build Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        ".github/workflows/container.yml"
+      ],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/ANTIVIRUS.md",
+        "docs/MAIL_ANTIVIRUS_INDEX_BASELINE_M140.md",
+        "docs/MAIL_ANTIVIRUS_INDEX_M14_ACCEPTANCE.md",
+        "docs/TESTING.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
       "path": "scripts/check-m8-integration.sh",
       "types": [
         "shell-entrypoint"
@@ -8308,6 +8523,7 @@
         "docs/INVOICE_M10_ROLLOUT.md",
         "docs/INVOICE_QUALITY_BASELINE_M10.md",
         "docs/INVOICE_QUALITY_REPROCESSING_ROADMAP.md",
+        "docs/MAIL_ANTIVIRUS_INDEX_ROLLOUT_ROADMAP.md",
         "docs/MAIL_IMAP_RECONCILIATION_BASELINE.md",
         "docs/MAIL_IMAP_RECONCILIATION_ROADMAP.md",
         "docs/MAIL_QUALITY_REVIEW_ROADMAP.md",
@@ -8726,7 +8942,6 @@
       ],
       "documentation_evidence": [
         "CHANGELOG.md",
-        "docs/ANTIVIRUS.md",
         "docs/CONFIGURATION.md",
         "docs/DOCKER_DEPLOYMENT.md",
         "docs/JOB_CONTROL.md",
@@ -9058,7 +9273,7 @@
         "skills/personal-assistant/references/commands.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-02T20:32:12+02:00",
+      "last_git_change": "2026-09-04T12:05:58+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -9166,7 +9381,7 @@
         "skills/personal-assistant/references/runtime-security.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-01T21:40:11+02:00",
+      "last_git_change": "2026-09-04T08:45:49+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -9466,7 +9681,7 @@
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-02T20:32:12+02:00",
+      "last_git_change": "2026-09-04T12:05:58+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -9650,6 +9865,47 @@
       "documentation_evidence": [],
       "line_coverage_percent": null,
       "last_git_change": "2026-08-06T15:45:31+02:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "tests/test_clamd_compose_m14.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "tests/test_clamd_socket_m14.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "personal_assistant/tool_catalog/security.py"
+      ],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/COMMAND_REFERENCE.md",
+        "skills/personal-assistant/references/tool-contract.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -10253,7 +10509,7 @@
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-01T21:40:11+02:00",
+      "last_git_change": "2026-09-04T08:45:49+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -10456,7 +10712,7 @@
       ],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-21T23:28:31+02:00",
+      "last_git_change": "2026-09-04T08:45:49+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -10537,7 +10793,7 @@
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-09-04T09:23:19+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -10757,7 +11013,7 @@
         "docs/architecture/adr/0032-hybrid-mail-search-und-live-locator.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-21T23:28:31+02:00",
+      "last_git_change": "2026-09-04T12:05:58+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"

@@ -287,9 +287,14 @@ trap - EXIT
 docker run --rm --network none --entrypoint python3 "$maintenance" -P -c '
 import personal_assistant.clamav_health
 import personal_assistant.clamav_transport
+import personal_assistant.clamd_client
+import personal_assistant.clamd_health
 from pathlib import Path
 assert Path("/usr/bin/freshclam").is_file()
 assert Path("/usr/bin/clamscan").is_file()
+assert Path("/usr/sbin/clamd").is_file()
+assert Path("/opt/openclaw-agent/docker/clamd.sh").is_file()
+assert Path("/opt/openclaw-agent/docker/clamav-socket-init.sh").is_file()
 assert not Path("/app").exists()
 assert not Path("/usr/local/bin/openclaw").exists()
 assert not Path("/usr/local/bin/himalaya").exists()

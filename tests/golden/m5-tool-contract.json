@@ -513,7 +513,7 @@
   },
   {
     "id": "security.antivirus.doctor",
-    "description": "ClamAV-Dienst, Signaturstand und einen lokalen Testscan pruefen",
+    "description": "ClamAV-Scannerfunktion, Daemon-Readiness, Signaturstand, aktiven Transport, Fallback und Mailindex-Readiness mit einem lokalen Testscan pruefen",
     "command": "./scripts/assistant.sh security antivirus doctor",
     "mode": "read",
     "writes_external_data": false,

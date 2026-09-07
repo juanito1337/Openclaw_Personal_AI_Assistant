@@ -48,6 +48,8 @@ x-openclaw-common: &openclaw-common
     OPENCLAW_JOB_STATUS_DIR: /var/lib/openclaw/coordination/container_jobs
     OPENCLAW_EVENT_QUEUE_DIR: /var/lib/openclaw/coordination/gateway_events
     OPENCLAW_GATEWAY_PORT: "18789"
+    OPENCLAW_CLAMD_SOCKET: /run/clamav/clamd.sock
+    CLAMAV_SIGNATURE_MAX_AGE_SECONDS: ${CLAMAV_SIGNATURE_MAX_AGE_SECONDS:-172800}
     MAIL_INTERVAL_SECONDS: ${MAIL_INTERVAL_SECONDS:-1200}
     MAIL_INITIAL_DELAY_SECONDS: ${MAIL_INITIAL_DELAY_SECONDS:-120}
     MAIL_DRAIN_BATCH_SIZE: ${MAIL_DRAIN_BATCH_SIZE:-20}
@@ -122,12 +124,84 @@ services:
       - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/instance:/home/node/.openclaw/workspace:ro
       - ${OPENCLAW_CONFIG_DIR:-/srv/openclaw/config}/ollama-priority.env:/etc/openclaw-env/ollama-priority.env:ro
 
+  clamav-socket-init:
+    image: ${OPENCLAW_MAINTENANCE_IMAGE:?OPENCLAW_MAINTENANCE_IMAGE must be set}
+    container_name: openclaw-clamav-socket-init
+    user: "0:0"
+    restart: "no"
+    read_only: true
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE]
+    security_opt:
+      - no-new-privileges:true
+    network_mode: none
+    pids_limit: 16
+    cpus: 0.1
+    mem_limit: 64m
+    logging:
+      driver: local
+      options:
+        max-size: "1m"
+        max-file: "1"
+    entrypoint: ["/sbin/tini", "--", "/opt/openclaw-agent/docker/clamav-socket-init.sh"]
+    volumes:
+      - clamav-socket:/run/clamav
+
+  clamd:
+    image: ${OPENCLAW_CLAMD_IMAGE:-${OPENCLAW_MAINTENANCE_IMAGE:?OPENCLAW_MAINTENANCE_IMAGE must be set}}
+    container_name: openclaw-clamd
+    user: "100:101"
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    network_mode: none
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,noexec,size=128m,mode=1777
+    pids_limit: 64
+    cpus: 2.0
+    mem_limit: 2g
+    logging:
+      driver: local
+      options:
+        max-size: "5m"
+        max-file: "3"
+    stop_grace_period: 2m
+    entrypoint: ["/sbin/tini", "--", "/opt/openclaw-agent/docker/clamd.sh"]
+    environment:
+      OPENCLAW_CLAMD_SOCKET: /run/clamav/clamd.sock
+      CLAMAV_DATABASE_DIR: /var/lib/clamav
+      CLAMAV_SIGNATURE_MAX_AGE_SECONDS: ${CLAMAV_SIGNATURE_MAX_AGE_SECONDS:-172800}
+      CLAMAV_STREAM_MAX_BYTES: ${CLAMAV_STREAM_MAX_BYTES:-100000000}
+      CLAMAV_MAX_THREADS: ${CLAMAV_MAX_THREADS:-2}
+      CLAMAV_MAX_QUEUE: ${CLAMAV_MAX_QUEUE:-16}
+      CLAMAV_SCAN_TIMEOUT_SECONDS: ${CLAMAV_SCAN_TIMEOUT_SECONDS:-120}
+      CLAMAV_SELF_CHECK_SECONDS: ${CLAMAV_SELF_CHECK_SECONDS:-600}
+      PYTHONPATH: /opt/openclaw-agent
+      PYTHONSAFEPATH: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+    depends_on:
+      clamav-socket-init:
+        condition: service_completed_successfully
+    volumes:
+      - clamav-db:/var/lib/clamav:ro
+      - clamav-socket:/run/clamav
+    healthcheck:
+      test: ["CMD", "python3", "-P", "-m", "personal_assistant.clamd_health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 2m
+
   gateway:
     <<: *openclaw-common
     container_name: openclaw-gateway
     pids_limit: 512
     cpus: 2.0
     mem_limit: 2g
+    group_add: ["101"]
     environment:
       <<: *openclaw-environment
       OPENCLAW_ROLE: gateway
@@ -139,6 +213,8 @@ services:
       layout-init:
         condition: service_completed_successfully
       ollama-proxy:
+        condition: service_healthy
+      clamd:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "/opt/openclaw-agent/docker/healthcheck.sh", "gateway"]
@@ -169,6 +245,7 @@ services:
       - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/himalaya-imap-password:/run/openclaw-secrets/himalaya-imap-password:ro
       - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/himalaya-smtp-password:/run/openclaw-secrets/himalaya-smtp-password:ro
       - clamav-db:/var/lib/clamav:ro
+      - clamav-socket:/run/clamav:ro
 
   mail-worker:
     <<: *openclaw-common
@@ -176,6 +253,7 @@ services:
     pids_limit: 256
     cpus: 2.0
     mem_limit: 2g
+    group_add: ["101"]
     environment:
       <<: *openclaw-environment
       OPENCLAW_ROLE: mail-worker
@@ -185,6 +263,8 @@ services:
       layout-init:
         condition: service_completed_successfully
       ollama-proxy:
+        condition: service_healthy
+      clamd:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "/opt/openclaw-agent/docker/healthcheck.sh", "worker", "mail"]
@@ -207,6 +287,7 @@ services:
       - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/himalaya-imap-password:/run/openclaw-secrets/himalaya-imap-password:ro
       - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/himalaya-smtp-password:/run/openclaw-secrets/himalaya-smtp-password:ro
       - clamav-db:/var/lib/clamav:ro
+      - clamav-socket:/run/clamav:ro
 
   sync-worker:
     <<: *openclaw-common
@@ -343,6 +424,7 @@ services:
     pids_limit: 512
     cpus: 2.0
     mem_limit: 2g
+    group_add: ["101"]
     environment:
       <<: *openclaw-environment
       OPENCLAW_ROLE: agent-cli
@@ -372,6 +454,7 @@ services:
       - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/himalaya-imap-password:/run/openclaw-secrets/himalaya-imap-password:ro
       - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/himalaya-smtp-password:/run/openclaw-secrets/himalaya-smtp-password:ro
       - clamav-db:/var/lib/clamav:ro
+      - clamav-socket:/run/clamav:ro
 
   clamav-update:
     image: ${OPENCLAW_MAINTENANCE_IMAGE:?OPENCLAW_MAINTENANCE_IMAGE must be set}
@@ -420,3 +503,4 @@ networks:
 
 volumes:
   clamav-db:
+  clamav-socket:

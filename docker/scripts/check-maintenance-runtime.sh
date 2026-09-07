@@ -11,6 +11,9 @@ common=(
 
 "${common[@]}" --network none --entrypoint /usr/bin/freshclam "$image" --version >/dev/null
 "${common[@]}" --network none --entrypoint /usr/bin/clamscan "$image" --version >/dev/null
+"${common[@]}" --network none --entrypoint /usr/sbin/clamd "$image" --version >/dev/null
+"${common[@]}" --network none --entrypoint python3 "$image" \
+  -P -c 'import personal_assistant.clamd_client; import personal_assistant.clamd_health'
 "${common[@]}" --entrypoint python3 "$image" \
   -P -m personal_assistant.clamav_transport
 

@@ -153,36 +153,39 @@ oder herabgesetzte Sicherheitsregeln umgangen.
 1. Signierte unveraenderliche Digests, Release und Quellrevision verifizieren.
 2. Read-only `mail status`, `mail doctor`, `mail index status`, `mail index
    doctor`, `mail index plan` und `jobs check --target all --deep` erfassen.
-3. Aus dem Plan Mailanzahl, Bytes, erwartete Chunks/Vektoren, freie Platte,
+3. `security antivirus doctor` muss nach ADR-0037 den residenten
+   `daemon-stream`, frische Signaturen und `index_readiness.index_ready=true`
+   belegen. Ein sauberer Standalone-Fallback genügt nicht.
+4. Aus dem Plan Mailanzahl, Bytes, erwartete Chunks/Vektoren, freie Platte,
    Backfilldauer, Peak-RAM und Requestbudget ableiten. Fehlende UIDVALIDITY- oder
    stabile Ordneridentitaet blockiert.
-4. Alle Writer kontrolliert stoppen und mit dem Deployment-Backupvertrag ein
+5. Alle Writer kontrolliert stoppen und mit dem Deployment-Backupvertrag ein
    lokales Releasebackup erstellen; `verify-backup.sh` und `restore-test.sh`
    muessen erfolgreich sein. Fuer externe Mailaenderungen bleibt ein
    verifizierter IMAP-Snapshot-/Restore-Hook separat erforderlich.
-5. Schema additiv in Staging migrieren, `PRAGMA quick_check`, Foreign Keys,
+6. Schema additiv in Staging migrieren, `PRAGMA quick_check`, Foreign Keys,
    Projektionsdigests und vorherige Indexgeneration pruefen. Nie eine produktive
    SQLite zur Reparatur loeschen oder neu anlegen.
-6. Vorherige Laufzeit starten und genau einen kleinen, zeitlich oder nach
+7. Vorherige Laufzeit starten und genau einen kleinen, zeitlich oder nach
    freigegebenem Testordner begrenzten Canary-Backfill ausfuehren. Er bleibt
    lokaler Write und benoetigt die unveraenderte explizite Freigabe.
-7. Serverinventar und Index nach Anzahl und stabilen Identitaeten vergleichen;
+8. Serverinventar und Index nach Anzahl und stabilen Identitaeten vergleichen;
    blockierte Inhalte, Teilordner, Frische, FTS, Locator, Scannerstatus,
    Laufzeit, Bytes und RAM dokumentieren. Bis 100 % belegter Coverage bleibt die
    Gesamtsuche sichtbar unvollstaendig.
-8. Erst nach neuer ausdruecklicher Freigabe den resumierbaren Vollbackfill mit
+9. Erst nach neuer ausdruecklicher Freigabe den resumierbaren Vollbackfill mit
    den geprueften Grenzen ausfuehren. Semantik bleibt aus.
-9. Lokale und Serversuche im Shadow-Canary mit denselben inhaltsfreien
+10. Lokale und Serversuche im Shadow-Canary mit denselben inhaltsfreien
    Goldquery-IDs vergleichen; Recall/MRR/nDCG, Latenz, Fallback und Konflikte
    nachmessen.
-10. `auto` nur bei gruenem Shadowvergleich aktivieren. Ein reales
+11. `auto` nur bei gruenem Shadowvergleich aktivieren. Ein reales
     Embeddingmodell erfordert danach eine eigene Zwei-Modell-Zielhardwareabnahme,
     vollständige Digests und separate Freigabe.
-11. Den inkrementellen Canary separat aktivieren und mindestens sieben Tage
+12. Den inkrementellen Canary separat aktivieren und mindestens sieben Tage
     Coverage, externe Moves, Copy/Delete, Quarantaene, UIDVALIDITY, Bodyfetches,
     Wiederverwendung, ClamAV-/Embeddingaufrufe, Fallbackrate und Ressourcen
     beobachten.
-12. Bei Verschlechterung Indexjob stoppen, Serversuche erzwingen, vorherige
+13. Bei Verschlechterung Indexjob stoppen, Serversuche erzwingen, vorherige
     verifizierte lokale Generation und Runtime gemaess Rollbackvertrag
     wiederherstellen. Ein Image-/Indexrollback veraendert oder ersetzt keine
     externe Mail und darf das auch nicht behaupten.

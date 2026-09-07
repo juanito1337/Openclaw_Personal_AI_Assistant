@@ -35,6 +35,9 @@ class Scanner:
     def __init__(self) -> None:
         self.calls = 0
 
+    def index_readiness(self) -> dict[str, object]:
+        return {"ok": True, "index_ready": True, "transport": "fixture"}
+
     def scanner_identity(self, *, refresh: bool = False) -> str:
         del refresh
         return "fixture-scanner:v1"

@@ -26,6 +26,9 @@ case "$mode" in
   clamav)
     python3 -P -m personal_assistant.clamav_health >/dev/null
     ;;
+  clamd)
+    python3 -P -m personal_assistant.clamd_health >/dev/null
+    ;;
   workspace)
     "$image_root/scripts/assistant.sh" version --verify >/dev/null
     ;;

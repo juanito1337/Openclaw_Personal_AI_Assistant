@@ -89,6 +89,9 @@ class FakeScanner:
     def scanner_identity(self, *, refresh: bool = False) -> str:
         return self.identity
 
+    def index_readiness(self) -> dict[str, object]:
+        return {"ok": True, "index_ready": True, "transport": "test-double"}
+
     def scan_bytes(
         self,
         data: bytes,

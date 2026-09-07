@@ -23,6 +23,8 @@
     "monitor-worker": {"instance": "ro", "mail": "ro", "portfolio": "ro", "monitoring": "rw", "knowledge": "ro", "core": "ro", "security": "ro", "coordination": "rw"},
     "agent-cli": {"gateway": "rw", "instance": "rw", "mail": "rw", "orders": "rw", "portfolio": "rw", "monitoring": "rw", "knowledge": "rw", "core": "rw", "security": "rw", "coordination": "rw"},
     "layout-init": {"state-root": "rw"},
+    "clamav-socket-init": {},
+    "clamd": {},
     "clamav-update": {}
   },
   "shared_contracts": {

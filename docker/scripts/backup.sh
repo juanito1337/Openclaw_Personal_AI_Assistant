@@ -48,6 +48,8 @@ previous_proxy=${PREVIOUS_PROXY_IMAGE:-${OPENCLAW_PROXY_IMAGE:-$previous}}
 target_proxy=${TARGET_PROXY_IMAGE:-${OPENCLAW_PROXY_IMAGE:-$target}}
 previous_maintenance=${PREVIOUS_MAINTENANCE_IMAGE:-${OPENCLAW_MAINTENANCE_IMAGE:-$previous}}
 target_maintenance=${TARGET_MAINTENANCE_IMAGE:-${OPENCLAW_MAINTENANCE_IMAGE:-$target}}
+previous_clamd=${PREVIOUS_CLAMD_IMAGE:-${OPENCLAW_CLAMD_IMAGE:-}}
+target_clamd=${TARGET_CLAMD_IMAGE:-${OPENCLAW_CLAMD_IMAGE:-$target_maintenance}}
 external=${EXTERNAL_BACKUP_REFERENCE:-}
 previous_runtime=${PREVIOUS_RUNTIME:-${OPENCLAW_CURRENT_RUNTIME:-docker}}
 legacy_home=${OPENCLAW_LEGACY_HOME:-}
@@ -55,7 +57,7 @@ legacy_migration_backup=${OPENCLAW_LEGACY_MIGRATION_BACKUP:-}
 legacy_migration_member=${OPENCLAW_LEGACY_MIGRATION_MEMBER:-}
 legacy_migration_sha256=${OPENCLAW_LEGACY_MIGRATION_SHA256:-}
 
-python3 - "$destination/manifest.json" "$backup_id" "$previous" "$target" "$archive_sha" "$external" "$previous_runtime" "$legacy_home" "$legacy_migration_backup" "$legacy_migration_member" "$legacy_migration_sha256" "$previous_proxy" "$target_proxy" "$previous_maintenance" "$target_maintenance" <<'PY'
+python3 - "$destination/manifest.json" "$backup_id" "$previous" "$target" "$archive_sha" "$external" "$previous_runtime" "$legacy_home" "$legacy_migration_backup" "$legacy_migration_member" "$legacy_migration_sha256" "$previous_proxy" "$target_proxy" "$previous_maintenance" "$target_maintenance" "$previous_clamd" "$target_clamd" <<'PY'
 from datetime import datetime, timezone
 import json, os, socket, sys
 from pathlib import Path
@@ -78,6 +80,8 @@ payload={
   "target_proxy_image": sys.argv[13],
   "previous_maintenance_image": sys.argv[14],
   "target_maintenance_image": sys.argv[15],
+  "previous_clamd_image": sys.argv[16],
+  "target_clamd_image": sys.argv[17],
   "state_directory": os.environ.get("OPENCLAW_STATE_DIR", ""),
   "verified": False,
 }

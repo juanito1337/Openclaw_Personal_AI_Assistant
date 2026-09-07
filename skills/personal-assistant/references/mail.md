@@ -161,6 +161,13 @@ blocked status. Do not inspect or expose blocked body text, index attachment
 bytes, send them externally or bypass the gate. Provider spam/quarantine remains
 untrusted rescue-only content even when locally indexed.
 
+M14 additionally requires `index_readiness.index_ready=true` before backfill or
+reconcile performs its first Raw-Fetch. In Docker this means a responsive private
+`clamd` Unix socket and a fresh active Engine-/Signaturidentität. A successful
+Standalone-Fallback remains usable only according to the existing bounded
+single-operation contract; it must not start the index or turn a partial staging
+generation into current coverage.
+
 ## M11.3 incremental index reconciliation
 
 `mail index reconcile` is a bounded local-write tool with approval label

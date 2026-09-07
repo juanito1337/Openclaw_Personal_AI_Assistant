@@ -22,6 +22,7 @@ COPY personal_assistant /personal_assistant
 COPY skills/personal-assistant /skills/personal-assistant
 COPY scripts/assistant.sh scripts/mail-agent.sh scripts/ollama-priority-proxy.sh /scripts/
 COPY docker/entrypoint.sh docker/healthcheck.sh docker/job_loop.py docker/clamav-update.sh \
+     docker/clamd.sh docker/clamav-socket-init.sh \
      docker/himalaya-agent-guard.sh /docker/
 
 FROM ${OPENCLAW_BASE_IMAGE} AS openclaw-source
@@ -251,13 +252,15 @@ RUN apk add --no-cache \
        tini=0.19.0-r3
 COPY VERSION RELEASE.json /opt/openclaw-agent/
 COPY personal_assistant/__init__.py personal_assistant/clamav_health.py \
-     personal_assistant/clamav_transport.py /opt/openclaw-agent/personal_assistant/
-COPY docker/clamav-update.sh /opt/openclaw-agent/docker/
+     personal_assistant/clamav_transport.py personal_assistant/clamd_client.py \
+     personal_assistant/clamd_health.py /opt/openclaw-agent/personal_assistant/
+COPY docker/clamav-update.sh docker/clamd.sh docker/clamav-socket-init.sh \
+     /opt/openclaw-agent/docker/
 COPY docker/supply-chain.lock.json /usr/share/openclaw/supply-chain.lock.json
 WORKDIR /opt/openclaw-agent
 RUN printf '%s\n' "${OPENCLAW_SOURCE_REVISION}" > SOURCE_REVISION \
     && chmod 0444 SOURCE_REVISION VERSION RELEASE.json \
-    && chmod 0555 docker/clamav-update.sh \
+    && chmod 0555 docker/clamav-update.sh docker/clamd.sh docker/clamav-socket-init.sh \
     && chmod -R a-w /opt/openclaw-agent \
     && install -d -m 0750 -o clamav -g clamav /var/lib/clamav /var/log/clamav
 ENV OPENCLAW_RUNTIME=container \

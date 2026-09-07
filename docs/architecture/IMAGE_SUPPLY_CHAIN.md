@@ -15,7 +15,7 @@ Layout 3, haben aber nach Messung drei Runtime-Ziele:
 | --- | --- | --- |
 | `runtime` | Layout-Init, Gateway, alle Fachworker, agent-cli | OpenClaw, kompletter Assistant, Himalaya, OCR und ClamAV |
 | `proxy-runtime` | Ollama-Prioritaetsproxy | Python-Standardbibliothek, CA, curl und tini; kein OpenClaw, Mail, OCR oder ClamAV |
-| `maintenance-runtime` | ClamAV-Updater | freshclam/clamscan, Healthmodul und tini; kein OpenClaw, Mail, OCR oder Himalaya |
+| `maintenance-runtime` | ClamAV-Socket-Init, residenter Scanner und Updater | freshclam/clamd/clamscan, Socket-/Healthmodule und tini; kein OpenClaw, Mail, OCR oder Himalaya |
 
 Brave und Signal sind offizielle externe OpenClaw-Plugins und deshalb direkte
 Buildinputs des Runtime-Images. `docker/openclaw-plugins/package.json` pinnt ihre
@@ -29,6 +29,12 @@ Worker rufen OpenClaw sowie Mail-, OCR- oder Antiviruspfade direkt auf. Eine wei
 Trennung ohne eigene Prozessschnittstelle wuerde Code duplizieren oder ungetestete
 Laufzeitpfade erzeugen. Proxy und Maintenance haben dagegen nachweislich keine
 solche Abhaengigkeit und reduzieren durch eigene Targets die Angriffsoberflaeche.
+
+Die drei ClamAV-Dienste teilen nur das minimale Maintenance-Image. Ihre
+Laufzeitrechte bleiben getrennt: Nur der Updater besitzt Egress und schreibt
+Signaturen, nur der Initializer besitzt die eng begrenzten Rechte fuer das
+Socketvolume, und `clamd` liest Signaturen read-only und besitzt weder Netz noch
+Capabilities.
 
 Tests, `docs/`, Deploymentskripte, Legacy-Units, Entwicklungswerkzeuge und
 Entwicklungs-Metadaten werden durch explizite `COPY`-Mengen und `.dockerignore`
@@ -105,10 +111,12 @@ Kann das digest-gepinnte Cosign-Pruefimage nicht gestartet werden, ist die Refer
 veraenderlich, ist das Image unsigniert oder passt eine Identitaet nicht, endet der
 Vorgang vor jeder Laufzeitaenderung. Der Verifier nutzt ein read-only Rootfs ohne
 Capabilities und bindet nur die vorhandene Docker-Registry-Konfiguration read-only
-ein; ein separates Host-Cosign ist nicht erforderlich. Backups halten
-alle drei vorherigen Digestreferenzen fest; Rollback stellt denselben Rollensatz
-wieder her. Ein Image-/State-Rollback stellt keine erfolgreichen Remote-Writes
-wieder her.
+ein; ein separates Host-Cosign ist nicht erforderlich. Backups halten alle drei
+vorherigen Rollen-Digestreferenzen und ab M14 zusätzlich den expliziten
+Scanner-Digest fest. Beim einmaligen Übergangsrollback auf einen pre-M14-Updater
+bleibt das bereits verifizierte M14-Scannerimage als Compose-Kompatibilität
+erhalten; danach wird auch der vorherige Scanner-Digest exakt wiederhergestellt.
+Ein Image-/State-Rollback stellt keine erfolgreichen Remote-Writes wieder her.
 
 ## Reproduzierbare Messung
 
