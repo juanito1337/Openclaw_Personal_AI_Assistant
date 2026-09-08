@@ -20,7 +20,9 @@
   Rollback auf einen Vor-M14-Stack bleibt das bereits verifizierte M14-
   Maintenance-Image nun für `clamd` und seinen Socket-Initialisierer gemeinsam
   erhalten, statt den Initialisierer aus einem alten Image ohne das Skript zu
-  starten.
+  starten. Nach dem expliziten `clamd`-Gesundheitscheck starten Gateway und
+  Worker ohne erneutes Traversieren dieser One-shot-Abhängigkeit, sodass der
+  aktive Socket weder entfernt noch neu initialisiert wird.
 
 - Mail/Agent: Die kontoweite Suche normalisiert nun auch die eng begrenzte
   deutsche Orts-/Namenspraeposition `am`, waehrend alle bedeutungstragenden

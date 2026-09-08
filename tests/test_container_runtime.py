@@ -403,7 +403,7 @@ raise SystemExit(86)
 
         self.assertNotIn(jobs_command, smoke)
         workers_started = deploy.index(
-            "compose up -d mail-worker sync-worker supervisor-worker portfolio-worker monitor-worker"
+            "compose up -d --no-deps mail-worker sync-worker supervisor-worker portfolio-worker monitor-worker"
         )
         supervisor_healthy = deploy.index("wait_for_healthy supervisor-worker 180", workers_started)
         portfolio_healthy = deploy.index("wait_for_healthy portfolio-worker 180", supervisor_healthy)
@@ -413,6 +413,22 @@ raise SystemExit(86)
         self.assertLess(supervisor_healthy, portfolio_healthy)
         self.assertLess(portfolio_healthy, monitor_healthy)
         self.assertLess(monitor_healthy, jobs_checked)
+
+    def test_deploy_and_rollback_do_not_rerun_live_clamd_socket_initializer(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        for script_name in ("deploy.sh", "rollback.sh"):
+            script = (root / "docker/scripts" / script_name).read_text(encoding="utf-8")
+            clamd_start = script.index("compose up -d clamd")
+            gateway_start = script.index(
+                "compose up -d --no-deps ollama-proxy gateway", clamd_start
+            )
+            worker_start = script.index(
+                "compose up -d --no-deps mail-worker sync-worker supervisor-worker "
+                "portfolio-worker monitor-worker",
+                gateway_start,
+            )
+            self.assertLess(clamd_start, gateway_start)
+            self.assertLess(gateway_start, worker_start)
 
     def test_business_workers_use_scheduler_but_supervisor_stays_independent(self) -> None:
         root = Path(__file__).resolve().parents[1]

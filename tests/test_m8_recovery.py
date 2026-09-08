@@ -168,8 +168,11 @@ def test_failed_external_restore_still_starts_verified_old_local_state(tmp_path:
     assert (tmp_path / "openclaw/state/release.txt").read_text() == "safe-old-state\n"
     commands = docker_log.read_text(encoding="utf-8")
     assert "compose" in commands and "down --remove-orphans" in commands
-    assert "up -d ollama-proxy gateway" in commands
-    assert "up -d mail-worker sync-worker supervisor-worker portfolio-worker monitor-worker" in commands
+    assert "up -d --no-deps ollama-proxy gateway" in commands
+    assert (
+        "up -d --no-deps mail-worker sync-worker supervisor-worker portfolio-worker monitor-worker"
+        in commands
+    )
     deployed = env_file.read_text(encoding="utf-8")
     assert "OPENCLAW_IMAGE=fixture.invalid/openclaw:old\n" in deployed
     assert "OPENCLAW_MAINTENANCE_IMAGE=fixture.invalid/openclaw:new-maintenance\n" in deployed
@@ -204,7 +207,7 @@ def test_rollback_normalizes_runtime_owned_paths_before_restore(tmp_path: Path) 
     assert len(chown_calls) == 2
     assert all(str(tmp_path / "openclaw/state") in call for call in chown_calls)
     commands = docker_log.read_text(encoding="utf-8")
-    assert "up -d ollama-proxy gateway" in commands
+    assert "up -d --no-deps ollama-proxy gateway" in commands
 
 
 def _stub(path: Path, body: str) -> None:
@@ -536,10 +539,11 @@ def test_failed_product_smoke_runs_automatic_rollback_and_surfaces_rollback_fail
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
     _stub(
-        fake_bin / "docker",
-        'if [ "${1:-}" = "compose" ]; then\n'
-        '  if [ "${M8_FAIL_CANDIDATE_UP:-}" = "true" ] && '
-        'printf "%s" " $* " | grep -Fq " up -d ollama-proxy gateway "; then exit 31; fi\n'
+            fake_bin / "docker",
+            'if [ "${1:-}" = "compose" ]; then\n'
+            '  if [ "${M8_FAIL_CANDIDATE_UP:-}" = "true" ] && '
+            'printf "%s" " $* " | grep -Fq " up -d --no-deps ollama-proxy gateway "; '
+            'then exit 31; fi\n'
         '  case " $* " in *" ps -q "*) printf "m8-id\\n";; esac\n'
         'elif [ "${1:-}" = "inspect" ]; then\n'
         '  case " $* " in *"State.Running"*) printf "false\\n";; *) printf "running\\n";; esac\n'

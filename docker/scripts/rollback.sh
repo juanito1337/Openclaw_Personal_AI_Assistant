@@ -202,11 +202,13 @@ else
   compose --profile maintenance run --rm --entrypoint freshclam clamav-update --verbose || true
   compose up -d clamd
   wait_for_healthy clamd 300
-  compose up -d ollama-proxy gateway
+  # clamd and its one-shot socket initializer are already healthy. Traversing
+  # dependencies again would rerun the initializer against the live socket.
+  compose up -d --no-deps ollama-proxy gateway
   wait_for_healthy ollama-proxy 180
   wait_for_healthy gateway 300
   compose --profile maintenance up -d clamav-update
-  compose up -d mail-worker sync-worker supervisor-worker portfolio-worker monitor-worker
+  compose up -d --no-deps mail-worker sync-worker supervisor-worker portfolio-worker monitor-worker
   wait_for_healthy mail-worker 180
   wait_for_healthy sync-worker 180
   wait_for_healthy supervisor-worker 180

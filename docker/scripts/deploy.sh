@@ -270,7 +270,10 @@ compose --profile maintenance run --rm --no-deps --entrypoint python3 clamav-upd
   -P -m personal_assistant.clamav_health
 compose up -d clamd
 wait_for_healthy clamd 300
-compose up -d ollama-proxy gateway
+# clamd and its one-shot socket initializer were already started and verified
+# above. Do not traverse that dependency again: Compose would execute the
+# initializer a second time while the live daemon owns the socket volume.
+compose up -d --no-deps ollama-proxy gateway
 wait_for_healthy ollama-proxy 180
 wait_for_healthy gateway 300
 compose --profile tools run --rm --no-deps agent-cli \
@@ -292,7 +295,7 @@ fi
 "$SCRIPT_DIR/smoke-test.sh" "$write_test"
 compose --profile maintenance up -d clamav-update
 wait_for_healthy clamav-update 180
-compose up -d mail-worker sync-worker supervisor-worker portfolio-worker monitor-worker
+compose up -d --no-deps mail-worker sync-worker supervisor-worker portfolio-worker monitor-worker
 wait_for_healthy mail-worker 180
 wait_for_healthy sync-worker 180
 wait_for_healthy supervisor-worker 180
