@@ -243,6 +243,7 @@ class MailSearchBackfill:
         after_partition: Callable[[str, int], None] | None = None,
         tag_resolver: Callable[[ParsedMessage], tuple[dict[str, Any], ...]] | None = None,
         include_folders: tuple[str, ...] = (),
+        exclude_folders: tuple[str, ...] = (),
     ) -> None:
         self.backend = backend
         self.antivirus = antivirus
@@ -256,11 +257,19 @@ class MailSearchBackfill:
         self.after_partition = after_partition
         self.tag_resolver = tag_resolver
         self.include_folders = {item.casefold() for item in include_folders if item.strip()}
+        self.exclude_folders = {item.casefold() for item in exclude_folders if item.strip()}
 
     def _selected_folders(self, folders: list[BackfillFolder]) -> list[BackfillFolder]:
+        excluded_selected = sorted(self.include_folders & self.exclude_folders)
+        if excluded_selected:
+            raise BackfillBackendError(
+                "canary-folder-excluded",
+                "Ein Malware-Quarantaeneordner darf nicht indexiert werden",
+            )
+        eligible = [row for row in folders if row.name.casefold() not in self.exclude_folders]
         if not self.include_folders:
-            return folders
-        selected = [row for row in folders if row.name.casefold() in self.include_folders]
+            return eligible
+        selected = [row for row in eligible if row.name.casefold() in self.include_folders]
         missing = sorted(
             self.include_folders - {row.name.casefold() for row in selected}
         )
@@ -295,7 +304,11 @@ class MailSearchBackfill:
 
     def plan(self) -> dict[str, Any]:
         capabilities = self.backend.capabilities()
-        folders = self._selected_folders(self.backend.inventory())
+        all_folders = self.backend.inventory()
+        folders = self._selected_folders(all_folders)
+        excluded = [
+            row for row in all_folders if row.name.casefold() in self.exclude_folders
+        ]
         previous = self._load_checkpoint()
         previous_inventory = {
             str(row.get("folder_id")): str(row.get("name"))
@@ -324,6 +337,14 @@ class MailSearchBackfill:
             "writes_local_index": False,
             "resource_id": self.resource_id,
             "folder_count": len(folders),
+            "mailbox_folder_count": len(all_folders),
+            "excluded_folders": [
+                {
+                    **row,
+                    "reason": "malware-quarantine-not-searchable",
+                }
+                for row in self._inventory_payload(excluded)
+            ],
             "folders": [
                 {
                     **row,
@@ -376,7 +397,7 @@ class MailSearchBackfill:
             )
         ).hexdigest()
 
-    def run(self, *, approved: bool) -> dict[str, Any]:
+    def run(self, *, approved: bool, restart: bool = False) -> dict[str, Any]:
         if not approved:
             raise PermissionError("Lokaler Mail-Index-Backfill benoetigt --yes und explizite Freigabe")
         if self.antivirus is None:
@@ -386,13 +407,18 @@ class MailSearchBackfill:
         capabilities = self.backend.capabilities()
         if not capabilities.paging or not capabilities.raw_fetch:
             raise RuntimeError("Connector belegt kein Paging und vollstaendiges Raw-Fetch")
-        folders = self._selected_folders(self.backend.inventory())
+        all_folders = self.backend.inventory()
+        folders = self._selected_folders(all_folders)
+        excluded = [
+            row for row in all_folders if row.name.casefold() in self.exclude_folders
+        ]
         inventory = self._inventory_payload(folders)
         scanner_identity = self.antivirus.scanner_identity(refresh=False)
         fingerprint = self._fingerprint(inventory, capabilities, self.limits, scanner_identity)
         checkpoint = self._load_checkpoint()
         resumed = bool(
             checkpoint
+            and not restart
             and checkpoint.get("fingerprint") == fingerprint
             and checkpoint.get("status") != "complete"
         )
@@ -407,6 +433,7 @@ class MailSearchBackfill:
                 "scanner_identity": scanner_identity,
                 "antivirus_readiness": antivirus_readiness,
                 "inventory": inventory,
+                "excluded_folders": self._inventory_payload(excluded),
                 "capabilities": capabilities.to_dict(),
                 "folders": {
                     row.folder_id: {
@@ -663,6 +690,13 @@ class MailSearchBackfill:
             authoritative=complete,
             incomplete_partition_ids=incomplete,
             incomplete_reasons=incomplete_reasons,
+            excluded_folders=[
+                {
+                    **row,
+                    "reason": "malware-quarantine-not-searchable",
+                }
+                for row in self._inventory_payload(excluded)
+            ],
             generated_at=str(checkpoint["started_at"]),
         )
         checkpoint["status"] = "complete" if complete else "incomplete"
@@ -682,7 +716,17 @@ class MailSearchBackfill:
             "run_id": checkpoint["run_id"],
             "stop_reason": stop_reason,
             "folder_count": len(folders),
+            "mailbox_folder_count": len(all_folders),
+            "excluded_folders": [
+                {
+                    **row,
+                    "reason": "malware-quarantine-not-searchable",
+                }
+                for row in self._inventory_payload(excluded)
+            ],
             "blocked_count": blocked_count,
+            "restart_requested": bool(restart),
+            "previous_checkpoint_replaced": bool(restart and not resumed),
             "checkpoint": str(self.checkpoint_path),
             "manifest": str(manifest),
             "capabilities": capabilities.to_dict(),

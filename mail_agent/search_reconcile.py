@@ -246,6 +246,7 @@ class MailSearchReconciler:
         projection_root: Path,
         state_path: Path,
         quarantine_folders: tuple[str, ...] = (),
+        exclude_folders: tuple[str, ...] = (),
         resource_id: str = "mail-agent",
         limits: ReconcileLimits | None = None,
         monotonic: Callable[[], float] = time.monotonic,
@@ -258,6 +259,7 @@ class MailSearchReconciler:
         self.projection_root = projection_root
         self.state_path = state_path
         self.quarantine = {item.casefold() for item in quarantine_folders}
+        self.exclude_folders = {item.casefold() for item in exclude_folders if item.strip()}
         self.resource_id = resource_id
         self.limits = (limits or ReconcileLimits()).validated()
         self.monotonic = monotonic
@@ -505,9 +507,17 @@ class MailSearchReconciler:
         except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
             return self._failed("invalid-baseline", str(exc), metrics)
         try:
-            folders = self.backend.inventory()
+            all_folders = self.backend.inventory()
         except BackfillBackendError as exc:
             return self._failed(exc.kind, str(exc), metrics)
+        excluded_folders = [
+            folder for folder in all_folders
+            if folder.name.casefold() in self.exclude_folders
+        ]
+        folders = [
+            folder for folder in all_folders
+            if folder.name.casefold() not in self.exclude_folders
+        ]
         if len(folders) > self.limits.max_folders:
             return self._failed("folder-limit", "Ordnerlimit erreicht", metrics)
         if any(not folder.folder_id or not folder.uidvalidity for folder in folders):
@@ -524,7 +534,12 @@ class MailSearchReconciler:
         )
         scans: dict[str, FolderReconcileScan] = {}
         folder_by_id = {folder.folder_id: folder for folder in folders}
-        cursors = dict(state.get("folder_cursors") or {})
+        eligible_folder_ids = {folder.folder_id for folder in folders}
+        cursors = {
+            str(key): str(value)
+            for key, value in dict(state.get("folder_cursors") or {}).items()
+            if str(key) in eligible_folder_ids
+        }
         try:
             for folder in sorted(folders, key=lambda item: item.folder_id):
                 elapsed = self.monotonic() - started
@@ -838,6 +853,7 @@ class MailSearchReconciler:
         tombstones_by_folder: dict[str, list[dict[str, str]]] = defaultdict(list)
         folder_names = {item.folder_id: item.name for item in folders}
         timestamp = now_utc_iso()
+        excluded_folder_ids = {folder.folder_id for folder in excluded_folders}
         for old in old_occurrences.values():
             current_final = final.get(old.occurrence_id)
             final_current_ids = {
@@ -852,6 +868,9 @@ class MailSearchReconciler:
                 if locator_id in final_current_ids:
                     continue
                 folder_id = str(raw_locator["folder_id"])
+                if folder_id in excluded_folder_ids:
+                    metrics["removed"] += 1
+                    continue
                 folder_names.setdefault(folder_id, str(raw_locator.get("folder_name") or ""))
                 tombstones_by_folder[folder_id].append(
                     {
@@ -863,7 +882,16 @@ class MailSearchReconciler:
                 )
                 metrics["removed"] += 1
 
-        changed = any(
+        previous_excluded = {
+            (str(item.get("folder_id") or ""), str(item.get("name") or ""))
+            for item in (previous_root.get("coverage") or {}).get("excluded_folders", [])
+            if isinstance(item, dict)
+        }
+        current_excluded = {
+            (folder.folder_id, folder.name) for folder in excluded_folders
+        }
+        coverage_changed = previous_excluded != current_excluded
+        changed = coverage_changed or any(
             metrics[key] for key in ("new", "changed", "moved", "copied", "removed")
         )
         if not changed and not force_rescan:
@@ -882,6 +910,7 @@ class MailSearchReconciler:
                 "no_op": True,
                 "writes_imap": False,
                 "root_generation": str(previous_root["root_generation"]),
+                "excluded_folders": [folder.name for folder in excluded_folders],
                 "metrics": metrics,
             }
 
@@ -910,6 +939,15 @@ class MailSearchReconciler:
             expected_partition_ids=[str(item["partition_id"]) for item in partition_refs],
             complete=True,
             authoritative=True,
+            excluded_folders=[
+                {
+                    "folder_id": folder.folder_id,
+                    "name": folder.name,
+                    "uidvalidity": folder.uidvalidity,
+                    "reason": "malware-quarantine-not-searchable",
+                }
+                for folder in excluded_folders
+            ],
             generated_at=timestamp,
         )
         published_root = _read_json(self.projection_root / PROJECTION_MANIFEST)
@@ -934,6 +972,7 @@ class MailSearchReconciler:
             "no_op": False,
             "writes_imap": False,
             "root_generation": verified.generation,
+            "excluded_folders": [folder.name for folder in excluded_folders],
             "retention": self._retention(),
             "metrics": metrics,
         }

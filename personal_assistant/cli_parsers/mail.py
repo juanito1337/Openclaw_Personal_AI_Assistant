@@ -201,6 +201,20 @@ def add_commands(sub: Any) -> None:
     index_sub.add_parser("status", help="Coverage, Alter, Generation und semantischen Zustand anzeigen")
     index_sub.add_parser("doctor", help="SQLite, FTS, Locator und Embeddings read-only pruefen")
     index_sub.add_parser("plan", help="Ordner und Connectorfaehigkeiten read-only inventarisieren")
+    index_blocked = index_sub.add_parser(
+        "blocked",
+        help="Fail-closed blockierte Indexfundstellen ohne Mailinhalt anzeigen",
+    )
+    index_blocked.add_argument("--limit", type=int, default=100)
+    index_quarantine = index_sub.add_parser(
+        "quarantine",
+        help="Genau eine erneut verifizierte infizierte Mail explizit quarantänisieren",
+    )
+    index_quarantine.add_argument("--candidate-id", required=True)
+    index_quarantine.add_argument("--expected-source", required=True)
+    index_quarantine.add_argument("--expected-message-id", required=True)
+    index_quarantine.add_argument("--expected-sha256", required=True)
+    index_quarantine.add_argument("--yes", action="store_true")
     index_shadow = index_sub.add_parser(
         "shadow", help="Lokale und aktuelle Serversuche inhaltsfrei vergleichen"
     )
@@ -216,6 +230,7 @@ def add_commands(sub: Any) -> None:
     index_backfill.add_argument("--max-message-bytes", type=int, default=100000000)
     index_backfill.add_argument("--max-runtime", type=float, default=3600.0)
     index_backfill.add_argument("--request-interval", type=float, default=0.2)
+    index_backfill.add_argument("--restart", action="store_true")
     index_backfill.add_argument("--yes", action="store_true")
     index_canary = index_sub.add_parser("canary", help="Explizit gewaehlte Ordner begrenzt lokal indexieren")
     index_canary.add_argument("--folder", action="append", required=True)

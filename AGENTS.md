@@ -207,6 +207,16 @@ same scanner/signature identity. Infected content is quarantined, never deleted;
 scanner errors block forwarding and writes. Never submit suspicious files to an
 external service automatically or bypass scanning to make an action succeed.
 
+The configured malware folder is an explicitly reported, non-searchable security
+scope. Backfill and reconciliation must exclude it before Raw-Fetch and publish
+that exclusion in coverage. Use `mail index blocked` for content-free findings.
+Quarantine exactly one currently checkpoint-bound finding only through `mail
+index quarantine`, after unchanged source/ID/SHA-256 guards, a fresh uncached
+Raw-plus-attachment scan, ActionPlan, mail-owner lock and explicit single-item
+approval. Never bulk-approve findings. After all approved moves use an explicitly
+approved `mail index backfill --restart ...`; do not silently resume the blocked
+checkpoint or enable the job.
+
 In the Docker runtime `clamav-update` only updates signatures; it is not the
 scanner daemon. `clamd` readiness requires the registered socket PING/VERSION and
 fresh active signature identity. A successful `clamscan` fallback proves only one

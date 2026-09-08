@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- Security/M14: Ein inhaltsfreier `mail index blocked`-Report bindet jeden
+  Antivirusfund an Run, Quelle, Mailbox-ID und Raw-SHA-256. Das neue
+  `mail.index.quarantine` verschiebt nach eigener expliziter Einzelfreigabe nur
+  eine erneut bytegenau sowie ohne Cache als infiziert bestaetigte Nachricht in
+  den fest konfigurierten Malware-Ordner. Policy, Mail-Owner-Lock, idempotenter
+  ActionPlan und inhaltsfreies Audit bleiben verpflichtend; Bulk, Zielwahl,
+  Hashkonflikt, unklarer Nachscan und automatischer Retry sind gesperrt.
+- Mailindex/M14: `Agent/Virusverdacht` wird vor jedem Raw-Fetch aus Backfill und
+  Reconcile ausgeschlossen und in Plan, Ergebnis, Status und autoritativer
+  Coverage als `malware-quarantine-not-searchable` ausgewiesen. Nach
+  freigegebenen Einzelquarantaenen ersetzt `mail index backfill --restart` nur
+  den lokalen unvollstaendigen Checkpoint; normaler Resume und separate
+  Jobfreigabe bleiben unveraendert.
+- Betrieb/M14.8: Der produktive Canary belegte 68 Nachrichten und 14.203.451
+  Byte. Der erste Vollbackfill blieb nach 7.876 Nachrichten, 985.296.943 Byte
+  und sechs fail-closed infizierten Fundstellen kontrolliert unvollstaendig.
+  Keine IMAP-/Providerflags wurden geschrieben und der Indexjob bleibt aus.
+
 - Security/M14: Der vorhandene Signatur-Updater bleibt alleiniger Writer,
   während ein neuer non-root `clamd` ohne Netzwerk die Datenbank resident lädt.
   Gateway, Mailworker und Operator-CLI streamen Scanbytes über einen privaten,

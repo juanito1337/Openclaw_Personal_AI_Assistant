@@ -4,9 +4,9 @@
   "plugin_id": "personal-assistant-tools",
   "plugin_path": "/opt/openclaw-plugins/personal-assistant-tools",
   "product_version": "3.4.0-r28",
-  "catalog_sha256": "5c3b15c1cef778c17ad5fb5c38a5ec68551f763a9e6123658e9fdedfd34d9986",
-  "catalog_tool_count": 160,
-  "supported_operation_count": 159,
+  "catalog_sha256": "d3d376d620901aec8bd96405aa980dafee973de4783dcb6ad0cff4832e3447b9",
+  "catalog_tool_count": 163,
+  "supported_operation_count": 162,
   "excluded_operation_count": 1,
   "operations": [
     {
@@ -3077,6 +3077,113 @@
       ]
     },
     {
+      "tool_id": "mail.index.blocked",
+      "domain": "mail",
+      "description": "Fail-closed blockierte Vollkonto-Indexfundstellen ausschliesslich als technische IDs, Status und Hashes anzeigen; keine Mailinhalte",
+      "mode": "read",
+      "writes_external_data": false,
+      "approval": "none",
+      "availability": "always",
+      "command": "./scripts/assistant.sh mail index blocked --limit 100",
+      "argument_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "parameter_bindings": [],
+      "stdin_parameter": null,
+      "supported": true,
+      "exclusion_reason": "",
+      "allowed_claims": [
+        "tool-status",
+        "positive-evidence",
+        "tool-error"
+      ],
+      "error_codes": [
+        "configuration-error",
+        "operation-failed"
+      ]
+    },
+    {
+      "tool_id": "mail.index.quarantine",
+      "domain": "mail",
+      "description": "Genau eine im aktuellen Checkpoint belegte infizierte Mail nach bytegenauer frischer Nachpruefung und expliziter Einzelfreigabe in den fest konfigurierten Malware-Ordner verschieben",
+      "mode": "write",
+      "writes_external_data": true,
+      "approval": "explicit-user-single-infected-mail-quarantine",
+      "availability": "mail-move",
+      "command": "./scripts/assistant.sh mail index quarantine --candidate-id \"<Kandidaten-ID>\" --expected-source \"<Quelle>\" --expected-message-id \"<Mail-ID>\" --expected-sha256 \"<SHA-256>\" --yes",
+      "argument_schema": {
+        "type": "object",
+        "properties": {
+          "candidate_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "expected_source": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "expected_message_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "expected_sha256": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
+        "required": [
+          "candidate_id",
+          "expected_message_id",
+          "expected_sha256",
+          "expected_source"
+        ],
+        "additionalProperties": false
+      },
+      "parameter_bindings": [
+        {
+          "placeholder": "Kandidaten-ID",
+          "parameter": "candidate_id",
+          "required": true
+        },
+        {
+          "placeholder": "Quelle",
+          "parameter": "expected_source",
+          "required": true
+        },
+        {
+          "placeholder": "Mail-ID",
+          "parameter": "expected_message_id",
+          "required": true
+        },
+        {
+          "placeholder": "SHA-256",
+          "parameter": "expected_sha256",
+          "required": true
+        }
+      ],
+      "stdin_parameter": null,
+      "supported": true,
+      "exclusion_reason": "",
+      "allowed_claims": [
+        "tool-status",
+        "positive-evidence",
+        "tool-error",
+        "write-success-with-postcondition"
+      ],
+      "error_codes": [
+        "configuration-error",
+        "permission-denied",
+        "operation-failed"
+      ]
+    },
+    {
       "tool_id": "mail.index.shadow",
       "domain": "mail",
       "description": "Lokale und aktuelle Serversuche read-only anhand technischer Counts und Vollstaendigkeitsbelege vergleichen; unvollstaendige Servernulltreffer sind keine Ground Truth",
@@ -3173,6 +3280,37 @@
       "approval": "explicit-user-local-mail-index-backfill",
       "availability": "always",
       "command": "./scripts/assistant.sh mail index backfill --page-size 50 --max-pages 200 --max-messages 10000 --max-bytes 1000000000 --max-message-bytes 100000000 --max-runtime 3600 --request-interval 0.2 --yes",
+      "argument_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "parameter_bindings": [],
+      "stdin_parameter": null,
+      "supported": true,
+      "exclusion_reason": "",
+      "allowed_claims": [
+        "tool-status",
+        "positive-evidence",
+        "tool-error",
+        "write-success-with-postcondition"
+      ],
+      "error_codes": [
+        "configuration-error",
+        "permission-denied",
+        "operation-failed"
+      ]
+    },
+    {
+      "tool_id": "mail.index.rebuild",
+      "domain": "mail",
+      "description": "Nach einzeln bestaetigten Quarantaenen den vorherigen lokalen Checkpoint atomar ersetzen und den suchberechtigten Vollkonto-Bestand neu aufbauen; IMAP bleibt read-only",
+      "mode": "local-write",
+      "writes_external_data": false,
+      "approval": "explicit-user-local-mail-index-rebuild",
+      "availability": "always",
+      "command": "./scripts/assistant.sh mail index backfill --restart --page-size 50 --max-pages 200 --max-messages 10000 --max-bytes 1000000000 --max-message-bytes 100000000 --max-runtime 3600 --request-interval 0.2 --yes",
       "argument_schema": {
         "type": "object",
         "properties": {},
@@ -6572,6 +6710,7 @@
               "mail.index.status",
               "mail.index.doctor",
               "mail.index.plan",
+              "mail.index.blocked",
               "mail.index.shadow",
               "mail.search.local",
               "mail.learning.status",
@@ -6620,7 +6759,7 @@
               }
             },
             "additionalProperties": false,
-            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: mail.status: keine; mail.doctor: keine; mail.review.status: keine; mail.review.list: reason; mail.review.suggest: expected_subject, folder, message_id; mail.folders.plan: keine; mail.index.capabilities: keine; mail.index.status: keine; mail.index.doctor: keine; mail.index.plan: keine; mail.index.shadow: query; mail.search.local: query; mail.learning.status: keine; mail.learning.feedback: keine; mail.learning.not-spam: keine; mail.learning.mixed-senders: keine; mail.learning.conflicts: keine; mail.learning.evaluate: keine; mail.learning.folder-list: keine; mail.dry-run: keine; mail.move-status: keine; mail.recent: keine; mail.list: folder; mail.search: query; mail.read: expected_subject, folder, message_id"
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: mail.status: keine; mail.doctor: keine; mail.review.status: keine; mail.review.list: reason; mail.review.suggest: expected_subject, folder, message_id; mail.folders.plan: keine; mail.index.capabilities: keine; mail.index.status: keine; mail.index.doctor: keine; mail.index.plan: keine; mail.index.blocked: keine; mail.index.shadow: query; mail.search.local: query; mail.learning.status: keine; mail.learning.feedback: keine; mail.learning.not-spam: keine; mail.learning.mixed-senders: keine; mail.learning.conflicts: keine; mail.learning.evaluate: keine; mail.learning.folder-list: keine; mail.dry-run: keine; mail.move-status: keine; mail.recent: keine; mail.list: folder; mail.search: query; mail.read: expected_subject, folder, message_id"
           }
         },
         "required": [
@@ -6640,6 +6779,7 @@
         "mail.index.status",
         "mail.index.doctor",
         "mail.index.plan",
+        "mail.index.blocked",
         "mail.index.shadow",
         "mail.search.local",
         "mail.learning.status",
@@ -6671,8 +6811,10 @@
               "mail.review.correct",
               "mail.folders.apply",
               "mail.folders.activate-relevant",
+              "mail.index.quarantine",
               "mail.index.canary",
               "mail.index.backfill",
+              "mail.index.rebuild",
               "mail.index.reconcile",
               "mail.learning.feedback-forget",
               "mail.learning.dataset-export",
@@ -6709,6 +6851,26 @@
                   "routine",
                   "spam"
                 ]
+              },
+              "candidate_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "expected_source": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "expected_message_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "expected_sha256": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
               },
               "folder": {
                 "type": "string",
@@ -6771,7 +6933,7 @@
               }
             },
             "additionalProperties": false,
-            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: mail.review.correct: expected_subject, message_id, verdict; mail.folders.apply: keine; mail.folders.activate-relevant: keine; mail.index.canary: folder; mail.index.backfill: keine; mail.index.reconcile: keine; mail.learning.feedback-forget: id; mail.learning.dataset-export: keine; mail.learning.folder-create: label, name, parent; mail.learning.folder-disable: folder; mail.sources.configure: keine; mail.run: keine; mail.spam-review: keine; mail.reply-draft: body, expected_subject, folder, message_id; mail.reply-send: draft_id; mail.compose-draft: body, subject, to; mail.compose-send: draft_id; mail.move: destination, expected_subject, message_id, source"
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: mail.review.correct: expected_subject, message_id, verdict; mail.folders.apply: keine; mail.folders.activate-relevant: keine; mail.index.quarantine: candidate_id, expected_message_id, expected_sha256, expected_source; mail.index.canary: folder; mail.index.backfill: keine; mail.index.rebuild: keine; mail.index.reconcile: keine; mail.learning.feedback-forget: id; mail.learning.dataset-export: keine; mail.learning.folder-create: label, name, parent; mail.learning.folder-disable: folder; mail.sources.configure: keine; mail.run: keine; mail.spam-review: keine; mail.reply-draft: body, expected_subject, folder, message_id; mail.reply-send: draft_id; mail.compose-draft: body, subject, to; mail.compose-send: draft_id; mail.move: destination, expected_subject, message_id, source"
           }
         },
         "required": [
@@ -6784,8 +6946,10 @@
         "mail.review.correct",
         "mail.folders.apply",
         "mail.folders.activate-relevant",
+        "mail.index.quarantine",
         "mail.index.canary",
         "mail.index.backfill",
+        "mail.index.rebuild",
         "mail.index.reconcile",
         "mail.learning.feedback-forget",
         "mail.learning.dataset-export",

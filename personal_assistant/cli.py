@@ -505,7 +505,8 @@ def main(argv: list[str] | None = None) -> int:
     direct_index_diagnostic = bool(
         args.command == "mail"
         and args.mail_command == "index"
-        and getattr(args, "index_command", "") in {"status", "doctor"}
+        and getattr(args, "index_command", "")
+        in {"status", "doctor", "blocked", "quarantine"}
     )
     if (
         args.command == "mail"

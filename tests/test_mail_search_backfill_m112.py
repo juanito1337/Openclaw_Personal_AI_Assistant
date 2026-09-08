@@ -183,6 +183,7 @@ def _crawler(
     limits: BackfillLimits | None = None,
     after_partition=None,
     include_folders: tuple[str, ...] = (),
+    exclude_folders: tuple[str, ...] = (),
 ) -> MailSearchBackfill:
     return MailSearchBackfill(
         backend,
@@ -193,6 +194,7 @@ def _crawler(
         limits=limits or BackfillLimits(page_size=2, request_interval_seconds=0),
         after_partition=after_partition,
         include_folders=include_folders,
+        exclude_folders=exclude_folders,
     )
 
 
@@ -341,6 +343,57 @@ def test_antivirus_blocks_raw_and_attachment_without_body_projection(tmp_path: P
     checkpoint = (tmp_path / "checkpoint.json").read_text(encoding="utf-8")
     assert "RAW-MALWARE" not in checkpoint
     assert "ATTACHMENT-MALWARE" not in checkpoint
+
+
+def test_malware_quarantine_is_explicitly_excluded_from_authoritative_scope(
+    tmp_path: Path,
+) -> None:
+    backend = FakeImap(
+        {
+            "Agent/Virusverdacht": [_mail(1, body="MALWARE MUST NOT BE FETCHED")],
+            "INBOX": [_mail(2, body="clean", message_id="clean@test")],
+        }
+    )
+    crawler = _crawler(
+        tmp_path,
+        backend,
+        FakeScanner(blocked=b"MALWARE"),
+        exclude_folders=("Agent/Virusverdacht",),
+    )
+
+    plan = crawler.plan()
+    result = crawler.run(approved=True)
+
+    assert plan["mailbox_folder_count"] == 2
+    assert plan["folder_count"] == 1
+    assert plan["excluded_folders"][0]["name"] == "Agent/Virusverdacht"
+    assert plan["excluded_folders"][0]["reason"] == "malware-quarantine-not-searchable"
+    assert result["ok"] is True
+    assert result["complete"] is True
+    assert {folder for folder, _message_id in backend.raw_calls} == {"INBOX"}
+    manifest = json.loads(
+        (tmp_path / "projection" / "_projection.json").read_text(encoding="utf-8")
+    )
+    assert manifest["coverage"]["excluded_folders"] == plan["excluded_folders"]
+
+
+def test_explicit_restart_replaces_incomplete_checkpoint_and_rescans(tmp_path: Path) -> None:
+    backend = FakeImap({"INBOX": [_mail(1, body="MALWARE", message_id="blocked@test")]})
+    initial = _crawler(tmp_path, backend, FakeScanner(blocked=b"MALWARE")).run(approved=True)
+    assert initial["complete"] is False
+    assert initial["blocked_count"] == 1
+
+    second_scanner = FakeScanner()
+    restarted = _crawler(tmp_path, backend, second_scanner).run(
+        approved=True,
+        restart=True,
+    )
+
+    assert restarted["complete"] is True
+    assert restarted["resumed"] is False
+    assert restarted["restart_requested"] is True
+    assert restarted["previous_checkpoint_replaced"] is True
+    assert any(source.endswith("raw") for source, _data in second_scanner.calls)
 
 
 def test_scanner_identity_change_restarts_and_rescans(tmp_path: Path) -> None:

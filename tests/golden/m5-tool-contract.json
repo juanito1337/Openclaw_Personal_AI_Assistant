@@ -656,6 +656,22 @@
     "approval": "none"
   },
   {
+    "id": "mail.index.blocked",
+    "description": "Fail-closed blockierte Vollkonto-Indexfundstellen ausschliesslich als technische IDs, Status und Hashes anzeigen; keine Mailinhalte",
+    "command": "./scripts/assistant.sh mail index blocked --limit 100",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
+    "id": "mail.index.quarantine",
+    "description": "Genau eine im aktuellen Checkpoint belegte infizierte Mail nach bytegenauer frischer Nachpruefung und expliziter Einzelfreigabe in den fest konfigurierten Malware-Ordner verschieben",
+    "command": "./scripts/assistant.sh mail index quarantine --candidate-id \"<Kandidaten-ID>\" --expected-source \"<Quelle>\" --expected-message-id \"<Mail-ID>\" --expected-sha256 \"<SHA-256>\" --yes",
+    "mode": "write",
+    "writes_external_data": true,
+    "approval": "explicit-user-single-infected-mail-quarantine"
+  },
+  {
     "id": "mail.index.shadow",
     "description": "Lokale und aktuelle Serversuche read-only anhand technischer Counts und Vollstaendigkeitsbelege vergleichen; unvollstaendige Servernulltreffer sind keine Ground Truth",
     "command": "./scripts/assistant.sh mail index shadow --query \"<Suchbegriff>\" --limit 50",
@@ -678,6 +694,14 @@
     "mode": "local-write",
     "writes_external_data": false,
     "approval": "explicit-user-local-mail-index-backfill"
+  },
+  {
+    "id": "mail.index.rebuild",
+    "description": "Nach einzeln bestaetigten Quarantaenen den vorherigen lokalen Checkpoint atomar ersetzen und den suchberechtigten Vollkonto-Bestand neu aufbauen; IMAP bleibt read-only",
+    "command": "./scripts/assistant.sh mail index backfill --restart --page-size 50 --max-pages 200 --max-messages 10000 --max-bytes 1000000000 --max-message-bytes 100000000 --max-runtime 3600 --request-interval 0.2 --yes",
+    "mode": "local-write",
+    "writes_external_data": false,
+    "approval": "explicit-user-local-mail-index-rebuild"
   },
   {
     "id": "mail.index.reconcile",

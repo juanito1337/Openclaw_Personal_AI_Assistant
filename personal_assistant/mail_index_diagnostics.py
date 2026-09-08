@@ -54,12 +54,23 @@ class MailIndexDiagnostics:
         ratio = len(complete & expected) / len(expected) if expected else (
             1.0 if bool(raw.get("authoritative")) and bool(index.get("complete")) else 0.0
         )
+        excluded = [
+            {
+                "folder_id": str(item.get("folder_id") or ""),
+                "name": str(item.get("name") or ""),
+                "reason": str(item.get("reason") or "")[:200],
+            }
+            for item in (raw.get("excluded_folders") or [])
+            if isinstance(item, dict)
+        ]
         return {
             "authoritative": bool(raw.get("authoritative")),
             "expected_partitions": len(expected),
             "complete_partitions": len(complete),
             "incomplete_partitions": len(incomplete),
             "ratio": round(ratio, 6),
+            "excluded_folders": excluded,
+            "exclusion_count": len(excluded),
         }
 
     def status(
@@ -221,6 +232,8 @@ class MailIndexDiagnostics:
                     "complete_partitions": 0,
                     "incomplete_partitions": 0,
                     "ratio": 0.0,
+                    "excluded_folders": [],
+                    "exclusion_count": 0,
                 },
                 "semantic": {
                     "state": "unavailable",

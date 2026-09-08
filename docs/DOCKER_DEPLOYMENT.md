@@ -720,6 +720,42 @@ gemeinsamen Mail-Lock, vertagt der planmäßige Mail-Worker genau diesen belegte
 Sperrkonflikt; er startet weder einen parallelen Maillauf noch ein Reconcile.
 Andere Exitcodes bleiben als echte Fehler sichtbar.
 
+Ein Backfill mit `blocked_count > 0` darf nicht einfach fortgesetzt oder als
+Coverage akzeptiert werden. Der Operator liest zuerst ausschließlich die
+inhaltsfreien, checkpointgebundenen Fundstellen:
+
+```bash
+docker compose --env-file .env --profile tools run --rm --no-deps agent-cli \
+  /opt/openclaw-agent/scripts/assistant.sh mail index blocked --limit 100
+```
+
+Jede Ausgabe enthält bei `status=infected` einen vollständigen
+`approval_command`. Genau dieser unveränderte Einzelbefehl darf erst nach einer
+eigenen ausdruecklichen Freigabe im kurzlebigen `agent-cli` ausgefuehrt werden.
+Er bindet Quelle, Mailbox-ID und Raw-SHA-256, scannt Raw-Mail und alle physischen
+Anhaenge ohne Cache erneut und verschiebt nur bei bestaetigtem aktuellem Fund in
+den konfigurierten Malware-Ordner. Es gibt keinen Bulkmodus. Andere Blockstatus,
+Hashkonflikte oder Scannerfehler werden nicht verschoben.
+
+Erst wenn alle freigegebenen Einzelaktionen erfolgreich waren, wird mit einer
+weiteren Freigabe ein neuer lokaler Checkpoint aufgebaut:
+
+```bash
+docker compose --env-file .env --profile tools run --rm --no-deps agent-cli \
+  /opt/openclaw-agent/scripts/assistant.sh mail index backfill --restart \
+  --page-size 50 --max-pages 200 --max-messages 10000 \
+  --max-bytes 1000000000 --max-message-bytes 100000000 \
+  --max-runtime 3600 --request-interval 0.2 --yes
+```
+
+Plan, Ergebnis, `mail index status` und Projektions-Coverage muessen den fest
+konfigurierten Malware-Ordner als
+`malware-quarantine-not-searchable` ausweisen. Nur die uebrigen
+suchberechtigten Ordner duerfen zur autoritativen Vollstaendigkeit zaehlen.
+`--restart` ersetzt nur den lokalen unvollstaendigen Checkpoint. Bereits
+verschobene IMAP-Mail wird durch Image-/Indexrollback weder rueckgaengig gemacht
+noch geloescht. `jobs on mail-index` bleibt ein eigener Stopppunkt.
+
 ### Erste M9-Mailordner-Aktivierung
 
 Eine vor M9 bestehende Mailkonfiguration besitzt noch kein `folders.relevant`.

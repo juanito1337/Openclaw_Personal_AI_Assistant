@@ -87,6 +87,40 @@ claim.
 - no infected or suspicious content is deleted or submitted to an external
   service.
 
+For findings discovered during a read-only index run, the controlled writer path
+is split into preview and exact single-item execution:
+
+```bash
+./scripts/assistant.sh mail index blocked --limit 100
+./scripts/assistant.sh mail index quarantine \
+  --candidate-id "<Kandidaten-ID>" \
+  --expected-source "<Quelle>" \
+  --expected-message-id "<Mail-ID>" \
+  --expected-sha256 "<SHA-256>" \
+  --yes
+```
+
+The first command is content-free and read-only. The second command requires a
+separate explicit approval for exactly one finding, a current hash match and a
+fresh uncached Raw-plus-attachment scan. Its destination is always the configured
+malware folder. General mail moves to that folder remain denied. There is no bulk
+mode and no automatic retry.
+
+The malware folder is not searchable. Backfill/reconcile exclude it before
+Raw-Fetch and expose the exclusion in their coverage. Once all approved findings
+have moved, rebuild the incomplete local generation with the separately approved
+bounded command:
+
+```bash
+./scripts/assistant.sh mail index backfill --restart \
+  --page-size 50 --max-pages 200 --max-messages 10000 \
+  --max-bytes 1000000000 --max-message-bytes 100000000 \
+  --max-runtime 3600 --request-interval 0.2 --yes
+```
+
+This replaces only the local checkpoint. It neither deletes mail nor authorizes
+the persistent index job.
+
 ## Commands
 
 Host compatibility setup:

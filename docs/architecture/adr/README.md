@@ -43,5 +43,6 @@ verweist mit Status `Superseded` auf den Nachfolger.
 | [0035](0035-nativer-readonly-imap-inventory-connector.md) | Accepted | nativer read-only IMAP-Inventurconnector mit abgestufter Ordneridentität und autoritativer aktueller Coverage |
 | [0036](0036-native-agent-tools-und-evidence-guard.md) | Accepted | native strukturierte Agentenwerkzeuge, gebundene Einzelfreigabe und turnbezogener Antwortguard |
 | [0037](0037-residenter-clamav-daemon-fuer-mailindex.md) | Accepted | getrennter residenter ClamAV-Daemon über rollenbegrenzten Unix-Socket |
+| [0038](0038-einzelfreigabe-fuer-mailindex-malwarefunde.md) | Accepted | inhaltsfreie Fundstellen, frische Einzelfallpruefung und explizit ausgeschlossener Malware-Suchbereich |
 
 Neue ADRs beginnen mit der [Vorlage](0000-template.md).

@@ -1,6 +1,6 @@
 # M14-Entwicklungsabnahme und produktive Stopppunkte
 
-Stand: 2026-09-07
+Stand: 2026-09-08
 
 M14.0 bis M14.7 ersetzen den minutenlangen Standalone-Scan im Mailindex durch
 einen residenten, gehärteten `clamd` und einen verpflichtenden fail-closed
@@ -50,11 +50,23 @@ Rollbackregeln. Weder Image- noch Indexrollback verändern externe Mail.
 
 ## Noch offen
 
-- produktive Ready-Zeit, Peak-RAM, Scanlatenz und Durchsatz,
-- Capacity-Nachweis fuer rund 8.500 Nachrichten,
+- abschliessender produktiver Capacity-Nachweis fuer den gesamten
+  suchberechtigten Bestand; der erste Lauf erreichte 7.876 Nachrichten,
+  985.296.943 Byte und 173 Seiten innerhalb des 3.600-Sekunden-Budgets,
+- sechs einzeln freizugebende, frisch nachzupruefende Quarantaeneaktionen; der
+  Fundstellenbericht bleibt inhaltsfrei und ist keine Sammelfreigabe,
+- danach ein separat freizugebender `--restart`-Vollbackfill mit explizit
+  ausgewiesenem Ausschluss von `Agent/Virusverdacht`,
 - vollständige Indexgeneration und aktuelle Locatorabdeckung,
 - positive Absender-/Body-/Zeitraumsuche und kontrollierter Negativfall,
 - inkrementelle New-Mail-/Move-/No-op-Kosten,
 - sieben Tage Beobachtung von Signaturreload, Ressourcen und Jobgesundheit.
 
 Solange diese Punkte fehlen, ist M14.8 ausdrücklich **nicht abgenommen**.
+
+Der bereits ausgefuehrte Canary war mit 68 Nachrichten, vier Seiten und
+14.203.451 Byte vollständig. Der Vollbackfill veraenderte weder IMAP noch
+Providerflags, blieb wegen sechs `infected`-Fundstellen und des Laufzeitlimits
+aber korrekt unvollständig. Der Indexjob ist weiterhin aus. Produktive
+Quarantaene, Neuaufbau und Jobstart sind nicht durch diese Dokumentation
+genehmigt.

@@ -238,6 +238,48 @@ def test_noop_advances_only_cursor_without_body_fts_or_model_work(tmp_path: Path
     assert json.loads((tmp_path / "state.json").read_text())["folder_cursors"]
 
 
+def test_reconcile_removes_and_never_fetches_explicit_malware_quarantine(
+    tmp_path: Path,
+) -> None:
+    inbox_raw = mail("clean", message_id="inbox@example.test")
+    malware_raw = mail("infected", message_id="malware@example.test")
+    seed(
+        tmp_path / "projection",
+        {
+            "Agent/Virusverdacht": [("9", malware_raw)],
+            "INBOX": [("1", inbox_raw)],
+        },
+    )
+    backend = DeltaBackend(
+        {
+            "Agent/Virusverdacht": [observation("9", malware_raw)],
+            "INBOX": [observation("1", inbox_raw)],
+        },
+        {
+            ("Agent/Virusverdacht", "9"): malware_raw,
+            ("INBOX", "1"): inbox_raw,
+        },
+    )
+
+    result = reconciler(
+        tmp_path,
+        backend,
+        exclude_folders=("Agent/Virusverdacht",),
+    ).run(approved=True)
+
+    assert result["ok"] is True
+    assert result["published"] is True
+    assert result["excluded_folders"] == ["Agent/Virusverdacht"]
+    assert {folder for folder, _cursor, _limit in backend.scan_calls} == {"INBOX"}
+    assert backend.raw_calls == []
+    projection = load_search_projection(tmp_path / "projection")
+    assert len(projection.records) == 1
+    root = json.loads(
+        (tmp_path / "projection" / "_projection.json").read_text(encoding="utf-8")
+    )
+    assert root["coverage"]["excluded_folders"][0]["name"] == "Agent/Virusverdacht"
+
+
 def test_verified_move_to_quarantine_reuses_content_and_occurrence_without_raw(tmp_path: Path) -> None:
     raw = mail("same content")
     ids = seed(tmp_path / "projection", {"INBOX": [("1", raw)], "Spamverdacht": []})

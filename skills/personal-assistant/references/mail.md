@@ -168,6 +168,39 @@ Standalone-Fallback remains usable only according to the existing bounded
 single-operation contract; it must not start the index or turn a partial staging
 generation into current coverage.
 
+The configured malware folder is deliberately outside the searchable account
+scope. `mail index plan`, every backfill/reconcile result and the projection
+coverage must list it under `excluded_folders` with
+`malware-quarantine-not-searchable`. Do not Raw-Fetch, scan, parse, embed or index
+that folder. A complete result proves all search-eligible folders, never absence
+inside the malware quarantine.
+
+If a backfill reports `blocked_count > 0`, first use `mail index blocked --limit
+100`. This read-only operation exposes only a checkpoint-bound candidate ID,
+source folder, mailbox ID, Raw-SHA-256 and typed status; it does not expose body,
+subject, sender, filenames or scanner details. Only `status=infected` is eligible
+for quarantine. Scanner errors, decode errors and oversized messages remain
+blocked diagnostics and must not be moved through this path.
+
+For every eligible row, show its unchanged `approval_command` and obtain a new
+explicit approval. `mail index quarantine` handles exactly one candidate. It has
+approval label `explicit-user-single-infected-mail-quarantine`, a fixed configured
+destination and unchanged source/message-ID/SHA-256 expectation guards. It holds
+the mail-owner lock, re-exports exactly that mail, repeats the Raw and every
+physical attachment scan with cache disabled, and moves only if the current bytes
+have the expected hash and at least one scan object is still infected. It uses an
+idempotent ActionPlan and content-free audit. Never combine candidates into one
+approval, accept a changed hash, choose a different destination, bypass a scanner
+error or retry a failed move automatically.
+
+After all individually approved findings have moved, obtain separate approval
+for `mail index backfill --restart` with the unchanged bounded limits. `--restart`
+atomically replaces only the local incomplete checkpoint; it does not delete or
+change remote mail. A normal call without `--restart` remains resumable. Accept
+the rebuilt generation only when `complete=true`, `blocked_count=0`, coverage is
+authoritative and `excluded_folders` contains exactly the configured malware
+quarantine. Enabling `mail-index` remains another separate approval.
+
 ## M11.3 incremental index reconciliation
 
 `mail index reconcile` is a bounded local-write tool with approval label

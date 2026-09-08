@@ -1,6 +1,6 @@
 # Tests, Qualitaetsbaseline und Container-Runtime
 
-Stand: 2026-09-07, fortgeschrieben bis zur M14-Entwicklungsabnahme.
+Stand: 2026-09-08, fortgeschrieben bis zum M14.8-Fundstellen-Nachlauf.
 Sie startet keine produktiven Dienste und verwendet
 weder `/srv/openclaw` noch produktive Zugangsdaten.
 
@@ -61,7 +61,7 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 994 Tests, darunter mindestens 715 unittest-kompatible Tests
+fordert mindestens 1007 Tests, darunter mindestens 715 unittest-kompatible Tests
 (die bisherigen 349 sowie M0-M13- und Rollout-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
@@ -126,6 +126,7 @@ der aktuellen Python-Dateien.
 | Tests nach Letzte-Mail-Dispatcher-Hotfix gesammelt/ausgefuehrt | 976 / 976 (1.083 JUnit-Faelle inklusive 107 Subtests) |
 | Tests nach Suchphrasen-/Nulltreffer-Korrektur gesammelt/ausgefuehrt | 978 / 978 (1.085 JUnit-Faelle inklusive 107 Subtests) |
 | Tests nach M14-Entwicklungsabnahme gesammelt/ausgefuehrt | 994 / 994 (1.101 JUnit-Faelle inklusive 107 Subtests) |
+| Tests nach M14.8-Fundstellen-Nachlauf gesammelt/ausgefuehrt | 1.007 / 1.007 (1.114 JUnit-Faelle inklusive 107 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -164,6 +165,7 @@ der aktuellen Python-Dateien.
 | neue M12-Canary-Budget-/Single-Writer-Regressionsitems | 5 |
 | neue M13-Toolbridge-/Router-/Evidenz-Regressionsitems | 19 |
 | neue M14-Daemon-/Socket-/Compose-Regressionsitems | 16 |
+| neue M14.8-Quarantaene-/Neuaufbau-Regressionsitems | 13 |
 | M13-Image-Runtime-Abnahme | Pluginstatus `loaded`, 19 Toolfabriken, 5 typisierte Hooks, keine Diagnosen |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |
@@ -242,6 +244,8 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach Suchphrasen-/Nulltreffer-Korrektur | 55,17 % |
 | Gesamt-Coverage nach M14 | 68,27 % |
 | reine Branch-Coverage nach M14 | 55,44 % |
+| Gesamt-Coverage nach M14.8-Fundstellen-Nachlauf | 68,35 % |
+| reine Branch-Coverage nach M14.8-Fundstellen-Nachlauf | 55,55 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -265,7 +269,11 @@ der aktuellen Python-Dateien.
 | Laufzeit nach Task-Completion-Routing | 167,59 s |
 | Laufzeit nach Standard-Betriebsprofil | 162,32 s |
 | Laufzeit nach DAV-verifiziertem Standardprofil-Hotfix | 163,02 s |
+| Laufzeit des finalen lokalen M14.8-Gesamtchecks | 125,95 s |
 | Laufzeit in der frischen M7-Wheel-Testumgebung | 55,56 s |
+| M14.8-Wheelgroesse | 599.370 Bytes |
+| M14.8-Wheel-Buildzeit | 2,453 s |
+| M14.8-Tests in frischer Wheel-Umgebung | 1.007 plus 107 Subtests in 100,48 s |
 | Wheelgroesse nach der Plugin-/Gatewaykorrektur | 397.870 Bytes |
 | M7-Wheel-Buildzeit | 4,582 s |
 | M10.8-Wheelgroesse | 471.110 Bytes |
@@ -302,6 +310,9 @@ der aktuellen Python-Dateien.
 | M14-Wheel-Buildzeit | 3,893 s |
 | M14-Wheel-Tests in frischer Umgebung | 994 plus 107 Subtests in 141,81 s |
 | Laufzeit des finalen lokalen M14-Gesamtchecks | 199,67 s |
+| M14.8-Runtime-/Proxy-/Maintenance-Imagegroesse | 377.167.549 / 23.422.439 / 45.638.548 Bytes |
+| M14.8-hermetische clamd-Bereitschaft | 1.058 ms |
+| M14.8-hermetischer clamd-Durchsatz | 1.448,973 Scans/s bei 65.520 Byte synthetischer Nutzlast |
 | Container-Imagegroesse des M6-Testimages | 425.555.866 Bytes |
 | Runtime-Imagegroesse mit gepinnten Brave-/Signal-Plugins | 376.600.036 Bytes |
 | Runtime-Imagegroesse nach der M10-Rollout-Monitor-/Supervisorkorrektur | 376.793.375 Bytes |
@@ -310,7 +321,7 @@ der aktuellen Python-Dateien.
 | M6-Cache-Rebuild | 11 s |
 | Container-CLI-Kaltstart | 1.081 ms |
 | bekannte mypy-Altbefunde | 108 exakt baselinierte Befunde in 20 Dateien; 16 behoben |
-| bekannte Ruff-Altbefunde | 497 exakt baselinierte Befunde; 284 behoben |
+| bekannte Ruff-Altbefunde | 486 exakt baselinierte Befunde; 295 behoben |
 
 ## M10.0-Rechnungsqualitaet
 

@@ -13,15 +13,23 @@ from typing import Any
 from mail_agent.command import CommandRunner
 from mail_agent.config import load_config as load_mail_config
 from mail_agent.himalaya import HimalayaClient
+from mail_agent.index_quarantine import (
+    blocked_report,
+    select_candidate,
+    verify_and_move_candidate,
+)
 from mail_agent.learning import LearningFolderRegistry
+from mail_agent.lock import ProcessLock
 from mail_agent.models import Envelope, ParsedMessage
 from mail_agent.parser import parse_eml
+from mail_agent.search_backfill import require_index_antivirus_ready
 from mail_agent.utils import clean_single_line
 
+from ..antivirus import HostAntivirus
 from ..policy import PolicyEngine
 from ..registry import ResourceRegistry
 from ..storage import AssistantStorage
-from ..tool_settings import MailMoveToolSettings
+from ..tool_settings import MailMoveToolSettings, load_tool_settings
 
 
 class MailMoveService:
@@ -102,6 +110,162 @@ class MailMoveService:
             "delete_allowed": False,
             "expunge_allowed": False,
             "folder_changes_allowed": False,
+        }
+
+    @staticmethod
+    def _mail_index_checkpoint() -> tuple[Any, Path]:
+        config = load_mail_config()
+        return config, config.runtime.database.parent / "search_backfill_v2" / "checkpoint.json"
+
+    def index_blocked_report(self, *, limit: int = 100) -> dict[str, Any]:
+        config, checkpoint = self._mail_index_checkpoint()
+        return blocked_report(
+            checkpoint,
+            malware_folder=config.folders.malware,
+            limit=limit,
+        )
+
+    def quarantine_index_candidate(
+        self,
+        *,
+        candidate_id: str,
+        expected_source: str,
+        expected_message_id: str,
+        expected_sha256: str,
+        approved: bool,
+    ) -> dict[str, Any]:
+        if not approved:
+            raise PermissionError(
+                "Einzelquarantaene benoetigt --yes und eine ausdrueckliche Nutzerfreigabe"
+            )
+        if not self.settings.enabled:
+            raise PermissionError("Direktes Mail-Verschiebewerkzeug ist deaktiviert")
+        config, checkpoint = self._mail_index_checkpoint()
+        candidate = select_candidate(
+            checkpoint,
+            candidate_id=candidate_id,
+            expected_source=expected_source,
+            expected_message_id=expected_message_id,
+            expected_sha256=expected_sha256,
+        )
+        destination = config.folders.malware.strip()
+        if not destination:
+            raise PermissionError("Kein Malware-Quarantaeneordner ist konfiguriert")
+        payload = {
+            "candidate_id": candidate.candidate_id,
+            "source": candidate.source,
+            "destination": destination,
+            "message_id": candidate.message_id,
+            "raw_sha256": candidate.raw_sha256,
+            "antivirus_quarantine": True,
+            "single_message": True,
+        }
+        decision = self.policy.decide(self.settings.resource_id, "mail.move", payload)
+        if not decision.allowed:
+            raise PermissionError(decision.reason)
+        key = "mail-index-quarantine:" + hashlib.sha256(
+            (candidate.candidate_id + "\0" + destination).encode("utf-8")
+        ).hexdigest()
+        plan = self.storage.create_action(
+            idempotency_key=key,
+            action_type="mail.move",
+            resource_id=self.settings.resource_id,
+            payload=payload,
+            requires_approval=True,
+        )
+        if plan.status == "completed":
+            return {
+                "ok": True,
+                "duplicate": True,
+                "candidate_id": candidate.candidate_id,
+                "source": candidate.source,
+                "destination": destination,
+                "message_id": candidate.message_id,
+                "content_exposed": False,
+                "action_id": plan.id,
+                "detail": "Diese exakte Fundstelle wurde bereits erfolgreich quarantänisiert",
+            }
+        if plan.status not in {"proposed", "failed", "approved"}:
+            raise PermissionError(f"Quarantaene-ActionPlan ist nicht ausfuehrbar: {plan.status}")
+        if plan.status != "approved":
+            plan = self.storage.update_action(plan.id, "approved", "")
+            self.storage.audit(
+                "action.approved_single_infected_mail_quarantine",
+                {"id": plan.id, "candidate_id": candidate.candidate_id},
+                resource_id=plan.resource_id,
+                actor="user-approved-mail-index-quarantine",
+            )
+
+        antivirus: HostAntivirus | None = None
+        try:
+            tool_settings = load_tool_settings()
+            antivirus_settings = tool_settings.security.antivirus
+            if not (
+                antivirus_settings.enabled
+                and antivirus_settings.fail_closed
+                and antivirus_settings.scan_raw_mail
+                and antivirus_settings.scan_attachments
+            ):
+                raise PermissionError(
+                    "Einzelquarantaene benoetigt aktivierten fail-closed Raw- und Attachment-Scan"
+                )
+            antivirus = HostAntivirus(antivirus_settings)
+            require_index_antivirus_ready(antivirus)
+            with ProcessLock(config.runtime.lock_file):
+                result = verify_and_move_candidate(
+                    candidate,
+                    destination=destination,
+                    client=self._client(),
+                    scanner=antivirus,
+                )
+        except Exception as exc:
+            self.storage.update_action(plan.id, "failed", str(exc)[:1000])
+            self.storage.audit(
+                "mail.index.quarantine.failed",
+                {
+                    "id": plan.id,
+                    "candidate_id": candidate.candidate_id,
+                    "error_type": type(exc).__name__,
+                },
+                resource_id=plan.resource_id,
+            )
+            raise
+        finally:
+            if antivirus is not None:
+                antivirus.close()
+        if not result.get("ok"):
+            failed = self.storage.update_action(plan.id, "failed", str(result.get("detail") or ""))
+            self.storage.audit(
+                "mail.index.quarantine.failed",
+                {"id": plan.id, "candidate_id": candidate.candidate_id},
+                resource_id=plan.resource_id,
+            )
+            return {**result, "duplicate": False, "action_id": failed.id}
+        completed = self.storage.update_action(plan.id, "completed", "")
+        self.storage.audit(
+            "mail.index.quarantine.completed",
+            {
+                "id": plan.id,
+                "candidate_id": candidate.candidate_id,
+                "source": candidate.source,
+                "destination": destination,
+                "raw_sha256": candidate.raw_sha256,
+            },
+            resource_id=plan.resource_id,
+            actor="user-approved-mail-index-quarantine",
+        )
+        return {
+            **result,
+            "duplicate": False,
+            "candidate_id": candidate.candidate_id,
+            "action_id": completed.id,
+            "next_step": "Nach allen Einzelquarantaenen einen neuen vollstaendigen Backfill starten",
+            "next_command": (
+                "./scripts/assistant.sh mail index backfill --restart --page-size 50 "
+                "--max-pages 200 --max-messages 10000 --max-bytes 1000000000 "
+                "--max-message-bytes 100000000 --max-runtime 3600 "
+                "--request-interval 0.2 --yes"
+            ),
         }
 
     def list_messages(self, folder: str, *, limit: int = 50) -> dict[str, Any]:

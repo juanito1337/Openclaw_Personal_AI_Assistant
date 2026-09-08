@@ -84,6 +84,8 @@ def run_external(args: argparse.Namespace) -> int:
                 "--request-interval",
                 str(args.request_interval),
             ]
+            if args.index_command == "backfill" and args.restart:
+                command.append("--restart")
             if args.yes:
                 command.append("--yes")
         elif args.index_command == "reconcile":
@@ -152,6 +154,16 @@ def handle(args: argparse.Namespace, assistant: Any, emit: Callable[[Any], None]
         result = assistant.mail_index_doctor()
     elif command == "index" and args.index_command == "shadow":
         result = assistant.mail_index_shadow(args.query, limit=args.limit)
+    elif command == "index" and args.index_command == "blocked":
+        result = assistant.mail_index_blocked(limit=args.limit)
+    elif command == "index" and args.index_command == "quarantine":
+        result = assistant.mail_index_quarantine(
+            candidate_id=args.candidate_id,
+            expected_source=args.expected_source,
+            expected_message_id=args.expected_message_id,
+            expected_sha256=args.expected_sha256,
+            approved=args.yes,
+        )
     elif command == "move-status":
         result = assistant.mail_move_status()
     elif command == "recent":

@@ -160,6 +160,11 @@ def build_parser() -> argparse.ArgumentParser:
     index_backfill.add_argument("--max-message-bytes", type=int, default=100000000)
     index_backfill.add_argument("--max-runtime", type=float, default=3600.0)
     index_backfill.add_argument("--request-interval", type=float, default=0.2)
+    index_backfill.add_argument(
+        "--restart",
+        action="store_true",
+        help="Vorherigen lokalen Checkpoint atomar ersetzen statt fortzusetzen",
+    )
     index_backfill.add_argument("--yes", action="store_true")
     index_canary = index_sub.add_parser(
         "canary", help="Explizit gewaehlten Ordner begrenzt in lokales Staging indexieren"
@@ -1470,6 +1475,15 @@ def main(argv: list[str] | None = None) -> int:
                         / "search_reconcile_v3"
                         / "state.json",
                         quarantine_folders=tuple(config.mailbox.quarantine_folders),
+                        exclude_folders=(
+                            str(
+                                getattr(
+                                    getattr(config, "folders", None),
+                                    "malware",
+                                    "Agent/Virusverdacht",
+                                )
+                            ),
+                        ),
                         limits=reconcile_limits,
                         tag_resolver=reconcile_tags.resolve,
                     )
@@ -1533,6 +1547,15 @@ def main(argv: list[str] | None = None) -> int:
                     projection_root=state_root / "projection",
                     checkpoint_path=state_root / "checkpoint.json",
                     quarantine_folders=tuple(config.mailbox.quarantine_folders),
+                    exclude_folders=(
+                        str(
+                            getattr(
+                                getattr(config, "folders", None),
+                                "malware",
+                                "Agent/Virusverdacht",
+                            )
+                        ),
+                    ),
                     limits=limits,
                     tag_resolver=search_tags.resolve if search_tags is not None else None,
                     include_folders=tuple(getattr(args, "folder", ()) or ()),
@@ -1541,7 +1564,13 @@ def main(argv: list[str] | None = None) -> int:
                     payload = crawler.plan()
                 else:
                     with ProcessLock(config.runtime.lock_file):
-                        payload = crawler.run(approved=bool(args.yes))
+                        if args.index_command == "backfill":
+                            payload = crawler.run(
+                                approved=bool(args.yes),
+                                restart=bool(getattr(args, "restart", False)),
+                            )
+                        else:
+                            payload = crawler.run(approved=bool(args.yes))
             print(json.dumps(payload, indent=2, ensure_ascii=False))
             return 0 if payload.get("ok") else 1
         except (ValueError, PermissionError, ProcessLockError) as exc:

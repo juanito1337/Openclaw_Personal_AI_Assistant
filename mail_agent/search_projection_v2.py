@@ -374,6 +374,7 @@ class PartitionedSearchSnapshotWriter:
         authoritative: bool,
         incomplete_partition_ids: list[str] | None = None,
         incomplete_reasons: dict[str, str] | None = None,
+        excluded_folders: list[dict[str, str]] | None = None,
         generated_at: str | None = None,
     ) -> Path:
         timestamp = generated_at or now_utc_iso()
@@ -421,6 +422,19 @@ class PartitionedSearchSnapshotWriter:
                 if key in incomplete
             },
         }
+        if excluded_folders is not None:
+            coverage["excluded_folders"] = sorted(
+                [
+                    {
+                        "folder_id": str(item.get("folder_id") or ""),
+                        "name": str(item.get("name") or ""),
+                        "uidvalidity": str(item.get("uidvalidity") or ""),
+                        "reason": str(item.get("reason") or "")[:200],
+                    }
+                    for item in excluded_folders
+                ],
+                key=lambda item: (item["folder_id"], item["name"].casefold()),
+            )
         normalized = sorted(
             [
                 {

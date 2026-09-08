@@ -1,10 +1,13 @@
 # M14-Roadmap: Performanter ClamAV-Daemon und produktiver Mailindex
 
-Stand: 2026-09-07
+Stand: 2026-09-08
 Vorgesehener Arbeitsbranch: `development/clamd-mail-index-rollout-m14`
 Status: M14.0 bis M14.7 im Entwicklungsbranch umgesetzt und lokal/hermetisch
-abgenommen. M14.8 bleibt ein getrennt freizugebender produktiver Rollout; es
-wurde noch kein produktiver Backfill und keine Jobaktivierung ausgefuehrt.
+abgenommen. Im getrennt freigegebenen M14.8-Rollout waren Deploy und Canary
+erfolgreich. Der erste Vollbackfill blieb nach 7.876 Nachrichten fail-closed an
+sechs infizierten Nachrichten und dem Laufzeitbudget stehen. Die in ADR 0038
+definierte Einzelfallquarantaene und der danach notwendige Neuaufbau werden als
+signiertes Folgeimage vorbereitet. Der Indexjob bleibt aus.
 
 ## Ausgangslage
 
@@ -604,6 +607,14 @@ beobachten.
   dimensionierten Vollbackfill einholen.
 - Vollbackfill unter Mail-Owner-Lock ausführen beziehungsweise fortsetzen,
   Checkpoint, Scannerfehler, Kapazität und Generation überwachen.
+- Bei Antivirus-Funden den Lauf nicht blind fortsetzen: Fundstellen mit `mail
+  index blocked` inhaltsfrei erfassen, jede weiterhin infizierte Mail nur nach
+  eigener expliziter Freigabe, unveraenderten Erwartungswerten und frischem
+  Raw-/Attachment-Scan in den fest konfigurierten Malware-Ordner verschieben.
+  Scanner-/Decode-/Groessenfehler sind keine Quarantaenefreigabe.
+- Nach allen einzeln freigegebenen Moves einen separat freigegebenen Backfill
+  mit `--restart` starten. Der Malware-Ordner bleibt vor jedem Raw-Fetch aus dem
+  Suchumfang ausgeschlossen und wird in Plan, Ergebnis und Coverage sichtbar.
 - Nur eine vollständige, frische, autoritative Generation mit kompletter
   Locatorabdeckung akzeptieren.
 - Datenschutzsichere Suchabnahme durchführen: bekannte positive
@@ -622,7 +633,9 @@ beobachten.
 - `security antivirus doctor` belegt Daemontransport und aktuelle Signaturen;
   Clean und EICAR liefern die erwarteten Ergebnisse.
 - Vollbackfill veröffentlicht genau eine vollständige autoritative Generation;
-  keine Partition und kein Ordner fehlt.
+  keine suchberechtigte Partition und kein suchberechtigter Ordner fehlt. Der
+  konfigurierte Malware-Ordner ist als einziger Sicherheitsbereich explizit in
+  `excluded_folders` belegt.
 - Bekannte positive Nachrichten werden einschließlich aktueller Locator
   gefunden; Body-Suche ist belegt.
 - Der kontrollierte Negativfall liefert nur bei vollständiger Coverage
@@ -659,6 +672,35 @@ Locator-, Speicher-, Latenz- oder Suchregression stoppe den Indexpfad, erhalte
 den sichtbaren Serverfallback und führe den dokumentierten Rollback aus. Lösche
 keine produktiven Datenbanken und behaupte niemals, dass ein lokaler Rollback
 externe Mail verändert oder wiederherstellt.
+```
+
+### M14.8-Zwischenbefund und Folgeprompt
+
+Der am 8. September 2026 freigegebene Canary indizierte 68 Nachrichten in vier
+Seiten vollständig. Der danach separat freigegebene Vollbackfill erreichte in
+173 Seiten 7.876 Nachrichten und 985.296.943 Byte. Er schrieb keine IMAP-Daten
+oder Providerflags, veröffentlichte wegen sechs `infected`-Blockaden und des
+Laufzeitlimits aber absichtlich keine vollständige Generation. Alle sechs
+Blockaden lagen in einem normalen Agentenordner; Mailinhalte wurden nicht
+ausgegeben. `clamd` blieb gesund. Diese Zahlen sind ein produktiver,
+inhaltsfreier Betriebsbeleg, keine Testfixture.
+
+```text
+Setze ausschließlich den M14.8-Antivirus-Fundstellen-Nachlauf um. Erzeuge eine
+inhaltsfreie read-only Liste checkpointgebundener Fundstellen. Implementiere
+einen separaten Writevertrag, der genau eine unverändert per Kandidaten-ID,
+Quellordner, Mailbox-ID und Raw-SHA-256 gebundene Fundstelle nach expliziter
+Einzelfreigabe erneut exportiert, Raw-Mail und jeden physischen Anhang ohne Cache
+scannt und nur bei erneut bestätigtem Fund in den fest konfigurierten
+Malware-Ordner verschiebt. Nutze Mail-Owner-Lock, Policy, idempotenten ActionPlan
+und inhaltsfreies Audit. Verweigere Bulk, frei waehlbares Ziel, Hashkonflikt,
+sauberen oder unklaren Nachscan, Scannerfehler und automatischen Retry. Schliesse
+den Malware-Ordner vor Raw-Fetch aus Backfill und Reconcile aus und weise ihn in
+Plan, Ergebnis und autoritativer Coverage explizit aus. Ergaenze einen separat
+freizugebenden lokalen `--restart`-Neuaufbau, Verhaltens- und Negativtests,
+Toolvertrag, Skill, ADR, Runbook und Changelog. Veraendere bei Entwicklung keine
+produktiven Mails oder Jobs. Baue, pruefe und signiere ein Folgeimage; produktive
+Einzelmoves, Neuaufbau und Jobaktivierung bleiben jeweils eigene Freigaben.
 ```
 
 ## Gesamt-Abnahmekriterien für M14

@@ -106,6 +106,26 @@ class MailApplicationMixin:
             },
         }
 
+    def mail_index_blocked(self, *, limit: int = 100) -> dict[str, Any]:
+        return self.mail_move_service.index_blocked_report(limit=limit)
+
+    def mail_index_quarantine(
+        self,
+        *,
+        candidate_id: str,
+        expected_source: str,
+        expected_message_id: str,
+        expected_sha256: str,
+        approved: bool,
+    ) -> dict[str, Any]:
+        return self.mail_move_service.quarantine_index_candidate(
+            candidate_id=candidate_id,
+            expected_source=expected_source,
+            expected_message_id=expected_message_id,
+            expected_sha256=expected_sha256,
+            approved=approved,
+        )
+
     def mail_read_message(
         self, folder: str, message_id: str, *, expected_subject: str = ""
     ) -> dict[str, Any]:
