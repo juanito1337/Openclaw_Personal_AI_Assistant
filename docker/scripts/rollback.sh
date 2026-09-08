@@ -38,10 +38,17 @@ external_reference=$(read_manifest external_backup_reference)
 previous_runtime=${previous_runtime:-docker}
 previous_proxy_image=${previous_proxy_image:-$previous_image}
 previous_maintenance_image=${previous_maintenance_image:-$previous_image}
-# A pre-M14 roll set has no scanner reference. The current M14 compose contract
-# still needs a compatible clamd for dependency health, so retain only the
-# already verified target scanner during this one transition rollback.
+rollback_maintenance_image=$previous_maintenance_image
 rollback_clamd_image=${previous_clamd_image:-${target_clamd_image:-${target_maintenance_image:-$previous_maintenance_image}}}
+# A pre-M14 Docker roll set has neither clamd nor its socket initializer. The
+# current M14 compose contract needs both from one compatible, already verified
+# target maintenance image during this one transition rollback. Retaining only
+# OPENCLAW_CLAMD_IMAGE is insufficient because clamav-socket-init is sourced
+# from OPENCLAW_MAINTENANCE_IMAGE.
+if [[ "$previous_runtime" == "docker" && -z "$previous_clamd_image" ]]; then
+  rollback_maintenance_image=${target_maintenance_image:-${target_clamd_image:-$previous_maintenance_image}}
+  rollback_clamd_image=${target_clamd_image:-$rollback_maintenance_image}
+fi
 restore_hook=${OPENCLAW_EXTERNAL_RESTORE_HOOK:-}
 
 # The executable contract is checked before stopping anything. The hook can
@@ -168,7 +175,7 @@ if [[ "$previous_runtime" == "legacy-systemd" ]]; then
   echo "Verwende den unveraenderten systemd-Workspace weiter: $legacy_home"
   update_env_value OPENCLAW_IMAGE "$previous_image"
   update_env_value OPENCLAW_PROXY_IMAGE "$previous_proxy_image"
-  update_env_value OPENCLAW_MAINTENANCE_IMAGE "$previous_maintenance_image"
+  update_env_value OPENCLAW_MAINTENANCE_IMAGE "$rollback_maintenance_image"
   update_env_value OPENCLAW_CLAMD_IMAGE "$rollback_clamd_image"
   update_env_value OPENCLAW_CURRENT_RUNTIME legacy-systemd
   units_file="$OPENCLAW_CONFIG_DIR/legacy-active-units.txt"
@@ -181,16 +188,16 @@ if [[ "$previous_runtime" == "legacy-systemd" ]]; then
 else
   update_env_value OPENCLAW_IMAGE "$previous_image"
   update_env_value OPENCLAW_PROXY_IMAGE "$previous_proxy_image"
-  update_env_value OPENCLAW_MAINTENANCE_IMAGE "$previous_maintenance_image"
+  update_env_value OPENCLAW_MAINTENANCE_IMAGE "$rollback_maintenance_image"
   update_env_value OPENCLAW_CLAMD_IMAGE "$rollback_clamd_image"
   update_env_value OPENCLAW_CURRENT_RUNTIME docker
   export OPENCLAW_IMAGE="$previous_image"
   export OPENCLAW_PROXY_IMAGE="$previous_proxy_image"
-  export OPENCLAW_MAINTENANCE_IMAGE="$previous_maintenance_image"
+  export OPENCLAW_MAINTENANCE_IMAGE="$rollback_maintenance_image"
   export OPENCLAW_CLAMD_IMAGE="$rollback_clamd_image"
   docker pull "$previous_image" >/dev/null
   docker pull "$previous_proxy_image" >/dev/null
-  docker pull "$previous_maintenance_image" >/dev/null
+  docker pull "$rollback_maintenance_image" >/dev/null
   docker pull "$rollback_clamd_image" >/dev/null
   compose --profile maintenance run --rm --entrypoint freshclam clamav-update --verbose || true
   compose up -d clamd

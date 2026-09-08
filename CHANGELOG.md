@@ -16,7 +16,11 @@
 - Deployment/M14: Der einmalige Socket-Initialisierer deaktiviert bei genau
   einer retained Logdatei explizit die Kompression des Docker-Logtreibers. Das
   verhindert einen vom Docker-Daemon abgelehnten Containerstart; ein
-  Compose-Regressionstest sichert die zulässige Optionskombination.
+  Compose-Regressionstest sichert die zulässige Optionskombination. Beim ersten
+  Rollback auf einen Vor-M14-Stack bleibt das bereits verifizierte M14-
+  Maintenance-Image nun für `clamd` und seinen Socket-Initialisierer gemeinsam
+  erhalten, statt den Initialisierer aus einem alten Image ohne das Skript zu
+  starten.
 
 - Mail/Agent: Die kontoweite Suche normalisiert nun auch die eng begrenzte
   deutsche Orts-/Namenspraeposition `am`, waehrend alle bedeutungstragenden

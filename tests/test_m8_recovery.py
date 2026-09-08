@@ -172,9 +172,10 @@ def test_failed_external_restore_still_starts_verified_old_local_state(tmp_path:
     assert "up -d mail-worker sync-worker supervisor-worker portfolio-worker monitor-worker" in commands
     deployed = env_file.read_text(encoding="utf-8")
     assert "OPENCLAW_IMAGE=fixture.invalid/openclaw:old\n" in deployed
-    assert "OPENCLAW_MAINTENANCE_IMAGE=fixture.invalid/openclaw:old-maintenance\n" in deployed
+    assert "OPENCLAW_MAINTENANCE_IMAGE=fixture.invalid/openclaw:new-maintenance\n" in deployed
     assert "OPENCLAW_CLAMD_IMAGE=fixture.invalid/openclaw:new-maintenance\n" in deployed
     assert "OPENCLAW_CURRENT_RUNTIME=docker\n" in deployed
+    assert "pull fixture.invalid/openclaw:new-maintenance" in commands
 
 
 def test_rollback_normalizes_runtime_owned_paths_before_restore(tmp_path: Path) -> None:
