@@ -5,7 +5,7 @@ d1383ffff37a355f384976fef186e9de4bba65eaaca7c4eece4a39ab52ba1502  ./.dockerignor
 35e7c1a83ee8f31a3dd54503d0132a15e998b573479ddad9fe7ca676b76aac24  ./.gitignore
 1b6baf17377ad89b09ac3596ef0092ea0171e85ca6109206f135b84744561150  ./.hadolint.yaml
 8f6653735b8189a2dd07bb1c1fcff34e417c7d516af35dab034a08075c517f5a  ./AGENTS.md
-68aee0d9e3d945ac84afcc662c8aa77f2883c251c68a8ead22931d8e044864ae  ./CHANGELOG.md
+d0e8100673099fc0fa9dfdf72eeda9ea8b52f8571f7a0249cfae638fe391bc6c  ./CHANGELOG.md
 f38e641eaf48ada58510f6c6c1db64ee57390be2838493350b591f87f7e3908f  ./CONTRIBUTING.md
 763021f53e09312791939049e7943660a8842aa7714855833fd444bcd2a257ff  ./Dockerfile
 dd2bd2aa9bed882e4a7942981299d0e87c70ac8ddd50ca67126eca0af0055e94  ./HEARTBEAT.md
@@ -18,7 +18,7 @@ ed674f08bba49153d8afbe27d509c15ac4d3e6a275df5fc623cc1529a9f5479d  ./VERSION
 cb4bc8493fa6353ef4e0062302fead350b0dfc9536120fc22b00974b438cb186  ./compose.yaml
 5261ae6f45812da8b8d1dce8c3ddf7d889b27b9c08407ed183d309677f95efea  ./deploy/mail-agent.env.example
 4689c4fd18ee3a22a6c9dd438da46644cee0bbcfc5ccfd9eae83bab6929d9e02  ./deploy/personal-assistant-secrets.env.example
-0207af84197aa310d556d74033b383e7971dba24ffe556628beb9247e02f0702  ./docker/clamav-socket-init.sh
+2ae395cea51d023f646822b3788f92dab23d4c91fa2871c58af7fc351333e780  ./docker/clamav-socket-init.sh
 27aec50d846fdf9fdfcb25f9d035827a1170b459e0e4c88b339db7696b4978e7  ./docker/clamav-update.sh
 ed3aadcd8aa721dea58755ca8a1b98ce2d9a4856fee322c14435c559319b6599  ./docker/clamd.sh
 c074512469d62511cfc9669a9eaf8708a6077d19a5d40e2f7b9a7123ba827950  ./docker/config/mail-agent.env.example
@@ -386,7 +386,7 @@ cbb83b2f1dc6001ed743b775dad292038d5f1b62a81bbd5530daef40125855a1  ./scripts/chec
 0ab08629b852387ef6f1610a69f0f2b2beadd9e978162217a59eb83a0c4da646  ./scripts/check-m11-integration.sh
 401d9ad81f723fd42d7f19b0bfac6f5629676dc6d8a8bd1c6566bfcf89fa0742  ./scripts/check-m12-integration.sh
 78c8cebcaa6a5d896b179ca5367a2ffff558ec4dff10f13513719fc76f88d9ed  ./scripts/check-m13-integration.sh
-c07532a0a51632eb67d2e875ed122e4bafc51b0ff85f39d1a702c46ae57a2abf  ./scripts/check-m14-integration.sh
+b9bf21cb78c40d5919a11e9a1db5de822e5da7116d46a12edc6a4b3c40756496  ./scripts/check-m14-integration.sh
 715ff950464d323cf05f4a0b7cac9d5fd4e116966eed818e14f56f75cadf3631  ./scripts/check-m8-integration.sh
 123e6644ccdc32dad0bcf72dc74fb5c9b70780366791445267115ce18b1ca3b0  ./scripts/check-mypy.py
 52f368329825df285e22866f49b214abb54871f12eeadfe9de5f97001240ef4b  ./scripts/check-repo.sh
@@ -473,7 +473,7 @@ e79f1ccbf17885a82112df4721d764b310744f915a3ffde6eb9b322d02a6efef  ./tests/test_a
 c90302d3d043a46f9ebc386c23b28ce5d61d65fa60e0fa5b7b17e7abde36e4b8  ./tests/test_caldav_update_tools.py
 a88473917df87f045c380ce6290e1286d90037f3c5d6454c48ce244a10a207d5  ./tests/test_carddav_contact_tools.py
 8551db344c5b8dcaa46a7f42aafa5e0b35b2ce415303e8bf21cfb6317bd8dceb  ./tests/test_carddav_contact_update.py
-44fcc278682b1a9a54392cab49ac66af1e5faefd2ef2a5428771a484216e92a8  ./tests/test_clamd_compose_m14.py
+e78de295f424b34dffa0dc20332c105d1b7de323319b622f9af43c5c6ace2be8  ./tests/test_clamd_compose_m14.py
 8785fa29a4a74ec8ab9364c6f299e9fb3375256b772775e877190e491d6648ba  ./tests/test_clamd_socket_m14.py
 15de87d4be2ea2197f9800d4ae6787cb478312b1ee1b2c805efe0b4f21cfa2df  ./tests/test_collection_guard.py
 ba78078501e55569a3c3d4d18dc1881475a53df7144f110d19d8a22661b006f2  ./tests/test_container_hardening_m4.py

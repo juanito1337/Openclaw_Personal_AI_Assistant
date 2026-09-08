@@ -84,6 +84,13 @@ def test_socket_initializer_has_only_narrow_root_exception() -> None:
         "max-file": "1",
         "max-size": "1m",
     }
+    initializer = (ROOT / "docker/clamav-socket-init.sh").read_text(encoding="utf-8")
+    assert initializer.index('chown 0:0 "$directory"') < initializer.index(
+        'chmod 0770 "$directory"'
+    )
+    assert initializer.index('chmod 0770 "$directory"') < initializer.index(
+        'chown 100:101 "$directory"'
+    )
 
 
 def test_index_runtime_receives_daemon_readiness_configuration() -> None:

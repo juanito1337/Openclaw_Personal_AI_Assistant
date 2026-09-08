@@ -171,6 +171,14 @@ except ClamdClientError as exc:
 else:
     raise AssertionError("stopped clamd unexpectedly answered PING")
 PY
+# Exercise the initializer a second time against the same persistent volume.
+# The first run deliberately leaves /run/clamav owned by the daemon user.
+docker run --rm --network none --read-only \
+  --user 0:0 --cap-drop ALL --cap-add CHOWN --cap-add DAC_OVERRIDE \
+  --security-opt no-new-privileges:true \
+  --mount "type=volume,src=$socket_volume,dst=/run/clamav" \
+  --entrypoint /sbin/tini \
+  "$image" -- /opt/openclaw-agent/docker/clamav-socket-init.sh
 docker start "$daemon" >/dev/null
 recovered=false
 for _ in $(seq 1 120); do

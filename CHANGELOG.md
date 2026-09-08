@@ -22,7 +22,10 @@
   erhalten, statt den Initialisierer aus einem alten Image ohne das Skript zu
   starten. Nach dem expliziten `clamd`-Gesundheitscheck starten Gateway und
   Worker ohne erneutes Traversieren dieser One-shot-Abhängigkeit, sodass der
-  aktive Socket weder entfernt noch neu initialisiert wird.
+  aktive Socket weder entfernt noch neu initialisiert wird. Der Initialisierer
+  normalisiert außerdem ein vom vorherigen Daemonlauf als `100:101` geerbtes
+  Volume mit der bereits erlaubten `CHOWN`-Capability, bevor er dessen Modus
+  setzt; eine Erweiterung um `FOWNER` ist nicht nötig.
 
 - Mail/Agent: Die kontoweite Suche normalisiert nun auch die eng begrenzte
   deutsche Orts-/Namenspraeposition `am`, waehrend alle bedeutungstragenden
