@@ -403,7 +403,8 @@ raise SystemExit(86)
 
         self.assertNotIn(jobs_command, smoke)
         workers_started = deploy.index(
-            "compose up -d --no-deps mail-worker sync-worker supervisor-worker portfolio-worker monitor-worker"
+            "compose up -d --no-deps mail-worker sync-worker supervisor-worker "
+            "portfolio-worker monitor-worker"
         )
         supervisor_healthy = deploy.index("wait_for_healthy supervisor-worker 180", workers_started)
         portfolio_healthy = deploy.index("wait_for_healthy portfolio-worker 180", supervisor_healthy)
