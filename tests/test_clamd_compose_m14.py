@@ -76,6 +76,14 @@ def test_socket_initializer_has_only_narrow_root_exception() -> None:
     assert sorted(service["cap_add"]) == ["CHOWN", "DAC_OVERRIDE"]
     assert mounts(service)["/run/clamav"].get("read_only", False) is False
     assert list(mounts(service)) == ["/run/clamav"]
+    # The Docker local logging driver defaults to compression. Docker rejects
+    # that default when only one log file is retained, so the one-shot role
+    # must explicitly disable compression.
+    assert service["logging"]["options"] == {
+        "compress": "false",
+        "max-file": "1",
+        "max-size": "1m",
+    }
 
 
 def test_index_runtime_receives_daemon_readiness_configuration() -> None:

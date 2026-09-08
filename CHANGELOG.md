@@ -13,6 +13,10 @@
   kann jedoch keine Indexbereitschaft oder vollständige Generation vortäuschen.
   Produktiver Canary, Vollbackfill und Jobaktivierung bleiben getrennt
   freizugebende M14.8-Betriebsaktionen.
+- Deployment/M14: Der einmalige Socket-Initialisierer deaktiviert bei genau
+  einer retained Logdatei explizit die Kompression des Docker-Logtreibers. Das
+  verhindert einen vom Docker-Daemon abgelehnten Containerstart; ein
+  Compose-Regressionstest sichert die zulässige Optionskombination.
 
 - Mail/Agent: Die kontoweite Suche normalisiert nun auch die eng begrenzte
   deutsche Orts-/Namenspraeposition `am`, waehrend alle bedeutungstragenden

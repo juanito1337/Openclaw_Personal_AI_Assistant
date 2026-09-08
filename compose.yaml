@@ -143,6 +143,9 @@ services:
       options:
         max-size: "1m"
         max-file: "1"
+        # Docker's local driver enables compression by default, but rejects
+        # compression together with a single retained log file.
+        compress: "false"
     entrypoint: ["/sbin/tini", "--", "/opt/openclaw-agent/docker/clamav-socket-init.sh"]
     volumes:
       - clamav-socket:/run/clamav
