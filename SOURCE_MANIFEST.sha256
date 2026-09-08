@@ -156,7 +156,7 @@ f18f24c38c62f9731737c9d16a0a0abd4560507bd3acb1509c002904fce56aca  ./docs/archite
 48851fb97bb2c5d66ba4e470b8c9d0f616680342f6a4771a23c8d2ca68d18e61  ./docs/architecture/adr/README.md
 b99c97a76723cd2ece9e00dc9ece17aac47daaa672657252d63cdb234645fcd9  ./docs/architecture/clamd-operating-budget-m14.json
 d27b02d1ed286794ce453b80b4911bcbf476dfb08d005437510e5419f237203c  ./docs/architecture/compatibility-policy.json
-d06928488f4c9419c03a7ba6083490fcb7d6c927ad5a5293a4eaa1dabf9e7706  ./docs/architecture/component-inventory.json
+ddfa1ab67a5923214857306525e3b52e7711f68c51f286dbbb85c3dd91b9896f  ./docs/architecture/component-inventory.json
 1f707ea0d3c63cf76a35d64fd62988a6f59c1c5e73fe7a09fe62fdb7901a919c  ./docs/architecture/image-baseline-m7.json
 b397cdaa70d5dbcd4bfd22ed503433570b67bb978059bd5916e8793d173807c3  ./docs/architecture/legacy-decisions.json
 a7adf2c2cd00802dc445edfcb0b260c359e8b5be3179a4a1e340292efc96cea3  ./docs/architecture/mail-embedding-baseline-m116.json
