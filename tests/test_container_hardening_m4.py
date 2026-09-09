@@ -275,9 +275,17 @@ raise SystemExit(86)
             )
             files[2].write_text("OPENCLAW_GATEWAY_TOKEN=fixture-token\n", encoding="utf-8")
             role_files = {**container_entrypoint.ROLE_ENV_FILES, "gateway": tuple(map(str, files))}
+            ca_calls: list[dict[str, str]] = []
+
+            def configure_ca(environment: dict[str, str]) -> None:
+                ca_calls.append(dict(environment))
+                environment["SSL_CERT_FILE"] = "/tmp/openclaw-ca/ca-certificates.crt"
+                environment["REQUESTS_CA_BUNDLE"] = environment["SSL_CERT_FILE"]
+
             with (
                 mock.patch.object(container_entrypoint, "ENV_ROOTS", (root,)),
                 mock.patch.object(container_entrypoint, "ROLE_ENV_FILES", role_files),
+                mock.patch.object(container_entrypoint, "configure_custom_ca", configure_ca),
                 mock.patch.object(assistant_cli, "DEFAULT_SECRETS", root / "missing.env"),
                 mock.patch.dict(
                     os.environ,
@@ -294,7 +302,26 @@ raise SystemExit(86)
                 self.assertEqual(os.environ["NEXTCLOUD_USER"], "openclaw")
                 self.assertEqual(os.environ["NEXTCLOUD_TOKEN"], f"$(touch {marker})")
                 self.assertEqual(os.environ["OPENCLAW_GATEWAY_TOKEN"], "fixture-token")
+                self.assertEqual(
+                    os.environ["SSL_CERT_FILE"], "/tmp/openclaw-ca/ca-certificates.crt"
+                )
+                self.assertEqual(os.environ["REQUESTS_CA_BUNDLE"], os.environ["SSL_CERT_FILE"])
+                self.assertEqual(len(ca_calls), 1)
+                self.assertEqual(ca_calls[0]["NEXTCLOUD_URL"], "https://cloud.example.invalid")
             self.assertFalse(marker.exists())
+
+    def test_docker_exec_jobs_reload_role_environment_before_deep_health(self) -> None:
+        with (
+            mock.patch.object(
+                assistant_cli, "_load_container_role_environment", return_value=True
+            ) as load_role,
+            mock.patch.object(assistant_cli, "_handle_jobs", return_value=0) as handle_jobs,
+        ):
+            result = assistant_cli.main(["jobs", "status", "--target", "sync", "--deep"])
+
+        self.assertEqual(result, 0)
+        load_role.assert_called_once_with()
+        handle_jobs.assert_called_once()
 
     def test_assistant_cli_without_mounted_role_files_keeps_image_smoke_usable(self) -> None:
         with tempfile.TemporaryDirectory() as folder:

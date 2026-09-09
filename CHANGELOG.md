@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Runtime/Nextcloud: Direkte registrierte `docker exec ... assistant.sh`-Aufrufe
+  laden nun neben den fest gemounteten Rollenvariablen auch den atomar erzeugten
+  öffentlichen CA-Vertrauenspfad. Insbesondere tiefe Jobchecks verwenden damit
+  dieselbe TLS-Kette wie PID 1 und `agent-cli`, statt einen falschen
+  `CERTIFICATE_VERIFY_FAILED`-Alarm zu erzeugen.
 - Security/M14: Ein inhaltsfreier `mail index blocked`-Report bindet jeden
   Antivirusfund an Run, Quelle, Mailbox-ID und Raw-SHA-256. Das neue
   `mail.index.quarantine` verschiebt nach eigener expliziter Einzelfreigabe nur

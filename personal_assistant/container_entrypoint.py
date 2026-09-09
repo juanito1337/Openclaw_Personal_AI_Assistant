@@ -10,6 +10,7 @@ import shutil
 import stat
 import subprocess
 import sys
+from collections.abc import MutableMapping
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
@@ -175,7 +176,7 @@ def normalize_proxy_network(environment: dict[str, str]) -> None:
         )
 
 
-def configure_custom_ca(environment: dict[str, str]) -> None:
+def configure_custom_ca(environment: MutableMapping[str, str]) -> None:
     ca_dir = Path(environment.get("OPENCLAW_CA_DIR", "/etc/openclaw-ca"))
     if not ca_dir.is_dir():
         return
@@ -185,13 +186,18 @@ def configure_custom_ca(environment: dict[str, str]) -> None:
     runtime_dir = Path("/tmp/openclaw-ca")
     runtime_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
     bundle = runtime_dir / "ca-certificates.crt"
+    temporary = runtime_dir / f".{bundle.name}.{os.getpid()}"
     source = Path("/etc/ssl/certs/ca-certificates.crt")
-    with bundle.open("wb") as target:
-        target.write(source.read_bytes())
-        for certificate in certificates:
-            target.write(b"\n")
-            target.write(certificate.read_bytes())
-    bundle.chmod(0o600)
+    try:
+        with temporary.open("wb") as target:
+            target.write(source.read_bytes())
+            for certificate in certificates:
+                target.write(b"\n")
+                target.write(certificate.read_bytes())
+        temporary.chmod(0o600)
+        os.replace(temporary, bundle)
+    finally:
+        temporary.unlink(missing_ok=True)
     for key in ("SSL_CERT_FILE", "REQUESTS_CA_BUNDLE", "NODE_EXTRA_CA_CERTS"):
         environment[key] = str(bundle)
 

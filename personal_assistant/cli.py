@@ -76,14 +76,25 @@ def parser() -> argparse.ArgumentParser:
     return root
 
 
-def _load_secrets(config_path: Path | None = None) -> None:
+def _load_container_role_environment() -> bool:
     if os.environ.get("OPENCLAW_RUNTIME", "").strip() == "container":
-        from .container_entrypoint import load_mounted_role_environment
+        from .container_entrypoint import configure_custom_ca, load_mounted_role_environment
 
         role_environment: dict[str, str] = {}
         role = os.environ.get("OPENCLAW_ROLE", "standalone").strip() or "standalone"
         if load_mounted_role_environment(role, role_environment):
             os.environ.update(role_environment)
+            # A process started with ``docker exec`` does not inherit the
+            # environment which PID 1 assembled.  Recreate the same public CA
+            # bundle as well as reloading the fixed role env files so registered
+            # diagnostics use the identical TLS trust contract.
+            configure_custom_ca(os.environ)
+            return True
+    return False
+
+
+def _load_secrets(config_path: Path | None = None) -> None:
+    _load_container_role_environment()
     # Central file wins. The legacy file remains a compatibility fallback for the
     # existing mail agent during migration.
     load_env(DEFAULT_SECRETS)
@@ -335,6 +346,11 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if payload["ok"] else 1
 
     if args.command == "jobs":
+        try:
+            _load_container_role_environment()
+        except (OSError, RuntimeError, ValueError) as exc:
+            print(f"Container-Rollenumgebung ungueltig: {exc}", file=sys.stderr)
+            return 2
         return _handle_jobs(args)
 
     if args.command == "scheduler":

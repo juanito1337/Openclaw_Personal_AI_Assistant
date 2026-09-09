@@ -629,6 +629,11 @@ Direkte `docker exec`-Diagnosen starten nach dem PID-1-Entrypoint und erben dess
 nur fuer den Gateway-Prozess geladene Variablen nicht. Der registrierte
 `assistant.sh`-Launcher laedt bei vorhandenen Rollenmounts deshalb exakt den
 festen Env-Dateisatz dieser Rolle erneut mit demselben fail-closed Datenparser.
+Er erzeugt dabei auch das öffentliche kombinierte CA-Bundle atomar neu und setzt
+`SSL_CERT_FILE`, `REQUESTS_CA_BUNDLE` sowie `NODE_EXTRA_CA_CERTS`, bevor ein
+direkter Nextcloud- oder tiefer Jobcheck startet. Damit gilt fuer `docker exec`
+derselbe TLS-Vertrauenspfad wie fuer den PID-1-Prozess und die kurzlebige
+`agent-cli`-Rolle.
 Das ist keine zusaetzliche Berechtigung: Ohne Rollenmount wird nichts geladen,
 bei einem nur teilweise vorhandenen Satz bricht der Befehl ab, und die
 Gateway-Konfiguration bleibt read-only.

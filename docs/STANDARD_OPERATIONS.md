@@ -105,4 +105,7 @@ Netzwerke, Datenowner und Single-Writer-Grenzen werden dadurch nicht erweitert.
 
 Ein direkt mit `docker exec` gestarteter `assistant.sh`-Diagnosebefehl laedt nur
 die fuer seine Rolle bereits gemounteten Env-Dateien mit dem strikten Datenparser.
-Ohne passenden Rollenmount entstehen weder Zugangsdaten noch neue Rechte.
+Er initialisiert zusaetzlich denselben öffentlichen CA-Vertrauenspfad wie der
+Container-Entrypoint; tiefe Job- und Nextcloud-Checks erzeugen dadurch keinen
+falschen Zertifikatsalarm. Ohne passenden Rollenmount entstehen weder
+Zugangsdaten noch neue Rechte.
