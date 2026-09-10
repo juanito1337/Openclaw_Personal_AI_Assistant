@@ -486,6 +486,33 @@ class ImmutableRuntimeTests(unittest.TestCase):
                 )
             self.assertFalse(core.exists())
 
+    def test_container_sync_reads_authoritative_mail_index_projection(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            config_file = root / "config.toml"
+            config_file.write_text("[runtime]\n", encoding="utf-8")
+            mail = root / "domains/mail"
+
+            with patch.dict(
+                os.environ,
+                {
+                    "OPENCLAW_RUNTIME": "container",
+                    "OPENCLAW_ROLE": "sync-worker",
+                    "OPENCLAW_MAIL_DATA_DIR": str(mail),
+                },
+                clear=False,
+            ):
+                config = load_config(config_file)
+
+            self.assertEqual(
+                config.search.mail_snapshot_dir,
+                mail / "search_backfill_v2/projection",
+            )
+            self.assertNotEqual(
+                config.search.mail_snapshot_dir,
+                mail / "search_documents",
+            )
+
     def test_compose_enforces_read_only_image_and_image_commands(self) -> None:
         compose = (self.root / "compose.yaml").read_text(encoding="utf-8")
         self.assertIn("read_only: true", compose)

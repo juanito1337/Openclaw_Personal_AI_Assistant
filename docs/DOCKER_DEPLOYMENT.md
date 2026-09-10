@@ -211,9 +211,12 @@ They are not five copies of the data. Persistent state exists once on the host
 and survives container replacement. Release-owned code and skills come from the
 image; instance configuration and runtime data remain outside it.
 
-Der Mailworker ist alleiniger Owner der Mail-SQLite und veroeffentlicht fuer den
-Sync-Worker unter `domains/mail/search_documents` unveraenderliche Datensaetze mit
-einem atomar ersetzten `_projection.json`-Manifest. Der Sync-Worker validiert die
+Der Mailworker ist alleiniger Owner der Mail-SQLite. Die historische
+Mailworker-Projektion bleibt unter `domains/mail/search_documents`; der
+autoritative M12-Vollkontoindex wird unter
+`domains/mail/search_backfill_v2/projection` mit einem atomar ersetzten
+`_projection.json`-Manifest veroeffentlicht. Im Containerbetrieb liest der
+Sync-Worker ausschliesslich diese autoritative v2-Projektion. Er validiert die
 vollstaendige Generation, Pruefsummen und Aktualitaet vor einem Indexwrite und
 oeffnet `mail_agent.sqlite3`, `-wal` oder `-shm` nicht. Der bestehende Mail-Mount
 bleibt `ro`; dafuer werden weder Schreibrechte noch ein zweiter Datenowner

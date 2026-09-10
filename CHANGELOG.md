@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Mailindex/M12-Rollout: Der Container-Sync liest den autoritativen, vom nativen
+  IMAP-Backfill und Reconciler gepflegten v2-Pfad
+  `search_backfill_v2/projection` statt der historischen partiellen
+  `search_documents`-Projektion. Damit kann ein vollstaendig verifizierter
+  Vollkonto-Backfill tatsaechlich transaktional in FTS und Locatorindex gelangen;
+  fehlende, partielle, manipulierte oder veraltete Generationen bleiben
+  fail-closed.
 - Runtime/Nextcloud: Direkte registrierte `docker exec ... assistant.sh`-Aufrufe
   laden nun neben den fest gemounteten Rollenvariablen auch den atomar erzeugten
   öffentlichen CA-Vertrauenspfad. Insbesondere tiefe Jobchecks verwenden damit

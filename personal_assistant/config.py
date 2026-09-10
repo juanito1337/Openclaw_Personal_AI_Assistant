@@ -189,7 +189,9 @@ def load_config(path: str | Path | None = None) -> AssistantConfig:
     mail_data = os.environ.get("OPENCLAW_MAIL_DATA_DIR", "").strip()
     if mail_data:
         search.mail_snapshot_dir = (
-            Path(mail_data).expanduser().resolve() / "search_documents"
+            Path(mail_data).expanduser().resolve()
+            / "search_backfill_v2"
+            / "projection"
         )
 
     nextcloud_data = _section(data, "nextcloud").copy()

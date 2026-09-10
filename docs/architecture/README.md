@@ -109,12 +109,15 @@ Importgraphen auf Zyklen.
   `/home/node/.openclaw`.
 - ActionPlan/Audit liegen in `shared/core/assistant.sqlite3`; Dokumente, FTS und
   Sync-Cursor liegen separat in `domains/knowledge/knowledge.sqlite3`.
-- Der Mailworker veroeffentlicht unter `domains/mail/search_documents` eine
-  checksumgebundene, atomare Suchprojektion. Der v2-Vertrag aus
+- Der Mailworker veroeffentlicht unter `domains/mail/search_documents` weiterhin
+  die historische partielle v1-Suchprojektion. Der native M12-Backfill und der
+  Reconciler pflegen den autoritativen Vollkontoindex unter
+  `domains/mail/search_backfill_v2/projection`; diesen Pfad liest der
+  Container-Sync nach dem M12-Rollout. Der v2-Vertrag aus
   [ADR-0026](adr/0026-versionierter-mail-suchdatenvertrag.md) trennt immutable
   Contents von Occurrences und veraenderlichen Locatorn und publiziert
   wiederverwendbare Ordnerpartitionen nur durch ein atomisches Root. Der
-  Sync-Worker liest diese Quelle read-only, validiert Alter, Digests und Coverage
+  Sync-Worker liest die v2-Quelle read-only, validiert Alter, Digests und Coverage
   vor dem ersten Indexwrite und oeffnet die Mail-SQLite samt WAL nicht; die letzte
   vollstaendige Generation liegt im Wissens-Sync-Status. V1 bleibt lesbar. Der
   begrenzte M11.2-Crawler aus
