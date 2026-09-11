@@ -90,6 +90,12 @@ Claims. Eine unvollständige Suche autorisiert keinen Nulltreffer; ein Write ohn
 verifizierten Nachzustand keinen Erfolg. Bei fehlender Evidenz ist genau ein
 Revisionsversuch erlaubt, danach wird die Antwort sicher ersetzt.
 
+Das generierte Pluginmanifest markiert ausschließlich Werkzeuggruppen, deren
+sämtliche Operationen den Modus `read` besitzen, als `replaySafe`. Dadurch
+verwirft OpenClaw den einmaligen Korrekturlauf nach einer read-only Abfrage nicht
+als Wiederholung möglicher Seiteneffekte. Gruppen mit `local-write` oder `write`
+erhalten diese Markierung nie.
+
 ## Technisch erzwungen und weiterhin Modellverhalten
 
 Technisch erzwungen sind Werkzeug-/Operationsenum, Argumentvalidierung,

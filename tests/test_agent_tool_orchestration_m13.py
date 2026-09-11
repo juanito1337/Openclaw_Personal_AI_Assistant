@@ -391,6 +391,7 @@ console.log(JSON.stringify({
     def test_plugin_manifest_contract_matches_generated_tools(self) -> None:
         manifest = json.loads((PLUGIN / "openclaw.plugin.json").read_text(encoding="utf-8"))
         generated = json.loads((PLUGIN / "generated-tools.json").read_text(encoding="utf-8"))
+        operations = {item["tool_id"]: item for item in generated["operations"]}
         self.assertEqual(
             manifest["contracts"]["tools"],
             [item["name"] for item in generated["native_tools"]],
@@ -401,6 +402,20 @@ console.log(JSON.stringify({
                 for name in manifest["contracts"]["tools"]
             )
         )
+        replay_safe = {
+            name
+            for name, metadata in manifest["toolMetadata"].items()
+            if metadata.get("replaySafe") is True
+        }
+        expected_read_tools = {
+            item["name"]
+            for item in generated["native_tools"]
+            if item["operations"]
+            and all(operations[tool_id]["mode"] == "read" for tool_id in item["operations"])
+        }
+        self.assertEqual(replay_safe, expected_read_tools)
+        self.assertIn("personal_assistant_mail_read", replay_safe)
+        self.assertNotIn("personal_assistant_mail_write", replay_safe)
 
 
 if __name__ == "__main__":

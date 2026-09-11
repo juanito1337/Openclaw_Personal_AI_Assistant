@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Agent/M13: Die generierten Pluginmetadaten markieren ausschließlich reine
+  read-only Werkzeuggruppen als `replaySafe`. Damit kann OpenClaw den einmaligen
+  Evidenzguard-Korrekturlauf nach einer unvollständigen Mailsuche ausführen,
+  statt eine unbelegte definitive Negativaussage nach einem vermeintlich
+  seiteneffektbehafteten Toolaufruf zu finalisieren. Schreibwerkzeuge bleiben
+  ausdrücklich nicht replay-sicher.
 - Mailindex/M12-Rollout: Der Container-Sync liest den autoritativen, vom nativen
   IMAP-Backfill und Reconciler gepflegten v2-Pfad
   `search_backfill_v2/projection` statt der historischen partiellen

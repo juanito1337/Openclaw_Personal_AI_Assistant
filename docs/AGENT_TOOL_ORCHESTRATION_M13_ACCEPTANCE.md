@@ -25,6 +25,10 @@ read-only Canary ausdrücklich voneinander.
   `warning` beziehungsweise `critical`, kein `allow-always`.
 - Evidenzschema v1 und fail-closed Guard für Zustands-, Negativ-, Versions- und
   Schreiberfolgsbehauptungen.
+- Generatorabgeleitete `replaySafe`-Metadaten ausschließlich für native
+  read-only Werkzeuggruppen. So darf OpenClaw den einmaligen
+  Guard-Korrekturlauf nach einer Suche tatsächlich ausführen; Schreib- und
+  lokale Schreibwerkzeuge bleiben nicht replay-sicher.
 - inhaltsfreie Laufzeitmetriken; keine Queries, Adressen, Resultate oder Secrets.
 
 Der maschinenlesbare Diagnosepfad ist:

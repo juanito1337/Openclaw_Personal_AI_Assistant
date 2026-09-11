@@ -26,6 +26,13 @@ EVIDENCE_SCHEMA = PLUGIN_ROOT / "evidence.schema.json"
 def render_manifest() -> str:
     payload = json.loads(render_contract())
     tool_names = [item["name"] for item in payload["native_tools"]]
+    operations = {item["tool_id"]: item for item in payload["operations"]}
+    replay_safe_tools = [
+        item["name"]
+        for item in payload["native_tools"]
+        if item["operations"]
+        and all(operations[tool_id]["mode"] == "read" for tool_id in item["operations"])
+    ]
     return json.dumps(
         {
             "id": PLUGIN_ID,
@@ -36,6 +43,9 @@ def render_manifest() -> str:
             ),
             "version": payload["product_version"],
             "contracts": {"tools": tool_names},
+            "toolMetadata": {
+                name: {"replaySafe": True} for name in replay_safe_tools
+            },
             "activation": {"onStartup": True},
             "configSchema": {
                 "type": "object",

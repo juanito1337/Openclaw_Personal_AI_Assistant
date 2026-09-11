@@ -5,7 +5,7 @@ d1383ffff37a355f384976fef186e9de4bba65eaaca7c4eece4a39ab52ba1502  ./.dockerignor
 35e7c1a83ee8f31a3dd54503d0132a15e998b573479ddad9fe7ca676b76aac24  ./.gitignore
 1b6baf17377ad89b09ac3596ef0092ea0171e85ca6109206f135b84744561150  ./.hadolint.yaml
 de42f165a72a42598fae1c845dd7ede63056bfac660cb9cd24e59a5c3a71801b  ./AGENTS.md
-2595d331a31920c6206a5fb2a25cf21574a78572111ff725933098949f31a3a7  ./CHANGELOG.md
+a0743b6fc0b4b33b70b5ce47c2c8d37216c9c91a8d6888500ff54eb09ec4a716  ./CHANGELOG.md
 f38e641eaf48ada58510f6c6c1db64ee57390be2838493350b591f87f7e3908f  ./CONTRIBUTING.md
 763021f53e09312791939049e7943660a8842aa7714855833fd444bcd2a257ff  ./Dockerfile
 dd2bd2aa9bed882e4a7942981299d0e87c70ac8ddd50ca67126eca0af0055e94  ./HEARTBEAT.md
@@ -34,7 +34,7 @@ db5c2226ddccd5cdbdf0da3cc2b222e7d73144081b376bb2142eebeaa5551745  ./docker/deplo
 aff6cce3bce1e838048926540bd0b35220fdfb41e864cf914f4f072644e31ec2  ./docker/openclaw-personal-assistant-plugin/evidence.schema.json
 5634ed4df308c3bf2ed8ee91753ed303cd07e335c8ffd816c87cc0e1c7bc1bbf  ./docker/openclaw-personal-assistant-plugin/generated-tools.json
 7d74fb69b560845c3632bb349c0a129e852d3254b69cea953d7a72e52650aab2  ./docker/openclaw-personal-assistant-plugin/index.js
-5f7ac8776c6e8183de0be1d776de51342a7c9bcae093dc5b1b28d59a9379836c  ./docker/openclaw-personal-assistant-plugin/openclaw.plugin.json
+452a3f1e18f506a8343e9dba00c434dc7871fad6c090f0d74185fed17dbb98d5  ./docker/openclaw-personal-assistant-plugin/openclaw.plugin.json
 98d41ba0f1526a2f65b5b77c9d862d29a1b1ddb76d4b3321c3ab5f9b9532850e  ./docker/openclaw-personal-assistant-plugin/package.json
 9171223c0c7d216ab5e3531b0ddc1293b700aaa2a134235a438f1c1375ef2cfd  ./docker/openclaw-personal-assistant-plugin/runtime.js
 9d2ee2f8ab339df8ce4fc1ff86e94453fc4bc6c2bd44cb74cca31b11aea30a3d  ./docker/openclaw-plugins/contract.json
@@ -60,7 +60,7 @@ d919dc90c4b99c7a76b92ee01c45a2fe5589bec13454730b13dcbdedfb40a564  ./docker/scrip
 bbf661433ce8f3db4b63de920535dfbe317fa44b90fa3e56726cd8b802660844  ./docker/supply-chain.lock.json
 ed593b0d07260aad2afec058a8da2464860c1e7e1ed7e34f82a4653e894b294d  ./docs/ADAPTIVE_BATCHING.md
 a2b743fcefcc6b467d82e2a6224eabdc02a0feb01f801085535a750cf1603d15  ./docs/ADAPTIVE_SCHEDULER.md
-f30df76da642e662b6c26ff5c78138c124a541ed74fc0dae806b8db3fbd79655  ./docs/AGENT_TOOL_ORCHESTRATION_M13_ACCEPTANCE.md
+ae21978c7768336b6cb37cd61254ed0450fa85ba774acd0dd48ae31d0bae85b8  ./docs/AGENT_TOOL_ORCHESTRATION_M13_ACCEPTANCE.md
 25ba9a256f33f6256b23d1afa4b20fe75d984391634a146a92ea4d17456f4d24  ./docs/AGENT_TOOL_ORCHESTRATION_ROADMAP.md
 95aa39b8190e8d475ad70b1e458a62e958ca6fbf06a9c024cc58804a3ef8397f  ./docs/AGENT_TOOL_USE_BASELINE_M130.md
 ff78a3d5d2e691702d2426aab9fc7745331d1b99768f67c17afe507e2225ffe7  ./docs/ANTIVIRUS.md
@@ -151,13 +151,13 @@ fa4a317d94eaab14fcf26b69a3b82408d2b73f92ee887068fc1b3b9589471296  ./docs/archite
 41a29b01f348ebaad7f954e2c7041b387ea074fba250f0a9b6aa0b9dd95f04b9  ./docs/architecture/adr/0033-m11-abnahme-und-rolloutgrenze.md
 00be735cd9d86a3348ac18f081e79ecb92b88046c43f35107b0d065fd6de4e1e  ./docs/architecture/adr/0034-standardbetriebsprofil-bei-jedem-start.md
 98f8fc59a9a58e0d96744394419b0c1d94f17db889990ffc33ebe505b4477c22  ./docs/architecture/adr/0035-nativer-readonly-imap-inventory-connector.md
-f18f24c38c62f9731737c9d16a0a0abd4560507bd3acb1509c002904fce56aca  ./docs/architecture/adr/0036-native-agent-tools-und-evidence-guard.md
+1101972988d6f5c2e5b5283c39403537c961936389157b896cee76dcfd83373f  ./docs/architecture/adr/0036-native-agent-tools-und-evidence-guard.md
 044ff5c20ad8bdd51c7bde8d436fb969b8ce678e239bb4af0f8bcdca3d0d874a  ./docs/architecture/adr/0037-residenter-clamav-daemon-fuer-mailindex.md
 548978a9b2118abfc4cfa7ea87ec31769631b606e77ab9a634bad0c746ef036c  ./docs/architecture/adr/0038-einzelfreigabe-fuer-mailindex-malwarefunde.md
 9d03b80df9ba85d1b4917f3954e965cf6ec8782756841cf0fc7ac641687e5696  ./docs/architecture/adr/README.md
 b99c97a76723cd2ece9e00dc9ece17aac47daaa672657252d63cdb234645fcd9  ./docs/architecture/clamd-operating-budget-m14.json
 d27b02d1ed286794ce453b80b4911bcbf476dfb08d005437510e5419f237203c  ./docs/architecture/compatibility-policy.json
-538839706e5cca6afffdb303af88e3ebcc8067bde57cb03d4323e00bd6ae2143  ./docs/architecture/component-inventory.json
+8462ed79241a3435ff5ae8e422a3f32593268713d3feeaf56befd802d86f6468  ./docs/architecture/component-inventory.json
 1f707ea0d3c63cf76a35d64fd62988a6f59c1c5e73fe7a09fe62fdb7901a919c  ./docs/architecture/image-baseline-m7.json
 b397cdaa70d5dbcd4bfd22ed503433570b67bb978059bd5916e8793d173807c3  ./docs/architecture/legacy-decisions.json
 a7adf2c2cd00802dc445edfcb0b260c359e8b5be3179a4a1e340292efc96cea3  ./docs/architecture/mail-embedding-baseline-m116.json
@@ -387,7 +387,7 @@ d0b6febd3421769e03a9207eda1cc6ac6d346a8470adb8006a64de859ec3e3b3  ./scripts/chec
 cbb83b2f1dc6001ed743b775dad292038d5f1b62a81bbd5530daef40125855a1  ./scripts/check-local-signature.sh
 0ab08629b852387ef6f1610a69f0f2b2beadd9e978162217a59eb83a0c4da646  ./scripts/check-m11-integration.sh
 401d9ad81f723fd42d7f19b0bfac6f5629676dc6d8a8bd1c6566bfcf89fa0742  ./scripts/check-m12-integration.sh
-78c8cebcaa6a5d896b179ca5367a2ffff558ec4dff10f13513719fc76f88d9ed  ./scripts/check-m13-integration.sh
+385d92b5667cb5cddd6adf55e1b2dae5897138f4e7f4fae4fca03cd692ee3a50  ./scripts/check-m13-integration.sh
 b9bf21cb78c40d5919a11e9a1db5de822e5da7116d46a12edc6a4b3c40756496  ./scripts/check-m14-integration.sh
 715ff950464d323cf05f4a0b7cac9d5fd4e116966eed818e14f56f75cadf3631  ./scripts/check-m8-integration.sh
 123e6644ccdc32dad0bcf72dc74fb5c9b70780366791445267115ce18b1ca3b0  ./scripts/check-mypy.py
@@ -399,7 +399,7 @@ e0e89f0e3f7483d33d9f237d81a4e886fca833bd2d5a46f62750e8c0de0bcee4  ./scripts/chec
 e102a499c80495fd125e12ad65f7d5b9bc9e89f9f4e99b47fc34aac574d1e9bf  ./scripts/check-wheel.sh
 ff5336290dea3df4bbe5818d5d1a69c36081658b8fecae632b561fa5698f514f  ./scripts/check_artifact.py
 b503277d4c271a363ff86e7c5915097917d3d89680bed007b270af3c2a33a610  ./scripts/evaluate_invoice_quality.py
-0ff2387031cf731ea068b6d747ffbebe16997d742f1bc0e2f14f8046240d666e  ./scripts/generate-agent-tools.py
+3360be9d091c0a57e2fe8be8cd99dcc81f2a0b01f100ad1edf40be6d2125df5d  ./scripts/generate-agent-tools.py
 c4a1ea42a1e27a49d7ea984cc24de3f37978265b64617ad6ca560f4a19032059  ./scripts/generate-command-reference.py
 aa7339fdbb3bf4faaba4924e51d3095046801c57129c23818376e26939cf7b5f  ./scripts/generate-component-inventory.py
 9561218583119df789bfe919f8d64228c02ef624d70e3ea0eadaad8aeae15843  ./scripts/generate-skill-tool-contract.py
@@ -465,7 +465,7 @@ d701886a906684c6d1d73f3b79dec0ccd7aba3bd4ea03104f7900d6370aada1a  ./tests/ruff-b
 00ada34aa8a6bee6d54fe0d227ca400a4fabb84a44b1083a2d6e1889db5da8f2  ./tests/test_agent_capability_exposure.py
 bec0506ada361a2d6cd962a832c07fe2e22e16f8b2208f406f5825cf8df8e753  ./tests/test_agent_operational_tools.py
 8d714447cd33111a0863cc6cf5290c3187144ba53efc88299ac3eb3c8cd3f1ca  ./tests/test_agent_tool_architecture.py
-562a14249d7f172245b7e92e4e8a04c6a9cff3f3c4446377e06187edd769b2fc  ./tests/test_agent_tool_orchestration_m13.py
+f1c31ae56229a3a6280a833d028d6354ba65426e63b6fc920b3f190c47b71449  ./tests/test_agent_tool_orchestration_m13.py
 d09461fdb7e55ce3e7ed1cc6b398fff0e4ea4efebba7a0571539d8219e015409  ./tests/test_antivirus_tool.py
 972a5e365722c2b97cf376c292c2706f745a075541f351f96b6e73ee9c0bcf08  ./tests/test_architecture_docs.py
 e79f1ccbf17885a82112df4721d764b310744f915a3ffde6eb9b322d02a6efef  ./tests/test_artifact_hygiene.py

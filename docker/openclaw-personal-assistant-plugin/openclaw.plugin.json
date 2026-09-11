@@ -26,6 +26,38 @@
       "personal_assistant_security_read"
     ]
   },
+  "toolMetadata": {
+    "personal_assistant_runtime_read": {
+      "replaySafe": true
+    },
+    "personal_assistant_mail_read": {
+      "replaySafe": true
+    },
+    "personal_assistant_nextcloud_read": {
+      "replaySafe": true
+    },
+    "personal_assistant_contacts_read": {
+      "replaySafe": true
+    },
+    "personal_assistant_calendar_read": {
+      "replaySafe": true
+    },
+    "personal_assistant_tasks_read": {
+      "replaySafe": true
+    },
+    "personal_assistant_orders_read": {
+      "replaySafe": true
+    },
+    "personal_assistant_invoices_read": {
+      "replaySafe": true
+    },
+    "personal_assistant_portfolio_read": {
+      "replaySafe": true
+    },
+    "personal_assistant_security_read": {
+      "replaySafe": true
+    }
+  },
   "activation": {
     "onStartup": true
   },

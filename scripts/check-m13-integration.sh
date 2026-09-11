@@ -93,6 +93,11 @@ import sys
 payload = json.loads(sys.argv[1])
 manifest = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
 expected = set(manifest["contracts"]["tools"])
+replay_safe = {
+    name
+    for name, metadata in manifest["toolMetadata"].items()
+    if metadata.get("replaySafe") is True
+}
 effective = {
     tool["id"]
     for group in payload["groups"]
@@ -103,6 +108,8 @@ assert payload["profile"] == "coding", payload
 assert len(expected) == 19, payload
 assert effective == expected, payload
 assert "personal_assistant_portfolio_read" in effective, payload
+assert "personal_assistant_mail_read" in replay_safe, manifest
+assert "personal_assistant_mail_write" not in replay_safe, manifest
 PY
 
 result=$(docker run --rm --network none --read-only \
