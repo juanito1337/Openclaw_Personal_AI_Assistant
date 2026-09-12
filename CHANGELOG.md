@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Mailindex/Betrieb: Ein vollständig erfolgreicher No-op-Reconcile erneuert nun
+  atomar den Frischenachweis der Root-Projektion, ohne Content, Partitionen,
+  Parser, ClamAV, FTS oder Modell erneut auszuführen. Der Sync importiert den
+  neu belegten Zeitstempel auch bei unveränderter kryptografischer Generation;
+  dadurch bleibt der periodische Index im ruhigen Postfach suchfähig. Eine
+  erstmalige asynchrone Containeraktivierung wird bis zum ersten Heartbeat als
+  `starting` statt als falscher `timer-inactive`-Fehler quittiert.
 - Mailindex/M14.8: Die lokale Suche berücksichtigt nur noch Dokumente der
   neuesten v2-Indexgeneration mit kanonischer `content_id`; historische
   Monolith-Dubletten ohne Locator können damit keinen aktuellen Treffer mehr in

@@ -895,8 +895,28 @@ class MailSearchReconciler:
             metrics[key] for key in ("new", "changed", "moved", "copied", "removed")
         )
         if not changed and not force_rescan:
+            # A complete authoritative inventory is fresh evidence even when no
+            # message changed.  Reusing the immutable partitions keeps all
+            # parser/FTS/model work at zero, while atomically refreshing the
+            # root timestamp prevents a healthy periodic reconcile from leaving
+            # the imported search generation permanently stale.
+            generated_at = now_utc_iso()
+            refreshed_root = {**previous_root, "generated_at": generated_at}
+            atomic_write_bytes(
+                self.projection_root / PROJECTION_MANIFEST,
+                canonical_json_bytes(refreshed_root),
+            )
+            refreshed = load_search_projection(self.projection_root)
+            previous_generation = str(previous_root["root_generation"])
+            if (
+                not refreshed.complete
+                or refreshed.generation != previous_generation
+            ):
+                raise RuntimeError(
+                    "No-op-Reconciliation veraenderte die belegte Root-Generation"
+                )
             self._write_state(
-                generation=str(previous_root["root_generation"]),
+                generation=refreshed.generation,
                 scanner_identity=scanner_identity,
                 cursors=cursors,
                 folder_identity_assurance=capabilities.folder_identity_assurance,
@@ -905,11 +925,13 @@ class MailSearchReconciler:
             return {
                 "ok": True,
                 "complete": True,
-                "published": False,
+                "published": True,
                 "cursor_advanced": True,
                 "no_op": True,
+                "freshness_refreshed": True,
                 "writes_imap": False,
-                "root_generation": str(previous_root["root_generation"]),
+                "root_generation": refreshed.generation,
+                "generated_at": refreshed.generated_at,
                 "excluded_folders": [folder.name for folder in excluded_folders],
                 "metrics": metrics,
             }

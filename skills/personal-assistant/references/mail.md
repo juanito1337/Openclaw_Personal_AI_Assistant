@@ -262,6 +262,13 @@ matched by raw SHA-256; matching content is then reused. Partial scans, network
 loss and UIDVALIDITY races never create moves or tombstones. Himalaya remains the
 unchanged controlled action path for drafts, sending and allowed single moves.
 
+Auch ein vollständig unveränderter Snapshot ist ein neuer autoritativer
+Frischenachweis. Der No-op-Reconcile ersetzt deshalb atomar nur den Zeitstempel
+des Root-Manifests, während Root-Generation, Partitionen, Content und Locator
+unverändert bleiben und keine Raw-, Parser-, OCR-, ClamAV-, FTS- oder
+Modellarbeit entsteht. Erst der normale Sync-Import dieses Nachweises macht die
+lokale Suche wieder frisch; ein erfolgreicher Job-Heartbeat allein genügt nicht.
+
 Search retrieval accepts only canonical v2 documents from the newest imported
 generation. Legacy mail documents without `content_id`, and documents retained
 only as historical move/delete evidence, are never current query hits. When the

@@ -28,6 +28,11 @@ bounded result path.
 - The desired-state file controls container jobs. Start, restart or repair a job
   only after Jan explicitly requests it, except the narrowly documented safe mail
   dry-run repair in the operating contract.
+- Container job activation is asynchronous. A newly persisted desired state with
+  a queued wake request may be returned as `activation_pending`/`starting` until
+  the first fresh worker heartbeat. Treat this as accepted but not yet verified;
+  use `jobs status --target <job> --deep` for the final postcondition and never
+  translate a missing later heartbeat into success.
 - Exactly one productive writer may own a write domain. Legacy systemd writers
   and container writers must never overlap.
 - The supervisor remains outside the business-job scheduler. A worker must hold

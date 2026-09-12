@@ -336,6 +336,43 @@ class JobControlTests(unittest.TestCase):
         self.assertEqual(jobs["mail-index"]["timer"]["UnitFileState"], "disabled")
         self.assertEqual(jobs["mail-index"]["issues"], [])
 
+    def test_container_activation_accepts_pending_first_heartbeat_without_alert(self) -> None:
+        spec = next(
+            item for item in default_job_specs() if item.name == "mail-index"
+        )
+        status_dir = self.root / "container-activation-jobs"
+        status_dir.mkdir()
+        state_path = self.root / "container-activation-control.json"
+        state_path.write_text(
+            json.dumps({"desired": {"mail-index": False}}),
+            encoding="utf-8",
+        )
+        with patch.dict(
+            "os.environ",
+            {
+                "OPENCLAW_RUNTIME": "container",
+                "OPENCLAW_JOB_STATUS_DIR": str(status_dir),
+            },
+            clear=False,
+        ):
+            controller = JobController(
+                state_path=state_path,
+                workspace_root=self.workspace,
+                unit_dir=self.unit_dir,
+                runner=self.system,
+                specs=(spec,),
+                sleeper=lambda _seconds: None,
+            )
+            report = controller.on(target="mail-index", run_now=True)
+
+        self.assertTrue(report["ok"])
+        self.assertEqual(report["activation_pending"], ["mail-index"])
+        self.assertFalse(report["postcondition_verified"])
+        self.assertEqual(report["status"]["jobs"][0]["state"], "starting")
+        self.assertTrue(report["status"]["jobs"][0]["ok"])
+        self.assertEqual(controller.alerts()["active_alerts"], [])
+        self.assertTrue((status_dir / "mail.wake").is_file())
+
     def test_supervisor_reports_scheduler_database_failure(self) -> None:
         spec = JobSpec(
             name="supervisor",

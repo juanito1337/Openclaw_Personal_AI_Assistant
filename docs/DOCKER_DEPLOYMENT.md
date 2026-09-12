@@ -728,6 +728,14 @@ gemeinsamen Mail-Lock, vertagt der planmäßige Mail-Worker genau diesen belegte
 Sperrkonflikt; er startet weder einen parallelen Maillauf noch ein Reconcile.
 Andere Exitcodes bleiben als echte Fehler sichtbar.
 
+Die Containeraktivierung ist asynchron: `jobs on mail-index` kann den
+persistierten Sollzustand und Wake-Auftrag zunächst als `starting` mit
+`postcondition_verified=false` zurückgeben. Erst `jobs status --target
+mail-index --deep` mit frischem Heartbeat belegt `state=on`. Ein erfolgreicher
+No-op-Reconcile erneuert anschließend nur den atomaren Root-Zeitstempel; der
+normale Sync muss diesen unveränderten Generationsstand importieren, bevor
+`mail index status` wieder `search_eligible=true` melden darf.
+
 Ein Backfill mit `blocked_count > 0` darf nicht einfach fortgesetzt oder als
 Coverage akzeptiert werden. Der Operator liest zuerst ausschließlich die
 inhaltsfreien, checkpointgebundenen Fundstellen:

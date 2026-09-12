@@ -93,7 +93,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-12T11:22:16+02:00",
+      "last_git_change": "2026-09-12T11:39:50+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -7392,8 +7392,8 @@
         "docs/archive/AUDIT_INITIAL_IMPORT.md",
         "docs/archive/pre-container/ASSISTANT_ARCHITECTURE.md"
       ],
-      "line_coverage_percent": 86.69,
-      "last_git_change": "2026-08-20T09:23:54+02:00",
+      "line_coverage_percent": 86.51,
+      "last_git_change": "2026-09-12T11:39:50+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -7822,7 +7822,7 @@
         "docs/architecture/adr/0007-shared-sqlite-scheduler.md",
         "docs/architecture/state-access.json"
       ],
-      "line_coverage_percent": 84.24,
+      "line_coverage_percent": 85.1,
       "last_git_change": "2026-08-20T00:25:51+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -11550,7 +11550,7 @@
         "docs/architecture/adr/0007-shared-sqlite-scheduler.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-20T21:35:44+02:00",
+      "last_git_change": "2026-09-12T11:39:50+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"

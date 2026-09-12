@@ -1264,16 +1264,59 @@ class JobController:
                 } for spec in selected],
                 "status": self.status(target=target, deep=False, record=False),
             }
+        previously_enabled = {
+            spec.name: bool(
+                self.state["desired"].get(spec.name, spec.default_on)
+            )
+            for spec in selected
+        }
         for spec in selected:
             self.state["desired"][spec.name] = True
         self._save_state()
         actions = [self._activate(spec, restart=restart, run_now=run_now) for spec in selected]
-        report = self.status(target=target, deep=True, record=True)
+        report = self.status(target=target, deep=True, record=False)
+        activation_pending: list[str] = []
+        if self.container_mode:
+            for job in report["jobs"]:
+                name = str(job.get("name") or "")
+                if previously_enabled.get(name, True) or job.get("ok"):
+                    continue
+                timer = job.get("timer") if isinstance(job.get("timer"), dict) else {}
+                service = (
+                    job.get("service")
+                    if isinstance(job.get("service"), dict)
+                    else {}
+                )
+                issue_codes = {
+                    str(item.get("code") or "")
+                    for item in job.get("issues") or []
+                    if isinstance(item, dict)
+                }
+                heartbeat_pending = (
+                    "keinen aktuellen Heartbeat" in str(timer.get("error") or "")
+                    and "keinen aktuellen Heartbeat" in str(service.get("error") or "")
+                    and issue_codes.issubset(
+                        {"timer-inactive", "service-degraded"}
+                    )
+                )
+                if not heartbeat_pending:
+                    continue
+                activation_pending.append(name)
+                job["activation_pending"] = True
+                job["postcondition_verified"] = False
+                job["state"] = "starting"
+                job["ok"] = True
+                job["issues"] = []
+                job.pop("journal", None)
+            report["ok"] = all(bool(item.get("ok")) for item in report["jobs"])
+        self._record(report)
         return {
-            "ok": all(item["ok"] for item in actions) and report["ok"],
+            "ok": all(item["ok"] for item in actions) and bool(report["ok"]),
             "operation": "restart" if restart else "on",
             "target": target,
             "actions": actions,
+            "activation_pending": activation_pending,
+            "postcondition_verified": not activation_pending and bool(report["ok"]),
             "status": report,
         }
 

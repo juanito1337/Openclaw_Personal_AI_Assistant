@@ -220,21 +220,29 @@ def observation(uid: str, raw: bytes, *, move_from: str = "", verified: bool = T
     )
 
 
-def test_noop_advances_only_cursor_without_body_fts_or_model_work(tmp_path: Path) -> None:
+def test_noop_refreshes_root_without_body_fts_or_model_work(tmp_path: Path) -> None:
     raw = mail("unchanged")
     seed(tmp_path / "projection", {"INBOX": [("1", raw)]})
     backend = DeltaBackend({"INBOX": [observation("1", raw)]}, {("INBOX", "1"): raw})
-    before = (tmp_path / "projection" / "_projection.json").read_bytes()
+    before = json.loads(
+        (tmp_path / "projection" / "_projection.json").read_text()
+    )
 
     result = reconciler(tmp_path, backend).run(approved=True)
 
     assert result["ok"] is True and result["no_op"] is True
-    assert result["published"] is False
+    assert result["published"] is True
+    assert result["freshness_refreshed"] is True
     assert backend.raw_calls == []
     assert result["metrics"]["parser_calls"] == 0
     assert result["metrics"]["fts_rows_changed"] == 0
     assert result["metrics"]["model_calls"] == 0
-    assert (tmp_path / "projection" / "_projection.json").read_bytes() == before
+    after = json.loads(
+        (tmp_path / "projection" / "_projection.json").read_text()
+    )
+    assert after["generated_at"] != before["generated_at"]
+    assert after["root_generation"] == before["root_generation"]
+    assert after["partitions"] == before["partitions"]
     assert json.loads((tmp_path / "state.json").read_text())["folder_cursors"]
 
 
@@ -609,6 +617,38 @@ def test_knowledge_apply_is_atomic_and_move_changes_no_fts_rows(tmp_path: Path) 
         ).index_mail_snapshots()
         assert failing["published"] is False
         assert storage.get_sync_state("mail-agent", "projection")["cursor"] == cursor_before
+    finally:
+        storage.close()
+
+
+def test_noop_refresh_is_imported_for_the_same_generation(tmp_path: Path) -> None:
+    raw = mail("searchable")
+    seed(tmp_path / "projection", {"INBOX": [("1", raw)]})
+    config = AssistantConfig()
+    config.runtime.database = tmp_path / "core.sqlite3"
+    config.search.mail_snapshot_dir = tmp_path / "projection"
+    config.search.mail_projection_max_age_seconds = 10**9
+    storage = AssistantStorage(config.runtime.database)
+    try:
+        first = KnowledgeIndexer(config, storage).index_mail_snapshots()
+        backend = DeltaBackend(
+            {"INBOX": [observation("1", raw)]},
+            {("INBOX", "1"): raw},
+        )
+
+        refresh = reconciler(tmp_path, backend).run(approved=True)
+        second = KnowledgeIndexer(config, storage).index_mail_snapshots()
+
+        assert refresh["no_op"] is True
+        assert refresh["root_generation"] == first["source_generation"]
+        assert second["source_generation"] == first["source_generation"]
+        assert second["generated_at"] == refresh["generated_at"]
+        assert second["fts_rows_changed"] == 0
+        row = storage.knowledge_connection.execute(
+            "SELECT source_generated_at FROM mail_search_generations WHERE generation=?",
+            (first["source_generation"],),
+        ).fetchone()
+        assert row["source_generated_at"] == refresh["generated_at"]
     finally:
         storage.close()
 

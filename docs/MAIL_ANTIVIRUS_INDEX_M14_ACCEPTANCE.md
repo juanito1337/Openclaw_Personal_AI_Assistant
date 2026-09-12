@@ -94,3 +94,22 @@ bekannte Positivsuche einschließlich Locator sowie `mail index shadow` erneut
 belegt werden. `jobs on mail-index` bleibt danach weiterhin ein eigener,
 ausdrücklich freizugebender Schritt; dieser Zwischenstand aktiviert den Job
 nicht.
+
+Das signierte Image für Commit
+`230b15d5df57043d19885bf72049715adfb9cd0f` wurde anschließend mit verifiziertem
+Backup und erfolgreichem Produkt-Smoke installiert. Die freigegebene
+Jobaktivierung setzte den persistenten Sollzustand auf `on`; der erste
+Mail-Owner-Zyklus endete erfolgreich. Dabei wurde ein weiterer Abnahmefehler
+sichtbar: Ein unveränderter vollständiger Snapshot aktualisierte nur Cursor und
+Heartbeat, nicht aber `generated_at` der Projektion. Auto-Suche und Sync blieben
+deshalb trotz gesundem Job bei `stale-generation`.
+
+Der Folgestand erneuert bei einem belegten No-op ausschließlich das atomare
+Root-Manifest. Die kryptografische Root-Generation und alle immutable
+Partitionen bleiben gleich; Raw-Fetch, Parser, OCR, ClamAV, FTS und Modellarbeit
+bleiben null. Außerdem quittiert `jobs on` die kurze asynchrone Phase bis zum
+ersten Heartbeat als `starting`, ohne einen falschen Betriebsalarm zu erzeugen.
+Dieser Folgestand benötigt vor der endgültigen produktiven Indexabnahme erneut
+ein signiertes Deployment. Bis danach ein frischer Rootnachweis importiert und
+die bekannte Positivsuche ohne Fallback wiederholt wurde, bleibt M14.8
+ausdrücklich nicht produktiv abgenommen.
