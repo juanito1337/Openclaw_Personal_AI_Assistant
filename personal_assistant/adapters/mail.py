@@ -13,6 +13,7 @@ from typing import Any
 from mail_agent.command import CommandRunner
 from mail_agent.config import load_config as load_mail_config
 from mail_agent.himalaya import HimalayaClient
+from mail_agent.imap_inventory import ImapInventoryError, native_backend
 from mail_agent.index_quarantine import (
     blocked_report,
     select_candidate,
@@ -22,7 +23,11 @@ from mail_agent.learning import LearningFolderRegistry
 from mail_agent.lock import ProcessLock
 from mail_agent.models import Envelope, ParsedMessage
 from mail_agent.parser import parse_eml
-from mail_agent.search_backfill import require_index_antivirus_ready
+from mail_agent.search_backfill import (
+    BackfillEnvelope,
+    BackfillFolder,
+    require_index_antivirus_ready,
+)
 from mail_agent.utils import clean_single_line
 
 from ..antivirus import HostAntivirus
@@ -558,6 +563,109 @@ class MailMoveService:
             return False
         return not (sender_address and envelope.sender_addr.strip().casefold() != sender_address)
 
+    def _resolve_native_live_locators(
+        self, candidates: list[dict[str, Any]]
+    ) -> dict[str, Any] | None:
+        """Revalidate v2 UID locators through the authoritative read-only connector."""
+
+        if self._client_override is not None:
+            return None
+        config = load_mail_config()
+        if config.mailbox.index_connector != "native-imap-readonly":
+            return None
+        resolved_results: list[dict[str, Any]] = []
+        calls = {
+            "list_folders": 0,
+            "list_envelopes": 0,
+            "search_envelopes": 0,
+            "native_sessions": 1,
+            "native_locator_checks": 0,
+        }
+        try:
+            with native_backend(config, total_timeout_seconds=120.0) as backend:
+                for candidate in candidates:
+                    locators = [dict(item) for item in candidate.get("locators") or []]
+                    live: list[dict[str, Any]] = []
+                    states: list[str] = []
+                    for locator in locators:
+                        locator["live_state"] = "stale"
+                        if not (
+                            locator.get("current_in_index")
+                            and locator.get("folder")
+                            and locator.get("uidvalidity")
+                            and locator.get("uid")
+                        ):
+                            continue
+                        calls["native_locator_checks"] += 1
+                        result = backend.revalidate_locator(
+                            BackfillFolder(
+                                str(locator.get("folder_id") or ""),
+                                str(locator.get("folder") or ""),
+                                str(locator.get("uidvalidity") or ""),
+                            ),
+                            uidvalidity=str(locator.get("uidvalidity") or ""),
+                            uid=str(locator.get("uid") or ""),
+                            expected_subject=str(
+                                candidate.get("title") or candidate.get("subject") or ""
+                            ),
+                        )
+                        state = str(result.get("state") or "conflict")
+                        states.append(state)
+                        if bool(result.get("ok")) and state == "validated":
+                            locator["live_state"] = "validated-native-imap"
+                            locator["stale"] = False
+                            live.append(locator)
+
+                    selected: dict[str, Any] | None = None
+                    state = "missing"
+                    if live:
+                        selected = sorted(
+                            live,
+                            key=lambda item: (
+                                bool(item.get("quarantine")),
+                                str(item.get("folder") or "").casefold(),
+                                str(item.get("uid") or ""),
+                                str(item.get("occurrence_id") or ""),
+                            ),
+                        )[0]
+                        selected = {
+                            **selected,
+                            "selected": True,
+                            "selection": "deterministic-native-live",
+                        }
+                        state = "validated"
+                    elif "conflict" in states:
+                        state = "conflict"
+                    resolved_results.append(
+                        {
+                            "content_id": str(candidate.get("content_id") or ""),
+                            "state": state,
+                            "live_locator": selected,
+                            "locators": locators,
+                            "complete": selected is not None,
+                        }
+                    )
+        except ImapInventoryError as exc:
+            return {
+                "ok": False,
+                "complete": False,
+                "results": [],
+                "folder_errors": [
+                    {
+                        "folder": "*",
+                        "error": f"native-imap-{exc.category}: {exc.safe_detail}",
+                    }
+                ],
+                "backend_calls": calls,
+            }
+        return {
+            "ok": all(bool(item["complete"]) for item in resolved_results),
+            "complete": all(bool(item["complete"]) for item in resolved_results),
+            "results": resolved_results,
+            "folder_errors": [],
+            "backend_calls": calls,
+        }
+
     def resolve_live_locators(self, candidates: list[dict[str, Any]]) -> dict[str, Any]:
         """Revalidate only candidate locations and resolve a moved hit conservatively."""
 
@@ -566,6 +674,9 @@ class MailMoveService:
         decision = self.policy.decide(self.settings.resource_id, "mail.read", {"live_locator": True})
         if not decision.allowed:
             raise PermissionError(decision.reason)
+        native_result = self._resolve_native_live_locators(candidates)
+        if native_result is not None:
+            return native_result
         client = self._client()
         folders, error = client.list_folders()
         calls = {"list_folders": 1, "list_envelopes": 0, "search_envelopes": 0}
@@ -706,6 +817,9 @@ class MailMoveService:
         )
         if not decision.allowed:
             raise PermissionError(decision.reason)
+        native = self._read_message_native(folder, message_id, expected_subject=expected_subject)
+        if native is not None:
+            return native
         client = self._client()
         folders, error = client.list_folders()
         if error:
@@ -748,6 +862,57 @@ class MailMoveService:
             os.chmod(destination, 0o600)
             raw = destination.read_bytes()
         parsed = parse_eml(raw, envelope, resolved)
+        if expected_subject and parsed.subject.strip() != expected_subject.strip():
+            raise PermissionError("Betreff stimmt nicht mit der erwarteten Mail ueberein")
+        return parsed
+
+    def _read_message_native(
+        self,
+        folder: str,
+        message_id: str,
+        *,
+        expected_subject: str,
+    ) -> ParsedMessage | None:
+        """Read one exact UID through the same read-only connector as the index."""
+
+        if self._client_override is not None:
+            return None
+        config = load_mail_config()
+        if config.mailbox.index_connector != "native-imap-readonly":
+            return None
+        selected_folder = BackfillFolder("", str(folder), "")
+        try:
+            with native_backend(config, total_timeout_seconds=120.0) as backend:
+                state = backend.snapshot(selected_folder)
+                validation = backend.revalidate_locator(
+                    selected_folder,
+                    uidvalidity=state.uidvalidity,
+                    uid=str(message_id),
+                    expected_subject=expected_subject,
+                )
+                if not bool(validation.get("ok")):
+                    if str(validation.get("code") or "") == "subject-mismatch":
+                        raise PermissionError(
+                            "Betreff stimmt nicht mit der erwarteten Mail ueberein"
+                        )
+                    raise RuntimeError(
+                        "mail-locator-conflict: Ordner, Mailbox-ID und erwarteter "
+                        "Betreff sind auf dem Server nicht mehr gemeinsam aktuell"
+                    )
+                raw = backend.fetch_raw(
+                    selected_folder,
+                    BackfillEnvelope(
+                        mailbox_id=str(message_id),
+                        uid=str(message_id),
+                        subject=expected_subject,
+                    ),
+                )
+        except ImapInventoryError as exc:
+            raise RuntimeError(
+                f"native-imap-{exc.category}: {exc.safe_detail}"
+            ) from None
+        envelope = Envelope(mailbox_id=str(message_id), subject=expected_subject)
+        parsed = parse_eml(raw, envelope, str(folder))
         if expected_subject and parsed.subject.strip() != expected_subject.strip():
             raise PermissionError("Betreff stimmt nicht mit der erwarteten Mail ueberein")
         return parsed

@@ -70,3 +70,27 @@ Providerflags, blieb wegen sechs `infected`-Fundstellen und des Laufzeitlimits
 aber korrekt unvollständig. Der Indexjob ist weiterhin aus. Produktive
 Quarantaene, Neuaufbau und Jobstart sind nicht durch diese Dokumentation
 genehmigt.
+
+## Produktiver Zwischenstand 2026-09-12
+
+Nach den sechs einzeln freigegebenen Quarantaeneaktionen und dem ausdrücklich
+freigegebenen Neuaufbau/Fortsetzen wurde eine vollständige, autoritative
+Generation veröffentlicht und vom normalen Sync importiert. Der anschließende
+Reconcile der Generation
+`4262cabf16f8639853d887aa54be4e790c3f3204d62778dae921bc56f5d18d37`
+verarbeitete 8.860 aktuelle Nachrichten, davon 73 neu und 8.787 unverändert;
+eine entfernte Nachricht wurde erkannt. Es gab keine Blockade, keinen
+Parserfehler und keinen IMAP-Schreibzugriff. Die Coverage umfasst alle 21
+suchberechtigten Partitionen; ausschließlich `Agent/Virusverdacht` bleibt als
+`malware-quarantine-not-searchable` ausgeschlossen.
+
+Die Abnahme deckte danach zwei Quellfehler auf: Eine historische Monolith-
+Dublikatzeile ohne v2-Locator konnte einen echten Treffer vergiften, und der
+registrierte Shadowbefehl wurde an die ältere externe Mail-CLI weitergeleitet.
+Die Korrektur begrenzt Suchtreffer auf die neueste kanonische v2-Generation und
+revalidiert Treffer mit dem nativen read-only UID-/UIDVALIDITY-Pfad. Vor einer
+Aktivierung muss das daraus gebaute signierte Image separat installiert und die
+bekannte Positivsuche einschließlich Locator sowie `mail index shadow` erneut
+belegt werden. `jobs on mail-index` bleibt danach weiterhin ein eigener,
+ausdrücklich freizugebender Schritt; dieser Zwischenstand aktiviert den Job
+nicht.

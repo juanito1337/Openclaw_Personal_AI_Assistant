@@ -567,7 +567,13 @@ class MailLexicalSearch:
         params.extend([namespace, value])
 
     def _where(self, filters: MailSearchFilters) -> tuple[list[str], list[Any]]:
-        clauses = ["d.source_type='email'", "d.resource_id='mail-agent'"]
+        clauses = [
+            "d.source_type='email'",
+            "d.resource_id='mail-agent'",
+            "d.content_id IS NOT NULL",
+            "d.index_generation=(SELECT generation FROM mail_search_generations "
+            "ORDER BY imported_at DESC,generation DESC LIMIT 1)",
+        ]
         params: list[Any] = []
         for namespace, value in (
             ("sender", filters.sender),

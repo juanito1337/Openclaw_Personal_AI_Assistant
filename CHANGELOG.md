@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Mailindex/M14.8: Die lokale Suche berücksichtigt nur noch Dokumente der
+  neuesten v2-Indexgeneration mit kanonischer `content_id`; historische
+  Monolith-Dubletten ohne Locator können damit keinen aktuellen Treffer mehr in
+  einen unvollständigen Serverfallback verwandeln. Treffer-Locators und das
+  anschließende exakte Mail-Lesen werden bei konfiguriertem nativen Indexpfad
+  über UID und UIDVALIDITY mit demselben strikt read-only IMAP-Connector
+  geprüft. Der registrierte `mail index shadow`-Befehl läuft außerdem wieder
+  über den Personal-Assistant-Handler statt über eine CLI ohne diesen Befehl.
 - Agent/M13: Die generierten Pluginmetadaten markieren ausschließlich reine
   read-only Werkzeuggruppen als `replaySafe`. Damit kann OpenClaw den einmaligen
   Evidenzguard-Korrekturlauf nach einer unvollständigen Mailsuche ausführen,

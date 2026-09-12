@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import hashlib
+import io
 from collections.abc import Sequence
+from contextlib import contextmanager, redirect_stdout
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 
+import personal_assistant.cli as assistant_cli
 from mail_agent.models import Envelope, OperationResult
 from personal_assistant.adapters.mail import MailMoveService
 from personal_assistant.cli import parser as assistant_parser
@@ -354,6 +358,57 @@ def test_authoritative_delete_keeps_history_without_poisoning_active_locator_cov
     assert server.search_calls == 0
 
 
+def test_legacy_document_without_v2_identity_cannot_poison_current_search(
+    storage: AssistantStorage,
+) -> None:
+    _publish(storage, [_record("20c", subject="Current", body="needle")])
+    connection = storage.knowledge_connection
+    cursor = connection.execute(
+        """
+        INSERT INTO documents(
+            source_type,resource_id,source_id,uri,title,mime_type,modified_at,
+            etag,sha256,metadata_json,indexed_at
+        ) VALUES(?,?,?,?,?,?,?,?,?,?,?)
+        """,
+        (
+            "email",
+            "mail-agent",
+            "mid:legacy-duplicate",
+            "mail-agent://mid:legacy-duplicate",
+            "Legacy duplicate",
+            "message/rfc822",
+            _stamp(),
+            "",
+            "legacy-sha",
+            "{}",
+            _stamp(),
+        ),
+    )
+    document_id = int(cursor.lastrowid or 0)
+    chunk = connection.execute(
+        "INSERT INTO chunks(document_id,chunk_index,text) VALUES(?,?,?)",
+        (document_id, 0, "needle"),
+    )
+    chunk_id = int(chunk.lastrowid or 0)
+    connection.execute(
+        """
+        INSERT INTO mail_search_fts(
+            rowid,content_id,document_id,chunk_id,subject,sender,body
+        ) VALUES(?,?,?,?,?,?,?)
+        """,
+        (chunk_id, "mid:legacy-duplicate", document_id, chunk_id, "Legacy", "", "needle"),
+    )
+    server = RecordingServer()
+
+    result = MailHybridSearch(storage, server, _config()).search("needle")
+
+    assert result["backend"] == "local-hybrid"
+    assert result["complete"] is True
+    assert result["count"] == 1
+    assert result["results"][0]["content_id"] == "content:20c"
+    assert server.search_calls == 0
+
+
 class SemanticProvider:
     def __init__(self, *, fail_query: bool = False) -> None:
         self.fail_query = fail_query
@@ -537,6 +592,124 @@ def test_live_locator_reresolves_a_unique_move_and_reports_ambiguous_copy_confli
         storage.close()
 
 
+def test_live_locator_uses_native_uid_revalidation_when_configured(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client = LocatorClient({"INBOX": []})
+    service, storage = _mail_service(tmp_path, client)
+    candidate = _locator_candidate()
+    candidate["locators"][0].update(
+        {"folder_id": "folder:inbox", "uidvalidity": "44", "uid": "17"}
+    )
+    observed: list[tuple[str, str, str, str]] = []
+
+    class NativeBackend:
+        def revalidate_locator(
+            self,
+            folder: Any,
+            *,
+            uidvalidity: str,
+            uid: str,
+            expected_subject: str = "",
+            expected_message_id: str = "",
+        ) -> dict[str, Any]:
+            del expected_message_id
+            observed.append((folder.name, uidvalidity, uid, expected_subject))
+            return {"ok": True, "state": "validated", "read_only": True}
+
+    @contextmanager
+    def fake_native_backend(config: Any, *, total_timeout_seconds: float):
+        del config
+        assert total_timeout_seconds == 120.0
+        yield NativeBackend()
+
+    service._client_override = None
+    monkeypatch.setattr(
+        "personal_assistant.adapters.mail.load_mail_config",
+        lambda: SimpleNamespace(
+            mailbox=SimpleNamespace(index_connector="native-imap-readonly")
+        ),
+    )
+    monkeypatch.setattr(
+        "personal_assistant.adapters.mail.native_backend", fake_native_backend
+    )
+    try:
+        result = service.resolve_live_locators([candidate])
+        assert result["complete"] is True
+        assert result["results"][0]["state"] == "validated"
+        assert result["results"][0]["live_locator"]["mailbox_id"] == "17"
+        assert result["results"][0]["live_locator"]["live_state"] == (
+            "validated-native-imap"
+        )
+        assert result["backend_calls"]["native_locator_checks"] == 1
+        assert observed == [("INBOX", "44", "17", "Projekt")]
+        assert client.search_calls == []
+    finally:
+        storage.close()
+
+
+def test_mail_read_uses_exact_native_uid_instead_of_bounded_himalaya_listing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client = LocatorClient({"INBOX": []})
+    service, storage = _mail_service(tmp_path, client)
+    calls: list[tuple[str, str]] = []
+
+    class NativeBackend:
+        def snapshot(self, folder: Any) -> Any:
+            calls.append(("snapshot", folder.name))
+            return SimpleNamespace(uidvalidity="44")
+
+        def revalidate_locator(self, folder: Any, **values: str) -> dict[str, Any]:
+            calls.append(("validate", f"{folder.name}:{values['uid']}"))
+            assert values == {
+                "uidvalidity": "44",
+                "uid": "1421",
+                "expected_subject": "Belegter Betreff",
+            }
+            return {"ok": True, "state": "validated", "read_only": True}
+
+        def fetch_raw(self, folder: Any, envelope: Any) -> bytes:
+            calls.append(("fetch", f"{folder.name}:{envelope.uid}"))
+            return (
+                b"From: Sender <sender@example.invalid>\r\n"
+                b"Message-ID: <native@example.invalid>\r\n"
+                b"Subject: Belegter Betreff\r\n\r\nBody from native IMAP"
+            )
+
+    @contextmanager
+    def fake_native_backend(config: Any, *, total_timeout_seconds: float):
+        del config
+        assert total_timeout_seconds == 120.0
+        yield NativeBackend()
+
+    service._client_override = None
+    monkeypatch.setattr(
+        "personal_assistant.adapters.mail.load_mail_config",
+        lambda: SimpleNamespace(
+            mailbox=SimpleNamespace(index_connector="native-imap-readonly")
+        ),
+    )
+    monkeypatch.setattr(
+        "personal_assistant.adapters.mail.native_backend", fake_native_backend
+    )
+    try:
+        result = service.read(
+            "Agent/Pruefen", "1421", expected_subject="Belegter Betreff"
+        )
+        assert result["ok"] is True
+        assert result["message"]["body_text"] == "Body from native IMAP"
+        assert result["message"]["folder"] == "Agent/Pruefen"
+        assert calls == [
+            ("snapshot", "Agent/Pruefen"),
+            ("validate", "Agent/Pruefen:1421"),
+            ("fetch", "Agent/Pruefen:1421"),
+        ]
+        assert client.search_calls == []
+    finally:
+        storage.close()
+
+
 def test_multiple_valid_occurrences_choose_one_physical_locator_deterministically(
     tmp_path: Path,
 ) -> None:
@@ -648,6 +821,53 @@ def test_index_status_doctor_cli_and_typed_catalog_are_consistent(
     assert by_id["mail.index.backfill"].approval == "explicit-user-local-mail-index-backfill"
     assert by_id["mail.index.reconcile"].approval == "explicit-user-local-mail-index-reconcile"
     assert by_id["mail.search"].test_anchor == "tests/test_mail_hybrid_search_m117.py"
+
+
+def test_shadow_cli_uses_registered_handler_instead_of_external_mail_cli(
+    tmp_path: Path,
+) -> None:
+    config_path = tmp_path / "assistant.toml"
+    config_path.touch()
+    assistant = SimpleNamespace(
+        mail_index_shadow=lambda query, limit=50: {
+            "ok": True,
+            "query": query,
+            "limit": limit,
+            "comparable": False,
+        },
+        close=lambda: None,
+    )
+    output = io.StringIO()
+    with (
+        patch.object(assistant_cli, "_load_secrets"),
+        patch.object(
+            assistant_cli,
+            "load_config",
+            return_value=SimpleNamespace(runtime=SimpleNamespace(log_file=tmp_path / "log")),
+        ),
+        patch.object(assistant_cli, "_logging"),
+        patch.object(assistant_cli, "_record_interactive_activity"),
+        patch.object(assistant_cli, "create_personal_assistant", return_value=assistant),
+        patch.object(assistant_cli, "run_mail_external") as external,
+        redirect_stdout(output),
+    ):
+        exit_code = assistant_cli.main(
+            [
+                "--config",
+                str(config_path),
+                "mail",
+                "index",
+                "shadow",
+                "--query",
+                "needle",
+                "--limit",
+                "7",
+            ]
+        )
+
+    assert exit_code == 0
+    external.assert_not_called()
+    assert '"limit": 7' in output.getvalue()
 
 
 def test_server_mode_reports_unsupported_structured_filters_as_incomplete(

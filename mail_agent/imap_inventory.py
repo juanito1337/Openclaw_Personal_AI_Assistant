@@ -644,7 +644,11 @@ class NativeImapInventoryBackend:
         expected_subject: str = "",
         expected_message_id: str = "",
     ) -> dict[str, Any]:
-        state = self.snapshot(folder)
+        # One request may validate several candidates in the same folder.  The
+        # first call establishes a complete, race-checked UID snapshot; reusing
+        # it inside this short-lived read-only session avoids repeating an
+        # entire UID SEARCH for every result while preserving the same proof.
+        state = self._state(folder)
         if state.uidvalidity != str(uidvalidity):
             return {
                 "ok": False,

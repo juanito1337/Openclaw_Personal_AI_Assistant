@@ -301,6 +301,8 @@ class MailHybridSearch:
             SELECT d.*,c.text AS source_text FROM documents d
             LEFT JOIN chunks c ON c.document_id=d.id AND c.chunk_index=0
             WHERE d.content_id=? AND d.source_type='email' AND d.resource_id='mail-agent'
+              AND d.index_generation=(SELECT generation FROM mail_search_generations
+                  ORDER BY imported_at DESC,generation DESC LIMIT 1)
             ORDER BY c.id LIMIT 1
             """,
             (content_id,),

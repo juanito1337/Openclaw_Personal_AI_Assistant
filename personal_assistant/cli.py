@@ -522,7 +522,7 @@ def main(argv: list[str] | None = None) -> int:
         args.command == "mail"
         and args.mail_command == "index"
         and getattr(args, "index_command", "")
-        in {"status", "doctor", "blocked", "quarantine"}
+        in {"status", "doctor", "shadow", "blocked", "quarantine"}
     )
     if (
         args.command == "mail"

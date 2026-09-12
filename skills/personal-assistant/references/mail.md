@@ -260,7 +260,17 @@ verified unique identity performs no Raw-, parser-, OCR-, ClamAV-, FTS- or model
 work. Without such evidence the new candidate is fetched once with BODY.PEEK and
 matched by raw SHA-256; matching content is then reused. Partial scans, network
 loss and UIDVALIDITY races never create moves or tombstones. Himalaya remains the
-unchanged controlled action path for read, draft, send and allowed single moves.
+unchanged controlled action path for drafts, sending and allowed single moves.
+
+Search retrieval accepts only canonical v2 documents from the newest imported
+generation. Legacy mail documents without `content_id`, and documents retained
+only as historical move/delete evidence, are never current query hits. When the
+native read-only connector is configured, a positive local hit is revalidated by
+its exact folder, UIDVALIDITY, UID and expected subject through `EXAMINE`, `UID
+SEARCH` and `UID FETCH`; it must not be discarded merely because Himalaya's
+bounded text search cannot find an old message. The same exact native UID path is
+used for registered `mail.read`. Mail writes continue to use the separately
+controlled Himalaya action path and its approval contract.
 
 ## M11.4 safe local lexical search
 
