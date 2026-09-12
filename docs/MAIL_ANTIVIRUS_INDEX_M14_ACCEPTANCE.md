@@ -113,3 +113,10 @@ Dieser Folgestand benötigt vor der endgültigen produktiven Indexabnahme erneut
 ein signiertes Deployment. Bis danach ein frischer Rootnachweis importiert und
 die bekannte Positivsuche ohne Fallback wiederholt wurde, bleibt M14.8
 ausdrücklich nicht produktiv abgenommen.
+
+Die Nachkontrolle zeigte zusätzlich, dass eine lange Scheduler-Wartezeit des
+gemeinsamen Mail-Owners den nur phasenweise geschriebenen Index-Heartbeat
+überaltern ließ. Der Status verwendet deshalb bei `queued`/`waiting` den
+frischen Heartbeat dieses Owners als reinen Liveness-Nachweis, behält aber das
+letzte Reconcile-Ergebnis getrennt bei. Beide Heartbeats alt bleibt weiterhin
+ein echter Fehler.

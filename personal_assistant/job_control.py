@@ -265,6 +265,28 @@ class JobController:
                 return spec
         return None
 
+    def _container_heartbeat(self, name: str) -> tuple[Path, dict[str, Any]]:
+        path = self.container_status_dir / f"{name}.json"
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+            heartbeat = value if isinstance(value, dict) else {}
+        except (FileNotFoundError, OSError, json.JSONDecodeError):
+            heartbeat = {}
+        return path, heartbeat
+
+    @staticmethod
+    def _container_heartbeat_fresh(heartbeat: dict[str, Any]) -> bool:
+        updated = str(heartbeat.get("updated_at") or "")
+        if not updated:
+            return False
+        try:
+            parsed = datetime.fromisoformat(updated.replace("Z", "+00:00"))
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=UTC)
+            return datetime.now(UTC) - parsed.astimezone(UTC) < timedelta(minutes=5)
+        except ValueError:
+            return False
+
     def _container_runtime_status(
         self,
         unit: str,
@@ -285,26 +307,28 @@ class JobController:
                 "Result": "success",
             }
         desired = bool(self.state.get("desired", {}).get(spec.name, spec.default_on))
-        heartbeat_path = self.container_status_dir / f"{spec.name}.json"
-        heartbeat: dict[str, Any] = {}
-        try:
-            value = json.loads(heartbeat_path.read_text(encoding="utf-8"))
-            heartbeat = value if isinstance(value, dict) else {}
-        except (FileNotFoundError, OSError, json.JSONDecodeError):
-            heartbeat = {}
-        updated = str(heartbeat.get("updated_at") or "")
-        fresh = False
-        if updated:
-            try:
-                parsed = datetime.fromisoformat(updated.replace("Z", "+00:00"))
-                if parsed.tzinfo is None:
-                    parsed = parsed.replace(tzinfo=UTC)
-                fresh = datetime.now(UTC) - parsed.astimezone(UTC) < timedelta(minutes=5)
-            except ValueError:
-                fresh = False
+        heartbeat_path, heartbeat = self._container_heartbeat(spec.name)
+        work_heartbeat_fresh = self._container_heartbeat_fresh(heartbeat)
+        owner_path: Path | None = None
+        owner_heartbeat: dict[str, Any] = {}
+        owner_heartbeat_fresh = False
+        if spec.name == "mail-index":
+            owner_path, owner_heartbeat = self._container_heartbeat("mail")
+            owner_heartbeat_fresh = self._container_heartbeat_fresh(owner_heartbeat)
+        # mail-index is deliberately not a second worker.  Its execution
+        # heartbeat is emitted only once the shared mail owner reaches the
+        # serialized reconcile phase.  A fresh owner heartbeat therefore
+        # proves worker liveness while that owner is waiting in the scheduler
+        # queue; queue wait alone must never become a false outage.
+        fresh = work_heartbeat_fresh or owner_heartbeat_fresh
         active = desired and fresh
         is_timer = unit == spec.timer_unit
-        heartbeat_state = str(heartbeat.get("state") or "")
+        status_heartbeat = (
+            heartbeat
+            if work_heartbeat_fresh or not owner_heartbeat_fresh
+            else owner_heartbeat
+        )
+        heartbeat_state = str(status_heartbeat.get("state") or "")
         # A worker publishes ``running`` before starting its child. Its previous
         # result remains useful history but must not be treated as the result of
         # the in-flight run. This is essential for the supervisor checking its
@@ -326,6 +350,11 @@ class JobController:
             "ExecMainExitTimestamp": str(heartbeat.get("last_finished_at") or ""),
             "container": True,
             "heartbeat": str(heartbeat_path),
+            "work_heartbeat_present": bool(heartbeat),
+            "work_heartbeat_fresh": work_heartbeat_fresh,
+            "shared_owner": "mail" if owner_path is not None else "",
+            "shared_owner_heartbeat": str(owner_path) if owner_path is not None else "",
+            "shared_owner_fresh": owner_heartbeat_fresh,
         }
 
     def _unit_status(
@@ -902,7 +931,14 @@ class JobController:
                 else:
                     issues.append({"code": "health-check-failed", "detail": str(health.get("detail") or "Health-Check fehlgeschlagen")[-1000:]})
 
-        state = "on"
+        activation_pending = (
+            desired_on
+            and self.container_mode
+            and spec.name == "mail-index"
+            and not bool(timer.get("work_heartbeat_present"))
+            and bool(timer.get("shared_owner_fresh"))
+        )
+        state = "starting" if activation_pending else "on"
         if not desired_on:
             state = "off" if not issues else "degraded"
         elif issues:
@@ -920,6 +956,9 @@ class JobController:
             "reporting": reporting,
             "issues": issues,
         }
+        if activation_pending:
+            response["activation_pending"] = True
+            response["postcondition_verified"] = False
         if issues:
             response["journal"] = self._journal(spec)
         return response

@@ -33,6 +33,10 @@ bounded result path.
   the first fresh worker heartbeat. Treat this as accepted but not yet verified;
   use `jobs status --target <job> --deep` for the final postcondition and never
   translate a missing later heartbeat into success.
+- `mail-index` shares the single mail worker. While its own execution heartbeat
+  is old, a fresh `mail` owner heartbeat proves only worker liveness and may
+  expose `queued`/`waiting` without an outage alert. If both heartbeats are old,
+  the job remains a real failure; queue wait must never be reported as one.
 - Exactly one productive writer may own a write domain. Legacy systemd writers
   and container writers must never overlap.
 - The supervisor remains outside the business-job scheduler. A worker must hold

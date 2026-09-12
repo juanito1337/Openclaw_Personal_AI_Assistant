@@ -735,6 +735,10 @@ mail-index --deep` mit frischem Heartbeat belegt `state=on`. Ein erfolgreicher
 No-op-Reconcile erneuert anschließend nur den atomaren Root-Zeitstempel; der
 normale Sync muss diesen unveränderten Generationsstand importieren, bevor
 `mail index status` wieder `search_eligible=true` melden darf.
+Da `mail-index` seriell im bestehenden Mail-Owner läuft, gilt dessen frischer
+Heartbeat während `queued` oder `waiting` als Liveness-Nachweis. Der letzte
+Reconcile-Zustand bleibt separat sichtbar; nur wenn auch der gemeinsame Owner
+keinen frischen Heartbeat mehr liefert, entsteht `timer-inactive`.
 
 Ein Backfill mit `blocked_count > 0` darf nicht einfach fortgesetzt oder als
 Coverage akzeptiert werden. Der Operator liest zuerst ausschließlich die

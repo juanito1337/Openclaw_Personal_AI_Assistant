@@ -8,7 +8,10 @@
   neu belegten Zeitstempel auch bei unveränderter kryptografischer Generation;
   dadurch bleibt der periodische Index im ruhigen Postfach suchfähig. Eine
   erstmalige asynchrone Containeraktivierung wird bis zum ersten Heartbeat als
-  `starting` statt als falscher `timer-inactive`-Fehler quittiert.
+  `starting` statt als falscher `timer-inactive`-Fehler quittiert. Bei dem
+  absichtlich gemeinsam genutzten Mail-Owner belegt dessen frischer Heartbeat
+  außerdem die Worker-Lebendigkeit, während der Reconcile in der
+  Scheduler-Warteschlange steht; reine Queue-Wartezeit löst keinen Alarm aus.
 - Mailindex/M14.8: Die lokale Suche berücksichtigt nur noch Dokumente der
   neuesten v2-Indexgeneration mit kanonischer `content_id`; historische
   Monolith-Dubletten ohne Locator können damit keinen aktuellen Treffer mehr in

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -372,6 +372,117 @@ class JobControlTests(unittest.TestCase):
         self.assertTrue(report["status"]["jobs"][0]["ok"])
         self.assertEqual(controller.alerts()["active_alerts"], [])
         self.assertTrue((status_dir / "mail.wake").is_file())
+
+    def test_container_shared_mail_owner_queue_keeps_index_live(self) -> None:
+        spec = next(
+            item for item in default_job_specs() if item.name == "mail-index"
+        )
+        status_dir = self.root / "container-queued-owner-jobs"
+        status_dir.mkdir()
+        stale = (datetime.now(UTC) - timedelta(minutes=20)).isoformat()
+        current = datetime.now(UTC).isoformat()
+        (status_dir / "mail-index.json").write_text(
+            json.dumps(
+                {
+                    "job": "mail-index",
+                    "state": "waiting",
+                    "result": "success",
+                    "last_exit_code": 0,
+                    "updated_at": stale,
+                }
+            ),
+            encoding="utf-8",
+        )
+        (status_dir / "mail.json").write_text(
+            json.dumps(
+                {
+                    "job": "mail",
+                    "state": "queued",
+                    "result": "running",
+                    "updated_at": current,
+                }
+            ),
+            encoding="utf-8",
+        )
+        state_path = self.root / "container-queued-owner-control.json"
+        state_path.write_text(
+            json.dumps({"desired": {"mail-index": True}}),
+            encoding="utf-8",
+        )
+        with patch.dict(
+            "os.environ",
+            {
+                "OPENCLAW_RUNTIME": "container",
+                "OPENCLAW_JOB_STATUS_DIR": str(status_dir),
+            },
+            clear=False,
+        ):
+            controller = JobController(
+                state_path=state_path,
+                workspace_root=self.workspace,
+                unit_dir=self.unit_dir,
+                runner=self.system,
+                specs=(spec,),
+                sleeper=lambda _seconds: None,
+            )
+            report = controller.status(target="mail-index", record=True)
+
+        job = report["jobs"][0]
+        self.assertTrue(report["ok"])
+        self.assertEqual(job["state"], "on")
+        self.assertEqual(job["issues"], [])
+        self.assertTrue(job["timer"]["shared_owner_fresh"])
+        self.assertFalse(job["timer"]["work_heartbeat_fresh"])
+        self.assertEqual(job["service"]["SubState"], "queued")
+        self.assertEqual(controller.alerts()["active_alerts"], [])
+
+    def test_container_shared_mail_owner_must_itself_be_fresh(self) -> None:
+        spec = next(
+            item for item in default_job_specs() if item.name == "mail-index"
+        )
+        status_dir = self.root / "container-stale-owner-jobs"
+        status_dir.mkdir()
+        stale = (datetime.now(UTC) - timedelta(minutes=20)).isoformat()
+        for name in ("mail", "mail-index"):
+            (status_dir / f"{name}.json").write_text(
+                json.dumps(
+                    {
+                        "job": name,
+                        "state": "waiting",
+                        "result": "success",
+                        "last_exit_code": 0,
+                        "updated_at": stale,
+                    }
+                ),
+                encoding="utf-8",
+            )
+        state_path = self.root / "container-stale-owner-control.json"
+        state_path.write_text(
+            json.dumps({"desired": {"mail-index": True}}),
+            encoding="utf-8",
+        )
+        with patch.dict(
+            "os.environ",
+            {
+                "OPENCLAW_RUNTIME": "container",
+                "OPENCLAW_JOB_STATUS_DIR": str(status_dir),
+            },
+            clear=False,
+        ):
+            controller = JobController(
+                state_path=state_path,
+                workspace_root=self.workspace,
+                unit_dir=self.unit_dir,
+                runner=self.system,
+                specs=(spec,),
+                sleeper=lambda _seconds: None,
+            )
+            report = controller.status(target="mail-index")
+
+        job = report["jobs"][0]
+        self.assertFalse(report["ok"])
+        self.assertEqual(job["state"], "degraded")
+        self.assertEqual(job["issues"][0]["code"], "timer-inactive")
 
     def test_supervisor_reports_scheduler_database_failure(self) -> None:
         spec = JobSpec(
