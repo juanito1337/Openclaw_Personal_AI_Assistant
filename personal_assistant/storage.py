@@ -121,6 +121,55 @@ class AssistantStorage:
             self.knowledge_connection.close()
         self.connection.close()
 
+    def _knowledge_schema_is_current(self) -> bool:
+        """Verify the current schema without acquiring a SQLite write lock."""
+
+        required_tables = {
+            "sync_state",
+            "documents",
+            "chunks",
+            "knowledge_fts",
+            "mail_search_generations",
+            "mail_search_contents",
+            "mail_search_occurrences",
+            "mail_search_locators",
+            "mail_search_tags",
+            "mail_search_thread_edges",
+            "mail_search_threads",
+            "mail_search_thread_members",
+            "mail_search_embeddings",
+            "mail_search_fts",
+        }
+        tables = {
+            str(row[0])
+            for row in self.knowledge_connection.execute(
+                "SELECT name FROM sqlite_master WHERE type IN ('table','view')"
+            ).fetchall()
+        }
+        if not required_tables <= tables:
+            return False
+        required_columns = {
+            "documents": {
+                "content_id",
+                "index_generation",
+                "source_status",
+                "embedding_version",
+            },
+            "mail_search_contents": {"retrieval_text_version"},
+            "mail_search_tags": {"active", "uncertainty"},
+            "mail_search_thread_edges": {"selected", "certainty", "reason"},
+        }
+        for table, expected in required_columns.items():
+            columns = {
+                str(row[1])
+                for row in self.knowledge_connection.execute(
+                    f"PRAGMA table_info({table})"
+                ).fetchall()
+            }
+            if not expected <= columns:
+                return False
+        return True
+
     def _migrate(self) -> None:
         combined_knowledge_version = (
             int(self.connection.execute("PRAGMA user_version").fetchone()[0])
@@ -201,6 +250,13 @@ class AssistantStorage:
                 "Wissensdatenbankschema "
                 f"{knowledge_version} ist neuer als {KNOWLEDGE_SCHEMA_VERSION}"
             )
+        if (
+            knowledge_version == KNOWLEDGE_SCHEMA_VERSION
+            and self._knowledge_schema_is_current()
+        ):
+            self.fts_enabled = True
+            self.mail_search_fts_enabled = True
+            return
         self.knowledge_connection.executescript(
             """
             CREATE TABLE IF NOT EXISTS sync_state (

@@ -603,6 +603,42 @@ enabled = true
                 finally:
                     storage.close()
 
+    def test_current_split_schema_opens_while_knowledge_writer_is_active(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            state, workspace = self._state(folder)
+            migrate_layout(ROOT, state, workspace)
+            core = state / "v3/shared/core/assistant.sqlite3"
+            knowledge_root = state / "v3/domains/knowledge"
+            knowledge = knowledge_root / "knowledge.sqlite3"
+            writer = sqlite3.connect(knowledge)
+            writer.execute("PRAGMA journal_mode=WAL")
+            writer.execute("BEGIN IMMEDIATE")
+            writer.execute(
+                "INSERT OR REPLACE INTO sync_state(resource_id,scope,status) "
+                "VALUES('fixture','active-writer','running')"
+            )
+            try:
+                with patch.dict(
+                    os.environ,
+                    {"OPENCLAW_KNOWLEDGE_DATA_DIR": str(knowledge_root)},
+                    clear=False,
+                ):
+                    storage = AssistantStorage(core)
+                    try:
+                        self.assertTrue(storage.fts_enabled)
+                        self.assertTrue(storage.mail_search_fts_enabled)
+                        self.assertEqual(
+                            storage.knowledge_connection.execute(
+                                "PRAGMA user_version"
+                            ).fetchone()[0],
+                            KNOWLEDGE_SCHEMA_VERSION,
+                        )
+                    finally:
+                        storage.close()
+            finally:
+                writer.rollback()
+                writer.close()
+
     def test_preflight_full_or_read_only_disk_changes_nothing(self) -> None:
         Usage = namedtuple("Usage", "total used free")
         for access, free, expected in (

@@ -10,6 +10,12 @@
   über UID und UIDVALIDITY mit demselben strikt read-only IMAP-Connector
   geprüft. Der registrierte `mail index shadow`-Befehl läuft außerdem wieder
   über den Personal-Assistant-Handler statt über eine CLI ohne diesen Befehl.
+- Runtime/M14.8: Bereits vollständig migrierte Knowledge-Datenbanken werden
+  beim Start eines Diagnose- oder Suchprozesses nur noch durch read-only
+  Schemaabfragen verifiziert. Ein parallel laufender regulärer Sync-Writer wird
+  dadurch nicht mehr von erneutem DDL beziehungsweise `PRAGMA user_version`
+  blockiert; unvollständige oder ältere Schemata durchlaufen unverändert den
+  exklusiven Migrationspfad.
 - Agent/M13: Die generierten Pluginmetadaten markieren ausschließlich reine
   read-only Werkzeuggruppen als `replaySafe`. Damit kann OpenClaw den einmaligen
   Evidenzguard-Korrekturlauf nach einer unvollständigen Mailsuche ausführen,
