@@ -53,6 +53,45 @@ List und Search liefern die exakte iCalendar-UID. Diese UID ist fuer jeden Schre
 
 Neue Objekte werden mit `If-None-Match: *` create-only angelegt. `calendar create` besitzt bewusst keinen `--yes`-Schalter; `--yes` ist nur fuer `calendar configure` und `calendar update` zulaessig.
 
+Jeder Create wird unmittelbar per exakter UID erneut vom CalDAV-Server gelesen.
+Erst eine eindeutige Antwort mit ETag und identischen Kernfeldern gilt als
+erfolgreich. Ein akzeptierter PUT ohne diesen Read-back wird als
+zustellungsunsicher gemeldet.
+
+## Termine aus einer exakt ausgewaehlten Mail
+
+Die read-only Vorschau bindet Quelle, ClamAV-Ergebnis und extrahierte Kandidaten:
+
+```bash
+./scripts/assistant.sh calendar from-mail \
+  --folder "<Ordner>" \
+  --message-id "<Mail-ID>" \
+  --expected-subject "<Betreff>" \
+  --dry-run
+```
+
+Sie liefert `preview_digest` sowie pro Kandidat eine `candidate_id`, belegte
+Felder, Zeitzonen, Konflikte und Duplikatstatus. Fehlende oder widerspruechliche
+Werte fuehren zu `information-required`; der Agent darf nichts erfinden.
+
+Nach der nativen Einzelfreigabe legt der Writepfad genau einen unveraenderten
+Kandidaten an:
+
+```bash
+./scripts/assistant.sh calendar from-mail \
+  --folder "<Ordner>" \
+  --message-id "<Mail-ID>" \
+  --expected-subject "<Betreff>" \
+  --preview-digest "<preview_digest>" \
+  --candidate-id "<candidate_id>" \
+  --yes
+```
+
+Der CLI-Schalter ist Teil der gebundenen Fachoperation; im Agentenpfad bleibt
+zusaetzlich das native Allow-once-Approval fuer exakt diese Argumente
+verpflichtend. Hin- und Rueckflug sind zwei getrennte Writes. Ein Fehler stoppt
+die Folgeaktion; es gibt weder Bulk-Create noch automatisches Delete/Rollback.
+
 ## Termin bearbeiten
 
 ```bash
@@ -91,4 +130,7 @@ Dabei wird nur die Master-Komponente der Serie aktualisiert; Ausnahmen und unbek
 - Teilaktualisierung erhaelt Teilnehmer, Alarme, Zeitzonen, benutzerdefinierte Felder und nicht genannte Eigenschaften
 - Wiederholungsserien nur mit gesonderter ausdruecklicher Freigabe
 - jede Aenderung als auditierter ActionPlan mit Vorher-/Nachher-Ergebnis
+- Mailquelle vor jedem Write erneut lesen; Preview-/Kandidatendigest unveraendert
+- Raw-Mail und jede physische Anlage fail-closed mit ClamAV pruefen
+- Create erst nach UID-/ETag-/Feld-Read-back als erfolgreich melden
 - Terminloeschung, Kalenderfreigaben und Massenbearbeitung bleiben gesperrt

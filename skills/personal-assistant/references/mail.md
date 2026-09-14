@@ -438,6 +438,17 @@ search. A local image/index rollback never restores or changes remote mail.
   send.
 - Present recipient, subject and body. Send only the unchanged draft ID after
   Jan's explicit approval with the registered `--yes` command.
+- The draft result is preparation, never evidence that mail was sent. End the
+  draft turn as `approval-required`; a later explicit instruction to send that
+  unchanged draft starts the registered send call and its separate native
+  allow-once dialog.
+- Resolve that current dialog with its approval button or the exact displayed
+  `/approve <ID> allow-once`. A bare `/approve` has no bound request ID or
+  decision and must never be recommended.
+- `missing-or-stale-bound-approval` is detected before the launcher starts and
+  therefore proves `executed=false` and `external_write_attempted=false`. Report
+  that no mail was sent. Never retry the same call automatically; Jan must issue
+  a new explicit send instruction so a new tool call receives a new approval.
 - A failed or `delivery-uncertain` send is never retried automatically.
 - Delete, EXPUNGE, spam/junk moves, folder deletion/rename and bulk moves remain
   prohibited. A configured move targets exactly one mailbox ID between existing,

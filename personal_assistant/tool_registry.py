@@ -37,6 +37,9 @@ def _enabled(definition: ToolDefinition, settings: ToolSettings) -> bool:
         "calendar": settings.nextcloud.calendar.enabled,
         "calendar-list": settings.nextcloud.calendar.enabled and settings.nextcloud.calendar.allow_list,
         "calendar-create": settings.nextcloud.calendar.enabled and settings.nextcloud.calendar.allow_create,
+        "calendar-from-mail": settings.nextcloud.calendar.enabled
+        and settings.nextcloud.calendar.allow_list
+        and settings.nextcloud.calendar.allow_create,
         "calendar-update": settings.nextcloud.calendar.enabled and settings.nextcloud.calendar.allow_update,
         "tasks": settings.nextcloud.tasks.enabled,
         "tasks-list": settings.nextcloud.tasks.enabled and settings.nextcloud.tasks.allow_list,

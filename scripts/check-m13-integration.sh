@@ -248,20 +248,33 @@ if (
 ) {
   throw new Error("local write approval contract invalid");
 }
-const writeResult = await nativeTool("personal_assistant_tasks_write", "run-write").execute(
+const writeRegistration = factories.find(({options}) => options.name === "personal_assistant_tasks_write");
+const writeResult = await writeRegistration.factory({sessionId:"session-resumed-without-run-id"}).execute(
   "write", writeApproval.params,
 );
 const writePayload = JSON.parse(writeResult.content[0].text);
-if (!writePayload.evidence.ok || !writePayload.evidence.postcondition_verified || !writePayload.evidence.allowed_claims.includes("write-success")) {
-  throw new Error("synthetic write postcondition evidence missing");
+if (
+  !writePayload.evidence.ok ||
+  writePayload.evidence.turn_id !== "run-write" ||
+  !writePayload.evidence.postcondition_verified ||
+  !writePayload.evidence.allowed_claims.includes("write-success")
+) {
+  throw new Error("approval resume lost its original run binding");
 }
-let replayBlocked = false;
-try {
-  await nativeTool("personal_assistant_tasks_write", "run-write").execute("write", writeApproval.params);
-} catch (error) {
-  replayBlocked = String(error).includes("missing-or-stale-bound-approval");
+const replayResult = await nativeTool("personal_assistant_tasks_write", "run-write").execute(
+  "write", writeApproval.params,
+);
+const replayPayload = JSON.parse(replayResult.content[0].text);
+if (
+  replayPayload.evidence?.ok !== false ||
+  replayPayload.evidence?.error !== "approval-required" ||
+  replayPayload.result?.executed !== false ||
+  replayPayload.result?.external_write_attempted !== false ||
+  replayPayload.diagnostic?.retry_allowed !== false ||
+  replayPayload.diagnostic?.new_tool_call_required !== true
+) {
+  throw new Error("single-use approval replay was not blocked with typed evidence");
 }
-if (!replayBlocked) throw new Error("single-use approval replay was accepted");
 await hooks.get("before_prompt_build")(
   {prompt:"Gibt es eine Mail zu Partial?",messages:[]},
   {runId:"run-mail-partial",sessionId:"session-mail-partial"},
@@ -300,6 +313,7 @@ console.log(JSON.stringify({
   single_retry:true,
   raw_exec_blocked:true,
   synthetic_write_executed:true,
+  approval_resume_context_preserved:true,
   write_postcondition_verified:true,
   approval_replay_blocked:true,
   allow_once_only:true,
@@ -323,6 +337,7 @@ assert payload["static_tool_names"] == 19
 assert payload["external_writes"] == 0
 assert payload["productive_writes"] == 0
 assert payload["synthetic_write_executed"] is True
+assert payload["approval_resume_context_preserved"] is True
 assert payload["write_postcondition_verified"] is True
 assert payload["approval_replay_blocked"] is True
 assert payload["approval_severity_valid"] is True

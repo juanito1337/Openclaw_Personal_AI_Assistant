@@ -8,6 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from personal_assistant.actions import ActionService
+from personal_assistant.connectors.nextcloud.calendar import CalendarObject
 from personal_assistant.models import ActionPlan, Resource
 from personal_assistant.service import PersonalAssistant
 from personal_assistant.tool_registry import build_tool_registry
@@ -30,7 +31,16 @@ def plan(status: str, payload: dict | None = None) -> ActionPlan:
         idempotency_key="key-1",
         action_type="calendar.create",
         resource_id="cal-personal",
-        payload=payload or {"uid": "event-1", "direct_calendar_tool": True},
+        payload=payload
+        or {
+            "uid": "event-1",
+            "title": "Synthetischer Termin",
+            "starts_at": "2027-02-06T10:05:00+00:00",
+            "ends_at": "2027-02-06T15:10:00+00:00",
+            "location": "",
+            "description": "",
+            "direct_calendar_tool": True,
+        },
         status=status,
         requires_approval=True,
         created_at="2026-07-22T00:00:00+00:00",
@@ -68,6 +78,23 @@ class FakeDirectActions:
         self.executed = True
         return plan("completed", self.planned_payload), False
 
+    def verify_calendar_create(self, action_id):
+        payload = self.planned_payload
+        return CalendarObject(
+            uid=payload["uid"],
+            summary=payload["title"],
+            starts_at=payload["starts_at"],
+            ends_at=payload["ends_at"],
+            description=payload["description"],
+            location=payload["location"],
+            status="CONFIRMED",
+            recurring=False,
+            all_day=False,
+            raw_ics=payload["ics"],
+            href="/cal/event.ics",
+            etag='"m15-etag"',
+        )
+
 
 class DirectCalendarToolTests(unittest.TestCase):
     def assistant(self):
@@ -99,6 +126,8 @@ class DirectCalendarToolTests(unittest.TestCase):
             description="Direkter Test",
         )
         self.assertTrue(result["ok"])
+        self.assertTrue(result["postcondition_verified"])
+        self.assertEqual(result["remote"]["etag"], '"m15-etag"')
         self.assertTrue(assistant.actions.approved)
         self.assertTrue(assistant.actions.executed)
         payload = assistant.actions.planned_payload
@@ -207,6 +236,27 @@ class ReconciliationTests(unittest.TestCase):
             def event_exists(self, collection, uid):
                 return exists
 
+            def find_events_by_uid(self, collection, uid):
+                payload = current.payload
+                if not exists:
+                    return []
+                return [
+                    CalendarObject(
+                        uid=uid,
+                        summary=str(payload.get("title") or ""),
+                        starts_at=str(payload.get("starts_at") or ""),
+                        ends_at=str(payload.get("ends_at") or ""),
+                        description=str(payload.get("description") or ""),
+                        location=str(payload.get("location") or ""),
+                        status="CONFIRMED",
+                        recurring=False,
+                        all_day=False,
+                        raw_ics=str(payload.get("ics") or ""),
+                        href="/calendar/event.ics",
+                        etag='"test-etag"',
+                    )
+                ]
+
         service = ActionService.__new__(ActionService)
         service.storage = Storage()
         service.registry = Registry()
@@ -221,12 +271,52 @@ class ReconciliationTests(unittest.TestCase):
         self.assertTrue(duplicate)
         self.assertIn("action.duplicate_verified", service.storage.audit_events)
 
+        conflicting = self.action_service(plan("completed"), True)
+        conflicting.calendar.find_events_by_uid = lambda collection, uid: [
+            CalendarObject(
+                uid=uid,
+                summary="Abweichender Termin",
+                starts_at="2027-02-06T10:05:00+00:00",
+                ends_at="2027-02-06T15:10:00+00:00",
+                description="",
+                location="",
+                status="CONFIRMED",
+                recurring=False,
+                all_day=False,
+                raw_ics="BEGIN:VCALENDAR",
+                href="/calendar/conflict.ics",
+                etag='"conflict"',
+            )
+        ]
+        conflict_result, conflict_duplicate = conflicting.execute_calendar_create("action-1")
+        self.assertEqual(conflict_result.status, "failed")
+        self.assertFalse(conflict_duplicate)
+        self.assertIn("action.reconciliation_conflict", conflicting.storage.audit_events)
+
     def test_stale_completed_event_is_recreated(self):
         service = self.action_service(plan("completed"), False)
         result, duplicate = service.execute_calendar_create("action-1")
         self.assertEqual(result.status, "completed")
         self.assertFalse(duplicate)
         self.assertIn("action.completed_stale", service.storage.audit_events)
+
+    def test_approved_retry_accepts_only_matching_remote_postcondition(self):
+        payload = {
+            "uid": "event-retry",
+            "title": "Synthetischer Termin",
+            "starts_at": "2027-02-06T10:05:00+00:00",
+            "ends_at": "2027-02-06T15:10:00+00:00",
+            "location": "DUS -> SPC",
+            "description": "Synthetischer Retry",
+        }
+        service = self.action_service(plan("approved", payload), True)
+
+        result, duplicate = service.execute_calendar_create("action-1")
+
+        self.assertEqual(result.status, "completed")
+        self.assertTrue(duplicate)
+        self.assertIn("action.postcondition_verified", service.storage.audit_events)
+        self.assertIn("action.duplicate_verified", service.storage.audit_events)
 
 
 if __name__ == "__main__":

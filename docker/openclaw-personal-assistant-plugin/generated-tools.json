@@ -4,9 +4,9 @@
   "plugin_id": "personal-assistant-tools",
   "plugin_path": "/opt/openclaw-plugins/personal-assistant-tools",
   "product_version": "3.4.0-r28",
-  "catalog_sha256": "d3d376d620901aec8bd96405aa980dafee973de4783dcb6ad0cff4832e3447b9",
-  "catalog_tool_count": 163,
-  "supported_operation_count": 162,
+  "catalog_sha256": "6cdb414090ad6e80bf0d38809efddfc216fa2df884451e502afeddc03a2066ea",
+  "catalog_tool_count": 165,
+  "supported_operation_count": 164,
   "excluded_operation_count": 1,
   "operations": [
     {
@@ -5016,6 +5016,159 @@
       ]
     },
     {
+      "tool_id": "nextcloud.calendar.from-mail-preview",
+      "domain": "calendar",
+      "description": "Aus genau einer aktuell gebundenen und vollstaendig gescannten Mail read-only belegte Terminkandidaten mit Duplikatpruefung erzeugen",
+      "mode": "read",
+      "writes_external_data": false,
+      "approval": "none",
+      "availability": "calendar-from-mail",
+      "command": "./scripts/assistant.sh calendar from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --dry-run",
+      "argument_schema": {
+        "type": "object",
+        "properties": {
+          "folder": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "message_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "expected_subject": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
+        "required": [
+          "expected_subject",
+          "folder",
+          "message_id"
+        ],
+        "additionalProperties": false
+      },
+      "parameter_bindings": [
+        {
+          "placeholder": "Ordner",
+          "parameter": "folder",
+          "required": true
+        },
+        {
+          "placeholder": "Mail-ID",
+          "parameter": "message_id",
+          "required": true
+        },
+        {
+          "placeholder": "Betreff",
+          "parameter": "expected_subject",
+          "required": true
+        }
+      ],
+      "stdin_parameter": null,
+      "supported": true,
+      "exclusion_reason": "",
+      "allowed_claims": [
+        "tool-status",
+        "positive-evidence",
+        "tool-error"
+      ],
+      "error_codes": [
+        "configuration-error",
+        "operation-failed"
+      ]
+    },
+    {
+      "tool_id": "nextcloud.calendar.from-mail-create",
+      "domain": "calendar",
+      "description": "Genau einen unveraenderten Mail-Terminkandidaten nach Einzelfreigabe create-only anlegen und remote per UID sowie ETag verifizieren",
+      "mode": "write",
+      "writes_external_data": true,
+      "approval": "explicit-user-calendar-from-mail-create-only",
+      "availability": "calendar-from-mail",
+      "command": "./scripts/assistant.sh calendar from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --preview-digest \"<preview_digest>\" --candidate-id \"<candidate_id>\" --yes",
+      "argument_schema": {
+        "type": "object",
+        "properties": {
+          "folder": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "message_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "expected_subject": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "preview_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "candidate_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
+        "required": [
+          "candidate_id",
+          "expected_subject",
+          "folder",
+          "message_id",
+          "preview_digest"
+        ],
+        "additionalProperties": false
+      },
+      "parameter_bindings": [
+        {
+          "placeholder": "Ordner",
+          "parameter": "folder",
+          "required": true
+        },
+        {
+          "placeholder": "Mail-ID",
+          "parameter": "message_id",
+          "required": true
+        },
+        {
+          "placeholder": "Betreff",
+          "parameter": "expected_subject",
+          "required": true
+        },
+        {
+          "placeholder": "preview_digest",
+          "parameter": "preview_digest",
+          "required": true
+        },
+        {
+          "placeholder": "candidate_id",
+          "parameter": "candidate_id",
+          "required": true
+        }
+      ],
+      "stdin_parameter": null,
+      "supported": true,
+      "exclusion_reason": "",
+      "allowed_claims": [
+        "tool-status",
+        "positive-evidence",
+        "tool-error",
+        "write-success-with-postcondition"
+      ],
+      "error_codes": [
+        "configuration-error",
+        "permission-denied",
+        "operation-failed"
+      ]
+    },
+    {
       "tool_id": "nextcloud.calendar.update",
       "domain": "calendar",
       "description": "Einen zuvor eindeutig per UID ausgewaehlten Termin nach ausdruecklichem Nutzerauftrag ETag-geschuetzt aktualisieren; Serien nur mit gesonderter Freigabe",
@@ -6801,7 +6954,7 @@
       "name": "personal_assistant_mail_write",
       "domain": "mail",
       "kind": "write",
-      "description": "Registered mail write operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide all required structured arguments.",
+      "description": "Registered mail write operations of the OpenClaw Personal Assistant. Choose exactly one catalog operation and provide all required structured arguments. Ein gespeicherter mail.reply-draft oder mail.compose-draft ist noch kein Versand: Empfaenger, Betreff und vollstaendigen Text anzeigen und erst nach einer danach erteilten ausdruecklichen Versandanweisung das passende mail.reply-send oder mail.compose-send ausfuehren. Jede Operation hat ihren eigenen nativen Allow-once-Dialog. Ein blosses /approve ist ungueltig; nur Schaltflaeche oder exaktes /approve <ID> allow-once des aktuellen Dialogs verwenden. missing-or-stale-bound-approval bedeutet sicher nicht ausgefuehrt und darf nicht automatisch wiederholt werden.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -7229,7 +7382,8 @@
               "nextcloud.calendar.discover",
               "nextcloud.calendar.status",
               "nextcloud.calendar.list",
-              "nextcloud.calendar.search"
+              "nextcloud.calendar.search",
+              "nextcloud.calendar.from-mail-preview"
             ],
             "description": "Exakt eine registrierte Katalogoperation auswaehlen."
           },
@@ -7240,10 +7394,25 @@
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 20000
+              },
+              "folder": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024
+              },
+              "message_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "expected_subject": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
               }
             },
             "additionalProperties": false,
-            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: nextcloud.calendar.discover: keine; nextcloud.calendar.status: keine; nextcloud.calendar.list: keine; nextcloud.calendar.search: query"
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: nextcloud.calendar.discover: keine; nextcloud.calendar.status: keine; nextcloud.calendar.list: keine; nextcloud.calendar.search: query; nextcloud.calendar.from-mail-preview: expected_subject, folder, message_id"
           }
         },
         "required": [
@@ -7256,7 +7425,8 @@
         "nextcloud.calendar.discover",
         "nextcloud.calendar.status",
         "nextcloud.calendar.list",
-        "nextcloud.calendar.search"
+        "nextcloud.calendar.search",
+        "nextcloud.calendar.from-mail-preview"
       ]
     },
     {
@@ -7271,6 +7441,7 @@
             "type": "string",
             "enum": [
               "nextcloud.calendar.configure",
+              "nextcloud.calendar.from-mail-create",
               "nextcloud.calendar.update",
               "nextcloud.calendar.create"
             ],
@@ -7280,6 +7451,30 @@
             "type": "object",
             "properties": {
               "resource": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "folder": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024
+              },
+              "message_id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "expected_subject": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
+              "preview_digest": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "candidate_id": {
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 2048
@@ -7321,7 +7516,7 @@
               }
             },
             "additionalProperties": false,
-            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: nextcloud.calendar.configure: resource; nextcloud.calendar.update: expected_title, start, uid; nextcloud.calendar.create: description, end, location, start, title"
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: nextcloud.calendar.configure: resource; nextcloud.calendar.from-mail-create: candidate_id, expected_subject, folder, message_id, preview_digest; nextcloud.calendar.update: expected_title, start, uid; nextcloud.calendar.create: description, end, location, start, title"
           }
         },
         "required": [
@@ -7332,6 +7527,7 @@
       },
       "operations": [
         "nextcloud.calendar.configure",
+        "nextcloud.calendar.from-mail-create",
         "nextcloud.calendar.update",
         "nextcloud.calendar.create"
       ]
@@ -7998,18 +8194,25 @@
       "domain": "mail",
       "patterns": [
         "\\b(?:e-?mails?|mails?|postfach|nachricht(?:en)?)\\b",
-        "\\bcorreo(?:s)?\\b"
+        "\\bcorreo(?:s)?\\b",
+        "\\b(?:mail|antwort)?entw(?:urf|uerfe|ürfe)(?:s|n)?\\b"
       ],
       "tool": "personal_assistant_mail_read",
       "operations": [
         "mail.recent",
         "mail.search",
         "mail.list",
-        "mail.read"
+        "mail.read",
+        "mail.reply-draft",
+        "mail.reply-send",
+        "mail.compose-draft",
+        "mail.compose-send",
+        "mail.move"
       ],
       "claim_classes": [
         "mail-state",
-        "negative"
+        "negative",
+        "write-success"
       ]
     },
     {
@@ -8076,17 +8279,22 @@
       "patterns": [
         "\\btermin(?:e|en)?\\b",
         "\\bkalender\\b",
-        "\\bcalendar\\b"
+        "\\bcalendar\\b",
+        "\\b(?:flug|fluege|flüge|flight|vuelo)(?:\\w*)\\b"
       ],
       "tool": "personal_assistant_calendar_read",
       "operations": [
         "nextcloud.calendar.status",
         "nextcloud.calendar.search",
-        "nextcloud.calendar.list"
+        "nextcloud.calendar.list",
+        "nextcloud.calendar.from-mail-preview",
+        "nextcloud.calendar.from-mail-create",
+        "nextcloud.calendar.create"
       ],
       "claim_classes": [
         "remote-state",
-        "negative"
+        "negative",
+        "write-success"
       ]
     },
     {
@@ -8208,6 +8416,91 @@
     "product-version": [
       "\\b(?:openclaw|personal assistant)\\s+(?:version\\s+)?\\d{4}|\\b3\\.4\\.0-"
     ]
+  },
+  "action_completion": {
+    "schema_version": 1,
+    "intents": [
+      "execute",
+      "preview",
+      "explain",
+      "ambiguous"
+    ],
+    "terminal_states": [
+      "completed",
+      "approval-required",
+      "information-required",
+      "blocked",
+      "cancelled-by-user"
+    ],
+    "workflow_steps": [
+      "select-source",
+      "read-source",
+      "build-preview",
+      "resolve-target",
+      "check-duplicate",
+      "execute-one",
+      "verify-one",
+      "finish"
+    ],
+    "workflow_operations": {
+      "select-source": [
+        "mail.search",
+        "mail.recent"
+      ],
+      "read-source": [
+        "mail.read"
+      ],
+      "build-preview": [
+        "nextcloud.calendar.from-mail-preview"
+      ],
+      "resolve-target": [
+        "nextcloud.calendar.status",
+        "nextcloud.tasks.status",
+        "nextcloud.contacts.status",
+        "nextcloud.workspace.configure"
+      ],
+      "check-duplicate": [
+        "nextcloud.calendar.search",
+        "nextcloud.calendar.from-mail-preview"
+      ],
+      "execute-one": [
+        "mail.compose-send",
+        "mail.move",
+        "mail.reply-send",
+        "nextcloud.calendar.create",
+        "nextcloud.calendar.from-mail-create",
+        "nextcloud.calendar.update",
+        "nextcloud.contacts.create",
+        "nextcloud.contacts.update",
+        "nextcloud.tasks.create",
+        "nextcloud.tasks.update",
+        "nextcloud.workspace.mkdir",
+        "nextcloud.workspace.move",
+        "nextcloud.workspace.upload",
+        "nextcloud.workspace.write-text"
+      ],
+      "verify-one": [],
+      "finish": []
+    },
+    "limits": {
+      "max_targets": 4,
+      "max_steps": 16,
+      "max_tool_calls": 12,
+      "max_guard_revisions": 1
+    },
+    "effects": [
+      "external-create",
+      "external-write",
+      "external-update",
+      "external-send",
+      "external-move",
+      "local-write"
+    ],
+    "turn_bound": true,
+    "may_authorize_write": false,
+    "content_may_change_route": false,
+    "bulk_write": false,
+    "automatic_remote_rollback": false
   },
   "limits": {
     "max_output_bytes": 1000000,

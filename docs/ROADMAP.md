@@ -27,6 +27,14 @@ Performanceengpass mit einem gehaerteten residenten Daemon und fuehrt den
 autoritativen Mailindex anschliessend kontrolliert bis zur produktiven
 Jobfreigabe. Die getrennten Entwicklungs- und Betriebsprompts stehen in
 [`MAIL_ANTIVIRUS_INDEX_ROLLOUT_ROADMAP.md`](MAIL_ANTIVIRUS_INDEX_ROLLOUT_ROADMAP.md).
+Der geplante M15-Milestone schliesst die nach M13 verbliebene Luecke zwischen
+einem ausdruecklichen Schreibwunsch und dessen tatsaechlicher Ausfuehrung. Eine
+turngebundene Aktionsverpflichtung, eine begrenzte Workflowzustandsmaschine und
+ein technischer Completion-Guard verhindern, dass der Agent nach einer blossen
+Toolankuendigung endet. Der erste sichere Vertikalschnitt fuehrt von einer
+belegten Mail ueber eine read-only Terminvorschau bis zum separat freigegebenen
+und remote verifizierten Kalendereintrag. Roadmap und Entwicklungsprompts stehen
+in [`AGENT_ACTION_COMPLETION_ROADMAP.md`](AGENT_ACTION_COMPLETION_ROADMAP.md).
 
 M0 bis M10 sind kumulativ in `3.4.0-r28` enthalten. Die Roadmaps bleiben als
 Umsetzungs- und Testevidenz bestehen; die aktuelle Release-, Upgrade- und
@@ -50,6 +58,12 @@ Unix-Socket-Scanner, der fail-closed Index-Preflight und die gehärteten
 ClamAV-Rollen sind lokal und hermetisch geprüft. Die Abgrenzung zum noch offenen
 produktiven Deploy, Canary, Vollbackfill und Jobstart steht in
 [`MAIL_ANTIVIRUS_INDEX_M14_ACCEPTANCE.md`](MAIL_ANTIVIRUS_INDEX_M14_ACCEPTANCE.md).
+M15.0 bis M15.8 sind als Entwicklungsstand implementiert und lokal/hermetisch
+geprueft: Das generierte Aktionsschema, der turngebundene Completion-Guard und
+der quellengebundene Mail-zu-Kalender-Workflow sind vorhanden. Das signierte
+Commitimage und jeder produktive Canary bleiben getrennt; Abnahme und
+Rolloutgrenze stehen in
+[`AGENT_ACTION_COMPLETION_M15_ACCEPTANCE.md`](AGENT_ACTION_COMPLETION_M15_ACCEPTANCE.md).
 
 ## 3.4.x foundation
 

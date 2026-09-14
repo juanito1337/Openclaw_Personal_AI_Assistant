@@ -1,10 +1,13 @@
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import { readFileSync } from "node:fs";
 import {
+  advanceActionObligation,
   approvalSeverity,
+  buildActionObligation,
   compileInvocation,
   createApprovalLedger,
   guardAnswer,
+  guardActionCompletion,
   makeEvidence,
   routePrompt,
   shouldBlockGenericTool,
@@ -25,6 +28,7 @@ const operationById = new Map(contract.operations.map((operation) => [operation.
 const groupByName = new Map(contract.native_tools.map((group) => [group.name, group]));
 const routeByRun = new Map();
 const evidenceByRun = new Map();
+const obligationByRun = new Map();
 const retryByRun = new Set();
 const invalidArgumentsByRun = new Map();
 const liveToolsCache = { expiresAt: 0, value: null };
@@ -40,6 +44,13 @@ const metrics = {
   approvals_requested: 0,
   guard_revisions: 0,
   guard_replacements: 0,
+  action_obligations: 0,
+  action_completed: 0,
+  action_blocked: 0,
+  action_approval_required: 0,
+  action_information_required: 0,
+  action_partial: 0,
+  approval_failures: 0,
 };
 
 function runKey(ctx, fallback = "unknown-run") {
@@ -77,15 +88,50 @@ function operationFromCall(toolName, rawParams) {
   return operation;
 }
 
-function withoutNonce(params) {
-  const { __approval_nonce: _nonce, ...copy } = params ?? {};
+function withoutApprovalBinding(params) {
+  const {
+    __approval_nonce: _nonce,
+    __approval_run_id: _approvalRunId,
+    ...copy
+  } = params ?? {};
   return copy;
+}
+
+function recordActionEvidence(currentRun, operation, evidence, payload, args) {
+  const obligation = obligationByRun.get(currentRun);
+  if (!obligation) return;
+  const next = advanceActionObligation(
+    contract,
+    obligation,
+    operation,
+    evidence,
+    payload,
+    stableDigest(args),
+  );
+  obligationByRun.set(currentRun, next);
+  if (!obligation.terminal_state && next.terminal_state) {
+    if (next.terminal_state === "completed") metrics.action_completed += 1;
+    else if (next.terminal_state === "approval-required") metrics.action_approval_required += 1;
+    else if (next.terminal_state === "information-required") metrics.action_information_required += 1;
+    else metrics.action_blocked += 1;
+    if (next.completed_targets > 0 && next.completed_targets < next.target_count) {
+      metrics.action_partial += 1;
+    }
+  }
 }
 
 async function executeOperation(toolName, toolContext, toolCallId, rawParams) {
   const operation = operationFromCall(toolName, rawParams);
   const args = rawParams?.arguments ?? {};
-  const currentRun = runKey(toolContext, toolCallId);
+  // A tool factory can be created before OpenClaw resumes a call after native
+  // approval and therefore need not carry the hook's runId.  The opaque run
+  // binding is injected by before_tool_call into OpenClaw's frozen approved
+  // parameters.  The unguessable nonce still binds operation, arguments, call
+  // and original run in the in-memory ledger.
+  const approvalRunId = typeof rawParams?.__approval_run_id === "string"
+    ? rawParams.__approval_run_id
+    : "";
+  const currentRun = approvalRunId || runKey(toolContext, toolCallId);
   try {
     validateArguments(operation.argument_schema, args);
   } catch (error) {
@@ -111,6 +157,7 @@ async function executeOperation(toolName, toolContext, toolCallId, rawParams) {
     metrics.native_failures += 1;
     metrics.invalid_arguments += 1;
     if (!retryAllowed) metrics.repeated_invalid_arguments += 1;
+    recordActionEvidence(currentRun, operation, evidence, null, args);
     return jsonToolResult(
       {
         evidence,
@@ -135,9 +182,49 @@ async function executeOperation(toolName, toolContext, toolCallId, rawParams) {
       operation: operation.tool_id,
       args,
       toolCallId,
-      runId: currentRun,
+      runId: approvalRunId,
     });
-    if (!accepted) throw new Error("missing-or-stale-bound-approval");
+    if (!accepted) {
+      const result = {
+        returncode: 77,
+        stdout: "",
+        stderr: "",
+        error: "missing-or-stale-bound-approval",
+      };
+      const payload = {
+        ok: false,
+        complete: false,
+        status: "approval-required",
+        approval_state: "missing-or-stale",
+        executed: false,
+        external_write_attempted: false,
+        postcondition_verified: false,
+      };
+      const evidence = makeEvidence(operation, result, payload, currentRun, toolCallId);
+      const rows = evidenceByRun.get(currentRun) ?? [];
+      rows.push(evidence);
+      evidenceByRun.set(currentRun, rows.slice(-32));
+      metrics.native_calls += 1;
+      metrics.native_failures += 1;
+      metrics.approval_failures += 1;
+      recordActionEvidence(currentRun, operation, evidence, payload, args);
+      return jsonToolResult(
+        {
+          evidence,
+          result: payload,
+          diagnostic: {
+            category: "approval-required",
+            code: "missing-or-stale-bound-approval",
+            retry_allowed: false,
+            new_tool_call_required: true,
+            instruction: operation.tool_id === "mail.reply-send" || operation.tool_id === "mail.compose-send"
+              ? "Die gebundene Einzelfreigabe war beim Start nicht mehr gueltig; es wurde keine Mail versendet. Nicht automatisch wiederholen und kein blosses /approve anfordern. Jan muss den unveraenderten, bereits vollstaendig angezeigten Entwurf erneut zum Versand anweisen; der neue native Freigabedialog ist per Schaltflaeche oder mit seinem exakten /approve <ID> allow-once zu bestaetigen."
+              : "Die gebundene Einzelfreigabe war beim Start nicht mehr gueltig; die Aktion wurde nicht ausgefuehrt. Nicht automatisch wiederholen und kein blosses /approve anfordern. Jan muss die konkrete Aktion erneut anweisen und den neuen nativen Freigabedialog per Schaltflaeche oder mit seinem exakten /approve <ID> allow-once bestaetigen.",
+          },
+        },
+        { personalAssistantEvidence: evidence },
+      );
+    }
   }
   let liveCommand = operation.command;
   if (operation.availability !== "always") {
@@ -160,6 +247,7 @@ async function executeOperation(toolName, toolContext, toolCallId, rawParams) {
   evidenceByRun.set(currentRun, rows.slice(-32));
   metrics.native_calls += 1;
   if (!evidence.ok) metrics.native_failures += 1;
+  recordActionEvidence(currentRun, operation, evidence, payload, args);
   const response = {
     evidence,
     result: payload,
@@ -176,7 +264,7 @@ async function executeOperation(toolName, toolContext, toolCallId, rawParams) {
   return jsonToolResult(response, { personalAssistantEvidence: evidence });
 }
 
-function buildRoutingContext(route) {
+function buildRoutingContext(route, obligation) {
   const lines = [
     "PERSONAL_ASSISTANT_TOOL_ROUTE_V1",
     "Aktueller Zustand darf nur aus einem strukturierten Personal-Assistant-Tool dieses Laufs beantwortet werden.",
@@ -185,13 +273,35 @@ function buildRoutingContext(route) {
     "Nach invalid-arguments genau einmal mit geaenderten vollstaendigen Argumenten korrigieren. Bei retry_allowed=false sofort stoppen und den Fehler berichten.",
     "Mail: letzte eingegangene Mails des gesamten Kontos mit mail.recent und leerem arguments-Objekt; INBOX kann nach automatischen Verschiebungen leer sein. mail.list nur fuer einen ausdruecklich genannten Einzelordner mit arguments.folder; Suche mit mail.search und arguments.query; mail.read erst nach einem Treffer mit folder, message_id und expected_subject.",
     "Bei Schreibwuenschen zuerst nur read-only identifizieren/vorschauen; das Schreibtool verlangt seine eigene Einzel-Freigabe.",
+    "Freigaben: Ein blosses /approve ist kein gueltiger Nachweis. Nur den aktuellen nativen Freigabedialog per Schaltflaeche oder mit dessen exaktem /approve <ID> allow-once bestaetigen. Bei missing-or-stale-bound-approval wurde nichts ausgefuehrt: nicht automatisch wiederholen, keinen alten Befehl empfehlen und den belegten Zustand approval-required melden.",
+    "Mail: Ein Entwurf ist kein Versand. Nach mail.reply-draft oder mail.compose-draft Empfaenger, Betreff und vollstaendigen Text anzeigen und den Turn als approval-required beenden. mail.reply-send oder mail.compose-send erst nach einer danach erteilten ausdruecklichen Versandanweisung und eigener nativer Einzelfreigabe aufrufen.",
+    "Eine ACTION_OBLIGATION_V1 muss in diesem Turn durch registrierte Tool-Evidenz bis zu einem typisierten Endzustand gefuehrt werden. Blosse Zukunftsversprechen, Meta-Ankuendigungen oder ein stiller Abbruch sind kein Abschluss.",
     `Route: ${JSON.stringify(route)}`,
+    `ACTION_OBLIGATION_V1: ${JSON.stringify(obligation)}`,
   ];
   return lines.join("\n");
 }
 
 function safeReplacement(issues) {
   return `Ich kann diese Zustandsaussage nicht belegen. Der Personal-Assistant-Antwortschutz hat die Ausgabe gestoppt (${issues.join(", ")}). Bitte den registrierten Status- oder Suchpfad erneut ausfuehren; es wurde keine Schreibaktion ausgeloest.`;
+}
+
+function safeActionReplacement(obligation, issues) {
+  const state = obligation?.terminal_state ?? "open";
+  const step = obligation?.current_step ?? "unknown";
+  const restartInstruction = obligation?.workflow_kind === "mail-to-calendar"
+    ? "Bitte sende als neue, eigenstaendige Anweisung: \"Trage Hin- und Rueckflug aus der zuvor ausgewaehlten Mail als zwei Termine in meinen Kalender ein.\""
+    : "Bitte weise die konkrete Aktion als neuen, vollstaendigen Satz erneut an.";
+  if (state === "approval-required") {
+    return `Die gebundene Einzelfreigabe ist nicht mehr gueltig oder fuer den naechsten Schritt noch nicht erteilt; die angeforderte externe Aktion wurde nicht ausgefuehrt. Ein blosses /approve kann keine alte Freigabe wiederbeleben. ${restartInstruction} Bestaetige anschliessend jeden neuen nativen Freigabedialog per Schaltflaeche oder mit der dort angezeigten exakten ID als allow-once.`;
+  }
+  if (state === "blocked") {
+    const completed = Number(obligation?.completed_targets ?? 0);
+    const total = Number(obligation?.target_count ?? 0);
+    const progress = total > 1 ? ` Belegt abgeschlossen: ${completed} von ${total}.` : "";
+    return `Die angeforderte Aktion wurde nicht vollstaendig abgeschlossen. Belegter Blocker: ${obligation?.last_error ?? "unknown"}.${progress} Eine automatische Fortsetzung und eine blosse Ja/Nein-Bestaetigung sind nicht zulaessig. ${restartInstruction}`;
+  }
+  return `Die angeforderte Aktion ist nicht als abgeschlossen belegt. Der Aktionsschutz hat die Ausgabe gestoppt (${issues.join(", ")}; Zustand=${state}; Schritt=${step}). Bitte den registrierten naechsten Werkzeugschritt ausfuehren oder den belegten Blocker melden.`;
 }
 
 export default definePluginEntry({
@@ -218,9 +328,16 @@ export default definePluginEntry({
 
     api.on("before_prompt_build", async (event, ctx) => {
       const route = routePrompt(contract, event.prompt);
-      const key = runKey(ctx);
+      const key = String(event.runId || runKey(ctx));
       routeByRun.set(key, route);
       evidenceByRun.set(key, []);
+      const obligation = buildActionObligation(contract, event.prompt, route, key);
+      if (obligation) {
+        obligationByRun.set(key, obligation);
+        metrics.action_obligations += 1;
+      } else {
+        obligationByRun.delete(key);
+      }
       retryByRun.delete(key);
       invalidArgumentsByRun.delete(key);
       if (!route.resolved) {
@@ -228,7 +345,7 @@ export default definePluginEntry({
         return undefined;
       }
       metrics.routed += 1;
-      return { prependContext: buildRoutingContext(route) };
+      return { prependContext: buildRoutingContext(route, obligation) };
     });
 
     api.on("before_tool_call", async (event, ctx) => {
@@ -267,15 +384,20 @@ export default definePluginEntry({
       }
       if (operation.mode === "read") return undefined;
       const args = event.params?.arguments ?? {};
+      const approvalRunId = String(event.runId || runKey(ctx, event.toolCallId));
       const nonce = ledger.issue({
         operation: operation.tool_id,
         args,
         toolCallId: event.toolCallId,
-        runId: runKey(ctx, event.toolCallId),
+        runId: approvalRunId,
       });
       metrics.approvals_requested += 1;
       return {
-        params: { ...withoutNonce(event.params), __approval_nonce: nonce },
+        params: {
+          ...withoutApprovalBinding(event.params),
+          __approval_nonce: nonce,
+          __approval_run_id: approvalRunId,
+        },
         requireApproval: {
           title: `Personal Assistant: ${operation.tool_id}`,
           description: `Einmalige Freigabe ${operation.approval} fuer exakt diese Argumente.`,
@@ -285,8 +407,9 @@ export default definePluginEntry({
           severity: approvalSeverity(operation),
           allowedDecisions: ["allow-once", "deny"],
           timeoutMs: contract.limits.approval_timeout_seconds * 1000,
-          timeoutBehavior: "deny",
-          timeoutReason: "Einzelfreigabe abgelaufen; nichts ausgefuehrt",
+          onResolution(decision) {
+            if (decision !== "allow-once") ledger.revoke(nonce);
+          },
         },
       };
     });
@@ -295,7 +418,7 @@ export default definePluginEntry({
       if (!groupByName.has(event.toolName)) return undefined;
       const evidence = event.result?.details?.personalAssistantEvidence;
       if (!evidence) return undefined;
-      const key = runKey(ctx, event.toolCallId);
+      const key = String(event.runId || runKey(ctx, event.toolCallId));
       const rows = evidenceByRun.get(key) ?? [];
       if (!rows.some((row) => row.run_id === evidence.run_id)) rows.push(evidence);
       evidenceByRun.set(key, rows.slice(-32));
@@ -303,34 +426,63 @@ export default definePluginEntry({
     });
 
     api.on("before_agent_finalize", async (event, ctx) => {
-      const key = runKey(ctx, event.runId);
+      const key = String(event.runId || runKey(ctx));
       const route = routeByRun.get(key);
       if (!route?.resolved) return undefined;
-      const verdict = guardAnswer(contract, route, event.lastAssistantMessage, evidenceByRun.get(key) ?? []);
-      if (verdict.ok || retryByRun.has(key)) return undefined;
+      const evidenceVerdict = guardAnswer(contract, route, event.lastAssistantMessage, evidenceByRun.get(key) ?? []);
+      const actionVerdict = guardActionCompletion(
+        contract,
+        obligationByRun.get(key),
+        event.lastAssistantMessage,
+      );
+      const issues = [...new Set([...evidenceVerdict.issues, ...actionVerdict.issues])];
+      if (issues.length === 0 || retryByRun.has(key)) return undefined;
       retryByRun.add(key);
       metrics.guard_revisions += 1;
       return {
         action: "revise",
-        reason: verdict.issues.join(","),
+        reason: issues.join(","),
         retry: {
-          instruction: `Nutze jetzt das registrierte strukturierte Werkzeug und antworte nur aus seiner aktuellen Evidenz. Probleme: ${verdict.issues.join(", ")}`,
-          idempotencyKey: `personal-assistant-evidence-${key}`,
+          instruction: `Fuehre jetzt ausschliesslich den naechsten registrierten Werkzeugschritt der ACTION_OBLIGATION_V1 aus oder berichte den bereits belegten typisierten Blocker. Kein Zukunftsversprechen und keine Meta-Ankuendigung. Probleme: ${issues.join(", ")}`,
+          idempotencyKey: `personal-assistant-action-evidence-${key}`,
           maxAttempts: 1,
         },
       };
     });
 
     api.on("reply_payload_sending", async (event, ctx) => {
-      const key = runKey(ctx);
+      // Delivery correlation belongs to the event. Its message context may
+      // intentionally omit the originating run ID.
+      const key = String(event.runId || event.sessionKey || runKey(ctx));
       const route = routeByRun.get(key);
       if (!route?.resolved || typeof event.payload?.text !== "string") return undefined;
-      const verdict = guardAnswer(contract, route, event.payload.text, evidenceByRun.get(key) ?? []);
-      if (verdict.ok) return undefined;
+      const evidenceVerdict = guardAnswer(contract, route, event.payload.text, evidenceByRun.get(key) ?? []);
+      let obligation = obligationByRun.get(key);
+      const actionVerdict = guardActionCompletion(contract, obligation, event.payload.text);
+      const issues = [...new Set([...evidenceVerdict.issues, ...actionVerdict.issues])];
+      if (issues.length === 0) return undefined;
+      if (obligation && !obligation.terminal_state) {
+        obligation = {
+          ...obligation,
+          status: "terminal",
+          terminal_state: "blocked",
+          last_error: "guard-revision-exhausted",
+        };
+        obligationByRun.set(key, obligation);
+        metrics.action_blocked += 1;
+        if (obligation.completed_targets > 0) metrics.action_partial += 1;
+      }
       metrics.guard_replacements += 1;
       return {
-        payload: { ...event.payload, text: safeReplacement(verdict.issues) },
-        reason: "personal-assistant-evidence-guard",
+        payload: {
+          ...event.payload,
+          text: obligation
+            ? safeActionReplacement(obligation, issues)
+            : safeReplacement(issues),
+        },
+        reason: obligation
+          ? "personal-assistant-action-completion-guard"
+          : "personal-assistant-evidence-guard",
       };
     });
   },
@@ -341,5 +493,6 @@ export const testing = {
   operationById,
   groupByName,
   metrics,
+  obligationByRun,
   tokenizeCommand,
 };

@@ -70,6 +70,17 @@ def add_commands(sub: Any) -> None:
     )
     calendar_search.add_argument("--query", required=True)
     calendar_search.add_argument("--limit", type=int, default=50)
+    calendar_from_mail = calendar_sub.add_parser(
+        "from-mail",
+        help="Aus einer exakt ausgewaehlten Mail Terminkandidaten vorschlagen oder einzeln anlegen",
+    )
+    calendar_from_mail.add_argument("--folder", required=True)
+    calendar_from_mail.add_argument("--message-id", required=True)
+    calendar_from_mail.add_argument("--expected-subject", required=True)
+    calendar_from_mail.add_argument("--preview-digest", default="")
+    calendar_from_mail.add_argument("--candidate-id", default="")
+    calendar_from_mail.add_argument("--dry-run", action="store_true")
+    calendar_from_mail.add_argument("--yes", action="store_true")
     calendar_update = calendar_sub.add_parser(
         "update", help="Einen eindeutig per UID ausgewaehlten Termin aktualisieren"
     )

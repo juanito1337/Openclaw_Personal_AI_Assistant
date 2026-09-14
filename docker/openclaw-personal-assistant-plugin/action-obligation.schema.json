@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openclaw.local/schemas/personal-assistant-action-obligation-v1.json",
+  "title": "Personal Assistant turn-bound action obligation",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "obligation_id",
+    "turn_id",
+    "intent",
+    "domains",
+    "workflow_kind",
+    "effect",
+    "target_count",
+    "completed_targets",
+    "steps",
+    "current_step",
+    "step_index",
+    "tool_calls",
+    "status",
+    "terminal_state",
+    "last_error",
+    "write_operations",
+    "write_digests",
+    "required_slots",
+    "postconditions",
+    "postconditions_verified"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "obligation_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{24}$"
+    },
+    "turn_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "intent": {
+      "type": "string",
+      "enum": [
+        "execute",
+        "preview",
+        "explain",
+        "ambiguous"
+      ]
+    },
+    "domains": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "workflow_kind": {
+      "enum": [
+        "mail-to-calendar",
+        "single-action"
+      ]
+    },
+    "effect": {
+      "type": "string",
+      "enum": [
+        "external-create",
+        "external-write",
+        "external-update",
+        "external-send",
+        "external-move",
+        "local-write"
+      ]
+    },
+    "target_count": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4
+    },
+    "completed_targets": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "select-source",
+          "read-source",
+          "build-preview",
+          "resolve-target",
+          "check-duplicate",
+          "execute-one",
+          "verify-one",
+          "finish"
+        ]
+      }
+    },
+    "current_step": {
+      "type": "string",
+      "enum": [
+        "select-source",
+        "read-source",
+        "build-preview",
+        "resolve-target",
+        "check-duplicate",
+        "execute-one",
+        "verify-one",
+        "finish"
+      ]
+    },
+    "step_index": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 16
+    },
+    "tool_calls": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 12
+    },
+    "status": {
+      "enum": [
+        "open",
+        "terminal"
+      ]
+    },
+    "terminal_state": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        null,
+        "completed",
+        "approval-required",
+        "information-required",
+        "blocked",
+        "cancelled-by-user"
+      ]
+    },
+    "last_error": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 256
+    },
+    "write_operations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "mail.compose-send",
+          "mail.move",
+          "mail.reply-send",
+          "nextcloud.calendar.create",
+          "nextcloud.calendar.from-mail-create",
+          "nextcloud.calendar.update",
+          "nextcloud.contacts.create",
+          "nextcloud.contacts.update",
+          "nextcloud.tasks.create",
+          "nextcloud.tasks.update",
+          "nextcloud.workspace.mkdir",
+          "nextcloud.workspace.move",
+          "nextcloud.workspace.upload",
+          "nextcloud.workspace.write-text"
+        ]
+      }
+    },
+    "write_digests": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^(?:[0-9a-f]{64})?$"
+      }
+    },
+    "required_slots": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      }
+    },
+    "postconditions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 64
+      }
+    },
+    "postconditions_verified": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4
+    }
+  },
+  "additionalProperties": false
+}

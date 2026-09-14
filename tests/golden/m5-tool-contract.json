@@ -1032,6 +1032,22 @@
     "approval": "none"
   },
   {
+    "id": "nextcloud.calendar.from-mail-preview",
+    "description": "Aus genau einer aktuell gebundenen und vollstaendig gescannten Mail read-only belegte Terminkandidaten mit Duplikatpruefung erzeugen",
+    "command": "./scripts/assistant.sh calendar from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --dry-run",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
+    "id": "nextcloud.calendar.from-mail-create",
+    "description": "Genau einen unveraenderten Mail-Terminkandidaten nach Einzelfreigabe create-only anlegen und remote per UID sowie ETag verifizieren",
+    "command": "./scripts/assistant.sh calendar from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --preview-digest \"<preview_digest>\" --candidate-id \"<candidate_id>\" --yes",
+    "mode": "write",
+    "writes_external_data": true,
+    "approval": "explicit-user-calendar-from-mail-create-only"
+  },
+  {
     "id": "nextcloud.calendar.update",
     "description": "Einen zuvor eindeutig per UID ausgewaehlten Termin nach ausdruecklichem Nutzerauftrag ETag-geschuetzt aktualisieren; Serien nur mit gesonderter Freigabe",
     "command": "./scripts/assistant.sh calendar update --uid \"<UID>\" --expected-title \"<aktueller Titel>\" --start \"<ISO-8601>\" --yes",

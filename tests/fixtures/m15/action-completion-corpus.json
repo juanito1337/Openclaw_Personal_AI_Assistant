@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "privacy": "synthetic-only",
+  "cases": [
+    {
+      "id": "execute-mail-flights-de",
+      "prompt": "Trage Hinflug und Rueckflug aus der Mail als Termine in meinen Kalender ein.",
+      "expected_intent": "execute",
+      "expected_workflow": "mail-to-calendar",
+      "expected_targets": 2
+    },
+    {
+      "id": "preview-mail-flights-de",
+      "prompt": "Zeige mir zuerst eine Vorschau der Flugtermine aus der Mail.",
+      "expected_intent": "preview"
+    },
+    {
+      "id": "explain-calendar-es",
+      "prompt": "Explica cómo funciona crear una cita desde un correo.",
+      "expected_intent": "explain"
+    },
+    {
+      "id": "ambiguous-calendar",
+      "prompt": "Was steht zu den Flügen im Kalender?",
+      "expected_intent": "ambiguous"
+    }
+  ],
+  "synthetic_mail": {
+    "folder": "Agent/Test",
+    "mailbox_id": "synthetic-42",
+    "subject": "Synthetische Flugbestätigung",
+    "body": "Hinflug:\n06.02.2027\nEW 4242\nDUS -> SPC\n11:05 - 15:10\n\nRückflug:\n20.02.2027\nEW 4343\nSPC -> DUS\n16:00 - 21:55\n"
+  }
+}

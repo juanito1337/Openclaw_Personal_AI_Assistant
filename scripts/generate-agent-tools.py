@@ -21,6 +21,7 @@ CONTRACT = PLUGIN_ROOT / "generated-tools.json"
 MANIFEST = PLUGIN_ROOT / "openclaw.plugin.json"
 PACKAGE = PLUGIN_ROOT / "package.json"
 EVIDENCE_SCHEMA = PLUGIN_ROOT / "evidence.schema.json"
+ACTION_SCHEMA = PLUGIN_ROOT / "action-obligation.schema.json"
 
 
 def render_manifest() -> str:
@@ -154,6 +155,109 @@ def render_evidence_schema() -> str:
     return json.dumps(schema, ensure_ascii=False, indent=2) + "\n"
 
 
+def render_action_schema() -> str:
+    payload = json.loads(render_contract())
+    action = payload["action_completion"]
+    schema = {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": "https://openclaw.local/schemas/personal-assistant-action-obligation-v1.json",
+        "title": "Personal Assistant turn-bound action obligation",
+        "type": "object",
+        "required": [
+            "schema_version",
+            "obligation_id",
+            "turn_id",
+            "intent",
+            "domains",
+            "workflow_kind",
+            "effect",
+            "target_count",
+            "completed_targets",
+            "steps",
+            "current_step",
+            "step_index",
+            "tool_calls",
+            "status",
+            "terminal_state",
+            "last_error",
+            "write_operations",
+            "write_digests",
+            "required_slots",
+            "postconditions",
+            "postconditions_verified",
+        ],
+        "properties": {
+            "schema_version": {"const": action["schema_version"]},
+            "obligation_id": {"type": "string", "pattern": "^[0-9a-f]{24}$"},
+            "turn_id": {"type": "string", "minLength": 1, "maxLength": 256},
+            "intent": {"type": "string", "enum": action["intents"]},
+            "domains": {
+                "type": "array",
+                "uniqueItems": True,
+                "items": {"type": "string"},
+            },
+            "workflow_kind": {"enum": ["mail-to-calendar", "single-action"]},
+            "effect": {"type": "string", "enum": action["effects"]},
+            "target_count": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": action["limits"]["max_targets"],
+            },
+            "completed_targets": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": action["limits"]["max_targets"],
+            },
+            "steps": {
+                "type": "array",
+                "items": {"type": "string", "enum": action["workflow_steps"]},
+            },
+            "current_step": {"type": "string", "enum": action["workflow_steps"]},
+            "step_index": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": action["limits"]["max_steps"],
+            },
+            "tool_calls": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": action["limits"]["max_tool_calls"],
+            },
+            "status": {"enum": ["open", "terminal"]},
+            "terminal_state": {
+                "type": ["string", "null"],
+                "enum": [None, *action["terminal_states"]],
+            },
+            "last_error": {"type": ["string", "null"], "maxLength": 256},
+            "write_operations": {
+                "type": "array",
+                "items": {"type": "string", "enum": sorted(action["workflow_operations"]["execute-one"])},
+            },
+            "write_digests": {
+                "type": "array",
+                "items": {"type": "string", "pattern": "^(?:[0-9a-f]{64})?$"},
+            },
+            "required_slots": {
+                "type": "array",
+                "uniqueItems": True,
+                "items": {"type": "string", "minLength": 1, "maxLength": 64},
+            },
+            "postconditions": {
+                "type": "array",
+                "uniqueItems": True,
+                "items": {"type": "string", "minLength": 1, "maxLength": 64},
+            },
+            "postconditions_verified": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": action["limits"]["max_targets"],
+            },
+        },
+        "additionalProperties": False,
+    }
+    return json.dumps(schema, ensure_ascii=False, indent=2) + "\n"
+
+
 def _domain_names(operations: list[dict[str, object]]) -> set[str]:
     return {str(item["domain"]) for item in operations}
 
@@ -172,6 +276,10 @@ def verify() -> list[str]:
         errors.append(f"Evidenzschema fehlt: {EVIDENCE_SCHEMA}")
     elif EVIDENCE_SCHEMA.read_text(encoding="utf-8") != render_evidence_schema():
         errors.append("Evidenzschema ist nicht deterministisch aktuell")
+    if not ACTION_SCHEMA.is_file():
+        errors.append(f"Aktionsverpflichtungsschema fehlt: {ACTION_SCHEMA}")
+    elif ACTION_SCHEMA.read_text(encoding="utf-8") != render_action_schema():
+        errors.append("Aktionsverpflichtungsschema ist nicht deterministisch aktuell")
     return errors
 
 
@@ -185,6 +293,7 @@ def main() -> int:
         MANIFEST.write_text(render_manifest(), encoding="utf-8", newline="\n")
         PACKAGE.write_text(render_package(), encoding="utf-8", newline="\n")
         EVIDENCE_SCHEMA.write_text(render_evidence_schema(), encoding="utf-8", newline="\n")
+        ACTION_SCHEMA.write_text(render_action_schema(), encoding="utf-8", newline="\n")
     errors = verify()
     if errors:
         print(json.dumps({"ok": False, "errors": errors}, ensure_ascii=False, indent=2))

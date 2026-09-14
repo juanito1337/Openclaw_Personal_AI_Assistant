@@ -130,6 +130,7 @@ git diff --check
 "$DEV_PYTHON" scripts/generate-skill-tool-contract.py --check
 "$DEV_PYTHON" scripts/generate-agent-tools.py verify
 "$DEV_PYTHON" scripts/benchmark-m13.py --phase implemented >/dev/null
+"$DEV_PYTHON" scripts/benchmark-m15.py --phase implemented >/dev/null
 
 "$DEV_PYTHON" scripts/check-ruff.py \
   --baseline tests/ruff-baseline.json \

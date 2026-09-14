@@ -2,6 +2,43 @@
 
 ## Unreleased
 
+- Agent/M15: Der native Approval-Resume behaelt jetzt die urspruengliche
+  Run-/Toolcall-Bindung auch dann, wenn OpenClaw die Tool-Factory nach der
+  Freigabe ohne denselben Laufkontext fortsetzt. Fehlende, abgelaufene oder
+  verbrauchte Nonces liefern vor Prozessstart typisierte
+  `approval-required`-Evidenz statt eines unstrukturierten Toolfehlers. Ein
+  blosses `/approve` wird nicht mehr empfohlen; Chatfreigaben benoetigen die
+  aktuelle Dialog-ID und `allow-once`.
+- Der letzte Antwortschutz korreliert den Lauf ueber die Run-ID des
+  `reply_payload_sending`-Events, auch wenn dessen Message-Kontext keine Run-ID
+  traegt. Blockierte Kalenderablaeufe duerfen nicht mehr mit einer ungebundenen
+  Ja/Nein-Retryfrage enden, sondern nennen den belegten Fehler und eine
+  vollstaendige neue Handlungsanweisung.
+- Mail/M15: Antwort- und neue Mailentwuerfe gelten nicht mehr als abgeschlossene
+  Sendewirkung. Der vollstaendige Entwurf endet als `approval-required`; nur eine
+  spaetere ausdrueckliche Versandanweisung darf den unveraenderten Draft ueber
+  seinen eigenen nativen Allow-once-Dialog senden. Replay und stale Approval
+  werden ohne Launcher- oder externe Write-Ausfuehrung blockiert.
+- Agent/M15: Explizite Ausfuehrungswuensche erzeugen im nativen Plugin eine
+  turngebundene Aktionsverpflichtung. `before_agent_finalize` erlaubt hoechstens
+  eine Korrekturrunde; Zukunftsversprechen, Wartebitten, Schweigen und
+  Meta-Ankuendigungen werden ohne belegten Terminalzustand fail-closed ersetzt.
+- Kalender/M15: Der neue registrierte Mail-zu-Kalender-Pfad scannt eine exakt
+  gebundene Raw-Mail samt physischen Anlagen, erzeugt eine deterministische
+  read-only Vorschau mit Feldprovenienz und legt nach eigener Einzelfreigabe
+  genau einen unveraenderten Kandidaten create-only an. Stale Digests,
+  unvollstaendige Zeiten und unbekannte Zeitzonen werden blockiert.
+- Kalender/M15: Ein Create gilt erst nach eindeutigem UID-/ETag-Read-back und
+  Vergleich von Titel, Zeit, Ort und Beschreibung als erfolgreich. Mehrere
+  Termine behalten getrennte Kandidatendigests, Approvals und ActionPlans;
+  Teilerfolg ist kein Gesamtabschluss und loest keinen Remote-Rollback aus.
+- Agent/M15: Die Zustandsmaschine erzwingt die Reihenfolge aus Mailauswahl,
+  exaktem Lesen, vollstaendiger Vorschau und einzelnem Write. Direkte
+  Step-Spruenge, Rueckfragen aus einem fremden Werkzeug sowie ein nur noch
+  vorhandener, aber inhaltlich abweichender Kalendertermin werden fail-closed
+  blockiert. Ein hermetischer Rollenimage-Test prueft den echten Pluginpfad mit
+  Scripted Replies, Einmalfreigabe, Replay, Timeout, Netzfehler und Teilerfolg.
+
 - Mailindex/Betrieb: Ein vollständig erfolgreicher No-op-Reconcile erneuert nun
   atomar den Frischenachweis der Root-Projektion, ohne Content, Partitionen,
   Parser, ClamAV, FTS oder Modell erneut auszuführen. Der Sync importiert den

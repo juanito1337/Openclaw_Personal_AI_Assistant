@@ -44,5 +44,6 @@ verweist mit Status `Superseded` auf den Nachfolger.
 | [0036](0036-native-agent-tools-und-evidence-guard.md) | Accepted | native strukturierte Agentenwerkzeuge, gebundene Einzelfreigabe und turnbezogener Antwortguard |
 | [0037](0037-residenter-clamav-daemon-fuer-mailindex.md) | Accepted | getrennter residenter ClamAV-Daemon über rollenbegrenzten Unix-Socket |
 | [0038](0038-einzelfreigabe-fuer-mailindex-malwarefunde.md) | Accepted | inhaltsfreie Fundstellen, frische Einzelfallpruefung und explizit ausgeschlossener Malware-Suchbereich |
+| [0039](0039-turngebundene-aktionsverpflichtung.md) | Accepted | turngebundene Aktionsverpflichtung, begrenzter Workflow und remote belegter Abschluss |
 
 Neue ADRs beginnen mit der [Vorlage](0000-template.md).

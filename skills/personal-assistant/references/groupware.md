@@ -65,6 +65,30 @@ and task create are bounded registered writes; existing-object update, complete
 or reopen requires exact UID and explicit approval. Do not describe the calendar
 integration as create-only.
 
+For an explicit “create calendar events from this mail” request, use the native
+mail-to-calendar workflow and never manually translate mail prose into an
+unbound `calendar create` call. Select and read exactly one current mail by
+folder, mailbox ID and expected subject. Then call the registered `calendar
+from-mail ... --dry-run` preview. The preview is read-only, scans the full raw
+mail and every physical attachment through ClamAV, normalizes supported airport
+timezones from a closed map, exposes field provenance and abstains on missing or
+conflicting data.
+
+Create exactly one unchanged preview candidate at a time with its current
+preview digest and candidate ID. Each candidate requires its own approval and
+ActionPlan. Success requires a unique remote UID read-back, a nonempty ETag and
+matching title, start, end, location and description. A stale source/digest,
+unknown timezone, mismatch or uncertain delivery blocks completion. Two flight
+segments are two independent creates; stop after a failure and never reuse an
+approval, bulk-write, delete or claim automatic rollback.
+
+After a turn limit, stale approval or partial result, do not ask an unbound
+yes/no retry question. State the typed blocker and completed candidate count,
+then provide a complete new instruction such as “Trage Hin- und Rueckflug aus
+der zuvor ausgewaehlten Mail als zwei Termine in meinen Kalender ein.” The new
+turn must reselect and revalidate the source and obtain fresh per-candidate
+approvals.
+
 For “complete task” requests, run `tasks status` and then `tasks list
 --include-completed --limit 100`; never use memory as the task source. With one
 exact UID/title and live `update_allowed=true`, use `tasks update --uid "<UID>"

@@ -31,6 +31,7 @@ Zustand, Instanzkonfiguration und Secrets bleiben ausserhalb des Images unter
 | Autoritativer IMAP-Connector und produktives Move-Tracking | [M12-Roadmap](docs/MAIL_IMAP_RECONCILIATION_ROADMAP.md), [M12-Baseline](docs/MAIL_IMAP_RECONCILIATION_BASELINE.md) und [ADR 0035](docs/architecture/adr/0035-nativer-readonly-imap-inventory-connector.md) |
 | Verlaessliche Werkzeugsteuerung und belegte Agentenantworten | [M13-Roadmap](docs/AGENT_TOOL_ORCHESTRATION_ROADMAP.md), [M13.0-Baseline](docs/AGENT_TOOL_USE_BASELINE_M130.md) und [M13-Abnahme/Rolloutgrenze](docs/AGENT_TOOL_ORCHESTRATION_M13_ACCEPTANCE.md) |
 | Residenter Virenscanner und produktionsreifer Mailindexpfad | [M14-Roadmap](docs/MAIL_ANTIVIRUS_INDEX_ROLLOUT_ROADMAP.md), [M14.0-Baseline](docs/MAIL_ANTIVIRUS_INDEX_BASELINE_M140.md) und [M14-Entwicklungsabnahme](docs/MAIL_ANTIVIRUS_INDEX_M14_ACCEPTANCE.md) |
+| Verbindliche Aktionsausfuehrung und belegter Workflowabschluss | [M15-Roadmap](docs/AGENT_ACTION_COMPLETION_ROADMAP.md), [M15.0-Baseline](docs/AGENT_ACTION_COMPLETION_BASELINE_M150.md), [ADR 0039](docs/architecture/adr/0039-turngebundene-aktionsverpflichtung.md) und [M15-Abnahme/Rolloutgrenze](docs/AGENT_ACTION_COMPLETION_M15_ACCEPTANCE.md) |
 | Rechnungsqualitaet und sichere Neubewertung | [M10-Roadmap](docs/INVOICE_QUALITY_REPROCESSING_ROADMAP.md), [Baseline](docs/INVOICE_QUALITY_BASELINE_M10.md), [Betriebsvertrag](docs/INVOICE_OCR_REGISTER.md) und [separater Rolloutvertrag](docs/INVOICE_M10_ROLLOUT.md) |
 | Chronologische Aenderungen | [Changelog](CHANGELOG.md) |
 

@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 
 from .actions import ActionService
 from .antivirus import HostAntivirus
+from .calendar_from_mail import build_calendar_mail_preview, select_unchanged_candidate
 from .config import AssistantConfig
 from .connectors.nextcloud.calendar import NextcloudCalendar
 from .connectors.nextcloud.client import NextcloudClient
@@ -32,6 +33,7 @@ from .contracts.ports import MailOperationsPort
 from .ical_edit import component_properties, first_value, update_component
 from .job_control import JobController
 from .knowledge import KnowledgeIndexer
+from .mail_attachments import physical_mail_attachments
 from .models import Resource
 from .monitoring import PerformanceMonitor
 from .orders import OrderDeckService
@@ -1343,6 +1345,137 @@ class PersonalAssistant(
             "events": matches,
         }
 
+    def _calendar_mail_preview(
+        self,
+        *,
+        folder: str,
+        message_id: str,
+        expected_subject: str,
+    ) -> dict[str, Any]:
+        settings = self.tool_settings.nextcloud.calendar
+        if not settings.enabled or not settings.allow_list or not settings.resource_id:
+            raise PermissionError("Kalender-Lesezugriff fuer die Mail-Vorschau ist deaktiviert")
+        antivirus_settings = self.tool_settings.security.antivirus
+        if not (
+            antivirus_settings.enabled
+            and antivirus_settings.fail_closed
+            and antivirus_settings.scan_raw_mail
+            and antivirus_settings.scan_attachments
+        ):
+            raise PermissionError(
+                "Mail-zu-Kalender-Vorschau benoetigt fail-closed Raw- und Attachment-Scan"
+            )
+        message = self.mail_move_service.read_message(
+            folder,
+            message_id,
+            expected_subject=expected_subject,
+        )
+        scans = [
+            self.antivirus.scan_bytes(
+                message.raw,
+                name="selected-calendar-mail.eml",
+                source_type="calendar-from-mail-raw",
+            )
+        ]
+        for attachment in physical_mail_attachments(message):
+            scans.append(
+                self.antivirus.scan_bytes(
+                    attachment.data,
+                    name=attachment.name,
+                    source_type="calendar-from-mail-attachment",
+                )
+            )
+        blocked = next((scan for scan in scans if not scan.clean), None)
+        if blocked is not None:
+            raise PermissionError(
+                "Mail-zu-Kalender-Vorschau durch Virenscanner blockiert: "
+                + (blocked.signature or blocked.status)
+            )
+        resource = self.registry.get(settings.resource_id)
+        collection = self._calendar_collection(resource)
+        preview = build_calendar_mail_preview(
+            message,
+            resource_id=settings.resource_id,
+            default_timezone=settings.timezone,
+        )
+        duplicate_uids: set[str] = set()
+        for candidate in preview["candidates"]:
+            uid = str(candidate.get("uid") or "")
+            if uid and self.nextcloud_calendar.find_events_by_uid(collection, uid):
+                duplicate_uids.add(uid)
+        if duplicate_uids:
+            preview = build_calendar_mail_preview(
+                message,
+                resource_id=settings.resource_id,
+                default_timezone=settings.timezone,
+                duplicate_uids=duplicate_uids,
+            )
+        preview["antivirus"] = {
+            "ok": True,
+            "raw_scanned": True,
+            "attachment_count": max(0, len(scans) - 1),
+            "all_clean": True,
+        }
+        return preview
+
+    def calendar_from_mail_preview(
+        self,
+        *,
+        folder: str,
+        message_id: str,
+        expected_subject: str,
+    ) -> dict[str, Any]:
+        """Create a source-bound, read-only calendar preview for one current mail."""
+
+        return self._calendar_mail_preview(
+            folder=folder,
+            message_id=message_id,
+            expected_subject=expected_subject,
+        )
+
+    def calendar_from_mail_create(
+        self,
+        *,
+        folder: str,
+        message_id: str,
+        expected_subject: str,
+        preview_digest: str,
+        candidate_id: str,
+        approved: bool,
+    ) -> dict[str, Any]:
+        """Recompute one preview and create exactly one unchanged candidate."""
+
+        if not approved:
+            raise PermissionError(
+                "Mail-zu-Kalender-Create benoetigt --yes nach der nativen Einzelfreigabe"
+            )
+        preview = self._calendar_mail_preview(
+            folder=folder,
+            message_id=message_id,
+            expected_subject=expected_subject,
+        )
+        candidate = select_unchanged_candidate(
+            preview,
+            expected_preview_digest=preview_digest,
+            candidate_id=candidate_id,
+        )
+        result = self.calendar_create(
+            title=str(candidate["title"]),
+            start=str(candidate["start"]),
+            end=str(candidate["end"]),
+            location=str(candidate["location"]),
+            description=str(candidate["description"]),
+            uid=str(candidate["uid"]),
+        )
+        return {
+            **result,
+            "source_bound": True,
+            "preview_digest": preview_digest,
+            "candidate_id": candidate_id,
+            "single_candidate": True,
+            "bulk_write": False,
+        }
+
     def calendar_create(
         self,
         *,
@@ -1432,6 +1565,7 @@ class PersonalAssistant(
                 "starts_at": start_utc.isoformat(),
                 "ends_at": end_utc.isoformat(),
                 "location": location.strip(),
+                "description": description.strip(),
                 "direct_calendar_tool": True,
             },
             idempotency_key=(
@@ -1456,8 +1590,16 @@ class PersonalAssistant(
                 "detail": "Kalender-ActionPlan ist nicht ausfuehrbar",
             }
         result, duplicate = self.actions.execute_calendar_create(plan.id)
+        verified_event = None
+        verification_error = ""
+        if result.status == "completed":
+            try:
+                verified_event = self.actions.verify_calendar_create(result.id)
+            except Exception as exc:
+                verification_error = str(exc)
+        postcondition_verified = verified_event is not None
         response = {
-            "ok": result.status == "completed",
+            "ok": result.status == "completed" and postcondition_verified,
             "duplicate": duplicate,
             "calendar_resource_id": settings.resource_id,
             "event": {
@@ -1469,8 +1611,25 @@ class PersonalAssistant(
                 "location": location.strip(),
             },
             "action": asdict(result),
+            "postcondition_verified": postcondition_verified,
+            "remote": (
+                {
+                    "uid": verified_event.uid,
+                    "etag": verified_event.etag,
+                    "title": verified_event.summary,
+                    "start": verified_event.starts_at,
+                    "end": verified_event.ends_at,
+                    "location": verified_event.location,
+                    "description": verified_event.description,
+                }
+                if verified_event is not None
+                else None
+            ),
         }
-        if result.status == "failed" and result.error:
+        if verification_error:
+            response["detail"] = verification_error
+            response["delivery_uncertain"] = True
+        elif result.status == "failed" and result.error:
             response["detail"] = result.error
         return response
 

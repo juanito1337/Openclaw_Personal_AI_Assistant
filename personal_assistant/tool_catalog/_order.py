@@ -131,6 +131,8 @@ TOOL_ORDER: tuple[str, ...] = (
     "nextcloud.calendar.status",
     "nextcloud.calendar.list",
     "nextcloud.calendar.search",
+    "nextcloud.calendar.from-mail-preview",
+    "nextcloud.calendar.from-mail-create",
     "nextcloud.calendar.update",
     "nextcloud.calendar.create",
     "nextcloud.tasks.status",

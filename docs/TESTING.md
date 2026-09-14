@@ -61,8 +61,8 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 1007 Tests, darunter mindestens 715 unittest-kompatible Tests
-(die bisherigen 349 sowie M0-M13- und Rollout-Regressionstests),
+fordert mindestens 1041 Tests, darunter mindestens 759 unittest-kompatible Tests
+(die bisherigen 349 sowie M0-M15- und Rollout-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
 nach dem Sammeln mit einem Fehler ab. Neue Tests duerfen die Zahl erhoehen; die
@@ -127,6 +127,8 @@ der aktuellen Python-Dateien.
 | Tests nach Suchphrasen-/Nulltreffer-Korrektur gesammelt/ausgefuehrt | 978 / 978 (1.085 JUnit-Faelle inklusive 107 Subtests) |
 | Tests nach M14-Entwicklungsabnahme gesammelt/ausgefuehrt | 994 / 994 (1.101 JUnit-Faelle inklusive 107 Subtests) |
 | Tests nach M14.8-Fundstellen-Nachlauf gesammelt/ausgefuehrt | 1.007 / 1.007 (1.114 JUnit-Faelle inklusive 107 Subtests) |
+| Tests nach M15-Entwicklungsabnahme gesammelt/ausgefuehrt | 1.036 / 1.036 (1.147 JUnit-Faelle inklusive 111 Subtests) |
+| Tests nach M15-Approval-/Antwortkorrelations-Hotfix gesammelt/ausgefuehrt | 1.041 / 1.041 |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -166,6 +168,7 @@ der aktuellen Python-Dateien.
 | neue M13-Toolbridge-/Router-/Evidenz-Regressionsitems | 19 |
 | neue M14-Daemon-/Socket-/Compose-Regressionsitems | 16 |
 | neue M14.8-Quarantaene-/Neuaufbau-Regressionsitems | 13 |
+| neue M15-Aktionsabschluss-Regressionsitems | 18 (zusaetzlich 4 Subtests) |
 | M13-Image-Runtime-Abnahme | Pluginstatus `loaded`, 19 Toolfabriken, 5 typisierte Hooks, keine Diagnosen |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |
@@ -246,6 +249,8 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach M14 | 55,44 % |
 | Gesamt-Coverage nach M14.8-Fundstellen-Nachlauf | 68,35 % |
 | reine Branch-Coverage nach M14.8-Fundstellen-Nachlauf | 55,55 % |
+| Gesamt-Coverage nach M15 | 68,45 % |
+| reine Branch-Coverage nach M15 | 55,69 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -309,6 +314,13 @@ der aktuellen Python-Dateien.
 | M14-Wheelgroesse | 593.188 Bytes |
 | M14-Wheel-Buildzeit | 3,893 s |
 | M14-Wheel-Tests in frischer Umgebung | 994 plus 107 Subtests in 141,81 s |
+| M15-Wheelgroesse | 615.456 Bytes |
+| M15-Wheel-Buildzeit | 2,678 s |
+| M15-Wheel-Tests in frischer Umgebung | 1.036 plus 111 Subtests in 107,31 s |
+| M15-Approval-Resume-Gesamtcoverage | 68,49 % kombiniert; 72,76 % Statements; 55,76 % Branches |
+| M15-Approval-/Antwortkorrelations-Runtime-/Proxy-/Maintenance-Imagegroesse | 377.223.464 / 23.422.616 / 45.638.559 Bytes |
+| M15-Approval-/Antwortkorrelations-Wheel | 616.293 Bytes; Build 4,136 s; 1.041 Tests plus 111 Subtests in frischer Umgebung in 149,43 s |
+| Laufzeit des finalen lokalen M15-Gesamtchecks | 136,98 s |
 | Laufzeit des finalen lokalen M14-Gesamtchecks | 199,67 s |
 | M14.8-Runtime-/Proxy-/Maintenance-Imagegroesse | 377.167.549 / 23.422.439 / 45.638.548 Bytes |
 | M14.8-hermetische clamd-Bereitschaft | 1.058 ms |
@@ -1281,6 +1293,29 @@ gesetzten fachlichen Erfolgsgrenzen.
 Der isolierte M9-Wheellauf baute das Artefakt in 1,899 Sekunden mit 442.024 Bytes,
 bestand den Secret-/Laufzeitdatenscan, installierte es in eine frische Umgebung
 und fuehrte dort erneut alle 610 pytest-Items erfolgreich aus.
+
+## M15-Aktionsabschluss und Mail-zu-Kalender
+
+Die deterministischen Modul- und Korpustests laufen im gemeinsamen Testpfad.
+Der zusaetzliche Image-Test verwendet das reale native Plugin aus dem gebauten
+Runtimeimage, aber nur Scripted Replies und synthetische Adapter:
+
+```bash
+.venv/bin/python scripts/benchmark-m13.py --phase implemented
+.venv/bin/python scripts/benchmark-m15.py --phase implemented
+.venv/bin/python -m pytest -q tests/test_action_completion_m15.py
+OPENCLAW_M15_RUNTIME_IMAGE=openclaw-agent:m15-candidate \
+  ./scripts/check-m15-integration.sh
+```
+
+Geprueft werden die feste Folge Mailauswahl, exaktes Lesen, Preview und
+Einzel-Create, die Bindung an Turn, Quelldigest und Kandidat, ClamAV fuer Raw-Mail
+und jede physische Anlage, Approval-Replay, Remote-UID/ETag/Kernfelder,
+Informationbedarf, Netzfehler, Timeout und sichtbarer Teilerfolg. Der
+Integrationstest laeuft mit `--network none`, read-only Rootfs und Capability-
+Drop; seine externen Writes sind null. Image-, Supply-Chain- und produktive
+Rolloutgrenzen stehen im
+[M15-Abnahmebericht](AGENT_ACTION_COMPLETION_M15_ACCEPTANCE.md).
 
 ## Wheel- und Artefaktpruefung
 

@@ -111,6 +111,19 @@ class AgentToolContractTests(unittest.TestCase):
         self.assertIn("retry_allowed=false", group["description"])
         self.assertTrue(payload["security"]["tool_loop_detection_required"])
 
+    def test_mail_route_covers_draft_send_and_write_evidence(self) -> None:
+        payload = build_native_tool_contract()
+        route = next(item for item in payload["routes"] if item["id"] == "mail-search")
+        self.assertTrue(
+            {
+                "mail.reply-draft",
+                "mail.reply-send",
+                "mail.compose-draft",
+                "mail.compose-send",
+            }.issubset(route["operations"])
+        )
+        self.assertIn("write-success", route["claim_classes"])
+
     def test_shell_and_unknown_executable_templates_are_rejected(self) -> None:
         for command in (
             "./scripts/assistant.sh status && touch /tmp/unsafe",

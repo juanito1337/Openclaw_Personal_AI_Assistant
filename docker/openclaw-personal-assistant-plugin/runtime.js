@@ -235,6 +235,7 @@ function parseJsonOutput(output) {
 function classifyError(result, payload) {
   const detail = `${result.error ?? ""}\n${result.stderr ?? ""}`.toLowerCase();
   if (detail.includes("invalid-arguments")) return "invalid-arguments";
+  if (detail.includes("missing-or-stale-bound-approval")) return "approval-required";
   if (result.returncode === 124 || detail.includes("timeout")) return "timeout";
   if (detail.includes("permission") || detail.includes("freigabe")) return "permission-denied";
   if (detail.includes("configuration") || detail.includes("umgebungsvariable")) {
@@ -266,6 +267,9 @@ function isComplete(operation, payload, ok) {
 function postconditionVerified(operation, payload, ok) {
   if (operation.mode === "read" || !ok || !payload || typeof payload !== "object") return false;
   if (payload.delivery_uncertain === true || payload.conflict === true || payload.complete === false) return false;
+  if (Object.hasOwn(payload, "postcondition_verified")) {
+    return payload.postcondition_verified === true;
+  }
   return payload.ok === true || payload.postcondition_verified === true || payload.verified === true;
 }
 
@@ -322,6 +326,230 @@ export function routePrompt(contract, prompt) {
     read_only_prefetch_only: true,
     external_write_authorized: false,
   };
+}
+
+function normalizedText(value) {
+  return String(value ?? "").normalize("NFKC").toLocaleLowerCase("de-DE").trim();
+}
+
+const ACTION_EXECUTE_PATTERNS = [
+  /\b(?:trag|trage|tragt|tragen)\b.{0,80}\b(?:ein|kalender)\b/iu,
+  /\b(?:eintragen|anlegen|erstellen|verschieben|aktualisieren|abschliessen|abschließen|send(?:e|en|et)|verschick(?:e|en|t)|beantwort(?:e|en|et))\b/iu,
+  /\b(?:fuehre|führe)\b.{0,40}\b(?:aus|durch)\b/iu,
+  /\b(?:crea|crear|anade|añade|agrega|envia|envía|actualiza|mueve|completa)\b/iu,
+  /\b(?:create|add|send|move|update|complete)\b/iu,
+];
+const ACTION_PREVIEW_PATTERNS = [
+  /\b(?:vorschau|preview|dry[- ]?run|simulier)\w*\b/iu,
+  /\b(?:zeige|zeig)\b.{0,60}\b(?:zuerst|vorher|vorschlag)\b/iu,
+  /\b(?:muestra|vista previa|simula)\b/iu,
+];
+const ACTION_EXPLAIN_PATTERNS = [
+  /\b(?:erklaer|erklär|beschreib|wie (?:geht|funktioniert|wuerdest|würdest))\w*\b/iu,
+  /\b(?:explain|how would|como funciona|cómo funciona)\b/iu,
+];
+const ACTION_PROMISE_PATTERNS = [
+  /\bich (?:werde|mache|fuehre|führe|trage|lege)\b/iu,
+  /\b(?:einen moment|gleich|jetzt werde ich|ich muss .*tool)\b/iu,
+  /\b(?:i will|i am going to|give me a moment|voy a|ahora voy a)\b/iu,
+];
+const ACTION_UNBOUND_RETRY_QUESTION_PATTERNS = [
+  /\b(?:soll|sollte) ich\b.{0,180}\b(?:noch einmal|nochmal|erneut|wieder|versuch)/iu,
+  /\b(?:moechtest|möchtest|willst) du\b.{0,180}\b(?:noch einmal|nochmal|erneut|wieder|versuch)/iu,
+  /\bshould i\b.{0,180}\b(?:try again|retry)/iu,
+  /\b(?:quieres que|debo)\b.{0,180}\b(?:intente de nuevo|reintente)/iu,
+];
+
+export function classifyActionIntent(contract, prompt, route) {
+  if (!route?.resolved) return "ambiguous";
+  const text = normalizedText(prompt);
+  if (ACTION_PREVIEW_PATTERNS.some((pattern) => pattern.test(text))) return "preview";
+  if (ACTION_EXPLAIN_PATTERNS.some((pattern) => pattern.test(text))) return "explain";
+  if (ACTION_EXECUTE_PATTERNS.some((pattern) => pattern.test(text))) return "execute";
+  return "ambiguous";
+}
+
+function actionTargetCount(text, workflowKind) {
+  if (
+    workflowKind === "mail-to-calendar" &&
+    (/\bhin(?:-| )?und(?:-| )?rueckflug\b/iu.test(text) ||
+      (/\bhinflug\b/iu.test(text) && /\br(?:ue|ü)ckflug\b/iu.test(text)) ||
+      /\b(?:fluege|flüge|flights|vuelos)\b/iu.test(text))
+  ) return 2;
+  return 1;
+}
+
+export function buildActionObligation(contract, prompt, route, turnId) {
+  if (classifyActionIntent(contract, prompt, route) !== "execute") return null;
+  const domains = [...new Set((route?.routes ?? []).map((item) => String(item.domain ?? "")))].sort();
+  const text = normalizedText(prompt);
+  const mentionsMail = domains.includes("mail") || /\b(?:mail|e-?mail|nachricht|correo)\b/iu.test(text);
+  const mentionsCalendar = domains.includes("calendar") || /\b(?:termin|kalender|flug|calendar|evento|vuelo)\b/iu.test(text);
+  const workflowKind = mentionsMail && mentionsCalendar ? "mail-to-calendar" : "single-action";
+  const steps = workflowKind === "mail-to-calendar"
+    ? [...contract.action_completion.workflow_steps]
+    : ["resolve-target", "execute-one", "verify-one", "finish"];
+  const targetCount = actionTargetCount(text, workflowKind);
+  const identity = { turn_id: String(turnId), intent: "execute", domains, workflow_kind: workflowKind, target_count: targetCount };
+  return {
+    schema_version: contract.action_completion.schema_version,
+    obligation_id: stableDigest(identity).slice(0, 24),
+    turn_id: String(turnId),
+    intent: "execute",
+    domains,
+    workflow_kind: workflowKind,
+    effect: workflowKind === "mail-to-calendar" ? "external-create" : "external-write",
+    target_count: targetCount,
+    completed_targets: 0,
+    steps,
+    current_step: steps[0],
+    step_index: 0,
+    tool_calls: 0,
+    status: "open",
+    terminal_state: null,
+    last_error: null,
+    write_operations: [],
+    write_digests: [],
+    required_slots: workflowKind === "mail-to-calendar"
+      ? ["folder", "message_id", "expected_subject", "preview_digest", "candidate_id"]
+      : [],
+    postconditions: workflowKind === "mail-to-calendar"
+      ? ["remote-uid-read-back", "remote-etag-present", "approved-fields-match"]
+      : ["registered-operation-postcondition"],
+    postconditions_verified: 0,
+  };
+}
+
+export function advanceActionObligation(contract, obligation, operation, evidence, payload, argumentDigest = "") {
+  if (!obligation || contract.action_completion.terminal_states.includes(obligation.terminal_state)) return obligation;
+  const result = structuredClone(obligation);
+  if (String(evidence?.turn_id ?? "") !== String(result.turn_id ?? "")) return result;
+  if (result.tool_calls >= contract.action_completion.limits.max_tool_calls) {
+    return { ...result, status: "terminal", terminal_state: "blocked", last_error: "tool-call-limit" };
+  }
+  result.tool_calls += 1;
+  if (!evidence?.ok) {
+    if (evidence?.error === "approval-required") {
+      return {
+        ...result,
+        status: "terminal",
+        terminal_state: "approval-required",
+        last_error: "missing-or-stale-bound-approval",
+      };
+    }
+    return { ...result, status: "terminal", terminal_state: "blocked", last_error: evidence?.error ?? "operation-failed" };
+  }
+  if (operation.mode !== "read") {
+    if (
+      (result.domains.length > 0 && !result.domains.includes(operation.domain)) ||
+      (result.workflow_kind === "mail-to-calendar" && operation.tool_id !== "nextcloud.calendar.from-mail-create")
+    ) {
+      return { ...result, status: "terminal", terminal_state: "blocked", last_error: "unexpected-write-operation" };
+    }
+    if (["mail.reply-draft", "mail.compose-draft"].includes(operation.tool_id)) {
+      return {
+        ...result,
+        status: "terminal",
+        terminal_state: "approval-required",
+        current_step: "execute-one",
+        step_index: result.steps.indexOf("execute-one"),
+        last_error: "presented-draft-send-approval-required",
+      };
+    }
+    if (result.current_step === "resolve-target" && result.workflow_kind === "single-action") {
+      result.current_step = "execute-one";
+      result.step_index = result.steps.indexOf("execute-one");
+    }
+    if (result.current_step !== "execute-one") {
+      return { ...result, status: "terminal", terminal_state: "blocked", last_error: "unexpected-workflow-step" };
+    }
+    result.write_operations.push(operation.tool_id);
+    result.write_digests.push(argumentDigest);
+    if (evidence.postcondition_verified !== true) {
+      return { ...result, status: "terminal", terminal_state: "blocked", last_error: "write-postcondition-unverified" };
+    }
+    result.completed_targets += 1;
+    result.postconditions_verified += 1;
+    if (result.completed_targets >= result.target_count) {
+      return { ...result, status: "terminal", terminal_state: "completed", current_step: "finish", step_index: result.steps.length - 1 };
+    }
+    result.current_step = "execute-one";
+    result.step_index = result.steps.indexOf("execute-one");
+    return result;
+  }
+  const mailCalendarProgress = {
+    "select-source": { operations: ["mail.search", "mail.recent"], next: "read-source" },
+    "read-source": { operations: ["mail.read"], next: "build-preview" },
+    "build-preview": { operations: ["nextcloud.calendar.from-mail-preview"], next: "execute-one" },
+  };
+  const singleOperations = new Set([
+    "nextcloud.calendar.status", "nextcloud.calendar.search", "nextcloud.tasks.status",
+    "nextcloud.tasks.list", "nextcloud.contacts.status", "nextcloud.contacts.search",
+    "mail.search", "mail.read",
+  ]);
+  let allowed = [];
+  let nextStep = "";
+  if (result.workflow_kind === "mail-to-calendar") {
+    const transition = mailCalendarProgress[result.current_step];
+    allowed = transition?.operations ?? [];
+    nextStep = transition?.next ?? "";
+  } else if (result.current_step === "resolve-target") {
+    allowed = [...singleOperations];
+    nextStep = "execute-one";
+  }
+  if (!allowed.includes(operation.tool_id)) {
+    return { ...result, status: "terminal", terminal_state: "blocked", last_error: "unexpected-workflow-step" };
+  }
+  if (operation.tool_id === "nextcloud.calendar.from-mail-preview") {
+    if (payload?.decision === "information-required") {
+      return { ...result, status: "terminal", terminal_state: "information-required", last_error: "source-fields-incomplete" };
+    }
+    if (Number.isInteger(payload?.candidate_count)) {
+      if (payload.candidate_count < result.target_count) {
+        return { ...result, status: "terminal", terminal_state: "information-required", last_error: "requested-targets-missing" };
+      }
+      if (payload.candidate_count > contract.action_completion.limits.max_targets) {
+        return { ...result, status: "terminal", terminal_state: "blocked", last_error: "target-limit" };
+      }
+      result.target_count = payload.candidate_count;
+    }
+  }
+  if (nextStep) {
+    result.current_step = nextStep;
+    result.step_index = result.steps.indexOf(nextStep);
+  }
+  return result;
+}
+
+export function guardActionCompletion(contract, obligation, answer) {
+  if (!obligation) return { ok: true, issues: [], terminal_state: null, fail_closed: true };
+  if (contract.action_completion.terminal_states.includes(obligation.terminal_state)) {
+    const text = normalizedText(answer);
+    const issues = [];
+    if (
+      ["approval-required", "blocked"].includes(obligation.terminal_state) &&
+      ACTION_UNBOUND_RETRY_QUESTION_PATTERNS.some((pattern) => pattern.test(text))
+    ) {
+      issues.push("unbound-yes-no-retry-question");
+    }
+    if (obligation.terminal_state === "approval-required") {
+      if (/(?:^|\s)\/approve(?:\s|$)/iu.test(text)) issues.push("stale-or-unbound-approval-command");
+      if (/\b(?:mail\s+)?(?:gesendet|verschickt|sent|enviad[oa])\b/iu.test(text)) {
+        issues.push("send-claim-before-completion");
+      }
+    }
+    return {
+      ok: issues.length === 0,
+      issues,
+      terminal_state: obligation.terminal_state,
+      fail_closed: true,
+    };
+  }
+  const text = normalizedText(answer);
+  const issues = ["open-action-obligation"];
+  if (!text) issues.push("empty-action-response");
+  if (ACTION_PROMISE_PATTERNS.some((pattern) => pattern.test(text))) issues.push("future-promise-without-action");
+  return { ok: false, issues, terminal_state: null, fail_closed: true };
 }
 
 function classifyClaims(contract, answer) {
@@ -386,6 +614,9 @@ export function createApprovalLedger(ttlSeconds = 180) {
       records.delete(nonce);
       if (!record || record.expiresAt < Date.now()) return false;
       return record.digest === stableDigest({ operation, args, toolCallId, runId });
+    },
+    revoke(nonce) {
+      records.delete(nonce);
     },
     size() {
       return records.size;

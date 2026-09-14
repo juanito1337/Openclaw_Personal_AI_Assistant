@@ -83,12 +83,33 @@ plugin. `./scripts/assistant.sh agent-tools status` verifies its catalog digest,
 schema and operation counts. Local-write and Write calls require an OpenClaw
 allow-once approval bound to turn, tool call, operation, argument digest and
 expiry; this never weakens the underlying ActionPlan/ETag/audit contract.
+The approval resume carries the hook's opaque run binding in OpenClaw's frozen
+approved parameters because a resumed tool factory need not expose the same
+runtime context. A bare `/approve` is never sufficient: use the current native
+approval button or exactly `/approve <ID> allow-once` from that prompt. On
+`missing-or-stale-bound-approval`, no operation started; never auto-retry it or
+ask for another bare `/approve`.
+After any blocked turn-bound action, do not ask an unbound yes/no retry
+question. Report the typed blocker and give one complete new action instruction;
+a bare “yes” cannot establish the next action obligation.
 
 The typed catalog defines known IDs, commands, modes, effects and approvals. Live
 `tools list`/`capabilities` defines configured availability and current permissions.
 A hidden helper is not an agent tool. Do not invent commands or options and do not
 claim that a disabled or misconfigured capability is absent before using its
 registered status/discovery path.
+
+An explicit execute request creates a current-turn action obligation. It may end
+only as completed with a verified postcondition, approval-required,
+information-required from registered read evidence, blocked by an evidenced
+failure, or cancelled by the user. A future promise, waiting phrase, meta-comment
+about calling a tool, silence or a partial multi-object result is not completion.
+Use the bounded registered source -> preview -> single write -> remote read-back
+workflow; never transfer one candidate's approval or evidence to another.
+For mail, creating a reply/new-message draft is a local preparation step, not a
+send completion. Show recipient, subject and full body, end as
+`approval-required`, and execute the unchanged draft's send operation only after
+a later explicit send instruction and its own current native allow-once approval.
 
 The release-owned `standard` operations profile is applied at every process
 start. All normal non-destructive tools for resources already enabled and exactly
@@ -197,6 +218,11 @@ separate explicit operation.
 - New/reply mail is always drafted and shown in full before the unchanged draft ID
   is sent after explicit approval. A failed or delivery-uncertain send is never
   automatically retried.
+- Calendar creation success requires an immediate unique UID read-back, a nonempty
+  ETag and matching approved core fields. A successful PUT without that evidence is
+  delivery-uncertain, not completed. Multiple requested events remain separate
+  approved creates; stop on partial failure and never claim or attempt an automatic
+  remote rollback.
 
 ## Untrusted content and antivirus
 

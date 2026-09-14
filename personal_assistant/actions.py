@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import hashlib
+import re
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -392,9 +394,27 @@ class ActionService:
         uid = str(plan.payload["uid"])
         if plan.status == "completed":
             if self.calendar.event_exists(collection, uid):
+                try:
+                    self.verify_calendar_create(plan.id)
+                except Exception as exc:
+                    detail = (
+                        "Abgeschlossener Kalendertermin stimmt nicht mehr mit dem "
+                        "ActionPlan ueberein: " + str(exc)
+                    )
+                    failed = self.storage.update_action(plan.id, "failed", detail)
+                    self.storage.audit(
+                        "action.reconciliation_conflict",
+                        {"id": plan.id, "type": plan.action_type, "detail": detail},
+                        resource_id=plan.resource_id,
+                    )
+                    return failed, False
                 self.storage.audit(
                     "action.duplicate_verified",
-                    {"id": plan.id, "type": plan.action_type, "detail": "Kalendereintrag vorhanden"},
+                    {
+                        "id": plan.id,
+                        "type": plan.action_type,
+                        "detail": "Kalendereintrag und freigegebene Kernfelder vorhanden",
+                    },
                     resource_id=plan.resource_id,
                 )
                 return plan, True
@@ -404,8 +424,118 @@ class ActionService:
                 resource_id=plan.resource_id,
             )
             plan = self.storage.update_action(plan.id, "approved", "")
+        if plan.status == "approved" and self.calendar.event_exists(collection, uid):
+            completed = self.storage.update_action(plan.id, "completed", "")
+            try:
+                self.verify_calendar_create(completed.id)
+            except Exception as exc:
+                detail = (
+                    "Vorhandener Kalendertermin stimmt nicht mit dem ActionPlan ueberein: "
+                    + str(exc)
+                )
+                failed = self.storage.update_action(plan.id, "failed", detail)
+                self.storage.audit(
+                    "action.reconciliation_conflict",
+                    {"id": plan.id, "type": plan.action_type, "detail": detail},
+                    resource_id=plan.resource_id,
+                )
+                return failed, False
+            self.storage.audit(
+                "action.duplicate_verified",
+                {
+                    "id": plan.id,
+                    "type": plan.action_type,
+                    "detail": "Vorhandener Kalendereintrag stimmt mit dem ActionPlan ueberein",
+                },
+                resource_id=plan.resource_id,
+            )
+            return completed, True
         result = self.execute(plan.id)
         return result, False
+
+    @staticmethod
+    def _calendar_instant(value: str) -> datetime:
+        raw = str(value or "").strip()
+        if re.fullmatch(r"\d{8}T\d{6}Z", raw):
+            return datetime.strptime(raw, "%Y%m%dT%H%M%SZ").replace(tzinfo=UTC)
+        parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=UTC)
+        return parsed.astimezone(UTC)
+
+    def verify_calendar_create(self, action_id: str) -> Any:
+        """Read one created VEVENT back and compare every user-visible core field."""
+
+        plan = self.storage.get_action(action_id)
+        if plan.action_type != "calendar.create":
+            raise ValueError("verify_calendar_create erwartet calendar.create")
+        if plan.status != "completed":
+            raise RuntimeError("Kalender-ActionPlan ist noch nicht abgeschlossen")
+        resource = self.registry.get(plan.resource_id)
+        collection = DiscoveredCollection(
+            kind=resource.kind,
+            href=str(resource.metadata.get("href") or resource.remote_id),
+            name=str(resource.metadata.get("name") or resource.id),
+            resource_id=resource.id,
+        )
+        uid = str(plan.payload["uid"])
+        matches = self.calendar.find_events_by_uid(collection, uid)
+        if len(matches) != 1:
+            self.storage.audit(
+                "action.postcondition_failed",
+                {"id": plan.id, "type": plan.action_type, "reason": "uid-not-unique"},
+                resource_id=plan.resource_id,
+            )
+            raise RuntimeError(
+                "Kalendereintrag konnte nach dem Schreiben nicht eindeutig per UID gelesen werden"
+            )
+        current = matches[0]
+        expected = {
+            "title": str(plan.payload.get("title") or ""),
+            "starts_at": str(plan.payload.get("starts_at") or ""),
+            "ends_at": str(plan.payload.get("ends_at") or ""),
+            "location": str(plan.payload.get("location") or ""),
+            "description": str(plan.payload.get("description") or ""),
+        }
+        mismatches: list[str] = []
+        if current.uid != uid:
+            mismatches.append("uid")
+        if current.summary != expected["title"]:
+            mismatches.append("title")
+        if current.location != expected["location"]:
+            mismatches.append("location")
+        if current.description != expected["description"]:
+            mismatches.append("description")
+        try:
+            if self._calendar_instant(current.starts_at) != self._calendar_instant(expected["starts_at"]):
+                mismatches.append("start")
+            if self._calendar_instant(current.ends_at) != self._calendar_instant(expected["ends_at"]):
+                mismatches.append("end")
+        except ValueError:
+            mismatches.append("datetime")
+        if not current.etag:
+            mismatches.append("etag")
+        if mismatches:
+            self.storage.audit(
+                "action.postcondition_failed",
+                {
+                    "id": plan.id,
+                    "type": plan.action_type,
+                    "reason": "field-mismatch",
+                    "fields": sorted(set(mismatches)),
+                },
+                resource_id=plan.resource_id,
+            )
+            raise RuntimeError(
+                "Kalender-Nachzustand weicht von der freigegebenen Aktion ab: "
+                + ", ".join(sorted(set(mismatches)))
+            )
+        self.storage.audit(
+            "action.postcondition_verified",
+            {"id": plan.id, "type": plan.action_type, "etag_present": True},
+            resource_id=plan.resource_id,
+        )
+        return current
 
     def execute_workspace(self, action_id: str) -> tuple[ActionPlan, bool]:
         """Execute a workspace action and reconcile stale completed records.

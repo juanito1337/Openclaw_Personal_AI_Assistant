@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .action_completion import action_completion_contract
 from .release import release_path
 from .tool_registry import tool_definitions
 
@@ -95,6 +96,8 @@ _PROPERTY_NAMES = {
     "Betrag": "gross",
     "Inhalt": "content",
     "Terminbeschreibung": "event_description",
+    "preview_digest": "preview_digest",
+    "candidate_id": "candidate_id",
 }
 
 
@@ -116,7 +119,7 @@ def parameter_name(raw: str) -> str:
 def _parameter_schema(raw: str, name: str) -> dict[str, Any]:
     if raw == "ISIN":
         return {"type": "string", "pattern": "^[A-Z]{2}[A-Z0-9]{9}[0-9]$"}
-    if raw in {"SHA256", "Digest"}:
+    if raw in {"SHA256", "Digest", "preview_digest"}:
         return {"type": "string", "pattern": "^[0-9a-f]{64}$"}
     if raw == "ISO":
         return {"type": "string", "pattern": "^[A-Z]{3}$"}
@@ -266,10 +269,21 @@ def _route_definitions() -> list[dict[str, Any]]:
             "patterns": [
                 r"\b(?:e-?mails?|mails?|postfach|nachricht(?:en)?)\b",
                 r"\bcorreo(?:s)?\b",
+                r"\b(?:mail|antwort)?entw(?:urf|uerfe|ürfe)(?:s|n)?\b",
             ],
             "tool": _DOMAIN_TOOL_NAMES["mail"]["read"],
-            "operations": ["mail.recent", "mail.search", "mail.list", "mail.read"],
-            "claim_classes": ["mail-state", "negative"],
+            "operations": [
+                "mail.recent",
+                "mail.search",
+                "mail.list",
+                "mail.read",
+                "mail.reply-draft",
+                "mail.reply-send",
+                "mail.compose-draft",
+                "mail.compose-send",
+                "mail.move",
+            ],
+            "claim_classes": ["mail-state", "negative", "write-success"],
         },
         {
             "id": "nextcloud-files",
@@ -307,14 +321,22 @@ def _route_definitions() -> list[dict[str, Any]]:
         {
             "id": "calendar",
             "domain": "calendar",
-            "patterns": [r"\btermin(?:e|en)?\b", r"\bkalender\b", r"\bcalendar\b"],
+            "patterns": [
+                r"\btermin(?:e|en)?\b",
+                r"\bkalender\b",
+                r"\bcalendar\b",
+                r"\b(?:flug|fluege|flüge|flight|vuelo)(?:\w*)\b",
+            ],
             "tool": _DOMAIN_TOOL_NAMES["calendar"]["read"],
             "operations": [
                 "nextcloud.calendar.status",
                 "nextcloud.calendar.search",
                 "nextcloud.calendar.list",
+                "nextcloud.calendar.from-mail-preview",
+                "nextcloud.calendar.from-mail-create",
+                "nextcloud.calendar.create",
             ],
-            "claim_classes": ["remote-state", "negative"],
+            "claim_classes": ["remote-state", "negative", "write-success"],
         },
         {
             "id": "tasks",
@@ -565,6 +587,17 @@ def build_native_tool_contract() -> dict[str, Any]:
                     "Nach invalid-arguments hoechstens einmal mit vollstaendigen geaenderten "
                     "Argumenten korrigieren; bei retry_allowed=false sofort stoppen."
                 )
+            elif domain == "mail" and kind == "write":
+                domain_guidance = (
+                    " Ein gespeicherter mail.reply-draft oder mail.compose-draft ist noch kein "
+                    "Versand: Empfaenger, Betreff und vollstaendigen Text anzeigen und erst "
+                    "nach einer danach erteilten ausdruecklichen Versandanweisung das passende "
+                    "mail.reply-send oder mail.compose-send ausfuehren. Jede Operation hat ihren "
+                    "eigenen nativen Allow-once-Dialog. Ein blosses /approve ist ungueltig; nur "
+                    "Schaltflaeche oder exaktes /approve <ID> allow-once des aktuellen Dialogs "
+                    "verwenden. missing-or-stale-bound-approval bedeutet sicher nicht ausgefuehrt "
+                    "und darf nicht automatisch wiederholt werden."
+                )
             elif domain == "portfolio" and kind == "read":
                 domain_guidance = (
                     " Bei bereits bekannter ISIN immer portfolio.mapping.suggest mit "
@@ -626,6 +659,9 @@ def build_native_tool_contract() -> dict[str, Any]:
         "native_tools": groups,
         "routes": _route_definitions(),
         "claim_patterns": {key: list(value) for key, value in _claim_patterns().items()},
+        "action_completion": action_completion_contract(
+            item["tool_id"] for item in supported
+        ),
         "limits": {
             "max_output_bytes": 1_000_000,
             "max_error_bytes": 8_000,
@@ -695,6 +731,11 @@ def status(contract_path: Path) -> dict[str, Any]:
         "supported_operation_count": payload.get("supported_operation_count", 0),
         "excluded_operation_count": payload.get("excluded_operation_count", 0),
         "native_tool_count": len(payload.get("native_tools", [])),
+        "action_completion_schema_version": (
+            payload.get("action_completion", {}).get("schema_version")
+            if isinstance(payload.get("action_completion"), dict)
+            else None
+        ),
         "plugin_id": PLUGIN_ID,
         "plugin_path": PLUGIN_PATH,
         "argv_only": True,
