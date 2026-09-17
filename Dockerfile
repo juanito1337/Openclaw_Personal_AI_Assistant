@@ -86,7 +86,7 @@ ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
 # OS is the substantially smaller Alpine base measured for M7.
 RUN apk add --no-cache \
        bash=5.2.37-r0 \
-       ca-certificates=20260611-r0 \
+       ca-certificates=20260909-r0 \
        curl=8.14.1-r3 \
        jq=1.8.2-r0 \
        rsync=3.5.0-r0 \
@@ -99,7 +99,7 @@ RUN apk add --no-cache \
        tesseract-ocr=5.5.0-r2 \
        tesseract-ocr-data-deu=5.5.0-r2 \
        tesseract-ocr-data-eng=5.5.0-r2 \
-       tzdata=2026c-r0 \
+       tzdata=2026d-r0 \
        clamav=1.4.3-r0 \
        freshclam=1.4.3-r0
 
@@ -192,7 +192,7 @@ LABEL org.opencontainers.image.title="OpenClaw Ollama priority proxy" \
 USER 0
 RUN apk add --no-cache \
        bash=5.2.37-r0 \
-       ca-certificates=20260611-r0 \
+       ca-certificates=20260909-r0 \
        curl=8.14.1-r3 \
        tini=0.19.0-r3 \
     && addgroup -g 1000 -S node \
@@ -246,7 +246,7 @@ LABEL org.opencontainers.image.title="OpenClaw ClamAV maintenance" \
 USER 0
 RUN apk add --no-cache \
        bash=5.2.37-r0 \
-       ca-certificates=20260611-r0 \
+       ca-certificates=20260909-r0 \
        clamav=1.4.3-r0 \
        freshclam=1.4.3-r0 \
        tini=0.19.0-r3

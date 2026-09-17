@@ -10,6 +10,10 @@
   sodass ein Reparaturimage nicht am älteren Fehler-Heartbeat zurückgerollt
   wird; ein Fehler desselben neuen Zyklus bleibt fail-closed. Tiefe Diagnosen
   lesen für `mail-index` jetzt das tatsächliche gemeinsame `mail.log`.
+- Build/M15: Die weiterhin exakt gepinnten Alpine-3.22-Laufzeitpakete
+  `ca-certificates` und `tzdata` folgen den im Upstream-Repository verfügbaren
+  Revisionen, damit Rollenimages reproduzierbar gebaut, gescannt und signiert
+  werden können.
 - Agent/M15: Der native Approval-Resume behaelt jetzt die urspruengliche
   Run-/Toolcall-Bindung auch dann, wenn OpenClaw die Tool-Factory nach der
   Freigabe ohne denselben Laufkontext fortsetzt. Fehlende, abgelaufene oder
