@@ -740,6 +740,17 @@ Heartbeat während `queued` oder `waiting` als Liveness-Nachweis. Der letzte
 Reconcile-Zustand bleibt separat sichtbar; nur wenn auch der gemeinsame Owner
 keinen frischen Heartbeat mehr liefert, entsteht `timer-inactive`.
 
+Der planmäßige Reconcile verwendet denselben verbindlichen Laufzeitrahmen von
+3600 Sekunden wie Werkzeugvertrag und Scheduler. Die externe Compose-Einstellung
+heißt `MAIL_INDEX_RECONCILE_MAX_RUNTIME`; der frühere Deployment-Schlüssel
+`MAIL_INDEX_MAX_RUNTIME=600` ist absichtlich obsolet. Dadurch übernimmt auch ein
+Deployment mit erhaltener alter `.env` beim nächsten Containerstart den sicheren
+Standard von 3600 Sekunden. Ein neuerer, frisch gestarteter gemeinsamer
+Mail-Owner darf einen älteren fehlgeschlagenen Index-Heartbeat vorübergehend als
+`recovery_pending` ablösen. Der vorherige Exitcode bleibt dabei sichtbar; sobald
+derselbe neue Zyklus erneut scheitert, wird der Zustand wieder unmittelbar
+`degraded` und das Health-Gate bleibt rot.
+
 Ein Backfill mit `blocked_count > 0` darf nicht einfach fortgesetzt oder als
 Coverage akzeptiert werden. Der Operator liest zuerst ausschließlich die
 inhaltsfreien, checkpointgebundenen Fundstellen:

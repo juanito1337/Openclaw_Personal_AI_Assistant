@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Runtime/M15: Der periodische Mailindex-Reconcile erhält nun den bereits in
+  Werkzeugvertrag und Scheduler festgelegten Laufzeitrahmen von 3600 Sekunden,
+  auch wenn eine erhaltene produktive `.env` noch den obsoleten
+  600-Sekunden-Schlüssel enthält. Ein nachweislich neuerer gemeinsamer
+  Mail-Owner-Zyklus wird als transparenter `recovery_pending`-Zustand bewertet,
+  sodass ein Reparaturimage nicht am älteren Fehler-Heartbeat zurückgerollt
+  wird; ein Fehler desselben neuen Zyklus bleibt fail-closed. Tiefe Diagnosen
+  lesen für `mail-index` jetzt das tatsächliche gemeinsame `mail.log`.
 - Agent/M15: Der native Approval-Resume behaelt jetzt die urspruengliche
   Run-/Toolcall-Bindung auch dann, wenn OpenClaw die Tool-Factory nach der
   Freigabe ohne denselben Laufkontext fortsetzt. Fehlende, abgelaufene oder

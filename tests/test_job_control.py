@@ -436,6 +436,161 @@ class JobControlTests(unittest.TestCase):
         self.assertEqual(job["service"]["SubState"], "queued")
         self.assertEqual(controller.alerts()["active_alerts"], [])
 
+    def test_new_shared_owner_attempt_supersedes_only_older_index_failure(self) -> None:
+        spec = next(
+            item for item in default_job_specs() if item.name == "mail-index"
+        )
+        status_dir = self.root / "container-index-recovery-jobs"
+        status_dir.mkdir()
+        now = datetime.now(UTC)
+        failed_started = (now - timedelta(minutes=3)).isoformat()
+        failed_updated = (now - timedelta(minutes=2)).isoformat()
+        owner_updated = (now - timedelta(minutes=1)).isoformat()
+        (status_dir / "mail-index.json").write_text(
+            json.dumps(
+                {
+                    "job": "mail-index",
+                    "state": "waiting",
+                    "result": "degraded",
+                    "last_exit_code": 1,
+                    "last_started_at": failed_started,
+                    "updated_at": failed_updated,
+                }
+            ),
+            encoding="utf-8",
+        )
+        (status_dir / "mail.json").write_text(
+            json.dumps(
+                {
+                    "job": "mail",
+                    "state": "waiting",
+                    "result": "unknown",
+                    "updated_at": owner_updated,
+                }
+            ),
+            encoding="utf-8",
+        )
+        state_path = self.root / "container-index-recovery-control.json"
+        state_path.write_text(
+            json.dumps({"desired": {"mail-index": True}}),
+            encoding="utf-8",
+        )
+        with patch.dict(
+            "os.environ",
+            {
+                "OPENCLAW_RUNTIME": "container",
+                "OPENCLAW_JOB_STATUS_DIR": str(status_dir),
+            },
+            clear=False,
+        ):
+            controller = JobController(
+                state_path=state_path,
+                workspace_root=self.workspace,
+                unit_dir=self.unit_dir,
+                runner=self.system,
+                specs=(spec,),
+                sleeper=lambda _seconds: None,
+            )
+            report = controller.status(target="mail-index")
+
+        job = report["jobs"][0]
+        self.assertTrue(report["ok"])
+        self.assertEqual(job["state"], "starting")
+        self.assertTrue(job["recovery_pending"])
+        self.assertEqual(job["previous_work_result"], "degraded")
+        self.assertEqual(job["previous_work_exit_code"], 1)
+        self.assertEqual(job["issues"], [])
+
+    def test_completed_index_failure_is_not_masked_by_same_owner_cycle(self) -> None:
+        spec = next(
+            item for item in default_job_specs() if item.name == "mail-index"
+        )
+        status_dir = self.root / "container-index-current-failure-jobs"
+        status_dir.mkdir()
+        now = datetime.now(UTC)
+        owner_started = (now - timedelta(minutes=4)).isoformat()
+        failed_started = (now - timedelta(minutes=3)).isoformat()
+        failed_updated = (now - timedelta(seconds=20)).isoformat()
+        owner_updated = (now - timedelta(seconds=10)).isoformat()
+        (status_dir / "mail-index.json").write_text(
+            json.dumps(
+                {
+                    "job": "mail-index",
+                    "state": "waiting",
+                    "result": "degraded",
+                    "last_exit_code": 1,
+                    "last_started_at": failed_started,
+                    "updated_at": failed_updated,
+                }
+            ),
+            encoding="utf-8",
+        )
+        (status_dir / "mail.json").write_text(
+            json.dumps(
+                {
+                    "job": "mail",
+                    "state": "running",
+                    "result": "running",
+                    "last_started_at": owner_started,
+                    "updated_at": owner_updated,
+                }
+            ),
+            encoding="utf-8",
+        )
+        state_path = self.root / "container-index-current-failure-control.json"
+        state_path.write_text(
+            json.dumps({"desired": {"mail-index": True}}),
+            encoding="utf-8",
+        )
+        with patch.dict(
+            "os.environ",
+            {
+                "OPENCLAW_RUNTIME": "container",
+                "OPENCLAW_JOB_STATUS_DIR": str(status_dir),
+            },
+            clear=False,
+        ):
+            controller = JobController(
+                state_path=state_path,
+                workspace_root=self.workspace,
+                unit_dir=self.unit_dir,
+                runner=self.system,
+                specs=(spec,),
+                sleeper=lambda _seconds: None,
+            )
+            report = controller.status(target="mail-index")
+
+        job = report["jobs"][0]
+        self.assertFalse(report["ok"])
+        self.assertEqual(job["state"], "degraded")
+        self.assertNotIn("recovery_pending", job)
+        self.assertEqual(job["issues"][0]["code"], "service-degraded")
+
+    def test_mail_index_deep_status_uses_shared_owner_log(self) -> None:
+        spec = next(
+            item for item in default_job_specs() if item.name == "mail-index"
+        )
+        log_dir = self.root / "container-index-logs"
+        log_dir.mkdir()
+        (log_dir / "mail.log").write_text("shared mail owner evidence\n", encoding="utf-8")
+        with patch.dict(
+            "os.environ",
+            {
+                "OPENCLAW_RUNTIME": "container",
+                "OPENCLAW_LOG_DIR": str(log_dir),
+            },
+            clear=False,
+        ):
+            controller = JobController(
+                state_path=self.root / "container-index-log-control.json",
+                workspace_root=self.workspace,
+                unit_dir=self.unit_dir,
+                runner=self.system,
+                specs=(spec,),
+                sleeper=lambda _seconds: None,
+            )
+            self.assertEqual(controller._journal(spec), "shared mail owner evidence\n")
+
     def test_container_shared_mail_owner_must_itself_be_fresh(self) -> None:
         spec = next(
             item for item in default_job_specs() if item.name == "mail-index"

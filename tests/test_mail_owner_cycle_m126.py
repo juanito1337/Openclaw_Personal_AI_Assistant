@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
@@ -58,7 +59,9 @@ def test_mail_owner_serializes_mail_then_reconcile_when_enabled(tmp_path: Path) 
         "--",
         "mail-command",
     ]
-    with mock.patch("sys.argv", argv), mock.patch(
+    with mock.patch("sys.argv", argv), mock.patch.dict(
+        os.environ, {}, clear=True
+    ), mock.patch(
         "subprocess.run",
         side_effect=[SimpleNamespace(returncode=0), SimpleNamespace(returncode=0)],
     ) as run:
@@ -72,6 +75,7 @@ def test_mail_owner_serializes_mail_then_reconcile_when_enabled(tmp_path: Path) 
         "index",
         "reconcile",
     ]
+    assert reconcile[reconcile.index("--max-runtime") + 1] == "3600"
     assert reconcile[-1] == "--yes"
     heartbeat = json.loads((status / "mail-index.json").read_text(encoding="utf-8"))
     assert heartbeat["state"] == "waiting"

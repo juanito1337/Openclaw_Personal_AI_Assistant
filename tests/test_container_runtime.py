@@ -415,6 +415,18 @@ raise SystemExit(86)
         self.assertLess(portfolio_healthy, monitor_healthy)
         self.assertLess(monitor_healthy, jobs_checked)
 
+    def test_mail_index_reconcile_runtime_matches_scheduler_contract(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        compose = (root / "compose.yaml").read_text(encoding="utf-8")
+        example = (root / "docker/deployment.env.example").read_text(encoding="utf-8")
+
+        self.assertIn(
+            "MAIL_INDEX_MAX_RUNTIME: ${MAIL_INDEX_RECONCILE_MAX_RUNTIME:-3600}",
+            compose,
+        )
+        self.assertIn("MAIL_INDEX_RECONCILE_MAX_RUNTIME=3600", example)
+        self.assertNotIn("\nMAIL_INDEX_MAX_RUNTIME=600\n", example)
+
     def test_deploy_and_rollback_do_not_rerun_live_clamd_socket_initializer(self) -> None:
         root = Path(__file__).resolve().parents[1]
         for script_name in ("deploy.sh", "rollback.sh"):

@@ -276,16 +276,26 @@ class JobController:
 
     @staticmethod
     def _container_heartbeat_fresh(heartbeat: dict[str, Any]) -> bool:
-        updated = str(heartbeat.get("updated_at") or "")
-        if not updated:
+        parsed = JobController._container_heartbeat_time(heartbeat, "updated_at")
+        if parsed is None:
             return False
+        return datetime.now(UTC) - parsed < timedelta(minutes=5)
+
+    @staticmethod
+    def _container_heartbeat_time(
+        heartbeat: dict[str, Any],
+        field: str,
+    ) -> datetime | None:
+        value = str(heartbeat.get(field) or "")
+        if not value:
+            return None
         try:
-            parsed = datetime.fromisoformat(updated.replace("Z", "+00:00"))
-            if parsed.tzinfo is None:
-                parsed = parsed.replace(tzinfo=UTC)
-            return datetime.now(UTC) - parsed.astimezone(UTC) < timedelta(minutes=5)
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
         except ValueError:
-            return False
+            return None
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=UTC)
+        return parsed.astimezone(UTC)
 
     def _container_runtime_status(
         self,
@@ -315,6 +325,33 @@ class JobController:
         if spec.name == "mail-index":
             owner_path, owner_heartbeat = self._container_heartbeat("mail")
             owner_heartbeat_fresh = self._container_heartbeat_fresh(owner_heartbeat)
+        work_result = str(heartbeat.get("result") or "success")
+        work_exit_code = heartbeat.get("last_exit_code")
+        work_failed = work_result in {"degraded", "failed"} or work_exit_code not in {
+            None,
+            0,
+            "0",
+        }
+        work_updated = self._container_heartbeat_time(heartbeat, "updated_at")
+        work_started = self._container_heartbeat_time(heartbeat, "last_started_at")
+        owner_updated = self._container_heartbeat_time(owner_heartbeat, "updated_at")
+        owner_started = self._container_heartbeat_time(owner_heartbeat, "last_started_at")
+        owner_state = str(owner_heartbeat.get("state") or "")
+        owner_result = str(owner_heartbeat.get("result") or "")
+        owner_new_attempt = bool(
+            spec.name == "mail-index"
+            and work_failed
+            and owner_heartbeat_fresh
+            and owner_updated is not None
+            and (work_updated is None or owner_updated > work_updated)
+            and owner_state in {"starting", "waiting", "queued", "running"}
+            and owner_result in {"unknown", "running"}
+            and (
+                owner_started is None
+                or work_started is None
+                or owner_started > work_started
+            )
+        )
         # mail-index is deliberately not a second worker.  Its execution
         # heartbeat is emitted only once the shared mail owner reaches the
         # serialized reconcile phase.  A fresh owner heartbeat therefore
@@ -324,9 +361,9 @@ class JobController:
         active = desired and fresh
         is_timer = unit == spec.timer_unit
         status_heartbeat = (
-            heartbeat
-            if work_heartbeat_fresh or not owner_heartbeat_fresh
-            else owner_heartbeat
+            owner_heartbeat
+            if owner_new_attempt or (not work_heartbeat_fresh and owner_heartbeat_fresh)
+            else heartbeat
         )
         heartbeat_state = str(status_heartbeat.get("state") or "")
         # A worker publishes ``running`` before starting its child. Its previous
@@ -334,7 +371,7 @@ class JobController:
         # the in-flight run. This is essential for the supervisor checking its
         # own status: otherwise one failed run permanently latches the next run
         # into the same failure.
-        in_flight = heartbeat_state == "running"
+        in_flight = heartbeat_state == "running" or owner_new_attempt
         return {
             "unit": unit,
             "available": True,
@@ -344,10 +381,10 @@ class JobController:
             "ActiveState": "active" if active else "inactive",
             "SubState": ("waiting" if is_timer else (heartbeat_state or "running")) if active else "dead",
             "UnitFileState": "enabled" if desired else "disabled",
-            "Result": "running" if in_flight else str(heartbeat.get("result") or "success"),
-            "ExecMainStatus": "0" if in_flight else str(heartbeat.get("last_exit_code") or 0),
-            "ExecMainStartTimestamp": str(heartbeat.get("last_started_at") or ""),
-            "ExecMainExitTimestamp": str(heartbeat.get("last_finished_at") or ""),
+            "Result": "running" if in_flight else str(status_heartbeat.get("result") or "success"),
+            "ExecMainStatus": "0" if in_flight else str(status_heartbeat.get("last_exit_code") or 0),
+            "ExecMainStartTimestamp": str(status_heartbeat.get("last_started_at") or ""),
+            "ExecMainExitTimestamp": str(status_heartbeat.get("last_finished_at") or ""),
             "container": True,
             "heartbeat": str(heartbeat_path),
             "work_heartbeat_present": bool(heartbeat),
@@ -355,6 +392,11 @@ class JobController:
             "shared_owner": "mail" if owner_path is not None else "",
             "shared_owner_heartbeat": str(owner_path) if owner_path is not None else "",
             "shared_owner_fresh": owner_heartbeat_fresh,
+            "recovery_pending": owner_new_attempt,
+            "previous_work_result": work_result if owner_new_attempt else "",
+            "previous_work_exit_code": (
+                heartbeat.get("last_exit_code") if owner_new_attempt else None
+            ),
         }
 
     def _unit_status(
@@ -830,7 +872,10 @@ class JobController:
                 os.environ.get("OPENCLAW_LOG_DIR")
                 or (self.workspace_root / "personal_assistant/data/container_logs")
             ).expanduser().resolve()
-            path = log_root / f"{spec.name}.log"
+            # mail-index is serialized inside the one mail worker and therefore
+            # has no separate process log.  Point diagnostics at its real owner.
+            log_name = "mail" if spec.name == "mail-index" else spec.name
+            path = log_root / f"{log_name}.log"
             try:
                 return path.read_text(encoding="utf-8", errors="replace")[-8000:]
             except OSError as exc:
@@ -935,7 +980,10 @@ class JobController:
             desired_on
             and self.container_mode
             and spec.name == "mail-index"
-            and not bool(timer.get("work_heartbeat_present"))
+            and (
+                not bool(timer.get("work_heartbeat_present"))
+                or bool(timer.get("recovery_pending"))
+            )
             and bool(timer.get("shared_owner_fresh"))
         )
         state = "starting" if activation_pending else "on"
@@ -959,6 +1007,12 @@ class JobController:
         if activation_pending:
             response["activation_pending"] = True
             response["postcondition_verified"] = False
+            if timer.get("recovery_pending"):
+                response["recovery_pending"] = True
+                response["previous_work_result"] = timer.get("previous_work_result")
+                response["previous_work_exit_code"] = timer.get(
+                    "previous_work_exit_code"
+                )
         if issues:
             response["journal"] = self._journal(spec)
         return response

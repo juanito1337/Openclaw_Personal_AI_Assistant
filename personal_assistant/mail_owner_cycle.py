@@ -147,7 +147,7 @@ def main() -> int:
         "--max-message-bytes",
         os.environ.get("MAIL_INDEX_MAX_MESSAGE_BYTES", "100000000"),
         "--max-runtime",
-        os.environ.get("MAIL_INDEX_MAX_RUNTIME", "600"),
+        os.environ.get("MAIL_INDEX_MAX_RUNTIME", "3600"),
         "--request-interval",
         os.environ.get("MAIL_INDEX_REQUEST_INTERVAL", "0.05"),
         "--retention-generations",

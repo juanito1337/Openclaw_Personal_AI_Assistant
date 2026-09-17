@@ -61,7 +61,11 @@ x-openclaw-common: &openclaw-common
     MAIL_INDEX_MAX_MESSAGES: ${MAIL_INDEX_MAX_MESSAGES:-100000}
     MAIL_INDEX_MAX_BYTES: ${MAIL_INDEX_MAX_BYTES:-2000000000}
     MAIL_INDEX_MAX_MESSAGE_BYTES: ${MAIL_INDEX_MAX_MESSAGE_BYTES:-100000000}
-    MAIL_INDEX_MAX_RUNTIME: ${MAIL_INDEX_MAX_RUNTIME:-600}
+    # The externally named setting deliberately differs from the in-container
+    # variable.  Existing deployments may still carry the obsolete 600-second
+    # MAIL_INDEX_MAX_RUNTIME value in their preserved .env; using the new name
+    # makes the contractual 3600-second reconcile limit effective on upgrade.
+    MAIL_INDEX_MAX_RUNTIME: ${MAIL_INDEX_RECONCILE_MAX_RUNTIME:-3600}
     MAIL_INDEX_REQUEST_INTERVAL: ${MAIL_INDEX_REQUEST_INTERVAL:-0.05}
     MAIL_INDEX_RETENTION_GENERATIONS: ${MAIL_INDEX_RETENTION_GENERATIONS:-2}
     SYNC_INTERVAL_SECONDS: ${SYNC_INTERVAL_SECONDS:-900}
