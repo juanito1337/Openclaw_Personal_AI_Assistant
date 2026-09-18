@@ -131,6 +131,19 @@ export function compileInvocation(operation, input, liveCommand = operation.comm
     stdin = String(input[operation.stdin_parameter] ?? "");
     tokens = tokens.slice(pipeAt + 1);
   }
+  const templateMarkers = tokens.flatMap((token) =>
+    [...token.matchAll(/<([^>]+)>/gu)].map((match) => match[1]),
+  );
+  const registeredMarkers = (operation.parameter_bindings ?? [])
+    .filter((binding) => binding.parameter !== operation.stdin_parameter)
+    .map((binding) => binding.placeholder);
+  if (
+    templateMarkers.length !== registeredMarkers.length
+    || templateMarkers.some((marker, index) => marker !== registeredMarkers[index])
+    || tokens.some((item) => /\{workspace_root\}|\{calendar_subject_prefix\}/u.test(item))
+  ) {
+    throw new Error("unresolved-command-template");
+  }
   if (tokens[0] !== "./scripts/assistant.sh" && tokens[0] !== ASSISTANT) {
     throw new Error("unregistered-executable");
   }
@@ -163,9 +176,6 @@ export function compileInvocation(operation, input, liveCommand = operation.comm
       break;
     }
     if (!replaced) throw new Error(`unbound-parameter:${binding.parameter}`);
-  }
-  if (tokens.some((item) => /<[^>]+>|\{workspace_root\}|\{calendar_subject_prefix\}/u.test(item))) {
-    throw new Error("unresolved-command-template");
   }
   return { executable: ASSISTANT, argv: tokens.slice(1), stdin };
 }
@@ -353,6 +363,13 @@ const ACTION_PROMISE_PATTERNS = [
   /\b(?:einen moment|gleich|jetzt werde ich|ich muss .*tool)\b/iu,
   /\b(?:i will|i am going to|give me a moment|voy a|ahora voy a)\b/iu,
 ];
+const ACTION_WRITE_PROMISE_PATTERNS = [
+  /\bich werde\b.{0,200}\b(?:abschicken|absenden|senden|versenden|verschicken|eintragen|anlegen|erstellen|verschieben|aktualisieren|abschliessen|abschließen)\b/iu,
+  /\bich (?:sende|versende|verschicke|schicke|trage|lege|erstelle|verschiebe|aktualisiere|beantworte|schliesse|schließe)\b/iu,
+  /\bich (?:fuehre|führe)\b.{0,100}\b(?:versand|aktion|vorgang|aenderung|änderung)\b.{0,50}\b(?:aus|durch)\b/iu,
+  /\bi (?:will|am going to)\b.{0,200}\b(?:send|create|move|update|complete)\b/iu,
+  /\b(?:voy a|ahora voy a)\b.{0,200}\b(?:enviar|crear|mover|actualizar|completar)\b/iu,
+];
 const ACTION_UNBOUND_RETRY_QUESTION_PATTERNS = [
   /\b(?:soll|sollte) ich\b.{0,180}\b(?:noch einmal|nochmal|erneut|wieder|versuch)/iu,
   /\b(?:moechtest|möchtest|willst) du\b.{0,180}\b(?:noch einmal|nochmal|erneut|wieder|versuch)/iu,
@@ -522,10 +539,21 @@ export function advanceActionObligation(contract, obligation, operation, evidenc
 }
 
 export function guardActionCompletion(contract, obligation, answer) {
-  if (!obligation) return { ok: true, issues: [], terminal_state: null, fail_closed: true };
+  const text = normalizedText(answer);
+  if (!obligation) {
+    const issues = ACTION_WRITE_PROMISE_PATTERNS.some((pattern) => pattern.test(text))
+      ? ["write-promise-without-action-obligation"]
+      : [];
+    return { ok: issues.length === 0, issues, terminal_state: null, fail_closed: true };
+  }
   if (contract.action_completion.terminal_states.includes(obligation.terminal_state)) {
-    const text = normalizedText(answer);
     const issues = [];
+    if (
+      ["approval-required", "information-required", "blocked"].includes(obligation.terminal_state)
+      && ACTION_WRITE_PROMISE_PATTERNS.some((pattern) => pattern.test(text))
+    ) {
+      issues.push("write-promise-without-action-obligation");
+    }
     if (
       ["approval-required", "blocked"].includes(obligation.terminal_state) &&
       ACTION_UNBOUND_RETRY_QUESTION_PATTERNS.some((pattern) => pattern.test(text))
@@ -545,7 +573,6 @@ export function guardActionCompletion(contract, obligation, answer) {
       fail_closed: true,
     };
   }
-  const text = normalizedText(answer);
   const issues = ["open-action-obligation"];
   if (!text) issues.push("empty-action-response");
   if (ACTION_PROMISE_PATTERNS.some((pattern) => pattern.test(text))) issues.push("future-promise-without-action");

@@ -51,6 +51,16 @@ _PROMISE_PATTERNS = (
     r"\b(?:einen moment|gleich|jetzt werde ich|ich muss .*tool)\b",
     r"\b(?:i will|i am going to|give me a moment|voy a|ahora voy a)\b",
 )
+_WRITE_PROMISE_PATTERNS = (
+    r"\bich werde\b.{0,200}\b(?:abschicken|absenden|senden|versenden|verschicken|"
+    r"eintragen|anlegen|erstellen|verschieben|aktualisieren|abschliessen|abschließen)\b",
+    r"\bich (?:sende|versende|verschicke|schicke|trage|lege|erstelle|verschiebe|"
+    r"aktualisiere|beantworte|schliesse|schließe)\b",
+    r"\bich (?:fuehre|führe)\b.{0,100}\b(?:versand|aktion|vorgang|aenderung|änderung)\b"
+    r".{0,50}\b(?:aus|durch)\b",
+    r"\bi (?:will|am going to)\b.{0,200}\b(?:send|create|move|update|complete)\b",
+    r"\b(?:voy a|ahora voy a)\b.{0,200}\b(?:enviar|crear|mover|actualizar|completar)\b",
+)
 _UNBOUND_RETRY_QUESTION_PATTERNS = (
     r"\b(?:soll|sollte) ich\b.{0,180}\b(?:noch einmal|nochmal|erneut|wieder|versuch)",
     r"\b(?:moechtest|möchtest|willst) du\b.{0,180}\b(?:noch einmal|nochmal|erneut|wieder|versuch)",
@@ -418,12 +428,28 @@ def action_completion_guard(
     obligation: Mapping[str, Any] | None,
     answer: str,
 ) -> dict[str, Any]:
+    normalized = _normalized(answer)
     if obligation is None:
-        return {"ok": True, "issues": [], "terminal_state": None, "fail_closed": True}
+        no_obligation_issues: list[str] = []
+        if any(
+            re.search(pattern, normalized, flags=re.IGNORECASE)
+            for pattern in _WRITE_PROMISE_PATTERNS
+        ):
+            no_obligation_issues.append("write-promise-without-action-obligation")
+        return {
+            "ok": not no_obligation_issues,
+            "issues": no_obligation_issues,
+            "terminal_state": None,
+            "fail_closed": True,
+        }
     terminal = obligation.get("terminal_state")
     if terminal in ACTION_TERMINAL_STATES:
-        normalized = _normalized(answer)
         issues: list[str] = []
+        if terminal in {"approval-required", "information-required", "blocked"} and any(
+            re.search(pattern, normalized, flags=re.IGNORECASE)
+            for pattern in _WRITE_PROMISE_PATTERNS
+        ):
+            issues.append("write-promise-without-action-obligation")
         if terminal in {"approval-required", "blocked"} and any(
             re.search(pattern, normalized, flags=re.IGNORECASE)
             for pattern in _UNBOUND_RETRY_QUESTION_PATTERNS
@@ -443,7 +469,6 @@ def action_completion_guard(
             "terminal_state": terminal,
             "fail_closed": True,
         }
-    normalized = _normalized(answer)
     issues = ["open-action-obligation"]
     if not normalized:
         issues.append("empty-action-response")

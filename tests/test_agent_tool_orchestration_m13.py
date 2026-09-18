@@ -259,6 +259,24 @@ const mappingSuggestOp = contract.operations.find((row) => row.tool_id === 'port
 const mappingSuggestInvocation = compileInvocation(mappingSuggestOp, {isin:'US4592001014'});
 const mappingDiscoverOp = contract.operations.find((row) => row.tool_id === 'portfolio.mapping.discover');
 const mappingDiscoverInvocation = compileInvocation(mappingDiscoverOp, {query:'Synthetic Industries'});
+const replyDraftOp = contract.operations.find((row) => row.tool_id === 'mail.reply-draft');
+const replyDraftInvocation = compileInvocation(replyDraftOp, {
+  folder:'Agent/Relevant',
+  message_id:'<009f01dd3f60$39fa2cd0$adee8670$@example.invalid>',
+  expected_subject:'AW: Synthetischer Termin',
+  body:'Hallo <Aurora>, {workspace_root} bleibt hier normaler Nachrichtentext.'
+});
+let unresolvedTemplate = '';
+try {
+  compileInvocation(
+    replyDraftOp,
+    {
+      folder:'Agent/Relevant', message_id:'42',
+      expected_subject:'AW: Synthetischer Termin', body:'Test'
+    },
+    `${replyDraftOp.command} --future "<Future>"`
+  );
+} catch (error) { unresolvedTemplate = String(error); }
 let missingMappingArgument = '';
 try { compileInvocation(mappingSuggestOp, {}); } catch (error) { missingMappingArgument = String(error); }
 const ledger = createApprovalLedger(180);
@@ -278,7 +296,8 @@ const incomplete = makeEvidence(
 const route = routePrompt(contract, 'Gibt es eine Mail zum Test?');
 const guard = guardAnswer(contract, route, 'Nein, es gibt keine Mail.', [incomplete]);
 console.log(JSON.stringify({invocation, researchInvocation, mappingSuggestInvocation,
-  mappingDiscoverInvocation, missingMappingArgument, accepted, replay, changed, guard,
+  mappingDiscoverInvocation, replyDraftInvocation, unresolvedTemplate,
+  missingMappingArgument, accepted, replay, changed, guard,
   execBlocked: shouldBlockGenericTool('exec',{
     command:'/opt/openclaw-agent/scripts/assistant.sh mail search --query Test'
   }),
@@ -306,6 +325,22 @@ console.log(JSON.stringify({invocation, researchInvocation, mappingSuggestInvoca
             payload["mappingDiscoverInvocation"]["argv"],
             ["portfolio", "mapping", "suggest", "--query", "Synthetic Industries"],
         )
+        self.assertEqual(
+            payload["replyDraftInvocation"]["argv"],
+            [
+                "mail",
+                "reply-draft",
+                "--folder",
+                "Agent/Relevant",
+                "--message-id",
+                "<009f01dd3f60$39fa2cd0$adee8670$@example.invalid>",
+                "--expected-subject",
+                "AW: Synthetischer Termin",
+                "--body",
+                "Hallo <Aurora>, {workspace_root} bleibt hier normaler Nachrichtentext.",
+            ],
+        )
+        self.assertIn("unresolved-command-template", payload["unresolvedTemplate"])
         self.assertIn("missing-argument:isin", payload["missingMappingArgument"])
         self.assertTrue(payload["accepted"])
         self.assertFalse(payload["replay"])

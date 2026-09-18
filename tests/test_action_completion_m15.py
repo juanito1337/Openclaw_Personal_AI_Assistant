@@ -137,6 +137,24 @@ class ActionIntentAndContractTests(unittest.TestCase):
         self.assertNotIn("announced", ACTION_TERMINAL_STATES)
         self.assertNotIn("working", ACTION_TERMINAL_STATES)
 
+    def test_status_answer_cannot_announce_unrequested_mail_send(self) -> None:
+        answer = (
+            "Die Mail wurde nicht verschickt. Ich werde sie jetzt sofort erneut abschicken. "
+            "Ich führe den Versand jetzt durch."
+        )
+        verdict = action_completion_guard(None, answer)
+        self.assertFalse(verdict["ok"])
+        self.assertEqual(
+            verdict["issues"],
+            ["write-promise-without-action-obligation"],
+        )
+
+        status_only = action_completion_guard(
+            None,
+            "Die Mail wurde nicht verschickt; es wurde keine Schreibaktion ausgeführt.",
+        )
+        self.assertTrue(status_only["ok"])
+
     def test_old_turn_and_wrong_write_cannot_close_obligation(self) -> None:
         prompt = _corpus()["cases"][0]["prompt"]
         obligation = build_action_obligation(prompt, route_intent(prompt), turn_id="turn-1")
@@ -605,6 +623,12 @@ const prompt = 'Trage Hinflug und Rueckflug aus der Mail als Termine in den Kale
 const route = routePrompt(contract, prompt);
 const base = buildActionObligation(contract, prompt, route, 'turn-1');
 const promise = guardActionCompletion(contract, base, 'Ich trage sie jetzt ein. Einen Moment bitte.');
+const unrequestedSend = guardActionCompletion(
+  contract,
+  null,
+  'Die Mail wurde nicht verschickt. Ich werde sie jetzt sofort erneut abschicken. '
+    + 'Ich führe den Versand jetzt durch.'
+);
 const previewPrompt = 'Zeige zuerst eine Vorschau der Termine aus der Mail.';
 const previewRoute = routePrompt(contract, previewPrompt);
 const preview = buildActionObligation(contract, previewPrompt, previewRoute, 'turn-2');
@@ -632,7 +656,7 @@ const unverifiedEvidence = makeEvidence(op, {returncode:0,stderr:''}, {
   ok:true, postcondition_verified:false, delivery_uncertain:true
 }, 'turn-1', 'call-3');
 const blocked = advanceActionObligation(contract, ready, op, unverifiedEvidence, {ok:true}, 'c'.repeat(64));
-console.log(JSON.stringify({promise, preview, unchanged, jumped, first, second, blocked}));
+console.log(JSON.stringify({promise, unrequestedSend, preview, unchanged, jumped, first, second, blocked}));
 """
         result = subprocess.run(
             ["node", "--input-type=module", "-e", script],
@@ -644,6 +668,11 @@ console.log(JSON.stringify({promise, preview, unchanged, jumped, first, second, 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         payload = json.loads(result.stdout)
         self.assertFalse(payload["promise"]["ok"])
+        self.assertFalse(payload["unrequestedSend"]["ok"])
+        self.assertEqual(
+            payload["unrequestedSend"]["issues"],
+            ["write-promise-without-action-obligation"],
+        )
         self.assertIsNone(payload["preview"])
         self.assertEqual(payload["unchanged"]["completed_targets"], 0)
         self.assertEqual(payload["jumped"]["last_error"], "unexpected-workflow-step")

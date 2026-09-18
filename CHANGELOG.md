@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Agent/M15: Die argv-only Toolbridge prueft offene Kommando-Platzhalter nun
+  ausschliesslich am registrierten Template, bevor Nutzerdaten eingesetzt
+  werden. RFC-konforme Mail-IDs in spitzen Klammern und entsprechender
+  Entwurfstext bleiben dadurch unveraenderte Einzelargumente und loesen bei
+  `mail.reply-draft` nicht mehr faelschlich `unresolved-command-template` aus;
+  unbekannte Template-Platzhalter bleiben fail-closed blockiert.
+- Agent/M15: Der Abschlussguard blockiert nun auch angekündigte Mailversände und
+  andere externe Schreibaktionen, wenn die aktuelle Nutzeranfrage lediglich den
+  Status abfragt und deshalb keine turngebundene Aktionsverpflichtung existiert.
+  Ein Modell darf damit nach einem fehlgeschlagenen oder nicht ausgeführten
+  Versand keinen autonomen Wiederholungsversuch versprechen.
 - Runtime/M15: Der periodische Mailindex-Reconcile erhält nun den bereits in
   Werkzeugvertrag und Scheduler festgelegten Laufzeitrahmen von 3600 Sekunden,
   auch wenn eine erhaltene produktive `.env` noch den obsoleten
