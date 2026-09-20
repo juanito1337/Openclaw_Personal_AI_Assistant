@@ -164,12 +164,12 @@ a1f4fd342014bbba753cab06c36a415cc2f0bfbdc5110211d8ba160a41940d01  ./docs/archite
 f08c4dab1e5b33b77291b7875178ccab10c71ac7a949c3ed9440db29e462bc6b  ./docs/architecture/adr/README.md
 b99c97a76723cd2ece9e00dc9ece17aac47daaa672657252d63cdb234645fcd9  ./docs/architecture/clamd-operating-budget-m14.json
 d27b02d1ed286794ce453b80b4911bcbf476dfb08d005437510e5419f237203c  ./docs/architecture/compatibility-policy.json
-7f13ab9c1f95391ffcb60fee152316ff5c3e3aceb091b1be792175d5fa27b51f  ./docs/architecture/component-inventory.json
+421bdc06b99ff7b5e6232c151cca804ee8d2fb07f25636ac2a4a7d58cd81944a  ./docs/architecture/component-inventory.json
 1f707ea0d3c63cf76a35d64fd62988a6f59c1c5e73fe7a09fe62fdb7901a919c  ./docs/architecture/image-baseline-m7.json
 b397cdaa70d5dbcd4bfd22ed503433570b67bb978059bd5916e8793d173807c3  ./docs/architecture/legacy-decisions.json
-4fe5e6115996528eec696afc15faa05eef85c7c52a7ed093f158219882fb2735  ./docs/architecture/m16-baseline.json
+08e9adaf4971a11f91b043fb89f899bb730ca702dc3c5e7bdaf6f1710045755c  ./docs/architecture/m16-baseline.json
 f1c4a5e8706d00e07115b12383f863a28a81087082f7963847aa3b729255a863  ./docs/architecture/m16-baseline.schema.json
-1cd8ecfeec62e0f6fc6c1a9f837c0c5af23343923585efcd17ae6535d3512a35  ./docs/architecture/m16-risk-register.json
+674b08586017952ceb0614c121b449083ed9320948be7dda4dd883b9366b190d  ./docs/architecture/m16-risk-register.json
 a7adf2c2cd00802dc445edfcb0b260c359e8b5be3179a4a1e340292efc96cea3  ./docs/architecture/mail-embedding-baseline-m116.json
 9deb8f1c4e24172d7ba7d9f9704d9975121c939bac13ef3c4e2277e6b2ab7e28  ./docs/architecture/mail-thread-baseline-m115.json
 e2d79c957fb033df84cfaae28a22f84f7fd13aa4218c48f28689f7b0579d36f3  ./docs/architecture/owners.json

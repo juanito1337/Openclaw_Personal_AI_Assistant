@@ -1,5 +1,5 @@
 {
-  "measured_at": "2026-09-20T22:00:00+02:00",
+  "measured_at": "2026-09-20T22:15:00+02:00",
   "milestone": "M16.0",
   "priority_order": [
     "critical",
@@ -153,5 +153,5 @@
     }
   ],
   "schema_version": 1,
-  "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea"
+  "source_revision": "f9d51934774bf0a373f464a9d1c52f63cc4e905f"
 }

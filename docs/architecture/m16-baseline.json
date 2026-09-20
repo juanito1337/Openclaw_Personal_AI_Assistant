@@ -1,6 +1,6 @@
 {
   "branch": "development/stabilization-performance-m16",
-  "generated_at": "2026-09-20T22:00:00+02:00",
+  "generated_at": "2026-09-20T22:15:00+02:00",
   "measurement_policy": {
     "behavior_changed": false,
     "live_canary_performed": false,
@@ -17,9 +17,9 @@
         "branch": "development/stabilization-performance-m16",
         "command": "./scripts/check-wheel.sh; ./docker/scripts/build-local.sh <approved-tags>",
         "environment": "local-development-linux-x86_64-python-3.12.3",
-        "measured_at": "2026-09-20T22:00:00+02:00",
+        "measured_at": "2026-09-20T22:15:00+02:00",
         "sample_count": 0,
-        "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "source_revision": "f9d51934774bf0a373f464a9d1c52f63cc4e905f",
         "stored_output_policy": "allowlisted-aggregate-fields-only"
       },
       "reason": "no-M16-wheel-or-image-artifact-built",
@@ -31,9 +31,9 @@
         "branch": "development/stabilization-performance-m16",
         "command": "docker inspect <approved-non-production-container-set>",
         "environment": "local-development-linux-x86_64-python-3.12.3",
-        "measured_at": "2026-09-20T22:00:00+02:00",
+        "measured_at": "2026-09-20T22:15:00+02:00",
         "sample_count": 0,
-        "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "source_revision": "f9d51934774bf0a373f464a9d1c52f63cc4e905f",
         "stored_output_policy": "allowlisted-aggregate-fields-only"
       },
       "reason": "productive-read-only-canary-requires-separate-explicit-approval",
@@ -45,29 +45,29 @@
         "branch": "development/stabilization-performance-m16",
         "command": "./scripts/assistant.sh version --verify; .venv/bin/python scripts/source-manifest.py verify; git status --short",
         "environment": "local-development-linux-x86_64-python-3.12.3",
-        "measured_at": "2026-09-20T22:00:00+02:00",
+        "measured_at": "2026-09-20T22:15:00+02:00",
         "sample_count": 5,
-        "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "source_revision": "f9d51934774bf0a373f464a9d1c52f63cc4e905f",
         "stored_output_policy": "allowlisted-aggregate-fields-only"
       },
       "status": "measured",
       "value": {
         "branch": "development/stabilization-performance-m16",
-        "current_head": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "current_head": "f9d51934774bf0a373f464a9d1c52f63cc4e905f",
         "git_status_timing": {
-          "maximum": 13.043,
-          "minimum": 11.127,
-          "p50": 12.634,
-          "p95": 13.043,
+          "maximum": 15.804,
+          "minimum": 10.748,
+          "p50": 11.503,
+          "p95": 15.804,
           "samples": 5,
           "unit": "ms"
         },
         "manifest_entries": 577,
         "manifest_verify_timing": {
-          "maximum": 315.287,
-          "minimum": 286.06,
-          "p50": 296.919,
-          "p95": 315.287,
+          "maximum": 356.398,
+          "minimum": 271.057,
+          "p50": 286.137,
+          "p95": 356.398,
           "samples": 5,
           "unit": "ms"
         },
@@ -75,12 +75,12 @@
         "release_verified": true,
         "release_version": "3.4.0-r28",
         "source_manifest_ok": true,
-        "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "source_revision": "f9d51934774bf0a373f464a9d1c52f63cc4e905f",
         "version_verify_timing": {
-          "maximum": 917.735,
-          "minimum": 863.009,
-          "p50": 891.458,
-          "p95": 917.735,
+          "maximum": 906.588,
+          "minimum": 825.041,
+          "p50": 892.1,
+          "p95": 906.588,
           "samples": 5,
           "unit": "ms"
         }
@@ -91,9 +91,9 @@
         "branch": "development/stabilization-performance-m16",
         "command": "docker image inspect <approved-m16-image>",
         "environment": "local-development-linux-x86_64-python-3.12.3",
-        "measured_at": "2026-09-20T22:00:00+02:00",
+        "measured_at": "2026-09-20T22:15:00+02:00",
         "sample_count": 0,
-        "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "source_revision": "f9d51934774bf0a373f464a9d1c52f63cc4e905f",
         "stored_output_policy": "allowlisted-aggregate-fields-only"
       },
       "reason": "no-M16-image-built-or-selected",
@@ -105,9 +105,9 @@
         "branch": "development/stabilization-performance-m16",
         "command": "./scripts/assistant.sh invoices status",
         "environment": "local-development-linux-x86_64-python-3.12.3",
-        "measured_at": "2026-09-20T22:00:00+02:00",
+        "measured_at": "2026-09-20T22:15:00+02:00",
         "sample_count": 0,
-        "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "source_revision": "f9d51934774bf0a373f464a9d1c52f63cc4e905f",
         "stored_output_policy": "allowlisted-aggregate-fields-only"
       },
       "reason": "productive-read-only-canary-requires-separate-explicit-approval",
@@ -120,14 +120,14 @@
           "branch": "development/stabilization-performance-m16",
           "command": ".venv/bin/python scripts/benchmark_mail_acceptance_m118.py",
           "environment": "local-development-linux-x86_64-python-3.12.3",
-          "measured_at": "2026-09-20T22:00:00+02:00",
+          "measured_at": "2026-09-20T22:15:00+02:00",
           "sample_count": 5,
-          "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+          "source_revision": "f9d51934774bf0a373f464a9d1c52f63cc4e905f",
           "stored_output_policy": "allowlisted-aggregate-fields-only"
         },
         "status": "measured",
         "value": {
-          "latency_ms": 6.1167,
+          "latency_ms": 5.5345,
           "synthetic": true
         }
       },
@@ -136,9 +136,9 @@
           "branch": "development/stabilization-performance-m16",
           "command": "./scripts/assistant.sh mail search-local --query <synthetic-probe>",
           "environment": "local-development-linux-x86_64-python-3.12.3",
-          "measured_at": "2026-09-20T22:00:00+02:00",
+          "measured_at": "2026-09-20T22:15:00+02:00",
           "sample_count": 0,
-          "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+          "source_revision": "f9d51934774bf0a373f464a9d1c52f63cc4e905f",
           "stored_output_policy": "allowlisted-aggregate-fields-only"
         },
         "reason": "productive-read-only-canary-requires-separate-explicit-approval",
@@ -150,15 +150,15 @@
           "branch": "development/stabilization-performance-m16",
           "command": ".venv/bin/python scripts/benchmark_mail_acceptance_m118.py",
           "environment": "local-development-linux-x86_64-python-3.12.3",
-          "measured_at": "2026-09-20T22:00:00+02:00",
+          "measured_at": "2026-09-20T22:15:00+02:00",
           "sample_count": 65,
-          "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+          "source_revision": "f9d51934774bf0a373f464a9d1c52f63cc4e905f",
           "stored_output_policy": "allowlisted-aggregate-fields-only"
         },
         "status": "measured",
         "value": {
-          "p50_ms": 1.9619,
-          "p95_ms": 6.3216,
+          "p50_ms": 1.5445,
+          "p95_ms": 4.523,
           "synthetic": true
         }
       }
@@ -168,9 +168,9 @@
         "branch": "development/stabilization-performance-m16",
         "command": "./scripts/assistant.sh mail index status",
         "environment": "local-development-linux-x86_64-python-3.12.3",
-        "measured_at": "2026-09-20T22:00:00+02:00",
+        "measured_at": "2026-09-20T22:15:00+02:00",
         "sample_count": 0,
-        "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "source_revision": "f9d51934774bf0a373f464a9d1c52f63cc4e905f",
         "stored_output_policy": "allowlisted-aggregate-fields-only"
       },
       "reason": "productive-read-only-canary-requires-separate-explicit-approval",
@@ -182,14 +182,14 @@
         "branch": "development/stabilization-performance-m16",
         "command": ".venv/bin/python scripts/benchmark_mail_acceptance_m118.py --samples 5",
         "environment": "local-development-linux-x86_64-python-3.12.3",
-        "measured_at": "2026-09-20T22:00:00+02:00",
+        "measured_at": "2026-09-20T22:15:00+02:00",
         "sample_count": 65,
-        "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "source_revision": "f9d51934774bf0a373f464a9d1c52f63cc4e905f",
         "stored_output_policy": "allowlisted-aggregate-fields-only"
       },
       "status": "measured",
       "value": {
-        "cold_cache_ms": 6.1167,
+        "cold_cache_ms": 5.5345,
         "corpus_messages": 13,
         "evaluated_queries": 13,
         "latency_samples": 65,
@@ -205,8 +205,8 @@
           "synthetic_only": true
         },
         "semantic_model_selected": false,
-        "warm_cache_p50_ms": 1.9619,
-        "warm_cache_p95_ms": 6.3216
+        "warm_cache_p50_ms": 1.5445,
+        "warm_cache_p95_ms": 4.523
       }
     },
     "nextcloud": {
@@ -214,9 +214,9 @@
         "branch": "development/stabilization-performance-m16",
         "command": "./scripts/assistant.sh nextcloud status",
         "environment": "local-development-linux-x86_64-python-3.12.3",
-        "measured_at": "2026-09-20T22:00:00+02:00",
+        "measured_at": "2026-09-20T22:15:00+02:00",
         "sample_count": 0,
-        "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "source_revision": "f9d51934774bf0a373f464a9d1c52f63cc4e905f",
         "stored_output_policy": "allowlisted-aggregate-fields-only"
       },
       "reason": "productive-read-only-canary-requires-separate-explicit-approval",
@@ -228,9 +228,9 @@
         "branch": "development/stabilization-performance-m16",
         "command": "./scripts/assistant.sh portfolio doctor",
         "environment": "local-development-linux-x86_64-python-3.12.3",
-        "measured_at": "2026-09-20T22:00:00+02:00",
+        "measured_at": "2026-09-20T22:15:00+02:00",
         "sample_count": 0,
-        "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "source_revision": "f9d51934774bf0a373f464a9d1c52f63cc4e905f",
         "stored_output_policy": "allowlisted-aggregate-fields-only"
       },
       "reason": "productive-read-only-canary-requires-separate-explicit-approval",
@@ -242,9 +242,9 @@
         "branch": "development/stabilization-performance-m16",
         "command": "./scripts/run-tests.sh; ./scripts/check-repo.sh",
         "environment": "local-development-linux-x86_64-python-3.12.3",
-        "measured_at": "2026-09-20T22:00:00+02:00",
+        "measured_at": "2026-09-20T22:15:00+02:00",
         "sample_count": 1,
-        "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "source_revision": "f9d51934774bf0a373f464a9d1c52f63cc4e905f",
         "stored_output_policy": "allowlisted-aggregate-fields-only"
       },
       "status": "measured",
@@ -294,9 +294,9 @@
         "branch": "development/stabilization-performance-m16",
         "command": "./scripts/assistant.sh jobs status --target all --deep",
         "environment": "local-development-linux-x86_64-python-3.12.3",
-        "measured_at": "2026-09-20T22:00:00+02:00",
+        "measured_at": "2026-09-20T22:15:00+02:00",
         "sample_count": 0,
-        "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "source_revision": "f9d51934774bf0a373f464a9d1c52f63cc4e905f",
         "stored_output_policy": "allowlisted-aggregate-fields-only"
       },
       "reason": "productive-read-only-canary-requires-separate-explicit-approval",
@@ -308,9 +308,9 @@
         "branch": "development/stabilization-performance-m16",
         "command": ".venv/bin/python scripts/benchmark_m16.py",
         "environment": "local-development-linux-x86_64-python-3.12.3",
-        "measured_at": "2026-09-20T22:00:00+02:00",
+        "measured_at": "2026-09-20T22:15:00+02:00",
         "sample_count": 1,
-        "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "source_revision": "f9d51934774bf0a373f464a9d1c52f63cc4e905f",
         "stored_output_policy": "allowlisted-aggregate-fields-only"
       },
       "status": "measured",
@@ -427,9 +427,9 @@
         "branch": "development/stabilization-performance-m16",
         "command": "./scripts/assistant.sh jobs status --target sync --deep",
         "environment": "local-development-linux-x86_64-python-3.12.3",
-        "measured_at": "2026-09-20T22:00:00+02:00",
+        "measured_at": "2026-09-20T22:15:00+02:00",
         "sample_count": 0,
-        "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "source_revision": "f9d51934774bf0a373f464a9d1c52f63cc4e905f",
         "stored_output_policy": "allowlisted-aggregate-fields-only"
       },
       "reason": "productive-read-only-canary-requires-separate-explicit-approval",
@@ -442,9 +442,9 @@
           "branch": "development/stabilization-performance-m16",
           "command": "instrumented sync benchmark --mode delta",
           "environment": "local-development-linux-x86_64-python-3.12.3",
-          "measured_at": "2026-09-20T22:00:00+02:00",
+          "measured_at": "2026-09-20T22:15:00+02:00",
           "sample_count": 0,
-          "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+          "source_revision": "f9d51934774bf0a373f464a9d1c52f63cc4e905f",
           "stored_output_policy": "allowlisted-aggregate-fields-only"
         },
         "reason": "productive-read-only-canary-requires-separate-explicit-approval",
@@ -456,9 +456,9 @@
           "branch": "development/stabilization-performance-m16",
           "command": "instrumented sync benchmark --mode full",
           "environment": "local-development-linux-x86_64-python-3.12.3",
-          "measured_at": "2026-09-20T22:00:00+02:00",
+          "measured_at": "2026-09-20T22:15:00+02:00",
           "sample_count": 0,
-          "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+          "source_revision": "f9d51934774bf0a373f464a9d1c52f63cc4e905f",
           "stored_output_policy": "allowlisted-aggregate-fields-only"
         },
         "reason": "productive-read-only-canary-requires-separate-explicit-approval",
@@ -470,9 +470,9 @@
           "branch": "development/stabilization-performance-m16",
           "command": "instrumented sync benchmark --mode no-op",
           "environment": "local-development-linux-x86_64-python-3.12.3",
-          "measured_at": "2026-09-20T22:00:00+02:00",
+          "measured_at": "2026-09-20T22:15:00+02:00",
           "sample_count": 0,
-          "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+          "source_revision": "f9d51934774bf0a373f464a9d1c52f63cc4e905f",
           "stored_output_policy": "allowlisted-aggregate-fields-only"
         },
         "reason": "productive-read-only-canary-requires-separate-explicit-approval",
@@ -485,9 +485,9 @@
         "branch": "development/stabilization-performance-m16",
         "command": "version commands listed by scripts/benchmark_m16.py",
         "environment": "local-development-linux-x86_64-python-3.12.3",
-        "measured_at": "2026-09-20T22:00:00+02:00",
+        "measured_at": "2026-09-20T22:15:00+02:00",
         "sample_count": 1,
-        "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "source_revision": "f9d51934774bf0a373f464a9d1c52f63cc4e905f",
         "stored_output_policy": "allowlisted-aggregate-fields-only"
       },
       "status": "measured",
@@ -527,5 +527,5 @@
   },
   "risk_register": "docs/architecture/m16-risk-register.json",
   "schema_version": 1,
-  "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea"
+  "source_revision": "f9d51934774bf0a373f464a9d1c52f63cc4e905f"
 }
