@@ -14,6 +14,11 @@ Recovery, gemessene Fixture-RTO/RPO-Grenzen, Releasecheckliste und das strikt
 serielle Single-Writer-Canaryverfahren stehen im
 [M8-Recoveryvertrag](RECOVERY_AND_RELEASE.md) und in
 [ADR-0012](adr/0012-m8-recovery-und-agentenvertrag.md).
+Die datenschutzarme [M16.0-Gesamtbaseline](m16-baseline.json), ihr
+[Schema](m16-baseline.schema.json) und das
+[priorisierte Risikoregister](m16-risk-register.json) frieren den messbaren
+Ausgangszustand fuer die Stabilisierung ein; fehlende Produktivevidenz bleibt
+explizit `not-measured`.
 
 ## Systemkontext
 

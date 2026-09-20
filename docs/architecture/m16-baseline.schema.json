@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openclaw.local/schemas/m16-baseline.schema.json",
+  "title": "OpenClaw M16 stabilization baseline",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "milestone",
+    "generated_at",
+    "source_revision",
+    "branch",
+    "privacy",
+    "measurement_policy",
+    "measurements",
+    "risk_register"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "milestone": {"const": "M16.0"},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "branch": {"type": "string", "minLength": 1},
+    "privacy": {
+      "type": "object",
+      "required": [
+        "classification",
+        "productive_data_read",
+        "productive_state_written",
+        "command_stdout_stored",
+        "discarded_fields"
+      ]
+    },
+    "measurement_policy": {
+      "type": "object",
+      "required": [
+        "minimum_repeat_samples",
+        "percentiles",
+        "missing_evidence_state",
+        "live_canary_performed",
+        "behavior_changed"
+      ]
+    },
+    "measurements": {
+      "type": "object",
+      "required": [
+        "identity",
+        "quality",
+        "source_complexity",
+        "tool_versions",
+        "artifacts",
+        "image",
+        "container_runtime",
+        "scheduler",
+        "sync",
+        "sync_work_classes",
+        "mail_synthetic",
+        "mail_live",
+        "mail_cache_classes",
+        "nextcloud",
+        "invoices",
+        "portfolio"
+      ]
+    },
+    "risk_register": {"const": "docs/architecture/m16-risk-register.json"}
+  }
+}

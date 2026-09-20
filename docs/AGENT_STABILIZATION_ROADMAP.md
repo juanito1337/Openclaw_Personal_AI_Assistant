@@ -2,7 +2,7 @@
 
 Stand: 2026-09-20
 Vorgesehener Arbeitsbranch: `development/stabilization-performance-m16`
-Status: geplant; noch keine Umsetzung und keine produktive Aktivierung
+Status: in Umsetzung; M16.0 abgeschlossen, keine produktive Aktivierung
 
 ## Ausgangslage
 
@@ -197,6 +197,10 @@ sind oder eine bewusst verschobene Aufgabe mit begruendeter Folge-Roadmap
 dokumentiert wurde.
 
 ## M16.0 – Reproduzierbare Gesamtbaseline und Risikoregister
+
+Status: abgeschlossen am 2026-09-20. Die reproduzierbare Evidenz liegt in
+`docs/architecture/m16-baseline.json`; fehlende Produktivmessungen sind bewusst
+`not-measured` und kein impliziter Erfolgsnachweis.
 
 ### Ziel
 

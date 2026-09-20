@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Stabilisierung/M16.0: Ein datenschutzarmer, schema- und regressionstestbarer
+  Baseline-Harness bindet lokale Release-, Manifest-, Test-, Coverage-,
+  Static-Analysis-, Komplexitaets- und synthetische Mailmessungen an den exakten
+  Quellcommit. Mindestens drei Wiederholungen liefern p50/p95; nicht
+  freigegebene Image-, Container- und Produktivmessungen bleiben sichtbar
+  `not-measured`. Ein priorisiertes Risikoregister weist jedes offene Risiko
+  einem Owner und Zielpaket zu, ohne Produktverhalten zu aendern.
 - Kalender: Der Mail-/Kalender-Kompatibilitaetspfad laesst eine veraltete
   Kalender-ID nicht mehr die aktuelle zentrale VEVENT-Auswahl uebersteuern.
   Liefert die alte ID exakt null Treffer, darf ausschliesslich die bereits

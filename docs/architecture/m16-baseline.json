@@ -1,0 +1,531 @@
+{
+  "branch": "development/stabilization-performance-m16",
+  "generated_at": "2026-09-20T22:00:00+02:00",
+  "measurement_policy": {
+    "behavior_changed": false,
+    "live_canary_performed": false,
+    "minimum_repeat_samples": 3,
+    "missing_evidence_state": "not-measured",
+    "percentiles": [
+      "p50",
+      "p95"
+    ]
+  },
+  "measurements": {
+    "artifacts": {
+      "evidence": {
+        "branch": "development/stabilization-performance-m16",
+        "command": "./scripts/check-wheel.sh; ./docker/scripts/build-local.sh <approved-tags>",
+        "environment": "local-development-linux-x86_64-python-3.12.3",
+        "measured_at": "2026-09-20T22:00:00+02:00",
+        "sample_count": 0,
+        "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "stored_output_policy": "allowlisted-aggregate-fields-only"
+      },
+      "reason": "no-M16-wheel-or-image-artifact-built",
+      "status": "not-measured",
+      "value": null
+    },
+    "container_runtime": {
+      "evidence": {
+        "branch": "development/stabilization-performance-m16",
+        "command": "docker inspect <approved-non-production-container-set>",
+        "environment": "local-development-linux-x86_64-python-3.12.3",
+        "measured_at": "2026-09-20T22:00:00+02:00",
+        "sample_count": 0,
+        "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "stored_output_policy": "allowlisted-aggregate-fields-only"
+      },
+      "reason": "productive-read-only-canary-requires-separate-explicit-approval",
+      "status": "not-measured",
+      "value": null
+    },
+    "identity": {
+      "evidence": {
+        "branch": "development/stabilization-performance-m16",
+        "command": "./scripts/assistant.sh version --verify; .venv/bin/python scripts/source-manifest.py verify; git status --short",
+        "environment": "local-development-linux-x86_64-python-3.12.3",
+        "measured_at": "2026-09-20T22:00:00+02:00",
+        "sample_count": 5,
+        "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "stored_output_policy": "allowlisted-aggregate-fields-only"
+      },
+      "status": "measured",
+      "value": {
+        "branch": "development/stabilization-performance-m16",
+        "current_head": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "git_status_timing": {
+          "maximum": 13.043,
+          "minimum": 11.127,
+          "p50": 12.634,
+          "p95": 13.043,
+          "samples": 5,
+          "unit": "ms"
+        },
+        "manifest_entries": 577,
+        "manifest_verify_timing": {
+          "maximum": 315.287,
+          "minimum": 286.06,
+          "p50": 296.919,
+          "p95": 315.287,
+          "samples": 5,
+          "unit": "ms"
+        },
+        "release": "r28",
+        "release_verified": true,
+        "release_version": "3.4.0-r28",
+        "source_manifest_ok": true,
+        "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "version_verify_timing": {
+          "maximum": 917.735,
+          "minimum": 863.009,
+          "p50": 891.458,
+          "p95": 917.735,
+          "samples": 5,
+          "unit": "ms"
+        }
+      }
+    },
+    "image": {
+      "evidence": {
+        "branch": "development/stabilization-performance-m16",
+        "command": "docker image inspect <approved-m16-image>",
+        "environment": "local-development-linux-x86_64-python-3.12.3",
+        "measured_at": "2026-09-20T22:00:00+02:00",
+        "sample_count": 0,
+        "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "stored_output_policy": "allowlisted-aggregate-fields-only"
+      },
+      "reason": "no-M16-image-built-or-selected",
+      "status": "not-measured",
+      "value": null
+    },
+    "invoices": {
+      "evidence": {
+        "branch": "development/stabilization-performance-m16",
+        "command": "./scripts/assistant.sh invoices status",
+        "environment": "local-development-linux-x86_64-python-3.12.3",
+        "measured_at": "2026-09-20T22:00:00+02:00",
+        "sample_count": 0,
+        "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "stored_output_policy": "allowlisted-aggregate-fields-only"
+      },
+      "reason": "productive-read-only-canary-requires-separate-explicit-approval",
+      "status": "not-measured",
+      "value": null
+    },
+    "mail_cache_classes": {
+      "cold": {
+        "evidence": {
+          "branch": "development/stabilization-performance-m16",
+          "command": ".venv/bin/python scripts/benchmark_mail_acceptance_m118.py",
+          "environment": "local-development-linux-x86_64-python-3.12.3",
+          "measured_at": "2026-09-20T22:00:00+02:00",
+          "sample_count": 5,
+          "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+          "stored_output_policy": "allowlisted-aggregate-fields-only"
+        },
+        "status": "measured",
+        "value": {
+          "latency_ms": 6.1167,
+          "synthetic": true
+        }
+      },
+      "live": {
+        "evidence": {
+          "branch": "development/stabilization-performance-m16",
+          "command": "./scripts/assistant.sh mail search-local --query <synthetic-probe>",
+          "environment": "local-development-linux-x86_64-python-3.12.3",
+          "measured_at": "2026-09-20T22:00:00+02:00",
+          "sample_count": 0,
+          "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+          "stored_output_policy": "allowlisted-aggregate-fields-only"
+        },
+        "reason": "productive-read-only-canary-requires-separate-explicit-approval",
+        "status": "not-measured",
+        "value": null
+      },
+      "warm": {
+        "evidence": {
+          "branch": "development/stabilization-performance-m16",
+          "command": ".venv/bin/python scripts/benchmark_mail_acceptance_m118.py",
+          "environment": "local-development-linux-x86_64-python-3.12.3",
+          "measured_at": "2026-09-20T22:00:00+02:00",
+          "sample_count": 65,
+          "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+          "stored_output_policy": "allowlisted-aggregate-fields-only"
+        },
+        "status": "measured",
+        "value": {
+          "p50_ms": 1.9619,
+          "p95_ms": 6.3216,
+          "synthetic": true
+        }
+      }
+    },
+    "mail_live": {
+      "evidence": {
+        "branch": "development/stabilization-performance-m16",
+        "command": "./scripts/assistant.sh mail index status",
+        "environment": "local-development-linux-x86_64-python-3.12.3",
+        "measured_at": "2026-09-20T22:00:00+02:00",
+        "sample_count": 0,
+        "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "stored_output_policy": "allowlisted-aggregate-fields-only"
+      },
+      "reason": "productive-read-only-canary-requires-separate-explicit-approval",
+      "status": "not-measured",
+      "value": null
+    },
+    "mail_synthetic": {
+      "evidence": {
+        "branch": "development/stabilization-performance-m16",
+        "command": ".venv/bin/python scripts/benchmark_mail_acceptance_m118.py --samples 5",
+        "environment": "local-development-linux-x86_64-python-3.12.3",
+        "measured_at": "2026-09-20T22:00:00+02:00",
+        "sample_count": 65,
+        "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "stored_output_policy": "allowlisted-aggregate-fields-only"
+      },
+      "status": "measured",
+      "value": {
+        "cold_cache_ms": 6.1167,
+        "corpus_messages": 13,
+        "evaluated_queries": 13,
+        "latency_samples": 65,
+        "mean_recall_at_10": 0.65,
+        "mrr": 0.6667,
+        "ok": true,
+        "privacy": {
+          "embedding_vectors_in_report": false,
+          "mail_content_in_report": false,
+          "productive_data_read": false,
+          "productive_state_written": false,
+          "query_text_in_report": false,
+          "synthetic_only": true
+        },
+        "semantic_model_selected": false,
+        "warm_cache_p50_ms": 1.9619,
+        "warm_cache_p95_ms": 6.3216
+      }
+    },
+    "nextcloud": {
+      "evidence": {
+        "branch": "development/stabilization-performance-m16",
+        "command": "./scripts/assistant.sh nextcloud status",
+        "environment": "local-development-linux-x86_64-python-3.12.3",
+        "measured_at": "2026-09-20T22:00:00+02:00",
+        "sample_count": 0,
+        "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "stored_output_policy": "allowlisted-aggregate-fields-only"
+      },
+      "reason": "productive-read-only-canary-requires-separate-explicit-approval",
+      "status": "not-measured",
+      "value": null
+    },
+    "portfolio": {
+      "evidence": {
+        "branch": "development/stabilization-performance-m16",
+        "command": "./scripts/assistant.sh portfolio doctor",
+        "environment": "local-development-linux-x86_64-python-3.12.3",
+        "measured_at": "2026-09-20T22:00:00+02:00",
+        "sample_count": 0,
+        "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "stored_output_policy": "allowlisted-aggregate-fields-only"
+      },
+      "reason": "productive-read-only-canary-requires-separate-explicit-approval",
+      "status": "not-measured",
+      "value": null
+    },
+    "quality": {
+      "evidence": {
+        "branch": "development/stabilization-performance-m16",
+        "command": "./scripts/run-tests.sh; ./scripts/check-repo.sh",
+        "environment": "local-development-linux-x86_64-python-3.12.3",
+        "measured_at": "2026-09-20T22:00:00+02:00",
+        "sample_count": 1,
+        "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "stored_output_policy": "allowlisted-aggregate-fields-only"
+      },
+      "status": "measured",
+      "value": {
+        "collection_items": 1057,
+        "coverage": {
+          "branch_percent": 55.804,
+          "covered_lines": 20855,
+          "critical_modules_percent": {
+            "mail_agent/assistant_bridge.py": 35.0,
+            "personal_assistant/actions.py": 37.245,
+            "personal_assistant/antivirus.py": 81.308,
+            "personal_assistant/job_control.py": 86.863,
+            "personal_assistant/policy.py": 87.156,
+            "personal_assistant/release.py": 77.586,
+            "personal_assistant/source_manifest.py": 86.076
+          },
+          "line_percent": 68.502,
+          "statements": 28662
+        },
+        "junit": {
+          "duration_seconds": 220.62,
+          "errors": 0,
+          "executed": 1168,
+          "failures": 0,
+          "skipped": 0
+        },
+        "quality_gate": "passed",
+        "static_analysis": {
+          "mypy": {
+            "command": ".venv/bin/python scripts/check-mypy.py --baseline tests/mypy-baseline.json mail_agent personal_assistant docker",
+            "known_findings": 108,
+            "ok": true,
+            "resolved_since_baseline": 16
+          },
+          "ruff": {
+            "command": ".venv/bin/python scripts/check-ruff.py --baseline tests/ruff-baseline.json mail_agent personal_assistant docker tests scripts",
+            "known_findings": 486,
+            "ok": true,
+            "resolved_since_baseline": 295
+          }
+        }
+      }
+    },
+    "scheduler": {
+      "evidence": {
+        "branch": "development/stabilization-performance-m16",
+        "command": "./scripts/assistant.sh jobs status --target all --deep",
+        "environment": "local-development-linux-x86_64-python-3.12.3",
+        "measured_at": "2026-09-20T22:00:00+02:00",
+        "sample_count": 0,
+        "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "stored_output_policy": "allowlisted-aggregate-fields-only"
+      },
+      "reason": "productive-read-only-canary-requires-separate-explicit-approval",
+      "status": "not-measured",
+      "value": null
+    },
+    "source_complexity": {
+      "evidence": {
+        "branch": "development/stabilization-performance-m16",
+        "command": ".venv/bin/python scripts/benchmark_m16.py",
+        "environment": "local-development-linux-x86_64-python-3.12.3",
+        "measured_at": "2026-09-20T22:00:00+02:00",
+        "sample_count": 1,
+        "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "stored_output_policy": "allowlisted-aggregate-fields-only"
+      },
+      "status": "measured",
+      "value": {
+        "largest_functions": [
+          {
+            "line": 460,
+            "lines": 541,
+            "name": "run",
+            "path": "mail_agent/search_reconcile.py"
+          },
+          {
+            "line": 1332,
+            "lines": 510,
+            "name": "main",
+            "path": "mail_agent/cli.py"
+          },
+          {
+            "line": 738,
+            "lines": 483,
+            "name": "apply_mail_projection",
+            "path": "personal_assistant/storage.py"
+          },
+          {
+            "line": 297,
+            "lines": 419,
+            "name": "extended_help",
+            "path": "mail_agent/setup_assistant.py"
+          },
+          {
+            "line": 173,
+            "lines": 392,
+            "name": "_migrate",
+            "path": "personal_assistant/storage.py"
+          },
+          {
+            "line": 249,
+            "lines": 382,
+            "name": "load_tool_settings",
+            "path": "personal_assistant/tool_settings.py"
+          },
+          {
+            "line": 37,
+            "lines": 349,
+            "name": "add_commands",
+            "path": "personal_assistant/cli_parsers/mail.py"
+          },
+          {
+            "line": 815,
+            "lines": 343,
+            "name": "search",
+            "path": "personal_assistant/mail_search.py"
+          },
+          {
+            "line": 400,
+            "lines": 340,
+            "name": "run",
+            "path": "mail_agent/search_backfill.py"
+          },
+          {
+            "line": 73,
+            "lines": 333,
+            "name": "_migrate",
+            "path": "mail_agent/storage.py"
+          }
+        ],
+        "largest_modules": [
+          {
+            "lines": 3308,
+            "path": "personal_assistant/portfolio.py"
+          },
+          {
+            "lines": 2627,
+            "path": "personal_assistant/service.py"
+          },
+          {
+            "lines": 1841,
+            "path": "mail_agent/cli.py"
+          },
+          {
+            "lines": 1807,
+            "path": "mail_agent/invoice_extract.py"
+          },
+          {
+            "lines": 1666,
+            "path": "mail_agent/app.py"
+          },
+          {
+            "lines": 1581,
+            "path": "mail_agent/storage.py"
+          },
+          {
+            "lines": 1471,
+            "path": "personal_assistant/adapters/mail.py"
+          },
+          {
+            "lines": 1466,
+            "path": "personal_assistant/job_control.py"
+          },
+          {
+            "lines": 1445,
+            "path": "personal_assistant/storage.py"
+          },
+          {
+            "lines": 1351,
+            "path": "mail_agent/classifier.py"
+          }
+        ],
+        "python_lines": 61369
+      }
+    },
+    "sync": {
+      "evidence": {
+        "branch": "development/stabilization-performance-m16",
+        "command": "./scripts/assistant.sh jobs status --target sync --deep",
+        "environment": "local-development-linux-x86_64-python-3.12.3",
+        "measured_at": "2026-09-20T22:00:00+02:00",
+        "sample_count": 0,
+        "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "stored_output_policy": "allowlisted-aggregate-fields-only"
+      },
+      "reason": "productive-read-only-canary-requires-separate-explicit-approval",
+      "status": "not-measured",
+      "value": null
+    },
+    "sync_work_classes": {
+      "delta": {
+        "evidence": {
+          "branch": "development/stabilization-performance-m16",
+          "command": "instrumented sync benchmark --mode delta",
+          "environment": "local-development-linux-x86_64-python-3.12.3",
+          "measured_at": "2026-09-20T22:00:00+02:00",
+          "sample_count": 0,
+          "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+          "stored_output_policy": "allowlisted-aggregate-fields-only"
+        },
+        "reason": "productive-read-only-canary-requires-separate-explicit-approval",
+        "status": "not-measured",
+        "value": null
+      },
+      "full": {
+        "evidence": {
+          "branch": "development/stabilization-performance-m16",
+          "command": "instrumented sync benchmark --mode full",
+          "environment": "local-development-linux-x86_64-python-3.12.3",
+          "measured_at": "2026-09-20T22:00:00+02:00",
+          "sample_count": 0,
+          "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+          "stored_output_policy": "allowlisted-aggregate-fields-only"
+        },
+        "reason": "productive-read-only-canary-requires-separate-explicit-approval",
+        "status": "not-measured",
+        "value": null
+      },
+      "no-op": {
+        "evidence": {
+          "branch": "development/stabilization-performance-m16",
+          "command": "instrumented sync benchmark --mode no-op",
+          "environment": "local-development-linux-x86_64-python-3.12.3",
+          "measured_at": "2026-09-20T22:00:00+02:00",
+          "sample_count": 0,
+          "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+          "stored_output_policy": "allowlisted-aggregate-fields-only"
+        },
+        "reason": "productive-read-only-canary-requires-separate-explicit-approval",
+        "status": "not-measured",
+        "value": null
+      }
+    },
+    "tool_versions": {
+      "evidence": {
+        "branch": "development/stabilization-performance-m16",
+        "command": "version commands listed by scripts/benchmark_m16.py",
+        "environment": "local-development-linux-x86_64-python-3.12.3",
+        "measured_at": "2026-09-20T22:00:00+02:00",
+        "sample_count": 1,
+        "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+        "stored_output_policy": "allowlisted-aggregate-fields-only"
+      },
+      "status": "measured",
+      "value": {
+        "build": "build 1.5.0 (<repo>/.venv/lib/python3.12/site-packages/build)",
+        "compose": "Docker Compose version v5.4.0",
+        "coverage": "Coverage.py, version 7.15.3 with C extension",
+        "docker": "Docker version 29.7.2, build a7dcaa6",
+        "git": "git version 2.43.0",
+        "hadolint": "Haskell Dockerfile Linter 2.15.1",
+        "mypy": "mypy 2.3.0 (compiled: yes)",
+        "pytest": "pytest 9.1.1",
+        "pytest_cov": "7.1.0",
+        "python": "3.12.3",
+        "ruff": "ruff 0.15.22",
+        "shellcheck": "0.11.0"
+      }
+    }
+  },
+  "milestone": "M16.0",
+  "privacy": {
+    "classification": "synthetic-and-aggregate-only",
+    "command_stdout_stored": false,
+    "discarded_fields": [
+      "mail-content",
+      "addresses",
+      "subjects",
+      "queries",
+      "calendar-content",
+      "invoice-content",
+      "portfolio-holdings",
+      "credentials",
+      "filesystem-user-paths"
+    ],
+    "productive_data_read": false,
+    "productive_state_written": false
+  },
+  "risk_register": "docs/architecture/m16-risk-register.json",
+  "schema_version": 1,
+  "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea"
+}

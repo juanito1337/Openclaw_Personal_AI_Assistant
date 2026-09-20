@@ -1,0 +1,157 @@
+{
+  "measured_at": "2026-09-20T22:00:00+02:00",
+  "milestone": "M16.0",
+  "priority_order": [
+    "critical",
+    "high",
+    "medium",
+    "low"
+  ],
+  "risks": [
+    {
+      "id": "M16-R01",
+      "owner": "Release Maintainers",
+      "reproducibility": "baseline-or-documented-operational-observation",
+      "security_impact": "review-required",
+      "severity": "critical",
+      "status": "open",
+      "summary": "Release- und Deploymentevidenz koennen auseinanderlaufen",
+      "target_package": "M16.1",
+      "user_impact": "service-quality-or-availability"
+    },
+    {
+      "id": "M16-R02",
+      "owner": "Runtime Maintainers",
+      "reproducibility": "baseline-or-documented-operational-observation",
+      "security_impact": "review-required",
+      "severity": "high",
+      "status": "open",
+      "summary": "Historische Betriebsmetriken widersprechen aktuellem Health",
+      "target_package": "M16.2",
+      "user_impact": "service-quality-or-availability"
+    },
+    {
+      "id": "M16-R03",
+      "owner": "Scheduler Maintainers",
+      "reproducibility": "baseline-or-documented-operational-observation",
+      "security_impact": "review-required",
+      "severity": "high",
+      "status": "open",
+      "summary": "Langer Vollsync blockiert bei Parallelitaet eins zeitkritische Arbeit",
+      "target_package": "M16.3",
+      "user_impact": "service-quality-or-availability"
+    },
+    {
+      "id": "M16-R04",
+      "owner": "Groupware Maintainers",
+      "reproducibility": "baseline-or-documented-operational-observation",
+      "security_impact": "review-required",
+      "severity": "high",
+      "status": "open",
+      "summary": "Persistierte Ressourcen-IDs koennen von aktiver Discovery abweichen",
+      "target_package": "M16.4",
+      "user_impact": "service-quality-or-availability"
+    },
+    {
+      "id": "M16-R05",
+      "owner": "Runtime Maintainers",
+      "reproducibility": "baseline-or-documented-operational-observation",
+      "security_impact": "review-required",
+      "severity": "high",
+      "status": "open",
+      "summary": "Historischer OOM-Status und volle Swap-Nutzung sind nicht ursachenklar",
+      "target_package": "M16.5",
+      "user_impact": "service-quality-or-availability"
+    },
+    {
+      "id": "M16-R06",
+      "owner": "Model Runtime Maintainers",
+      "reproducibility": "baseline-or-documented-operational-observation",
+      "security_impact": "bounded",
+      "severity": "medium",
+      "status": "open",
+      "summary": "Modellantworten dominieren die interaktive Gesamtlatenz",
+      "target_package": "M16.5",
+      "user_impact": "service-quality-or-availability"
+    },
+    {
+      "id": "M16-R07",
+      "owner": "Quality Maintainers",
+      "reproducibility": "baseline-or-documented-operational-observation",
+      "security_impact": "review-required",
+      "severity": "high",
+      "status": "open",
+      "summary": "Grosse Risikomodule besitzen ungleichmaessige direkte Testabdeckung",
+      "target_package": "M16.6",
+      "user_impact": "service-quality-or-availability"
+    },
+    {
+      "id": "M16-R08",
+      "owner": "Mail Domain Maintainers",
+      "reproducibility": "baseline-or-documented-operational-observation",
+      "security_impact": "bounded",
+      "severity": "medium",
+      "status": "open",
+      "summary": "Viele Lernmuster beruhen auf Einzelbeobachtungen oder Legacydaten",
+      "target_package": "M16.7",
+      "user_impact": "service-quality-or-availability"
+    },
+    {
+      "id": "M16-R09",
+      "owner": "Records Maintainers",
+      "reproducibility": "baseline-or-documented-operational-observation",
+      "security_impact": "bounded",
+      "severity": "medium",
+      "status": "open",
+      "summary": "Rechnungs-Review und Registerabweichungen bleiben fachlich offen",
+      "target_package": "M16.8",
+      "user_impact": "service-quality-or-availability"
+    },
+    {
+      "id": "M16-R10",
+      "owner": "Portfolio Maintainers",
+      "reproducibility": "baseline-or-documented-operational-observation",
+      "security_impact": "bounded",
+      "severity": "medium",
+      "status": "open",
+      "summary": "Portfolio-Mappings und kostenlose Researchdaten sind unvollstaendig",
+      "target_package": "M16.8",
+      "user_impact": "service-quality-or-availability"
+    },
+    {
+      "id": "M16-R11",
+      "owner": "Architecture Maintainers",
+      "reproducibility": "baseline-or-documented-operational-observation",
+      "security_impact": "bounded",
+      "severity": "medium",
+      "status": "open",
+      "summary": "Semantische Suche ist nicht als Produktfaehigkeit aktiviert",
+      "target_package": "M16.9",
+      "user_impact": "service-quality-or-availability"
+    },
+    {
+      "id": "M16-R12",
+      "owner": "Security Maintainers",
+      "reproducibility": "baseline-or-documented-operational-observation",
+      "security_impact": "review-required",
+      "severity": "high",
+      "status": "open",
+      "summary": "Gateway-Schreibmounts und Credentials vergroessern den Blast Radius",
+      "target_package": "M16.9",
+      "user_impact": "service-quality-or-availability"
+    },
+    {
+      "id": "M16-R13",
+      "owner": "Architecture Maintainers",
+      "reproducibility": "baseline-or-documented-operational-observation",
+      "security_impact": "bounded",
+      "severity": "medium",
+      "status": "open",
+      "summary": "Lokales SQLite und Dateisystem begrenzen horizontale Skalierung",
+      "target_package": "M16.9",
+      "user_impact": "service-quality-or-availability"
+    }
+  ],
+  "schema_version": 1,
+  "source_revision": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea"
+}
