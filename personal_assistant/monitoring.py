@@ -56,6 +56,39 @@ def _round(value: float) -> float:
     return round(float(value), 2)
 
 
+def _sync_state_payload(row: sqlite3.Row, *, now: datetime) -> dict[str, Any]:
+    try:
+        detail = json.loads(str(row["detail"] or "{}"))
+    except json.JSONDecodeError:
+        detail = {}
+    runtime = detail.get("runtime") if isinstance(detail, dict) else {}
+    runtime = runtime if isinstance(runtime, dict) else {}
+    checked_at = str(runtime.get("checked_at") or row["synced_at"] or "")
+    successful_at = str(runtime.get("last_successful_check_at") or "")
+    if not successful_at and str(row["status"] or "").casefold() == "ok":
+        successful_at = str(row["synced_at"] or "")
+    result = str(runtime.get("result") or "")
+    if not result:
+        result = "completed" if str(row["status"] or "").casefold() == "ok" else "failed"
+    return {
+        "resource_id": str(row["resource_id"]),
+        "scope": str(row["scope"]),
+        "synced_at": str(row["synced_at"] or ""),
+        "checked_at": checked_at,
+        "last_successful_check_at": successful_at,
+        "last_data_change_at": str(runtime.get("last_data_change_at") or ""),
+        "data_changed": runtime.get("data_changed"),
+        "result": result,
+        "age_hours": (
+            _round(_age_hours(successful_at, now=now) or 0.0)
+            if successful_at
+            else None
+        ),
+        "status": str(row["status"]),
+        "detail": str(row["detail"] or "")[:500],
+    }
+
+
 @dataclass(slots=True)
 class ComponentScore:
     id: str
@@ -380,14 +413,7 @@ class PerformanceMonitor:
             "action_plans": {str(row["status"]): int(row["count"]) for row in action_rows},
             "stale_action_plans": int(stale_row["count"] or 0) if stale_row else 0,
             "sync_state": [
-                {
-                    "resource_id": str(row["resource_id"]),
-                    "scope": str(row["scope"]),
-                    "synced_at": str(row["synced_at"] or ""),
-                    "age_hours": _round(_age_hours(row["synced_at"], now=now) or 0.0) if row["synced_at"] else None,
-                    "status": str(row["status"]),
-                    "detail": str(row["detail"] or "")[:500],
-                }
+                _sync_state_payload(row, now=now)
                 for row in sync_rows
             ],
         }

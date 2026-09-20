@@ -46,5 +46,6 @@ verweist mit Status `Superseded` auf den Nachfolger.
 | [0038](0038-einzelfreigabe-fuer-mailindex-malwarefunde.md) | Accepted | inhaltsfreie Fundstellen, frische Einzelfallpruefung und explizit ausgeschlossener Malware-Suchbereich |
 | [0039](0039-turngebundene-aktionsverpflichtung.md) | Accepted | turngebundene Aktionsverpflichtung, begrenzter Workflow und remote belegter Abschluss |
 | [0040](0040-getrennte-release-promotion.md) | Accepted | Quellcommit, Release, signierte Rollenimages und drei separate Promotionsfreigaben |
+| [0041](0041-einheitlicher-lauf-und-telemetrievertrag.md) | Accepted | gemeinsame Run-/Attempt-Identitaet, geschlossene Resultate und ehrliche Frische |
 
 Neue ADRs beginnen mit der [Vorlage](0000-template.md).

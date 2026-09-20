@@ -8,6 +8,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from .run_contract import result_from_exit_code
+
 
 def _now() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
@@ -97,7 +99,7 @@ def main() -> int:
         _heartbeat(
             status_path,
             state="waiting" if index_enabled else "disabled",
-            result="deferred",
+            result="blocked",
             exit_code=None,
             detail=(
                 "Mail-Owner-Lauf wegen belegter Single-Writer-Sperre kontrolliert vertagt"
@@ -117,7 +119,7 @@ def main() -> int:
         _heartbeat(
             status_path,
             state="disabled",
-            result="success",
+            result="blocked",
             exit_code=None,
             detail="Persistenter Sollzustand ist OFF",
         )
@@ -127,7 +129,7 @@ def main() -> int:
     _heartbeat(
         status_path,
         state="running",
-        result="running",
+        result="in-progress",
         exit_code=None,
         detail="Read-only IMAP-Reconciliation laeuft beim Mail-Owner",
         started_at=started,
@@ -159,7 +161,7 @@ def main() -> int:
     _heartbeat(
         status_path,
         state="waiting",
-        result="success" if code == 0 else "degraded" if code == 1 else "failed",
+        result=result_from_exit_code(code),
         exit_code=code,
         detail=(
             "Autoritativer Reconcile abgeschlossen"

@@ -1,6 +1,6 @@
 # Tests, Qualitaetsbaseline und Container-Runtime
 
-Stand: 2026-09-20, fortgeschrieben bis zur M16.0-Stabilisierungsbaseline.
+Stand: 2026-09-20, fortgeschrieben bis zum M16.2-Lauf-/Telemetrievertrag.
 Sie startet keine produktiven Dienste und verwendet
 weder `/srv/openclaw` noch produktive Zugangsdaten.
 
@@ -61,7 +61,7 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 1067 Tests, darunter mindestens 759 unittest-kompatible Tests
+fordert mindestens 1073 Tests, darunter mindestens 759 unittest-kompatible Tests
 (die bisherigen 349 sowie M0-M15- und Rollout-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
@@ -131,6 +131,7 @@ der aktuellen Python-Dateien.
 | Tests nach M15-Approval-/Antwortkorrelations-Hotfix gesammelt/ausgefuehrt | 1.041 / 1.041 |
 | Tests nach M16.0 gesammelt/ausgefuehrt | 1.057 / 1.057 (1.168 JUnit-Faelle inklusive 111 Subtests) |
 | Tests nach M16.1 gesammelt/ausgefuehrt | 1.067 / 1.067 (1.178 JUnit-Faelle inklusive 111 Subtests) |
+| Tests nach M16.2 gesammelt/ausgefuehrt | 1.073 / 1.073 (1.184 JUnit-Faelle inklusive 111 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -173,6 +174,7 @@ der aktuellen Python-Dateien.
 | neue M15-Aktionsabschluss-Regressionsitems | 18 (zusaetzlich 4 Subtests) |
 | neue M16.0-Baseline-/Datenschutz-Regressionsitems | 7 |
 | neue M16.1-Promotionsvertrags-Regressionsitems | 10 |
+| neue M16.2-Lauf-/Telemetrie-Regressionsitems | 6 |
 | M13-Image-Runtime-Abnahme | Pluginstatus `loaded`, 19 Toolfabriken, 5 typisierte Hooks, keine Diagnosen |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |
@@ -255,6 +257,8 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach M14.8-Fundstellen-Nachlauf | 55,55 % |
 | Gesamt-Coverage nach M15 | 68,45 % |
 | reine Branch-Coverage nach M15 | 55,69 % |
+| Gesamt-Coverage nach M16.2 | 68,68 % |
+| reine Branch-Coverage nach M16.2 | 56,08 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |

@@ -15,10 +15,12 @@ from typing import Any
 
 from .config import WORKSPACE_ROOT
 from .gateway_events import event_command, relay_status
+from .run_contract import canonical_run_result
 from .work_scheduler import AdaptiveWorkScheduler
 
 STATE_VERSION = 2
 AUTO_RECOVERY_COOLDOWN = timedelta(minutes=30)
+ALERT_TTL = timedelta(hours=24)
 DEFAULT_STATE_PATH = WORKSPACE_ROOT / "personal_assistant/data/job_control.json"
 USER_UNIT_DIR = Path("~/.config/systemd/user").expanduser()
 
@@ -325,7 +327,13 @@ class JobController:
         if spec.name == "mail-index":
             owner_path, owner_heartbeat = self._container_heartbeat("mail")
             owner_heartbeat_fresh = self._container_heartbeat_fresh(owner_heartbeat)
-        work_result = str(heartbeat.get("result") or "success")
+        raw_work_result = str(heartbeat.get("result") or "completed")
+        if raw_work_result == "deferred":
+            raw_work_result = "blocked"
+        try:
+            work_result = canonical_run_result(raw_work_result, allow_legacy=True)
+        except ValueError:
+            work_result = "failed"
         work_exit_code = heartbeat.get("last_exit_code")
         work_failed = work_result in {"degraded", "failed"} or work_exit_code not in {
             None,
@@ -345,7 +353,7 @@ class JobController:
             and owner_updated is not None
             and (work_updated is None or owner_updated > work_updated)
             and owner_state in {"starting", "waiting", "queued", "running"}
-            and owner_result in {"unknown", "running"}
+            and owner_result in {"unknown", "running", "in-progress"}
             and (
                 owner_started is None
                 or work_started is None
@@ -372,6 +380,14 @@ class JobController:
         # own status: otherwise one failed run permanently latches the next run
         # into the same failure.
         in_flight = heartbeat_state == "running" or owner_new_attempt
+        selected_raw_result = str(status_heartbeat.get("result") or "completed")
+        try:
+            selected_result = canonical_run_result(
+                selected_raw_result,
+                allow_legacy=True,
+            )
+        except ValueError:
+            selected_result = "failed"
         return {
             "unit": unit,
             "available": True,
@@ -381,7 +397,7 @@ class JobController:
             "ActiveState": "active" if active else "inactive",
             "SubState": ("waiting" if is_timer else (heartbeat_state or "running")) if active else "dead",
             "UnitFileState": "enabled" if desired else "disabled",
-            "Result": "running" if in_flight else str(status_heartbeat.get("result") or "success"),
+            "Result": "in-progress" if in_flight else selected_result,
             "ExecMainStatus": "0" if in_flight else str(status_heartbeat.get("last_exit_code") or 0),
             "ExecMainStartTimestamp": str(status_heartbeat.get("last_started_at") or ""),
             "ExecMainExitTimestamp": str(status_heartbeat.get("last_finished_at") or ""),
@@ -1079,12 +1095,21 @@ class JobController:
     def _record(self, report: dict[str, Any]) -> None:
         previous = self.state.get("active_alerts", {})
         checked_names = {str(job["name"]) for job in report["jobs"]}
-        active: dict[str, dict[str, Any]] = {
-            key: value for key, value in previous.items()
-            if str(value.get("job") or "") not in checked_names
-        }
-        new_alerts: list[dict[str, Any]] = []
         now = str(report["checked_at"])
+        now_dt = self._container_heartbeat_time({"checked_at": now}, "checked_at")
+        if now_dt is None:
+            now_dt = datetime.now(UTC)
+        active: dict[str, dict[str, Any]] = {}
+        for key, value in previous.items():
+            if str(value.get("job") or "") in checked_names:
+                continue
+            expires = self._container_heartbeat_time(value, "expires_at")
+            if expires is None:
+                last_seen = self._container_heartbeat_time(value, "last_seen")
+                expires = last_seen + ALERT_TTL if last_seen else now_dt
+            if expires > now_dt:
+                active[key] = value
+        new_alerts: list[dict[str, Any]] = []
         observed: dict[str, Any] = {}
 
         for job in report["jobs"]:
@@ -1106,13 +1131,22 @@ class JobController:
                     "detail": issue["detail"],
                     "first_seen": str(old.get("first_seen") or now),
                     "last_seen": now,
+                    "expires_at": (now_dt + ALERT_TTL).isoformat(timespec="seconds"),
                 }
                 active[alert_id] = alert
                 if alert_id not in previous:
                     new_alerts.append(alert)
 
         resolved = [
-            {**value, "resolved_at": now}
+            {
+                **value,
+                "resolved_at": now,
+                "resolution": (
+                    "healthy-observation"
+                    if str(value.get("job") or "") in checked_names
+                    else "expired-without-refresh"
+                ),
+            }
             for key, value in previous.items()
             if key not in active
         ]

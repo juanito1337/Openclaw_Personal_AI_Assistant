@@ -2,7 +2,7 @@
 
 Stand: 2026-09-20
 Vorgesehener Arbeitsbranch: `development/stabilization-performance-m16`
-Status: in Umsetzung; M16.0 und M16.1 abgeschlossen, keine produktive Aktivierung
+Status: in Umsetzung; M16.0 bis M16.2 abgeschlossen, keine produktive Aktivierung
 
 ## Ausgangslage
 

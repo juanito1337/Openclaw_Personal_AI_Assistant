@@ -250,7 +250,7 @@ raise SystemExit(86)
                 )
                 report = controller.status(target="supervisor")
             self.assertTrue(report["ok"])
-            self.assertEqual(report["jobs"][0]["service"]["Result"], "running")
+            self.assertEqual(report["jobs"][0]["service"]["Result"], "in-progress")
             self.assertEqual(report["jobs"][0]["service"]["ExecMainStatus"], "0")
 
     def test_clamav_updater_has_its_own_database_healthcheck(self) -> None:

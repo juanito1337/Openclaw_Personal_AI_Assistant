@@ -65,12 +65,14 @@ class FakeKnowledgeStorage:
         etag: str = "",
         status: str,
         detail: str = "",
+        data_changed: bool | None = None,
     ) -> None:
         self.sync[(resource_id, scope)] = {
             "cursor": cursor,
             "etag": etag,
             "status": status,
             "detail": detail,
+            "data_changed": data_changed,
         }
 
 

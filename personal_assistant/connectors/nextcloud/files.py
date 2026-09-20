@@ -298,7 +298,13 @@ class NextcloudFiles:
                     storage.audit("nextcloud.file.index_failed", {"path": entry.path, "error": str(exc)}, resource_id=resource_id)
                 if stats["files"] >= max_items:
                     break
-        storage.set_sync_state(resource_id, "files", status="ok" if not stats["errors"] else "partial", detail=str(stats))
+        storage.set_sync_state(
+            resource_id,
+            "files",
+            status="ok" if not stats["errors"] else "partial",
+            detail=str(stats),
+            data_changed=stats["indexed"] > 0,
+        )
         return stats
 
     def _relative_from_href(self, href: str) -> str:

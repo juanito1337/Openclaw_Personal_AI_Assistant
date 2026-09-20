@@ -122,6 +122,9 @@ class KnowledgeIndexer:
                 "Mail-Suchprojektion v2 besitzt keinen vollstaendigen Coverage-Nachweis",
             )
 
+        previous = self.storage.get_sync_state("mail-agent", "projection")
+        previous_generation = str(previous["cursor"] or "") if previous else ""
+
         if projection.schema >= 2:
             prepared: list[dict[str, Any]] = []
             for _path, payload in projection.records:
@@ -172,6 +175,23 @@ class KnowledgeIndexer:
                 return self._mail_projection_failure(
                     "transaction-failed", f"Mail-Indextransaktion fehlgeschlagen: {exc}"
                 )
+            self.storage.set_sync_state(
+                "mail-agent",
+                "projection",
+                cursor=projection.generation,
+                etag=projection.generation,
+                status="ok",
+                detail=json.dumps(
+                    {
+                        "state": "complete",
+                        "source_generation": projection.generation,
+                        "generated_at": projection.generated_at,
+                        "record_count": len(projection.records),
+                    },
+                    ensure_ascii=False,
+                ),
+                data_changed=previous_generation != projection.generation,
+            )
             return {
                 "seen": len(projection.records),
                 "published": True,
@@ -246,6 +266,7 @@ class KnowledgeIndexer:
             etag=projection.generation,
             status="ok",
             detail=json.dumps(detail, ensure_ascii=False),
+            data_changed=previous_generation != projection.generation,
         )
         stats.update(
             {

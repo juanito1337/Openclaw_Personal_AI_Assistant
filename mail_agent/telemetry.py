@@ -15,6 +15,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from personal_assistant.run_contract import (
+    RunIdentity,
+    canonical_run_result,
+    logical_run_id,
+)
+
 _MAX_FILE_BYTES = 20_000_000
 _CHECKPOINT_PHASES = {"preflight", "mail_processing", "classification", "digest"}
 
@@ -128,6 +134,9 @@ class PerformanceTelemetry:
     operation: str = "mail-agent"
     log: logging.Logger = field(default_factory=lambda: logging.getLogger(__name__))
     run_id: str = field(init=False, default="")
+    attempt_id: str = field(init=False, default="")
+    parent_run_id: str = field(init=False, default="")
+    job_id: str = field(init=False, default="")
     started_at: str = field(init=False, default="")
     _started_monotonic: float = field(init=False, default=0.0)
     _phases: dict[str, _Aggregate] = field(init=False, default_factory=dict)
@@ -164,7 +173,16 @@ class PerformanceTelemetry:
         if self.enabled:
             live_owner_present = self._recover_stale_inflight()
         self.operation = operation
-        self.run_id = uuid.uuid4().hex
+        identity = RunIdentity.create(
+            job_id=os.environ.get("OPENCLAW_JOB_ID", "") or operation,
+            run_id=os.environ.get("OPENCLAW_RUN_ID", "") or uuid.uuid4().hex,
+            attempt_id=os.environ.get("OPENCLAW_ATTEMPT_ID", ""),
+            parent_run_id=os.environ.get("OPENCLAW_PARENT_RUN_ID", ""),
+        )
+        self.run_id = identity.run_id
+        self.attempt_id = identity.attempt_id
+        self.parent_run_id = identity.parent_run_id
+        self.job_id = identity.job_id
         self.started_at = _utc_now()
         self._started_monotonic = time.perf_counter()
         self._phases = defaultdict(_Aggregate)
@@ -210,9 +228,13 @@ class PerformanceTelemetry:
             self.ensure_started()
             self._last_phase = str(phase)[:120]
             payload = {
-                "schema_version": 2,
+                "schema_version": 3,
                 "record_type": "inflight",
                 "run_id": self.run_id,
+                "attempt_id": self.attempt_id,
+                "parent_run_id": self.parent_run_id,
+                "job_id": self.job_id,
+                "result": "in-progress",
                 "operation": self.operation,
                 "started_at": self.started_at,
                 "updated_at": _utc_now(),
@@ -380,6 +402,9 @@ class PerformanceTelemetry:
         ollama_queue = sum(float(item.get("queue_wait_ms") or 0.0) for item in self._ollama_attempts)
         return {
             "run_id": self.run_id,
+            "attempt_id": self.attempt_id,
+            "parent_run_id": self.parent_run_id,
+            "job_id": self.job_id,
             "operation": self.operation,
             "started_at": self.started_at,
             "total_ms": _round_ms(total_ms),
@@ -412,15 +437,24 @@ class PerformanceTelemetry:
             self._progress_error_count = len(errors)
             self._progress_classifier = dict(classifier or {})
             total_ms = (time.perf_counter() - self._started_monotonic) * 1000.0
+            result = (
+                "completed"
+                if not errors
+                else ("degraded" if processed > 0 else "failed")
+            )
             record: dict[str, object] = {
-                "schema_version": 2,
+                "schema_version": 3,
                 "record_type": "run",
                 "run_id": self.run_id,
+                "attempt_id": self.attempt_id,
+                "parent_run_id": self.parent_run_id,
+                "job_id": self.job_id,
                 "operation": self.operation,
                 "started_at": self.started_at,
                 "finished_at": _utc_now(),
                 "total_ms": _round_ms(total_ms),
-                "outcome": "ok" if not errors else "error",
+                "result": result,
+                "outcome": result,
                 "processed": max(0, int(processed)),
                 "skipped": max(0, int(skipped)),
                 "error_count": len(errors),
@@ -474,13 +508,17 @@ class PerformanceTelemetry:
                     pass
                 ollama = stale.get("ollama") if isinstance(stale.get("ollama"), Mapping) else {}
                 interrupted = {
-                    "schema_version": 2,
+                    "schema_version": 3,
                     "record_type": "run",
                     "run_id": run_id,
+                    "attempt_id": str(stale.get("attempt_id") or uuid.uuid4().hex),
+                    "parent_run_id": str(stale.get("parent_run_id") or ""),
+                    "job_id": str(stale.get("job_id") or stale.get("operation") or "mail-agent"),
                     "operation": str(stale.get("operation") or "mail-agent"),
                     "started_at": started_at,
                     "finished_at": _utc_now(),
                     "total_ms": _round_ms(total_ms),
+                    "result": "interrupted",
                     "outcome": "interrupted",
                     "interrupt_reason": "owner-process-not-alive",
                     "processed": max(0, int(stale.get("processed") or 0)),
@@ -690,16 +728,17 @@ def read_recent_performance(path: Path, limit: int = 20) -> list[dict[str, Any]]
 def summarize_performance(records: Sequence[Mapping[str, object]]) -> dict[str, object]:
     """Build a compact cross-run report from privacy-safe telemetry records."""
 
-    deduplicated: list[Mapping[str, object]] = []
-    seen: set[str] = set()
+    by_logical_run: dict[str, Mapping[str, object]] = {}
+    anonymous: list[Mapping[str, object]] = []
     for record in reversed(list(records)):
-        run_id = str(record.get("run_id") or "")
-        if run_id and run_id in seen:
+        logical_id = logical_run_id(record)
+        if not logical_id:
+            anonymous.append(record)
             continue
-        if run_id:
-            seen.add(run_id)
-        deduplicated.append(record)
-    records = list(reversed(deduplicated))
+        existing = by_logical_run.get(logical_id)
+        if existing is None or str(record.get("run_id") or "") == logical_id:
+            by_logical_run[logical_id] = record
+    records = [*reversed(anonymous), *reversed(list(by_logical_run.values()))]
     if not records:
         return {
             "ok": True,
@@ -713,6 +752,7 @@ def summarize_performance(records: Sequence[Mapping[str, object]]) -> dict[str, 
     processed = 0
     errors = 0
     interrupted_runs = 0
+    result_counts: dict[str, int] = defaultdict(int)
     ollama_attempts = 0
     ollama_client_ms = 0.0
     ollama_server_ms = 0.0
@@ -722,11 +762,17 @@ def summarize_performance(records: Sequence[Mapping[str, object]]) -> dict[str, 
     eval_tokens = 0
 
     for record in records:
+        raw_result = record.get("result") or record.get("outcome") or "completed"
+        try:
+            result = canonical_run_result(raw_result, allow_legacy=True)
+        except ValueError:
+            result = "failed"
+        result_counts[result] += 1
         operation_counts[str(record.get("operation") or "unknown")] += 1
         total_ms += float(record.get("total_ms") or 0.0)
         processed += int(record.get("processed") or 0)
         errors += int(record.get("error_count") or 0)
-        if record.get("outcome") == "interrupted":
+        if result == "interrupted":
             interrupted_runs += 1
         phases = record.get("phases")
         if isinstance(phases, Mapping):
@@ -798,6 +844,7 @@ def summarize_performance(records: Sequence[Mapping[str, object]]) -> dict[str, 
         "ok": True,
         "runs": run_count,
         "operations": dict(sorted(operation_counts.items())),
+        "results": dict(sorted(result_counts.items())),
         "total_runtime_ms": _round_ms(total_ms),
         "average_runtime_ms": _round_ms(total_ms / max(1, run_count)),
         "processed": processed,

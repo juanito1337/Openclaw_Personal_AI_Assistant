@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from personal_assistant.run_contract import result_from_exit_code
 from personal_assistant.work_scheduler import AdaptiveWorkScheduler
 
 STOP = False
@@ -252,16 +253,29 @@ def main() -> int:
             updated_at=started,
             last_started_at=started,
             last_exit_code=None,
-            result="running",
+            result="in-progress",
             command=command,
             scheduler_ticket=ticket_id,
             queue_reason="granted" if claim is not None else "bypass",
             queue_position=1 if claim is not None else None,
             queue_score=claim.score if claim is not None else None,
+            run_id=claim.run_id if claim is not None else "",
+            attempt_id=claim.attempt_id if claim is not None else "",
+            parent_run_id=claim.parent_run_id if claim is not None else "",
+            job_id=claim.job_id if claim is not None else args.job,
         )
         atomic_json(heartbeat, status)
         env = os.environ.copy()
         env.update(extra_env)
+        if claim is not None:
+            env.update(
+                {
+                    "OPENCLAW_RUN_ID": claim.run_id,
+                    "OPENCLAW_ATTEMPT_ID": claim.attempt_id,
+                    "OPENCLAW_PARENT_RUN_ID": claim.parent_run_id,
+                    "OPENCLAW_JOB_ID": claim.job_id,
+                }
+            )
         lease_failures = 0
         lease_lost = False
         with log_path.open("ab", buffering=0) as log:
@@ -296,10 +310,7 @@ def main() -> int:
             finished = now()
             log.write(f"[{finished}] END exit={code}\n".encode())
 
-        result_name = (
-            "interrupted" if STOP or lease_lost
-            else ("completed" if code == 0 else ("degraded" if code == 1 else "failed"))
-        )
+        result_name = result_from_exit_code(code, interrupted=STOP or lease_lost)
         if scheduler is not None and claim is not None:
             recorded = scheduler.finish(
                 claim.lease_token,
@@ -335,7 +346,7 @@ def main() -> int:
             updated_at=now(),
             last_finished_at=finished,
             last_exit_code=code,
-            result="success" if code == 0 else ("degraded" if code == 1 else "failed"),
+            result=result_from_exit_code(code, interrupted=STOP or lease_lost),
             business_status=business_status,
             consecutive_failures=consecutive_failures,
             pid=None,

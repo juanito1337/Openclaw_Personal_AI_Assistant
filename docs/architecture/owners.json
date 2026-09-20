@@ -49,6 +49,7 @@
     {"path": "docs/architecture/adr/0037-residenter-clamav-daemon-fuer-mailindex.md", "owner": "Security Maintainers"},
     {"path": "docs/architecture/adr/0038-einzelfreigabe-fuer-mailindex-malwarefunde.md", "owner": "Security Maintainers"},
     {"path": "docs/architecture/adr/0039-turngebundene-aktionsverpflichtung.md", "owner": "Security Maintainers"},
-    {"path": "docs/architecture/adr/0040-getrennte-release-promotion.md", "owner": "Release Maintainers"}
+    {"path": "docs/architecture/adr/0040-getrennte-release-promotion.md", "owner": "Release Maintainers"},
+    {"path": "docs/architecture/adr/0041-einheitlicher-lauf-und-telemetrievertrag.md", "owner": "Operations Maintainers"}
   ]
 }

@@ -595,7 +595,58 @@ class AssistantStorage:
         etag: str = "",
         status: str,
         detail: str = "",
+        data_changed: bool | None = None,
     ) -> None:
+        checked_at = now_utc_iso()
+        previous = self.get_sync_state(resource_id, scope)
+        previous_runtime: dict[str, Any] = {}
+        if previous is not None:
+            try:
+                previous_detail = json.loads(str(previous["detail"] or "{}"))
+            except json.JSONDecodeError:
+                previous_detail = {}
+            if isinstance(previous_detail, dict) and isinstance(
+                previous_detail.get("runtime"), dict
+            ):
+                previous_runtime = dict(previous_detail["runtime"])
+
+        clean_status = str(status or "").strip().casefold()
+        successful = clean_status in {"ok", "completed", "skipped-not-due"}
+        last_successful_check_at = str(
+            previous_runtime.get("last_successful_check_at") or ""
+        )
+        if not last_successful_check_at and previous is not None and str(
+            previous["status"] or ""
+        ).casefold() == "ok":
+            last_successful_check_at = str(previous["synced_at"] or "")
+        if successful:
+            last_successful_check_at = checked_at
+
+        last_data_change_at = str(previous_runtime.get("last_data_change_at") or "")
+        if data_changed is True:
+            last_data_change_at = checked_at
+        result = {
+            "ok": "completed",
+            "completed": "completed",
+            "skipped-not-due": "skipped-not-due",
+            "partial": "degraded",
+            "degraded": "degraded",
+            "interrupted": "interrupted",
+            "blocked": "blocked",
+        }.get(clean_status, "failed")
+        try:
+            detail_payload = json.loads(detail) if detail else {}
+        except json.JSONDecodeError:
+            detail_payload = {"summary": str(detail or "")[:500]}
+        if not isinstance(detail_payload, dict):
+            detail_payload = {"summary": str(detail_payload)[:500]}
+        detail_payload["runtime"] = {
+            "checked_at": checked_at,
+            "last_successful_check_at": last_successful_check_at,
+            "last_data_change_at": last_data_change_at,
+            "data_changed": data_changed,
+            "result": result,
+        }
         self.knowledge_connection.execute(
             """
             INSERT INTO sync_state(resource_id,scope,cursor,etag,synced_at,status,detail)
@@ -604,7 +655,15 @@ class AssistantStorage:
               cursor=excluded.cursor,etag=excluded.etag,synced_at=excluded.synced_at,
               status=excluded.status,detail=excluded.detail
             """,
-            (resource_id, scope, cursor, etag, now_utc_iso(), status, detail),
+            (
+                resource_id,
+                scope,
+                cursor,
+                etag,
+                checked_at,
+                status,
+                json.dumps(detail_payload, ensure_ascii=False, sort_keys=True),
+            ),
         )
         self.knowledge_connection.commit()
 

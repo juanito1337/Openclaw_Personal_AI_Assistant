@@ -11,10 +11,11 @@ from pathlib import Path
 from typing import Any
 
 from .config import WORKSPACE_ROOT
+from .run_contract import TERMINAL_RUN_RESULTS, RunIdentity, canonical_run_result
 
 DEFAULT_SCHEDULER_DB = WORKSPACE_ROOT / "personal_assistant/data/work_scheduler.sqlite3"
 VALID_TOPICS = ("mail", "portfolio", "knowledge", "planning", "operations")
-TERMINAL_STATES = ("completed", "degraded", "failed", "cancelled", "interrupted")
+TERMINAL_STATES = TERMINAL_RUN_RESULTS
 
 
 def _utc_now() -> datetime:
@@ -109,6 +110,10 @@ class ClaimResult:
     score: float | None = None
     lease_token: str = ""
     lease_expires_at: str = ""
+    run_id: str = ""
+    attempt_id: str = ""
+    parent_run_id: str = ""
+    job_id: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -205,8 +210,42 @@ class AdaptiveWorkScheduler:
                 signal_count INTEGER NOT NULL DEFAULT 0,
                 source TEXT NOT NULL DEFAULT ''
             );
+
+            CREATE TABLE IF NOT EXISTS task_attempts (
+                attempt_id TEXT PRIMARY KEY,
+                run_id TEXT NOT NULL,
+                parent_run_id TEXT NOT NULL DEFAULT '',
+                job_id TEXT NOT NULL,
+                task_id TEXT NOT NULL REFERENCES task_queue(id) ON DELETE CASCADE,
+                attempt_number INTEGER NOT NULL,
+                owner TEXT NOT NULL,
+                result TEXT NOT NULL,
+                started_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                finished_at TEXT NOT NULL DEFAULT '',
+                exit_code INTEGER,
+                error_code TEXT NOT NULL DEFAULT ''
+            );
+            CREATE INDEX IF NOT EXISTS idx_task_attempts_run
+                ON task_attempts(run_id,attempt_number);
             """
         )
+        columns = {
+            str(row[1])
+            for row in self.connection.execute("PRAGMA table_info(task_queue)").fetchall()
+        }
+        for name, declaration in {
+            "run_id": "TEXT NOT NULL DEFAULT ''",
+            "parent_run_id": "TEXT NOT NULL DEFAULT ''",
+            "job_id": "TEXT NOT NULL DEFAULT ''",
+            "current_attempt_id": "TEXT NOT NULL DEFAULT ''",
+        }.items():
+            if name not in columns:
+                self.connection.execute(
+                    f"ALTER TABLE task_queue ADD COLUMN {name} {declaration}"
+                )
+        self.connection.execute("UPDATE task_queue SET run_id=id WHERE run_id='' ")
+        self.connection.execute("UPDATE task_queue SET job_id=job WHERE job_id='' ")
 
     @staticmethod
     def policy(job: str) -> TaskPolicy:
@@ -275,6 +314,7 @@ class AdaptiveWorkScheduler:
         owner: str,
         metadata: dict[str, Any] | None = None,
         arbitration_seconds: int | None = None,
+        parent_run_id: str = "",
     ) -> str:
         policy = self.policy(job)
         now = self.now().astimezone(UTC)
@@ -298,12 +338,18 @@ class AdaptiveWorkScheduler:
                 self._commit()
                 return str(existing["id"])
             ticket_id = uuid.uuid4().hex
+            identity = RunIdentity.create(
+                job_id=policy.job,
+                run_id=ticket_id,
+                parent_run_id=parent_run_id,
+            )
             self.connection.execute(
                 """
                 INSERT INTO task_queue(
                     id,job,topic,description,base_priority,status,queued_at,
-                    not_before,deadline_at,owner,updated_at,metadata_json
-                ) VALUES(?,?,?,?,?,'pending',?,?,?,?,?,?)
+                    not_before,deadline_at,owner,updated_at,metadata_json,
+                    run_id,parent_run_id,job_id
+                ) VALUES(?,?,?,?,?,'pending',?,?,?,?,?,?,?,?,?)
                 """,
                 (
                     ticket_id,
@@ -317,6 +363,9 @@ class AdaptiveWorkScheduler:
                     clean_owner,
                     _iso(now),
                     encoded_metadata,
+                    identity.run_id,
+                    identity.parent_run_id,
+                    identity.job_id,
                 ),
             )
             self._commit()
@@ -384,7 +433,8 @@ class AdaptiveWorkScheduler:
 
     def _recover_expired_locked(self, now: datetime) -> int:
         rows = self.connection.execute(
-            "SELECT id,lease_expires_at,attempts FROM task_queue WHERE status='running'"
+            "SELECT id,lease_expires_at,attempts,current_attempt_id "
+            "FROM task_queue WHERE status='running'"
         ).fetchall()
         recovered = 0
         for row in rows:
@@ -393,9 +443,18 @@ class AdaptiveWorkScheduler:
                 continue
             self.connection.execute(
                 """
+                UPDATE task_attempts
+                SET result='interrupted',finished_at=?,updated_at=?,
+                    error_code='lease-expired'
+                WHERE attempt_id=? AND result='in-progress'
+                """,
+                (_iso(now), _iso(now), str(row["current_attempt_id"] or "")),
+            )
+            self.connection.execute(
+                """
                 UPDATE task_queue
                 SET status='pending', lease_token='', lease_expires_at='',
-                    started_at='', updated_at=?, attempts=?,
+                    started_at='', updated_at=?, attempts=?,current_attempt_id='',
                     error_code='lease-expired',
                     detail='Abgelaufene Scheduler-Lease wurde sicher neu eingereiht'
                 WHERE id=? AND status='running'
@@ -427,6 +486,10 @@ class AdaptiveWorkScheduler:
                     "already-owned",
                     lease_token=str(row["lease_token"]),
                     lease_expires_at=str(row["lease_expires_at"]),
+                    run_id=str(row["run_id"]),
+                    attempt_id=str(row["current_attempt_id"]),
+                    parent_run_id=str(row["parent_run_id"]),
+                    job_id=str(row["job_id"]),
                 )
             if str(row["status"]) != "pending":
                 self._commit()
@@ -456,6 +519,11 @@ class AdaptiveWorkScheduler:
                 return ClaimResult(False, clean_ticket, "higher-priority", position=position, score=score)
 
             token = uuid.uuid4().hex
+            identity = RunIdentity.create(
+                job_id=str(selected["job_id"] or selected["job"]),
+                run_id=str(selected["run_id"] or clean_ticket),
+                parent_run_id=str(selected["parent_run_id"] or ""),
+            )
             expires = now + timedelta(seconds=self.lease_seconds)
             queued = _parse_time(selected["queued_at"]) or now
             updated = self.connection.execute(
@@ -463,7 +531,7 @@ class AdaptiveWorkScheduler:
                 UPDATE task_queue
                 SET status='running',owner=?,lease_token=?,lease_expires_at=?,
                     started_at=?,updated_at=?,attempts=attempts+1,
-                    wait_ms=?,error_code='',detail=''
+                    wait_ms=?,error_code='',detail='',current_attempt_id=?
                 WHERE id=? AND status='pending'
                 """,
                 (
@@ -473,12 +541,32 @@ class AdaptiveWorkScheduler:
                     _iso(now),
                     _iso(now),
                     max(0.0, (now - queued).total_seconds() * 1000.0),
+                    identity.attempt_id,
                     clean_ticket,
                 ),
             )
             if updated.rowcount != 1:
                 self._commit()
                 return ClaimResult(False, clean_ticket, "lost-race", position=position, score=score)
+            self.connection.execute(
+                """
+                INSERT INTO task_attempts(
+                    attempt_id,run_id,parent_run_id,job_id,task_id,attempt_number,
+                    owner,result,started_at,updated_at
+                ) VALUES(?,?,?,?,?,?,?,'in-progress',?,?)
+                """,
+                (
+                    identity.attempt_id,
+                    identity.run_id,
+                    identity.parent_run_id,
+                    identity.job_id,
+                    clean_ticket,
+                    int(selected["attempts"] or 0) + 1,
+                    clean_owner,
+                    _iso(now),
+                    _iso(now),
+                ),
+            )
             self._commit()
             return ClaimResult(
                 True,
@@ -488,6 +576,7 @@ class AdaptiveWorkScheduler:
                 score=selected_score,
                 lease_token=token,
                 lease_expires_at=_iso(expires),
+                **identity.to_dict(),
             )
         except Exception:
             self._rollback()
@@ -517,13 +606,13 @@ class AdaptiveWorkScheduler:
         error_code: str = "",
         detail: str = "",
     ) -> bool:
-        clean_result = str(result or "").strip().casefold()
+        clean_result = canonical_run_result(result)
         if clean_result not in TERMINAL_STATES:
-            raise ValueError(f"Unbekanntes Scheduler-Ergebnis: {result}")
+            raise ValueError(f"Nicht-terminales Scheduler-Ergebnis: {result}")
         now = self.now().astimezone(UTC)
         row = self.connection.execute(
             """
-            SELECT id,started_at FROM task_queue
+            SELECT id,started_at,current_attempt_id FROM task_queue
             WHERE status='running' AND lease_token=? AND owner=?
             """,
             (str(lease_token or ""), str(owner or "")[:160]),
@@ -532,6 +621,21 @@ class AdaptiveWorkScheduler:
             return False
         started = _parse_time(row["started_at"]) or now
         with self.connection:
+            self.connection.execute(
+                """
+                UPDATE task_attempts
+                SET result=?,exit_code=?,error_code=?,finished_at=?,updated_at=?
+                WHERE attempt_id=? AND result='in-progress'
+                """,
+                (
+                    clean_result,
+                    exit_code,
+                    str(error_code or "")[:120],
+                    _iso(now),
+                    _iso(now),
+                    str(row["current_attempt_id"] or ""),
+                ),
+            )
             updated = self.connection.execute(
                 """
                 UPDATE task_queue
@@ -561,7 +665,7 @@ class AdaptiveWorkScheduler:
             updated = self.connection.execute(
                 """
                 UPDATE task_queue
-                SET status='cancelled',result='cancelled',detail=?,
+                SET status='blocked',result='blocked',detail=?,
                     finished_at=?,updated_at=?
                 WHERE id=? AND status='pending'
                 """,
@@ -581,6 +685,10 @@ class AdaptiveWorkScheduler:
         started = _parse_time(row["started_at"])
         return {
             "id": str(row["id"]),
+            "run_id": str(row["run_id"] or row["id"]),
+            "attempt_id": str(row["current_attempt_id"] or ""),
+            "parent_run_id": str(row["parent_run_id"] or ""),
+            "job_id": str(row["job_id"] or row["job"]),
             "job": str(row["job"]),
             "topic": str(row["topic"]),
             "description": str(row["description"]),
@@ -620,8 +728,17 @@ class AdaptiveWorkScheduler:
         recent_rows = self.connection.execute(
             """
             SELECT * FROM task_queue
-            WHERE status IN ('completed','degraded','failed','cancelled','interrupted')
+            WHERE status IN ('completed','degraded','interrupted','skipped-not-due','blocked','failed')
             ORDER BY finished_at DESC LIMIT ?
+            """,
+            (max(1, min(int(recent_limit), 500)),),
+        ).fetchall()
+        recent_attempt_rows = self.connection.execute(
+            """
+            SELECT attempt_id,run_id,parent_run_id,job_id,task_id,attempt_number,
+                   result,started_at,finished_at,exit_code,error_code
+            FROM task_attempts
+            ORDER BY started_at DESC LIMIT ?
             """,
             (max(1, min(int(recent_limit), 500)),),
         ).fetchall()
@@ -723,6 +840,7 @@ class AdaptiveWorkScheduler:
             "active": [self._row_payload(row, now=now, activity=activity) for row in active_rows],
             "pending": pending,
             "recent": [self._row_payload(row, now=now, activity=activity) for row in recent_rows],
+            "recent_attempts": [dict(row) for row in recent_attempt_rows],
             "activity": activity_payload,
             "limits": {
                 "concurrency": 1,
@@ -805,7 +923,7 @@ class AdaptiveWorkScheduler:
             cursor = self.connection.execute(
                 """
                 DELETE FROM task_queue
-                WHERE status IN ('completed','degraded','failed','cancelled','interrupted')
+                WHERE status IN ('completed','degraded','interrupted','skipped-not-due','blocked','failed')
                   AND finished_at != '' AND finished_at < ?
                 """,
                 (cutoff,),

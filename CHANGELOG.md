@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Stabilisierung/M16.2: Scheduler, Containerworker, Mailtelemetrie, Jobstatus und
+  Monitoring verwenden einen gemeinsamen inhaltsarmen Run-/Attempt-/Parent-
+  und Jobvertrag sowie sieben geschlossene Resultatklassen. Leaseverlust,
+  Crash und Retry bleiben als getrennte Attempts sichtbar, verschachtelte
+  Mail-/Indexlaeufe werden im Gesamtbericht nicht doppelt gezaehlt. Nextcloud-
+  No-ops erneuern den erfolgreichen Frischenachweis ohne erfundenen
+  Datenwechsel; Alerts besitzen stabile Ursachen, belegte Aufloesung und eine
+  kontrollierte Ablaufzeit.
 - Stabilisierung/M16.1: Der maschinenlesbare Releasekandidat bleibt bis zur
   Gesamtabnahme explizit blockierter Draft. Ein neuer Validator bindet den
   spaeteren Quellcommit, `RELEASE.json`, signierten Tag, drei OCI-Rollen,

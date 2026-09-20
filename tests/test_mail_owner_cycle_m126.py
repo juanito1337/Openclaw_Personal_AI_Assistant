@@ -131,7 +131,7 @@ def test_mail_lock_contention_is_deferred_without_starting_reconcile(
     assert run.call_count == 1
     heartbeat = json.loads((status / "mail-index.json").read_text(encoding="utf-8"))
     assert heartbeat["state"] == "waiting"
-    assert heartbeat["result"] == "deferred"
+    assert heartbeat["result"] == "blocked"
     assert heartbeat["last_exit_code"] is None
     assert "Single-Writer-Sperre" in heartbeat["detail"]
     assert "last_success_at" not in heartbeat
