@@ -56,6 +56,8 @@
     {"path": "docs/architecture/adr/0044-getrennte-runtimekapazitaet-und-kontextprojektion.md", "owner": "Operations Maintainers"},
     {"path": "docs/architecture/adr/0045-risikobasierte-tests-und-jobloop-grenzen.md", "owner": "Quality Maintainers"},
     {"path": "docs/architecture/adr/0046-unveraenderliche-mailentscheidungsevidenz.md", "owner": "Data Maintainers"},
-    {"path": "docs/architecture/adr/0047-beleggebundene-fachqualitaet-und-portfoliozustaende.md", "owner": "Data Maintainers"}
+    {"path": "docs/architecture/adr/0047-beleggebundene-fachqualitaet-und-portfoliozustaende.md", "owner": "Data Maintainers"},
+    {"path": "docs/architecture/adr/0048-semantic-search-bleibt-messungsgebunden-deaktiviert.md", "owner": "Data Maintainers"},
+    {"path": "docs/architecture/adr/0049-privilegiengetrennter-tool-executor-prototyp.md", "owner": "Security Maintainers"}
   ]
 }

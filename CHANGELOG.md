@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Stabilisierung/M16.9: Ein synthetisches Eval vergleicht Lexik,
+  Thread-/Tagkontext, digestgebundene lokale Embeddings und Hybrid-Retrieval
+  nach Precision, Recall, Abstention, Fehlklassifikation, Latenz, Rechen- und
+  Speicheraufwand. Weil Hybrid-Recall nur bei sinkender Precision steigt,
+  bleibt Semantic Search deaktiviert. Ein separater authentisierter
+  AF_UNIX-RPC-Prototyp belegt geschlossene Tool-/Schema-/Approvalgrenzen,
+  Replay-, Deadline-, Backpressure-, Crash- und Antwortgroessenbehandlung,
+  bleibt aber ausserhalb von Toolkatalog, Compose und Produktivruntime.
+
 - Stabilisierung/M16.8: Rechnungs-Audit und Einzelpreview weisen Originalhash,
   Scanner-/Extraktorversion, Feldprovenienz und Datumsrollen aus; abweichende
   Pfade werden nur als backup-, ETag- und SHA-gebundener No-overwrite-Plan

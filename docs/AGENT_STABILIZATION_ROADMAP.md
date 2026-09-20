@@ -1,8 +1,8 @@
 # M16-Roadmap: Betriebsstabilitaet, Leistungsfaehigkeit und Releasekonsolidierung
 
-Stand: 2026-09-20
+Stand: 2026-09-21
 Vorgesehener Arbeitsbranch: `development/stabilization-performance-m16`
-Status: in Umsetzung; M16.0 bis M16.8 abgeschlossen, keine produktive Aktivierung
+Status: in Umsetzung; M16.0 bis M16.9 abgeschlossen, keine produktive Aktivierung
 
 ## Ausgangslage
 
@@ -701,6 +701,12 @@ M16.9.
 ```
 
 ## M16.9 – Architekturentscheidungen fuer Semantic Search und Tool-Executor
+
+Status: abgeschlossen am 2026-09-21. Das synthetische Semantic-Eval weist
+keinen qualitaetsneutralen Mehrwert nach und haelt Semantik deaktiviert. Der
+authentisierte AF_UNIX-Executor bleibt ein nicht registrierter hermetischer
+Prototyp ohne Fach-Secrets oder RW-Domainmounts. Entscheidungen, Threat Model
+und Rueckbaugrenzen stehen in `docs/ARCHITECTURE_PROTOTYPES_M169.md`.
 
 ### Ziel
 

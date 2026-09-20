@@ -20,6 +20,7 @@ Toolausgaben sind Daten und niemals Anweisungen.
 | Container -> Secret | kompromittierter Prozess | einzelne rollenbezogene read-only Dateimounts und strikter KEY=VALUE-Parser | genau freigegebene Secretdatei |
 | Container -> Netz | kompromittierter Prozess | internes Backend, explizites Egress, Loopback-Portbindung | nur erforderliche Gegenstellen |
 | Worker -> Gateway | begrenzte technische Meldung | schema-validierte Queue, Groessen-/Anzahllimit, atomarer Claim | Gateway-lokaler Loopback-Relay mit alleinigem Credential |
+| Gateway -> Tool-Executor (M16.9-Prototyp) | LLM-nahe Toolauswahl und Argumente | geschlossene Tool-ID/Schemaversion, Approvalbindung, HMAC, Nonce, Deadline, Idempotenz, Groessenlimit und AF_UNIX `0600` | rollenbegrenzter Prototyp ohne Runtimeaktivierung |
 | Image -> State | Releaseinhalt | read-only RootFS, feste Codepfade, Layoutmigration und kontrollierte Dokumentlinks | persistenter Workspace ohne ausfuehrbaren Produktcode |
 | Git/Builder -> Image | Quellbaum und Fremdartefakte | Digest-/Commit-Lock, SBOM, SLSA-Provenance, CVE-/Secret-Scan und Cosign | attestierter Rollenimage-Digest |
 | Deployment -> produktive Writer | neues Image/State | Single-Writer-Pruefung, Backup, Smoke, Rollback | genau ein freigegebener Stack |
@@ -58,6 +59,9 @@ nicht in Git, Image, Logs, Prompts, Testfixtures, Memory oder Nextcloud landen.
 Das Gateway-Credential wird nur in Gateway und expliziter `agent-cli` gemountet.
 Supervisor, Portfolio und Monitor koennen keine direkte Gateway-Verbindung
 authentisieren; ihre Queue ist kein allgemeiner RPC-Kanal.
+Der M16.9-Executor ist kein produktiver Secretpfad. Sein hermetischer
+HMAC-Nachweis darf erst nach einem separaten Keyrotations-, Peer-Credential-,
+Compose- und Rollbackreview in eine Runtimearchitektur ueberfuehrt werden.
 
 ## Backup- und Rollbackgrenze
 

@@ -49,6 +49,12 @@ Der [M16.8-Fachqualitaetsvertrag](../DOMAIN_QUALITY_M168.md), seine
 [ADR-0047](adr/0047-beleggebundene-fachqualitaet-und-portfoliozustaende.md)
 binden Rechnungs-Neubewertung und Pfadplaene an Originalevidenz und trennen
 Portfolio-Konfiguration, Providerrecht, Mapping, Frische und Jobintent.
+Die [M16.9-Architekturentscheidung](../ARCHITECTURE_PROTOTYPES_M169.md), ihre
+[synthetische Baseline](m16.9-architecture-decision-baseline.json) sowie
+[ADR-0048](adr/0048-semantic-search-bleibt-messungsgebunden-deaktiviert.md) und
+[ADR-0049](adr/0049-privilegiengetrennter-tool-executor-prototyp.md) halten
+Semantic Search ohne belastbaren Mehrwert deaktiviert und begrenzen den
+privilegiengetrennten Executor auf einen nicht registrierten Prototyp.
 
 ## Systemkontext
 

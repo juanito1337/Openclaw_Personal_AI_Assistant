@@ -53,5 +53,7 @@ verweist mit Status `Superseded` auf den Nachfolger.
 | [0045](0045-risikobasierte-tests-und-jobloop-grenzen.md) | Accepted | risikobasierte Verhaltenstests und reine Jobprofil-/Runentscheidungsgrenzen |
 | [0046](0046-unveraenderliche-mailentscheidungsevidenz.md) | Accepted | append-only Mailentscheidungssnapshots, getrennte Komponentenmetriken und Legacy-Abstention |
 | [0047](0047-beleggebundene-fachqualitaet-und-portfoliozustaende.md) | Accepted | beleggebundene Rechnungsqualitaet, No-overwrite-Pfadplan und geschlossene Portfoliozustaende |
+| [0048](0048-semantic-search-bleibt-messungsgebunden-deaktiviert.md) | Accepted | Semantic Search bleibt ohne qualitaetsneutralen Zielhardwarenachweis deaktiviert |
+| [0049](0049-privilegiengetrennter-tool-executor-prototyp.md) | Accepted | authentisierter privilegiengetrennter Tool-Executor bleibt hermetischer Prototyp |
 
 Neue ADRs beginnen mit der [Vorlage](0000-template.md).

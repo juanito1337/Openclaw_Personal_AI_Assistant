@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "privacy": {
+    "synthetic": true,
+    "productive_data": false,
+    "derived_from_anonymized_intents": true
+  },
+  "documents": [
+    {
+      "id": "doc-01",
+      "subject": "Dachabdichtung am Nordfluegel",
+      "body": "Die Arbeiten am Gebaeudedach sind abgeschlossen.",
+      "tags": ["projekt-nord", "gebaeude"],
+      "thread_context": "Sanierung Nordfluegel"
+    },
+    {
+      "id": "doc-02",
+      "subject": "Zirkulationspumpe Ersatzteil",
+      "body": "Die Umwaelzpumpe wird am Dienstag geliefert.",
+      "tags": ["heizung", "technik"],
+      "thread_context": "Haustechnik Pumpe"
+    },
+    {
+      "id": "doc-03",
+      "subject": "Garantieunterlagen Solaranlage",
+      "body": "Die Gewaehrleistung gilt fuer zehn Jahre.",
+      "tags": ["solar", "vertrag"],
+      "thread_context": "Photovoltaik Dokumente"
+    },
+    {
+      "id": "doc-04",
+      "subject": "Vorstandssitzung Budget",
+      "body": "Die Besprechung zum Jahresbudget findet im Konferenzraum statt.",
+      "tags": ["gremium", "finanzen"],
+      "thread_context": "Sitzungsreihe Vorstand"
+    },
+    {
+      "id": "doc-05",
+      "subject": "Wartung Heizungsanlage",
+      "body": "Der Servicetermin ist fuer Donnerstag vorgesehen.",
+      "tags": ["heizung", "termin"],
+      "thread_context": "Regelmaessige Inspektion"
+    },
+    {
+      "id": "doc-06",
+      "subject": "Rechnung Geruestbau",
+      "body": "Der Kostenbeleg fuer das Geruest liegt zur Pruefung vor.",
+      "tags": ["projekt-nord", "finanzen"],
+      "thread_context": "Sanierung Nordfluegel Kosten"
+    },
+    {
+      "id": "doc-07",
+      "subject": "Fahrplan Fernverkehr",
+      "body": "Der Zug faehrt morgens vom Hauptbahnhof.",
+      "tags": ["reise", "bahn"],
+      "thread_context": "Dienstreise Verkehr"
+    },
+    {
+      "id": "doc-08",
+      "subject": "Uebergabeprotokoll Projekt Vega",
+      "body": "Die Abnahme wurde ohne offene Punkte bestaetigt.",
+      "tags": ["projekt-vega", "abschluss"],
+      "thread_context": "Vega Handover Thread"
+    }
+  ],
+  "queries": [
+    {"id": "q-exact-01", "kind": "exact", "query": "Dachabdichtung", "relevant": ["doc-01"], "limit": 3},
+    {"id": "q-exact-02", "kind": "exact", "query": "Zirkulationspumpe", "relevant": ["doc-02"], "limit": 3},
+    {"id": "q-context-01", "kind": "contextual", "query": "Projekt Nord Finanzen", "relevant": ["doc-06"], "limit": 3},
+    {"id": "q-context-02", "kind": "contextual", "query": "Vega Abschluss", "relevant": ["doc-08"], "limit": 3},
+    {"id": "q-synonym-01", "kind": "synonym", "query": "roof sealing", "relevant": ["doc-01"], "limit": 3},
+    {"id": "q-synonym-02", "kind": "synonym", "query": "warranty coverage", "relevant": ["doc-03"], "limit": 3},
+    {"id": "q-negative-01", "kind": "negative", "query": "Mondmission Treibstoff", "relevant": [], "limit": 3},
+    {"id": "q-negative-02", "kind": "negative", "query": "Kuendigung Fitnessstudio", "relevant": [], "limit": 3}
+  ]
+}

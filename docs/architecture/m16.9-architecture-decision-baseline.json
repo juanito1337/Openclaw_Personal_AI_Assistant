@@ -1,0 +1,507 @@
+{
+  "corpus": {
+    "document_count": 8,
+    "path": "tests/fixtures/m16/semantic-search-eval.json",
+    "query_count": 8,
+    "sha256": "9a87997e8935545c950df508b479e297365f18451017f5c3380872d6724625bf"
+  },
+  "decision": {
+    "production_activation": false,
+    "semantic_search": "disabled-pending-target-hardware-canary",
+    "tool_executor": "prototype-only-not-runtime-registered"
+  },
+  "embedding_lifecycle": {
+    "first_build": {
+      "bytes": 3984,
+      "rows": 8,
+      "sha256": "9bfdd8135d8e6eecabd1a609f189b15dd7f159393678fb5838fa7be381de3bf4"
+    },
+    "lexical_index_unchanged": true,
+    "rebuild_identical": true,
+    "removed": true,
+    "source_unchanged": true
+  },
+  "milestone": "M16.9",
+  "schema_version": 1,
+  "semantic_search": {
+    "decision": {
+      "activation_allowed": false,
+      "measurable_benefit": false,
+      "reason": "no measurable quality benefit over lexical retrieval",
+      "requires_separate_canary_rebuild_rollback_plan": true,
+      "requires_target_hardware_measurement": true,
+      "state": "disabled"
+    },
+    "measurement_kind": "synthetic-contract",
+    "milestone": "M16.9",
+    "model": {
+      "digest": "sha256:08d07b07fe345c784635fb2d05d633524ad9494144a6f41038de5055f8298fc8",
+      "digest_verified": true,
+      "dimension": 64,
+      "local_only": true,
+      "name": "m16-synthetic-local-semantic-v1"
+    },
+    "privacy": {
+      "content_exfiltration": false,
+      "productive_data_read": false,
+      "synthetic_only": true
+    },
+    "resources": {
+      "document_count": 8,
+      "estimated_vector_bytes": 2048,
+      "query_count": 8
+    },
+    "retrieval_modes": [
+      {
+        "compute": {
+          "deterministic_feature_operations": 29512
+        },
+        "latency_ms": {
+          "p50": 0.5806,
+          "p95": 0.6436,
+          "samples": 56
+        },
+        "mode": "lexical",
+        "quality": {
+          "misclassification_count": 4,
+          "negative_abstention": 1.0,
+          "precision": 0.75,
+          "recall": 0.5
+        },
+        "queries": [
+          {
+            "abstained": false,
+            "expected_count": 1,
+            "false_negative": 0,
+            "false_positive": 0,
+            "kind": "exact",
+            "query_id": "q-exact-01",
+            "returned_ids": [
+              "doc-01"
+            ],
+            "true_positive": 1
+          },
+          {
+            "abstained": false,
+            "expected_count": 1,
+            "false_negative": 0,
+            "false_positive": 0,
+            "kind": "exact",
+            "query_id": "q-exact-02",
+            "returned_ids": [
+              "doc-02"
+            ],
+            "true_positive": 1
+          },
+          {
+            "abstained": false,
+            "expected_count": 1,
+            "false_negative": 1,
+            "false_positive": 1,
+            "kind": "contextual",
+            "query_id": "q-context-01",
+            "returned_ids": [
+              "doc-08"
+            ],
+            "true_positive": 0
+          },
+          {
+            "abstained": false,
+            "expected_count": 1,
+            "false_negative": 0,
+            "false_positive": 0,
+            "kind": "contextual",
+            "query_id": "q-context-02",
+            "returned_ids": [
+              "doc-08"
+            ],
+            "true_positive": 1
+          },
+          {
+            "abstained": true,
+            "expected_count": 1,
+            "false_negative": 1,
+            "false_positive": 0,
+            "kind": "synonym",
+            "query_id": "q-synonym-01",
+            "returned_ids": [],
+            "true_positive": 0
+          },
+          {
+            "abstained": true,
+            "expected_count": 1,
+            "false_negative": 1,
+            "false_positive": 0,
+            "kind": "synonym",
+            "query_id": "q-synonym-02",
+            "returned_ids": [],
+            "true_positive": 0
+          },
+          {
+            "abstained": true,
+            "expected_count": 0,
+            "false_negative": 0,
+            "false_positive": 0,
+            "kind": "negative",
+            "query_id": "q-negative-01",
+            "returned_ids": [],
+            "true_positive": 0
+          },
+          {
+            "abstained": true,
+            "expected_count": 0,
+            "false_negative": 0,
+            "false_positive": 0,
+            "kind": "negative",
+            "query_id": "q-negative-02",
+            "returned_ids": [],
+            "true_positive": 0
+          }
+        ]
+      },
+      {
+        "compute": {
+          "deterministic_feature_operations": 29512
+        },
+        "latency_ms": {
+          "p50": 0.5976,
+          "p95": 0.7058,
+          "samples": 56
+        },
+        "mode": "thread-tags",
+        "quality": {
+          "misclassification_count": 4,
+          "negative_abstention": 1.0,
+          "precision": 0.666667,
+          "recall": 0.666667
+        },
+        "queries": [
+          {
+            "abstained": false,
+            "expected_count": 1,
+            "false_negative": 0,
+            "false_positive": 0,
+            "kind": "exact",
+            "query_id": "q-exact-01",
+            "returned_ids": [
+              "doc-01"
+            ],
+            "true_positive": 1
+          },
+          {
+            "abstained": false,
+            "expected_count": 1,
+            "false_negative": 0,
+            "false_positive": 0,
+            "kind": "exact",
+            "query_id": "q-exact-02",
+            "returned_ids": [
+              "doc-02"
+            ],
+            "true_positive": 1
+          },
+          {
+            "abstained": false,
+            "expected_count": 1,
+            "false_negative": 0,
+            "false_positive": 2,
+            "kind": "contextual",
+            "query_id": "q-context-01",
+            "returned_ids": [
+              "doc-06",
+              "doc-01",
+              "doc-04"
+            ],
+            "true_positive": 1
+          },
+          {
+            "abstained": false,
+            "expected_count": 1,
+            "false_negative": 0,
+            "false_positive": 0,
+            "kind": "contextual",
+            "query_id": "q-context-02",
+            "returned_ids": [
+              "doc-08"
+            ],
+            "true_positive": 1
+          },
+          {
+            "abstained": true,
+            "expected_count": 1,
+            "false_negative": 1,
+            "false_positive": 0,
+            "kind": "synonym",
+            "query_id": "q-synonym-01",
+            "returned_ids": [],
+            "true_positive": 0
+          },
+          {
+            "abstained": true,
+            "expected_count": 1,
+            "false_negative": 1,
+            "false_positive": 0,
+            "kind": "synonym",
+            "query_id": "q-synonym-02",
+            "returned_ids": [],
+            "true_positive": 0
+          },
+          {
+            "abstained": true,
+            "expected_count": 0,
+            "false_negative": 0,
+            "false_positive": 0,
+            "kind": "negative",
+            "query_id": "q-negative-01",
+            "returned_ids": [],
+            "true_positive": 0
+          },
+          {
+            "abstained": true,
+            "expected_count": 0,
+            "false_negative": 0,
+            "false_positive": 0,
+            "kind": "negative",
+            "query_id": "q-negative-02",
+            "returned_ids": [],
+            "true_positive": 0
+          }
+        ]
+      },
+      {
+        "compute": {
+          "deterministic_feature_operations": 29512
+        },
+        "latency_ms": {
+          "p50": 0.6088,
+          "p95": 0.9545,
+          "samples": 56
+        },
+        "mode": "local-embedding",
+        "quality": {
+          "misclassification_count": 5,
+          "negative_abstention": 1.0,
+          "precision": 0.6,
+          "recall": 0.5
+        },
+        "queries": [
+          {
+            "abstained": true,
+            "expected_count": 1,
+            "false_negative": 1,
+            "false_positive": 0,
+            "kind": "exact",
+            "query_id": "q-exact-01",
+            "returned_ids": [],
+            "true_positive": 0
+          },
+          {
+            "abstained": false,
+            "expected_count": 1,
+            "false_negative": 0,
+            "false_positive": 0,
+            "kind": "exact",
+            "query_id": "q-exact-02",
+            "returned_ids": [
+              "doc-02"
+            ],
+            "true_positive": 1
+          },
+          {
+            "abstained": false,
+            "expected_count": 1,
+            "false_negative": 0,
+            "false_positive": 2,
+            "kind": "contextual",
+            "query_id": "q-context-01",
+            "returned_ids": [
+              "doc-08",
+              "doc-06",
+              "doc-01"
+            ],
+            "true_positive": 1
+          },
+          {
+            "abstained": false,
+            "expected_count": 1,
+            "false_negative": 0,
+            "false_positive": 0,
+            "kind": "contextual",
+            "query_id": "q-context-02",
+            "returned_ids": [
+              "doc-08"
+            ],
+            "true_positive": 1
+          },
+          {
+            "abstained": true,
+            "expected_count": 1,
+            "false_negative": 1,
+            "false_positive": 0,
+            "kind": "synonym",
+            "query_id": "q-synonym-01",
+            "returned_ids": [],
+            "true_positive": 0
+          },
+          {
+            "abstained": true,
+            "expected_count": 1,
+            "false_negative": 1,
+            "false_positive": 0,
+            "kind": "synonym",
+            "query_id": "q-synonym-02",
+            "returned_ids": [],
+            "true_positive": 0
+          },
+          {
+            "abstained": true,
+            "expected_count": 0,
+            "false_negative": 0,
+            "false_positive": 0,
+            "kind": "negative",
+            "query_id": "q-negative-01",
+            "returned_ids": [],
+            "true_positive": 0
+          },
+          {
+            "abstained": true,
+            "expected_count": 0,
+            "false_negative": 0,
+            "false_positive": 0,
+            "kind": "negative",
+            "query_id": "q-negative-02",
+            "returned_ids": [],
+            "true_positive": 0
+          }
+        ]
+      },
+      {
+        "compute": {
+          "deterministic_feature_operations": 29512
+        },
+        "latency_ms": {
+          "p50": 0.6602,
+          "p95": 1.1061,
+          "samples": 56
+        },
+        "mode": "hybrid",
+        "quality": {
+          "misclassification_count": 4,
+          "negative_abstention": 1.0,
+          "precision": 0.666667,
+          "recall": 0.666667
+        },
+        "queries": [
+          {
+            "abstained": false,
+            "expected_count": 1,
+            "false_negative": 0,
+            "false_positive": 0,
+            "kind": "exact",
+            "query_id": "q-exact-01",
+            "returned_ids": [
+              "doc-01"
+            ],
+            "true_positive": 1
+          },
+          {
+            "abstained": false,
+            "expected_count": 1,
+            "false_negative": 0,
+            "false_positive": 0,
+            "kind": "exact",
+            "query_id": "q-exact-02",
+            "returned_ids": [
+              "doc-02"
+            ],
+            "true_positive": 1
+          },
+          {
+            "abstained": false,
+            "expected_count": 1,
+            "false_negative": 0,
+            "false_positive": 2,
+            "kind": "contextual",
+            "query_id": "q-context-01",
+            "returned_ids": [
+              "doc-06",
+              "doc-01",
+              "doc-08"
+            ],
+            "true_positive": 1
+          },
+          {
+            "abstained": false,
+            "expected_count": 1,
+            "false_negative": 0,
+            "false_positive": 0,
+            "kind": "contextual",
+            "query_id": "q-context-02",
+            "returned_ids": [
+              "doc-08"
+            ],
+            "true_positive": 1
+          },
+          {
+            "abstained": true,
+            "expected_count": 1,
+            "false_negative": 1,
+            "false_positive": 0,
+            "kind": "synonym",
+            "query_id": "q-synonym-01",
+            "returned_ids": [],
+            "true_positive": 0
+          },
+          {
+            "abstained": true,
+            "expected_count": 1,
+            "false_negative": 1,
+            "false_positive": 0,
+            "kind": "synonym",
+            "query_id": "q-synonym-02",
+            "returned_ids": [],
+            "true_positive": 0
+          },
+          {
+            "abstained": true,
+            "expected_count": 0,
+            "false_negative": 0,
+            "false_positive": 0,
+            "kind": "negative",
+            "query_id": "q-negative-01",
+            "returned_ids": [],
+            "true_positive": 0
+          },
+          {
+            "abstained": true,
+            "expected_count": 0,
+            "false_negative": 0,
+            "false_positive": 0,
+            "kind": "negative",
+            "query_id": "q-negative-02",
+            "returned_ids": [],
+            "true_positive": 0
+          }
+        ]
+      }
+    ],
+    "safety": {
+      "authorizes_actions": false,
+      "derived_untrusted_content": true,
+      "production_registered": false,
+      "server_revalidation_required": true
+    },
+    "schema_version": 1
+  },
+  "tool_executor": {
+    "audit_content_recorded": false,
+    "audit_rows": 2,
+    "gateway_domain_secrets": 0,
+    "gateway_rw_domain_mounts": 0,
+    "ok": true,
+    "production_registered": false,
+    "registered_tools": 1,
+    "replay_blocker": "replay-detected",
+    "rpc_boundary": "af-unix-framed-json-hmac-sha256"
+  }
+}

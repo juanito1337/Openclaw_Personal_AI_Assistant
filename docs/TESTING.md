@@ -1,6 +1,6 @@
 # Tests, Qualitaetsbaseline und Container-Runtime
 
-Stand: 2026-09-21, fortgeschrieben bis zum M16.8-Fachqualitaetsvertrag.
+Stand: 2026-09-21, fortgeschrieben bis zur M16.9-Architekturentscheidung.
 Sie startet keine produktiven Dienste und verwendet
 weder `/srv/openclaw` noch produktive Zugangsdaten.
 
@@ -138,6 +138,7 @@ der aktuellen Python-Dateien.
 | Tests nach M16.6 gesammelt/ausgefuehrt | 1.152 / 1.152 (1.263 JUnit-Faelle inklusive 111 Subtests) |
 | Tests nach M16.7 gesammelt/ausgefuehrt | 1.163 / 1.163 (1.274 JUnit-Faelle inklusive 111 Subtests) |
 | Tests nach M16.8 gesammelt/ausgefuehrt | 1.186 / 1.186 (1.297 JUnit-Faelle inklusive 111 Subtests) |
+| Tests nach M16.9 gesammelt/ausgefuehrt | 1.216 / 1.216 (1.327 JUnit-Faelle inklusive 111 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -187,6 +188,7 @@ der aktuellen Python-Dateien.
 | neue M16.6-Risikopfad-/Konsolidierungs-Regressionsitems | 41 |
 | neue M16.7-Mail-Lern-/Reviewqualitaets-Regressionsitems | 11 |
 | neue M16.8-Rechnungs-/Portfolio-Regressionsitems | 23 |
+| neue M16.9-Semantic-/Executor-Regressionsitems | 30 |
 | M13-Image-Runtime-Abnahme | Pluginstatus `loaded`, 19 Toolfabriken, 5 typisierte Hooks, keine Diagnosen |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |
@@ -285,6 +287,9 @@ der aktuellen Python-Dateien.
 | Gesamt-Coverage nach M16.8 | 69,99 % |
 | reine Statement-Coverage nach M16.8 | 74,20 % |
 | reine Branch-Coverage nach M16.8 | 57,38 % |
+| Gesamt-Coverage nach M16.9 | 70,27 % |
+| reine Statement-Coverage nach M16.9 | 74,47 % |
+| reine Branch-Coverage nach M16.9 | 57,66 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -1597,3 +1602,31 @@ pytest-Items. Das JUnit-Artefakt enthaelt einschliesslich 111
 kombinierte Coverage betraegt 69,99 Prozent, die reine Statement-Coverage 74,20
 Prozent und die reine Branch-Coverage 57,38 Prozent. Der Lauf dauerte 180,02
 Sekunden; Ruff und mypy meldeten keine neuen Befunde.
+
+## M16.9-Semantic- und Executor-Architekturprototypen
+
+Die hermetische Teilabnahme lautet:
+
+```bash
+.venv/bin/python scripts/benchmark_architecture_m169.py
+.venv/bin/python -m pytest -q tests/test_architecture_prototypes_m169.py
+```
+
+Das Evalset enthaelt ausschliesslich synthetische exakte, kontextuelle,
+synonyme und negative Suchfaelle. Es misst alle vier Retrievalvarianten und
+meldet Fehlklassifikation sowie Ressourcenaufwand auch dann, wenn kein
+Mehrwert entsteht. Der isolierte Vektorindex wird geloescht und identisch neu
+aufgebaut, waehrend synthetische Source- und Lexikdatei bytegleich bleiben.
+
+Der RPC-Test prueft echte AF_UNIX-Frames sowie Fremdsignatur, Argumentaenderung,
+Replay, Idempotenzkonflikt, fremde Tool-ID/Schemaversion, Approvalbindung,
+Deadline, Antwortlimit, Crash und nebenlaeufige Backpressure. Der Prototyp ist
+nicht im produktiven Toolkatalog registriert, besitzt keinen Shellfallback und
+zeichnet keine Argument- oder Evidenzwerte auf.
+
+Der vollstaendige lokale Lauf vom 2026-09-21 sammelte und bestand 1.216
+pytest-Items. Das JUnit-Artefakt enthaelt einschliesslich 111
+`unittest`-Subtests 1.327 erfolgreiche Faelle ohne Fehler oder Skips. Die
+kombinierte Coverage betraegt 70,27 Prozent, die reine Statement-Coverage 74,47
+Prozent und die reine Branch-Coverage 57,66 Prozent. Der Gesamtcheck dauerte
+167,69 Sekunden; Ruff und mypy meldeten keine neuen Befunde.
