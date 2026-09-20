@@ -23,6 +23,10 @@ Der [M16-Promotionsvertrag](release-candidate-m16.json) und
 [ADR-0040](adr/0040-getrennte-release-promotion.md) binden den spaeteren
 Release an genau einen getesteten Commit, drei attestierte Rollenimages und
 getrennte Freigaben fuer Main, Registry und Produktivdeployment.
+Der [inkrementelle M16.3-Syncvertrag](../INCREMENTAL_SYNC_SCHEDULER_M16.md) und
+[ADR-0042](adr/0042-inkrementeller-sync-und-eine-priorisierte-queue.md)
+definieren metadata-first ETag-Abgleich, fail-closed Snapshotpublikation,
+begrenzte Batches und die einzige priorisierte Schedulerqueue.
 
 ## Systemkontext
 

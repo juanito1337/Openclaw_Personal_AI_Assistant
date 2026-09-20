@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from collections.abc import Callable
 from dataclasses import asdict
@@ -45,6 +46,8 @@ def handle(args: argparse.Namespace, assistant: Any, emit: Callable[[Any], None]
     if args.command == "index":
         result = assistant.sync_mail() if args.index_command == "mail" else assistant.sync_all()
         emit(result)
+        if result.get("resume_required") and os.environ.get("OPENCLAW_BATCHED_JOB") == "1":
+            return 75
         return 0 if result.get("ok", True) else 1
     if args.command == "search":
         limit = args.limit or assistant.config.search.default_limit

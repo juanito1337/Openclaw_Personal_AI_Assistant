@@ -254,9 +254,7 @@ class PersonalAssistant(
         payload["supports_tasks"] = item.supports("VTODO")
         return payload
 
-    def standard_operations_configure(
-        self, *, approve_permissions: bool = False
-    ) -> dict[str, Any]:
+    def standard_operations_configure(self, *, approve_permissions: bool = False) -> dict[str, Any]:
         """Verify and register the normal non-destructive operating profile.
 
         Existing permissions need no network refresh.  Missing Nextcloud
@@ -264,9 +262,7 @@ class PersonalAssistant(
         discovery result.  The selected resources themselves never change.
         """
         if not approve_permissions:
-            raise PermissionError(
-                "Standardbetrieb benoetigt die einmalige ausdrueckliche Freigabe --yes"
-            )
+            raise PermissionError("Standardbetrieb benoetigt die einmalige ausdrueckliche Freigabe --yes")
 
         from .tool_setup import configure_standard_operations_tools
 
@@ -309,8 +305,10 @@ class PersonalAssistant(
             )
 
         mail = settings.mail.move
-        if settings.mail.enabled and mail.resource_id and missing(
-            mail.resource_id, {"read", "move", "forward"}
+        if (
+            settings.mail.enabled
+            and mail.resource_id
+            and missing(mail.resource_id, {"read", "move", "forward"})
         ):
             current = self.registry.resources.get(mail.resource_id)
             if current and current.kind == "email-service" and current.enabled:
@@ -320,9 +318,7 @@ class PersonalAssistant(
                     connector=current.connector,
                     enabled=True,
                     remote_id=current.remote_id,
-                    permissions=tuple(
-                        dict.fromkeys((*current.permissions, "read", "move", "forward"))
-                    ),
+                    permissions=tuple(dict.fromkeys((*current.permissions, "read", "move", "forward"))),
                     metadata=current.metadata,
                 )
                 evidence["mail"] = {
@@ -332,14 +328,14 @@ class PersonalAssistant(
                 }
 
         workspace = settings.nextcloud.workspace
-        if workspace.enabled and workspace.resource_id and missing(
-            workspace.resource_id, {"read", "create", "move"}
+        if (
+            workspace.enabled
+            and workspace.resource_id
+            and missing(workspace.resource_id, {"read", "create", "move"})
         ):
             current = self.registry.resources.get(workspace.resource_id)
             if current and current.kind == "file-root" and current.connector == "nextcloud":
-                capabilities = self.nextcloud_discovery.file_collection_capabilities(
-                    workspace.root
-                )
+                capabilities = self.nextcloud_discovery.file_collection_capabilities(workspace.root)
                 permissions = tuple(
                     permission
                     for permission, allowed in (
@@ -358,9 +354,7 @@ class PersonalAssistant(
                     permissions=permissions,
                     metadata={
                         **current.metadata,
-                        "discovered_privileges": list(
-                            cast(list[str], capabilities["privileges"])
-                        ),
+                        "discovered_privileges": list(cast(list[str], capabilities["privileges"])),
                         "server_can_read": bool(capabilities["can_read"]),
                         "server_can_create": bool(capabilities["can_create"]),
                         "server_can_move": bool(capabilities["can_move"]),
@@ -407,8 +401,10 @@ class PersonalAssistant(
                 }
 
         contacts = settings.nextcloud.contacts
-        if contacts.enabled and contacts.resource_id and missing(
-            contacts.resource_id, {"read", "create", "update"}
+        if (
+            contacts.enabled
+            and contacts.resource_id
+            and missing(contacts.resource_id, {"read", "create", "update"})
         ):
             books = self.nextcloud_discovery.addressbooks()
             selected = next(
@@ -572,10 +568,7 @@ class PersonalAssistant(
             "role",
             os.environ.get("OPENCLAW_ROLE", "agent-cli").strip(),
         )
-        if (
-            os.environ.get("OPENCLAW_RUNTIME", "").strip() == "container"
-            and runtime_role != "agent-cli"
-        ):
+        if os.environ.get("OPENCLAW_RUNTIME", "").strip() == "container" and runtime_role != "agent-cli":
             raise PermissionError(
                 "Aufgaben-Konfiguration ist im laufenden Gateway absichtlich gesperrt; "
                 "der Konfigurationsordner bleibt schreibgeschuetzt. Keine Rechte oder "
@@ -1362,9 +1355,7 @@ class PersonalAssistant(
             and antivirus_settings.scan_raw_mail
             and antivirus_settings.scan_attachments
         ):
-            raise PermissionError(
-                "Mail-zu-Kalender-Vorschau benoetigt fail-closed Raw- und Attachment-Scan"
-            )
+            raise PermissionError("Mail-zu-Kalender-Vorschau benoetigt fail-closed Raw- und Attachment-Scan")
         message = self.mail_move_service.read_message(
             folder,
             message_id,
@@ -1446,9 +1437,7 @@ class PersonalAssistant(
         """Recompute one preview and create exactly one unchanged candidate."""
 
         if not approved:
-            raise PermissionError(
-                "Mail-zu-Kalender-Create benoetigt --yes nach der nativen Einzelfreigabe"
-            )
+            raise PermissionError("Mail-zu-Kalender-Create benoetigt --yes nach der nativen Einzelfreigabe")
         preview = self._calendar_mail_preview(
             folder=folder,
             message_id=message_id,
@@ -1836,8 +1825,7 @@ class PersonalAssistant(
             os.environ.get("OPENCLAW_ROLE", "agent-cli").strip(),
         )
         protected_gateway_configuration = bool(
-            os.environ.get("OPENCLAW_RUNTIME", "").strip() == "container"
-            and runtime_role != "agent-cli"
+            os.environ.get("OPENCLAW_RUNTIME", "").strip() == "container" and runtime_role != "agent-cli"
         )
         base_ok = bool(
             settings.enabled
@@ -2552,6 +2540,7 @@ class PersonalAssistant(
         discovery = self.discover_nextcloud(persist=self.role != "sync-worker")
         calendars = self.nextcloud_discovery.calendars()
         addressbooks = self.nextcloud_discovery.addressbooks()
+        batch_size = max(1, int(os.environ.get("OPENCLAW_SYNC_BATCH_SIZE", "100")))
         files = self.nextcloud_files.sync_index(
             self.storage,
             self.indexer,
@@ -2559,12 +2548,17 @@ class PersonalAssistant(
             roots=self.config.nextcloud.allowed_file_roots,
             max_items=self.config.search.nextcloud_max_items,
             max_depth=self.config.search.nextcloud_max_depth,
+            batch_size=batch_size,
         )
-        contacts = self.nextcloud_contacts.sync_index(self.storage, addressbooks)
-        events = self.nextcloud_calendar.sync_index(self.storage, calendars)
+        contacts = self.nextcloud_contacts.sync_index(self.storage, addressbooks, batch_size=batch_size)
+        events = self.nextcloud_calendar.sync_index(self.storage, calendars, batch_size=batch_size)
+        sections = (files, contacts, events)
+        resume_required = any(bool(section.get("resume_required")) for section in sections)
         return {
             "ok": bool(discovery.get("health", {}).get("ok"))
-            and all(int(section.get("errors") or 0) == 0 for section in (files, contacts, events)),
+            and all(int(section.get("errors") or 0) == 0 for section in sections),
+            "resume_required": resume_required,
+            "batch_size": batch_size,
             "discovery": discovery,
             "files": files,
             "contacts": contacts,
@@ -2572,16 +2566,18 @@ class PersonalAssistant(
         }
 
     def sync_all(self) -> dict[str, Any]:
-        mail = self.sync_mail()
-        projection = mail.get("projection", {})
-        result = {
-            "ok": bool(projection.get("published", True)),
-            "mail": mail,
-        }
+        result: dict[str, Any] = {"ok": True}
         try:
             nextcloud = self.sync_nextcloud()
             result["nextcloud"] = nextcloud
             result["ok"] = bool(result["ok"] and nextcloud.get("ok", True))
+            result["resume_required"] = bool(nextcloud.get("resume_required"))
+            if result["resume_required"]:
+                result["mail"] = {
+                    "skipped": "nextcloud-batch-resume-pending",
+                    "reason": "Scheduler-Ticket wird vor der Fortsetzung freigegeben",
+                }
+                return result
         except Exception as exc:
             result["ok"] = False
             result["nextcloud"] = {"ok": False, "error": str(exc)}
@@ -2589,6 +2585,12 @@ class PersonalAssistant(
                 self.log.warning("Nextcloud-Sync fehlgeschlagen: %s", exc)
             else:
                 self.storage.audit("sync.nextcloud_failed", {"error": str(exc)})
+            return result
+        mail = self.sync_mail()
+        projection = mail.get("projection", {})
+        result["mail"] = mail
+        result["ok"] = bool(result["ok"] and projection.get("published", True))
+        result["resume_required"] = False
         return result
 
     def capabilities(self) -> dict[str, Any]:

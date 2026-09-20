@@ -41,19 +41,19 @@ class WorkSchedulerTests(unittest.TestCase):
         self.scheduler.close()
         self.temp.cleanup()
 
-    def test_only_one_background_task_is_granted(self) -> None:
+    def test_time_critical_mail_precedes_normal_portfolio(self) -> None:
         portfolio = self.scheduler.enqueue("portfolio", owner="portfolio-worker")
         mail = self.scheduler.enqueue("mail", owner="mail-worker")
 
-        portfolio_claim = self.scheduler.claim(portfolio, owner="portfolio-worker")
         mail_claim = self.scheduler.claim(mail, owner="mail-worker")
+        portfolio_claim = self.scheduler.claim(portfolio, owner="portfolio-worker")
 
-        self.assertTrue(portfolio_claim.granted)
-        self.assertFalse(mail_claim.granted)
-        self.assertEqual(mail_claim.reason, "busy")
+        self.assertTrue(mail_claim.granted)
+        self.assertFalse(portfolio_claim.granted)
+        self.assertEqual(portfolio_claim.reason, "busy")
         snapshot = self.scheduler.snapshot()
-        self.assertEqual([item["job"] for item in snapshot["active"]], ["portfolio"])
-        self.assertEqual([item["job"] for item in snapshot["pending"]], ["mail"])
+        self.assertEqual([item["job"] for item in snapshot["active"]], ["mail"])
+        self.assertEqual([item["job"] for item in snapshot["pending"]], ["portfolio"])
 
     def test_concurrent_workers_cannot_both_acquire_the_single_slot(self) -> None:
         portfolio = self.scheduler.enqueue("portfolio", owner="portfolio-worker")
@@ -185,15 +185,10 @@ class WorkSchedulerTests(unittest.TestCase):
         )
 
     def test_cli_and_tool_registry_expose_scheduler(self) -> None:
-        parsed = parser().parse_args(
-            ["scheduler", "focus", "--topic", "portfolio", "--minutes", "15"]
-        )
+        parsed = parser().parse_args(["scheduler", "focus", "--topic", "portfolio", "--minutes", "15"])
         self.assertEqual(parsed.scheduler_command, "focus")
         self.assertEqual(parsed.topic, "portfolio")
-        ids = {
-            item.id
-            for item in build_tool_registry(ToolSettings(path=Path("tools.toml")))
-        }
+        ids = {item.id for item in build_tool_registry(ToolSettings(path=Path("tools.toml")))}
         self.assertIn("assistant.scheduler.status", ids)
         self.assertIn("assistant.scheduler.doctor", ids)
         self.assertIn("assistant.scheduler.activity", ids)

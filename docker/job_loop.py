@@ -17,6 +17,7 @@ from personal_assistant.run_contract import result_from_exit_code
 from personal_assistant.work_scheduler import AdaptiveWorkScheduler
 
 STOP = False
+BATCH_RESUME_EXIT_CODE = 75
 
 
 def now() -> str:
@@ -49,19 +50,36 @@ def config(
     mail_agent = str(image_root / "scripts/mail-agent.sh")
     if job == "mail":
         productive = [
-            mail_agent, "run", "--drain",
-            "--batch-size", os.environ.get("MAIL_DRAIN_BATCH_SIZE", "20"),
-            "--max-messages", os.environ.get("MAIL_MAX_MESSAGES", "500"),
-            "--max-runtime", os.environ.get("MAIL_MAX_RUNTIME", "2400"),
-            "--shutdown-reserve", os.environ.get("MAIL_SHUTDOWN_RESERVE", "180"),
-            "--max-batches", os.environ.get("MAIL_MAX_BATCHES", "100"),
+            mail_agent,
+            "run",
+            "--drain",
+            "--batch-size",
+            os.environ.get("MAIL_DRAIN_BATCH_SIZE", "20"),
+            "--max-messages",
+            os.environ.get("MAIL_MAX_MESSAGES", "500"),
+            "--max-runtime",
+            os.environ.get("MAIL_MAX_RUNTIME", "2400"),
+            "--shutdown-reserve",
+            os.environ.get("MAIL_SHUTDOWN_RESERVE", "180"),
+            "--max-batches",
+            os.environ.get("MAIL_MAX_BATCHES", "100"),
             "--no-digest",
         ]
         return (
             [
-                "python3", "-P", "-m", "personal_assistant.mail_owner_cycle",
-                "--image-root", str(image_root),
-                "--", "python3", "-P", "-m", "personal_assistant.mail_worker", "--", *productive,
+                "python3",
+                "-P",
+                "-m",
+                "personal_assistant.mail_owner_cycle",
+                "--image-root",
+                str(image_root),
+                "--",
+                "python3",
+                "-P",
+                "-m",
+                "personal_assistant.mail_worker",
+                "--",
+                *productive,
             ],
             int(os.environ.get("MAIL_INTERVAL_SECONDS", "1200")),
             int(os.environ.get("MAIL_INITIAL_DELAY_SECONDS", "120")),
@@ -82,6 +100,7 @@ def config(
             {
                 "OPENCLAW_ROLE": "sync-worker",
                 "OPENCLAW_SCHEDULER_SOURCE": "background-worker",
+                "OPENCLAW_BATCHED_JOB": "1",
             },
         )
     if job == "supervisor":
@@ -161,9 +180,8 @@ def main() -> int:
     log_dir.mkdir(parents=True, exist_ok=True)
 
     command, interval, initial_delay, default_on, extra_env = config(args.job, workspace, image_root)
-    scheduler = None if args.job == "supervisor" else AdaptiveWorkScheduler(
-        coordination / "work_scheduler.sqlite3"
-    )
+    scheduler_db = coordination / "work_scheduler.sqlite3"
+    scheduler = None if args.job == "supervisor" else AdaptiveWorkScheduler(scheduler_db)
     scheduler_owner = f"container:{args.job}:{socket.gethostname()}:{os.getpid()}"
     next_run = time.monotonic() + max(0, initial_delay)
     status: dict[str, Any] = {
@@ -176,6 +194,7 @@ def main() -> int:
         "consecutive_failures": 0,
     }
     atomic_json(heartbeat, status)
+    resume_parent_run_id = ""
 
     while not STOP:
         is_desired = desired(state_path, args.job, default_on)
@@ -207,6 +226,7 @@ def main() -> int:
                 args.job,
                 owner=scheduler_owner,
                 metadata={"runtime": "container", "interval_seconds": interval},
+                parent_run_id=resume_parent_run_id,
             )
             queue_aborted = False
             while not STOP:
@@ -248,6 +268,7 @@ def main() -> int:
 
         started = now()
         status.pop("scheduler_error", None)
+        status.pop("batch_resume_pending", None)
         status.update(
             state="running",
             updated_at=started,
@@ -310,7 +331,10 @@ def main() -> int:
             finished = now()
             log.write(f"[{finished}] END exit={code}\n".encode())
 
-        result_name = result_from_exit_code(code, interrupted=STOP or lease_lost)
+        batch_resume = code == BATCH_RESUME_EXIT_CODE and not STOP and not lease_lost
+        result_name = (
+            "completed" if batch_resume else result_from_exit_code(code, interrupted=STOP or lease_lost)
+        )
         if scheduler is not None and claim is not None:
             recorded = scheduler.finish(
                 claim.lease_token,
@@ -318,9 +342,9 @@ def main() -> int:
                 result=result_name,
                 exit_code=code,
                 error_code="lease-lost" if lease_lost else "",
-                detail="Worker beendet" if STOP else (
-                    "Scheduler-Lease konnte nicht erneuert werden" if lease_lost else ""
-                ),
+                detail="Worker beendet"
+                if STOP
+                else ("Scheduler-Lease konnte nicht erneuert werden" if lease_lost else ""),
             )
             if not recorded:
                 lease_lost = True
@@ -332,7 +356,7 @@ def main() -> int:
         if STOP or lease_lost:
             business_status = "interrupted"
             consecutive_failures = previous_failures + 1
-        elif code == 0:
+        elif code == 0 or batch_resume:
             business_status = "healthy"
             consecutive_failures = 0
         elif code == 1:
@@ -346,15 +370,21 @@ def main() -> int:
             updated_at=now(),
             last_finished_at=finished,
             last_exit_code=code,
-            result=result_from_exit_code(code, interrupted=STOP or lease_lost),
+            result=result_name,
             business_status=business_status,
             consecutive_failures=consecutive_failures,
             pid=None,
         )
         if code == 0:
             status["last_success_at"] = finished
+            resume_parent_run_id = ""
+        elif batch_resume:
+            status["batch_resume_pending"] = True
+            resume_parent_run_id = claim.run_id if claim is not None else ""
+        else:
+            resume_parent_run_id = ""
         atomic_json(heartbeat, status)
-        next_run = time.monotonic() + interval
+        next_run = time.monotonic() if batch_resume else time.monotonic() + interval
 
     status.update(state="stopped", updated_at=now())
     atomic_json(heartbeat, status)

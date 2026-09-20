@@ -147,8 +147,8 @@ def storage(tmp_path: Path):
 
 
 def test_schema_v5_has_content_keyed_embedding_table(storage: AssistantStorage) -> None:
-    assert KNOWLEDGE_SCHEMA_VERSION == 5
-    assert storage.knowledge_connection.execute("PRAGMA user_version").fetchone()[0] == 5
+    assert KNOWLEDGE_SCHEMA_VERSION == 6
+    assert storage.knowledge_connection.execute("PRAGMA user_version").fetchone()[0] == 6
     columns = {
         str(row[1])
         for row in storage.knowledge_connection.execute(
@@ -176,7 +176,7 @@ def test_schema_four_migrates_additively_to_embedding_schema(tmp_path: Path) -> 
 
     upgraded = AssistantStorage(database)
     try:
-        assert upgraded.knowledge_connection.execute("PRAGMA user_version").fetchone()[0] == 5
+        assert upgraded.knowledge_connection.execute("PRAGMA user_version").fetchone()[0] == 6
         assert upgraded.knowledge_connection.execute(
             "SELECT 1 FROM sqlite_master WHERE type='table' AND name='mail_search_embeddings'"
         ).fetchone()[0] == 1

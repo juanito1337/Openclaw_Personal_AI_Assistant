@@ -20,7 +20,7 @@ from .mail_threads import (
 from .models import ActionPlan, SearchResult
 
 CORE_SCHEMA_VERSION = 1
-KNOWLEDGE_SCHEMA_VERSION = 5
+KNOWLEDGE_SCHEMA_VERSION = 6
 # Compatibility export for callers that historically treated the combined
 # development database as the knowledge schema.
 SCHEMA_VERSION = KNOWLEDGE_SCHEMA_VERSION
@@ -55,13 +55,12 @@ class AssistantStorage:
         self.path = path.expanduser().resolve()
         self.enable_knowledge = enable_knowledge
         self.core_read_only = read_only
-        self.knowledge_read_only = (
-            read_only if knowledge_read_only is None else knowledge_read_only
-        )
+        self.knowledge_read_only = read_only if knowledge_read_only is None else knowledge_read_only
         knowledge_root = os.environ.get("OPENCLAW_KNOWLEDGE_DATA_DIR")
         self.knowledge_path = (
             Path(knowledge_root).expanduser().resolve() / "knowledge.sqlite3"
-            if enable_knowledge and knowledge_root else self.path
+            if enable_knowledge and knowledge_root
+            else self.path
         )
         self.connection = self._connect(self.path, read_only=read_only)
         if (
@@ -70,15 +69,11 @@ class AssistantStorage:
             and self.knowledge_read_only != self.core_read_only
         ):
             self.connection.close()
-            raise ValueError(
-                "Getrennte Lese-/Schreibmodi erfordern eine separate Wissensdatenbank"
-            )
+            raise ValueError("Getrennte Lese-/Schreibmodi erfordern eine separate Wissensdatenbank")
         self.knowledge_connection = (
             self.connection
             if self.knowledge_path == self.path
-            else self._connect(
-                self.knowledge_path, read_only=self.knowledge_read_only
-            )
+            else self._connect(self.knowledge_path, read_only=self.knowledge_read_only)
         )
         if self.enable_knowledge and self.knowledge_read_only:
             self.fts_enabled = bool(
@@ -88,16 +83,13 @@ class AssistantStorage:
             )
             self.mail_search_fts_enabled = bool(
                 self.knowledge_connection.execute(
-                    "SELECT 1 FROM sqlite_master "
-                    "WHERE type='table' AND name='mail_search_fts'"
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='mail_search_fts'"
                 ).fetchone()
             )
         else:
             self.fts_enabled = False
             self.mail_search_fts_enabled = False
-        if not self.core_read_only or (
-            self.enable_knowledge and not self.knowledge_read_only
-        ):
+        if not self.core_read_only or (self.enable_knowledge and not self.knowledge_read_only):
             self._migrate()
 
     @staticmethod
@@ -126,6 +118,7 @@ class AssistantStorage:
 
         required_tables = {
             "sync_state",
+            "sync_inventory",
             "documents",
             "chunks",
             "knowledge_fts",
@@ -162,9 +155,7 @@ class AssistantStorage:
         for table, expected in required_columns.items():
             columns = {
                 str(row[1])
-                for row in self.knowledge_connection.execute(
-                    f"PRAGMA table_info({table})"
-                ).fetchall()
+                for row in self.knowledge_connection.execute(f"PRAGMA table_info({table})").fetchall()
             }
             if not expected <= columns:
                 return False
@@ -179,15 +170,12 @@ class AssistantStorage:
         if not self.core_read_only:
             core_target = (
                 KNOWLEDGE_SCHEMA_VERSION
-                if self.enable_knowledge
-                and self.knowledge_connection is self.connection
+                if self.enable_knowledge and self.knowledge_connection is self.connection
                 else CORE_SCHEMA_VERSION
             )
             current = int(self.connection.execute("PRAGMA user_version").fetchone()[0])
             if current > core_target:
-                raise RuntimeError(
-                    f"Assistant-Datenbankschema {current} ist neuer als {core_target}"
-                )
+                raise RuntimeError(f"Assistant-Datenbankschema {current} ist neuer als {core_target}")
             self.connection.executescript(
                 """
             CREATE TABLE IF NOT EXISTS resources (
@@ -241,19 +229,13 @@ class AssistantStorage:
         knowledge_version = (
             combined_knowledge_version
             if combined_knowledge_version is not None
-            else int(
-                self.knowledge_connection.execute("PRAGMA user_version").fetchone()[0]
-            )
+            else int(self.knowledge_connection.execute("PRAGMA user_version").fetchone()[0])
         )
         if knowledge_version > KNOWLEDGE_SCHEMA_VERSION:
             raise RuntimeError(
-                "Wissensdatenbankschema "
-                f"{knowledge_version} ist neuer als {KNOWLEDGE_SCHEMA_VERSION}"
+                f"Wissensdatenbankschema {knowledge_version} ist neuer als {KNOWLEDGE_SCHEMA_VERSION}"
             )
-        if (
-            knowledge_version == KNOWLEDGE_SCHEMA_VERSION
-            and self._knowledge_schema_is_current()
-        ):
+        if knowledge_version == KNOWLEDGE_SCHEMA_VERSION and self._knowledge_schema_is_current():
             self.fts_enabled = True
             self.mail_search_fts_enabled = True
             return
@@ -269,6 +251,22 @@ class AssistantStorage:
                 detail TEXT,
                 PRIMARY KEY(resource_id, scope)
             );
+            CREATE TABLE IF NOT EXISTS sync_inventory (
+                resource_id TEXT NOT NULL,
+                scope TEXT NOT NULL,
+                remote_id TEXT NOT NULL,
+                source_id TEXT NOT NULL,
+                source_type TEXT NOT NULL,
+                etag TEXT NOT NULL DEFAULT '',
+                modified_at TEXT NOT NULL DEFAULT '',
+                sha256 TEXT NOT NULL DEFAULT '',
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY(resource_id, scope, remote_id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_sync_inventory_source
+                ON sync_inventory(resource_id,source_id);
+            CREATE INDEX IF NOT EXISTS idx_sync_inventory_etag
+                ON sync_inventory(resource_id,scope,etag);
             CREATE TABLE IF NOT EXISTS documents (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 source_type TEXT NOT NULL,
@@ -426,9 +424,7 @@ class AssistantStorage:
         )
         document_columns = {
             str(row[1])
-            for row in self.knowledge_connection.execute(
-                "PRAGMA table_info(documents)"
-            ).fetchall()
+            for row in self.knowledge_connection.execute("PRAGMA table_info(documents)").fetchall()
         }
         additive_columns = {
             "content_id": "TEXT",
@@ -438,14 +434,10 @@ class AssistantStorage:
         }
         for name, declaration in additive_columns.items():
             if name not in document_columns:
-                self.knowledge_connection.execute(
-                    f"ALTER TABLE documents ADD COLUMN {name} {declaration}"
-                )
+                self.knowledge_connection.execute(f"ALTER TABLE documents ADD COLUMN {name} {declaration}")
         tag_columns = {
             str(row[1])
-            for row in self.knowledge_connection.execute(
-                "PRAGMA table_info(mail_search_tags)"
-            ).fetchall()
+            for row in self.knowledge_connection.execute("PRAGMA table_info(mail_search_tags)").fetchall()
         }
         for name, declaration in {
             "active": "INTEGER NOT NULL DEFAULT 1",
@@ -457,14 +449,11 @@ class AssistantStorage:
                 )
         content_columns = {
             str(row[1])
-            for row in self.knowledge_connection.execute(
-                "PRAGMA table_info(mail_search_contents)"
-            ).fetchall()
+            for row in self.knowledge_connection.execute("PRAGMA table_info(mail_search_contents)").fetchall()
         }
         if "retrieval_text_version" not in content_columns:
             self.knowledge_connection.execute(
-                "ALTER TABLE mail_search_contents "
-                "ADD COLUMN retrieval_text_version TEXT NOT NULL DEFAULT ''"
+                "ALTER TABLE mail_search_contents ADD COLUMN retrieval_text_version TEXT NOT NULL DEFAULT ''"
             )
         edge_columns = {
             str(row[1])
@@ -492,8 +481,7 @@ class AssistantStorage:
             self.fts_enabled = False
         mail_fts_existed = bool(
             self.knowledge_connection.execute(
-                "SELECT 1 FROM sqlite_master "
-                "WHERE type='table' AND name='mail_search_fts'"
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='mail_search_fts'"
             ).fetchone()
         )
         try:
@@ -541,9 +529,7 @@ class AssistantStorage:
                         ),
                     )
             elif knowledge_version < 4:
-                rows = self.knowledge_connection.execute(
-                    "SELECT id,text FROM chunks ORDER BY id"
-                ).fetchall()
+                rows = self.knowledge_connection.execute("SELECT id,text FROM chunks ORDER BY id").fetchall()
                 for row in rows:
                     self.knowledge_connection.execute(
                         "UPDATE mail_search_fts SET body=? WHERE rowid=?",
@@ -558,18 +544,14 @@ class AssistantStorage:
             )
         except sqlite3.OperationalError:
             self.mail_search_fts_enabled = False
-        self.knowledge_connection.execute(
-            f"PRAGMA user_version={KNOWLEDGE_SCHEMA_VERSION}"
-        )
+        self.knowledge_connection.execute(f"PRAGMA user_version={KNOWLEDGE_SCHEMA_VERSION}")
         self.knowledge_connection.commit()
 
     def integrity(self) -> str:
         core = str(self.connection.execute("PRAGMA integrity_check").fetchone()[0])
         if not self.enable_knowledge:
             return core
-        knowledge = str(
-            self.knowledge_connection.execute("PRAGMA integrity_check").fetchone()[0]
-        )
+        knowledge = str(self.knowledge_connection.execute("PRAGMA integrity_check").fetchone()[0])
         return "ok" if core == knowledge == "ok" else f"core={core}; knowledge={knowledge}"
 
     def audit(
@@ -605,19 +587,17 @@ class AssistantStorage:
                 previous_detail = json.loads(str(previous["detail"] or "{}"))
             except json.JSONDecodeError:
                 previous_detail = {}
-            if isinstance(previous_detail, dict) and isinstance(
-                previous_detail.get("runtime"), dict
-            ):
+            if isinstance(previous_detail, dict) and isinstance(previous_detail.get("runtime"), dict):
                 previous_runtime = dict(previous_detail["runtime"])
 
         clean_status = str(status or "").strip().casefold()
         successful = clean_status in {"ok", "completed", "skipped-not-due"}
-        last_successful_check_at = str(
-            previous_runtime.get("last_successful_check_at") or ""
-        )
-        if not last_successful_check_at and previous is not None and str(
-            previous["status"] or ""
-        ).casefold() == "ok":
+        last_successful_check_at = str(previous_runtime.get("last_successful_check_at") or "")
+        if (
+            not last_successful_check_at
+            and previous is not None
+            and str(previous["status"] or "").casefold() == "ok"
+        ):
             last_successful_check_at = str(previous["synced_at"] or "")
         if successful:
             last_successful_check_at = checked_at
@@ -633,6 +613,7 @@ class AssistantStorage:
             "degraded": "degraded",
             "interrupted": "interrupted",
             "blocked": "blocked",
+            "in-progress": "in-progress",
         }.get(clean_status, "failed")
         try:
             detail_payload = json.loads(detail) if detail else {}
@@ -677,6 +658,213 @@ class AssistantStorage:
         return self.knowledge_connection.execute(
             "SELECT * FROM documents WHERE resource_id=? AND source_id=?", (resource_id, source_id)
         ).fetchone()
+
+    def get_sync_inventory(
+        self,
+        resource_id: str,
+        scope: str,
+        remote_id: str,
+    ) -> sqlite3.Row | None:
+        return self.knowledge_connection.execute(
+            "SELECT * FROM sync_inventory WHERE resource_id=? AND scope=? AND remote_id=?",
+            (resource_id, scope, remote_id),
+        ).fetchone()
+
+    def find_sync_inventory_by_etag(
+        self,
+        resource_id: str,
+        scope: str,
+        etag: str,
+    ) -> sqlite3.Row | None:
+        clean_etag = str(etag or "").strip()
+        if not clean_etag:
+            return None
+        rows = self.knowledge_connection.execute(
+            "SELECT * FROM sync_inventory "
+            "WHERE resource_id=? AND scope=? AND etag=? ORDER BY remote_id LIMIT 2",
+            (resource_id, scope, clean_etag),
+        ).fetchall()
+        return rows[0] if len(rows) == 1 else None
+
+    def upsert_sync_inventory(
+        self,
+        *,
+        resource_id: str,
+        scope: str,
+        remote_id: str,
+        source_id: str,
+        source_type: str,
+        etag: str = "",
+        modified_at: str = "",
+        sha256: str = "",
+    ) -> None:
+        self.knowledge_connection.execute(
+            """
+            INSERT INTO sync_inventory(
+                resource_id,scope,remote_id,source_id,source_type,etag,
+                modified_at,sha256,updated_at
+            ) VALUES(?,?,?,?,?,?,?,?,?)
+            ON CONFLICT(resource_id,scope,remote_id) DO UPDATE SET
+                source_id=excluded.source_id,source_type=excluded.source_type,
+                etag=excluded.etag,modified_at=excluded.modified_at,
+                sha256=excluded.sha256,updated_at=excluded.updated_at
+            """,
+            (
+                resource_id,
+                scope,
+                remote_id,
+                source_id,
+                source_type,
+                etag,
+                modified_at,
+                sha256,
+                now_utc_iso(),
+            ),
+        )
+        self.knowledge_connection.commit()
+
+    def move_sync_inventory(
+        self,
+        *,
+        resource_id: str,
+        scope: str,
+        previous_remote_id: str,
+        remote_id: str,
+        source_id: str,
+        source_type: str,
+        etag: str = "",
+        modified_at: str = "",
+    ) -> None:
+        with self.knowledge_connection:
+            self.knowledge_connection.execute(
+                "DELETE FROM sync_inventory WHERE resource_id=? AND scope=? AND remote_id=?",
+                (resource_id, scope, previous_remote_id),
+            )
+            self.knowledge_connection.execute(
+                """
+                INSERT INTO sync_inventory(
+                    resource_id,scope,remote_id,source_id,source_type,etag,
+                    modified_at,sha256,updated_at
+                ) VALUES(?,?,?,?,?,?,?,?,?)
+                ON CONFLICT(resource_id,scope,remote_id) DO UPDATE SET
+                    source_id=excluded.source_id,source_type=excluded.source_type,
+                    etag=excluded.etag,modified_at=excluded.modified_at,
+                    updated_at=excluded.updated_at
+                """,
+                (
+                    resource_id,
+                    scope,
+                    remote_id,
+                    source_id,
+                    source_type,
+                    etag,
+                    modified_at,
+                    "",
+                    now_utc_iso(),
+                ),
+            )
+
+    def update_document_locator(
+        self,
+        *,
+        resource_id: str,
+        source_id: str,
+        new_source_id: str | None = None,
+        uri: str | None = None,
+        title: str | None = None,
+        modified_at: str | None = None,
+        etag: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> bool:
+        row = self.get_document(resource_id, source_id)
+        if row is None:
+            return False
+        target_source_id = str(new_source_id or source_id)
+        if target_source_id != source_id and self.get_document(resource_id, target_source_id):
+            raise RuntimeError("Zielobjekt fuer inkrementellen Move existiert bereits")
+        target_title = str(title if title is not None else row["title"] or "")
+        target_metadata = (
+            json.dumps(metadata, ensure_ascii=False)
+            if metadata is not None
+            else str(row["metadata_json"] or "{}")
+        )
+        with self.knowledge_connection:
+            self.knowledge_connection.execute(
+                """
+                UPDATE documents SET source_id=?,uri=?,title=?,modified_at=?,etag=?,
+                    metadata_json=?,indexed_at=?
+                WHERE id=?
+                """,
+                (
+                    target_source_id,
+                    str(uri if uri is not None else row["uri"] or ""),
+                    target_title,
+                    str(modified_at if modified_at is not None else row["modified_at"] or ""),
+                    str(etag if etag is not None else row["etag"] or ""),
+                    target_metadata,
+                    now_utc_iso(),
+                    int(row["id"]),
+                ),
+            )
+            if self.fts_enabled:
+                chunk_rows = self.knowledge_connection.execute(
+                    "SELECT id FROM chunks WHERE document_id=?",
+                    (int(row["id"]),),
+                ).fetchall()
+                for chunk in chunk_rows:
+                    self.knowledge_connection.execute(
+                        "UPDATE knowledge_fts SET title=? WHERE rowid=?",
+                        (target_title, int(chunk["id"])),
+                    )
+        return True
+
+    def reconcile_sync_inventory(
+        self,
+        *,
+        resource_id: str,
+        scope: str,
+        remote_ids: set[str],
+    ) -> int:
+        """Remove stale local projections only after an authoritative snapshot."""
+
+        rows = self.knowledge_connection.execute(
+            "SELECT remote_id,source_id FROM sync_inventory WHERE resource_id=? AND scope=?",
+            (resource_id, scope),
+        ).fetchall()
+        stale = [row for row in rows if str(row["remote_id"]) not in remote_ids]
+        removed = 0
+        with self.knowledge_connection:
+            for row in stale:
+                source_id = str(row["source_id"])
+                still_referenced = self.knowledge_connection.execute(
+                    "SELECT 1 FROM sync_inventory "
+                    "WHERE resource_id=? AND source_id=? AND NOT (scope=? AND remote_id=?) "
+                    "LIMIT 1",
+                    (resource_id, source_id, scope, str(row["remote_id"])),
+                ).fetchone()
+                if still_referenced is None:
+                    document = self.get_document(resource_id, source_id)
+                    if document is not None:
+                        chunk_rows = self.knowledge_connection.execute(
+                            "SELECT id FROM chunks WHERE document_id=?",
+                            (int(document["id"]),),
+                        ).fetchall()
+                        if self.fts_enabled:
+                            for chunk in chunk_rows:
+                                self.knowledge_connection.execute(
+                                    "DELETE FROM knowledge_fts WHERE rowid=?",
+                                    (int(chunk["id"]),),
+                                )
+                        self.knowledge_connection.execute(
+                            "DELETE FROM documents WHERE id=?",
+                            (int(document["id"]),),
+                        )
+                        removed += 1
+                self.knowledge_connection.execute(
+                    "DELETE FROM sync_inventory WHERE resource_id=? AND scope=? AND remote_id=?",
+                    (resource_id, scope, str(row["remote_id"])),
+                )
+        return removed
 
     def index_document(
         self,
@@ -750,9 +938,7 @@ class AssistantStorage:
                 self.knowledge_connection.execute(
                     "DELETE FROM mail_search_fts WHERE rowid=?", (int(old["id"]),)
                 )
-        self.knowledge_connection.execute(
-            "DELETE FROM chunks WHERE document_id=?", (document_id,)
-        )
+        self.knowledge_connection.execute("DELETE FROM chunks WHERE document_id=?", (document_id,))
         for index, text in enumerate(chunks):
             cursor = self.knowledge_connection.execute(
                 "INSERT INTO chunks(document_id,chunk_index,text) VALUES(?,?,?)",
@@ -819,36 +1005,24 @@ class AssistantStorage:
             "tag_rows_changed": 0,
             "thread_rows_changed": 0,
             "thread_count": len(thread_build.threads),
-            "thread_uncertain": sum(
-                int(bool(item["uncertain"])) for item in thread_build.threads
-            ),
-            "thread_cycle_rejections": int(
-                thread_build.diagnostics["cycle_rejections"]
-            ),
+            "thread_uncertain": sum(int(bool(item["uncertain"])) for item in thread_build.threads),
+            "thread_cycle_rejections": int(thread_build.diagnostics["cycle_rejections"]),
         }
 
         def remove_chunks(document_id: int) -> int:
-            rows = connection.execute(
-                "SELECT id FROM chunks WHERE document_id=?", (document_id,)
-            ).fetchall()
+            rows = connection.execute("SELECT id FROM chunks WHERE document_id=?", (document_id,)).fetchall()
             if self.fts_enabled:
                 for row in rows:
-                    connection.execute(
-                        "DELETE FROM knowledge_fts WHERE rowid=?", (int(row["id"]),)
-                    )
+                    connection.execute("DELETE FROM knowledge_fts WHERE rowid=?", (int(row["id"]),))
             if self.mail_search_fts_enabled:
                 for row in rows:
-                    connection.execute(
-                        "DELETE FROM mail_search_fts WHERE rowid=?", (int(row["id"]),)
-                    )
+                    connection.execute("DELETE FROM mail_search_fts WHERE rowid=?", (int(row["id"]),))
             connection.execute("DELETE FROM chunks WHERE document_id=?", (document_id,))
             return len(rows)
 
         current_content_ids = {str(item["content_id"]) for item in records}
         current_occurrence_ids = {
-            str(occurrence_id)
-            for item in records
-            for occurrence_id in item.get("occurrence_ids", [])
+            str(occurrence_id) for item in records for occurrence_id in item.get("occurrence_ids", [])
         }
         with connection:
             connection.execute(
@@ -956,9 +1130,7 @@ class AssistantStorage:
                         ),
                     )
 
-                connection.execute(
-                    "DELETE FROM mail_search_tags WHERE content_id=?", (content_id,)
-                )
+                connection.execute("DELETE FROM mail_search_tags WHERE content_id=?", (content_id,))
                 for tag in build_mail_tags(metadata):
                     connection.execute(
                         """
@@ -1034,17 +1206,12 @@ class AssistantStorage:
                             (int(existing["id"]),),
                         ).fetchall()
                         for chunk in chunk_rows:
-                            normalized_body = normalize_retrieval_text(
-                                str(chunk["text"] or "")
-                            ).text
+                            normalized_body = normalize_retrieval_text(str(chunk["text"] or "")).text
                             current_fts = connection.execute(
                                 "SELECT body FROM mail_search_fts WHERE rowid=?",
                                 (int(chunk["id"]),),
                             ).fetchone()
-                            if (
-                                current_fts is not None
-                                and str(current_fts["body"] or "") != normalized_body
-                            ):
+                            if current_fts is not None and str(current_fts["body"] or "") != normalized_body:
                                 connection.execute(
                                     "UPDATE mail_search_fts SET body=? WHERE rowid=?",
                                     (normalized_body, int(chunk["id"])),
@@ -1066,12 +1233,19 @@ class AssistantStorage:
                         ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                         """,
                         (
-                            "email", "mail-agent", content_id,
+                            "email",
+                            "mail-agent",
+                            content_id,
                             f"mail-agent://{content_id}",
                             str(item.get("title") or "(ohne Betreff)"),
-                            "message/rfc822", str(item.get("modified_at") or generated_at),
-                            "", str(item.get("sha256") or ""), metadata_json, timestamp,
-                            content_id, generation,
+                            "message/rfc822",
+                            str(item.get("modified_at") or generated_at),
+                            "",
+                            str(item.get("sha256") or ""),
+                            metadata_json,
+                            timestamp,
+                            content_id,
+                            generation,
                             str(metadata.get("source_status") or "active"),
                             str(metadata.get("embedding_version") or "") or None,
                         ),
@@ -1093,9 +1267,13 @@ class AssistantStorage:
                         (
                             f"mail-agent://{content_id}",
                             str(item.get("title") or "(ohne Betreff)"),
-                            "message/rfc822", str(item.get("modified_at") or generated_at),
-                            str(item.get("sha256") or ""), metadata_json, timestamp,
-                            content_id, generation,
+                            "message/rfc822",
+                            str(item.get("modified_at") or generated_at),
+                            str(item.get("sha256") or ""),
+                            metadata_json,
+                            timestamp,
+                            content_id,
+                            generation,
                             str(metadata.get("source_status") or "active"),
                             str(metadata.get("embedding_version") or "") or None,
                             document_id,
@@ -1183,10 +1361,15 @@ class AssistantStorage:
                     ) VALUES(?,?,?,?,?,?,?,?,?)
                     """,
                     (
-                        edge["content_id"], edge["edge_type"],
-                        edge["relation_message_id"], edge["related_content_id"],
-                        edge["evidence_header"], int(bool(edge["selected"])),
-                        edge["certainty"], edge["reason"], edge["index_generation"],
+                        edge["content_id"],
+                        edge["edge_type"],
+                        edge["relation_message_id"],
+                        edge["related_content_id"],
+                        edge["evidence_header"],
+                        int(bool(edge["selected"])),
+                        edge["certainty"],
+                        edge["reason"],
+                        edge["index_generation"],
                     ),
                 )
                 metrics["thread_rows_changed"] += 1
@@ -1199,10 +1382,14 @@ class AssistantStorage:
                     ) VALUES(?,?,?,?,?,?,?,?)
                     """,
                     (
-                        thread["thread_id"], thread["root_content_id"],
-                        thread["thread_version"], thread["member_count"],
-                        thread["first_at"], thread["last_at"],
-                        int(bool(thread["uncertain"])), thread["index_generation"],
+                        thread["thread_id"],
+                        thread["root_content_id"],
+                        thread["thread_version"],
+                        thread["member_count"],
+                        thread["first_at"],
+                        thread["last_at"],
+                        int(bool(thread["uncertain"])),
+                        thread["index_generation"],
                     ),
                 )
                 metrics["thread_rows_changed"] += 1
@@ -1215,9 +1402,12 @@ class AssistantStorage:
                     ) VALUES(?,?,?,?,?,?,?)
                     """,
                     (
-                        member["content_id"], member["thread_id"],
-                        member["parent_content_id"], member["evidence_type"],
-                        member["certainty"], member["position"],
+                        member["content_id"],
+                        member["thread_id"],
+                        member["parent_content_id"],
+                        member["evidence_type"],
+                        member["certainty"],
+                        member["position"],
                         member["index_generation"],
                     ),
                 )
@@ -1251,7 +1441,12 @@ class AssistantStorage:
                 ) VALUES(?,?,?,?,?,?,?)
                 """,
                 (
-                    generation, 2, generated_at, timestamp, 1, "active",
+                    generation,
+                    2,
+                    generated_at,
+                    timestamp,
+                    1,
+                    "active",
                     json.dumps(coverage, ensure_ascii=False),
                 ),
             )
@@ -1402,19 +1597,20 @@ class AssistantStorage:
                 metadata = json.loads(str(row["metadata_json"] or "{}"))
             except json.JSONDecodeError:
                 metadata = {}
-            results.append(SearchResult(
-                document_id=int(row["id"]),
-                source_type=str(row["source_type"]),
-                resource_id=str(row["resource_id"]),
-                source_id=str(row["source_id"]),
-                title=str(row["title"]),
-                uri=str(row["uri"]),
-                snippet=snippet,
-                score=float(-row["rank"] if row["rank"] is not None else 0.0),
-                metadata=metadata,
-            ))
+            results.append(
+                SearchResult(
+                    document_id=int(row["id"]),
+                    source_type=str(row["source_type"]),
+                    resource_id=str(row["resource_id"]),
+                    source_id=str(row["source_id"]),
+                    title=str(row["title"]),
+                    uri=str(row["uri"]),
+                    snippet=snippet,
+                    score=float(-row["rank"] if row["rank"] is not None else 0.0),
+                    metadata=metadata,
+                )
+            )
         return results
-
 
     def _search_like(self, query: str, params: list[Any], where_extra: str, limit: int) -> list[sqlite3.Row]:
         pattern = f"%{query}%"
@@ -1424,9 +1620,7 @@ class AssistantStorage:
             WHERE (c.text LIKE ? OR d.title LIKE ?) {where_extra}
             ORDER BY d.modified_at DESC, d.id DESC LIMIT ?
         """
-        return self.knowledge_connection.execute(
-            sql, [pattern, pattern, *params, limit]
-        ).fetchall()
+        return self.knowledge_connection.execute(sql, [pattern, pattern, *params, limit]).fetchall()
 
     def create_action(
         self,
@@ -1449,9 +1643,16 @@ class AssistantStorage:
                 ) VALUES(?,?,?,?,?,?,?,?,?,?)
                 """,
                 (
-                    action_id, idempotency_key, action_type, resource_id,
-                    json.dumps(payload, ensure_ascii=False), status,
-                    int(requires_approval), timestamp, timestamp, "",
+                    action_id,
+                    idempotency_key,
+                    action_type,
+                    resource_id,
+                    json.dumps(payload, ensure_ascii=False),
+                    status,
+                    int(requires_approval),
+                    timestamp,
+                    timestamp,
+                    "",
                 ),
             )
             row = self.connection.execute(

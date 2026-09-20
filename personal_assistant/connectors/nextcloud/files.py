@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import posixpath
 import re
 import urllib.parse
 from dataclasses import dataclass
 from pathlib import PurePosixPath
+from typing import Any
 
 from ...config import AssistantConfig
+from ...incremental_sync import RemoteObject, StageTelemetry, plan_batch
 from ...knowledge import KnowledgeIndexer
 from ...storage import AssistantStorage
 from .client import NextcloudClient, NextcloudError
@@ -33,6 +36,7 @@ class NextcloudFiles:
         "Nettobetrag;USt-Betrag;Bruttobetrag;Währung;Fälligkeitsdatum;Erkennung;Konfidenz;"
         "Nextcloud-Pfad;Originaldatei;SHA256"
     )
+
     def __init__(self, config: AssistantConfig, client: NextcloudClient) -> None:
         self.config = config
         self.client = client
@@ -53,7 +57,9 @@ class NextcloudFiles:
         clean = self.clean_path(path)
         target = self.files_root() + self._quote(clean)
         body = b"""<?xml version='1.0' encoding='utf-8'?>
-<d:propfind xmlns:d='DAV:'><d:prop><d:displayname/><d:resourcetype/><d:getcontenttype/><d:getcontentlength/><d:getetag/><d:getlastmodified/></d:prop></d:propfind>"""
+<d:propfind xmlns:d='DAV:'><d:prop><d:displayname/><d:resourcetype/>
+<d:getcontenttype/><d:getcontentlength/><d:getetag/><d:getlastmodified/>
+</d:prop></d:propfind>"""
         response = self.client.request("PROPFIND", target, data=body, headers={"Depth": "1"}, expected={207})
         items: list[RemoteFile] = []
         normalized_target = urllib.parse.urlparse(response.url).path.rstrip("/") + "/"
@@ -69,16 +75,18 @@ class NextcloudFiles:
                 size = int(item.properties.get(q(DAV, "getcontentlength"), "0") or 0)
             except ValueError:
                 size = 0
-            items.append(RemoteFile(
-                href=item.href,
-                path=relative,
-                name=name,
-                is_collection=is_collection,
-                content_type=item.properties.get(q(DAV, "getcontenttype"), ""),
-                size=size,
-                etag=item.properties.get(q(DAV, "getetag"), "").strip('"'),
-                modified_at=item.properties.get(q(DAV, "getlastmodified"), ""),
-            ))
+            items.append(
+                RemoteFile(
+                    href=item.href,
+                    path=relative,
+                    name=name,
+                    is_collection=is_collection,
+                    content_type=item.properties.get(q(DAV, "getcontenttype"), ""),
+                    size=size,
+                    etag=item.properties.get(q(DAV, "getetag"), "").strip('"'),
+                    modified_at=item.properties.get(q(DAV, "getlastmodified"), ""),
+                )
+            )
         return items
 
     def download(self, path: str, *, expected_etag: str = "") -> bytes:
@@ -95,9 +103,7 @@ class NextcloudFiles:
             expected={200, 412} if etag else {200},
         )
         if response.status == 412:
-            raise NextcloudError(
-                "Nextcloud-Datei wurde seit der Auswahl geaendert; bitte erneut auflisten"
-            )
+            raise NextcloudError("Nextcloud-Datei wurde seit der Auswahl geaendert; bitte erneut auflisten")
         return response.data
 
     def exists(self, path: str) -> bool:
@@ -215,7 +221,6 @@ class NextcloudFiles:
                 f"Rechnungsregister-Upload fehlgeschlagen: HTTP {response.status} {response.reason}"
             )
 
-
     def move_new(self, source: str, destination: str) -> None:
         source_clean = self.clean_path(source)
         destination_clean = self.clean_path(destination)
@@ -235,9 +240,7 @@ class NextcloudFiles:
         if response.status not in {201, 204}:
             if response.status == 412:
                 raise NextcloudError("Ziel existiert bereits; Ueberschreiben ist verboten")
-            raise NextcloudError(
-                f"Verschieben fehlgeschlagen: HTTP {response.status} {response.reason}"
-            )
+            raise NextcloudError(f"Verschieben fehlgeschlagen: HTTP {response.status} {response.reason}")
 
     def sync_index(
         self,
@@ -248,11 +251,27 @@ class NextcloudFiles:
         roots: tuple[str, ...],
         max_items: int,
         max_depth: int,
-    ) -> dict[str, int]:
-        stats = {"folders": 0, "files": 0, "indexed": 0, "unchanged": 0, "skipped_large": 0, "errors": 0}
+        batch_size: int = 100,
+    ) -> dict[str, Any]:
+        stats: dict[str, Any] = {
+            "folders": 0,
+            "files": 0,
+            "indexed": 0,
+            "unchanged": 0,
+            "moved": 0,
+            "removed": 0,
+            "skipped_large": 0,
+            "errors": 0,
+            "resume_required": False,
+            "cursor_reset": False,
+            "authoritative": False,
+        }
+        telemetry = StageTelemetry()
+        telemetry.start("discovery")
         queue: list[tuple[str, int]] = [(self.clean_path(root), 0) for root in roots]
         seen: set[str] = set()
-        while queue and stats["files"] < max_items:
+        remote_files: list[RemoteFile] = []
+        while queue and len(remote_files) < max_items:
             folder, depth = queue.pop(0)
             if folder in seen or depth > max_depth:
                 continue
@@ -260,50 +279,162 @@ class NextcloudFiles:
             try:
                 entries = self.list_folder(folder)
             except Exception as exc:
-                stats["errors"] += 1
-                storage.audit("nextcloud.files.list_failed", {"path": folder, "error": str(exc)}, resource_id=resource_id)
+                stats["errors"] = int(stats["errors"]) + 1
+                if not storage.core_read_only:
+                    storage.audit(
+                        "nextcloud.files.list_failed",
+                        {"path": folder, "error": str(exc)},
+                        resource_id=resource_id,
+                    )
                 continue
-            stats["folders"] += 1
+            stats["folders"] = int(stats["folders"]) + 1
             for entry in entries:
                 if entry.is_collection:
                     if depth < max_depth:
                         queue.append((entry.path, depth + 1))
                     continue
-                stats["files"] += 1
+                remote_files.append(entry)
+                stats["files"] = int(stats["files"]) + 1
                 if entry.size > self.config.search.max_file_bytes:
-                    stats["skipped_large"] += 1
-                    continue
-                existing = storage.get_document(resource_id, entry.path)
-                if existing and entry.etag and str(existing["etag"] or "") == entry.etag:
-                    stats["unchanged"] += 1
-                    continue
-                try:
-                    data = self.download(entry.path)
-                    changed = indexer.index_binary_document(
-                        resource_id=resource_id,
-                        source_type="nextcloud-file",
-                        source_id=entry.path,
-                        uri=self.client.validate_url() + entry.href,
-                        title=entry.name,
-                        filename=entry.name,
-                        data=data,
-                        mime_type=entry.content_type,
-                        modified_at=entry.modified_at,
-                        etag=entry.etag,
-                        metadata={"path": entry.path, "size": entry.size},
-                    )
-                    stats["indexed" if changed else "unchanged"] += 1
-                except Exception as exc:
-                    stats["errors"] += 1
-                    storage.audit("nextcloud.file.index_failed", {"path": entry.path, "error": str(exc)}, resource_id=resource_id)
-                if stats["files"] >= max_items:
+                    stats["skipped_large"] = int(stats["skipped_large"]) + 1
+                if len(remote_files) >= max_items:
                     break
+        telemetry.stop("discovery")
+        authoritative = not queue and int(stats["errors"]) == 0
+        stats["authoritative"] = authoritative
+        state = storage.get_sync_state(resource_id, "files")
+        plan = plan_batch(
+            [RemoteObject(item.path, item.etag, item.modified_at) for item in remote_files],
+            cursor=str(state["cursor"] or "") if state is not None else "",
+            batch_size=batch_size,
+        )
+        stats["resume_required"] = plan.resume_required
+        stats["cursor_reset"] = plan.cursor_reset
+        by_path = {item.path: item for item in remote_files}
+        batch_errors = 0
+        for remote in plan.objects:
+            entry = by_path[remote.remote_id]
+            if entry.size > self.config.search.max_file_bytes:
+                continue
+            telemetry.start("metadata_compare")
+            inventory = storage.get_sync_inventory(resource_id, "files", entry.path)
+            existing = storage.get_document(resource_id, entry.path)
+            if entry.etag and (
+                inventory is not None
+                and str(inventory["etag"] or "") == entry.etag
+                or existing is not None
+                and str(existing["etag"] or "") == entry.etag
+            ):
+                if inventory is None:
+                    storage.upsert_sync_inventory(
+                        resource_id=resource_id,
+                        scope="files",
+                        remote_id=entry.path,
+                        source_id=entry.path,
+                        source_type="nextcloud-file",
+                        etag=entry.etag,
+                        modified_at=entry.modified_at,
+                    )
+                stats["unchanged"] = int(stats["unchanged"]) + 1
+                telemetry.add("metadata_hits")
+                telemetry.stop("metadata_compare")
+                continue
+            moved = storage.find_sync_inventory_by_etag(resource_id, "files", entry.etag)
+            if moved is not None and str(moved["remote_id"]) != entry.path:
+                previous_source = str(moved["source_id"])
+                relocated = storage.update_document_locator(
+                    resource_id=resource_id,
+                    source_id=previous_source,
+                    new_source_id=entry.path,
+                    uri=self.client.validate_url() + entry.href,
+                    title=entry.name,
+                    modified_at=entry.modified_at,
+                    etag=entry.etag,
+                    metadata={"path": entry.path, "size": entry.size},
+                )
+                if relocated:
+                    storage.move_sync_inventory(
+                        resource_id=resource_id,
+                        scope="files",
+                        previous_remote_id=str(moved["remote_id"]),
+                        remote_id=entry.path,
+                        source_id=entry.path,
+                        source_type="nextcloud-file",
+                        etag=entry.etag,
+                        modified_at=entry.modified_at,
+                    )
+                    stats["moved"] = int(stats["moved"]) + 1
+                    telemetry.add("moves")
+                    telemetry.stop("metadata_compare")
+                    continue
+            telemetry.add("metadata_misses")
+            telemetry.stop("metadata_compare")
+            try:
+                telemetry.start("download")
+                data = self.download(entry.path)
+                telemetry.add("download_bytes", len(data))
+                telemetry.stop("download")
+                telemetry.start("parse")
+                changed = indexer.index_binary_document(
+                    resource_id=resource_id,
+                    source_type="nextcloud-file",
+                    source_id=entry.path,
+                    uri=self.client.validate_url() + entry.href,
+                    title=entry.name,
+                    filename=entry.name,
+                    data=data,
+                    mime_type=entry.content_type,
+                    modified_at=entry.modified_at,
+                    etag=entry.etag,
+                    metadata={"path": entry.path, "size": entry.size},
+                )
+                telemetry.stop("parse")
+                telemetry.start("index_update")
+                telemetry.stop("index_update")
+                telemetry.start("commit")
+                storage.upsert_sync_inventory(
+                    resource_id=resource_id,
+                    scope="files",
+                    remote_id=entry.path,
+                    source_id=entry.path,
+                    source_type="nextcloud-file",
+                    etag=entry.etag,
+                    modified_at=entry.modified_at,
+                    sha256=hashlib.sha256(data).hexdigest(),
+                )
+                telemetry.stop("commit")
+                key = "indexed" if changed else "unchanged"
+                stats[key] = int(stats[key]) + 1
+            except Exception as exc:
+                telemetry.stop_running()
+                batch_errors += 1
+                stats["errors"] = int(stats["errors"]) + 1
+                if not storage.core_read_only:
+                    storage.audit(
+                        "nextcloud.file.index_failed",
+                        {"path": entry.path, "error": str(exc)},
+                        resource_id=resource_id,
+                    )
+        complete = plan.complete and authoritative and batch_errors == 0
+        if complete:
+            telemetry.start("commit")
+            removed = storage.reconcile_sync_inventory(
+                resource_id=resource_id,
+                scope="files",
+                remote_ids={item.path for item in remote_files},
+            )
+            telemetry.stop("commit")
+            stats["removed"] = removed
+        stats["telemetry"] = telemetry.to_dict()
         storage.set_sync_state(
             resource_id,
             "files",
-            status="ok" if not stats["errors"] else "partial",
-            detail=str(stats),
-            data_changed=stats["indexed"] > 0,
+            cursor=plan.cursor()
+            if batch_errors == 0
+            else (str(state["cursor"] or "") if state is not None else ""),
+            status="ok" if complete else ("partial" if batch_errors or not authoritative else "in-progress"),
+            detail=json.dumps(stats, ensure_ascii=False, sort_keys=True),
+            data_changed=bool(int(stats["indexed"]) or int(stats["moved"]) or int(stats["removed"])),
         )
         return stats
 

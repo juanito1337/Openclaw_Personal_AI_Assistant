@@ -15,6 +15,20 @@ from .run_contract import TERMINAL_RUN_RESULTS, RunIdentity, canonical_run_resul
 
 DEFAULT_SCHEDULER_DB = WORKSPACE_ROOT / "personal_assistant/data/work_scheduler.sqlite3"
 VALID_TOPICS = ("mail", "portfolio", "knowledge", "planning", "operations")
+VALID_SCHEDULER_CLASSES = (
+    "interactive",
+    "time-critical",
+    "normal",
+    "maintenance",
+    "background",
+)
+SCHEDULER_CLASS_POINTS = {
+    "interactive": 80.0,
+    "time-critical": 60.0,
+    "normal": 35.0,
+    "maintenance": 15.0,
+    "background": 0.0,
+}
 TERMINAL_STATES = TERMINAL_RUN_RESULTS
 
 
@@ -51,6 +65,7 @@ def _percentile(values: list[float], percentile: float) -> float:
 class TaskPolicy:
     job: str
     topic: str
+    scheduler_class: str
     base_priority: int
     deadline_seconds: int
     max_runtime_seconds: int
@@ -61,6 +76,7 @@ TASK_POLICIES: dict[str, TaskPolicy] = {
     "mail": TaskPolicy(
         job="mail",
         topic="mail",
+        scheduler_class="time-critical",
         base_priority=60,
         deadline_seconds=30 * 60,
         max_runtime_seconds=50 * 60,
@@ -69,6 +85,7 @@ TASK_POLICIES: dict[str, TaskPolicy] = {
     "portfolio": TaskPolicy(
         job="portfolio",
         topic="portfolio",
+        scheduler_class="normal",
         base_priority=70,
         deadline_seconds=30 * 60,
         max_runtime_seconds=15 * 60,
@@ -77,6 +94,7 @@ TASK_POLICIES: dict[str, TaskPolicy] = {
     "sync": TaskPolicy(
         job="sync",
         topic="knowledge",
+        scheduler_class="background",
         base_priority=40,
         deadline_seconds=60 * 60,
         max_runtime_seconds=30 * 60,
@@ -85,6 +103,7 @@ TASK_POLICIES: dict[str, TaskPolicy] = {
     "mail-index": TaskPolicy(
         job="mail-index",
         topic="knowledge",
+        scheduler_class="maintenance",
         base_priority=35,
         deadline_seconds=6 * 60 * 60,
         max_runtime_seconds=60 * 60,
@@ -93,6 +112,7 @@ TASK_POLICIES: dict[str, TaskPolicy] = {
     "monitor": TaskPolicy(
         job="monitor",
         topic="operations",
+        scheduler_class="background",
         base_priority=50,
         deadline_seconds=2 * 60 * 60,
         max_runtime_seconds=20 * 60,
@@ -147,7 +167,11 @@ class AdaptiveWorkScheduler:
         )
         self.arbitration_seconds = max(
             0,
-            int(arbitration_seconds if arbitration_seconds is not None else os.environ.get("SCHEDULER_ARBITRATION_SECONDS", "2")),
+            int(
+                arbitration_seconds
+                if arbitration_seconds is not None
+                else os.environ.get("SCHEDULER_ARBITRATION_SECONDS", "2")
+            ),
         )
         self.starvation_seconds = max(
             60,
@@ -174,6 +198,7 @@ class AdaptiveWorkScheduler:
                 id TEXT PRIMARY KEY,
                 job TEXT NOT NULL,
                 topic TEXT NOT NULL,
+                scheduler_class TEXT NOT NULL DEFAULT 'background',
                 description TEXT NOT NULL,
                 base_priority INTEGER NOT NULL,
                 status TEXT NOT NULL,
@@ -230,22 +255,23 @@ class AdaptiveWorkScheduler:
                 ON task_attempts(run_id,attempt_number);
             """
         )
-        columns = {
-            str(row[1])
-            for row in self.connection.execute("PRAGMA table_info(task_queue)").fetchall()
-        }
+        columns = {str(row[1]) for row in self.connection.execute("PRAGMA table_info(task_queue)").fetchall()}
         for name, declaration in {
             "run_id": "TEXT NOT NULL DEFAULT ''",
             "parent_run_id": "TEXT NOT NULL DEFAULT ''",
             "job_id": "TEXT NOT NULL DEFAULT ''",
             "current_attempt_id": "TEXT NOT NULL DEFAULT ''",
+            "scheduler_class": "TEXT NOT NULL DEFAULT 'background'",
         }.items():
             if name not in columns:
-                self.connection.execute(
-                    f"ALTER TABLE task_queue ADD COLUMN {name} {declaration}"
-                )
+                self.connection.execute(f"ALTER TABLE task_queue ADD COLUMN {name} {declaration}")
         self.connection.execute("UPDATE task_queue SET run_id=id WHERE run_id='' ")
         self.connection.execute("UPDATE task_queue SET job_id=job WHERE job_id='' ")
+        for job, policy in TASK_POLICIES.items():
+            self.connection.execute(
+                "UPDATE task_queue SET scheduler_class=? WHERE job=?",
+                (policy.scheduler_class, job),
+            )
 
     @staticmethod
     def policy(job: str) -> TaskPolicy:
@@ -346,15 +372,16 @@ class AdaptiveWorkScheduler:
             self.connection.execute(
                 """
                 INSERT INTO task_queue(
-                    id,job,topic,description,base_priority,status,queued_at,
+                    id,job,topic,scheduler_class,description,base_priority,status,queued_at,
                     not_before,deadline_at,owner,updated_at,metadata_json,
                     run_id,parent_run_id,job_id
-                ) VALUES(?,?,?,?,?,'pending',?,?,?,?,?,?,?,?,?)
+                ) VALUES(?,?,?,?,?,?,'pending',?,?,?,?,?,?,?,?,?)
                 """,
                 (
                     ticket_id,
                     policy.job,
                     policy.topic,
+                    policy.scheduler_class,
                     policy.description,
                     policy.base_priority,
                     _iso(now),
@@ -409,7 +436,12 @@ class AdaptiveWorkScheduler:
                 activity_points = 40.0 * remaining / window
 
         return round(
-            float(row["base_priority"]) + age_points + starvation + deadline_points + activity_points,
+            float(row["base_priority"])
+            + SCHEDULER_CLASS_POINTS.get(str(row["scheduler_class"]), 0.0)
+            + age_points
+            + starvation
+            + deadline_points
+            + activity_points,
             3,
         )
 
@@ -433,8 +465,7 @@ class AdaptiveWorkScheduler:
 
     def _recover_expired_locked(self, now: datetime) -> int:
         rows = self.connection.execute(
-            "SELECT id,lease_expires_at,attempts,current_attempt_id "
-            "FROM task_queue WHERE status='running'"
+            "SELECT id,lease_expires_at,attempts,current_attempt_id FROM task_queue WHERE status='running'"
         ).fetchall()
         recovered = 0
         for row in rows:
@@ -691,13 +722,16 @@ class AdaptiveWorkScheduler:
             "job_id": str(row["job_id"] or row["job"]),
             "job": str(row["job"]),
             "topic": str(row["topic"]),
+            "scheduler_class": str(row["scheduler_class"]),
             "description": str(row["description"]),
             "status": str(row["status"]),
             "score": self._score(row, now=now, activity=activity),
             "queued_at": str(row["queued_at"]),
             "wait_seconds": round(max(0.0, (now - queued).total_seconds()), 2),
             "deadline_at": str(row["deadline_at"]),
-            "deadline_missed": bool(deadline and deadline < now and str(row["status"]) in {"pending", "running"}),
+            "deadline_missed": bool(
+                deadline and deadline < now and str(row["status"]) in {"pending", "running"}
+            ),
             "owner": str(row["owner"]),
             "lease_expires_at": str(row["lease_expires_at"]),
             "started_at": str(row["started_at"]),
@@ -745,14 +779,16 @@ class AdaptiveWorkScheduler:
         activity_payload = []
         for topic, row in sorted(activity.items()):
             until = _parse_time(row["boost_until"])
-            activity_payload.append({
-                "topic": topic,
-                "last_seen_at": str(row["last_seen_at"]),
-                "boost_until": str(row["boost_until"]),
-                "active": bool(until and until > now),
-                "signal_count": int(row["signal_count"] or 0),
-                "source": str(row["source"]),
-            })
+            activity_payload.append(
+                {
+                    "topic": topic,
+                    "last_seen_at": str(row["last_seen_at"]),
+                    "boost_until": str(row["boost_until"]),
+                    "active": bool(until and until > now),
+                    "signal_count": int(row["signal_count"] or 0),
+                    "source": str(row["source"]),
+                }
+            )
         result_counts = {
             str(row["result"]): int(row["count"])
             for row in self.connection.execute(
@@ -809,13 +845,15 @@ class AdaptiveWorkScheduler:
             name = str(row["job"])
             if name not in by_job:
                 continue
-            by_job[name].update({
-                "runs": int(row["runs"] or 0),
-                "average_wait_ms": round(float(row["average_wait_ms"] or 0.0), 2),
-                "average_duration_ms": round(float(row["average_duration_ms"] or 0.0), 2),
-                "last_finished_at": str(row["last_finished_at"] or ""),
-                "last_success_at": str(row["last_success_at"] or ""),
-            })
+            by_job[name].update(
+                {
+                    "runs": int(row["runs"] or 0),
+                    "average_wait_ms": round(float(row["average_wait_ms"] or 0.0), 2),
+                    "average_duration_ms": round(float(row["average_duration_ms"] or 0.0), 2),
+                    "last_finished_at": str(row["last_finished_at"] or ""),
+                    "last_success_at": str(row["last_success_at"] or ""),
+                }
+            )
         for row in self.connection.execute(
             """
             SELECT job,result,COUNT(*) count FROM task_queue
@@ -857,7 +895,9 @@ class AdaptiveWorkScheduler:
                 "max_wait_ms": round(float(wait_row["max_wait_ms"] or 0.0), 2) if wait_row else 0.0,
                 "p50_wait_ms": _percentile(wait_values, 0.50),
                 "p95_wait_ms": _percentile(wait_values, 0.95),
-                "average_duration_ms": round(float(wait_row["average_duration_ms"] or 0.0), 2) if wait_row else 0.0,
+                "average_duration_ms": round(float(wait_row["average_duration_ms"] or 0.0), 2)
+                if wait_row
+                else 0.0,
                 "max_duration_ms": round(float(wait_row["max_duration_ms"] or 0.0), 2) if wait_row else 0.0,
                 "p50_duration_ms": _percentile(duration_values, 0.50),
                 "p95_duration_ms": _percentile(duration_values, 0.95),
@@ -880,17 +920,12 @@ class AdaptiveWorkScheduler:
             }
         snapshot = self.snapshot(recent_limit=10)
         stale_leases = [
-            item for item in snapshot["active"]
-            if (_parse_time(item["lease_expires_at"]) or now) <= now
+            item for item in snapshot["active"] if (_parse_time(item["lease_expires_at"]) or now) <= now
         ]
         deadline_misses = [
-            item for item in [*snapshot["active"], *snapshot["pending"]]
-            if item["deadline_missed"]
+            item for item in [*snapshot["active"], *snapshot["pending"]] if item["deadline_missed"]
         ]
-        failed_recent = [
-            item for item in snapshot["recent"]
-            if item["result"] in {"failed", "interrupted"}
-        ]
+        failed_recent = [item for item in snapshot["recent"] if item["result"] in {"failed", "interrupted"}]
         ok = integrity == "ok" and not stale_leases and not deadline_misses
         state = "healthy" if ok else ("failed" if integrity != "ok" or stale_leases else "degraded")
         return {

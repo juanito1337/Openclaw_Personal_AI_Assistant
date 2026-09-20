@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Stabilisierung/M16.3: Nextcloud-Dateien, CardDAV-Kontakte und CalDAV-Termine
+  verwenden metadata-first ETag-Abgleich, eine abgeleitete Locator-Inventur
+  und begrenzte, digestgebundene Wiederaufnahme. No-op stoppt vor Download,
+  Parsing und Projektionswrite; Delete, eindeutiger Move, Cursorreset,
+  Providerfehler und Crash bleiben fail-closed. Die bestehende Schedulerqueue
+  besitzt feste Klassen von interaktiv bis background und gibt zwischen
+  Sync-Batches das Lease frei, sodass zeitkritische Mailarbeit ohne Praemption
+  anlaufen kann.
 - Stabilisierung/M16.2: Scheduler, Containerworker, Mailtelemetrie, Jobstatus und
   Monitoring verwenden einen gemeinsamen inhaltsarmen Run-/Attempt-/Parent-
   und Jobvertrag sowie sieben geschlossene Resultatklassen. Leaseverlust,
