@@ -1,6 +1,6 @@
 # Tests, Qualitaetsbaseline und Container-Runtime
 
-Stand: 2026-09-20, fortgeschrieben bis zum M16.6-Qualitaetsvertrag.
+Stand: 2026-09-21, fortgeschrieben bis zum M16.7-Mailqualitaetsvertrag.
 Sie startet keine produktiven Dienste und verwendet
 weder `/srv/openclaw` noch produktive Zugangsdaten.
 
@@ -61,7 +61,7 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 1084 Tests, darunter mindestens 759 unittest-kompatible Tests
+fordert mindestens 1163 Tests, darunter mindestens 759 unittest-kompatible Tests
 (die bisherigen 349 sowie M0-M15- und Rollout-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
@@ -133,6 +133,10 @@ der aktuellen Python-Dateien.
 | Tests nach M16.1 gesammelt/ausgefuehrt | 1.067 / 1.067 (1.178 JUnit-Faelle inklusive 111 Subtests) |
 | Tests nach M16.2 gesammelt/ausgefuehrt | 1.073 / 1.073 (1.184 JUnit-Faelle inklusive 111 Subtests) |
 | Tests nach M16.3 gesammelt/ausgefuehrt | 1.084 / 1.084 (1.195 JUnit-Faelle inklusive 111 Subtests) |
+| Tests nach M16.4 gesammelt/ausgefuehrt | 1.096 / 1.096 (1.207 JUnit-Faelle inklusive 111 Subtests) |
+| Tests nach M16.5 gesammelt/ausgefuehrt | 1.111 / 1.111 (1.222 JUnit-Faelle inklusive 111 Subtests) |
+| Tests nach M16.6 gesammelt/ausgefuehrt | 1.152 / 1.152 (1.263 JUnit-Faelle inklusive 111 Subtests) |
+| Tests nach M16.7 gesammelt/ausgefuehrt | 1.163 / 1.163 (1.274 JUnit-Faelle inklusive 111 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -177,6 +181,10 @@ der aktuellen Python-Dateien.
 | neue M16.1-Promotionsvertrags-Regressionsitems | 10 |
 | neue M16.2-Lauf-/Telemetrie-Regressionsitems | 6 |
 | neue M16.3-Sync-/Scheduler-Regressionsitems | 11 |
+| neue M16.4-Ressourcenidentitaets-Regressionsitems | 12 |
+| neue M16.5-Kapazitaets-/Latenz-Regressionsitems | 15 |
+| neue M16.6-Risikopfad-/Konsolidierungs-Regressionsitems | 41 |
+| neue M16.7-Mail-Lern-/Reviewqualitaets-Regressionsitems | 11 |
 | M13-Image-Runtime-Abnahme | Pluginstatus `loaded`, 19 Toolfabriken, 5 typisierte Hooks, keine Diagnosen |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |
@@ -269,6 +277,9 @@ der aktuellen Python-Dateien.
 | Gesamt-Coverage nach M16.6 | 69,76 % |
 | reine Statement-Coverage nach M16.6 | 74,01 % |
 | reine Branch-Coverage nach M16.6 | 57,02 % |
+| Gesamt-Coverage nach M16.7 | 69,88 % |
+| reine Statement-Coverage nach M16.7 | 74,09 % |
+| reine Branch-Coverage nach M16.7 | 57,24 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -1530,3 +1541,25 @@ von 69,21 auf 69,76 Prozent, die reine Statement-Coverage auf 74,01 Prozent und
 die reine Branch-Coverage von 56,56 auf 57,02 Prozent. Der erste erfolgreiche
 Lauf dauerte 143,92 Sekunden, die finale Kontrollwiederholung 155,91 Sekunden;
 Ruff und mypy meldeten keine neuen Befunde.
+
+## M16.7-Mail-Lern- und Reviewqualitaet
+
+Die hermetische Teilabnahme und der inhaltsfreie Benchmark lauten:
+
+```bash
+.venv/bin/python scripts/benchmark_mail_learning_m167.py
+.venv/bin/python -m pytest -q \
+  tests/test_mail_learning_quality_m167.py \
+  tests/test_learning_quality.py \
+  tests/test_learning_patterns.py \
+  tests/test_mail_review_m9.py
+```
+
+Der vollstaendige lokale Lauf vom 2026-09-21 sammelte und bestand 1.163
+pytest-Items. Das JUnit-Artefakt enthaelt einschliesslich 111
+`unittest`-Subtests 1.274 erfolgreiche Faelle ohne Fehler oder Skips. Die
+kombinierte Coverage betraegt 69,88 Prozent, die reine Statement-Coverage 74,09
+Prozent und die reine Branch-Coverage 57,24 Prozent. Der finale Lauf dauerte
+162,49 Sekunden; Ruff und mypy meldeten keine neuen Befunde. Der Benchmark
+verwendet ausschliesslich synthetische Feature-, Regel- und Modell-Snapshots;
+produktive Mailinhalte werden weder gelesen noch dupliziert.

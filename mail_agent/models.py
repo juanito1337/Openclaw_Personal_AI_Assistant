@@ -196,6 +196,7 @@ class Classification:
     invoice: InvoiceSignal | None = None
     order: OrderSignal | None = None
     source: str = "model"
+    decision_evidence: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if self.category not in VALID_CATEGORIES:
@@ -207,6 +208,8 @@ class Classification:
         self.expected_action = self.expected_action.strip()[:1000]
         if self.category not in {"relevant", "appointment"}:
             self.forward = False
+        if not isinstance(self.decision_evidence, dict):
+            self.decision_evidence = {}
 
     def to_dict(self) -> dict[str, Any]:
         data = asdict(self)

@@ -689,6 +689,13 @@ class OllamaClassifier:
         model_result: Classification,
         rule_context: RuleContext,
     ) -> Classification:
+        model_evidence = {
+            "category": model_result.category,
+            "confidence": model_result.confidence,
+            "importance": model_result.importance,
+            "forward": model_result.forward,
+            "source": model_result.source,
+        }
         if rule_context.important_sender:
             category = "appointment" if (
                 model_result.category == "appointment" or model_result.calendar_event is not None
@@ -705,6 +712,14 @@ class OllamaClassifier:
                 invoice=model_result.invoice,
                 order=model_result.order,
                 source="important-sender+" + model_result.source,
+                decision_evidence={
+                    "model": model_evidence,
+                    "rule": {
+                        "category": category,
+                        "confidence": max(model_result.confidence, 0.96),
+                        "source": "important-sender",
+                    },
+                },
             )
         if rule_context.prevent_spam and model_result.category == "spam":
             return Classification(
@@ -719,6 +734,14 @@ class OllamaClassifier:
                 invoice=model_result.invoice,
                 order=model_result.order,
                 source="legitimacy-guard",
+                decision_evidence={
+                    "model": model_evidence,
+                    "rule": {
+                        "category": "uncertain",
+                        "confidence": min(model_result.confidence, 0.69),
+                        "source": "legitimacy-guard",
+                    },
+                },
             )
         if (
             rule_context.known_contact
@@ -737,6 +760,14 @@ class OllamaClassifier:
                 invoice=model_result.invoice,
                 order=model_result.order,
                 source="nextcloud-contact+" + model_result.source,
+                decision_evidence={
+                    "model": model_evidence,
+                    "rule": {
+                        "category": model_result.category,
+                        "confidence": model_result.confidence,
+                        "source": "nextcloud-contact-importance",
+                    },
+                },
             )
         return model_result
 

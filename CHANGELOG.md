@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Stabilisierung/M16.7: Neue Mailklassifikationen speichern vor spaeterem
+  Feedback einen append-only, inhaltsarmen Feature-/Regel-/Modell-/Kombinations-
+  Snapshot mit gehashten Sender-/Threadgruppen. Legacyfeedback ohne diesen
+  Nachweis bleibt ausserhalb der belastbaren Komponentenmetriken. Die
+  Evaluation berichtet Accuracy, Coverage, False Positive, False Negative und
+  Abstention getrennt, nutzt einen sender-/threadbereinigten zeitlichen Holdout
+  und priorisiert `relevant-not-forwarded` sowie `spam-forward-risk`, ohne
+  Regeln automatisch zu aktivieren oder historische Mails zu verschieben.
+
 - Stabilisierung/M16.3: Nextcloud-Dateien, CardDAV-Kontakte und CalDAV-Termine
   verwenden metadata-first ETag-Abgleich, eine abgeleitete Locator-Inventur
   und begrenzte, digestgebundene Wiederaufnahme. No-op stoppt vor Download,

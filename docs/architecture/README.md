@@ -39,6 +39,11 @@ Der [M16.6-Test-/Konsolidierungsvertrag](../QUALITY_CONSOLIDATION_M16.md) und
 [ADR-0045](adr/0045-risikobasierte-tests-und-jobloop-grenzen.md) binden direkte
 Risikopfadtests, Collection und Modulcoverage an den belegten Vorherstand und
 extrahieren ausschließlich reine Jobprofil-/Runentscheidungen aus dem I/O-Loop.
+Der [M16.7-Mailqualitaetsvertrag](../MAIL_LEARNING_QUALITY_M167.md), seine
+[synthetische Baseline](m16.7-mail-learning-baseline.json) und
+[ADR-0046](adr/0046-unveraenderliche-mailentscheidungsevidenz.md) trennen
+append-only Originalentscheidungen, Legacyfeedback, Komponentenmetriken und
+wirkungspriorisierte Reviewfaelle ohne automatische Regelaktivierung.
 
 ## Systemkontext
 

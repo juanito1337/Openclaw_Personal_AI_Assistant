@@ -51,5 +51,6 @@ verweist mit Status `Superseded` auf den Nachfolger.
 | [0043](0043-eindeutige-ressourcenidentitaet.md) | Accepted | stabile Ressourcen-ID, typisierte Drift und atomare lokale Migration statt paralleler Selektoren |
 | [0044](0044-getrennte-runtimekapazitaet-und-kontextprojektion.md) | Accepted | getrennte Cgroup-/Hostkapazität, disjunkte OOM-Ursachen und digestgebundene Kontextprojektion |
 | [0045](0045-risikobasierte-tests-und-jobloop-grenzen.md) | Accepted | risikobasierte Verhaltenstests und reine Jobprofil-/Runentscheidungsgrenzen |
+| [0046](0046-unveraenderliche-mailentscheidungsevidenz.md) | Accepted | append-only Mailentscheidungssnapshots, getrennte Komponentenmetriken und Legacy-Abstention |
 
 Neue ADRs beginnen mit der [Vorlage](0000-template.md).

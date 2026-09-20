@@ -2,7 +2,7 @@
 
 Stand: 2026-09-20
 Vorgesehener Arbeitsbranch: `development/stabilization-performance-m16`
-Status: in Umsetzung; M16.0 bis M16.6 abgeschlossen, keine produktive Aktivierung
+Status: in Umsetzung; M16.0 bis M16.7 abgeschlossen, keine produktive Aktivierung
 
 ## Ausgangslage
 
@@ -573,6 +573,12 @@ Qualitaetspfad aus und beginne nicht mit M16.7.
 ```
 
 ## M16.7 – Mail-Lern-, Review- und Antwortqualitaet
+
+Status: abgeschlossen am 2026-09-21. Neue Entscheidungen besitzen append-only,
+inhaltsarme Komponenten-Snapshots; Legacyfeedback bleibt getrennt. Die
+synthetische Baseline und Reproduktionsbefehle stehen in
+`docs/MAIL_LEARNING_QUALITY_M167.md`. Keine produktive Mail, Regel oder
+Jobkonfiguration wurde veraendert.
 
 ### Ziel
 

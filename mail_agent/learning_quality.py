@@ -71,6 +71,18 @@ class PredictorMetrics:
             predictions = samples - counts.get("abstain", 0)
             correct = counts.get(actual, 0)
             wrong = predictions - correct
+            false_positive = sum(
+                self.confusion[other].get(actual, 0)
+                for other in sorted(_CATEGORY_VERDICTS)
+                if other != actual
+            )
+            false_negative = sum(
+                counts.get(predicted, 0)
+                for predicted in sorted(_CATEGORY_VERDICTS)
+                if predicted != actual
+            )
+            precision_denominator = correct + false_positive
+            recall_denominator = correct + false_negative
             by_actual[actual] = {
                 "samples": samples,
                 "predictions": predictions,
@@ -78,6 +90,10 @@ class PredictorMetrics:
                 "correct": correct,
                 "wrong": wrong,
                 "accuracy_percent": round((correct / predictions * 100.0) if predictions else 0.0, 2),
+                "false_positive": false_positive,
+                "false_negative": false_negative,
+                "precision": round(correct / precision_denominator, 4) if precision_denominator else 0.0,
+                "recall": round(correct / recall_denominator, 4) if recall_denominator else 0.0,
             }
             matrix[actual] = {
                 predicted: int(counts.get(predicted, 0))
@@ -95,6 +111,15 @@ class PredictorMetrics:
             "accuracy_percent": round(accuracy * 100.0, 2),
             "relevant_missed": self.relevant_missed,
             "spam_forward_risk": self.spam_forward_risk,
+            "false_positive_total": sum(
+                sum(
+                    self.confusion[actual].get(predicted, 0)
+                    for actual in sorted(_CATEGORY_VERDICTS)
+                    if actual != predicted
+                )
+                for predicted in sorted(_CATEGORY_VERDICTS)
+            ),
+            "false_negative_total": self.wrong,
             "by_actual_category": by_actual,
             "confusion_matrix": matrix,
             "predicted_distribution": dict(sorted(self.predicted_counts.items())),
@@ -127,14 +152,180 @@ class LearningQualityAnalyzer:
                    f.created_at, f.original_category, f.original_confidence,
                    COALESCE(f.original_source, '') AS original_source,
                    COALESCE(f.original_rule_decision, '') AS original_rule_decision,
-                   COALESCE(f.original_snapshot_valid, 0) AS original_snapshot_valid
+                   COALESCE(f.original_snapshot_valid, 0) AS original_snapshot_valid,
+                   f.decision_snapshot_id,
+                   d.decided_at, COALESCE(d.source_type, '') AS decision_source_type,
+                   COALESCE(d.feature_json, '') AS decision_feature_json,
+                   COALESCE(d.rule_snapshot_json, '') AS rule_snapshot_json,
+                   COALESCE(d.model_snapshot_json, '') AS model_snapshot_json,
+                   COALESCE(d.combined_snapshot_json, '') AS combined_snapshot_json,
+                   COALESCE(d.sender_group_sha256, '') AS sender_group_sha256,
+                   COALESCE(d.thread_group_sha256, '') AS thread_group_sha256
             FROM feedback AS f
+            LEFT JOIN decision_snapshots AS d ON d.id = f.decision_snapshot_id
             WHERE f.id IN (SELECT id FROM feedback ORDER BY id DESC LIMIT ?)
             ORDER BY f.id ASC
             """,
             (safe_limit,),
         ).fetchall()
         return [dict(row) for row in rows]
+
+    @staticmethod
+    def _json_dict(value: Any) -> dict[str, Any]:
+        if not value:
+            return {}
+        try:
+            parsed = json.loads(str(value))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return {}
+        return parsed if isinstance(parsed, dict) else {}
+
+    @classmethod
+    def _snapshot_metrics(cls, rows: list[dict[str, Any]], field: str) -> PredictorMetrics:
+        metrics = PredictorMetrics()
+        for row in rows:
+            actual = str(row.get("verdict") or "")
+            if actual not in _CATEGORY_VERDICTS or row.get("decision_snapshot_id") is None:
+                continue
+            component = cls._json_dict(row.get(field))
+            metrics.observe(actual, _classification_category(component.get("category")))
+        return metrics
+
+    @classmethod
+    def _grouped_temporal_holdout(cls, rows: list[dict[str, Any]]) -> dict[str, Any]:
+        """Build a time-ordered holdout without sender or thread leakage."""
+
+        eligible = [
+            row for row in rows
+            if str(row.get("verdict") or "") in _CATEGORY_VERDICTS
+            and row.get("decision_snapshot_id") is not None
+        ]
+        eligible.sort(key=lambda row: (str(row.get("created_at") or ""), int(row.get("id") or 0)))
+        if len(eligible) < 2:
+            empty = PredictorMetrics().to_dict()
+            return {
+                "method": "chronological-70-30-purged-by-sender-and-thread",
+                "train_samples": 0,
+                "eval_samples": 0,
+                "purged_samples": len(eligible),
+                "sender_overlap": 0,
+                "thread_overlap": 0,
+                "predictors": {name: empty for name in ("sender", "pattern", "rule", "model", "combined")},
+            }
+
+        cutoff = max(1, min(len(eligible) - 1, int(len(eligible) * 0.7)))
+        before = eligible[:cutoff]
+        after = eligible[cutoff:]
+        before_senders = {str(row.get("sender_group_sha256") or "") for row in before}
+        after_senders = {str(row.get("sender_group_sha256") or "") for row in after}
+        before_threads = {str(row.get("thread_group_sha256") or "") for row in before}
+        after_threads = {str(row.get("thread_group_sha256") or "") for row in after}
+        overlapping_senders = (before_senders & after_senders) - {""}
+        overlapping_threads = (before_threads & after_threads) - {""}
+
+        def clean(partition: list[dict[str, Any]]) -> list[dict[str, Any]]:
+            return [
+                row for row in partition
+                if str(row.get("sender_group_sha256") or "") not in overlapping_senders
+                and str(row.get("thread_group_sha256") or "") not in overlapping_threads
+            ]
+
+        train = clean(before)
+        evaluation = clean(after)
+        sender_history: dict[str, Counter[str]] = defaultdict(Counter)
+        pattern_history: dict[tuple[str, str], Counter[str]] = defaultdict(Counter)
+        for row in train:
+            actual = str(row.get("verdict") or "")
+            sender = str(row.get("sender_group_sha256") or "")
+            pattern = normalize_subject_pattern(
+                str(row.get("subject") or ""), version=SUBJECT_PATTERN_VERSION_CURRENT
+            )
+            if sender:
+                sender_history[sender][actual] += 1
+            if sender and pattern:
+                pattern_history[(sender, pattern)][actual] += 1
+
+        sender_metrics = PredictorMetrics()
+        pattern_metrics = PredictorMetrics()
+        for row in evaluation:
+            actual = str(row.get("verdict") or "")
+            sender = str(row.get("sender_group_sha256") or "")
+            pattern = normalize_subject_pattern(
+                str(row.get("subject") or ""), version=SUBJECT_PATTERN_VERSION_CURRENT
+            )
+            sender_metrics.observe(
+                actual,
+                cls._consistent_prediction(sender_history[sender], minimum=2) if sender else None,
+            )
+            pattern_metrics.observe(
+                actual,
+                cls._safe_pattern_prediction(pattern_history[(sender, pattern)])
+                if sender and pattern else None,
+            )
+
+        return {
+            "method": "chronological-70-30-purged-by-sender-and-thread",
+            "train_samples": len(train),
+            "eval_samples": len(evaluation),
+            "purged_samples": len(eligible) - len(train) - len(evaluation),
+            "sender_overlap": 0,
+            "thread_overlap": 0,
+            "cutoff_feedback_id": int(eligible[cutoff]["id"]),
+            "predictors": {
+                "sender": sender_metrics.to_dict(),
+                "pattern": pattern_metrics.to_dict(),
+                "rule": cls._snapshot_metrics(evaluation, "rule_snapshot_json").to_dict(),
+                "model": cls._snapshot_metrics(evaluation, "model_snapshot_json").to_dict(),
+                "combined": cls._snapshot_metrics(evaluation, "combined_snapshot_json").to_dict(),
+            },
+        }
+
+    @classmethod
+    def _impact_review(cls, rows: list[dict[str, Any]], conflicts: list[dict[str, Any]]) -> dict[str, Any]:
+        cases: list[dict[str, Any]] = []
+        for row in rows:
+            if row.get("decision_snapshot_id") is None:
+                continue
+            actual = str(row.get("verdict") or "")
+            combined = cls._json_dict(row.get("combined_snapshot_json"))
+            predicted = _classification_category(combined.get("category"))
+            risk = ""
+            priority = 0
+            if actual == "relevant" and predicted in {"spam", "routine"}:
+                risk, priority = "relevant-not-forwarded", 100
+            elif actual == "spam" and predicted == "relevant":
+                risk, priority = "spam-forward-risk", 100
+            if risk:
+                cases.append({
+                    "feedback_id": int(row.get("id") or 0),
+                    "decision_snapshot_id": int(row["decision_snapshot_id"]),
+                    "risk": risk,
+                    "priority": priority,
+                    "source_type": str(row.get("decision_source_type") or "unknown"),
+                })
+        for conflict in conflicts:
+            cases.append({
+                "conflict_id": str(conflict.get("conflict_id") or ""),
+                "risk": "conflicting-pattern",
+                "priority": 80,
+                "feedback_count": int(conflict.get("total") or 0),
+            })
+        cases.sort(
+            key=lambda item: (
+                -int(item.get("priority") or 0),
+                int(item.get("feedback_id") or 0),
+                str(item.get("conflict_id") or ""),
+            )
+        )
+        counts = Counter(str(item["risk"]) for item in cases)
+        return {
+            "content_free": True,
+            "automatic_activation": False,
+            "count": len(cases),
+            "by_risk": dict(sorted(counts.items())),
+            "cases": cases[:100],
+            "results_may_be_truncated": len(cases) > 100,
+        }
 
     @staticmethod
     def _consistent_prediction(counts: Counter[str], *, minimum: int) -> str | None:
@@ -184,10 +375,12 @@ class LearningQualityAnalyzer:
         verdict_distribution: Counter[str] = Counter()
         label_distribution: Counter[str] = Counter()
         original_source_distribution: Counter[str] = Counter()
+        decision_source_distribution: Counter[str] = Counter()
         pattern_counts: Counter[tuple[int, str, str]] = Counter()
         usable_rows = 0
         feature_rows = 0
         original_snapshot_rows = 0
+        decision_feature_rows = 0
 
         for row in rows:
             verdict = str(row.get("verdict") or "")
@@ -197,6 +390,8 @@ class LearningQualityAnalyzer:
                 label_distribution[label] += 1
             if str(row.get("feature_json") or "").strip():
                 feature_rows += 1
+            if self._json_dict(row.get("decision_feature_json")):
+                decision_feature_rows += 1
             if verdict not in _CATEGORY_VERDICTS:
                 continue
 
@@ -209,11 +404,13 @@ class LearningQualityAnalyzer:
             baseline_prediction = self._consistent_prediction(sender_history[sender], minimum=2) if sender else None
             sender_only.observe(verdict, baseline_prediction)
 
-            if int(row.get("original_snapshot_valid") or 0) == 1:
+            if row.get("decision_snapshot_id") is not None:
                 original_snapshot_rows += 1
-                source = str(row.get("original_source") or "unknown") or "unknown"
+                source = str(row.get("decision_source_type") or "unknown") or "unknown"
                 original_source_distribution[source] += 1
-                stored_decision.observe(verdict, _classification_category(row.get("original_category")))
+                decision_source_distribution[source] += 1
+                combined = self._json_dict(row.get("combined_snapshot_json"))
+                stored_decision.observe(verdict, _classification_category(combined.get("category")))
 
             if sender:
                 sender_history[sender][verdict] += 1
@@ -228,6 +425,11 @@ class LearningQualityAnalyzer:
         singleton_patterns = sum(1 for count in pattern_counts.values() if count == 1)
         mixed_count = len(self.storage.mixed_senders(limit=100000))
         conflicts = self.storage.pattern_conflicts(limit=100000)
+        rule_metrics = self._snapshot_metrics(category_rows, "rule_snapshot_json").to_dict()
+        model_metrics = self._snapshot_metrics(category_rows, "model_snapshot_json").to_dict()
+        combined_metrics = self._snapshot_metrics(category_rows, "combined_snapshot_json").to_dict()
+        grouped_holdout = self._grouped_temporal_holdout(category_rows)
+        impact_review = self._impact_review(category_rows, conflicts)
 
         baseline_data = sender_only.to_dict()
         pattern_data = current_pattern
@@ -283,6 +485,9 @@ class LearningQualityAnalyzer:
             "spam_forward_risk_not_worse": (
                 current_pattern["spam_forward_risk"] <= legacy_pattern["spam_forward_risk"]
             ),
+            "minimum_evidence": {"relevant": 1, "routine": 2, "spam": 2},
+            "conflict_free_required": True,
+            "automatic_activation": False,
         }
 
         recommendations: list[str] = []
@@ -324,9 +529,11 @@ class LearningQualityAnalyzer:
                 "not_spam_rows": int(verdict_distribution.get("not_spam", 0)),
                 "usable_sender_pattern_rows": usable_rows,
                 "rows_with_feature_metadata": feature_rows,
+                "rows_with_decision_feature_snapshot": decision_feature_rows,
                 "labeled_rows": sum(label_distribution.values()),
                 "rows_with_immutable_original_decision": original_snapshot_rows,
                 "legacy_rows_without_original_decision": len(category_rows) - original_snapshot_rows,
+                "decision_source_distribution": dict(sorted(decision_source_distribution.items())),
                 "verdict_distribution": dict(sorted(verdict_distribution.items())),
                 "label_distribution": dict(sorted(label_distribution.items())),
                 "unique_sender_patterns": len(pattern_counts),
@@ -340,6 +547,10 @@ class LearningQualityAnalyzer:
                 "self_test_leakage": False,
                 "sender_only_baseline": baseline_data,
                 "pattern_learning": pattern_data,
+                "rule_decision": rule_metrics,
+                "model_decision": model_metrics,
+                "combined_decision": combined_metrics,
+                "grouped_temporal_holdout": grouped_holdout,
                 "subject_pattern_versions": {
                     "method": "chronological-walk-forward",
                     "self_test_leakage": False,
@@ -355,9 +566,12 @@ class LearningQualityAnalyzer:
                         "subjects; persisted legacy patterns are never rewritten."
                     ),
                     "Original decisions are measured only from immutable snapshots captured before a user correction; legacy rows abstain.",
+                    "The holdout purges every sender or thread that crosses the chronological split.",
+                    "Learning suggestions and quality findings never activate a rule automatically.",
                 ],
             },
             "comparison": comparison,
+            "review_priority": impact_review,
             "recommendations": recommendations,
         }
 
@@ -378,7 +592,7 @@ class LearningQualityAnalyzer:
             if not isinstance(features, dict):
                 features = {}
             created = str(row.get("created_at") or "")
-            snapshot_valid = int(row.get("original_snapshot_valid") or 0) == 1
+            snapshot_valid = row.get("decision_snapshot_id") is not None
             records.append({
                 "feedback_id": int(row.get("id") or 0),
                 "message_key": self._pseudonym(key, row.get("stable_key")),
@@ -397,7 +611,7 @@ class LearningQualityAnalyzer:
             })
 
         payload = {
-            "schema_version": 3,
+            "schema_version": 4,
             "created_at": now_utc_iso(),
             "privacy": {
                 "pseudonymization": "per-export keyed HMAC; key is not stored",

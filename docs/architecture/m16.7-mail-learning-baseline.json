@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "milestone": "M16.7",
+  "corpus": {
+    "path": "tests/fixtures/m16/mail-learning-quality.json",
+    "sha256": "724c8378094d9355e28186ef795a0f08804e5b8317429bddd8c7717ed9b21993",
+    "cases": 10,
+    "privacy": "synthetic-content-free"
+  },
+  "data_quality": {
+    "feedback_rows": 10,
+    "rows_with_immutable_original_decision": 10,
+    "legacy_rows_without_original_decision": 0,
+    "singleton_sender_patterns": 8,
+    "repeated_sender_patterns": 1
+  },
+  "metrics": {
+    "sender": {"samples": 10, "coverage": 0.0, "accuracy": 0.0, "abstentions": 10, "relevant_missed": 0, "spam_forward_risk": 0},
+    "pattern": {"samples": 10, "coverage": 0.0, "accuracy": 0.0, "abstentions": 10, "relevant_missed": 0, "spam_forward_risk": 0},
+    "rule": {"samples": 10, "coverage": 1.0, "accuracy": 0.9, "abstentions": 0, "relevant_missed": 1, "spam_forward_risk": 0},
+    "model": {"samples": 10, "coverage": 1.0, "accuracy": 0.9, "abstentions": 0, "relevant_missed": 0, "spam_forward_risk": 1},
+    "combined": {"samples": 10, "coverage": 1.0, "accuracy": 0.8, "abstentions": 0, "relevant_missed": 1, "spam_forward_risk": 1}
+  },
+  "holdout": {
+    "method": "chronological-70-30-purged-by-sender-and-thread",
+    "train_samples": 7,
+    "eval_samples": 3,
+    "purged_samples": 0,
+    "sender_overlap": 0,
+    "thread_overlap": 0
+  },
+  "review_priority": {
+    "relevant-not-forwarded": 1,
+    "spam-forward-risk": 1,
+    "automatic_activation": false
+  },
+  "interpretation": "Synthetic regression baseline only; no productive quality estimate or activation threshold."
+}

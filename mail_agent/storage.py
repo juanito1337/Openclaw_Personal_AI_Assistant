@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import sqlite3
+from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -19,7 +21,7 @@ from .utils import (
     subject_patterns,
 )
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 
 FINAL_STATUSES = {
@@ -134,6 +136,7 @@ class Storage:
                 original_classification_json TEXT,
                 original_captured_at TEXT,
                 original_snapshot_valid INTEGER NOT NULL DEFAULT 0,
+                decision_snapshot_id INTEGER,
                 created_at TEXT NOT NULL,
                 metadata_json TEXT
             );
@@ -146,6 +149,33 @@ class Storage:
                 SELECT MAX(id) FROM feedback GROUP BY stable_key
             );
             CREATE UNIQUE INDEX IF NOT EXISTS idx_feedback_stable_key ON feedback(stable_key);
+
+            CREATE TABLE IF NOT EXISTS decision_snapshots (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                message_key_sha256 TEXT NOT NULL UNIQUE,
+                snapshot_sha256 TEXT NOT NULL UNIQUE,
+                decided_at TEXT NOT NULL,
+                source_type TEXT NOT NULL,
+                feature_json TEXT NOT NULL,
+                rule_snapshot_json TEXT NOT NULL,
+                model_snapshot_json TEXT NOT NULL,
+                combined_snapshot_json TEXT NOT NULL,
+                sender_group_sha256 TEXT NOT NULL,
+                thread_group_sha256 TEXT NOT NULL,
+                CHECK(source_type IN ('rule', 'model', 'combined', 'fallback', 'unknown'))
+            );
+            CREATE INDEX IF NOT EXISTS idx_decision_snapshots_decided_at
+                ON decision_snapshots(decided_at, id);
+            CREATE TRIGGER IF NOT EXISTS decision_snapshots_no_update
+            BEFORE UPDATE ON decision_snapshots
+            BEGIN
+                SELECT RAISE(ABORT, 'decision snapshots are immutable');
+            END;
+            CREATE TRIGGER IF NOT EXISTS decision_snapshots_no_delete
+            BEFORE DELETE ON decision_snapshots
+            BEGIN
+                SELECT RAISE(ABORT, 'decision snapshots are immutable');
+            END;
 
             CREATE TABLE IF NOT EXISTS events (
                 event_key TEXT PRIMARY KEY,
@@ -284,6 +314,7 @@ class Storage:
             ("original_classification_json", "TEXT"),
             ("original_captured_at", "TEXT"),
             ("original_snapshot_valid", "INTEGER NOT NULL DEFAULT 0"),
+            ("decision_snapshot_id", "INTEGER"),
         ):
             if column not in feedback_columns:
                 self.connection.execute(f"ALTER TABLE feedback ADD COLUMN {column} {declaration}")
@@ -475,7 +506,108 @@ class Storage:
             """,
             values,
         )
+        if classification is not None:
+            self._record_decision_snapshot(message, classification, decided_at=timestamp)
         self.connection.commit()
+
+    @staticmethod
+    def _decision_component(value: Any) -> dict[str, Any]:
+        if not isinstance(value, dict):
+            return {}
+        category = str(value.get("category") or "").strip().casefold()
+        if category == "appointment":
+            category = "relevant"
+        if category not in {"spam", "routine", "relevant", "uncertain"}:
+            return {}
+        result: dict[str, Any] = {"category": category}
+        confidence = value.get("confidence")
+        if confidence is not None:
+            with suppress(TypeError, ValueError):
+                result["confidence"] = max(0.0, min(1.0, float(confidence)))
+        for key in ("importance", "forward", "source"):
+            if key in value:
+                result[key] = value[key]
+        return result
+
+    @staticmethod
+    def _identity_digest(value: str) -> str:
+        return hashlib.sha256(value.strip().casefold().encode("utf-8", errors="replace")).hexdigest()
+
+    def _record_decision_snapshot(
+        self,
+        message: ParsedMessage,
+        classification: Classification,
+        *,
+        decided_at: str,
+    ) -> None:
+        """Persist the first content-free decision evidence for one mail.
+
+        The row is append-only and intentionally excludes addresses, subjects,
+        bodies, reasons and summaries. Existing messages are not backfilled: a
+        missing row therefore remains an explicit legacy-quality limitation.
+        """
+
+        source = str(classification.source or "").strip().casefold()
+        evidence = classification.decision_evidence
+        rule = self._decision_component(evidence.get("rule"))
+        model = self._decision_component(evidence.get("model"))
+        combined = self._decision_component(classification.to_dict())
+        if not rule and any(
+            marker in source
+            for marker in ("rule", "feedback-pattern", "important-sender", "legitimacy-guard")
+        ):
+            rule = dict(combined)
+        if not model and any(marker in source for marker in ("ollama", "model")):
+            model = dict(combined)
+        if rule and model:
+            source_type = "combined"
+        elif rule:
+            source_type = "rule"
+        elif model:
+            source_type = "model"
+        elif "fallback" in source:
+            source_type = "fallback"
+        else:
+            source_type = "unknown"
+        features = message_feature_metadata(message)
+        sender_group = self._identity_digest(message.sender_addr or message.sender_domain or "missing-sender")
+        thread_seed = next(
+            (value for value in [*message.references, *message.in_reply_to, message.message_id] if value),
+            message.stable_key,
+        )
+        thread_group = self._identity_digest(thread_seed)
+        canonical = {
+            "message_key_sha256": self._identity_digest(message.stable_key),
+            "source_type": source_type,
+            "features": features,
+            "rule": rule,
+            "model": model,
+            "combined": combined,
+            "sender_group_sha256": sender_group,
+            "thread_group_sha256": thread_group,
+        }
+        serialized = json.dumps(canonical, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        self.connection.execute(
+            """
+            INSERT OR IGNORE INTO decision_snapshots (
+                message_key_sha256, snapshot_sha256, decided_at, source_type, feature_json,
+                rule_snapshot_json, model_snapshot_json, combined_snapshot_json,
+                sender_group_sha256, thread_group_sha256
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                self._identity_digest(message.stable_key),
+                hashlib.sha256(serialized.encode("utf-8")).hexdigest(),
+                decided_at,
+                source_type,
+                json.dumps(features, ensure_ascii=False, sort_keys=True),
+                json.dumps(rule, ensure_ascii=False, sort_keys=True),
+                json.dumps(model, ensure_ascii=False, sort_keys=True),
+                json.dumps(combined, ensure_ascii=False, sort_keys=True),
+                sender_group,
+                thread_group,
+            ),
+        )
 
     def update_status(
         self,
@@ -630,10 +762,21 @@ class Storage:
             """
             SELECT mailbox_id, last_folder, subject, sender_name, sender_addr,
                    received_at, review_reason, review_category, review_confidence,
-                   review_source, review_threshold, review_captured_at
+                   review_source, review_threshold, review_captured_at,
+                   CASE review_reason
+                     WHEN 'relevant-not-forwarded' THEN 100
+                     WHEN 'safety-blocked' THEN 95
+                     WHEN 'classification-uncertain' THEN 80
+                     WHEN 'spam-below-threshold' THEN 75
+                     WHEN 'appointment-review' THEN 70
+                     WHEN 'invoice-review' THEN 65
+                     WHEN 'routine-below-threshold' THEN 50
+                     ELSE 20
+                   END AS impact_priority
             FROM messages
             WHERE review_reason = ?
-            ORDER BY COALESCE(review_captured_at, updated_at) DESC, stable_key DESC
+            ORDER BY impact_priority DESC,
+                     COALESCE(review_captured_at, updated_at) DESC, stable_key DESC
             LIMIT ?
             """,
             (parsed_reason.value, bounded_limit),
@@ -644,7 +787,17 @@ class Storage:
             "reason": parsed_reason.value,
             "count": len(rows),
             "total": total,
-            "messages": [dict(row) for row in rows],
+            "messages": [
+                {
+                    **dict(row),
+                    "impact_reason": (
+                        "false-negative-or-forwarding-risk"
+                        if int(row["impact_priority"]) >= 75
+                        else "bounded-review-backlog"
+                    ),
+                }
+                for row in rows
+            ],
             "complete": True,
             "folder_errors": [],
             "results_may_be_truncated": total > len(rows),
@@ -665,13 +818,40 @@ class Storage:
             """
             SELECT original_category, original_confidence, original_reason, original_source,
                    original_rule_decision, original_classification_json, original_captured_at,
-                   COALESCE(original_snapshot_valid, 0) AS original_snapshot_valid
+                   COALESCE(original_snapshot_valid, 0) AS original_snapshot_valid,
+                   decision_snapshot_id
             FROM feedback WHERE stable_key = ?
             """,
             (stable_key,),
         ).fetchone()
         if existing_feedback and int(existing_feedback["original_snapshot_valid"] or 0) == 1:
             return dict(existing_feedback)
+
+        decision = self.connection.execute(
+            """
+            SELECT id, decided_at, source_type, rule_snapshot_json,
+                   model_snapshot_json, combined_snapshot_json
+            FROM decision_snapshots WHERE message_key_sha256 = ?
+            """,
+            (self._identity_digest(stable_key),),
+        ).fetchone()
+        if decision is not None:
+            combined = self._json_dict(decision["combined_snapshot_json"])
+            category = str(combined.get("category") or "").strip()
+            if category:
+                return {
+                    "original_category": category,
+                    "original_confidence": combined.get("confidence"),
+                    "original_reason": "",
+                    "original_source": str(combined.get("source") or decision["source_type"]),
+                    "original_rule_decision": str(decision["rule_snapshot_json"] or "{}"),
+                    "original_classification_json": str(
+                        decision["combined_snapshot_json"] or "{}"
+                    ),
+                    "original_captured_at": str(decision["decided_at"] or ""),
+                    "original_snapshot_valid": 1,
+                    "decision_snapshot_id": int(decision["id"]),
+                }
 
         message_row = self.get_message(stable_key)
         if not message_row:
@@ -732,8 +912,8 @@ class Storage:
                     label, feature_json, original_category, original_confidence,
                     original_reason, original_source, original_rule_decision,
                     original_classification_json, original_captured_at, original_snapshot_valid,
-                    created_at, metadata_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    decision_snapshot_id, created_at, metadata_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     message.stable_key,
@@ -756,6 +936,7 @@ class Storage:
                     original.get("original_classification_json"),
                     original.get("original_captured_at"),
                     int(original.get("original_snapshot_valid") or 0),
+                    original.get("decision_snapshot_id"),
                     now_utc_iso(),
                     json.dumps(metadata or {}, ensure_ascii=False),
                 ),

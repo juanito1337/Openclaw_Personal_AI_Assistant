@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "privacy": "synthetic-content-free",
+  "cases": [
+    {"id": "case-01", "sender": "alpha", "thread": "thread-01", "actual": "routine", "rule": "routine", "model": "routine", "combined": "routine"},
+    {"id": "case-02", "sender": "alpha", "thread": "thread-02", "actual": "routine", "rule": "routine", "model": "routine", "combined": "routine"},
+    {"id": "case-03", "sender": "beta", "thread": "thread-03", "actual": "relevant", "rule": "relevant", "model": "relevant", "combined": "relevant"},
+    {"id": "case-04", "sender": "gamma", "thread": "thread-04", "actual": "spam", "rule": "spam", "model": "spam", "combined": "spam"},
+    {"id": "case-05", "sender": "delta", "thread": "thread-05", "actual": "relevant", "rule": "routine", "model": "relevant", "combined": "routine"},
+    {"id": "case-06", "sender": "epsilon", "thread": "thread-06", "actual": "spam", "rule": "spam", "model": "relevant", "combined": "relevant"},
+    {"id": "case-07", "sender": "zeta", "thread": "thread-07", "actual": "routine", "rule": "routine", "model": "routine", "combined": "routine"},
+    {"id": "case-08", "sender": "eta", "thread": "thread-08", "actual": "relevant", "rule": "relevant", "model": "relevant", "combined": "relevant"},
+    {"id": "case-09", "sender": "theta", "thread": "thread-09", "actual": "spam", "rule": "spam", "model": "spam", "combined": "spam"},
+    {"id": "case-10", "sender": "iota", "thread": "thread-10", "actual": "routine", "rule": "routine", "model": "routine", "combined": "routine"}
+  ]
+}

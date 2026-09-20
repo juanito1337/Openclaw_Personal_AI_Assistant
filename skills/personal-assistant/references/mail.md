@@ -491,6 +491,15 @@ small evidence base. Dataset export is a local write requiring an explicit reque
 and must contain no bodies, raw subjects, addresses or message IDs. This release
 does not fine-tune the model.
 
+M16.7 evaluates new feedback only against the immutable decision snapshot that
+was captured before the correction. Inspect sender, pattern, rule, model and
+combined metrics separately, including coverage, false positives, false
+negatives and abstention. `legacy_rows_without_original_decision` is not Ground
+Truth and must not be mixed into these component metrics. Review priority makes
+`relevant-not-forwarded` and `spam-forward-risk` visible, but never activates a
+rule or authorizes a mail move. A learning or classification abstention must be
+reported as uncertainty; it never permits a definitive negative mailbox claim.
+
 Provider spam is quarantine, not a second normal inbox. Rescue only clear relevant
 mail, appointments, uncertain cases or unambiguous invoice PDFs; never empty or
 delete the folder automatically.
