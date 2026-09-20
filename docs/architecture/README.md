@@ -19,6 +19,10 @@ Die datenschutzarme [M16.0-Gesamtbaseline](m16-baseline.json), ihr
 [priorisierte Risikoregister](m16-risk-register.json) frieren den messbaren
 Ausgangszustand fuer die Stabilisierung ein; fehlende Produktivevidenz bleibt
 explizit `not-measured`.
+Der [M16-Promotionsvertrag](release-candidate-m16.json) und
+[ADR-0040](adr/0040-getrennte-release-promotion.md) binden den spaeteren
+Release an genau einen getesteten Commit, drei attestierte Rollenimages und
+getrennte Freigaben fuer Main, Registry und Produktivdeployment.
 
 ## Systemkontext
 

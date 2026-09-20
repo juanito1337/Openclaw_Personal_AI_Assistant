@@ -61,7 +61,7 @@ willkuerliche Coverage- oder Laufzeitgrenzen festzulegen.
 
 Der alleinige Testbefehl ist `./scripts/run-tests.sh`. pytest sammelt damit sowohl
 die unittest-Klassen als auch freie pytest-Funktionen. `tests/test-baseline.json`
-fordert mindestens 1057 Tests, darunter mindestens 759 unittest-kompatible Tests
+fordert mindestens 1067 Tests, darunter mindestens 759 unittest-kompatible Tests
 (die bisherigen 349 sowie M0-M15- und Rollout-Regressionstests),
 und genau die zuvor ausgelassenen mindestens 13 freien Tests aus
 `tests/test_invoice_ocr_register.py`. Eine kleinere Teilcollection bricht bereits
@@ -130,6 +130,7 @@ der aktuellen Python-Dateien.
 | Tests nach M15-Entwicklungsabnahme gesammelt/ausgefuehrt | 1.036 / 1.036 (1.147 JUnit-Faelle inklusive 111 Subtests) |
 | Tests nach M15-Approval-/Antwortkorrelations-Hotfix gesammelt/ausgefuehrt | 1.041 / 1.041 |
 | Tests nach M16.0 gesammelt/ausgefuehrt | 1.057 / 1.057 (1.168 JUnit-Faelle inklusive 111 Subtests) |
+| Tests nach M16.1 gesammelt/ausgefuehrt | 1.067 / 1.067 (1.178 JUnit-Faelle inklusive 111 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -171,6 +172,7 @@ der aktuellen Python-Dateien.
 | neue M14.8-Quarantaene-/Neuaufbau-Regressionsitems | 13 |
 | neue M15-Aktionsabschluss-Regressionsitems | 18 (zusaetzlich 4 Subtests) |
 | neue M16.0-Baseline-/Datenschutz-Regressionsitems | 7 |
+| neue M16.1-Promotionsvertrags-Regressionsitems | 10 |
 | M13-Image-Runtime-Abnahme | Pluginstatus `loaded`, 19 Toolfabriken, 5 typisierte Hooks, keine Diagnosen |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |

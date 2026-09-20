@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Stabilisierung/M16.1: Der maschinenlesbare Releasekandidat bleibt bis zur
+  Gesamtabnahme explizit blockierter Draft. Ein neuer Validator bindet den
+  spaeteren Quellcommit, `RELEASE.json`, signierten Tag, drei OCI-Rollen,
+  SBOM/Provenance/Cosign und den signierten Rollbackrollensatz. Main-Promotion,
+  Imageveroeffentlichung und Produktivdeployment besitzen getrennte Freigaben;
+  die CI liest die Imageversion aus `RELEASE.json` statt aus einer zweiten
+  hartcodierten Quelle.
 - Stabilisierung/M16.0: Ein datenschutzarmer, schema- und regressionstestbarer
   Baseline-Harness bindet lokale Release-, Manifest-, Test-, Coverage-,
   Static-Analysis-, Komplexitaets- und synthetische Mailmessungen an den exakten

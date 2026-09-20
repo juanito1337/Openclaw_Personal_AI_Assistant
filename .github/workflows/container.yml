@@ -65,10 +65,12 @@ jobs:
           repository="ghcr.io/${GITHUB_REPOSITORY,,}"
           created=$(git show -s --format=%cI "$GITHUB_SHA")
           source_epoch=$(git show -s --format=%ct "$GITHUB_SHA")
+          version=$(python3 -c 'import json; print(json.load(open("RELEASE.json"))["version"])')
           {
             echo "repository=$repository"
             echo "created=$created"
             echo "source_epoch=$source_epoch"
+            echo "version=$version"
             echo 'runtime<<EOF'
             printf '%s\n' "$RUNTIME_TAGS"
             echo 'EOF'
@@ -140,7 +142,7 @@ jobs:
             OPENCLAW_SOURCE_REVISION=${{ github.sha }}
             OPENCLAW_BUILD_CREATED=${{ steps.refs.outputs.created }}
             SOURCE_DATE_EPOCH=${{ steps.refs.outputs.source_epoch }}
-            OPENCLAW_VERSION=3.4.0-r28
+            OPENCLAW_VERSION=${{ steps.refs.outputs.version }}
       - name: Publish proxy with BuildKit SBOM and provenance
         id: proxy
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
@@ -155,7 +157,7 @@ jobs:
             OPENCLAW_SOURCE_REVISION=${{ github.sha }}
             OPENCLAW_BUILD_CREATED=${{ steps.refs.outputs.created }}
             SOURCE_DATE_EPOCH=${{ steps.refs.outputs.source_epoch }}
-            OPENCLAW_VERSION=3.4.0-r28
+            OPENCLAW_VERSION=${{ steps.refs.outputs.version }}
       - name: Publish maintenance with BuildKit SBOM and provenance
         id: maintenance
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
@@ -170,7 +172,7 @@ jobs:
             OPENCLAW_SOURCE_REVISION=${{ github.sha }}
             OPENCLAW_BUILD_CREATED=${{ steps.refs.outputs.created }}
             SOURCE_DATE_EPOCH=${{ steps.refs.outputs.source_epoch }}
-            OPENCLAW_VERSION=3.4.0-r28
+            OPENCLAW_VERSION=${{ steps.refs.outputs.version }}
       - uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
       - name: Sign immutable image digests with GitHub OIDC
         env:

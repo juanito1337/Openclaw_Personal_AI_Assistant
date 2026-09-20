@@ -2,7 +2,7 @@
 
 Stand: 2026-09-20
 Vorgesehener Arbeitsbranch: `development/stabilization-performance-m16`
-Status: in Umsetzung; M16.0 abgeschlossen, keine produktive Aktivierung
+Status: in Umsetzung; M16.0 und M16.1 abgeschlossen, keine produktive Aktivierung
 
 ## Ausgangslage
 
@@ -250,6 +250,10 @@ Produktverhalten und beginne nicht mit M16.1.
 ```
 
 ## M16.1 – Git-, Release- und Promotionsvertrag
+
+Status: abgeschlossen am 2026-09-20. Der Kandidat bleibt bis M16.10 ein
+technisch blockierter Draft; es erfolgten weder Main-Promotion noch Tag,
+Imageveroeffentlichung oder Deployment.
 
 ### Ziel
 
