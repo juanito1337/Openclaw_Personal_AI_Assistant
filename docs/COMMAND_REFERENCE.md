@@ -40,6 +40,7 @@ Konfigurationsfreie Sicht: `./scripts/assistant.sh tools list --catalog` und
 | `assistant.ollama.start` | `local-write` | nein | `explicit-user-start` | `always` | `./scripts/assistant.sh ollama start` | `AGENTS.md` | `tests/test_m5_tool_contract.py` |
 | `assistant.ollama.restart` | `local-write` | nein | `explicit-user-restart` | `always` | `./scripts/assistant.sh ollama restart` | `AGENTS.md` | `tests/test_m5_tool_contract.py` |
 | `assistant.performance.mail` | `read` | nein | `none` | `always` | `./scripts/assistant.sh performance mail --limit 20` | `AGENTS.md` | `tests/test_m5_tool_contract.py` |
+| `assistant.performance.runtime` | `read` | nein | `none` | `always` | `./scripts/assistant.sh performance runtime` | `docs/RUNTIME_CAPACITY_M16.md` | `tests/test_runtime_capacity_m165.py` |
 | `assistant.monitor.record` | `local-write` | nein | `monitoring-local-only` | `always` | `./scripts/assistant.sh monitor record --days 7 --live` | `AGENTS.md` | `tests/test_m5_tool_contract.py` |
 | `assistant.monitor.history` | `read` | nein | `none` | `always` | `./scripts/assistant.sh monitor history --days 30` | `AGENTS.md` | `tests/test_m5_tool_contract.py` |
 ## portfolio

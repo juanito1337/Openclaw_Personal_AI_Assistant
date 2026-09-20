@@ -1,6 +1,6 @@
 # Tests, Qualitaetsbaseline und Container-Runtime
 
-Stand: 2026-09-20, fortgeschrieben bis zum M16.3-Sync-/Schedulervertrag.
+Stand: 2026-09-20, fortgeschrieben bis zum M16.5-Runtimekapazitaetsvertrag.
 Sie startet keine produktiven Dienste und verwendet
 weder `/srv/openclaw` noch produktive Zugangsdaten.
 
@@ -263,6 +263,9 @@ der aktuellen Python-Dateien.
 | reine Branch-Coverage nach M16.2 | 56,08 % |
 | Gesamt-Coverage nach M16.3 | 69,06 % |
 | reine Branch-Coverage nach M16.3 | 56,36 % |
+| Gesamt-Coverage nach M16.5 | 69,21 % |
+| reine Statement-Coverage nach M16.5 | 73,43 % |
+| reine Branch-Coverage nach M16.5 | 56,56 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -283,6 +286,8 @@ der aktuellen Python-Dateien.
 | Laufzeit des finalen lokalen M11.6-Testlaufs | 150,70 s |
 | Laufzeit des finalen lokalen M11.8-Testlaufs | 132,82 s |
 | Laufzeit des finalen lokalen M16.3-Testlaufs | 145,22 s |
+| M16.5-Collection | 1.111 pytest-Items plus 111 Subtests; 1.222 erfolgreiche JUnit-Faelle |
+| Laufzeit des finalen lokalen M16.5-Testlaufs | 151,46 s |
 | M16.3 Synthetic Full-Sync Walltime p50/p95 (100 Objekte, 5 Samples) | 564,726 / 573,555 ms |
 | M16.3 Synthetic No-op-Sync Walltime p50/p95 (100 Objekte, 5 Samples) | 4,899 / 5,291 ms |
 | M16.3 Synthetic Einzel-Delta Walltime p50/p95 (100 Objekte, 5 Samples) | 9,297 / 10,660 ms |
@@ -1464,3 +1469,32 @@ Migrationsfall bindet den erwarteten Preview-Digest, behaelt Registry und Rechte
 bytegenau bei, publiziert atomar und stellt das erzeugte Backup wieder her.
 `./scripts/check-repo.sh` prueft zusaetzlich den generierten Toolvertrag, das
 Source-Manifest, alle bisherigen Domaenentests und `git diff --check`.
+
+## M16.5-Runtimekapazitaet und Latenz
+
+Die neuen Tests sind vollständig hermetisch und starten keine produktiven
+Container:
+
+```bash
+.venv/bin/python -m pytest -q \
+  tests/test_runtime_capacity_m165.py \
+  tests/test_performance_telemetry.py \
+  tests/test_ollama_priority_proxy.py \
+  tests/test_agent_tool_orchestration_m13.py
+```
+
+Temporäre Cgroup-/Proc-Dateien und Docker-JSON-Fixtures prüfen alle getrennten
+Exitursachen, bestehende Rollenbudgets, Host-/Containertrennung sowie
+Cold-/Warm-/Health-/Shutdown-Messfelder. Node-Fixtures erzwingen große
+Toolantworten und bestätigen Digest, begrenzte Projektion,
+`results_may_be_truncated=true` und den Verlust negativer Claims. Modell- und
+Mailtelemetrie müssen ihre Komponenten exakt zur Turn-Walltime reconciliieren.
+Der dynamische Operatorlauf gegen produktive Container ist nicht Bestandteil der
+Entwicklungsabnahme und bleibt ohne eigene Freigabe `not-measured`.
+
+Der vollständige lokale Abnahmelauf vom 2026-09-20 sammelte und bestand 1.111
+pytest-Items; zusammen mit 111 parametrisierten `unittest`-Subtests weist das
+JUnit-Artefakt 1.222 erfolgreiche Fälle ohne Fehler oder Skips aus. Die kombinierte
+Statement-/Branch-Coverage beträgt 69,21 Prozent, die reine Statement-Coverage
+73,43 Prozent und die reine Branch-Coverage 56,56 Prozent. Der Lauf dauerte
+151,46 Sekunden.

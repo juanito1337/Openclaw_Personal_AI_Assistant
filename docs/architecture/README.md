@@ -30,6 +30,11 @@ begrenzte Batches und die einzige priorisierte Schedulerqueue.
 Die [synthetische M16.3-Messevidenz](m16.3-sync-benchmark.json) ist an den
 implementierenden Quellcommit gebunden; fehlende M16.0-Livewerte bleiben
 sichtbar nicht vergleichbar.
+Der [M16.5-Kapazitäts- und Latenzvertrag](../RUNTIME_CAPACITY_M16.md) trennt
+Rollen-Cgroups, Host-Swap/Fremdlast, OOM-Ursachen, ClamAV-Budgets und große
+Toolergebnisprojektionen. Die bestehenden Rollenlimits stehen maschinenlesbar in
+[`runtime-capacity-budgets.json`](runtime-capacity-budgets.json); der Gateway
+erhält dafür keinen Docker-Socket.
 
 ## Systemkontext
 

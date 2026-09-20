@@ -247,6 +247,14 @@ cgroup-Zaehlung wiederholte OOM-Kills unter dem frueheren 512-MiB-Limit belegt
 hat. Waehrend eines Eigenchecks ist sein aktuelles Resultat `running`; der
 Exitcode des vorherigen Laufs wird erst nach Abschluss wieder bewertet.
 
+M16.5 verändert dieses 1-GiB-Limit nicht. `performance runtime` liest innerhalb
+einer Rolle nur deren Cgroup; der read-only Operator-Collector
+`scripts/runtime-capacity.py` korreliert Docker-Inspect/-Stats ausschließlich
+außerhalb des Gateway. `OOMKilled=true` bei einem aktuell laufenden Container
+ist historische Evidenz und weder automatisch ein aktueller Container-OOM noch
+ein Child-OOM. Details und alle unveränderten Rollenbudgets stehen in
+[`RUNTIME_CAPACITY_M16.md`](RUNTIME_CAPACITY_M16.md).
+
 Layout 3 fuehrt vor jeder Veraenderung Schreibbarkeits-, UID-, Freiplatz- und
 SQLite-Checks aus. Es erzeugt ueber SQLite `backup()` einen SHA-256-verifizierten
 Snapshot, baut `v3` in einem Stagingpfad und publiziert ihn atomar. Konfiguration,

@@ -9,6 +9,7 @@ import {
   guardAnswer,
   guardActionCompletion,
   makeEvidence,
+  projectPayload,
   routePrompt,
   shouldBlockGenericTool,
   spawnJson,
@@ -31,6 +32,7 @@ const evidenceByRun = new Map();
 const obligationByRun = new Map();
 const retryByRun = new Set();
 const invalidArgumentsByRun = new Map();
+const turnLatencyByRun = new Map();
 const liveToolsCache = { expiresAt: 0, value: null };
 const ledger = createApprovalLedger(contract.limits.approval_ttl_seconds);
 const metrics = {
@@ -51,6 +53,11 @@ const metrics = {
   action_information_required: 0,
   action_partial: 0,
   approval_failures: 0,
+  turns_completed: 0,
+  prompt_preparation_total_ms: 0,
+  tool_loop_total_ms: 0,
+  answer_finalization_total_ms: 0,
+  turn_total_ms: 0,
 };
 
 function runKey(ctx, fallback = "unknown-run") {
@@ -234,13 +241,19 @@ async function executeOperation(toolName, toolContext, toolCallId, rawParams) {
     liveCommand = live.command;
   }
   const invocation = compileInvocation(operation, args, liveCommand);
+  const toolStarted = Date.now();
   const result = await spawnJson(invocation, contract.limits);
+  const toolElapsed = Math.max(0, Date.now() - toolStarted);
+  metrics.tool_loop_total_ms += toolElapsed;
+  const currentTiming = turnLatencyByRun.get(currentRun);
+  if (currentTiming) currentTiming.tool_loop_ms += toolElapsed;
   let payload = null;
   try {
     payload = JSON.parse(result.stdout);
   } catch {
     payload = null;
   }
+  if (payload !== null) payload = projectPayload(payload, contract.limits).payload;
   const evidence = makeEvidence(operation, result, payload, currentRun, toolCallId);
   const rows = evidenceByRun.get(currentRun) ?? [];
   rows.push(evidence);
@@ -327,8 +340,15 @@ export default definePluginEntry({
     }
 
     api.on("before_prompt_build", async (event, ctx) => {
+      const hookStarted = Date.now();
       const route = routePrompt(contract, event.prompt);
       const key = String(event.runId || runKey(ctx));
+      const timing = {
+        started_at_ms: hookStarted,
+        prompt_preparation_ms: 0,
+        tool_loop_ms: 0,
+        answer_finalization_ms: 0,
+      };
       routeByRun.set(key, route);
       evidenceByRun.set(key, []);
       const obligation = buildActionObligation(contract, event.prompt, route, key);
@@ -340,6 +360,9 @@ export default definePluginEntry({
       }
       retryByRun.delete(key);
       invalidArgumentsByRun.delete(key);
+      timing.prompt_preparation_ms = Math.max(0, Date.now() - hookStarted);
+      metrics.prompt_preparation_total_ms += timing.prompt_preparation_ms;
+      turnLatencyByRun.set(key, timing);
       if (!route.resolved) {
         metrics.unresolved += 1;
         return undefined;
@@ -426,6 +449,7 @@ export default definePluginEntry({
     });
 
     api.on("before_agent_finalize", async (event, ctx) => {
+      const finalizationStarted = Date.now();
       const key = String(event.runId || runKey(ctx));
       const route = routeByRun.get(key);
       if (!route?.resolved) return undefined;
@@ -436,6 +460,12 @@ export default definePluginEntry({
         event.lastAssistantMessage,
       );
       const issues = [...new Set([...evidenceVerdict.issues, ...actionVerdict.issues])];
+      const timing = turnLatencyByRun.get(key);
+      if (timing) {
+        const elapsed = Math.max(0, Date.now() - finalizationStarted);
+        timing.answer_finalization_ms += elapsed;
+        metrics.answer_finalization_total_ms += elapsed;
+      }
       if (issues.length === 0 || retryByRun.has(key)) return undefined;
       retryByRun.add(key);
       metrics.guard_revisions += 1;
@@ -454,6 +484,26 @@ export default definePluginEntry({
       // Delivery correlation belongs to the event. Its message context may
       // intentionally omit the originating run ID.
       const key = String(event.runId || event.sessionKey || runKey(ctx));
+      const timing = turnLatencyByRun.get(key);
+      if (timing) {
+        const total = Math.max(0, Date.now() - timing.started_at_ms);
+        metrics.turns_completed += 1;
+        metrics.turn_total_ms += total;
+        metrics.last_turn_latency = {
+          prompt_preparation_ms: timing.prompt_preparation_ms,
+          tool_loop_ms: timing.tool_loop_ms,
+          answer_finalization_ms: timing.answer_finalization_ms,
+          unattributed_model_and_orchestration_ms: Math.max(
+            0,
+            total
+              - timing.prompt_preparation_ms
+              - timing.tool_loop_ms
+              - timing.answer_finalization_ms,
+          ),
+          turn_latency_ms: total,
+        };
+        turnLatencyByRun.delete(key);
+      }
       const route = routeByRun.get(key);
       if (!route?.resolved || typeof event.payload?.text !== "string") return undefined;
       const evidenceVerdict = guardAnswer(contract, route, event.payload.text, evidenceByRun.get(key) ?? []);

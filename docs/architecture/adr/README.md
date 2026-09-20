@@ -49,5 +49,6 @@ verweist mit Status `Superseded` auf den Nachfolger.
 | [0041](0041-einheitlicher-lauf-und-telemetrievertrag.md) | Accepted | gemeinsame Run-/Attempt-Identitaet, geschlossene Resultate und ehrliche Frische |
 | [0042](0042-inkrementeller-sync-und-eine-priorisierte-queue.md) | Accepted | ETag-basierte Sync-Batches und eine priorisierte, faire Schedulerqueue |
 | [0043](0043-eindeutige-ressourcenidentitaet.md) | Accepted | stabile Ressourcen-ID, typisierte Drift und atomare lokale Migration statt paralleler Selektoren |
+| [0044](0044-getrennte-runtimekapazitaet-und-kontextprojektion.md) | Accepted | getrennte Cgroup-/Hostkapazität, disjunkte OOM-Ursachen und digestgebundene Kontextprojektion |
 
 Neue ADRs beginnen mit der [Vorlage](0000-template.md).

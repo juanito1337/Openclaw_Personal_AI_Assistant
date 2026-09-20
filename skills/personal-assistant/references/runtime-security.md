@@ -16,6 +16,13 @@ For runtime state use registered commands such as `status`, `doctor`, `jobs`,
 [generated tool contract](tool-contract.md). Never inspect or edit the scheduler,
 job-control or monitoring databases as an operational shortcut.
 
+`performance runtime` reports only the current role's Cgroup and host-level
+context. It cannot see sibling restart or health history. Use the documented
+read-only operator collector for an explicitly approved all-role observation;
+never mount the Docker socket into the gateway. Container OOM, historical OOM,
+child OOM, health failure, manual stop and normal exit are distinct. Exit 137
+alone is not OOM proof, and host swap or foreign load is not agent consumption.
+
 Generic memory and workspace search are not runtime discovery. For a named
 domain, prefer its registered list/search/status tool over `assistant.search`;
 use the broad search only for its documented indexed sources and keep its default
@@ -64,6 +71,11 @@ and upstream after recovery. A registered domain tool such as `portfolio mapping
 suggest --isin "<ISIN>"` may use Ollama only through this coordinator; its model
 output remains bounded by that domain tool's deterministic validation and approval
 contract.
+
+Performance evidence separates queue wait, prompt preparation, upstream
+inference, tool loops and finalization. A projected large tool result is explicitly
+incomplete and may not support a negative completeness claim; its digest and
+original/projected sizes remain visible.
 
 ## Antivirus
 

@@ -119,3 +119,7 @@ def add_commands(sub: Any) -> None:
     )
     performance_mail.add_argument("--limit", type=int, default=20)
     performance_mail.add_argument("--raw", action="store_true")
+    performance_sub.add_parser(
+        "runtime",
+        help="Aktuelle rollenlokale Cgroup-, Prozess-, Host- und Budgetevidenz anzeigen",
+    )

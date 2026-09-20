@@ -52,6 +52,7 @@
     {"path": "docs/architecture/adr/0040-getrennte-release-promotion.md", "owner": "Release Maintainers"},
     {"path": "docs/architecture/adr/0041-einheitlicher-lauf-und-telemetrievertrag.md", "owner": "Operations Maintainers"},
     {"path": "docs/architecture/adr/0042-inkrementeller-sync-und-eine-priorisierte-queue.md", "owner": "Operations Maintainers"},
-    {"path": "docs/architecture/adr/0043-eindeutige-ressourcenidentitaet.md", "owner": "Architecture Maintainers"}
+    {"path": "docs/architecture/adr/0043-eindeutige-ressourcenidentitaet.md", "owner": "Architecture Maintainers"},
+    {"path": "docs/architecture/adr/0044-getrennte-runtimekapazitaet-und-kontextprojektion.md", "owner": "Operations Maintainers"}
   ]
 }

@@ -123,6 +123,7 @@ def render_evidence_schema() -> str:
                     "incomplete-result",
                     "invalid-arguments",
                     "operation-failed",
+                    "output-limit",
                     "permission-denied",
                     "timeout",
                 ],

@@ -4,9 +4,9 @@
   "plugin_id": "personal-assistant-tools",
   "plugin_path": "/opt/openclaw-plugins/personal-assistant-tools",
   "product_version": "3.4.0-r28",
-  "catalog_sha256": "13dd25d7a5455ad2861184060050fa123b37c492ebeb4f96ffa7acbeeaa73e6c",
-  "catalog_tool_count": 169,
-  "supported_operation_count": 168,
+  "catalog_sha256": "b403f76a033f358ca4f3e467801dd6a0efab17844ad4d5966d11b5d6e64a187e",
+  "catalog_tool_count": 170,
+  "supported_operation_count": 169,
   "excluded_operation_count": 1,
   "operations": [
     {
@@ -897,6 +897,35 @@
       "approval": "none",
       "availability": "always",
       "command": "./scripts/assistant.sh performance mail --limit 20",
+      "argument_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "parameter_bindings": [],
+      "stdin_parameter": null,
+      "supported": true,
+      "exclusion_reason": "",
+      "allowed_claims": [
+        "tool-status",
+        "positive-evidence",
+        "tool-error"
+      ],
+      "error_codes": [
+        "configuration-error",
+        "operation-failed"
+      ]
+    },
+    {
+      "tool_id": "assistant.performance.runtime",
+      "domain": "runtime",
+      "description": "Rollenlokale Cgroup-, Speicher-, CPU-, I/O-, PID-, Host-Swap- und Budgetevidenz ohne Docker-Socket anzeigen",
+      "mode": "read",
+      "writes_external_data": false,
+      "approval": "none",
+      "availability": "always",
+      "command": "./scripts/assistant.sh performance runtime",
       "argument_schema": {
         "type": "object",
         "properties": {},
@@ -6884,6 +6913,7 @@
               "assistant.ollama.check",
               "assistant.ollama.queue",
               "assistant.performance.mail",
+              "assistant.performance.runtime",
               "assistant.monitor.history"
             ],
             "description": "Exakt eine registrierte Katalogoperation auswaehlen."
@@ -6903,7 +6933,7 @@
               }
             },
             "additionalProperties": false,
-            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: assistant.agent-tools.status: keine; assistant.status: keine; assistant.version: keine; assistant.version.history: keine; assistant.version.since: since; assistant.search: query; assistant.resources.status: keine; assistant.resources.calendar-migration-preview: keine; assistant.monitor.status: keine; assistant.jobs.status: keine; assistant.scheduler.status: keine; assistant.scheduler.doctor: keine; assistant.scheduler.activity: keine; assistant.jobs.alerts: keine; assistant.ollama.status: keine; assistant.ollama.check: keine; assistant.ollama.queue: keine; assistant.performance.mail: keine; assistant.monitor.history: keine"
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: assistant.agent-tools.status: keine; assistant.status: keine; assistant.version: keine; assistant.version.history: keine; assistant.version.since: since; assistant.search: query; assistant.resources.status: keine; assistant.resources.calendar-migration-preview: keine; assistant.monitor.status: keine; assistant.jobs.status: keine; assistant.scheduler.status: keine; assistant.scheduler.doctor: keine; assistant.scheduler.activity: keine; assistant.jobs.alerts: keine; assistant.ollama.status: keine; assistant.ollama.check: keine; assistant.ollama.queue: keine; assistant.performance.mail: keine; assistant.performance.runtime: keine; assistant.monitor.history: keine"
           }
         },
         "required": [
@@ -6931,6 +6961,7 @@
         "assistant.ollama.check",
         "assistant.ollama.queue",
         "assistant.performance.mail",
+        "assistant.performance.runtime",
         "assistant.monitor.history"
       ]
     },
@@ -8668,6 +8699,9 @@
   },
   "limits": {
     "max_output_bytes": 1000000,
+    "max_capture_bytes": 8000000,
+    "max_projected_bytes": 200000,
+    "max_projected_rows": 100,
     "max_error_bytes": 8000,
     "tool_timeout_seconds": 120,
     "approval_timeout_seconds": 120,

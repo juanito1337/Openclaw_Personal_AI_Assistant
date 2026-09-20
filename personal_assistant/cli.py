@@ -193,6 +193,12 @@ def _handle_ollama(args: argparse.Namespace) -> int:
 
 
 def _handle_performance(args: argparse.Namespace) -> int:
+    if args.performance_command == "runtime":
+        from .runtime_capacity import current_runtime_report
+
+        payload = current_runtime_report()
+        _print(payload)
+        return 0 if payload.get("ok") else 1
     if args.performance_command != "mail":
         _print({"ok": False, "error": f"Unbekannter Performance-Befehl: {args.performance_command}"})
         return 2

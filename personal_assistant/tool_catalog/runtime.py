@@ -356,6 +356,21 @@ TOOLS: tuple[ToolDefinition, ...] = (
         test_anchor="tests/test_m5_tool_contract.py",
     ),
     define(
+        id="assistant.performance.runtime",
+        domain="runtime",
+        description=(
+            "Rollenlokale Cgroup-, Speicher-, CPU-, I/O-, PID-, Host-Swap- und "
+            "Budgetevidenz ohne Docker-Socket anzeigen"
+        ),
+        command="./scripts/assistant.sh performance runtime",
+        mode="read",
+        writes_external_data=False,
+        approval="none",
+        availability="always",
+        documentation_anchor="docs/RUNTIME_CAPACITY_M16.md",
+        test_anchor="tests/test_runtime_capacity_m165.py",
+    ),
+    define(
         id="assistant.monitor.record",
         domain="runtime",
         description="Monitoring-Snapshot lokal fuer Trendanalyse speichern",

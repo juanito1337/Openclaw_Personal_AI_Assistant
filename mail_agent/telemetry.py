@@ -33,11 +33,72 @@ def _round_ms(value: float) -> float:
     return round(max(0.0, value), 3)
 
 
-def _duration_ms_from_ns(value: object) -> float:
+def _as_float(value: object, default: float = 0.0) -> float:
+    if not isinstance(value, (str, bytes, bytearray, int, float)):
+        return default
     try:
-        return _round_ms(float(value) / 1_000_000.0)
+        return float(value)
     except (TypeError, ValueError):
-        return 0.0
+        return default
+
+
+def _duration_ms_from_ns(value: object) -> float:
+    return _round_ms(_as_float(value) / 1_000_000.0)
+
+
+def _metric_total(source: Mapping[str, object], names: set[str]) -> float:
+    total = 0.0
+    for name, raw in source.items():
+        if str(name) not in names or not isinstance(raw, Mapping):
+            continue
+        total += _as_float(raw.get("total_ms"))
+    return total
+
+
+def latency_decomposition(
+    *,
+    total_ms: float,
+    phases: Mapping[str, object],
+    external_commands: Mapping[str, object],
+    ollama: Mapping[str, object],
+) -> dict[str, object]:
+    """Reconcile non-overlapping latency components to the measured run walltime."""
+
+    prompt_ms = _metric_total(phases, {"ollama.prompt_preparation"})
+    finalization_ms = _metric_total(
+        phases,
+        {"ollama.response_decode", "ollama.response_finalization"},
+    )
+    tool_loop_ms = sum(
+        _as_float(raw.get("total_ms"))
+        for raw in external_commands.values()
+        if isinstance(raw, Mapping)
+    )
+    queue_ms = _as_float(ollama.get("queue_wait_ms"))
+    upstream_ms = _as_float(ollama.get("server_total_duration_ms"))
+    client_ms = _as_float(ollama.get("client_duration_ms"))
+    transport_ms = max(0.0, client_ms - queue_ms - upstream_ms - finalization_ms)
+    components = {
+        "prompt_preparation_ms": _round_ms(prompt_ms),
+        "queue_wait_ms": _round_ms(queue_ms),
+        "upstream_inference_ms": _round_ms(upstream_ms),
+        "client_transport_ms": _round_ms(transport_ms),
+        "tool_loop_ms": _round_ms(tool_loop_ms),
+        "response_finalization_ms": _round_ms(finalization_ms),
+    }
+    accounted = sum(float(value) for value in components.values())
+    wall = max(0.0, float(total_ms))
+    unattributed = max(0.0, wall - accounted)
+    overlap = max(0.0, accounted - wall)
+    return {
+        **components,
+        "accounted_ms": _round_ms(accounted),
+        "unattributed_ms": _round_ms(unattributed),
+        "overlap_ms": _round_ms(overlap),
+        "reconciled_ms": _round_ms(accounted + unattributed - overlap),
+        "turn_latency_ms": _round_ms(wall),
+        "consistent": abs((accounted + unattributed - overlap) - wall) < 0.01,
+    }
 
 
 def _boot_id() -> str:
@@ -468,6 +529,12 @@ class PerformanceTelemetry:
                 },
                 "classifier": dict(classifier or {}),
             }
+            record["latency"] = latency_decomposition(
+                total_ms=total_ms,
+                phases=record["phases"],  # type: ignore[arg-type]
+                external_commands=record["external_commands"],  # type: ignore[arg-type]
+                ollama=record["ollama"]["summary"],  # type: ignore[index]
+            )
             if drain:
                 record["drain"] = dict(drain)
             self._append_record(record)
@@ -760,6 +827,7 @@ def summarize_performance(records: Sequence[Mapping[str, object]]) -> dict[str, 
     ollama_queue_wait_max_ms = 0.0
     prompt_tokens = 0
     eval_tokens = 0
+    latency_totals: dict[str, float] = defaultdict(float)
 
     for record in records:
         raw_result = record.get("result") or record.get("outcome") or "completed"
@@ -807,6 +875,25 @@ def summarize_performance(records: Sequence[Mapping[str, object]]) -> dict[str, 
             )
             prompt_tokens += int(summary.get("prompt_eval_count") or 0)
             eval_tokens += int(summary.get("eval_count") or 0)
+        latency = record.get("latency")
+        if not isinstance(latency, Mapping):
+            latency = latency_decomposition(
+                total_ms=float(record.get("total_ms") or 0.0),
+                phases=phases if isinstance(phases, Mapping) else {},
+                external_commands=commands if isinstance(commands, Mapping) else {},
+                ollama=summary if isinstance(summary, Mapping) else {},
+            )
+        for key in (
+            "prompt_preparation_ms",
+            "queue_wait_ms",
+            "upstream_inference_ms",
+            "client_transport_ms",
+            "tool_loop_ms",
+            "response_finalization_ms",
+            "unattributed_ms",
+            "overlap_ms",
+        ):
+            latency_totals[key] += _as_float(latency.get(key))
 
     phase_ranking = sorted(
         (
@@ -862,6 +949,12 @@ def summarize_performance(records: Sequence[Mapping[str, object]]) -> dict[str, 
             "queue_wait_max_ms": _round_ms(ollama_queue_wait_max_ms),
             "prompt_eval_count": prompt_tokens,
             "eval_count": eval_tokens,
+        },
+        "latency": {
+            **{key: _round_ms(value) for key, value in sorted(latency_totals.items())},
+            "turn_latency_ms": _round_ms(total_ms),
+            "reconciled_ms": _round_ms(total_ms),
+            "consistent": True,
         },
         "slowest_phases": phase_ranking[:20],
         "slowest_external_commands": command_ranking[:20],

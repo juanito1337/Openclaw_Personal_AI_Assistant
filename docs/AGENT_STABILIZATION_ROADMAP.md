@@ -2,7 +2,7 @@
 
 Stand: 2026-09-20
 Vorgesehener Arbeitsbranch: `development/stabilization-performance-m16`
-Status: in Umsetzung; M16.0 bis M16.3 abgeschlossen, keine produktive Aktivierung
+Status: in Umsetzung; M16.0 bis M16.5 abgeschlossen, keine produktive Aktivierung
 
 ## Ausgangslage
 
@@ -463,6 +463,10 @@ generatorgestuetzt konsistent. Beginne nicht mit M16.5.
 ```
 
 ## M16.5 – Laufzeitkapazitaet, OOM-, I/O- und Latenzgrenzen
+
+Status: abgeschlossen am 2026-09-20. Bestehende Rollenlimits blieben
+unverändert; produktive Allrollen-Peaks bleiben bis zu einem gesondert
+freigegebenen Operatorlauf ausdrücklich `not-measured`.
 
 ### Ziel
 

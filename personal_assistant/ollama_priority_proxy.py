@@ -356,6 +356,10 @@ class ProxyStats:
     by_priority: dict[str, int] = field(default_factory=dict)
     concurrency_max_observed: int = 0
     background_concurrency_max_observed: int = 0
+    upstream_duration_total_ms: float = 0.0
+    upstream_duration_max_ms: float = 0.0
+    request_body_bytes: int = 0
+    response_body_bytes: int = 0
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     def record_start(self, *, scheduled: bool, priority: str) -> None:
@@ -380,6 +384,20 @@ class ProxyStats:
                 self.completed_requests += 1
             else:
                 self.failed_requests += 1
+
+    def record_upstream(
+        self,
+        duration_ms: float,
+        *,
+        request_bytes: int,
+        response_bytes: int,
+    ) -> None:
+        with self._lock:
+            duration = max(0.0, float(duration_ms))
+            self.upstream_duration_total_ms += duration
+            self.upstream_duration_max_ms = max(self.upstream_duration_max_ms, duration)
+            self.request_body_bytes += max(0, int(request_bytes))
+            self.response_body_bytes += max(0, int(response_bytes))
 
     def record_queue_timeout(self) -> None:
         with self._lock:
@@ -416,6 +434,16 @@ class ProxyStats:
                 "queue_wait_max_ms": round(self.queue_wait_max_ms, 3),
                 "concurrency_max_observed": self.concurrency_max_observed,
                 "background_concurrency_max_observed": self.background_concurrency_max_observed,
+                "upstream_duration_total_ms": round(self.upstream_duration_total_ms, 3),
+                "upstream_duration_max_ms": round(self.upstream_duration_max_ms, 3),
+                "upstream_duration_average_ms": round(
+                    self.upstream_duration_total_ms / self.total_requests
+                    if self.total_requests
+                    else 0.0,
+                    3,
+                ),
+                "request_body_bytes": self.request_body_bytes,
+                "response_body_bytes": self.response_body_bytes,
                 "by_priority": dict(sorted(self.by_priority.items())),
             }
 
@@ -598,8 +626,10 @@ class PriorityProxyHandler(BaseHTTPRequestHandler):
                 ticket = None
 
         ok = False
+        upstream_started = time.monotonic()
+        response_bytes = 0
         try:
-            self._forward(
+            response_bytes = self._forward(
                 body=body,
                 queue_wait_ms=queue_wait_ms,
                 priority_name=priority_name,
@@ -636,6 +666,11 @@ class PriorityProxyHandler(BaseHTTPRequestHandler):
                         X_Ollama_Queue_Wait_Ms=f"{queue_wait_ms:.3f}",
                     )
         finally:
+            self.priority_server.stats.record_upstream(
+                (time.monotonic() - upstream_started) * 1000.0,
+                request_bytes=len(body),
+                response_bytes=response_bytes,
+            )
             if ticket is not None:
                 self.priority_server.gate.release(ticket)
             self.priority_server.stats.record_finish(ok=ok)
@@ -647,7 +682,7 @@ class PriorityProxyHandler(BaseHTTPRequestHandler):
         queue_wait_ms: float,
         priority_name: str,
         upstream_timeout_seconds: float,
-    ) -> None:
+    ) -> int:
         config = self.priority_server.config
         parsed = urlsplit(config.upstream_url)
         scheme = parsed.scheme
@@ -673,6 +708,7 @@ class PriorityProxyHandler(BaseHTTPRequestHandler):
         headers["Content-Length"] = str(len(body))
         headers["Connection"] = "close"
 
+        response_bytes = 0
         try:
             connection.request(self.command, target, body=body, headers=headers)
             response = connection.getresponse()
@@ -698,9 +734,11 @@ class PriorityProxyHandler(BaseHTTPRequestHandler):
                 chunk = response.read1(config.buffer_bytes)
                 if not chunk:
                     break
+                response_bytes += len(chunk)
                 self.wfile.write(chunk)
                 self.wfile.flush()
             self.close_connection = True
+            return response_bytes
         finally:
             connection.close()
 

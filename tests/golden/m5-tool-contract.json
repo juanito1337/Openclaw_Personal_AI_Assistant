@@ -224,6 +224,14 @@
     "approval": "none"
   },
   {
+    "id": "assistant.performance.runtime",
+    "description": "Rollenlokale Cgroup-, Speicher-, CPU-, I/O-, PID-, Host-Swap- und Budgetevidenz ohne Docker-Socket anzeigen",
+    "command": "./scripts/assistant.sh performance runtime",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
     "id": "assistant.monitor.record",
     "description": "Monitoring-Snapshot lokal fuer Trendanalyse speichern",
     "command": "./scripts/assistant.sh monitor record --days 7 --live",

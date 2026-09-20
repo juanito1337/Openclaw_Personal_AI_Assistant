@@ -53,6 +53,7 @@
         "assistant.ollama.start",
         "assistant.ollama.status",
         "assistant.performance.mail",
+        "assistant.performance.runtime",
         "assistant.resources.calendar-migration-apply",
         "assistant.resources.calendar-migration-preview",
         "assistant.resources.calendar-migration-rollback",
@@ -267,6 +268,7 @@
         "incomplete-result",
         "invalid-arguments",
         "operation-failed",
+        "output-limit",
         "permission-denied",
         "timeout"
       ]
@@ -389,6 +391,7 @@
           "assistant.ollama.start",
           "assistant.ollama.status",
           "assistant.performance.mail",
+          "assistant.performance.runtime",
           "assistant.resources.calendar-migration-apply",
           "assistant.resources.calendar-migration-preview",
           "assistant.resources.calendar-migration-rollback",

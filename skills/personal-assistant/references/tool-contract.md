@@ -42,6 +42,7 @@ den fuehrenden Launcher durch `/opt/openclaw-agent/scripts/assistant.sh` ersetze
 | `assistant.ollama.start` | `local-write` | nein | `explicit-user-start` | `always` | `./scripts/assistant.sh ollama start` | `tests/test_m5_tool_contract.py` |
 | `assistant.ollama.restart` | `local-write` | nein | `explicit-user-restart` | `always` | `./scripts/assistant.sh ollama restart` | `tests/test_m5_tool_contract.py` |
 | `assistant.performance.mail` | `read` | nein | `none` | `always` | `./scripts/assistant.sh performance mail --limit 20` | `tests/test_m5_tool_contract.py` |
+| `assistant.performance.runtime` | `read` | nein | `none` | `always` | `./scripts/assistant.sh performance runtime` | `tests/test_runtime_capacity_m165.py` |
 | `assistant.monitor.record` | `local-write` | nein | `monitoring-local-only` | `always` | `./scripts/assistant.sh monitor record --days 7 --live` | `tests/test_m5_tool_contract.py` |
 | `assistant.monitor.history` | `read` | nein | `none` | `always` | `./scripts/assistant.sh monitor history --days 30` | `tests/test_m5_tool_contract.py` |
 

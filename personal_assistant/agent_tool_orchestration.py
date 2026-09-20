@@ -664,6 +664,9 @@ def build_native_tool_contract() -> dict[str, Any]:
         ),
         "limits": {
             "max_output_bytes": 1_000_000,
+            "max_capture_bytes": 8_000_000,
+            "max_projected_bytes": 200_000,
+            "max_projected_rows": 100,
             "max_error_bytes": 8_000,
             "tool_timeout_seconds": 120,
             "approval_timeout_seconds": 120,

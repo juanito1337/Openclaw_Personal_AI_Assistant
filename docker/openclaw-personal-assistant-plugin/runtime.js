@@ -197,6 +197,9 @@ export async function spawnJson(invocation, limits, options = {}) {
     });
     let stdout = "";
     let stderr = "";
+    let stdoutBytes = 0;
+    let stdoutTruncated = false;
+    const stdoutHash = createHash("sha256");
     let settled = false;
     let timer;
     let killTimer;
@@ -209,21 +212,30 @@ export async function spawnJson(invocation, limits, options = {}) {
       resolve(result);
     };
     child.stdout?.on("data", (chunk) => {
-      stdout = bounded(stdout + String(chunk), limits.max_output_bytes);
+      const data = Buffer.from(chunk);
+      stdoutBytes += data.length;
+      stdoutHash.update(data);
+      const maximum = Number(limits.max_capture_bytes ?? limits.max_output_bytes ?? 1_000_000);
+      if (Buffer.byteLength(stdout) + data.length <= maximum) stdout += data.toString();
+      else stdoutTruncated = true;
     });
     child.stderr?.on("data", (chunk) => {
       stderr = bounded(stderr + String(chunk), limits.max_error_bytes);
     });
     child.on("error", (error) => finish({ returncode: 127, stdout, stderr, error: error.message }));
-    child.on("close", (code, signal) =>
+    child.on("close", (code, signal) => {
+      if (settled) return;
       finish({
         returncode: timedOut ? 124 : Number(code ?? 1),
         stdout,
         stderr,
+        stdout_bytes: stdoutBytes,
+        stdout_sha256: stdoutHash.digest("hex"),
+        stdout_truncated: stdoutTruncated,
         signal: signal ?? null,
         ...(timedOut ? { error: "tool-timeout" } : {}),
-      }),
-    );
+      });
+    });
     timer = setTimeout(() => {
       timedOut = true;
       child.kill("SIGTERM");
@@ -246,6 +258,7 @@ function classifyError(result, payload) {
   const detail = `${result.error ?? ""}\n${result.stderr ?? ""}`.toLowerCase();
   if (detail.includes("invalid-arguments")) return "invalid-arguments";
   if (detail.includes("missing-or-stale-bound-approval")) return "approval-required";
+  if (result.stdout_truncated) return "output-limit";
   if (result.returncode === 124 || detail.includes("timeout")) return "timeout";
   if (detail.includes("permission") || detail.includes("freigabe")) return "permission-denied";
   if (detail.includes("configuration") || detail.includes("umgebungsvariable")) {
@@ -261,6 +274,56 @@ function resultRows(payload) {
     if (Array.isArray(payload?.[key])) return payload[key];
   }
   return null;
+}
+
+export function projectPayload(payload, limits) {
+  if (!payload || typeof payload !== "object") return { payload, projected: false };
+  const rendered = JSON.stringify(payload);
+  const maximum = Math.max(1024, Number(limits.max_projected_bytes ?? 200_000));
+  if (Buffer.byteLength(rendered) <= maximum) return { payload, projected: false };
+  const digest = stableDigest(payload);
+  const maximumRows = Math.max(1, Number(limits.max_projected_rows ?? 100));
+  const rowKeys = ["results", "records", "messages", "items", "files", "events", "tasks", "contacts"];
+  const key = rowKeys.find((candidate) => Array.isArray(payload[candidate]));
+  const originalRows = key ? payload[key] : [];
+  let keptRows = Math.min(maximumRows, originalRows.length);
+  let projected;
+  do {
+    projected = {
+      ...payload,
+      ...(key ? { [key]: originalRows.slice(0, keptRows) } : {}),
+      complete: false,
+      results_may_be_truncated: true,
+      projection: {
+        reason: "agent-context-budget",
+        original_bytes: Buffer.byteLength(rendered),
+        original_sha256: digest,
+        row_key: key ?? null,
+        original_rows: originalRows.length,
+        projected_rows: key ? keptRows : 0,
+      },
+    };
+    if (!key || Buffer.byteLength(JSON.stringify(projected)) <= maximum || keptRows === 0) break;
+    keptRows = Math.floor(keptRows / 2);
+  } while (true);
+  if (Buffer.byteLength(JSON.stringify(projected)) > maximum) {
+    projected = {
+      ok: payload.ok !== false,
+      complete: false,
+      results_may_be_truncated: true,
+      freshness: payload.freshness ?? null,
+      coverage: payload.coverage ?? null,
+      projection: {
+        reason: "agent-context-budget",
+        original_bytes: Buffer.byteLength(rendered),
+        original_sha256: digest,
+        row_key: key ?? null,
+        original_rows: originalRows.length,
+        projected_rows: 0,
+      },
+    };
+  }
+  return { payload: projected, projected: true };
 }
 
 function isComplete(operation, payload, ok) {

@@ -30,6 +30,7 @@ TOOL_ORDER: tuple[str, ...] = (
     "assistant.ollama.start",
     "assistant.ollama.restart",
     "assistant.performance.mail",
+    "assistant.performance.runtime",
     "assistant.monitor.record",
     "assistant.monitor.history",
     "portfolio.status",
