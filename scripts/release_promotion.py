@@ -47,6 +47,11 @@ def _object(value: Any, message: str) -> dict[str, Any]:
 
 
 def _git_is_ancestor(ancestor: str, revision: str, *, root: Path = ROOT) -> bool:
+    # A commit is always its own ancestor.  Besides avoiding an unnecessary
+    # subprocess, this keeps the pure promotion contract testable from an
+    # installed wheel where no Git object database is expected to exist.
+    if ancestor == revision:
+        return True
     result = subprocess.run(
         ["git", "merge-base", "--is-ancestor", ancestor, revision],
         cwd=root,

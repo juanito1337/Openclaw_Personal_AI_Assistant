@@ -11,6 +11,7 @@ from personal_assistant.cli import parser
 from personal_assistant.ollama_priority_proxy import ProxyStats
 from personal_assistant.runtime_capacity import (
     DEFAULT_BUDGETS,
+    PACKAGED_BUDGETS,
     build_capacity_report,
     classify_exit,
     current_runtime_report,
@@ -156,6 +157,14 @@ def test_capacity_budgets_match_existing_hardening_contract() -> None:
         assert budgets[role]["memory_limit_bytes"] == expected["memory"]
         assert budgets[role]["pids_limit"] == expected["pids"]
         assert budgets[role]["cpus"] == expected["cpus"]
+
+
+def test_packaged_capacity_budgets_match_documented_contract() -> None:
+    documented = json.loads(
+        (ROOT / "docs/architecture/runtime-capacity-budgets.json").read_text(encoding="utf-8")
+    )
+    packaged = json.loads(PACKAGED_BUDGETS.read_text(encoding="utf-8"))
+    assert packaged == documented
 
 
 def test_runtime_performance_cli_is_read_only_and_configuration_free() -> None:

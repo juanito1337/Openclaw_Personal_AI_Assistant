@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "milestone": "M16.5",
+  "policy": {
+    "limits_changed": false,
+    "source": "compose.yaml and docs/architecture/runtime-hardening.json",
+    "interpretation": "These are existing safety limits, not measured target consumption. A measured overrun is a blocker and never an automatic request to increase the limit."
+  },
+  "roles": {
+    "layout-init": {"container_suffix": "layout-init", "memory_limit_bytes": 1073741824, "pids_limit": 128, "cpus": 1.0, "kind": "one-shot"},
+    "ollama-proxy": {"container_suffix": "ollama-proxy", "memory_limit_bytes": 1073741824, "pids_limit": 256, "cpus": 2.0, "kind": "resident"},
+    "gateway": {"container_suffix": "gateway", "memory_limit_bytes": 2147483648, "pids_limit": 512, "cpus": 2.0, "kind": "resident"},
+    "mail-worker": {"container_suffix": "mail-worker", "memory_limit_bytes": 2147483648, "pids_limit": 256, "cpus": 2.0, "kind": "worker"},
+    "sync-worker": {"container_suffix": "sync-worker", "memory_limit_bytes": 1073741824, "pids_limit": 192, "cpus": 1.0, "kind": "worker"},
+    "supervisor-worker": {"container_suffix": "supervisor-worker", "memory_limit_bytes": 1073741824, "pids_limit": 128, "cpus": 0.5, "kind": "worker"},
+    "portfolio-worker": {"container_suffix": "portfolio-worker", "memory_limit_bytes": 1073741824, "pids_limit": 192, "cpus": 1.0, "kind": "worker"},
+    "monitor-worker": {"container_suffix": "monitor-worker", "memory_limit_bytes": 1073741824, "pids_limit": 192, "cpus": 1.0, "kind": "worker"},
+    "agent-cli": {"container_suffix": "agent-cli", "memory_limit_bytes": 2147483648, "pids_limit": 512, "cpus": 2.0, "kind": "tool"},
+    "clamav-socket-init": {"container_suffix": "clamav-socket-init", "memory_limit_bytes": 67108864, "pids_limit": 16, "cpus": 0.1, "kind": "one-shot"},
+    "clamd": {"container_suffix": "clamd", "memory_limit_bytes": 2147483648, "pids_limit": 64, "cpus": 2.0, "kind": "resident-antivirus"},
+    "clamav-update": {"container_suffix": "clamav-update", "memory_limit_bytes": 2147483648, "pids_limit": 128, "cpus": 1.0, "kind": "maintenance-antivirus"}
+  }
+}

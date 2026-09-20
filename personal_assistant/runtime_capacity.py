@@ -5,11 +5,13 @@ import os
 import re
 from collections.abc import Mapping
 from datetime import UTC, datetime
+from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_BUDGETS = ROOT / "docs/architecture/runtime-capacity-budgets.json"
+PACKAGED_BUDGETS = files("personal_assistant").joinpath("runtime_capacity_budgets.json")
 
 
 def _as_int(value: object, default: int = 0) -> int:
@@ -93,7 +95,10 @@ def _meminfo(path: Path) -> dict[str, int]:
 
 
 def load_budgets(path: Path = DEFAULT_BUDGETS) -> dict[str, Any]:
-    payload = json.loads(path.read_text(encoding="utf-8"))
+    if path == DEFAULT_BUDGETS and not path.is_file():
+        payload = json.loads(PACKAGED_BUDGETS.read_text(encoding="utf-8"))
+    else:
+        payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict) or not isinstance(payload.get("roles"), dict):
         raise ValueError("Runtime-Kapazitaetsbudget ist ungueltig")
     return payload

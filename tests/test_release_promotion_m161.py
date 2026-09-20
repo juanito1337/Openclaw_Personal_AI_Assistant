@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -17,6 +18,10 @@ import release_promotion as promotion  # noqa: E402
 
 
 def _git(command: str) -> str:
+    if os.environ.get("OPENCLAW_TEST_INSTALLED") == "1":
+        if command in {"rev-parse HEAD", "rev-parse main"}:
+            return "a" * 40
+        raise AssertionError(f"Nicht unterstuetzter installierter Git-Fixture-Befehl: {command}")
     return subprocess.run(
         ["git", *command.split()],
         cwd=ROOT,

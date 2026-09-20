@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
+import sys
 from pathlib import Path
 
 from scripts.check_risk_coverage import verify
@@ -59,8 +61,11 @@ def test_risk_coverage_rejects_missing_or_regressed_module() -> None:
 def test_internal_import_graph_remains_acyclic_after_extraction() -> None:
     environment = os.environ.copy()
     environment.pop("OPENCLAW_ENFORCE_TEST_BASELINE", None)
+    # This nested check analyses the source tree.  The outer wheel suite has
+    # already asserted that its product imports resolve from site-packages.
+    environment.pop("OPENCLAW_TEST_INSTALLED", None)
     completed = subprocess.run(
-        [".venv/bin/python", "-m", "pytest", "-q", "tests/test_architecture_docs.py"],
+        [sys.executable, "-m", "pytest", "-q", "tests/test_architecture_docs.py"],
         cwd=ROOT,
         env=environment,
         check=False,
@@ -75,6 +80,9 @@ def test_coverage_contract_is_bound_to_existing_commit() -> None:
         (ROOT / "docs/architecture/m16.6-risk-coverage.json").read_text(encoding="utf-8")
     )
     revision = str(payload["comparison_revision"])
+    assert re.fullmatch(r"[0-9a-f]{7,40}", revision)
+    if os.environ.get("OPENCLAW_TEST_INSTALLED") == "1":
+        return
     completed = subprocess.run(
         ["git", "cat-file", "-e", f"{revision}^{{commit}}"],
         cwd=ROOT,
