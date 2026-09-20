@@ -13,7 +13,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from datetime import time as clock_time
@@ -720,6 +720,7 @@ class PortfolioService:
         mapping_query_searcher: MappingSearcher | None = None,
         mapping_selector: MappingSelector | None = None,
         research_provider: ResearchProvider | None = None,
+        job_state_provider: Callable[[], Mapping[str, Any]] | None = None,
         now: Callable[[], datetime] = _now,
     ) -> None:
         self.settings = settings
@@ -732,6 +733,7 @@ class PortfolioService:
         self._mapping_query_searcher = mapping_query_searcher
         self._mapping_selector = mapping_selector
         self._research_provider = research_provider
+        self._job_state_provider = job_state_provider
         self._now = now
 
     def close(self) -> None:
@@ -2634,8 +2636,14 @@ class PortfolioService:
         health = self.health()
         configuration = self._configuration_status()
         database_integrity = self.store.integrity()
+        diagnosis = self._diagnostic_state(
+            health=health,
+            configuration=configuration,
+            database_integrity=database_integrity,
+        )
         return {
-            "ok": bool(configuration["ok"] and database_integrity == "ok" and health["ok"]),
+            "ok": diagnosis["ok"],
+            "state": diagnosis["state"],
             "enabled": self.settings.enabled,
             "database": str(self.store.path),
             "import_root": str(self.settings.import_root),
@@ -2645,6 +2653,7 @@ class PortfolioService:
             "stale_warning_minutes": self.settings.stale_warning_minutes,
             "stale_critical_minutes": self.settings.stale_critical_minutes,
             "configuration": configuration,
+            "diagnosis": diagnosis,
             "database_integrity": database_integrity,
             "health": health,
             "holdings": self.holdings(),
@@ -2664,17 +2673,147 @@ class PortfolioService:
             "import_root_present": import_root_present,
         }
 
+    @staticmethod
+    def _provider_failure(error: object) -> dict[str, object]:
+        text = str(error or "")
+        categories = (
+            ("HTTP 401", "provider-authentication-denied", 401, False),
+            ("HTTP 402", "provider-payment-required", 402, False),
+            ("HTTP 403", "provider-entitlement-denied", 403, False),
+            ("HTTP 429", "provider-rate-limited", 429, True),
+        )
+        for marker, category, status_code, retryable in categories:
+            if marker in text:
+                return {
+                    "state": category,
+                    "status_code": status_code,
+                    "retryable": retryable,
+                }
+        lowered = text.casefold()
+        if "lieferte keinen kurs" in lowered or "leere antwort" in lowered:
+            return {
+                "state": "provider-empty-response",
+                "status_code": None,
+                "retryable": True,
+            }
+        return {"state": "unverified", "status_code": None, "retryable": False}
+
+    def _job_state(self) -> dict[str, object]:
+        if self._job_state_provider is None:
+            return {
+                "name": "portfolio",
+                "desired": "unknown",
+                "state": "unknown",
+                "ok": True,
+                "observed_runtime_checked": False,
+                "read_only": True,
+            }
+        try:
+            payload = dict(self._job_state_provider())
+        except (OSError, ValueError, TypeError) as exc:
+            return {
+                "name": "portfolio",
+                "desired": "unknown",
+                "state": "unavailable",
+                "ok": False,
+                "error": type(exc).__name__,
+                "observed_runtime_checked": False,
+                "read_only": True,
+            }
+        return {
+            "name": "portfolio",
+            "desired": str(payload.get("desired") or "unknown"),
+            "state": str(payload.get("state") or "unknown"),
+            "ok": bool(payload.get("ok", True)),
+            "observed_runtime_checked": bool(payload.get("observed_runtime_checked", False)),
+            "read_only": True,
+        }
+
+    def _diagnostic_state(
+        self,
+        *,
+        health: Mapping[str, Any],
+        configuration: Mapping[str, Any],
+        database_integrity: str,
+    ) -> dict[str, object]:
+        last_run = health.get("last_run")
+        last_error = last_run.get("error") if isinstance(last_run, dict) else ""
+        quote_access = self._provider_failure(last_error)
+        research = self.research_status()
+        research_entitlement = research.get("entitlement")
+        research_state = (
+            str(research_entitlement.get("state") or "unverified")
+            if isinstance(research_entitlement, dict)
+            else "unverified"
+        )
+        job = self._job_state()
+        mapping_required = any(
+            bool(item.get("held")) and not bool(item.get("mapping_confirmed"))
+            for item in health.get("instruments", [])
+            if isinstance(item, dict)
+        )
+        desired_off = job["desired"] == "off"
+        entitlement_denied = (
+            quote_access["state"]
+            in {
+                "provider-authentication-denied",
+                "provider-payment-required",
+                "provider-entitlement-denied",
+            }
+            or research_state == "denied"
+        )
+        if not self.settings.enabled or desired_off:
+            state = "off"
+        elif not configuration.get("ok") or database_integrity != "ok":
+            state = "configured-limited"
+        elif entitlement_denied:
+            state = "provider-entitlement-denied"
+        elif mapping_required:
+            state = "mapping-required"
+        elif not health.get("ok"):
+            state = "stale"
+        else:
+            state = "healthy"
+        return {
+            "ok": bool(state in {"off", "healthy"} and job.get("ok", True)),
+            "state": state,
+            "quote_freshness_state": str(health.get("state") or "unknown"),
+            "mapping_required": mapping_required,
+            "provider_access": {
+                "quotes": quote_access,
+                "research": {
+                    "state": research_state,
+                    "automatic_retry": False if research_state == "denied" else None,
+                    "fallback_provider_allowed": False,
+                },
+            },
+            "job": job,
+            "declared_profile_automatic_changes": False,
+        }
+
     def doctor(self) -> dict[str, Any]:
         health = self.health()
         configuration = self._configuration_status()
+        database_integrity = self.store.integrity()
+        diagnosis = self._diagnostic_state(
+            health=health,
+            configuration=configuration,
+            database_integrity=database_integrity,
+        )
         return {
-            "ok": configuration["ok"] and self.store.integrity() == "ok" and bool(health["ok"]),
+            "ok": diagnosis["ok"],
+            "state": diagnosis["state"],
             "configuration_ok": configuration["ok"],
             "provider_ok": configuration["provider_ok"],
             "api_key_present": configuration["api_key_present"],
             "api_key_env": configuration["api_key_env"],
             "import_root_present": configuration["import_root_present"],
-            "database_integrity": self.store.integrity(),
+            "database_integrity": database_integrity,
+            "provider_access": diagnosis["provider_access"],
+            "mapping_required": diagnosis["mapping_required"],
+            "quote_freshness_state": diagnosis["quote_freshness_state"],
+            "job": diagnosis["job"],
+            "declared_profile_automatic_changes": False,
             "health": health,
         }
 

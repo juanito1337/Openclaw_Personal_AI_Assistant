@@ -15,6 +15,7 @@ from personal_assistant.connectors.nextcloud.files import NextcloudFiles
 from personal_assistant.registry import ResourceRegistry
 
 from .invoice_extract import InvoiceExtractor, InvoiceMetadata
+from .invoice_migration import build_path_migration_plan, extraction_evidence
 from .models import ParsedMessage
 
 REPROCESS_STATUSES = frozenset({"review", "unclassified"})
@@ -123,6 +124,15 @@ def source_years(item: Mapping[str, object]) -> SourceYears | None:
     if path_year is not None:
         return SourceYears(path_year, "path-year", None, path_year, received_year)
     return None
+
+
+def _invoice_root_from_path(value: object) -> str:
+    path = str(value or "").strip().replace("\\", "/").strip("/")
+    parts = [part for part in path.split("/") if part]
+    for index, part in enumerate(parts):
+        if re.fullmatch(r"20\d{2}|21\d{2}", part):
+            return "/".join(parts[:index])
+    return ""
 
 
 def _validate_selector(status: str, source_year: int, limit: int) -> tuple[str, int, int]:
@@ -530,6 +540,14 @@ def build_preview_record(
         extractor_version=metadata.technical.extractor_version,
         proposal=proposal,
     )
+    original_sha256 = str(pdf_sha256).casefold()
+    evidence = extraction_evidence(metadata)
+    migration = build_path_migration_plan(
+        item,
+        metadata,
+        invoice_root=_invoice_root_from_path(item.get("nextcloud_path")),
+        pdf_sha256=original_sha256,
+    )
     return {
         "record_id": int(str(item.get("id") or 0)),
         "attachment_hash": str(item.get("attachment_hash") or ""),
@@ -550,6 +568,11 @@ def build_preview_record(
             "ruleset_version": metadata.technical.ruleset_version,
             "method": metadata.method,
         },
+        "evidence": {
+            "original_sha256": original_sha256,
+            **evidence,
+        },
+        "path_migration": migration,
         "conflicts": {"old": old_conflicts, "new": new_conflicts},
         "fields": fields,
     }

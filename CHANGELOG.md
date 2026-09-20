@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Stabilisierung/M16.8: Rechnungs-Audit und Einzelpreview weisen Originalhash,
+  Scanner-/Extraktorversion, Feldprovenienz und Datumsrollen aus; abweichende
+  Pfade werden nur als backup-, ETag- und SHA-gebundener No-overwrite-Plan
+  dargestellt. Portfolio-Doctor trennt `off`, Konfigurationsgrenze, Mapping,
+  Frische und Provider-Entitlement, sodass ein bewusst ausgeschalteter Job kein
+  falscher Stackfehler ist und fehlende Daten nie durch erfundene Fallbacks
+  ersetzt werden.
+
 - Stabilisierung/M16.7: Neue Mailklassifikationen speichern vor spaeterem
   Feedback einen append-only, inhaltsarmen Feature-/Regel-/Modell-/Kombinations-
   Snapshot mit gehashten Sender-/Threadgruppen. Legacyfeedback ohne diesen

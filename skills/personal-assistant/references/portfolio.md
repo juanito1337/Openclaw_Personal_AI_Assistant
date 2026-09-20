@@ -116,6 +116,17 @@ old snapshot price is current. Never inspect or edit `personal_assistant/tools.t
 to recover from a portfolio error. Run the registered doctor and deep job check;
 protected setup changes belong to the explicitly approved `agent-cli` path.
 
+`portfolio status` and `portfolio doctor` use the closed diagnostic states
+`off`, `configured-limited`, `healthy`, `stale`, `mapping-required` and
+`provider-entitlement-denied`. Always report the separate `provider_access`,
+`mapping_required`, `quote_freshness_state` and `job` evidence instead of
+collapsing them into one guessed cause. A deliberately configured job state
+`desired=off` is a valid operational target and must not be reported as a broken
+stack. HTTP 401, 402, 403 and 429 and an empty quote response retain their typed
+provider categories; none permits a web, model-memory or alternate-provider
+fallback. Observations and feedback never change the declared profile
+automatically.
+
 The valuation error `Aktienkurs fehlt oder ist kritisch veraltet` and its code
 `equity-quote-missing-or-critical` state only that fail-closed precondition; they
 do not prove an API outage or a bad mapping. Read the same failure object's

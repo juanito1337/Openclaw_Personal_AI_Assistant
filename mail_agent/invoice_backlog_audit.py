@@ -9,7 +9,7 @@ from datetime import date
 from pathlib import Path, PurePosixPath
 from typing import cast
 
-AUDIT_SCHEMA_VERSION = 1
+AUDIT_SCHEMA_VERSION = 2
 
 _KNOWN_ARCHIVE_STATUSES = frozenset({"uploaded", "duplicate", "error"})
 _KNOWN_EXTRACTION_STATUSES = frozenset(
@@ -18,6 +18,8 @@ _KNOWN_EXTRACTION_STATUSES = frozenset(
 _SAFE_EXTRACTOR_VERSION = re.compile(r"^m\d{1,3}\.\d{1,3}(?:\.\d{1,3})?$")
 _SAFE_RULESET_VERSION = re.compile(r"^20\d{2}-\d{2}-\d{2}(?:\.\d{1,3})?$")
 _TYPED_AMOUNT_REASON = re.compile(r"^amount:[a-z0-9_.-]+(?::[a-z0-9_.-]+){0,2}$")
+_TYPED_REVIEW_REASON = re.compile(r"^[a-z][a-z0-9_.-]*(?::[a-z0-9_.-]+){1,3}$")
+_SHA256 = re.compile(r"^[a-f0-9]{64}$")
 _PATH_YEAR = re.compile(r"(?:^|/)(20\d{2}|21\d{2})(?:/|$)")
 _REQUIRED_FIELDS = {
     "invoice_date": "invoice_date",
@@ -121,6 +123,44 @@ def _typed_amount_reasons(metadata: Mapping[str, object]) -> list[str]:
     )[:32]
 
 
+def _typed_review_reasons(metadata: Mapping[str, object]) -> list[str]:
+    raw = metadata.get("review_reasons")
+    if not isinstance(raw, list):
+        return []
+    return sorted(
+        {
+            value
+            for item in raw
+            if (value := str(item or "").strip().casefold())
+            and _TYPED_REVIEW_REASON.fullmatch(value)
+        }
+    )[:64]
+
+
+def _date_roles(metadata: Mapping[str, object]) -> list[str]:
+    candidates = metadata.get("field_candidates")
+    if not isinstance(candidates, list):
+        return []
+    roles: set[str] = set()
+    for raw in candidates:
+        if not isinstance(raw, dict) or str(raw.get("field") or "") != "invoice_date":
+            continue
+        role = str(raw.get("role") or "").strip().casefold()
+        if re.fullmatch(r"[a-z][a-z0-9-]{0,63}", role):
+            roles.add(role)
+    return sorted(roles)[:32]
+
+
+def _safe_scanner_identity(metadata: Mapping[str, object]) -> str:
+    technical = metadata.get("technical")
+    value = str(technical.get("scanner_identity") or "").strip() if isinstance(technical, dict) else ""
+    if not value:
+        return "legacy-or-missing"
+    if len(value) > 300 or any(character in value for character in ("\n", "\r", "\0")):
+        return "invalid-redacted"
+    return value
+
+
 def _missing_required(row: Mapping[str, object]) -> dict[str, bool]:
     result: dict[str, bool] = {}
     for public_name, column in _REQUIRED_FIELDS.items():
@@ -177,6 +217,8 @@ def _empty_cohort() -> dict[str, object]:
         "count": 0,
         "source_years": {},
         "missing_required_fields": {name: 0 for name in _REQUIRED_FIELDS},
+        "review_reasons": {},
+        "date_roles": {},
         "plausibility_errors": {
             "complete_amount_triples": 0,
             "inconsistent_amount_triples": 0,
@@ -211,6 +253,12 @@ def _increment_cohort(
     reasons = cast(dict[str, int], plausibility["typed_amount_review_reasons"])
     for reason in _typed_amount_reasons(metadata):
         reasons[reason] = int(reasons.get(reason, 0)) + 1
+    review_reasons = cast(dict[str, int], target["review_reasons"])
+    for reason in _typed_review_reasons(metadata):
+        review_reasons[reason] = int(review_reasons.get(reason, 0)) + 1
+    date_roles = cast(dict[str, int], target["date_roles"])
+    for role in _date_roles(metadata):
+        date_roles[role] = int(date_roles.get(role, 0)) + 1
 
 
 def _sorted_counts(values: Mapping[str, int]) -> dict[str, int]:
@@ -250,7 +298,8 @@ def run_invoice_backlog_audit(
             """
             SELECT status, invoice_date, invoice_number, supplier,
                    gross_amount_cents, net_amount_cents, tax_amount_cents,
-                   extraction_status, extraction_json, register_year, nextcloud_path
+                   attachment_hash, extraction_status, extraction_json,
+                   register_year, nextcloud_path
             FROM invoices
             ORDER BY id
             """
@@ -262,6 +311,8 @@ def run_invoice_backlog_audit(
     extraction_statuses: Counter[str] = Counter()
     extractor_versions: Counter[str] = Counter()
     ruleset_versions: Counter[str] = Counter()
+    scanner_identities: Counter[str] = Counter()
+    original_hashes: Counter[str] = Counter()
     cohorts = {name: _empty_cohort() for name in _COHORT_NAMES}
     path_deviations = {
         "review_in_review_subfolder": 0,
@@ -287,6 +338,13 @@ def run_invoice_backlog_audit(
         metadata = _metadata(row.get("extraction_json"))
         extractor_versions[_safe_metadata_version(metadata, "extractor_version")] += 1
         ruleset_versions[_safe_metadata_version(metadata, "ruleset_version")] += 1
+        scanner_identities[_safe_scanner_identity(metadata)] += 1
+        hash_state = (
+            "valid"
+            if _SHA256.fullmatch(str(row.get("attachment_hash") or "").casefold())
+            else "missing-or-invalid"
+        )
+        original_hashes[hash_state] += 1
         _increment_cohort(cohorts[_cohort(row)], row, metadata)
 
         remote_path = _clean_remote_path(row.get("nextcloud_path"))
@@ -310,6 +368,8 @@ def run_invoice_backlog_audit(
         plausibility = cast(dict[str, object], cohort["plausibility_errors"])
         reasons = cast(dict[str, int], plausibility["typed_amount_review_reasons"])
         plausibility["typed_amount_review_reasons"] = dict(sorted(reasons.items()))
+        cohort["review_reasons"] = dict(sorted(cast(dict[str, int], cohort["review_reasons"]).items()))
+        cohort["date_roles"] = dict(sorted(cast(dict[str, int], cohort["date_roles"]).items()))
 
     return {
         "ok": True,
@@ -323,6 +383,8 @@ def run_invoice_backlog_audit(
         "cohorts": cohorts,
         "extractor_versions": dict(sorted(extractor_versions.items())),
         "ruleset_versions": dict(sorted(ruleset_versions.items())),
+        "scanner_identities": dict(sorted(scanner_identities.items())),
+        "original_hash_coverage": dict(sorted(original_hashes.items())),
         "path_deviations": {
             **path_deviations,
             "automatic_move_available": False,

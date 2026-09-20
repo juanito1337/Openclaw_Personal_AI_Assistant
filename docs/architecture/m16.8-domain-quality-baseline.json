@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "milestone": "M16.8",
+  "fixture_sha256": "dbdcb95d96a76b7ff24cedf00b2baafab72e1cb07271d459d8f48cac478a7d7f",
+  "external_calls": 0,
+  "writes": 0,
+  "invoice": {
+    "legacy_accuracy": 0.6,
+    "current_accuracy": 1.0,
+    "comparable_fields": 5,
+    "changed_fields": ["invoice_date", "invoice_number"]
+  },
+  "portfolio_provider_states": [
+    "provider-authentication-denied",
+    "provider-payment-required",
+    "provider-entitlement-denied",
+    "provider-rate-limited",
+    "provider-empty-response"
+  ],
+  "productive_data_read": false,
+  "productive_data_changed": false
+}

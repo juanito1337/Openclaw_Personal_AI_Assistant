@@ -2,7 +2,7 @@
 
 Stand: 2026-09-20
 Vorgesehener Arbeitsbranch: `development/stabilization-performance-m16`
-Status: in Umsetzung; M16.0 bis M16.7 abgeschlossen, keine produktive Aktivierung
+Status: in Umsetzung; M16.0 bis M16.8 abgeschlossen, keine produktive Aktivierung
 
 ## Ausgangslage
 
@@ -632,6 +632,12 @@ mit M16.8.
 ```
 
 ## M16.8 – Rechnungs- und Portfolio-Restbestaende
+
+Status: abgeschlossen am 2026-09-21. Beleg-, Scanner-, Extraktor-, Datumsrollen-
+und Pfadevidenz ist im Einzelpreview gebunden; Pfadmigration bleibt ein
+nicht-ausfuehrbarer No-overwrite-Plan. Portfolio-Diagnose trennt den geschlossenen
+Fachzustand von Provider-, Mapping-, Frische- und Jobbelegen. Die synthetische
+Abnahme steht in `docs/DOMAIN_QUALITY_M168.md`.
 
 ### Ziel
 

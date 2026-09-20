@@ -134,7 +134,11 @@ class PersonalAssistant(
         if self.role == "portfolio-worker":
             self.tool_settings = load_tool_settings()
             blocked_antivirus = cast(HostAntivirus, _RoleRestrictedAntivirus())
-            self.portfolio = PortfolioService(self.tool_settings.portfolio, blocked_antivirus)
+            self.portfolio = PortfolioService(
+                self.tool_settings.portfolio,
+                blocked_antivirus,
+                job_state_provider=lambda: JobController().desired_status("portfolio"),
+            )
             return
 
         if self.role == "monitor-worker":
@@ -200,6 +204,7 @@ class PersonalAssistant(
         self.portfolio = PortfolioService(
             self.tool_settings.portfolio,
             self.antivirus,
+            job_state_provider=lambda: JobController().desired_status("portfolio"),
         )
         self.scheduler = AdaptiveWorkScheduler()
         self.monitor = PerformanceMonitor(
@@ -209,7 +214,7 @@ class PersonalAssistant(
             live_health=self.nextcloud_discovery.root_health,
             antivirus_health=self.antivirus.doctor,
             antivirus_summary=self.antivirus.store.summary,
-            portfolio_health=self.portfolio.health,
+            portfolio_health=self.portfolio.doctor,
             scheduler_health=self.scheduler.health,
             jobs_health=lambda: JobController().status(target="all", deep=False, record=False),
         )

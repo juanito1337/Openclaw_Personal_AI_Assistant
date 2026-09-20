@@ -55,6 +55,7 @@
     {"path": "docs/architecture/adr/0043-eindeutige-ressourcenidentitaet.md", "owner": "Architecture Maintainers"},
     {"path": "docs/architecture/adr/0044-getrennte-runtimekapazitaet-und-kontextprojektion.md", "owner": "Operations Maintainers"},
     {"path": "docs/architecture/adr/0045-risikobasierte-tests-und-jobloop-grenzen.md", "owner": "Quality Maintainers"},
-    {"path": "docs/architecture/adr/0046-unveraenderliche-mailentscheidungsevidenz.md", "owner": "Data Maintainers"}
+    {"path": "docs/architecture/adr/0046-unveraenderliche-mailentscheidungsevidenz.md", "owner": "Data Maintainers"},
+    {"path": "docs/architecture/adr/0047-beleggebundene-fachqualitaet-und-portfoliozustaende.md", "owner": "Data Maintainers"}
   ]
 }

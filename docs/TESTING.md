@@ -1,6 +1,6 @@
 # Tests, Qualitaetsbaseline und Container-Runtime
 
-Stand: 2026-09-21, fortgeschrieben bis zum M16.7-Mailqualitaetsvertrag.
+Stand: 2026-09-21, fortgeschrieben bis zum M16.8-Fachqualitaetsvertrag.
 Sie startet keine produktiven Dienste und verwendet
 weder `/srv/openclaw` noch produktive Zugangsdaten.
 
@@ -137,6 +137,7 @@ der aktuellen Python-Dateien.
 | Tests nach M16.5 gesammelt/ausgefuehrt | 1.111 / 1.111 (1.222 JUnit-Faelle inklusive 111 Subtests) |
 | Tests nach M16.6 gesammelt/ausgefuehrt | 1.152 / 1.152 (1.263 JUnit-Faelle inklusive 111 Subtests) |
 | Tests nach M16.7 gesammelt/ausgefuehrt | 1.163 / 1.163 (1.274 JUnit-Faelle inklusive 111 Subtests) |
+| Tests nach M16.8 gesammelt/ausgefuehrt | 1.186 / 1.186 (1.297 JUnit-Faelle inklusive 111 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -185,6 +186,7 @@ der aktuellen Python-Dateien.
 | neue M16.5-Kapazitaets-/Latenz-Regressionsitems | 15 |
 | neue M16.6-Risikopfad-/Konsolidierungs-Regressionsitems | 41 |
 | neue M16.7-Mail-Lern-/Reviewqualitaets-Regressionsitems | 11 |
+| neue M16.8-Rechnungs-/Portfolio-Regressionsitems | 23 |
 | M13-Image-Runtime-Abnahme | Pluginstatus `loaded`, 19 Toolfabriken, 5 typisierte Hooks, keine Diagnosen |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |
@@ -280,6 +282,9 @@ der aktuellen Python-Dateien.
 | Gesamt-Coverage nach M16.7 | 69,88 % |
 | reine Statement-Coverage nach M16.7 | 74,09 % |
 | reine Branch-Coverage nach M16.7 | 57,24 % |
+| Gesamt-Coverage nach M16.8 | 69,99 % |
+| reine Statement-Coverage nach M16.8 | 74,20 % |
+| reine Branch-Coverage nach M16.8 | 57,38 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -1563,3 +1568,32 @@ Prozent und die reine Branch-Coverage 57,24 Prozent. Der finale Lauf dauerte
 162,49 Sekunden; Ruff und mypy meldeten keine neuen Befunde. Der Benchmark
 verwendet ausschliesslich synthetische Feature-, Regel- und Modell-Snapshots;
 produktive Mailinhalte werden weder gelesen noch dupliziert.
+
+## M16.8-Rechnungs- und Portfolio-Restbestaende
+
+Die hermetische Teilabnahme lautet:
+
+```bash
+.venv/bin/python scripts/benchmark_domain_quality_m168.py
+.venv/bin/python -m pytest -q \
+  tests/test_domain_quality_m168.py \
+  tests/test_invoice_reprocess_preview_m105.py \
+  tests/test_invoice_reprocess_apply_m106.py \
+  tests/test_invoice_backlog_audit_m107.py \
+  tests/test_portfolio_tool.py \
+  tests/test_portfolio_research.py \
+  tests/test_job_control.py
+```
+
+Sie prueft ausschliesslich synthetische Belege, Providerfehler und temporaere
+Jobzustandsdateien. Kein Test oeffnet produktive PDFs, Nextcloud, EODHD oder den
+produktiven Scheduler. Originalhash, Scanner-/Extraktorversion, Datumsrollen,
+No-overwrite-Plan, getrennte Providerfehler und der gesunde OFF-Zustand werden
+als Verhalten statt als Textsuche geprueft.
+
+Der vollstaendige lokale Lauf vom 2026-09-21 sammelte und bestand 1.186
+pytest-Items. Das JUnit-Artefakt enthaelt einschliesslich 111
+`unittest`-Subtests 1.297 erfolgreiche Faelle ohne Fehler oder Skips. Die
+kombinierte Coverage betraegt 69,99 Prozent, die reine Statement-Coverage 74,20
+Prozent und die reine Branch-Coverage 57,38 Prozent. Der Lauf dauerte 180,02
+Sekunden; Ruff und mypy meldeten keine neuen Befunde.

@@ -44,6 +44,11 @@ Der [M16.7-Mailqualitaetsvertrag](../MAIL_LEARNING_QUALITY_M167.md), seine
 [ADR-0046](adr/0046-unveraenderliche-mailentscheidungsevidenz.md) trennen
 append-only Originalentscheidungen, Legacyfeedback, Komponentenmetriken und
 wirkungspriorisierte Reviewfaelle ohne automatische Regelaktivierung.
+Der [M16.8-Fachqualitaetsvertrag](../DOMAIN_QUALITY_M168.md), seine
+[synthetische Baseline](m16.8-domain-quality-baseline.json) und
+[ADR-0047](adr/0047-beleggebundene-fachqualitaet-und-portfoliozustaende.md)
+binden Rechnungs-Neubewertung und Pfadplaene an Originalevidenz und trennen
+Portfolio-Konfiguration, Providerrecht, Mapping, Frische und Jobintent.
 
 ## Systemkontext
 

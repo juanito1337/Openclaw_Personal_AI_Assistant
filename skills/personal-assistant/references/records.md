@@ -132,6 +132,14 @@ contract. The preview opens invoice SQLite read-only, performs a fail-closed
 ClamAV scan with temporary local cache, reads the original PDF without moving or
 replacing it, and never opens the managed register or audit path.
 
+The preview additionally reports the exact original SHA-256, scanner identity,
+extractor/ruleset version, content-free field provenance, typed date roles and a
+digest-bound `path_migration` proposal. This proposal is not an executable tool:
+it requires a verified local backup, an externally restorable Nextcloud snapshot,
+unchanged source SHA/ETag, one absent target and a separate explicit single-item
+approval. A wrong year, changed hash, existing target or duplicate target fails
+closed. It never authorizes overwrite or bulk apply.
+
 A preview is not approval. Show Jan at least the hash, `preview_sha256`, exact
 classification, field differences and conflicts for the one requested record.
 Only after his explicit instruction may exactly that proposal be applied with

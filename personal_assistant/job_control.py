@@ -1051,6 +1051,21 @@ class JobController:
             result["active_alerts"] = list(self.state.get("active_alerts", {}).values())
         return result
 
+    def desired_status(self, target: str) -> dict[str, Any]:
+        """Return configured intent without probing, starting or repairing a job."""
+        spec = self.specs.get(str(target or "").strip())
+        if spec is None:
+            raise ValueError(f"Unbekannter Job: {target}")
+        desired = bool(self.state.get("desired", {}).get(spec.name, spec.default_on))
+        return {
+            "name": spec.name,
+            "desired": "on" if desired else "off",
+            "state": "configured-on" if desired else "off",
+            "ok": True,
+            "observed_runtime_checked": False,
+            "read_only": True,
+        }
+
     def _notify_openclaw(
         self,
         *,
