@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+- Stabilisierung/M16.10: Die unabhaengige lokale Gesamtpruefung deckt Tests,
+  Coverage, statische Analyse, Wheel, drei Rollenimages, SBOM, lokale
+  Provenance, Secret-/CVE-Scan, reproduzierbare OCI-Exporte und die
+  hermetischen M8-/M11- bis M15-Szenarien ab. Ein dabei gefundener
+  checkoutgebundener Wheel-Testpfad und ein fehlendes Package-Budget wurden
+  korrigiert. Die Abnahme bleibt ehrlich gesperrt, solange CI, r29-Identitaet,
+  signierter Tag, Registry-Digests, Cosign und Rollbacksatz nicht belegt und die
+  getrennten Promotionsfreigaben nicht erteilt sind.
+- Stabilisierung/M16.6: Risikokritische Orchestrierungs-, Bridge-, Jobloop- und
+  Connectorpfade besitzen direkte Verhaltenstests; Testcollection und
+  Modulcoverage sind an den Vorhercommit gebunden. Reine Jobprofil- und
+  Laufentscheidungen sind aus dem I/O-Loop extrahiert, waehrend Ruff- und
+  mypy-Altlasten keine neuen Befunde zulassen.
+- Stabilisierung/M16.5: Rollenlokale Cgroup-, Host-, OOM-, Exit- und
+  Latenzevidenz trennt Container, Childprozess und Fremdlast. Bestehende
+  Ressourcenlimits bleiben unveraendert; grosse Toolantworten werden erst nach
+  vollstaendiger Erfassung digestgebunden begrenzt und verlieren sichtbar den
+  Vollstaendigkeitsclaim.
+- Stabilisierung/M16.4: Persistierte Nextcloud-, Kalender-, Aufgaben-,
+  Adressbuch-, Deck- und Dateireferenzen werden nur noch ueber stabile ID,
+  kanonische URL, Komponententyp, Rechte und Discovery-Fingerprint akzeptiert.
+  Fehlende, doppelte, stale oder fuzzy Ressourcen bleiben fail-closed und
+  erhalten einen expliziten Migrationsplan statt stiller Ersetzung.
+
 - Stabilisierung/M16.9: Ein synthetisches Eval vergleicht Lexik,
   Thread-/Tagkontext, digestgebundene lokale Embeddings und Hybrid-Retrieval
   nach Precision, Recall, Abstention, Fehlklassifikation, Latenz, Rechen- und

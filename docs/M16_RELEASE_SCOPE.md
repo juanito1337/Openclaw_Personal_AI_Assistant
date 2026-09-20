@@ -4,7 +4,10 @@ Der naechste vorgesehene Release ist `3.4.0-r29` (`r29`). Diese Festlegung ist
 noch kein Release, kein Tag, keine Imageveroeffentlichung, keine Main-Promotion
 und kein Deployment. Der maschinenlesbare
 [`release-candidate-m16.json`](architecture/release-candidate-m16.json) bleibt
-bis M16.10 im Zustand `draft`.
+bis zur vollstaendigen M16.10-Promotionsabnahme im Zustand `draft`. Die lokale
+Abnahme vom 2026-09-21 ist technisch gruen, bleibt wegen fehlender CI-,
+Cosign-/Registry-, Tag- und Rollbackevidenz aber mit dem Urteil
+[`M16 NICHT ABGENOMMEN`](M16_ACCEPTANCE.md) gesperrt.
 
 ## Geplanter kumulativer Umfang
 

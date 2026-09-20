@@ -1,0 +1,144 @@
+{
+  "schema_version": 1,
+  "milestone": "M16.10",
+  "audited_source_revision": "127868f6312fcad31aa7c3dc3ae783e79383bff9",
+  "measured_at": "2026-09-21",
+  "verdict": "M16 NICHT ABGENOMMEN",
+  "productive_changes": false,
+  "local_quality": {
+    "ok": true,
+    "collection_items": 1218,
+    "junit_executed_including_subtests": 1329,
+    "subtests": 111,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "combined_coverage_percent": 70.280,
+    "branch_coverage_percent": 57.667,
+    "ruff_known_findings": 470,
+    "ruff_resolved_since_baseline": 311,
+    "mypy_known_findings": 108,
+    "mypy_resolved_since_baseline": 16
+  },
+  "m16_0_comparison": {
+    "collection_delta": 161,
+    "junit_delta": 161,
+    "combined_coverage_percentage_point_delta": 1.778,
+    "branch_coverage_percentage_point_delta": 1.863,
+    "ruff_known_findings_delta": -16,
+    "mypy_known_findings_delta": 0,
+    "job_control_combined_coverage_percentage_point_delta": -0.548
+  },
+  "artifacts": {
+    "wheel": {
+      "build_install_cli_release_and_test": true,
+      "artifact_hygiene": true,
+      "bytes": 659369,
+      "build_ms": 3275,
+      "installed_test_seconds": 128.22
+    },
+    "images": {
+      "runtime": {
+        "local_image_id": "sha256:8e217c00029eb709671d5e3f211338b9d906db0df453ce83bf99ed233250ca0c",
+        "size_bytes": 377307259,
+        "critical_vulnerabilities": 0,
+        "high_vulnerabilities": 28,
+        "secrets": 0
+      },
+      "proxy": {
+        "local_image_id": "sha256:1b34a2fc5e08ee81b9608deb5e1ffa8499ee1b81635789250319151d376394a0",
+        "size_bytes": 23426255,
+        "critical_vulnerabilities": 0,
+        "high_vulnerabilities": 13,
+        "secrets": 0
+      },
+      "maintenance": {
+        "local_image_id": "sha256:3f17313dcd4c35e66528711fa2af5158e80897bb6e1f14989628d7f0c7e232b9",
+        "size_bytes": 45638781,
+        "critical_vulnerabilities": 0,
+        "high_vulnerabilities": 13,
+        "secrets": 0
+      },
+      "role_smokes": true,
+      "sbom": true,
+      "local_provenance": true,
+      "artifact_hygiene": true,
+      "reproducible_oci_exports": true,
+      "clean_build_seconds": [172, 199]
+    },
+    "source_secret_scan": true
+  },
+  "hermetic_e2e": {
+    "m8_protocols_and_single_writer": true,
+    "m11_mail_index_sync_network_crash": true,
+    "m12_native_imap_reconciliation": true,
+    "m13_native_tools_and_approval": true,
+    "m14_clamav": true,
+    "m15_action_completion": true,
+    "external_writes": 0
+  },
+  "sync_benchmark": {
+    "objects": 100,
+    "samples": 5,
+    "full_p50_ms": 567.656,
+    "noop_p50_ms": 5.435,
+    "single_delta_p50_ms": 9.276,
+    "mail_between_batches_p50_ms": 20.482,
+    "noop_downloads_max": 0,
+    "noop_projection_writes_max": 0,
+    "delta_downloads_max": 1,
+    "delta_projection_writes_max": 1
+  },
+  "mail_synthetic_comparison": {
+    "recall_at_10_m16_0": 0.65,
+    "recall_at_10_m16_10": 0.65,
+    "mrr_m16_0": 0.6667,
+    "mrr_m16_10": 0.6667,
+    "cold_ms_m16_0": 5.5345,
+    "cold_ms_m16_10": 2.6712,
+    "warm_p50_ms_m16_0": 1.5445,
+    "warm_p50_ms_m16_10": 1.4133,
+    "warm_p95_ms_m16_0": 4.523,
+    "warm_p95_ms_m16_10": 4.458
+  },
+  "source_complexity": {
+    "python_lines_m16_0": 61369,
+    "python_lines_m16_10": 65606,
+    "largest_module": {
+      "path": "personal_assistant/portfolio.py",
+      "lines": 3447
+    },
+    "largest_function": {
+      "path": "mail_agent/search_reconcile.py",
+      "name": "run",
+      "lines": 541
+    },
+    "interpretation": "coverage and boundaries improved, but absolute domain-module size remains technical debt"
+  },
+  "promotion": {
+    "release_candidate_state": "draft",
+    "release_identity": "3.4.0-r28",
+    "planned_release_identity": "3.4.0-r29",
+    "ci_for_exact_commit": "not-measured",
+    "signed_git_tag_verified": false,
+    "registry_digests_verified": false,
+    "cosign_verified": false,
+    "rollback_set_verified": false,
+    "main_promoted": false,
+    "image_published": false,
+    "production_deployed": false,
+    "pending_separate_approvals": [
+      "main-promotion",
+      "image-publication",
+      "production-deployment"
+    ]
+  },
+  "blockers": [
+    "exact-commit-ci-not-observed",
+    "release-r29-not-finalized",
+    "signed-tag-not-verified",
+    "registry-digests-and-cosign-not-verified",
+    "signed-rollback-set-not-established",
+    "separate-promotion-approvals-pending"
+  ]
+}

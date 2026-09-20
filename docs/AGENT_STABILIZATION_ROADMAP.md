@@ -771,6 +771,11 @@ mit M16.10.
 
 ## M16.10 – Gesamtabnahme, Release und Main-Promotion
 
+Status: lokale technische Abnahme am 2026-09-21 ausgefuehrt; wegen fehlender
+CI-, Cosign-/Registry-, signierter Tag-/Rollback- und separater
+Promotionsfreigaben weiterhin `M16 NICHT ABGENOMMEN`. Details:
+[`M16_ACCEPTANCE.md`](M16_ACCEPTANCE.md).
+
 ### Ziel
 
 Den konsolidierten Stand unabhaengig pruefen, als vollstaendiges Release
