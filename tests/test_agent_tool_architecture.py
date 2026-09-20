@@ -130,6 +130,59 @@ class AgentToolArchitectureTests(unittest.TestCase):
         self.assertEqual(len(bridge.calls), 1)
         self.assertEqual(bridge.calls[0]["resource_id"], "calendar-personal")
 
+    def test_owner_command_mail_uses_exact_recovered_calendar_resource(self) -> None:
+        bridge = FakeBridge()
+
+        class Nextcloud:
+            @staticmethod
+            def resolve_calendar_resource_id(selected: str) -> tuple[str, bool]:
+                assert selected == "calendar-stale"
+                return "calendar-current", True
+
+        self.config.nextcloud.enabled = True
+        manager = CalendarManager(
+            self.config,
+            self.storage,
+            CommandRunner(),
+            nextcloud=Nextcloud(),  # type: ignore[arg-type]
+            assistant_bridge=bridge,
+            command_settings=CalendarMailToolSettings(
+                enabled=True,
+                subject_prefix="[ASSISTENT TERMIN]",
+                sender_addresses=("owner@example.test",),
+                calendar_resource_id="calendar-stale",
+            ),
+        )
+        start = (datetime.now().astimezone() + timedelta(days=2)).replace(microsecond=0)
+        result = manager.process_command_mail(
+            ParsedMessage(
+                stable_key="mid:owner-command-recovered",
+                mailbox_id="2",
+                source_folder="INBOX",
+                raw=b"",
+                subject="[ASSISTENT TERMIN] Kontrolltermin",
+                sender_addr="owner@example.test",
+            ),
+            Classification(
+                "appointment",
+                0.99,
+                9,
+                False,
+                "Expliziter Terminbefehl",
+                calendar_event=CalendarEvent(
+                    title="Kontrolltermin",
+                    start=start.isoformat(),
+                    end=(start + timedelta(hours=1)).isoformat(),
+                    timezone=str(start.tzinfo),
+                    confidence=0.99,
+                ),
+            ),
+        )
+
+        self.assertIsNotNone(result)
+        self.assertTrue(result.ok)
+        self.assertEqual(bridge.calls[0]["resource_id"], "calendar-current")
+
     def test_untrusted_command_sender_is_rejected(self) -> None:
         bridge = FakeBridge()
         manager = CalendarManager(

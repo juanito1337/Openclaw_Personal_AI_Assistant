@@ -652,10 +652,14 @@ docker compose --env-file .env --profile tools run --rm agent-cli \
 ```
 
 Falls `mail-agent.sh doctor` eine konfigurierte Kalender-Ressourcen-ID meldet,
-die in der aktuellen Discovery nicht mehr vorkommt, wird sie nicht automatisch
-auf einen Kalender mit aehnlichem Namen oder Share-Pfad umgestellt. Zuerst die
-aktuellen IDs read-only ermitteln und danach genau eine davon ausdruecklich fuer
-die Kalender-Mailfunktion auswaehlen:
+die in der aktuellen Discovery nicht mehr vorkommt, wird sie niemals auf einen
+Kalender mit nur aehnlichem Namen oder Share-Pfad umgestellt. Ist jedoch bereits
+das direkte Kalenderwerkzeug auf genau eine andere stabile VEVENT-Ressourcen-ID
+konfiguriert, verwendet der Lauf diese vorhandene exakte Auswahl read-only als
+Recovery und meldet `configuration_recovered=true`. Das veraendert weder Datei
+noch Recht. Fuer eine dauerhafte Bereinigung zuerst die aktuellen IDs read-only
+ermitteln und danach genau eine davon ausdruecklich fuer die Kalender-Mailfunktion
+auswaehlen:
 
 ```bash
 docker compose --env-file .env --profile tools run --rm agent-cli \

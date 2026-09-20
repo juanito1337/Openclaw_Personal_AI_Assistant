@@ -45,11 +45,15 @@ class NextcloudSkillClient:
         runner: CommandRunner,
         *,
         calendar_resource_id: str = "",
+        fallback_calendar_resource_id: str = "",
     ) -> None:
         self.config = config
         self.runner = runner
         self.log = logging.getLogger(__name__)
         self.calendar_resource_id = str(calendar_resource_id or "").strip()
+        self.fallback_calendar_resource_id = str(
+            fallback_calendar_resource_id or ""
+        ).strip()
         native_config = AssistantConfig()
         native_config.nextcloud.enabled = config.nextcloud.enabled
         native_config.nextcloud.base_url_env = config.nextcloud.base_url_env
@@ -198,6 +202,89 @@ class NextcloudSkillClient:
             )
         return matches
 
+    def _calendar_selectors(self, selected: str = "") -> list[str]:
+        """Return exact configured selectors in fail-closed precedence order.
+
+        ``mail.calendar_mail`` remains the primary selection.  A separately
+        configured direct VEVENT resource is an allowed recovery target only
+        when the primary selector has no live match.  The old mail-agent
+        selector is compatibility-only and can no longer override either
+        release-owned typed selection.
+        """
+        return list(
+            dict.fromkeys(
+                value
+                for value in (
+                    str(selected or "").strip(),
+                    self.calendar_resource_id,
+                    self.fallback_calendar_resource_id,
+                    self.config.nextcloud.calendar.strip(),
+                )
+                if value
+            )
+        )
+
+    def _select_calendar_collection(
+        self,
+        items: list[DiscoveredCollection],
+        selected: str = "",
+    ) -> tuple[DiscoveredCollection, str, bool]:
+        selectors = self._calendar_selectors(selected)
+        if not selectors:
+            matches = self._select_collection(
+                items,
+                "",
+                label="Kalender",
+                require_selection=True,
+            )
+            return matches[0], matches[0].resource_id, False
+
+        for index, selector in enumerate(selectors):
+            wanted = selector.casefold()
+            wanted_slug = wanted.rstrip("/").rsplit("/", 1)[-1]
+            matches = [
+                item
+                for item in items
+                if wanted in self._collection_aliases(item)
+                or wanted_slug in self._collection_aliases(item)
+            ]
+            if len(matches) == 1:
+                return matches[0], selector, index > 0
+            if len(matches) > 1:
+                raise NextcloudSkillError(
+                    f"Kalender {selector!r} wurde nicht eindeutig gefunden "
+                    f"({len(matches)} Treffer); ein Fallback ist bei Mehrdeutigkeit verboten"
+                )
+
+        alternatives = ", ".join(repr(value) for value in selectors[1:])
+        suffix = (
+            f"; exakt konfigurierte Alternativen ebenfalls ohne Treffer: {alternatives}"
+            if alternatives
+            else ""
+        )
+        raise NextcloudSkillError(
+            f"Kalender {selectors[0]!r} wurde nicht eindeutig gefunden (0 Treffer){suffix}"
+        )
+
+    def resolve_calendar_resource_id(self, selected: str = "") -> tuple[str, bool]:
+        """Resolve one exact live VEVENT resource without changing configuration."""
+        try:
+            item, _selector, recovered = self._select_calendar_collection(
+                self.discovery.calendars(),
+                selected,
+            )
+        except (NextcloudError, OSError, ValueError) as exc:
+            raise NextcloudSkillError(str(exc)) from exc
+        if not item.supports("VEVENT"):
+            raise NextcloudSkillError(
+                f"Kalender {item.resource_id!r} unterstuetzt VEVENT nicht"
+            )
+        if not item.can_create:
+            raise NextcloudSkillError(
+                f"Kalender {item.name!r} meldet kein create/bind-Recht"
+            )
+        return item.resource_id, recovered
+
     def _addressbook_collections(self) -> list[DiscoveredCollection]:
         try:
             books = self.discovery.addressbooks()
@@ -242,15 +329,16 @@ class NextcloudSkillClient:
         ]
 
     def create_event(self, normalized_event: Any) -> OperationResult:
-        selector = self.config.nextcloud.calendar.strip() or self.calendar_resource_id
         try:
-            calendars = self._select_collection(
+            calendar, _selector, recovered = self._select_calendar_collection(
                 self.discovery.calendars(),
-                selector,
-                label="Kalender",
-                require_selection=True,
             )
-            calendar = calendars[0]
+            if not calendar.supports("VEVENT"):
+                return OperationResult(
+                    False,
+                    "nextcloud-calendar-component-missing",
+                    f"Kalender {calendar.name!r} unterstuetzt VEVENT nicht",
+                )
             if not calendar.can_create:
                 return OperationResult(
                     False,
@@ -265,7 +353,16 @@ class NextcloudSkillClient:
             return OperationResult(
                 True,
                 "created",
-                f"Termin create-only ueber native CalDAV-Bruecke angelegt ({href})",
+                (
+                    "Termin create-only ueber native CalDAV-Bruecke angelegt "
+                    f"({href})"
+                    + (
+                        "; veraltete Kalenderreferenz wurde read-only durch die "
+                        "exakt konfigurierte aktive VEVENT-Ressource ersetzt"
+                        if recovered
+                        else ""
+                    )
+                ),
             )
         except NextcloudError as exc:
             if "existiert bereits" in str(exc):
@@ -438,7 +535,8 @@ class NextcloudSkillClient:
 
     def health(self, *, live: bool = True) -> dict[str, Any]:
         base_url, username, token = self.credentials()
-        calendar_selector = self.config.nextcloud.calendar.strip() or self.calendar_resource_id
+        calendar_selectors = self._calendar_selectors()
+        calendar_selector = calendar_selectors[0] if calendar_selectors else ""
         result: dict[str, Any] = {
             "ok": False,
             "enabled": self.enabled,
@@ -450,6 +548,7 @@ class NextcloudSkillClient:
             "base_url": base_url,
             "user": username,
             "calendar": calendar_selector,
+            "calendar_fallbacks": calendar_selectors[1:],
             "addressbook": self.config.nextcloud.addressbook,
             "contacts_enabled": self.config.nextcloud.contacts_enabled,
             "contact_cache": str(self.config.nextcloud.contact_cache_file),
@@ -478,11 +577,30 @@ class NextcloudSkillClient:
             contacts_ok, contacts_detail = self.refresh_contact_cache(force=False)
             result["contacts_ok"] = contacts_ok
             result["contacts_detail"] = contacts_detail
-            calendar_found = self._resource_selected(
-                calendars,
-                calendar_selector,
-                kind="calendar",
-            )
+            selected_calendar = ""
+            selected_calendar_resource_id = ""
+            calendar_recovered = False
+            calendar_ambiguous = False
+            for index, selector in enumerate(calendar_selectors):
+                matches = [
+                    item
+                    for item in calendars
+                    if self._resource_selected([item], selector, kind="calendar")
+                ]
+                if len(matches) == 1:
+                    selected_calendar = selector
+                    selected_calendar_resource_id = str(
+                        matches[0].get("resource_id") or selector
+                    )
+                    calendar_recovered = index > 0
+                    break
+                if len(matches) > 1:
+                    calendar_ambiguous = True
+                    break
+            if not calendar_selectors and len(calendars) == 1:
+                selected_calendar = str(calendars[0].get("resource_id") or "")
+                selected_calendar_resource_id = selected_calendar
+            calendar_found = bool(selected_calendar) and not calendar_ambiguous
             calendar_create_allowed = bool(
                 calendar_found
                 and next(
@@ -491,7 +609,7 @@ class NextcloudSkillClient:
                         for item in calendars
                         if self._resource_selected(
                             [item],
-                            calendar_selector,
+                            selected_calendar,
                             kind="calendar",
                         )
                     ),
@@ -511,6 +629,9 @@ class NextcloudSkillClient:
             )
             result["selected_calendar_found"] = calendar_found
             result["selected_calendar_create_allowed"] = calendar_create_allowed
+            result["selected_calendar_resource_id"] = selected_calendar_resource_id
+            result["calendar_configuration_recovered"] = calendar_recovered
+            result["calendar_selection_ambiguous"] = calendar_ambiguous
             result["selected_addressbook_found"] = addressbook_found
             result["ok"] = bool(
                 calendar_found
@@ -521,6 +642,12 @@ class NextcloudSkillClient:
             if result["ok"]:
                 result["detail"] = (
                     "Native Nextcloud-Kalender- und CardDAV-Verbindung sind erreichbar"
+                    + (
+                        "; veraltete Kalenderreferenz wurde read-only durch die "
+                        "exakt konfigurierte aktive VEVENT-Ressource ersetzt"
+                        if calendar_recovered
+                        else ""
+                    )
                 )
             else:
                 missing_resources: list[str] = []

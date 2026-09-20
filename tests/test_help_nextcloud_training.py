@@ -288,6 +288,79 @@ Kannst du mich bitte zurueckrufen?\r
         self.assertTrue(result.ok)
         create.assert_called_once_with(resource, normalized.ics, normalized.uid)
 
+    def test_calendar_bridge_recovers_missing_legacy_id_with_exact_direct_resource(self) -> None:
+        self.config.nextcloud.calendar = "nextcloud-calendar-a240ca0c2031"
+        active = DiscoveredCollection(
+            kind="calendar",
+            href="/remote.php/dav/calendars/jan/current/",
+            name="Aktiver Kalender",
+            resource_id="nextcloud-calendar-current",
+            components=("VEVENT",),
+            privileges=("{DAV:}bind",),
+            can_read=True,
+            can_create=True,
+        )
+        client = NextcloudSkillClient(
+            self.config,
+            FakeRunner(),  # type: ignore[arg-type]
+            calendar_resource_id="nextcloud-calendar-a240ca0c2031",
+            fallback_calendar_resource_id="nextcloud-calendar-current",
+        )
+        normalized = SimpleNamespace(uid="mail-event@example.test", ics="ics")
+        with (
+            patch.object(client.discovery, "calendars", return_value=[active]),
+            patch.object(
+                client.calendar,
+                "create_event",
+                return_value="/remote.php/dav/calendars/jan/current/mail-event.ics",
+            ) as create,
+        ):
+            result = client.create_event(normalized)
+
+        self.assertTrue(result.ok)
+        self.assertIn("veraltete Kalenderreferenz", result.detail)
+        create.assert_called_once_with(active, normalized.ics, normalized.uid)
+
+    def test_calendar_bridge_does_not_fallback_from_ambiguous_primary(self) -> None:
+        resources = [
+            DiscoveredCollection(
+                kind="calendar",
+                href=f"/calendars/{slug}/shared/",
+                name="Gemeinsam",
+                resource_id=f"calendar-{slug}",
+                components=("VEVENT",),
+                can_read=True,
+                can_create=True,
+            )
+            for slug in ("one", "two")
+        ]
+        resources.append(
+            DiscoveredCollection(
+                kind="calendar",
+                href="/calendars/current/",
+                name="Aktiv",
+                resource_id="calendar-current",
+                components=("VEVENT",),
+                can_read=True,
+                can_create=True,
+            )
+        )
+        client = NextcloudSkillClient(
+            self.config,
+            FakeRunner(),  # type: ignore[arg-type]
+            calendar_resource_id="Gemeinsam",
+            fallback_calendar_resource_id="calendar-current",
+        )
+        with (
+            patch.object(client.discovery, "calendars", return_value=resources),
+            patch.object(client.calendar, "create_event") as create,
+        ):
+            result = client.create_event(SimpleNamespace(uid="event", ics="ics"))
+
+        self.assertFalse(result.ok)
+        self.assertIn("Fallback ist bei Mehrdeutigkeit verboten", result.detail)
+        create.assert_not_called()
+
     def test_calendar_bridge_fails_closed_on_ambiguous_resource(self) -> None:
         client = NextcloudSkillClient(self.config, FakeRunner())  # type: ignore[arg-type]
         resources = [
@@ -357,6 +430,54 @@ Kannst du mich bitte zurueckrufen?\r
         self.assertTrue(result["ok"])
         self.assertEqual(result["backend"], "native-caldav-carddav")
         self.assertTrue(result["selected_calendar_create_allowed"])
+
+    def test_native_health_reports_exact_calendar_recovery(self) -> None:
+        self.config.nextcloud.enabled = True
+        client = NextcloudSkillClient(
+            self.config,
+            FakeRunner(),  # type: ignore[arg-type]
+            calendar_resource_id="calendar-stale",
+            fallback_calendar_resource_id="calendar-current",
+        )
+        calendars = [
+            {
+                "displayName": "Aktiv",
+                "href": "/calendars/current/",
+                "resource_id": "calendar-current",
+                "can_create": True,
+            }
+        ]
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "NEXTCLOUD_URL": "https://cloud.example.test",
+                    "NEXTCLOUD_USER": "agent",
+                    "NEXTCLOUD_TOKEN": "test-token",
+                },
+                clear=False,
+            ),
+            patch.object(client, "list_calendars", return_value=calendars),
+            patch.object(
+                client,
+                "list_addressbooks",
+                return_value=[
+                    {
+                        "displayName": "Kontakte",
+                        "href": "/addressbooks/contacts/",
+                        "resource_id": "addressbook-current",
+                        "can_read": True,
+                    }
+                ],
+            ),
+            patch.object(client, "refresh_contact_cache", return_value=(True, "ok")),
+        ):
+            result = client.health(live=True)
+
+        self.assertTrue(result["ok"])
+        self.assertTrue(result["calendar_configuration_recovered"])
+        self.assertEqual(result["selected_calendar_resource_id"], "calendar-current")
+        self.assertIn("veraltete Kalenderreferenz", result["detail"])
 
     def test_contact_email_extraction_is_normalized(self) -> None:
         contact = {

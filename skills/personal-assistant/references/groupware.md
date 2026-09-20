@@ -65,6 +65,15 @@ and task create are bounded registered writes; existing-object update, complete
 or reopen requires exact UID and explicit approval. Do not describe the calendar
 integration as create-only.
 
+The central direct `nextcloud.calendar.resource_id` is the only permitted
+read-only recovery target for a stale legacy mail-calendar selector. Recovery is
+allowed only when the legacy selector has exactly zero live matches and the
+already configured direct resource has exactly one live VEVENT match with the
+required create privilege. It does not change configuration or permissions.
+Ambiguity, a second arbitrary calendar, missing VEVENT or missing privileges
+remain fail-closed. Status and Doctor must expose both the configured legacy ID
+and the effective recovered resource ID; never describe this as fuzzy discovery.
+
 For an explicit “create calendar events from this mail” request, use the native
 mail-to-calendar workflow and never manually translate mail prose into an
 unbound `calendar create` call. Select and read exactly one current mail by

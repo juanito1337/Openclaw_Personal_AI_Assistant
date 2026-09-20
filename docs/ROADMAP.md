@@ -35,6 +35,14 @@ Toolankuendigung endet. Der erste sichere Vertikalschnitt fuehrt von einer
 belegten Mail ueber eine read-only Terminvorschau bis zum separat freigegebenen
 und remote verifizierten Kalendereintrag. Roadmap und Entwicklungsprompts stehen
 in [`AGENT_ACTION_COMPLETION_ROADMAP.md`](AGENT_ACTION_COMPLETION_ROADMAP.md).
+Der anschliessende M16-Milestone konsolidiert den gesamten Stand vor der
+naechsten Main- und Release-Promotion. Er behebt widerspruechliche Telemetrie,
+Scheduler- und Sync-Engpaesse, Ressourcen-Drift, ungeklaerte OOM- und
+Latenzbefunde, gezielte Test- und Typaltlasten sowie die noch offenen Mail-,
+Rechnungs- und Portfoliobestaende. Semantic Search und ein minimal
+privilegierter Tool-Executor werden dabei getrennt gemessen und entschieden,
+nicht still aktiviert. Roadmap und eigenstaendige Entwicklungsprompts stehen in
+[`AGENT_STABILIZATION_ROADMAP.md`](AGENT_STABILIZATION_ROADMAP.md).
 
 M0 bis M10 sind kumulativ in `3.4.0-r28` enthalten. Die Roadmaps bleiben als
 Umsetzungs- und Testevidenz bestehen; die aktuelle Release-, Upgrade- und

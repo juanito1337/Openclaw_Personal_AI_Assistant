@@ -133,6 +133,11 @@ class MailAgent:
             config,
             self.runner,
             calendar_resource_id=self.tool_settings.mail.calendar_mail.calendar_resource_id,
+            fallback_calendar_resource_id=(
+                self.tool_settings.nextcloud.calendar.resource_id
+                if self.tool_settings.nextcloud.calendar.enabled
+                else ""
+            ),
         )
         self.rules = RuleEngine(
             config.runtime.rules_file,
@@ -1605,11 +1610,22 @@ class MailAgent:
                 or (
                     self.tool_settings.mail.calendar_mail.sender_addresses
                     and self.tool_settings.mail.calendar_mail.calendar_resource_id
+                    and nextcloud_health.get("selected_calendar_found") is True
+                    and nextcloud_health.get("selected_calendar_create_allowed") is True
                 )
             ),
             "enabled": self.tool_settings.mail.calendar_mail.enabled,
             "subject_prefix": self.tool_settings.mail.calendar_mail.subject_prefix,
-            "calendar_resource_id": self.tool_settings.mail.calendar_mail.calendar_resource_id,
+            "calendar_resource_id": str(
+                nextcloud_health.get("selected_calendar_resource_id")
+                or self.tool_settings.mail.calendar_mail.calendar_resource_id
+            ),
+            "configured_calendar_resource_id": (
+                self.tool_settings.mail.calendar_mail.calendar_resource_id
+            ),
+            "configuration_recovered": bool(
+                nextcloud_health.get("calendar_configuration_recovered")
+            ),
             "allowed_senders": list(self.tool_settings.mail.calendar_mail.sender_addresses),
         }
         calendar_ok, backend, calendar_detail = self.calendar.health(

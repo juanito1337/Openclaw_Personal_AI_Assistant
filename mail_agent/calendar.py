@@ -25,7 +25,7 @@ from .assistant_bridge import PersonalAssistantActionBridge
 from .command import CommandRunner
 from .config import Config
 from .models import CalendarEvent, Classification, OperationResult, ParsedMessage
-from .nextcloud import NextcloudSkillClient
+from .nextcloud import NextcloudSkillClient, NextcloudSkillError
 from .storage import Storage
 from .utils import atomic_write_bytes, clean_single_line, normalize_address, safe_filename
 
@@ -180,9 +180,21 @@ class CalendarManager:
             return OperationResult(False, "calendar-command-invalid-event", "Terminangaben der Befehlsmail sind nicht valide")
         if self.config.calendar.require_future and not self._is_future(normalized):
             return OperationResult(True, "past-event", "Termin liegt in der Vergangenheit; kein Eintrag")
+        resource_id = settings.calendar_resource_id
+        if self.nextcloud is not None and self.config.nextcloud.enabled:
+            try:
+                resource_id, _recovered = self.nextcloud.resolve_calendar_resource_id(
+                    resource_id
+                )
+            except NextcloudSkillError as exc:
+                return OperationResult(
+                    False,
+                    "calendar-command-resource-unavailable",
+                    str(exc),
+                )
         result = self.assistant_bridge.create_calendar_event(
             message=message,
-            resource_id=settings.calendar_resource_id,
+            resource_id=resource_id,
             ics=normalized.ics,
             uid=normalized.uid,
             fingerprint=normalized.fingerprint,
@@ -199,7 +211,7 @@ class CalendarManager:
                 ends_at=event.end or "",
                 status="created" if result.status == "created" else "duplicate",
                 backend="personal-assistant-action",
-                path=settings.calendar_resource_id,
+                path=resource_id,
             )
         return result
 

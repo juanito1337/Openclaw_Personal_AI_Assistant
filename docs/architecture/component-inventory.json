@@ -2,7 +2,7 @@
   "schema_version": 1,
   "inventory_date": "2026-08-06",
   "source_scope": "all Python modules, shell entrypoints, skills, systemd units, migrations and Markdown documents",
-  "component_count": 486,
+  "component_count": 487,
   "classification_values": [
     "active",
     "compatibility",
@@ -43,6 +43,7 @@
         "CHANGELOG.md",
         "README.md",
         "docs/AGENT_ACTION_COMPLETION_ROADMAP.md",
+        "docs/AGENT_STABILIZATION_ROADMAP.md",
         "docs/AGENT_TOOL_ORCHESTRATION_ROADMAP.md",
         "docs/COMMAND_REFERENCE.md",
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
@@ -94,7 +95,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-17T23:08:39+02:00",
+      "last_git_change": "2026-09-18T14:09:44+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1013,6 +1014,26 @@
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-09-14T15:07:40+02:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "docs/AGENT_STABILIZATION_ROADMAP.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Documentation Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/ROADMAP.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1952,6 +1973,7 @@
       "documentation_evidence": [
         "README.md",
         "docs/AGENT_ACTION_COMPLETION_ROADMAP.md",
+        "docs/AGENT_STABILIZATION_ROADMAP.md",
         "docs/AGENT_TOOL_ORCHESTRATION_ROADMAP.md",
         "docs/ANTIVIRUS.md",
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
@@ -5133,8 +5155,8 @@
         "tests/test_action_completion_m15.py"
       ],
       "documentation_evidence": [],
-      "line_coverage_percent": 83.63,
-      "last_git_change": "2026-09-14T15:07:40+02:00",
+      "line_coverage_percent": 84.26,
+      "last_git_change": "2026-09-18T14:09:44+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -9516,6 +9538,7 @@
       ],
       "documentation_evidence": [
         "AGENTS.md",
+        "docs/AGENT_STABILIZATION_ROADMAP.md",
         "skills/personal-assistant/SKILL.md",
         "skills/personal-assistant/references/commands.md"
       ],
@@ -9544,6 +9567,7 @@
       ],
       "documentation_evidence": [
         "AGENTS.md",
+        "docs/AGENT_STABILIZATION_ROADMAP.md",
         "docs/COMMAND_REFERENCE.md",
         "docs/MAIL_QUALITY_REVIEW_ROADMAP.md",
         "docs/MAIL_SEARCH_INDEXING_ROADMAP.md",
@@ -9573,6 +9597,7 @@
       ],
       "documentation_evidence": [
         "AGENTS.md",
+        "docs/AGENT_STABILIZATION_ROADMAP.md",
         "skills/personal-assistant/SKILL.md",
         "skills/personal-assistant/references/commands.md"
       ],
@@ -9599,6 +9624,7 @@
       ],
       "documentation_evidence": [
         "AGENTS.md",
+        "docs/AGENT_STABILIZATION_ROADMAP.md",
         "docs/INVOICE_QUALITY_REPROCESSING_ROADMAP.md",
         "skills/personal-assistant/SKILL.md",
         "skills/personal-assistant/references/commands.md"
@@ -9625,6 +9651,7 @@
       ],
       "documentation_evidence": [
         "AGENTS.md",
+        "docs/AGENT_STABILIZATION_ROADMAP.md",
         "skills/personal-assistant/SKILL.md",
         "skills/personal-assistant/references/commands.md"
       ],
@@ -9653,6 +9680,7 @@
       ],
       "documentation_evidence": [
         "AGENTS.md",
+        "docs/AGENT_STABILIZATION_ROADMAP.md",
         "skills/personal-assistant/SKILL.md",
         "skills/personal-assistant/references/commands.md",
         "skills/personal-assistant/references/mail.md",
@@ -9921,7 +9949,7 @@
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-14T15:07:40+02:00",
+      "last_git_change": "2026-09-18T14:09:44+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -10008,7 +10036,7 @@
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-14T15:07:40+02:00",
+      "last_git_change": "2026-09-18T14:09:44+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"

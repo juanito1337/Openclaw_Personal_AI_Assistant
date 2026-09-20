@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Kalender: Der Mail-/Kalender-Kompatibilitaetspfad laesst eine veraltete
+  Kalender-ID nicht mehr die aktuelle zentrale VEVENT-Auswahl uebersteuern.
+  Liefert die alte ID exakt null Treffer, darf ausschliesslich die bereits
+  konfigurierte direkte Kalenderressource als exakter Fallback verwendet
+  werden. Mehrdeutigkeit, fehlendes VEVENT oder fehlendes Create-Recht bleiben
+  fail-closed; Doctor und Writepfad melden die tatsaechlich verwendete
+  Ressourcen-ID.
 - Agent/M15: Die argv-only Toolbridge prueft offene Kommando-Platzhalter nun
   ausschliesslich am registrierten Template, bevor Nutzerdaten eingesetzt
   werden. RFC-konforme Mail-IDs in spitzen Klammern und entsprechender
