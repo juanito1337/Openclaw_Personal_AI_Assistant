@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from personal_assistant.models import Resource
+from personal_assistant.resource_identity import CalendarIdentityMigration
 
 
 def handle(args: argparse.Namespace, assistant: Any, emit: Callable[[Any], None]) -> int:
@@ -16,6 +17,32 @@ def handle(args: argparse.Namespace, assistant: Any, emit: Callable[[Any], None]
         if args.resources_command == "list":
             emit([asdict(item) for item in assistant.registry.list(kind=args.kind)])
             return 0
+        if args.resources_command == "status":
+            result = assistant.resource_identity_status()
+            emit(result)
+            return 0 if result.get("ok") else 1
+        if args.resources_command == "calendar-migration":
+            if args.dry_run and (args.yes or args.rollback):
+                raise ValueError("--dry-run kann nicht mit --yes oder --rollback kombiniert werden")
+            if not args.dry_run and not args.yes:
+                raise PermissionError("Migration oder Rollback benoetigt --yes")
+            if not args.dry_run and not args.rollback and not args.expected_preview_sha256:
+                raise ValueError("--yes benoetigt --expected-preview-sha256 aus der Vorschau")
+            migration = CalendarIdentityMigration(
+                assistant.tool_settings.path,
+                assistant.registry,
+            )
+            if args.dry_run:
+                result = migration.preview()
+            elif args.rollback:
+                result = migration.rollback(Path(args.rollback), approved=bool(args.yes))
+            else:
+                result = migration.apply(
+                    expected_preview_sha256=args.expected_preview_sha256,
+                    approved=True,
+                )
+            emit(result)
+            return 0 if result.get("ok") else 1
         permissions = tuple(value.strip() for value in args.permissions.split(",") if value.strip())
         existing = assistant.registry.resources.get(args.id)
         existing_permissions = set(existing.permissions) if existing else set()

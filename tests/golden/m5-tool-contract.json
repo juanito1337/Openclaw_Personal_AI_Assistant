@@ -56,6 +56,38 @@
     "approval": "explicit-user-standard-operations-profile"
   },
   {
+    "id": "assistant.resources.status",
+    "description": "Konfigurierte stabile Ressourcen-IDs, Remote-Identifier, Komponenten, Rechte und Konfigurationsdrift zentral pruefen",
+    "command": "./scripts/assistant.sh resources status",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
+    "id": "assistant.resources.calendar-migration-preview",
+    "description": "Mail- und Direktkalender-Identitaet read-only zur Migration vergleichen",
+    "command": "./scripts/assistant.sh resources calendar-migration --dry-run",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
+    "id": "assistant.resources.calendar-migration-apply",
+    "description": "Vorschaugebundene Kalender-Ressourcen-ID lokal mit Backup, Validierung und atomarer Publikation angleichen",
+    "command": "./scripts/assistant.sh resources calendar-migration --yes --expected-preview-sha256 \"<Digest>\"",
+    "mode": "local-write",
+    "writes_external_data": false,
+    "approval": "explicit-user-calendar-resource-identity-migration"
+  },
+  {
+    "id": "assistant.resources.calendar-migration-rollback",
+    "description": "Eine lokale Kalender-Konfigurationsmigration aus ihrem Backup zurueckrollen",
+    "command": "./scripts/assistant.sh resources calendar-migration --rollback \"<tools.toml.backup>\" --yes",
+    "mode": "local-write",
+    "writes_external_data": false,
+    "approval": "explicit-user-calendar-resource-identity-migration-rollback"
+  },
+  {
     "id": "assistant.monitor.status",
     "description": "Evidenzbasierten Gesundheitswert, Teilwerte und konkrete Probleme anzeigen",
     "command": "./scripts/assistant.sh monitor status --days 7 --live",

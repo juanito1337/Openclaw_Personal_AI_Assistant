@@ -17,6 +17,7 @@ def handle(args: argparse.Namespace, assistant: Any, emit: Callable[[Any], None]
             if (
                 result["database"]["ok"]
                 and result["resources"]["ok"]
+                and result["resource_identity"]["ok"]
                 and result["scheduler"]["ok"]
                 and result["release"].get("ok")
                 and result["runtime"].get("ok")

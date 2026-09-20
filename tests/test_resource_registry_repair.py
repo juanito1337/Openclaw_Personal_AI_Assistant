@@ -43,15 +43,15 @@ name = "Neu"
 
 
 class ResourceRegistryRepairTests(unittest.TestCase):
-    def test_registry_tolerates_duplicate_and_keeps_last(self) -> None:
+    def test_registry_reports_duplicate_but_blocks_runtime_resolution(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             path = Path(temp_dir) / "resources.toml"
             path.write_text(DUPLICATE_TOML, encoding="utf-8")
             registry = ResourceRegistry(path)
             self.assertEqual(registry.duplicate_ids, ["nextcloud-main"])
-            self.assertTrue(registry.get("nextcloud-main").enabled)
-            self.assertEqual(registry.get("nextcloud-main").remote_id, "new")
-            self.assertEqual(registry.get("nextcloud-main").metadata["name"], "Neu")
+            self.assertEqual(registry.resources["nextcloud-main"].remote_id, "new")
+            with self.assertRaisesRegex(KeyError, "resource-id-duplicate"):
+                registry.get("nextcloud-main")
 
     def test_standalone_repair_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

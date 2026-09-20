@@ -126,6 +126,14 @@ appointment data is not a successful calendar import and goes to the configured
 appointment-review folder with `appointment-review`; protocol or infrastructure
 failures remain distinct error-folder cases.
 
+M16.4 additionally requires the typed mail-calendar ID and the direct calendar
+ID to be identical. An exact recovery through the active direct VEVENT resource
+is diagnostic only and reports `resource-configuration-drift`; it is not a
+healthy permanent fallback. Use `resources calendar-migration --dry-run` and,
+after explicit approval, the digest-bound registered apply operation. That local
+migration changes no remote calendar and grants no permission. The historical
+untyped mail-agent calendar selector is no longer considered during resolution.
+
 The mail worker owns the search source and publishes immutable JSON records plus
 an atomically replaced `_projection.json` manifest. The manifest binds every
 record by stable key, source timestamp and SHA-256 to one complete generation.

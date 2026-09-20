@@ -6,9 +6,7 @@ TOOLS: tuple[ToolDefinition, ...] = (
     define(
         id="assistant.agent-tools.status",
         domain="runtime",
-        description=(
-            "Native OpenClaw-Toolbridge, Katalogdigest, Schemazahl und argv-only-Vertrag pruefen"
-        ),
+        description=("Native OpenClaw-Toolbridge, Katalogdigest, Schemazahl und argv-only-Vertrag pruefen"),
         command="./scripts/assistant.sh agent-tools status",
         mode="read",
         writes_external_data=False,
@@ -94,6 +92,64 @@ TOOLS: tuple[ToolDefinition, ...] = (
         availability="always",
         documentation_anchor="docs/STANDARD_OPERATIONS.md",
         test_anchor="tests/test_standard_operations_profile.py",
+    ),
+    define(
+        id="assistant.resources.status",
+        domain="runtime",
+        description=(
+            "Konfigurierte stabile Ressourcen-IDs, Remote-Identifier, Komponenten, "
+            "Rechte und Konfigurationsdrift zentral pruefen"
+        ),
+        command="./scripts/assistant.sh resources status",
+        mode="read",
+        writes_external_data=False,
+        approval="none",
+        availability="always",
+        documentation_anchor="docs/RESOURCE_IDENTITY_M16.md",
+        test_anchor="tests/test_resource_identity_m164.py",
+    ),
+    define(
+        id="assistant.resources.calendar-migration-preview",
+        domain="runtime",
+        description="Mail- und Direktkalender-Identitaet read-only zur Migration vergleichen",
+        command="./scripts/assistant.sh resources calendar-migration --dry-run",
+        mode="read",
+        writes_external_data=False,
+        approval="none",
+        availability="always",
+        documentation_anchor="docs/RESOURCE_IDENTITY_M16.md",
+        test_anchor="tests/test_resource_identity_m164.py",
+    ),
+    define(
+        id="assistant.resources.calendar-migration-apply",
+        domain="runtime",
+        description=(
+            "Vorschaugebundene Kalender-Ressourcen-ID lokal mit Backup, Validierung "
+            "und atomarer Publikation angleichen"
+        ),
+        command=(
+            './scripts/assistant.sh resources calendar-migration --yes --expected-preview-sha256 "<Digest>"'
+        ),
+        mode="local-write",
+        writes_external_data=False,
+        approval="explicit-user-calendar-resource-identity-migration",
+        availability="always",
+        documentation_anchor="docs/RESOURCE_IDENTITY_M16.md",
+        test_anchor="tests/test_resource_identity_m164.py",
+    ),
+    define(
+        id="assistant.resources.calendar-migration-rollback",
+        domain="runtime",
+        description="Eine lokale Kalender-Konfigurationsmigration aus ihrem Backup zurueckrollen",
+        command=(
+            './scripts/assistant.sh resources calendar-migration --rollback "<tools.toml.backup>" --yes'
+        ),
+        mode="local-write",
+        writes_external_data=False,
+        approval="explicit-user-calendar-resource-identity-migration-rollback",
+        availability="always",
+        documentation_anchor="docs/RESOURCE_IDENTITY_M16.md",
+        test_anchor="tests/test_resource_identity_m164.py",
     ),
     define(
         id="assistant.monitor.status",

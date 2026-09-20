@@ -41,6 +41,13 @@ from .policy import DEFAULT_DENIED_ACTIONS, PolicyEngine
 from .portfolio import PortfolioService
 from .registry import ResourceRegistry
 from .release import release_report
+from .resource_identity import (
+    ResourceIdentityError,
+    configured_references,
+    inventory_report,
+    resolve_reference,
+    select_exact_discovered,
+)
 from .runtime_identity import runtime_identity
 from .services.mail import MailApplicationMixin
 from .services.orders import OrderApplicationMixin
@@ -476,9 +483,11 @@ class PersonalAssistant(
     ):
         component = component.upper()
         collections = self.nextcloud_discovery.calendar_collections()
-        selected = next((item for item in collections if item.resource_id == resource_id), None)
-        if selected is None:
-            raise ValueError("Unbekannte CalDAV-Ressource; zuerst das passende Discovery-Werkzeug ausfuehren")
+        selected = select_exact_discovered(
+            collections,
+            resource_id,
+            label="CalDAV-Ressource",
+        )
         if not selected.supports(component):
             label = "VEVENT" if component == "VEVENT" else "VTODO"
             raise ValueError(f"Die ausgewaehlte Ressource unterstuetzt {label} nicht")
@@ -640,9 +649,11 @@ class PersonalAssistant(
         if allow_update and not allow_read:
             raise ValueError("Kontakt-Aktualisierung benoetigt Leserechte fuer Auswahl und ETag-Pruefung")
         addressbooks = self.nextcloud_discovery.addressbooks()
-        selected = next((item for item in addressbooks if item.resource_id == resource_id), None)
-        if selected is None:
-            raise ValueError("Unbekanntes CardDAV-Adressbuch; zuerst contacts discover ausfuehren")
+        selected = select_exact_discovered(
+            addressbooks,
+            resource_id,
+            label="CardDAV-Adressbuch",
+        )
         if allow_read and not selected.can_read:
             raise PermissionError("Das ausgewaehlte Adressbuch ist nicht lesbar")
         if allow_create and not selected.can_create:
@@ -728,16 +739,25 @@ class PersonalAssistant(
 
     def direct_contacts_status(self, *, live: bool = True) -> dict[str, Any]:
         settings = self.tool_settings.nextcloud.contacts
-        resource = self.registry.get(settings.resource_id) if settings.resource_id else None
-        base_ok = bool(
-            settings.enabled
-            and resource
-            and resource.enabled
-            and resource.kind == "addressbook"
-            and resource.connector == "nextcloud"
-            and (not settings.allow_list or "read" in resource.permissions)
-            and (not settings.allow_create or "create" in resource.permissions)
-            and (not settings.allow_update or "update" in resource.permissions)
+        reference = next(
+            item for item in configured_references(self.tool_settings) if item.domain == "contacts"
+        )
+        resource = None
+        identity_error: ResourceIdentityError | None = None
+        if settings.enabled:
+            try:
+                resource = resolve_reference(self.registry, reference)
+            except ResourceIdentityError as exc:
+                identity_error = exc
+        base_ok = bool(settings.enabled and resource)
+        identity_state = (
+            "resolved"
+            if resource
+            else "disabled"
+            if not settings.enabled
+            else identity_error.code
+            if identity_error
+            else "resource-unresolved"
         )
         result: dict[str, Any] = {
             "ok": base_ok,
@@ -753,6 +773,12 @@ class PersonalAssistant(
             "update_allowed": bool(base_ok and settings.allow_update),
             "delete_allowed": False,
             "create_only": settings.allow_create and not settings.allow_update,
+            "identity": {
+                "ok": identity_error is None and bool(resource),
+                "state": identity_state,
+                "error": identity_error.to_dict() if identity_error else None,
+                "remote_identifier": resource.remote_id if resource else "",
+            },
         }
         if live and base_ok and resource:
             try:
@@ -1263,16 +1289,25 @@ class PersonalAssistant(
 
     def direct_calendar_status(self) -> dict[str, Any]:
         settings = self.tool_settings.nextcloud.calendar
-        resource = self.registry.get(settings.resource_id) if settings.resource_id else None
-        base_ok = bool(
-            settings.enabled
-            and resource
-            and resource.enabled
-            and resource.kind == "calendar"
-            and resource.connector == "nextcloud"
-            and (not settings.allow_list or "read" in resource.permissions)
-            and (not settings.allow_create or "create" in resource.permissions)
-            and (not settings.allow_update or "update" in resource.permissions)
+        reference = next(
+            item for item in configured_references(self.tool_settings) if item.domain == "calendar"
+        )
+        resource = None
+        identity_error: ResourceIdentityError | None = None
+        if settings.enabled:
+            try:
+                resource = resolve_reference(self.registry, reference)
+            except ResourceIdentityError as exc:
+                identity_error = exc
+        base_ok = bool(settings.enabled and resource)
+        identity_state = (
+            "resolved"
+            if resource
+            else "disabled"
+            if not settings.enabled
+            else identity_error.code
+            if identity_error
+            else "resource-unresolved"
         )
         return {
             "ok": base_ok,
@@ -1291,6 +1326,12 @@ class PersonalAssistant(
             "resource_permissions": list(resource.permissions) if resource else [],
             "update_allowed": bool(base_ok and settings.allow_update),
             "delete_allowed": False,
+            "identity": {
+                "ok": identity_error is None and bool(resource),
+                "state": identity_state,
+                "error": identity_error.to_dict() if identity_error else None,
+                "remote_identifier": resource.remote_id if resource else "",
+            },
         }
 
     def calendar_list(self, *, limit: int = 100) -> dict[str, Any]:
@@ -1818,7 +1859,14 @@ class PersonalAssistant(
 
     def direct_tasks_status(self, *, live: bool = True) -> dict[str, Any]:
         settings = self.tool_settings.nextcloud.tasks
-        resource = self.registry.get(settings.resource_id) if settings.resource_id else None
+        reference = next(item for item in configured_references(self.tool_settings) if item.domain == "tasks")
+        resource = None
+        identity_error: ResourceIdentityError | None = None
+        if settings.enabled:
+            try:
+                resource = resolve_reference(self.registry, reference)
+            except ResourceIdentityError as exc:
+                identity_error = exc
         runtime_role = getattr(
             self,
             "role",
@@ -1827,15 +1875,15 @@ class PersonalAssistant(
         protected_gateway_configuration = bool(
             os.environ.get("OPENCLAW_RUNTIME", "").strip() == "container" and runtime_role != "agent-cli"
         )
-        base_ok = bool(
-            settings.enabled
-            and resource
-            and resource.enabled
-            and resource.kind == "calendar"
-            and resource.connector == "nextcloud"
-            and (not settings.allow_list or "read" in resource.permissions)
-            and (not settings.allow_create or "create" in resource.permissions)
-            and (not settings.allow_update or "update" in resource.permissions)
+        base_ok = bool(settings.enabled and resource)
+        identity_state = (
+            "resolved"
+            if resource
+            else "disabled"
+            if not settings.enabled
+            else identity_error.code
+            if identity_error
+            else "resource-unresolved"
         )
         result: dict[str, Any] = {
             "ok": base_ok,
@@ -1861,6 +1909,12 @@ class PersonalAssistant(
                 './scripts/assistant.sh tasks update --uid "<UID>" '
                 '--expected-title "<aktueller Titel>" --status COMPLETED --yes'
             ),
+            "identity": {
+                "ok": identity_error is None and bool(resource),
+                "state": identity_state,
+                "error": identity_error.to_dict() if identity_error else None,
+                "remote_identifier": resource.remote_id if resource else "",
+            },
         }
         if settings.enabled and settings.allow_list and not settings.allow_update:
             result["update_setup_required"] = True
@@ -2328,6 +2382,30 @@ class PersonalAssistant(
             if component is not None:
                 component.close()
 
+    def resource_identity_status(self) -> dict[str, Any]:
+        missing_credentials = (
+            self.nextcloud_client.missing_environment() if self.config.nextcloud.enabled else []
+        )
+        report = inventory_report(
+            self.tool_settings,
+            self.registry,
+            missing_credentials=missing_credentials,
+        )
+        report["registry_path"] = str(self.registry.path)
+        report["settings_path"] = str(self.tool_settings.path)
+        report["duplicate_resource_ids"] = sorted(set(self.registry.duplicate_ids))
+        report["migration"] = {
+            "preview_command": "./scripts/assistant.sh resources calendar-migration --dry-run",
+            "apply_command": (
+                "./scripts/assistant.sh resources calendar-migration --yes "
+                '--expected-preview-sha256 "<Digest>"'
+            ),
+            "approval": "explicit-user-calendar-resource-identity-migration",
+            "external_writes": False,
+            "permission_expansion": False,
+        }
+        return report
+
     def doctor(self, *, live: bool = True) -> dict[str, Any]:
         release = release_report(verify=True)
         result: dict[str, Any] = {
@@ -2364,6 +2442,7 @@ class PersonalAssistant(
         }
         result["antivirus"] = self.antivirus.doctor(live_scan=live)
         result["scheduler"] = self.scheduler.doctor()
+        result["resource_identity"] = self.resource_identity_status()
         workspace = self.tool_settings.nextcloud.workspace
         try:
             workspace_resource = self.registry.get(workspace.resource_id)

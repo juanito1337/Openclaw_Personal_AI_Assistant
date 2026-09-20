@@ -141,6 +141,13 @@ research fact; use provider-backed operations and report abstention/provider
 errors. For existing task/contact/calendar updates resolve exactly one current
 UID/ID and preserve expectation and ETag guards.
 
+For resource diagnosis use the registered central resources status operation.
+Never select the first or a fuzzy discovery result. Calendar, mail-calendar,
+tasks, contacts, files, invoices, mail folders and portfolio file access must
+retain their exact stable ID, component and permission contract. A resource
+migration is local, preview-bound and separately approved; it never grants a
+server permission.
+
 ## Development and operator compatibility
 
 The native bridge is the normal agent path. The stable

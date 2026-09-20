@@ -1444,3 +1444,23 @@ Die transitiven Python-Abhaengigkeiten sind ebenfalls exakt in
 `requirements-dev.lock` festgelegt. Docker, Compose, Git und die jeweilige
 Python-Version stammen vom Host beziehungsweise CI-Runner und werden in
 `build/m0-baseline.json` protokolliert.
+
+## M16.4-Ressourcenidentitaet
+
+Die hermetischen Verhaltenstests laufen ohne Nextcloud, IMAP oder produktive
+Konfiguration:
+
+```bash
+PYTHONPATH=. .venv/bin/pytest -q tests/test_resource_identity_m164.py \
+  tests/test_resource_registry_repair.py tests/test_direct_calendar_tool.py \
+  tests/test_direct_tasks_tool.py tests/test_carddav_contact_tools.py \
+  tests/test_nextcloud_workspace_tools.py tests/test_invoice_ocr_register.py
+```
+
+Sie erzeugen Registry und Toolkonfiguration nur unter `tmp_path`. Getrennt
+geprueft werden fehlende, stale, doppelte und mehrdeutige IDs, Komponenten,
+Credentials, Rechte und Kalender-Konfigurationsdrift. Der positive
+Migrationsfall bindet den erwarteten Preview-Digest, behaelt Registry und Rechte
+bytegenau bei, publiziert atomar und stellt das erzeugte Backup wieder her.
+`./scripts/check-repo.sh` prueft zusaetzlich den generierten Toolvertrag, das
+Source-Manifest, alle bisherigen Domaenentests und `git diff --check`.

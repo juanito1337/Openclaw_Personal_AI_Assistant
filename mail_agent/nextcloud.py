@@ -51,9 +51,7 @@ class NextcloudSkillClient:
         self.runner = runner
         self.log = logging.getLogger(__name__)
         self.calendar_resource_id = str(calendar_resource_id or "").strip()
-        self.fallback_calendar_resource_id = str(
-            fallback_calendar_resource_id or ""
-        ).strip()
+        self.fallback_calendar_resource_id = str(fallback_calendar_resource_id or "").strip()
         native_config = AssistantConfig()
         native_config.nextcloud.enabled = config.nextcloud.enabled
         native_config.nextcloud.base_url_env = config.nextcloud.base_url_env
@@ -144,19 +142,21 @@ class NextcloudSkillClient:
 
     def list_calendars(self) -> list[dict[str, Any]]:
         try:
+            return [self._collection_dict(item, kind="calendar") for item in self.discovery.calendars()]
+        except (NextcloudError, OSError, ValueError) as exc:
+            raise NextcloudSkillError(str(exc)) from exc
+
+    def list_calendar_collections(self) -> list[dict[str, Any]]:
+        try:
             return [
-                self._collection_dict(item, kind="calendar")
-                for item in self.discovery.calendars()
+                self._collection_dict(item, kind="calendar") for item in self.discovery.calendar_collections()
             ]
         except (NextcloudError, OSError, ValueError) as exc:
             raise NextcloudSkillError(str(exc)) from exc
 
     def list_addressbooks(self) -> list[dict[str, Any]]:
         try:
-            return [
-                self._collection_dict(item, kind="addressbook")
-                for item in self.discovery.addressbooks()
-            ]
+            return [self._collection_dict(item, kind="addressbook") for item in self.discovery.addressbooks()]
         except (NextcloudError, OSError, ValueError) as exc:
             raise NextcloudSkillError(str(exc)) from exc
 
@@ -193,8 +193,7 @@ class NextcloudSkillClient:
         matches = [
             item
             for item in items
-            if wanted in cls._collection_aliases(item)
-            or wanted_slug in cls._collection_aliases(item)
+            if wanted in cls._collection_aliases(item) or wanted_slug in cls._collection_aliases(item)
         ]
         if len(matches) != 1:
             raise NextcloudSkillError(
@@ -205,11 +204,11 @@ class NextcloudSkillClient:
     def _calendar_selectors(self, selected: str = "") -> list[str]:
         """Return exact configured selectors in fail-closed precedence order.
 
-        ``mail.calendar_mail`` remains the primary selection.  A separately
-        configured direct VEVENT resource is an allowed recovery target only
-        when the primary selector has no live match.  The old mail-agent
-        selector is compatibility-only and can no longer override either
-        release-owned typed selection.
+        ``mail.calendar_mail`` remains the primary selection. A separately
+        configured direct VEVENT resource is a read-only diagnostic recovery
+        target only when the primary selector has no live match. The untyped
+        legacy ``mail_agent.nextcloud.calendar`` selector is deliberately not
+        part of resource resolution anymore.
         """
         return list(
             dict.fromkeys(
@@ -218,7 +217,6 @@ class NextcloudSkillClient:
                     str(selected or "").strip(),
                     self.calendar_resource_id,
                     self.fallback_calendar_resource_id,
-                    self.config.nextcloud.calendar.strip(),
                 )
                 if value
             )
@@ -245,8 +243,7 @@ class NextcloudSkillClient:
             matches = [
                 item
                 for item in items
-                if wanted in self._collection_aliases(item)
-                or wanted_slug in self._collection_aliases(item)
+                if wanted in self._collection_aliases(item) or wanted_slug in self._collection_aliases(item)
             ]
             if len(matches) == 1:
                 return matches[0], selector, index > 0
@@ -276,13 +273,9 @@ class NextcloudSkillClient:
         except (NextcloudError, OSError, ValueError) as exc:
             raise NextcloudSkillError(str(exc)) from exc
         if not item.supports("VEVENT"):
-            raise NextcloudSkillError(
-                f"Kalender {item.resource_id!r} unterstuetzt VEVENT nicht"
-            )
+            raise NextcloudSkillError(f"Kalender {item.resource_id!r} unterstuetzt VEVENT nicht")
         if not item.can_create:
-            raise NextcloudSkillError(
-                f"Kalender {item.name!r} meldet kein create/bind-Recht"
-            )
+            raise NextcloudSkillError(f"Kalender {item.name!r} meldet kein create/bind-Recht")
         return item.resource_id, recovered
 
     def _addressbook_collections(self) -> list[DiscoveredCollection]:
@@ -391,9 +384,7 @@ class NextcloudSkillClient:
                     key_text = str(key).casefold()
                     walk(
                         item,
-                        email_context=email_context
-                        or "email" in key_text
-                        or key_text in {"mail", "value"},
+                        email_context=email_context or "email" in key_text or key_text in {"mail", "value"},
                     )
 
         for key, value in contact.items():
@@ -453,17 +444,14 @@ class NextcloudSkillClient:
             self._contact_emails = refreshed_emails
             self._contact_cache_source = "nextcloud"
             self._last_contact_error = ""
-            return True, (
-                f"{len(refreshed_emails)} Kontaktadressen ueber native CardDAV-Bruecke geladen"
-            )
+            return True, (f"{len(refreshed_emails)} Kontaktadressen ueber native CardDAV-Bruecke geladen")
         except NextcloudSkillError as exc:
             self._last_contact_error = str(exc)
             if cached:
                 self._contact_emails = cached[0]
                 self._contact_cache_source = "stale-cache"
                 return True, (
-                    f"Nextcloud nicht erreichbar; verwende alten Cache mit "
-                    f"{len(cached[0])} Adressen: {exc}"
+                    f"Nextcloud nicht erreichbar; verwende alten Cache mit {len(cached[0])} Adressen: {exc}"
                 )
             self._contact_emails = set()
             self._contact_cache_source = "error"
@@ -557,23 +545,19 @@ class NextcloudSkillClient:
             result["detail"] = "Nextcloud ist in mail_agent/config.toml deaktiviert"
             return result
         if not result["environment_ok"]:
-            result["detail"] = "Fehlende Umgebungsvariablen: " + ", ".join(
-                result["missing_environment"]
-            )
+            result["detail"] = "Fehlende Umgebungsvariablen: " + ", ".join(result["missing_environment"])
+            result["error_code"] = "resource-credentials-missing"
             return result
         if not live:
             result["ok"] = True
-            result["detail"] = (
-                "Native Nextcloud-Konfiguration vollstaendig; Live-Test nicht ausgefuehrt"
-            )
+            result["detail"] = "Native Nextcloud-Konfiguration vollstaendig; Live-Test nicht ausgefuehrt"
             return result
         try:
             calendars = self.list_calendars()
+            calendar_collections = calendars
             addressbooks = self.list_addressbooks()
             result["calendars"] = [str(item.get("displayName") or "") for item in calendars]
-            result["addressbooks"] = [
-                str(item.get("displayName") or "") for item in addressbooks
-            ]
+            result["addressbooks"] = [str(item.get("displayName") or "") for item in addressbooks]
             contacts_ok, contacts_detail = self.refresh_contact_cache(force=False)
             result["contacts_ok"] = contacts_ok
             result["contacts_detail"] = contacts_detail
@@ -583,15 +567,11 @@ class NextcloudSkillClient:
             calendar_ambiguous = False
             for index, selector in enumerate(calendar_selectors):
                 matches = [
-                    item
-                    for item in calendars
-                    if self._resource_selected([item], selector, kind="calendar")
+                    item for item in calendars if self._resource_selected([item], selector, kind="calendar")
                 ]
                 if len(matches) == 1:
                     selected_calendar = selector
-                    selected_calendar_resource_id = str(
-                        matches[0].get("resource_id") or selector
-                    )
+                    selected_calendar_resource_id = str(matches[0].get("resource_id") or selector)
                     calendar_recovered = index > 0
                     break
                 if len(matches) > 1:
@@ -616,6 +596,22 @@ class NextcloudSkillClient:
                     False,
                 )
             )
+            calendar_permissions = next(
+                (
+                    [
+                        permission
+                        for allowed, permission in (
+                            (bool(item.get("can_read")), "read"),
+                            (bool(item.get("can_create")), "create"),
+                            (bool(item.get("can_update")), "update"),
+                        )
+                        if allowed
+                    ]
+                    for item in calendars
+                    if str(item.get("resource_id") or "") == selected_calendar_resource_id
+                ),
+                [],
+            )
             addressbook_found = (
                 True
                 if not self.config.nextcloud.contacts_enabled
@@ -632,40 +628,45 @@ class NextcloudSkillClient:
             result["selected_calendar_resource_id"] = selected_calendar_resource_id
             result["calendar_configuration_recovered"] = calendar_recovered
             result["calendar_selection_ambiguous"] = calendar_ambiguous
+            result["selected_calendar_permissions"] = calendar_permissions
             result["selected_addressbook_found"] = addressbook_found
             result["ok"] = bool(
                 calendar_found
                 and calendar_create_allowed
+                and not calendar_recovered
                 and addressbook_found
                 and (contacts_ok or not self.config.nextcloud.contacts_enabled)
             )
             if result["ok"]:
-                result["detail"] = (
-                    "Native Nextcloud-Kalender- und CardDAV-Verbindung sind erreichbar"
-                    + (
-                        "; veraltete Kalenderreferenz wurde read-only durch die "
-                        "exakt konfigurierte aktive VEVENT-Ressource ersetzt"
-                        if calendar_recovered
-                        else ""
-                    )
-                )
+                result["detail"] = "Native Nextcloud-Kalender- und CardDAV-Verbindung sind erreichbar"
             else:
                 missing_resources: list[str] = []
                 if not calendar_found:
-                    missing_resources.append(
-                        "Kalender '" + (calendar_selector or "<nicht eindeutig>") + "'"
-                    )
+                    missing_resources.append("Kalender '" + (calendar_selector or "<nicht eindeutig>") + "'")
                 elif not calendar_create_allowed:
                     missing_resources.append("Create-Recht im ausgewaehlten Kalender")
+                if calendar_recovered:
+                    missing_resources.append("Konfigurationsdrift der Kalender-Ressourcen-ID")
                 if not addressbook_found:
                     missing_resources.append(
-                        "Adressbuch '"
-                        + (self.config.nextcloud.addressbook or "<nicht gefunden>")
-                        + "'"
+                        "Adressbuch '" + (self.config.nextcloud.addressbook or "<nicht gefunden>") + "'"
                     )
                 if not contacts_ok and self.config.nextcloud.contacts_enabled:
                     missing_resources.append("CardDAV-Kontaktabgleich")
                 result["detail"] = "Nicht bereit: " + ", ".join(missing_resources)
+                if calendar_ambiguous:
+                    result["error_code"] = "resource-discovery-ambiguous"
+                elif calendar_recovered:
+                    result["error_code"] = "resource-configuration-drift"
+                elif not calendar_found:
+                    selector_ids = {str(item.get("resource_id") or "") for item in calendar_collections}
+                    result["error_code"] = (
+                        "resource-component-missing"
+                        if calendar_selector in selector_ids
+                        else "resource-id-stale"
+                    )
+                elif not calendar_create_allowed:
+                    result["error_code"] = "resource-permission-missing"
             return result
         except NextcloudSkillError as exc:
             result["detail"] = str(exc)

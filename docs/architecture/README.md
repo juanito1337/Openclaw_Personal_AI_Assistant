@@ -100,6 +100,7 @@ einzige Host-Gateway-Ausnahme fuer den Ollama-Proxy.
 | `personal_assistant/contracts/` | infrastruktur-neutrale Typen und Ports | konkrete Connector- oder `mail_agent`-Imports |
 | `personal_assistant/bootstrap.py` und `adapters/` | Composition Root und konkrete Infrastrukturadapter | Berechtigungen erteilen |
 | `personal_assistant/service.py` | Orchestrierung von Ressourcen, Suche und verbleibenden Fachdiensten | `policy.py`, `actions.py`, Connectorgrenzen |
+| `personal_assistant/resource_identity.py` | Typisiertes Ressourceninventar, exakte Aufloesung und lokale Kalender-ID-Migration | Registry, Toolsettings, keine externen Writes |
 | `personal_assistant/policy.py` | harte lokale Zulassungsentscheidungen | keine Modellentscheidung darf erweitern |
 | `personal_assistant/actions.py` | ActionPlan, Idempotenz, Approval, Ausfuehrung und Audit | exakte Ressource und konfigurierte Rechte |
 | `personal_assistant/connectors/` | eingeschraenkte Protokolladapter | Policy und ActionPlan |

@@ -68,6 +68,11 @@ from validated tool settings and reports `complete` plus
 archive from a local workspace listing, a path string such as
 `nextcloud_folder`, or memory. On failure preserve the exact connector error and
 run the registered status/operational diagnostic path.
+The invoice `resource_id`, its file-root kind, confirmed permissions, remote
+identifier and configured invoice subfolder are also exposed separately by the
+central `resources status` inventory. A stale or duplicate ID is a typed blocker;
+never substitute the workspace resource merely because both paths currently
+point to the same Nextcloud instance.
 Its narrow replacement path requires ETag, SHA and schema validation. Use
 `invoices export --year <YYYY> --dry-run` for an in-memory preview which changes
 neither SQLite nor Nextcloud. `invoices export --year <YYYY> --yes` is an external

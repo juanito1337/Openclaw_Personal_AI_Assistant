@@ -2,7 +2,7 @@
   "schema_version": 1,
   "inventory_date": "2026-08-06",
   "source_scope": "all Python modules, shell entrypoints, skills, systemd units, migrations and Markdown documents",
-  "component_count": 503,
+  "component_count": 507,
   "classification_values": [
     "active",
     "compatibility",
@@ -1437,7 +1437,7 @@
         "docs/architecture/README.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-20T22:42:25+02:00",
+      "last_git_change": "2026-09-20T22:43:28+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -2029,6 +2029,29 @@
       "rollback_relevance": "none"
     },
     {
+      "path": "docs/RESOURCE_IDENTITY_M16.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Documentation Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "personal_assistant/tool_catalog/runtime.py"
+      ],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "README.md",
+        "docs/COMMAND_REFERENCE.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
       "path": "docs/ROADMAP.md",
       "types": [
         "document"
@@ -2194,7 +2217,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-20T22:42:25+02:00",
+      "last_git_change": "2026-09-20T22:43:28+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -2338,7 +2361,7 @@
         "docs/archive/README.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-20T22:42:25+02:00",
+      "last_git_change": "2026-09-20T22:43:28+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -3324,6 +3347,27 @@
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-09-20T22:42:25+02:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "docs/architecture/adr/0043-eindeutige-ressourcenidentitaet.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Architecture Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/architecture/adr/README.md",
+        "docs/architecture/owners.json"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -6310,6 +6354,7 @@
         "tests/test_help_nextcloud_training.py",
         "tests/test_incremental_sync_m163.py",
         "tests/test_personal_assistant_core.py",
+        "tests/test_resource_identity_m164.py",
         "tests/test_standard_operations_profile.py"
       ],
       "documentation_evidence": [],
@@ -6410,6 +6455,7 @@
       ],
       "documentation_evidence": [
         "docs/COMMAND_REFERENCE.md",
+        "docs/TESTING.md",
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": 79.19,
@@ -6660,6 +6706,7 @@
         "docs/AGENT_ACTION_COMPLETION_M15_ACCEPTANCE.md",
         "docs/AGENT_TOOL_ORCHESTRATION_M13_ACCEPTANCE.md",
         "docs/COMMAND_REFERENCE.md",
+        "docs/TESTING.md",
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": 90.0,
@@ -7405,6 +7452,7 @@
         "tests/test_order_deck_tool.py",
         "tests/test_personal_assistant_core.py",
         "tests/test_release_config_defaults.py",
+        "tests/test_resource_identity_m164.py",
         "tests/test_resource_registry_repair.py",
         "tests/test_standard_operations_profile.py"
       ],
@@ -7446,6 +7494,30 @@
       ],
       "line_coverage_percent": 77.59,
       "last_git_change": "2026-08-06T15:45:31+02:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "personal_assistant/resource_identity.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Core Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "personal_assistant/cli_handlers/core.py"
+      ],
+      "test_evidence": [
+        "tests/test_resource_identity_m164.py"
+      ],
+      "documentation_evidence": [
+        "docs/architecture/README.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -8131,6 +8203,7 @@
         "tests/test_portfolio_research.py",
         "tests/test_portfolio_tool.py",
         "tests/test_release_awareness.py",
+        "tests/test_resource_identity_m164.py",
         "tests/test_standard_operations_profile.py",
         "tests/test_work_scheduler.py"
       ],
@@ -8199,6 +8272,7 @@
         "tests/test_portfolio_tool.py",
         "tests/test_release_awareness.py",
         "tests/test_release_config_defaults.py",
+        "tests/test_resource_identity_m164.py",
         "tests/test_standard_operations_profile.py",
         "tests/test_work_scheduler.py"
       ],
@@ -8394,6 +8468,7 @@
         "docs/OLLAMA_PRIORITY.md",
         "docs/PORTFOLIO_ADVISOR.md",
         "docs/RELEASE_3_4_0_R28.md",
+        "docs/RESOURCE_IDENTITY_M16.md",
         "docs/SEARCH.md",
         "docs/SELF_MANAGEMENT.md",
         "docs/STANDARD_OPERATIONS.md",
@@ -10546,6 +10621,7 @@
       "test_evidence": [],
       "documentation_evidence": [
         "docs/COMMAND_REFERENCE.md",
+        "docs/TESTING.md",
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
@@ -10708,6 +10784,7 @@
       "test_evidence": [],
       "documentation_evidence": [
         "docs/COMMAND_REFERENCE.md",
+        "docs/TESTING.md",
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
@@ -10733,6 +10810,7 @@
       ],
       "documentation_evidence": [
         "docs/COMMAND_REFERENCE.md",
+        "docs/TESTING.md",
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
@@ -11861,6 +11939,7 @@
       ],
       "documentation_evidence": [
         "docs/COMMAND_REFERENCE.md",
+        "docs/TESTING.md",
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
@@ -12179,6 +12258,31 @@
       "rollback_relevance": "none"
     },
     {
+      "path": "tests/test_resource_identity_m164.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "personal_assistant/tool_catalog/runtime.py"
+      ],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/COMMAND_REFERENCE.md",
+        "docs/RESOURCE_IDENTITY_M16.md",
+        "docs/TESTING.md",
+        "skills/personal-assistant/references/tool-contract.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
       "path": "tests/test_resource_registry_repair.py",
       "types": [
         "python-module"
@@ -12187,7 +12291,9 @@
       "classification": "active",
       "productive_callers": [],
       "test_evidence": [],
-      "documentation_evidence": [],
+      "documentation_evidence": [
+        "docs/TESTING.md"
+      ],
       "line_coverage_percent": null,
       "last_git_change": "2026-08-06T15:45:31+02:00",
       "runtime_telemetry": {

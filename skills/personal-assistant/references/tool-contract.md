@@ -21,6 +21,10 @@ den fuehrenden Launcher durch `/opt/openclaw-agent/scripts/assistant.sh` ersetze
 | `assistant.version.since` | `read` | nein | `none` | `always` | `./scripts/assistant.sh version --verify --history --since "<Version>" --limit 20` | `tests/test_m5_tool_contract.py` |
 | `assistant.search` | `read` | nein | `none` | `always` | `./scripts/assistant.sh search "<Suchbegriff>"` | `tests/test_m5_tool_contract.py` |
 | `assistant.setup.standard-operations` | `local-write` | nein | `explicit-user-standard-operations-profile` | `always` | `./scripts/assistant.sh setup standard-operations --yes` | `tests/test_standard_operations_profile.py` |
+| `assistant.resources.status` | `read` | nein | `none` | `always` | `./scripts/assistant.sh resources status` | `tests/test_resource_identity_m164.py` |
+| `assistant.resources.calendar-migration-preview` | `read` | nein | `none` | `always` | `./scripts/assistant.sh resources calendar-migration --dry-run` | `tests/test_resource_identity_m164.py` |
+| `assistant.resources.calendar-migration-apply` | `local-write` | nein | `explicit-user-calendar-resource-identity-migration` | `always` | `./scripts/assistant.sh resources calendar-migration --yes --expected-preview-sha256 "<Digest>"` | `tests/test_resource_identity_m164.py` |
+| `assistant.resources.calendar-migration-rollback` | `local-write` | nein | `explicit-user-calendar-resource-identity-migration-rollback` | `always` | `./scripts/assistant.sh resources calendar-migration --rollback "<tools.toml.backup>" --yes` | `tests/test_resource_identity_m164.py` |
 | `assistant.monitor.status` | `read` | nein | `none` | `always` | `./scripts/assistant.sh monitor status --days 7 --live` | `tests/test_m5_tool_contract.py` |
 | `assistant.jobs.status` | `read` | nein | `none` | `always` | `./scripts/assistant.sh jobs status --target all` | `tests/test_m5_tool_contract.py` |
 | `assistant.scheduler.status` | `read` | nein | `none` | `always` | `./scripts/assistant.sh scheduler status` | `tests/test_m5_tool_contract.py` |

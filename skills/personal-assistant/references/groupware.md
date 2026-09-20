@@ -5,6 +5,14 @@ for `~/.nextcloud` or another local mount, and never expose the central secrets
 file. Start with the registered status/discovery command and let Jan select the
 exact stable `resource_id`; never select the first discovered collection.
 
+`resources status` is the central read-only identity inventory. Stable resource
+ID, business name, component, confirmed permissions and remote identifier are
+separate fields. Treat `resource-id-missing`, `resource-id-stale`,
+`resource-id-duplicate`, `resource-discovery-ambiguous`,
+`resource-configuration-drift`, `resource-credentials-missing`,
+`resource-component-missing` and `resource-permission-missing` as distinct
+blockers; never repair one by choosing the first or a fuzzy discovery result.
+
 The product contains a native Nextcloud/WebDAV connector. Its availability is
 established by the live tool catalog and the registered command result, not by
 looking for a local mount, a generic plugin or credentials in the workspace. A
@@ -65,14 +73,15 @@ and task create are bounded registered writes; existing-object update, complete
 or reopen requires exact UID and explicit approval. Do not describe the calendar
 integration as create-only.
 
-The central direct `nextcloud.calendar.resource_id` is the only permitted
-read-only recovery target for a stale legacy mail-calendar selector. Recovery is
-allowed only when the legacy selector has exactly zero live matches and the
-already configured direct resource has exactly one live VEVENT match with the
-required create privilege. It does not change configuration or permissions.
-Ambiguity, a second arbitrary calendar, missing VEVENT or missing privileges
-remain fail-closed. Status and Doctor must expose both the configured legacy ID
-and the effective recovered resource ID; never describe this as fuzzy discovery.
+The central direct `nextcloud.calendar.resource_id` is a diagnostic recovery
+target for a stale typed mail-calendar reference only when the old ID has exactly
+zero live matches and the direct ID has exactly one VEVENT match with create
+privilege. Recovery reports `resource-configuration-drift` and is not healthy.
+Permanently align the IDs only through the registered preview/digest-bound local
+calendar migration after explicit approval. It changes no remote object or
+permission. The untyped legacy mail-agent calendar selector is no longer an
+identity path. Ambiguity, a second arbitrary calendar, missing VEVENT or missing
+privileges remain fail-closed.
 
 For an explicit “create calendar events from this mail” request, use the native
 mail-to-calendar workflow and never manually translate mail prose into an

@@ -474,10 +474,11 @@ Kannst du mich bitte zurueckrufen?\r
         ):
             result = client.health(live=True)
 
-        self.assertTrue(result["ok"])
+        self.assertFalse(result["ok"])
         self.assertTrue(result["calendar_configuration_recovered"])
         self.assertEqual(result["selected_calendar_resource_id"], "calendar-current")
-        self.assertIn("veraltete Kalenderreferenz", result["detail"])
+        self.assertEqual(result["error_code"], "resource-configuration-drift")
+        self.assertIn("Konfigurationsdrift", result["detail"])
 
     def test_contact_email_extraction_is_normalized(self) -> None:
         contact = {

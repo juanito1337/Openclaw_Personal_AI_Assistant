@@ -57,6 +57,8 @@ class ResourceRegistry:
         return sorted(result, key=lambda item: (item.kind, item.id))
 
     def get(self, resource_id: str) -> Resource:
+        if resource_id in self.duplicate_ids:
+            raise KeyError(f"resource-id-duplicate: Ressourcen-ID {resource_id!r} ist mehrfach registriert")
         try:
             return self.resources[resource_id]
         except KeyError as exc:
@@ -80,15 +82,17 @@ class ResourceRegistry:
             "",
         ]
         for resource in sorted(resources, key=lambda item: (item.kind, item.id)):
-            lines.extend([
-                "[[resources]]",
-                f'id = {self._quote(resource.id)}',
-                f'kind = {self._quote(resource.kind)}',
-                f'connector = {self._quote(resource.connector)}',
-                f'enabled = {str(resource.enabled).lower()}',
-                f'remote_id = {self._quote(resource.remote_id)}',
-                "permissions = [" + ", ".join(self._quote(v) for v in resource.permissions) + "]",
-            ])
+            lines.extend(
+                [
+                    "[[resources]]",
+                    f"id = {self._quote(resource.id)}",
+                    f"kind = {self._quote(resource.kind)}",
+                    f"connector = {self._quote(resource.connector)}",
+                    f"enabled = {str(resource.enabled).lower()}",
+                    f"remote_id = {self._quote(resource.remote_id)}",
+                    "permissions = [" + ", ".join(self._quote(v) for v in resource.permissions) + "]",
+                ]
+            )
             for key, value in sorted(resource.metadata.items()):
                 if isinstance(value, bool):
                     lines.append(f"{key} = {str(value).lower()}")
@@ -113,5 +117,5 @@ class ResourceRegistry:
 
     @staticmethod
     def _quote(value: str) -> str:
-        escaped = value.replace("\\", "\\\\").replace('"', r'\"')
+        escaped = value.replace("\\", "\\\\").replace('"', r"\"")
         return f'"{escaped}"'

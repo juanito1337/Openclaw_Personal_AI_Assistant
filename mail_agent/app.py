@@ -1626,6 +1626,10 @@ class MailAgent:
             "configuration_recovered": bool(
                 nextcloud_health.get("calendar_configuration_recovered")
             ),
+            "resource_permissions": list(
+                nextcloud_health.get("selected_calendar_permissions") or []
+            ),
+            "error_code": str(nextcloud_health.get("error_code") or ""),
             "allowed_senders": list(self.tool_settings.mail.calendar_mail.sender_addresses),
         }
         calendar_ok, backend, calendar_detail = self.calendar.health(

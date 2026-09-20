@@ -4,9 +4,9 @@
   "plugin_id": "personal-assistant-tools",
   "plugin_path": "/opt/openclaw-plugins/personal-assistant-tools",
   "product_version": "3.4.0-r28",
-  "catalog_sha256": "6cdb414090ad6e80bf0d38809efddfc216fa2df884451e502afeddc03a2066ea",
-  "catalog_tool_count": 165,
-  "supported_operation_count": 164,
+  "catalog_sha256": "13dd25d7a5455ad2861184060050fa123b37c492ebeb4f96ffa7acbeeaa73e6c",
+  "catalog_tool_count": 169,
+  "supported_operation_count": 168,
   "excluded_operation_count": 1,
   "operations": [
     {
@@ -229,6 +229,153 @@
         "additionalProperties": false
       },
       "parameter_bindings": [],
+      "stdin_parameter": null,
+      "supported": true,
+      "exclusion_reason": "",
+      "allowed_claims": [
+        "tool-status",
+        "positive-evidence",
+        "tool-error",
+        "write-success-with-postcondition"
+      ],
+      "error_codes": [
+        "configuration-error",
+        "permission-denied",
+        "operation-failed"
+      ]
+    },
+    {
+      "tool_id": "assistant.resources.status",
+      "domain": "runtime",
+      "description": "Konfigurierte stabile Ressourcen-IDs, Remote-Identifier, Komponenten, Rechte und Konfigurationsdrift zentral pruefen",
+      "mode": "read",
+      "writes_external_data": false,
+      "approval": "none",
+      "availability": "always",
+      "command": "./scripts/assistant.sh resources status",
+      "argument_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "parameter_bindings": [],
+      "stdin_parameter": null,
+      "supported": true,
+      "exclusion_reason": "",
+      "allowed_claims": [
+        "tool-status",
+        "positive-evidence",
+        "tool-error"
+      ],
+      "error_codes": [
+        "configuration-error",
+        "operation-failed"
+      ]
+    },
+    {
+      "tool_id": "assistant.resources.calendar-migration-preview",
+      "domain": "runtime",
+      "description": "Mail- und Direktkalender-Identitaet read-only zur Migration vergleichen",
+      "mode": "read",
+      "writes_external_data": false,
+      "approval": "none",
+      "availability": "always",
+      "command": "./scripts/assistant.sh resources calendar-migration --dry-run",
+      "argument_schema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "parameter_bindings": [],
+      "stdin_parameter": null,
+      "supported": true,
+      "exclusion_reason": "",
+      "allowed_claims": [
+        "tool-status",
+        "positive-evidence",
+        "tool-error"
+      ],
+      "error_codes": [
+        "configuration-error",
+        "operation-failed"
+      ]
+    },
+    {
+      "tool_id": "assistant.resources.calendar-migration-apply",
+      "domain": "runtime",
+      "description": "Vorschaugebundene Kalender-Ressourcen-ID lokal mit Backup, Validierung und atomarer Publikation angleichen",
+      "mode": "local-write",
+      "writes_external_data": false,
+      "approval": "explicit-user-calendar-resource-identity-migration",
+      "availability": "always",
+      "command": "./scripts/assistant.sh resources calendar-migration --yes --expected-preview-sha256 \"<Digest>\"",
+      "argument_schema": {
+        "type": "object",
+        "properties": {
+          "expected_preview_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "expected_preview_sha256"
+        ],
+        "additionalProperties": false
+      },
+      "parameter_bindings": [
+        {
+          "placeholder": "Digest",
+          "parameter": "expected_preview_sha256",
+          "required": true
+        }
+      ],
+      "stdin_parameter": null,
+      "supported": true,
+      "exclusion_reason": "",
+      "allowed_claims": [
+        "tool-status",
+        "positive-evidence",
+        "tool-error",
+        "write-success-with-postcondition"
+      ],
+      "error_codes": [
+        "configuration-error",
+        "permission-denied",
+        "operation-failed"
+      ]
+    },
+    {
+      "tool_id": "assistant.resources.calendar-migration-rollback",
+      "domain": "runtime",
+      "description": "Eine lokale Kalender-Konfigurationsmigration aus ihrem Backup zurueckrollen",
+      "mode": "local-write",
+      "writes_external_data": false,
+      "approval": "explicit-user-calendar-resource-identity-migration-rollback",
+      "availability": "always",
+      "command": "./scripts/assistant.sh resources calendar-migration --rollback \"<tools.toml.backup>\" --yes",
+      "argument_schema": {
+        "type": "object",
+        "properties": {
+          "rollback": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
+        "required": [
+          "rollback"
+        ],
+        "additionalProperties": false
+      },
+      "parameter_bindings": [
+        {
+          "placeholder": "tools.toml.backup",
+          "parameter": "rollback",
+          "required": true
+        }
+      ],
       "stdin_parameter": null,
       "supported": true,
       "exclusion_reason": "",
@@ -6725,6 +6872,8 @@
               "assistant.version.history",
               "assistant.version.since",
               "assistant.search",
+              "assistant.resources.status",
+              "assistant.resources.calendar-migration-preview",
               "assistant.monitor.status",
               "assistant.jobs.status",
               "assistant.scheduler.status",
@@ -6754,7 +6903,7 @@
               }
             },
             "additionalProperties": false,
-            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: assistant.agent-tools.status: keine; assistant.status: keine; assistant.version: keine; assistant.version.history: keine; assistant.version.since: since; assistant.search: query; assistant.monitor.status: keine; assistant.jobs.status: keine; assistant.scheduler.status: keine; assistant.scheduler.doctor: keine; assistant.scheduler.activity: keine; assistant.jobs.alerts: keine; assistant.ollama.status: keine; assistant.ollama.check: keine; assistant.ollama.queue: keine; assistant.performance.mail: keine; assistant.monitor.history: keine"
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: assistant.agent-tools.status: keine; assistant.status: keine; assistant.version: keine; assistant.version.history: keine; assistant.version.since: since; assistant.search: query; assistant.resources.status: keine; assistant.resources.calendar-migration-preview: keine; assistant.monitor.status: keine; assistant.jobs.status: keine; assistant.scheduler.status: keine; assistant.scheduler.doctor: keine; assistant.scheduler.activity: keine; assistant.jobs.alerts: keine; assistant.ollama.status: keine; assistant.ollama.check: keine; assistant.ollama.queue: keine; assistant.performance.mail: keine; assistant.monitor.history: keine"
           }
         },
         "required": [
@@ -6770,6 +6919,8 @@
         "assistant.version.history",
         "assistant.version.since",
         "assistant.search",
+        "assistant.resources.status",
+        "assistant.resources.calendar-migration-preview",
         "assistant.monitor.status",
         "assistant.jobs.status",
         "assistant.scheduler.status",
@@ -6795,6 +6946,8 @@
             "type": "string",
             "enum": [
               "assistant.setup.standard-operations",
+              "assistant.resources.calendar-migration-apply",
+              "assistant.resources.calendar-migration-rollback",
               "assistant.scheduler.focus",
               "assistant.jobs.check",
               "assistant.jobs.on",
@@ -6809,6 +6962,15 @@
           "arguments": {
             "type": "object",
             "properties": {
+              "expected_preview_sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "rollback": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
               "topic": {
                 "type": "string",
                 "enum": [
@@ -6821,7 +6983,7 @@
               }
             },
             "additionalProperties": false,
-            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: assistant.setup.standard-operations: keine; assistant.scheduler.focus: topic; assistant.jobs.check: keine; assistant.jobs.on: keine; assistant.jobs.restart: keine; assistant.jobs.off: keine; assistant.ollama.start: keine; assistant.ollama.restart: keine; assistant.monitor.record: keine"
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: assistant.setup.standard-operations: keine; assistant.resources.calendar-migration-apply: expected_preview_sha256; assistant.resources.calendar-migration-rollback: rollback; assistant.scheduler.focus: topic; assistant.jobs.check: keine; assistant.jobs.on: keine; assistant.jobs.restart: keine; assistant.jobs.off: keine; assistant.ollama.start: keine; assistant.ollama.restart: keine; assistant.monitor.record: keine"
           }
         },
         "required": [
@@ -6832,6 +6994,8 @@
       },
       "operations": [
         "assistant.setup.standard-operations",
+        "assistant.resources.calendar-migration-apply",
+        "assistant.resources.calendar-migration-rollback",
         "assistant.scheduler.focus",
         "assistant.jobs.check",
         "assistant.jobs.on",

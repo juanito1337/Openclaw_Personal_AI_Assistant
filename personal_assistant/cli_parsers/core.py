@@ -8,6 +8,18 @@ def add_commands(sub: Any) -> None:
     res_sub = resources.add_subparsers(dest="resources_command", required=True)
     res_list = res_sub.add_parser("list")
     res_list.add_argument("--kind", default="")
+    res_sub.add_parser(
+        "status",
+        help="Zentrale konfigurierte Ressourcenidentitaeten und Drift pruefen",
+    )
+    migration = res_sub.add_parser(
+        "calendar-migration",
+        help="Veraltete Mail-Kalenderreferenz lokal und atomar angleichen",
+    )
+    migration.add_argument("--dry-run", action="store_true")
+    migration.add_argument("--yes", action="store_true")
+    migration.add_argument("--rollback", default="", metavar="BACKUP")
+    migration.add_argument("--expected-preview-sha256", default="")
     res_add = res_sub.add_parser("add")
     res_add.add_argument("--id", required=True)
     res_add.add_argument("--kind", required=True)
