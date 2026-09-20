@@ -35,6 +35,10 @@ Rollen-Cgroups, Host-Swap/Fremdlast, OOM-Ursachen, ClamAV-Budgets und große
 Toolergebnisprojektionen. Die bestehenden Rollenlimits stehen maschinenlesbar in
 [`runtime-capacity-budgets.json`](runtime-capacity-budgets.json); der Gateway
 erhält dafür keinen Docker-Socket.
+Der [M16.6-Test-/Konsolidierungsvertrag](../QUALITY_CONSOLIDATION_M16.md) und
+[ADR-0045](adr/0045-risikobasierte-tests-und-jobloop-grenzen.md) binden direkte
+Risikopfadtests, Collection und Modulcoverage an den belegten Vorherstand und
+extrahieren ausschließlich reine Jobprofil-/Runentscheidungen aus dem I/O-Loop.
 
 ## Systemkontext
 

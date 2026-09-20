@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "milestone": "M16.6",
+  "comparison_revision": "2a45ec5",
+  "policy": "Every listed risk module must improve combined and branch coverage against the complete M16.5 pre-refactor run; statement coverage may not regress.",
+  "modules": {
+    "personal_assistant/actions.py": {
+      "combined_percent": 37.244897959183675,
+      "statement_percent": 42.57425742574257,
+      "branch_percent": 25.543478260869566
+    },
+    "mail_agent/assistant_bridge.py": {
+      "combined_percent": 35.0,
+      "statement_percent": 39.333333333333336,
+      "branch_percent": 22.0
+    },
+    "docker/job_loop.py": {
+      "combined_percent": 11.83206106870229,
+      "statement_percent": 14.141414141414142,
+      "branch_percent": 4.6875
+    },
+    "mail_agent/cli.py": {
+      "combined_percent": 40.810621942697416,
+      "statement_percent": 45.248868778280546,
+      "branch_percent": 25.766871165644172
+    },
+    "personal_assistant/connectors/nextcloud/client.py": {
+      "combined_percent": 36.55913978494624,
+      "statement_percent": 43.037974683544306,
+      "branch_percent": 0.0
+    }
+  }
+}

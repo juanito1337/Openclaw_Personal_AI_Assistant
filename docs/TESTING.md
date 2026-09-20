@@ -1,6 +1,6 @@
 # Tests, Qualitaetsbaseline und Container-Runtime
 
-Stand: 2026-09-20, fortgeschrieben bis zum M16.5-Runtimekapazitaetsvertrag.
+Stand: 2026-09-20, fortgeschrieben bis zum M16.6-Qualitaetsvertrag.
 Sie startet keine produktiven Dienste und verwendet
 weder `/srv/openclaw` noch produktive Zugangsdaten.
 
@@ -266,6 +266,9 @@ der aktuellen Python-Dateien.
 | Gesamt-Coverage nach M16.5 | 69,21 % |
 | reine Statement-Coverage nach M16.5 | 73,43 % |
 | reine Branch-Coverage nach M16.5 | 56,56 % |
+| Gesamt-Coverage nach M16.6 | 69,76 % |
+| reine Statement-Coverage nach M16.6 | 74,01 % |
+| reine Branch-Coverage nach M16.6 | 57,02 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -288,6 +291,9 @@ der aktuellen Python-Dateien.
 | Laufzeit des finalen lokalen M16.3-Testlaufs | 145,22 s |
 | M16.5-Collection | 1.111 pytest-Items plus 111 Subtests; 1.222 erfolgreiche JUnit-Faelle |
 | Laufzeit des finalen lokalen M16.5-Testlaufs | 151,46 s |
+| M16.6-Collection | 1.152 pytest-Items plus 111 Subtests; 1.263 erfolgreiche JUnit-Faelle |
+| Laufzeit des ersten erfolgreichen lokalen M16.6-Testlaufs | 143,92 s |
+| Laufzeit der finalen M16.6-Kontrollwiederholung | 155,91 s |
 | M16.3 Synthetic Full-Sync Walltime p50/p95 (100 Objekte, 5 Samples) | 564,726 / 573,555 ms |
 | M16.3 Synthetic No-op-Sync Walltime p50/p95 (100 Objekte, 5 Samples) | 4,899 / 5,291 ms |
 | M16.3 Synthetic Einzel-Delta Walltime p50/p95 (100 Objekte, 5 Samples) | 9,297 / 10,660 ms |
@@ -1498,3 +1504,29 @@ JUnit-Artefakt 1.222 erfolgreiche Fälle ohne Fehler oder Skips aus. Die kombini
 Statement-/Branch-Coverage beträgt 69,21 Prozent, die reine Statement-Coverage
 73,43 Prozent und die reine Branch-Coverage 56,56 Prozent. Der Lauf dauerte
 151,46 Sekunden.
+
+## M16.6-Risikopfad- und Konsolidierungstests
+
+Die direkte hermetische Teilabnahme lautet:
+
+```bash
+.venv/bin/python -m pytest -q \
+  tests/test_risk_paths_m166.py \
+  tests/test_mail_cli_m166.py \
+  tests/test_quality_risk_m166.py
+```
+
+Sie prüft ActionPlan-Fehler und Nachbedingungen, Bridge-Payloadlebenszyklus,
+Jobprofile, Lease-/Exitentscheidung, atomare Heartbeats, Mail-CLI-Fehlergrenzen
+und Nextcloud-TLS-/HTTP-Fehlerabbildung. Der vollständige Lauf prüft danach
+automatisch `docs/architecture/m16.6-risk-coverage.json`; eine nur gewachsene
+Testzahl bei unveränderter Branch-Coverage bleibt rot. Verantwortlichkeiten und
+Messgrenzen stehen in `docs/QUALITY_CONSOLIDATION_M16.md`.
+
+Der vollständige lokale Lauf vom 2026-09-20 sammelte und bestand 1.152
+pytest-Items. Das JUnit-Artefakt enthält einschließlich 111 `unittest`-Subtests
+1.263 erfolgreiche Fälle ohne Fehler oder Skips. Die kombinierte Coverage stieg
+von 69,21 auf 69,76 Prozent, die reine Statement-Coverage auf 74,01 Prozent und
+die reine Branch-Coverage von 56,56 auf 57,02 Prozent. Der erste erfolgreiche
+Lauf dauerte 143,92 Sekunden, die finale Kontrollwiederholung 155,91 Sekunden;
+Ruff und mypy meldeten keine neuen Befunde.

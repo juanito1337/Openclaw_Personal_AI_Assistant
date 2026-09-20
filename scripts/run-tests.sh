@@ -40,3 +40,7 @@ PYTHONDONTWRITEBYTECODE=1 \
   --junitxml="$ROOT/build/pytest.xml" \
   "${PYTEST_LOCATION_ARGS[@]}" \
   "$@"
+
+if [[ ${OPENCLAW_TEST_INSTALLED:-0} != "1" && $# -eq 0 ]]; then
+  "$PYTHON" "$ROOT/scripts/check-risk-coverage.py" "$ROOT/build/coverage.json"
+fi

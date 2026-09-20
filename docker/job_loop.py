@@ -13,7 +13,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from personal_assistant.run_contract import result_from_exit_code
+from personal_assistant.container_job_profiles import config
+from personal_assistant.job_runtime import resolve_job_run
 from personal_assistant.work_scheduler import AdaptiveWorkScheduler
 
 STOP = False
@@ -39,101 +40,6 @@ def desired(state_path: Path, job: str, default: bool) -> bool:
         return bool(values.get(job, default)) if isinstance(values, dict) else default
     except (FileNotFoundError, OSError, json.JSONDecodeError):
         return default
-
-
-def config(
-    job: str,
-    workspace: Path,
-    image_root: Path,
-) -> tuple[list[str], int, int, bool, dict[str, str]]:
-    assistant = str(image_root / "scripts/assistant.sh")
-    mail_agent = str(image_root / "scripts/mail-agent.sh")
-    if job == "mail":
-        productive = [
-            mail_agent,
-            "run",
-            "--drain",
-            "--batch-size",
-            os.environ.get("MAIL_DRAIN_BATCH_SIZE", "20"),
-            "--max-messages",
-            os.environ.get("MAIL_MAX_MESSAGES", "500"),
-            "--max-runtime",
-            os.environ.get("MAIL_MAX_RUNTIME", "2400"),
-            "--shutdown-reserve",
-            os.environ.get("MAIL_SHUTDOWN_RESERVE", "180"),
-            "--max-batches",
-            os.environ.get("MAIL_MAX_BATCHES", "100"),
-            "--no-digest",
-        ]
-        return (
-            [
-                "python3",
-                "-P",
-                "-m",
-                "personal_assistant.mail_owner_cycle",
-                "--image-root",
-                str(image_root),
-                "--",
-                "python3",
-                "-P",
-                "-m",
-                "personal_assistant.mail_worker",
-                "--",
-                *productive,
-            ],
-            int(os.environ.get("MAIL_INTERVAL_SECONDS", "1200")),
-            int(os.environ.get("MAIL_INITIAL_DELAY_SECONDS", "120")),
-            True,
-            {
-                "OPENCLAW_ROLE": "mail-worker",
-                "OPENCLAW_OLLAMA_PRIORITY": "background",
-                "OPENCLAW_OLLAMA_SOURCE": "mail-container-worker",
-                "OPENCLAW_SCHEDULER_SOURCE": "background-worker",
-            },
-        )
-    if job == "sync":
-        return (
-            [assistant, "index", "all"],
-            int(os.environ.get("SYNC_INTERVAL_SECONDS", "900")),
-            int(os.environ.get("SYNC_INITIAL_DELAY_SECONDS", "300")),
-            False,
-            {
-                "OPENCLAW_ROLE": "sync-worker",
-                "OPENCLAW_SCHEDULER_SOURCE": "background-worker",
-                "OPENCLAW_BATCHED_JOB": "1",
-            },
-        )
-    if job == "supervisor":
-        return (
-            [assistant, "jobs", "check", "--target", "all"],
-            int(os.environ.get("SUPERVISOR_INTERVAL_SECONDS", "300")),
-            int(os.environ.get("SUPERVISOR_INITIAL_DELAY_SECONDS", "180")),
-            True,
-            {"OPENCLAW_ROLE": "supervisor-worker"},
-        )
-    if job == "portfolio":
-        return (
-            [assistant, "portfolio", "quotes", "refresh"],
-            int(os.environ.get("PORTFOLIO_INTERVAL_SECONDS", "900")),
-            int(os.environ.get("PORTFOLIO_INITIAL_DELAY_SECONDS", "240")),
-            False,
-            {
-                "OPENCLAW_ROLE": "portfolio-worker",
-                "OPENCLAW_SCHEDULER_SOURCE": "background-worker",
-            },
-        )
-    if job == "monitor":
-        return (
-            [assistant, "monitor", "record", "--days", "7", "--live"],
-            int(os.environ.get("MONITOR_INTERVAL_SECONDS", "3600")),
-            int(os.environ.get("MONITOR_INITIAL_DELAY_SECONDS", "420")),
-            True,
-            {
-                "OPENCLAW_ROLE": "monitor-worker",
-                "OPENCLAW_SCHEDULER_SOURCE": "background-worker",
-            },
-        )
-    raise ValueError(job)
 
 
 def handler(signum: int, frame: object) -> None:
@@ -331,15 +237,19 @@ def main() -> int:
             finished = now()
             log.write(f"[{finished}] END exit={code}\n".encode())
 
-        batch_resume = code == BATCH_RESUME_EXIT_CODE and not STOP and not lease_lost
-        result_name = (
-            "completed" if batch_resume else result_from_exit_code(code, interrupted=STOP or lease_lost)
+        preliminary = resolve_job_run(
+            code,
+            stopped=STOP,
+            lease_lost=lease_lost,
+            previous_failures=int(status.get("consecutive_failures") or 0),
+            claim_run_id=claim.run_id if claim is not None else "",
+            batch_resume_exit_code=BATCH_RESUME_EXIT_CODE,
         )
         if scheduler is not None and claim is not None:
             recorded = scheduler.finish(
                 claim.lease_token,
                 owner=scheduler_owner,
-                result=result_name,
+                result=preliminary.result,
                 exit_code=code,
                 error_code="lease-lost" if lease_lost else "",
                 detail="Worker beendet"
@@ -353,38 +263,31 @@ def main() -> int:
             else:
                 scheduler.prune(keep_days=180)
         previous_failures = int(status.get("consecutive_failures") or 0)
-        if STOP or lease_lost:
-            business_status = "interrupted"
-            consecutive_failures = previous_failures + 1
-        elif code == 0 or batch_resume:
-            business_status = "healthy"
-            consecutive_failures = 0
-        elif code == 1:
-            business_status = "degraded"
-            consecutive_failures = previous_failures + 1
-        else:
-            business_status = "failed"
-            consecutive_failures = previous_failures + 1
+        outcome = resolve_job_run(
+            code,
+            stopped=STOP,
+            lease_lost=lease_lost,
+            previous_failures=previous_failures,
+            claim_run_id=claim.run_id if claim is not None else "",
+            batch_resume_exit_code=BATCH_RESUME_EXIT_CODE,
+        )
         status.update(
             state="waiting" if not STOP else "stopping",
             updated_at=now(),
             last_finished_at=finished,
             last_exit_code=code,
-            result=result_name,
-            business_status=business_status,
-            consecutive_failures=consecutive_failures,
+            result=outcome.result,
+            business_status=outcome.business_status,
+            consecutive_failures=outcome.consecutive_failures,
             pid=None,
         )
-        if code == 0:
+        if outcome.last_success:
             status["last_success_at"] = finished
-            resume_parent_run_id = ""
-        elif batch_resume:
+        if outcome.batch_resume:
             status["batch_resume_pending"] = True
-            resume_parent_run_id = claim.run_id if claim is not None else ""
-        else:
-            resume_parent_run_id = ""
+        resume_parent_run_id = outcome.resume_parent_run_id
         atomic_json(heartbeat, status)
-        next_run = time.monotonic() if batch_resume else time.monotonic() + interval
+        next_run = time.monotonic() if outcome.batch_resume else time.monotonic() + interval
 
     status.update(state="stopped", updated_at=now())
     atomic_json(heartbeat, status)

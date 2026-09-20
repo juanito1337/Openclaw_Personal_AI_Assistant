@@ -444,18 +444,24 @@ raise SystemExit(86)
             self.assertLess(gateway_start, worker_start)
 
     def test_business_workers_use_scheduler_but_supervisor_stays_independent(self) -> None:
+        from personal_assistant.container_job_profiles import config
+
         root = Path(__file__).resolve().parents[1]
         compose = (root / "compose.yaml").read_text(encoding="utf-8")
         loop = (root / "docker/job_loop.py").read_text(encoding="utf-8")
         self.assertIn("monitor-worker:", compose)
-        self.assertIn('job == "monitor"', loop)
+        monitor = config("monitor", Path("/workspace"), Path("/image"), environ={})
+        self.assertEqual(
+            monitor[0],
+            ["/image/scripts/assistant.sh", "monitor", "record", "--days", "7", "--live"],
+        )
+        self.assertEqual(monitor[4]["OPENCLAW_SCHEDULER_SOURCE"], "background-worker")
         self.assertIn(
             'scheduler = None if args.job == "supervisor"',
             loop,
         )
         self.assertIn("scheduler.enqueue(", loop)
         self.assertIn("scheduler.renew(", loop)
-        self.assertIn("OPENCLAW_SCHEDULER_SOURCE", loop)
 
     def test_packaged_hourly_monitor_units_exist(self) -> None:
         root = Path(__file__).resolve().parents[1]

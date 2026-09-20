@@ -2,7 +2,7 @@
 
 Stand: 2026-09-20
 Vorgesehener Arbeitsbranch: `development/stabilization-performance-m16`
-Status: in Umsetzung; M16.0 bis M16.5 abgeschlossen, keine produktive Aktivierung
+Status: in Umsetzung; M16.0 bis M16.6 abgeschlossen, keine produktive Aktivierung
 
 ## Ausgangslage
 
@@ -517,6 +517,10 @@ Shutdown und Concurrency. Beginne nicht mit M16.6.
 ```
 
 ## M16.6 – Risikobasierter Testausbau und Codekonsolidierung
+
+Status: abgeschlossen am 2026-09-20. Die priorisierten Risikomodule besitzen
+direkte Verhaltenstests und einen nicht regressiven Coveragevertrag; Jobprofile
+und Runentscheidung sind ohne neue Architektur aus dem I/O-Loop extrahiert.
 
 ### Ziel
 
