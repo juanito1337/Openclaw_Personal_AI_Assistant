@@ -283,6 +283,10 @@ der aktuellen Python-Dateien.
 | Laufzeit des finalen lokalen M11.6-Testlaufs | 150,70 s |
 | Laufzeit des finalen lokalen M11.8-Testlaufs | 132,82 s |
 | Laufzeit des finalen lokalen M16.3-Testlaufs | 145,22 s |
+| M16.3 Synthetic Full-Sync Walltime p50/p95 (100 Objekte, 5 Samples) | 564,726 / 573,555 ms |
+| M16.3 Synthetic No-op-Sync Walltime p50/p95 (100 Objekte, 5 Samples) | 4,899 / 5,291 ms |
+| M16.3 Synthetic Einzel-Delta Walltime p50/p95 (100 Objekte, 5 Samples) | 9,297 / 10,660 ms |
+| M16.3 Scheduler-Mailentscheidung zwischen Batches p50/p95 | 20,501 / 22,187 ms |
 | Laufzeit nach Mail-Exec-Routing und CI-Interpreterkorrektur | 135,01 s |
 | Laufzeit nach Task-Completion-Routing | 167,59 s |
 | Laufzeit nach Standard-Betriebsprofil | 162,32 s |

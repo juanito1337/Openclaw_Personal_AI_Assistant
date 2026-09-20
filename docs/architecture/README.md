@@ -27,6 +27,9 @@ Der [inkrementelle M16.3-Syncvertrag](../INCREMENTAL_SYNC_SCHEDULER_M16.md) und
 [ADR-0042](adr/0042-inkrementeller-sync-und-eine-priorisierte-queue.md)
 definieren metadata-first ETag-Abgleich, fail-closed Snapshotpublikation,
 begrenzte Batches und die einzige priorisierte Schedulerqueue.
+Die [synthetische M16.3-Messevidenz](m16.3-sync-benchmark.json) ist an den
+implementierenden Quellcommit gebunden; fehlende M16.0-Livewerte bleiben
+sichtbar nicht vergleichbar.
 
 ## Systemkontext
 

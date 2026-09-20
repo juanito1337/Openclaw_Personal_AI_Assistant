@@ -1,0 +1,141 @@
+{
+  "data_policy": "synthetic-content-only-aggregate-metrics",
+  "m16_0_comparison": {
+    "reason": "M16.0 kennzeichnet Full-, Delta- und No-op-Sync sowie Scheduler als not-measured.",
+    "regression_claim": "not-evaluated",
+    "status": "not-comparable"
+  },
+  "measurements": {
+    "full": {
+      "cpu": {
+        "maximum": 68.865,
+        "minimum": 65.06,
+        "p50": 67.127,
+        "p95": 68.865,
+        "samples": 5,
+        "unit": "ms"
+      },
+      "wall": {
+        "maximum": 573.555,
+        "minimum": 550.502,
+        "p50": 564.726,
+        "p95": 573.555,
+        "samples": 5,
+        "unit": "ms"
+      }
+    },
+    "logical_io": {
+      "delta_downloads": {
+        "maximum": 1,
+        "samples": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      "delta_projection_writes": {
+        "maximum": 1,
+        "samples": [
+          1,
+          1,
+          1,
+          1,
+          1
+        ]
+      },
+      "full_downloads": {
+        "maximum": 100,
+        "samples": [
+          100,
+          100,
+          100,
+          100,
+          100
+        ]
+      },
+      "full_projection_writes": {
+        "maximum": 100,
+        "samples": [
+          100,
+          100,
+          100,
+          100,
+          100
+        ]
+      },
+      "noop_downloads": {
+        "maximum": 0,
+        "samples": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "noop_projection_writes": {
+        "maximum": 0,
+        "samples": [
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "noop": {
+      "cpu": {
+        "maximum": 3.487,
+        "minimum": 2.922,
+        "p50": 3.0,
+        "p95": 3.487,
+        "samples": 5,
+        "unit": "ms"
+      },
+      "wall": {
+        "maximum": 5.291,
+        "minimum": 4.735,
+        "p50": 4.899,
+        "p95": 5.291,
+        "samples": 5,
+        "unit": "ms"
+      }
+    },
+    "scheduler_mail_between_batches": {
+      "wall": {
+        "maximum": 22.187,
+        "minimum": 20.212,
+        "p50": 20.501,
+        "p95": 22.187,
+        "samples": 5,
+        "unit": "ms"
+      }
+    },
+    "single_delta": {
+      "cpu": {
+        "maximum": 4.318,
+        "minimum": 3.462,
+        "p50": 3.755,
+        "p95": 4.318,
+        "samples": 5,
+        "unit": "ms"
+      },
+      "wall": {
+        "maximum": 10.66,
+        "minimum": 8.705,
+        "p50": 9.297,
+        "p95": 10.66,
+        "samples": 5,
+        "unit": "ms"
+      }
+    }
+  },
+  "milestone": "M16.3",
+  "object_count": 100,
+  "sample_count": 5,
+  "schema": 1,
+  "source_revision": "7e05a23838e9398984ffb1056f7e960e23068b4d"
+}

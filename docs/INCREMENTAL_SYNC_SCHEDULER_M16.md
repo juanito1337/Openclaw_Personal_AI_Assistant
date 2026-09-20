@@ -85,6 +85,21 @@ Schedulerentscheidung zwischen zwei Batches. M16.0 markiert diese Größen als
 „nicht verschlechtert“-Aussage ableiten. Der neue Wert ist die erste
 reproduzierbare Vergleichsbasis für spätere Pakete.
 
+Die auf Commit `7e05a23838e9398984ffb1056f7e960e23068b4d` mit fünf Samples
+und 100 Objekten erzeugte
+[maschinenlesbare Evidenz](architecture/m16.3-sync-benchmark.json) ergab:
+
+| Pfad | Walltime p50 / p95 | CPU p50 / p95 | Downloads / Writes je Sample |
+| --- | ---: | ---: | ---: |
+| Full | 564,726 / 573,555 ms | 67,127 / 68,865 ms | 100 / 100 |
+| No-op | 4,899 / 5,291 ms | 3,000 / 3,487 ms | 0 / 0 |
+| Einzel-Delta | 9,297 / 10,660 ms | 3,755 / 4,318 ms | 1 / 1 |
+| Mail zwischen Batches | 20,501 / 22,187 ms | nicht erhoben | 0 / 0 |
+
+Das belegt den neuen inkrementellen Vertrag innerhalb der synthetischen
+Messung. Es belegt weder Live-Nextcloud-Latenz noch einen Vergleich zu einem
+fehlenden M16.0-Produktivwert.
+
 ## Abnahme
 
 ```bash
