@@ -23,6 +23,9 @@ Der [M16-Promotionsvertrag](release-candidate-m16.json) und
 [ADR-0040](adr/0040-getrennte-release-promotion.md) binden den spaeteren
 Release an genau einen getesteten Commit, drei attestierte Rollenimages und
 getrennte Freigaben fuer Main, Registry und Produktivdeployment.
+Die [read-only r28-Rollbackevidenz](m16-rollback-r28.json) bindet die drei
+signierten Registryrollen und weist den nicht signierten Git-Tag sowie die
+bewusst nicht gelesene produktive Backup-/Restoreevidenz getrennt aus.
 Die [M16.10-Gesamtabnahme](../M16_ACCEPTANCE.md) und ihre
 [maschinenlesbare Evidenz](m16.10-acceptance.json) trennen die gruenen lokalen
 Qualitaets-, Artefakt- und E2E-Nachweise von den noch fehlenden CI-, Signatur-,
@@ -97,7 +100,7 @@ und Schreibrechte; der [Datenkatalog](DATA_CATALOG.md) ordnet persistente Dateie
 ihren logischen Ownern zu.
 
 ```text
-gemeinsamer Commit + Release 3.4.0-r28
+gemeinsamer Commit + Release 3.4.0-r29
 ├── runtime
 │   ├── gateway
 │   ├── mail-/sync-/supervisor-/portfolio-/monitor-worker

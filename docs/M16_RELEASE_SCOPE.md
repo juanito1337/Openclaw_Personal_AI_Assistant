@@ -1,12 +1,13 @@
 # M16-Releaseumfang und Promotionsgrenze
 
-Der naechste vorgesehene Release ist `3.4.0-r29` (`r29`). Diese Festlegung ist
-noch kein Release, kein Tag, keine Imageveroeffentlichung, keine Main-Promotion
-und kein Deployment. Der maschinenlesbare
+Der Quellstand traegt die Kandidatenidentitaet `3.4.0-r29` (`r29`). Diese
+Identitaet allein ist noch kein signierter Tag, keine Imageveroeffentlichung,
+keine Main-Promotion und kein Deployment. Der maschinenlesbare
 [`release-candidate-m16.json`](architecture/release-candidate-m16.json) bleibt
-bis zur vollstaendigen M16.10-Promotionsabnahme im Zustand `draft`. Die lokale
-Abnahme vom 2026-09-21 ist technisch gruen, bleibt wegen fehlender CI-,
-Cosign-/Registry-, Tag- und Rollbackevidenz aber mit dem Urteil
+als selbstreferenzfreie Vorlage im Zustand `draft`. Die commitgebundene
+Ready-Evidenz wird nach dem finalen Commit als separates Release-Artefakt
+erzeugt. Die lokale Abnahme vom 2026-09-21 ist technisch gruen, bleibt wegen
+fehlender CI-, Cosign-/Registry-, Tag- und Rollbackevidenz aber mit dem Urteil
 [`M16 NICHT ABGENOMMEN`](M16_ACCEPTANCE.md) gesperrt.
 
 ## Geplanter kumulativer Umfang
@@ -21,9 +22,10 @@ Cosign-/Registry-, Tag- und Rollbackevidenz aber mit dem Urteil
   Workflowabschluss;
 - M16: Betriebs-, Leistungs-, Release- und Restbestandskonsolidierung.
 
-`CHANGELOG.md` bleibt waehrend der Entwicklung die detaillierte Quelle. Erst
-M16.10 uebertraegt den tatsaechlich abgenommenen Umfang in `RELEASE.json` und
-setzt Kandidatencommit, Manifestdigest, signierten Tag und Rollenimages fest.
+`CHANGELOG.md` bleibt die detaillierte Quelle. M16.10 hat den vorgesehenen
+Umfang in `RELEASE.json` uebertragen; Kandidatencommit, Manifestdigest,
+signierter Tag und Rollenimages werden erst durch die externe Ready-Evidenz
+festgesetzt.
 
 ## Verbindliche Promotionskette
 
@@ -50,6 +52,14 @@ Version, Quellcommit, drei signaturverifizierten Digests und vorhandener lokaler
 Backup-/Restoreevidenz eintragen. Solange das fehlt, blockiert der Vertrag die
 Promotion.
 
+Die read-only Registry-Pruefung des r28-Satzes ist in
+[`m16-rollback-r28.json`](architecture/m16-rollback-r28.json) festgehalten.
+Alle drei Rollen, OCI-Identitaeten, Signaturen und Attestierungen sind verifiziert.
+Der annotierte Git-Tag r28 ist nicht kryptografisch signiert; produktive
+Backup-/Restoreevidenz unter `/srv/openclaw` wurde in der Entwicklungsabnahme
+weder gelesen noch veraendert. Der vollstaendige Promotions-Rollbackvertrag
+bleibt deshalb bis zu einer getrennten Betriebspruefung offen.
+
 `installed_at` und `installation_id` bleiben im unveraenderlichen
 `RELEASE.json` leer. Sie entstehen erst durch den Installer und gehoeren in die
 externe Instanzevidenz. Das Build darf eine Installation weder vortaeuschen
@@ -61,7 +71,7 @@ noch einen spaeteren Deploymenterfolg vorwegnehmen.
 .venv/bin/python scripts/release_promotion.py verify-draft
 ```
 
-Der spätere `verify-ready`-Pfad verlangt alle unveraenderlichen Identitaeten und
+Der spaetere `verify-ready`-Pfad verlangt alle unveraenderlichen Identitaeten und
 blockiert Drift, Fremdcommit, fehlende Signatur-/Attestierungsevidenz und ein
 uneindeutiges Rollbackziel. `verify-action` prueft danach jede der drei
 Freigaben einzeln.

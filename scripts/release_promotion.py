@@ -67,6 +67,15 @@ def verify_common(contract: dict[str, Any]) -> None:
     _require(contract.get("strategy") == "fast-forward-only", "Promotion muss fast-forward-only sein")
     _require(contract.get("force_push_allowed") is False, "Force-Push muss ausgeschlossen sein")
     _require(contract.get("tested_commit_mutable") is False, "Getestete Commits duerfen nicht mutieren")
+    ready_evidence = _object(contract.get("ready_evidence"), "Ready-Evidenzvertrag fehlt")
+    _require(
+        ready_evidence.get("tracked_in_candidate_commit") is False,
+        "Commitgebundene Ready-Evidenz darf keine selbstreferenzielle Quelldatei sein",
+    )
+    _require(
+        ready_evidence.get("format") == "external-json-release-artifact",
+        "Ready-Evidenz muss als externes JSON-Release-Artefakt vorliegen",
+    )
     scope = _object(contract.get("release_scope"), "Releaseumfang fehlt")
     milestones = scope.get("milestones")
     if not isinstance(milestones, list):

@@ -2,7 +2,12 @@
 set -euo pipefail
 ROOT=$(CDPATH='' cd "$(dirname "$0")/../.." && pwd)
 cd "$ROOT"
-runtime=${1:-openclaw-agent:r28-local}
+release=$(python3 -c 'import json; print(json.load(open("RELEASE.json", encoding="utf-8"))["version"])')
+[[ "$release" =~ ^[0-9]+\.[0-9]+\.[0-9]+-r[0-9]+([.][0-9]+)*$ ]] || {
+  echo "Ungueltige Releaseidentitaet in RELEASE.json: ${release:-<leer>}" >&2
+  exit 1
+}
+runtime=${1:-openclaw-agent:${release#3.4.0-}-local}
 proxy=${2:-${runtime}-proxy}
 maintenance=${3:-${runtime}-maintenance}
 revision=${OPENCLAW_SOURCE_REVISION:-$(git rev-parse --verify HEAD 2>/dev/null || printf 'local')}
@@ -20,7 +25,7 @@ common_args=(
   --build-arg "OPENCLAW_SOURCE_REVISION=$revision"
   --build-arg "OPENCLAW_BUILD_CREATED=$created"
   --build-arg "SOURCE_DATE_EPOCH=$source_epoch"
-  --build-arg "OPENCLAW_VERSION=3.4.0-r28"
+  --build-arg "OPENCLAW_VERSION=$release"
 )
 build_flags=()
 if [[ ${M7_BUILD_NO_CACHE:-0} == 1 ]]; then

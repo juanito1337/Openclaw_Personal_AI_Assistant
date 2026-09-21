@@ -2,7 +2,7 @@
   "schema_version": 1,
   "inventory_date": "2026-08-06",
   "source_scope": "all Python modules, shell entrypoints, skills, systemd units, migrations and Markdown documents",
-  "component_count": 539,
+  "component_count": 540,
   "classification_values": [
     "active",
     "compatibility",
@@ -96,7 +96,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-21T00:53:08+02:00",
+      "last_git_change": "2026-09-21T01:37:05+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -196,7 +196,7 @@
         "docs/archive/README.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-21T00:53:08+02:00",
+      "last_git_change": "2026-09-21T01:37:05+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -501,7 +501,8 @@
       ],
       "test_evidence": [
         "tests/test_container_runtime.py",
-        "tests/test_invoice_acceptance_m108.py"
+        "tests/test_invoice_acceptance_m108.py",
+        "tests/test_release_promotion_m161.py"
       ],
       "documentation_evidence": [
         "docs/AGENT_ACTION_COMPLETION_M15_ACCEPTANCE.md",
@@ -913,7 +914,8 @@
       "test_evidence": [
         "tests/test_container_runtime.py",
         "tests/test_m7_supply_chain.py",
-        "tests/test_m8_recovery.py"
+        "tests/test_m8_recovery.py",
+        "tests/test_release_promotion_m161.py"
       ],
       "documentation_evidence": [],
       "line_coverage_percent": null,
@@ -1041,7 +1043,7 @@
         "docs/ROADMAP.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-21T00:53:08+02:00",
+      "last_git_change": "2026-09-21T01:37:05+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1623,10 +1625,11 @@
         "README.md",
         "docs/AGENT_STABILIZATION_ROADMAP.md",
         "docs/M16_RELEASE_SCOPE.md",
+        "docs/RELEASE_3_4_0_R29.md",
         "docs/architecture/README.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-09-21T01:37:05+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1667,7 +1670,7 @@
         "docs/architecture/release-candidate-m16.json"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-20T21:48:32+02:00",
+      "last_git_change": "2026-09-21T01:37:05+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -2130,12 +2133,31 @@
       "test_evidence": [],
       "documentation_evidence": [
         "CHANGELOG.md",
-        "README.md",
         "docs/ROADMAP.md",
         "docs/architecture/RECOVERY_AND_RELEASE.md"
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-08-18T19:46:35+02:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "docs/RELEASE_3_4_0_R29.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Documentation Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "README.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -2500,7 +2522,7 @@
         "docs/archive/README.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-21T00:53:08+02:00",
+      "last_git_change": "2026-09-21T01:37:05+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -8847,7 +8869,7 @@
         "docs/architecture/adr/0007-shared-sqlite-scheduler.md",
         "docs/architecture/state-access.json"
       ],
-      "line_coverage_percent": 86.21,
+      "line_coverage_percent": 85.41,
       "last_git_change": "2026-09-20T22:42:25+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -9590,7 +9612,9 @@
         ".github/workflows/ci.yml",
         ".github/workflows/container.yml"
       ],
-      "test_evidence": [],
+      "test_evidence": [
+        "tests/test_release_promotion_m161.py"
+      ],
       "documentation_evidence": [
         "docs/BUILD_AND_CI.md",
         "docs/MAIL_SEARCH_M11_ACCEPTANCE_AND_ROLLOUT.md",
@@ -9617,7 +9641,9 @@
         ".github/workflows/ci.yml",
         ".github/workflows/container.yml"
       ],
-      "test_evidence": [],
+      "test_evidence": [
+        "tests/test_release_promotion_m161.py"
+      ],
       "documentation_evidence": [
         "docs/TESTING.md"
       ],
@@ -9637,9 +9663,12 @@
       "owner": "Build Maintainers",
       "classification": "active",
       "productive_callers": [
+        ".github/workflows/ci.yml",
         ".github/workflows/container.yml"
       ],
-      "test_evidence": [],
+      "test_evidence": [
+        "tests/test_release_promotion_m161.py"
+      ],
       "documentation_evidence": [
         "docs/AGENT_ACTION_COMPLETION_M15_ACCEPTANCE.md",
         "docs/AGENT_TOOL_ORCHESTRATION_M13_ACCEPTANCE.md",
@@ -9661,9 +9690,12 @@
       "owner": "Build Maintainers",
       "classification": "active",
       "productive_callers": [
+        ".github/workflows/ci.yml",
         ".github/workflows/container.yml"
       ],
-      "test_evidence": [],
+      "test_evidence": [
+        "tests/test_release_promotion_m161.py"
+      ],
       "documentation_evidence": [
         "docs/ANTIVIRUS.md",
         "docs/MAIL_ANTIVIRUS_INDEX_BASELINE_M140.md",
@@ -9686,9 +9718,12 @@
       "owner": "Build Maintainers",
       "classification": "active",
       "productive_callers": [
+        ".github/workflows/ci.yml",
         ".github/workflows/container.yml"
       ],
-      "test_evidence": [],
+      "test_evidence": [
+        "tests/test_release_promotion_m161.py"
+      ],
       "documentation_evidence": [
         "docs/AGENT_ACTION_COMPLETION_M15_ACCEPTANCE.md",
         "docs/TESTING.md"
@@ -9819,9 +9854,12 @@
       "owner": "Build Maintainers",
       "classification": "active",
       "productive_callers": [
+        ".github/workflows/ci.yml",
         ".github/workflows/container.yml"
       ],
-      "test_evidence": [],
+      "test_evidence": [
+        "tests/test_release_promotion_m161.py"
+      ],
       "documentation_evidence": [
         "docs/AGENT_ACTION_COMPLETION_M15_ACCEPTANCE.md",
         "docs/BUILD_AND_CI.md",
@@ -9871,7 +9909,8 @@
       ],
       "test_evidence": [
         "tests/test_container_runtime.py",
-        "tests/test_invoice_acceptance_m108.py"
+        "tests/test_invoice_acceptance_m108.py",
+        "tests/test_release_promotion_m161.py"
       ],
       "documentation_evidence": [
         "docs/AGENT_ACTION_COMPLETION_M15_ACCEPTANCE.md",
@@ -13022,7 +13061,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-21T01:06:58+02:00",
+      "last_git_change": "2026-09-21T01:37:05+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"

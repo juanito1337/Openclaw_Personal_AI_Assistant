@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "checked_at": "2026-09-21",
+  "purpose": "M16 rollback candidate evidence; no productive state was read or changed",
+  "version": "3.4.0-r28",
+  "source_revision": "1c063602b0e3f5c302ae64b88a18ac8a6ac75919",
+  "registry": "ghcr.io/juanito1337/openclaw_personal_ai_assistant",
+  "images": {
+    "runtime": {
+      "digest": "sha256:49bff4f97de2cf6987f910738c46becc0a7f6ec53b2fa0327c50c6396378941a",
+      "oci_revision": "1c063602b0e3f5c302ae64b88a18ac8a6ac75919",
+      "version": "3.4.0-r28",
+      "role": "runtime",
+      "signature_verified": true,
+      "slsa_provenance_verified": true,
+      "spdx_attestation_verified": true
+    },
+    "proxy": {
+      "digest": "sha256:dc1d740602092f70fd5089512a87573845d7d683bf2d77803b4d39bb5957bd12",
+      "oci_revision": "1c063602b0e3f5c302ae64b88a18ac8a6ac75919",
+      "version": "3.4.0-r28",
+      "role": "proxy",
+      "signature_verified": true,
+      "slsa_provenance_verified": true,
+      "spdx_attestation_verified": true
+    },
+    "maintenance": {
+      "digest": "sha256:f508587f08dbf214d04686347ac6a97ee14a0f678db3167659a21a198a3fc528",
+      "oci_revision": "1c063602b0e3f5c302ae64b88a18ac8a6ac75919",
+      "version": "3.4.0-r28",
+      "role": "maintenance",
+      "signature_verified": true,
+      "slsa_provenance_verified": true,
+      "spdx_attestation_verified": true
+    }
+  },
+  "signature_identity": "https://github.com/juanito1337/Openclaw_Personal_AI_Assistant/.github/workflows/container.yml@refs/tags/r28",
+  "signature_issuer": "https://token.actions.githubusercontent.com",
+  "git_tag": {
+    "name": "r28",
+    "target": "1c063602b0e3f5c302ae64b88a18ac8a6ac75919",
+    "annotated": true,
+    "cryptographic_signature_verified": false,
+    "detail": "git tag -v r28: no signature found"
+  },
+  "productive_backup_restore_evidence": {
+    "checked": false,
+    "verified": false,
+    "detail": "No files below /srv/openclaw were read or changed during development acceptance."
+  },
+  "registry_rollback_set_verified": true,
+  "promotion_rollback_contract_complete": false
+}

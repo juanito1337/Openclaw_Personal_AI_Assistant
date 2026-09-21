@@ -5,7 +5,7 @@ description: Use for Jan's OpenClaw Personal Assistant product version, runtime,
 
 # Personal Assistant
 
-Release identity: `3.4.0-r28`. OpenClaw is one local Personal Assistant; mail is
+Release identity: `3.4.0-r29`. OpenClaw is one local Personal Assistant; mail is
 a subsystem, not another agent. `RELEASE.json` and the registered
 `assistant.version` result are authoritative. The embedded OpenClaw core version
 and the Ollama model identity are different facts.

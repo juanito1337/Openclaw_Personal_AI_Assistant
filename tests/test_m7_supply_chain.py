@@ -318,6 +318,7 @@ class M7SupplyChainTests(unittest.TestCase):
                 "FAKE_REVISION": revision or expected,
                 "FAKE_RELEASE": "3.4.0-r28",
                 "FAKE_ROLE": "runtime",
+                "OPENCLAW_EXPECTED_RELEASE": "3.4.0-r28",
             }
         )
         image = "registry.example/openclaw@sha256:" + "a" * 64

@@ -1,24 +1,39 @@
 {
   "schema_version": 1,
   "product": "OpenClaw Local Personal Assistant",
-  "version": "3.4.0-r28",
-  "release": "r28",
-  "title": "Sichere Containerarchitektur, Mail- und Rechnungsqualitaet",
-  "released_at": "2026-08-18",
+  "version": "3.4.0-r29",
+  "release": "r29",
+  "title": "Belegte Agentenwerkzeuge, Mailindex und Betriebsstabilitaet",
+  "released_at": "2026-09-21",
   "installed_at": null,
-  "previous_version": "3.4.0-r27.2.5",
+  "previous_version": "3.4.0-r28",
   "installation_id": null,
   "changes": [
-    "M0 bis M8 ersetzen den gewachsenen Monolithbetrieb durch einen dokumentierten, getesteten und attestierten Multi-Container-Stack mit unveraenderlichem Programmcode, rollenbezogenen Mounts und genau einem Writer je Schreibdomaene.",
-    "Lokaler Check und CI verwenden denselben gepinnten Test-, Lint-, Typ-, Manifest-, Wheel-, Compose- und Artefaktpfad; 720 pytest-Items sowie 80 Subtests bilden die Release-Untergrenze.",
-    "M9 fuehrt eine persistente Mail-Review-Taxonomie, read-only Triagewerkzeuge, kontrollierte Einzelkorrektur und eine atomare Suchprojektion ein, ohne den historischen Pruefbestand automatisch zu verschieben.",
-    "M10 verbessert Rechnungsnummern, Datumsrollen, typisierte Betraege und begrenzte lokale OCR; Vorschau, Einzeluebernahme und Backlog-Audit bleiben getrennt, beleggebunden und fail-closed.",
-    "Gateway-Ereignisse, Mail-Recovery, Sync-, Monitor- und Supervisorrollen halten die dokumentierten Datenowner-, Read-only- und Single-Writer-Grenzen auch bei Teilfehlern ein.",
-    "Portfoliobewertungen liefern bei alten Kursen belegte Diagnosefelder; XLON-Frische folgt der Londoner Handelszeit und Websuche oder erfundene Ticker bleiben als Ersatzkurs verboten.",
-    "Main-, Test- und Release-Images entstehen aus einem exakten Commit als reproduzierbare Rollenimages mit SBOM, SLSA-Provenance, Secret-/CVE-Scan, Cosign-Signatur und anschliessender Digest-Verifikation.",
-    "Produktive Installation bleibt ein separater, backup- und rollbackgesicherter Auftrag; lokale Backups ersetzen keinen externen Restore bereits erfolgter IMAP-, Nextcloud-, CardDAV- oder CalDAV-Aenderungen."
+    "M11 und M12 liefern einen autoritativen Vollkonto-Mailindex mit FTS, Kontext, stabilen Live-Locators und nativer read-only IMAP-Reconciliation fuer externe Moves, Copies und Deletes.",
+    "M13 exponiert die Fachfunktionen als typisierte native Werkzeuge mit deterministischem Routing, Evidenzvertrag, Antwortguard und Loop-Schutz; rohe Shell- oder Himalaya-Fallbacks bleiben ausgeschlossen.",
+    "M14 betreibt ClamAV resident und fail-closed ueber einen privaten Socket; Scannerfrische, Cacheidentitaet, Quarantaene und Indexfreigabe werden zusammen geprueft.",
+    "M15 bindet Schreibaktionen an den aktuellen Turn, unveraenderte Vorschauen und Einmalfreigaben und belegt Mail-, Kalender- und Gruppenware-Abschluss durch einen exakten Remote-Read-back.",
+    "M16 vereinheitlicht Telemetrie, Scheduler, inkrementellen Nextcloud-Sync, stabile Ressourcenidentitaeten, Runtimebudgets sowie Rechnungs- und Portfoliodiagnosen ohne automatische Rechteausweitung.",
+    "Der gemeinsame lokale und CI-Pfad sammelt mindestens 1218 pytest-Items plus 111 Subtests und prueft Coverage, Ruff, mypy, ShellCheck, Container-Lints, Wheel, drei Rollenimages und hermetische M8-/M11- bis M15-Szenarien.",
+    "Eine synthetische Evaluation behaelt semantische Suche wegen fehlenden eindeutigen Qualitaetsgewinns deaktiviert; der authentisierte Executor-RPC bleibt ein nicht produktiver Prototyp.",
+    "Imageveroeffentlichung, Main-Promotion und produktives Deployment bleiben drei getrennte, explizit freizugebende Schritte mit signiertem Rollbacksatz und unveraenderlichen Digests."
   ],
   "history": [
+    {
+      "version": "3.4.0-r29",
+      "released_at": "2026-09-21",
+      "title": "Belegte Agentenwerkzeuge, Mailindex und Betriebsstabilitaet",
+      "changes": [
+        "M11 und M12 liefern einen autoritativen Vollkonto-Mailindex mit FTS, Kontext, stabilen Live-Locators und nativer read-only IMAP-Reconciliation fuer externe Moves, Copies und Deletes.",
+        "M13 exponiert die Fachfunktionen als typisierte native Werkzeuge mit deterministischem Routing, Evidenzvertrag, Antwortguard und Loop-Schutz; rohe Shell- oder Himalaya-Fallbacks bleiben ausgeschlossen.",
+        "M14 betreibt ClamAV resident und fail-closed ueber einen privaten Socket; Scannerfrische, Cacheidentitaet, Quarantaene und Indexfreigabe werden zusammen geprueft.",
+        "M15 bindet Schreibaktionen an den aktuellen Turn, unveraenderte Vorschauen und Einmalfreigaben und belegt Mail-, Kalender- und Gruppenware-Abschluss durch einen exakten Remote-Read-back.",
+        "M16 vereinheitlicht Telemetrie, Scheduler, inkrementellen Nextcloud-Sync, stabile Ressourcenidentitaeten, Runtimebudgets sowie Rechnungs- und Portfoliodiagnosen ohne automatische Rechteausweitung.",
+        "Der gemeinsame lokale und CI-Pfad sammelt mindestens 1218 pytest-Items plus 111 Subtests und prueft Coverage, Ruff, mypy, ShellCheck, Container-Lints, Wheel, drei Rollenimages und hermetische M8-/M11- bis M15-Szenarien.",
+        "Eine synthetische Evaluation behaelt semantische Suche wegen fehlenden eindeutigen Qualitaetsgewinns deaktiviert; der authentisierte Executor-RPC bleibt ein nicht produktiver Prototyp.",
+        "Imageveroeffentlichung, Main-Promotion und produktives Deployment bleiben drei getrennte, explizit freizugebende Schritte mit signiertem Rollbacksatz und unveraenderlichen Digests."
+      ]
+    },
     {
       "version": "3.4.0-r28",
       "released_at": "2026-08-18",

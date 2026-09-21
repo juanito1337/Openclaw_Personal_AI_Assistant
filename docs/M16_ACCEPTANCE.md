@@ -1,7 +1,8 @@
 # M16.10 – unabhaengige Gesamtabnahme
 
 Stand: 2026-09-21  
-Auditierter Implementierungscommit: `127868f6312fcad31aa7c3dc3ae783e79383bff9`  
+Kandidatenidentitaet: `3.4.0-r29`; exakter Commitnachweis entsteht nach dem
+finalen Commit als externes CI-/Release-Artefakt
 Urteil: **M16 NICHT ABGENOMMEN**
 
 ## Ergebnis
@@ -13,14 +14,17 @@ CVE-Policy, Rollen-Smokes, reproduzierbare OCI-Exporte und die hermetischen
 M8-/M11- bis M15-Szenarien wurden ohne produktive Daten oder externe Writes
 ausgefuehrt.
 
-M16 ist trotzdem nicht abgeschlossen: Die Promotionskette verlangt fuer den
-exakt getesteten Releasecommit einen beobachteten CI-Lauf, `3.4.0-r29`, einen
+Die konsistente r29-Quellidentitaet ist jetzt vorbereitet und der gemeinsame
+lokale Repository- sowie Wheel-Pfad wurde erneut vollstaendig ausgefuehrt. M16
+ist trotzdem nicht abgeschlossen: Die Promotionskette verlangt fuer den exakt
+getesteten Releasecommit einen beobachteten CI-Lauf, einen
 kryptografisch verifizierten Git-Tag, drei in der Registry veroeffentlichte und
-Cosign-verifizierte Digests sowie einen signaturverifizierten r28-Rollbacksatz.
-Diese Evidenz existiert lokal nicht und darf ohne die getrennten Freigaben fuer
-Imageveroeffentlichung und Main-Promotion nicht erzeugt oder vorgetaeuscht
-werden. `RELEASE.json` bleibt deshalb bei `3.4.0-r28`, der getrackte
-Promotionsvertrag bleibt `draft`, `main` bleibt unveraendert und es fand kein
+Cosign-verifizierte Digests sowie einen vollstaendigen r28-Rollbackvertrag.
+Die drei r28-Registryrollen sind inzwischen signatur- und
+attestierungsverifiziert. Der r28-Git-Tag ist jedoch nicht kryptografisch
+signiert, und produktive Backup-/Restoreevidenz wurde innerhalb der
+Entwicklungsgrenze nicht gelesen. Der getrackte Promotionsvertrag bleibt als
+selbstreferenzfreie Vorlage `draft`, `main` bleibt unveraendert und es fand kein
 Produktivdeployment statt.
 
 Die maschinenlesbare Evidenz steht in
@@ -46,10 +50,10 @@ und durch einen Gleichheitstest gegen die Architekturdokumentation gebunden.
 
 | Messung | M16.0 | M16.10 lokal | Bewertung |
 | --- | ---: | ---: | --- |
-| pytest-Collection | 1.057 | 1.218 | +161, keine unbemerkte Verringerung |
-| ausgefuehrt inkl. Subtests | 1.168 | 1.329 | +161, keine Fehler/Skips |
-| kombinierte Coverage | 68,502 % | 70,280 % | +1,778 Prozentpunkte |
-| Branch-Coverage | 55,804 % | 57,667 % | +1,863 Prozentpunkte |
+| pytest-Collection | 1.057 | 1.221 | +164, keine unbemerkte Verringerung |
+| ausgefuehrt inkl. Subtests | 1.168 | 1.332 | +164, keine Fehler/Skips |
+| kombinierte Coverage | 68,502 % | 70,272 % | +1,770 Prozentpunkte |
+| Branch-Coverage | 55,804 % | 57,657 % | +1,853 Prozentpunkte |
 | Ruff-Altbefunde | 486 | 470 | 16 weniger |
 | mypy-Altbefunde | 108 | 108 | unveraendert, keine neuen |
 
@@ -71,12 +75,13 @@ nicht veroeffentlichten Commit ist jedoch ausdrücklich `not-measured`.
 
 Das Wheel wird aus einem sauberen Quellsnapshot gebaut, in eine neue virtuelle
 Umgebung installiert und dort mitsamt CLI-, Release- und Gesamttests geprueft.
-Das Wheel war 659.369 Byte gross, der reine Build dauerte 3.275 ms und die
-vollstaendige installierte Suite bestand mit 1.218 Tests und 111 Subtests in
-128,22 s. Build- und Testartefakte unter `build/` sind nicht Teil des Releases.
+Das Wheel war 659.369 Byte gross, der reine Build dauerte 4.200 ms und die
+vollstaendige installierte Suite bestand mit 1.221 Tests und 111 Subtests in
+157,92 s. Build- und Testartefakte unter `build/` sind nicht Teil des Releases.
 
-Die lokalen Rollenimages des Auditcommits haben folgende entpackte Docker-
-Groessen:
+Der Vorab-Audit des Implementierungscommits `127868f…` pruefte folgende lokale
+Rollenimages. Diese Messung belegt den Buildpfad, ist aber ausdruecklich keine
+r29-Kandidatenevidenz:
 
 | Rolle | Image-ID | Groesse | Critical / Secrets |
 | --- | --- | ---: | ---: |
@@ -93,8 +98,24 @@ No-cache-OCI-Bauten byteidentisch. Die Laufzeiten der beiden kompletten
 Rollenbuilds betrugen 172 s und 199 s.
 
 Lokale Image-IDs und lokale Provenance sind keine Registry-Digests und keine
-Cosign-Attestierungen. Sie duerfen deshalb nicht in den Ready-Vertrag
-eingetragen werden.
+Cosign-Attestierungen. Die exakte r29-Imageevidenz wird deshalb erst nach dem
+finalen Kandidatencommit extern erzeugt und darf nicht selbstreferenziell in
+denselben Commit geschrieben werden.
+
+## Read-only Rollbackpruefung
+
+Die Registrytags `r28`, `r28-proxy` und `r28-maintenance` wurden auf
+unveraenderliche Digests aufgeloest. Runtime, Proxy und Maintenance tragen
+einheitlich Commit `1c063602…` und Release `3.4.0-r28`; Cosign-Signatur,
+SLSA-Provenance und SPDX-Attestierung wurden fuer jede Rolle erfolgreich
+verifiziert. Die exakten Digests stehen in
+[`m16-rollback-r28.json`](architecture/m16-rollback-r28.json).
+
+`git tag -v r28` meldet dagegen `no signature found`. Der Tag ist annotiert,
+aber nicht kryptografisch signiert. Die Entwicklungsabnahme hat zudem keine
+produktiven Backups unter `/srv/openclaw` geoeffnet oder veraendert. Registry-
+Rollback und produktive Backup-/Restoreevidenz bleiben deshalb zwei getrennte
+Nachweise; der vollstaendige Rollbackvertrag ist noch offen.
 
 ## Hermetische Funktionsabnahme
 
@@ -134,20 +155,19 @@ hat die absolute Modulgroesse der gewachsenen Fachdomaenen aber nicht geloest.
 Das bleibt ein realer Modularisierungsbedarf; die erfolgreiche Abnahme wird
 nicht als Beleg fuer kleine oder horizontal skalierbare Module ausgelegt.
 
-Skillreferenzen und der generierte Toolvertrag wurden gegen den typisierten
-Katalog geprueft. M16.10 fuehrt kein neues Agententool und keine neue
-Approvalklasse ein; deshalb waere eine rein redaktionelle Aenderung dieser
-beiden Quellen eine zweite, driftanfaellige Befehlsquelle und unterbleibt.
+Skillreferenzen, nativer Pluginvertrag und generierter Toolvertrag wurden gegen
+den typisierten Katalog und die r29-Releaseidentitaet neu erzeugt und geprueft.
+M16.10 fuehrt kein neues Agententool und keine neue Approvalklasse ein.
 
 ## Verbleibende Blocker und getrennte naechste Schritte
 
-1. Den finalen Releasecommit mit konsistentem `RELEASE.json`, AGENTS, README,
-   Changelog, Skill und Manifest als `3.4.0-r29` erzeugen und in CI testen.
+1. Den finalen r29-Kandidatencommit ohne weitere Quelldrift erzeugen, den Branch
+   veroeffentlichen und den erweiterten gemeinsamen CI-Pfad beobachten.
 2. Nach separater Image-Publish-Freigabe alle drei Rollen aus exakt diesem
    Commit publizieren, SBOM/Provenance attestieren und Cosign je Digest
    verifizieren.
-3. Den bestehenden r28-Rollbackrollensatz mit Commit und drei verifizierten
-   signierten Digests binden und den signierten r29-Git-Tag pruefen.
+3. Produktive Backup-/Restoreevidenz fuer den bereits signaturverifizierten
+   r28-Registryrollensatz binden und den signierten r29-Git-Tag pruefen.
 4. Erst nach separater Main-Promotionsfreigabe den unveraenderten Kandidaten
    fast-forward-only nach `main` bringen.
 5. Backup, Deployment, Read-only-/Write-Canary und Jobaktivierung bleiben eine

@@ -2,6 +2,11 @@
   "schema_version": 1,
   "state": "draft",
   "ready_for_promotion": false,
+  "ready_evidence": {
+    "tracked_in_candidate_commit": false,
+    "format": "external-json-release-artifact",
+    "reason": "The final commit cannot contain its own Git object ID without a self-reference."
+  },
   "strategy": "fast-forward-only",
   "force_push_allowed": false,
   "tested_commit_mutable": false,
@@ -17,7 +22,7 @@
   "release_scope": {
     "report": "docs/M16_RELEASE_SCOPE.md",
     "milestones": ["M11", "M12", "M13", "M14", "M15", "M16"],
-    "status": "planned-until-m16.10"
+    "status": "r29-candidate-identity-prepared"
   },
   "images": {
     "runtime": {
@@ -50,7 +55,8 @@
     "version": "3.4.0-r28",
     "source_revision": null,
     "images": null,
-    "reason": "M16.10 muss den signierten produktiven Rollensatz vor jeder Promotion exakt binden"
+    "registry_evidence": "docs/architecture/m16-rollback-r28.json",
+    "reason": "Registryrollen sind signiert verifiziert; produktive Backup-/Restoreevidenz bleibt getrennt offen"
   },
   "approval_gates": {
     "main-promotion": {

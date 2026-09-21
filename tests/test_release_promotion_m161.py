@@ -56,6 +56,11 @@ def _ready_contract(tmp_path: Path) -> tuple[dict[str, Any], Path, str, str]:
         "schema_version": 1,
         "state": "ready",
         "ready_for_promotion": True,
+        "ready_evidence": {
+            "tracked_in_candidate_commit": False,
+            "format": "external-json-release-artifact",
+            "reason": "fixture",
+        },
         "strategy": "fast-forward-only",
         "force_push_allowed": False,
         "tested_commit_mutable": False,
@@ -105,6 +110,14 @@ def test_tracked_candidate_is_an_explicitly_blocked_draft() -> None:
     report = promotion.verify_draft(contract)
     assert report["ok"] is True
     assert report["promotion_blocked"] is True
+    assert contract["ready_evidence"]["tracked_in_candidate_commit"] is False
+
+
+def test_ready_evidence_cannot_be_self_referential(tmp_path: Path) -> None:
+    contract, release, head, main_before = _ready_contract(tmp_path)
+    contract["ready_evidence"]["tracked_in_candidate_commit"] = True
+    with pytest.raises(promotion.PromotionContractError, match="selbstreferenzielle"):
+        _verify(contract, release, head, main_before)
 
 
 def test_ready_contract_binds_release_images_tag_and_rollback(tmp_path: Path) -> None:
@@ -171,23 +184,52 @@ def test_container_workflow_uses_release_manifest_version() -> None:
     assert "OPENCLAW_VERSION=3.4.0-r28" not in workflow
 
 
+def test_local_image_paths_derive_version_from_release_manifest() -> None:
+    build = (ROOT / "docker/scripts/build-local.sh").read_text(encoding="utf-8")
+    smoke = (ROOT / "scripts/check-role-images.sh").read_text(encoding="utf-8")
+    verifier = (ROOT / "docker/scripts/verify-image-supply-chain.sh").read_text(
+        encoding="utf-8"
+    )
+    marker = 'json.load(open("RELEASE.json", encoding="utf-8"))["version"]'
+    assert marker in build
+    assert marker in smoke
+    assert "OPENCLAW_VERSION=$release" in build
+    assert "release=3.4.0-r28" not in smoke
+    assert "OPENCLAW_EXPECTED_RELEASE:?" in verifier
+    assert "OPENCLAW_EXPECTED_RELEASE:-3.4.0-r28" not in verifier
+
+
+def test_normal_ci_runs_all_hermetic_release_scenarios_and_reproducibility() -> None:
+    workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    for command in (
+        "./scripts/check-m11-integration.sh",
+        "./scripts/check-m12-integration.sh",
+        "./scripts/check-m13-integration.sh",
+        "./scripts/check-m14-integration.sh",
+        "./scripts/check-m15-integration.sh",
+        "./scripts/check-reproducible-images.sh",
+    ):
+        assert command in workflow
+
+
 def test_m16_acceptance_cannot_claim_success_without_immutable_evidence() -> None:
     report = promotion.load_json(ROOT / "docs/architecture/m16.10-acceptance.json")
     assert report["verdict"] == "M16 NICHT ABGENOMMEN"
     assert report["productive_changes"] is False
     assert report["local_quality"]["ok"] is True
     assert report["promotion"] == {
-        "release_candidate_state": "draft",
-        "release_identity": "3.4.0-r28",
+        "release_candidate_state": "r29-local-candidate",
+        "release_identity": "3.4.0-r29",
         "planned_release_identity": "3.4.0-r29",
         "ci_for_exact_commit": "not-measured",
         "signed_git_tag_verified": False,
         "registry_digests_verified": False,
         "cosign_verified": False,
+        "rollback_registry_roles_verified": True,
         "rollback_set_verified": False,
         "main_promoted": False,
         "image_published": False,
         "production_deployed": False,
         "pending_separate_approvals": list(promotion.ACTIONS),
     }
-    assert len(report["blockers"]) == 6
+    assert len(report["blockers"]) == 5

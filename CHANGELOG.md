@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 3.4.0-r29 – Belegte Agentenwerkzeuge, Mailindex und Betriebsstabilitaet
+
 - Stabilisierung/M16.10: Die unabhaengige lokale Gesamtpruefung deckt Tests,
   Coverage, statische Analyse, Wheel, drei Rollenimages, SBOM, lokale
   Provenance, Secret-/CVE-Scan, reproduzierbare OCI-Exporte und die

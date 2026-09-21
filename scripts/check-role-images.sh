@@ -7,7 +7,11 @@ runtime=${1:?Runtime-Image angeben}
 proxy=${2:?Proxy-Image angeben}
 maintenance=${3:?Maintenance-Image angeben}
 revision=${4:?Git-Revision angeben}
-release=3.4.0-r28
+release=$(python3 -c 'import json; print(json.load(open("RELEASE.json", encoding="utf-8"))["version"])')
+[[ "$release" =~ ^[0-9]+\.[0-9]+\.[0-9]+-r[0-9]+([.][0-9]+)*$ ]] || {
+  echo "Ungueltige Releaseidentitaet in RELEASE.json: ${release:-<leer>}" >&2
+  exit 1
+}
 
 verify_labels() {
   local image=$1 role=$2 actual

@@ -2,7 +2,7 @@
 
 Stand: 2026-09-21
 Vorgesehener Arbeitsbranch: `development/stabilization-performance-m16`
-Status: in Umsetzung; M16.0 bis M16.9 abgeschlossen, keine produktive Aktivierung
+Status: M16.0 bis M16.9 abgeschlossen; r29-Kandidat lokal gruen, externe M16.10-Promotion offen
 
 ## Ausgangslage
 

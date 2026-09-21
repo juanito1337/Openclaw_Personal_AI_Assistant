@@ -90,6 +90,22 @@ jobs:
         env:
           OPENCLAW_M12_RUNTIME_IMAGE: openclaw-agent:m7-ci
         run: ./scripts/check-m12-integration.sh
+      - name: Hermetic M13 native tool orchestration
+        env:
+          OPENCLAW_M13_RUNTIME_IMAGE: openclaw-agent:m7-ci
+        run: ./scripts/check-m13-integration.sh
+      - name: Hermetic M15 action completion
+        env:
+          OPENCLAW_M15_RUNTIME_IMAGE: openclaw-agent:m7-ci
+        run: ./scripts/check-m15-integration.sh
+      - name: Hermetic M14 resident antivirus daemon
+        env:
+          OPENCLAW_M14_MAINTENANCE_IMAGE: openclaw-agent:m7-ci-maintenance
+        run: ./scripts/check-m14-integration.sh
+      - name: Require reproducible role OCI artifacts
+        env:
+          OPENCLAW_SOURCE_REVISION: ${{ github.sha }}
+        run: ./scripts/check-reproducible-images.sh
       - name: Record synthetic M11 acceptance comparison
         run: python3 scripts/benchmark_mail_acceptance_m118.py --output build/m11-acceptance.json
       - name: Record M7 image baseline

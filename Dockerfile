@@ -12,7 +12,9 @@ ARG HIMALAYA_SHA256=9529d2584add1c4343f32524e6f985e7c98d491f3b854747318020eb1ec1
 ARG OPENCLAW_SOURCE_REVISION=local
 ARG OPENCLAW_BUILD_CREATED=1970-01-01T00:00:00Z
 ARG SOURCE_DATE_EPOCH=0
-ARG OPENCLAW_VERSION=3.4.0-r28
+# Every supported build path passes the version from RELEASE.json explicitly.
+# A direct unversioned docker build must not accidentally claim a product release.
+ARG OPENCLAW_VERSION=unreleased
 ARG OPENCLAW_SOURCE_URL=https://github.com/juanito1337/Openclaw_Personal_AI_Assistant
 
 FROM scratch AS agent-source

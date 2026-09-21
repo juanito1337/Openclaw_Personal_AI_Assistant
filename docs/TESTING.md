@@ -1,6 +1,6 @@
 # Tests, Qualitaetsbaseline und Container-Runtime
 
-Stand: 2026-09-21, fortgeschrieben bis zur M16.9-Architekturentscheidung.
+Stand: 2026-09-21, fortgeschrieben bis zur lokalen M16.10-r29-Kandidatenabnahme.
 Sie startet keine produktiven Dienste und verwendet
 weder `/srv/openclaw` noch produktive Zugangsdaten.
 
@@ -139,6 +139,7 @@ der aktuellen Python-Dateien.
 | Tests nach M16.7 gesammelt/ausgefuehrt | 1.163 / 1.163 (1.274 JUnit-Faelle inklusive 111 Subtests) |
 | Tests nach M16.8 gesammelt/ausgefuehrt | 1.186 / 1.186 (1.297 JUnit-Faelle inklusive 111 Subtests) |
 | Tests nach M16.9 gesammelt/ausgefuehrt | 1.216 / 1.216 (1.327 JUnit-Faelle inklusive 111 Subtests) |
+| Tests nach M16.10/r29 gesammelt/ausgefuehrt | 1.221 / 1.221 (1.332 JUnit-Faelle inklusive 111 Subtests) |
 | davon bestehende unittest-Tests | 349 |
 | davon zuvor ausgelassene Rechnungs-pytest-Tests | 13 |
 | neue M0-Regressionstests | 17 |
@@ -189,6 +190,7 @@ der aktuellen Python-Dateien.
 | neue M16.7-Mail-Lern-/Reviewqualitaets-Regressionsitems | 11 |
 | neue M16.8-Rechnungs-/Portfolio-Regressionsitems | 23 |
 | neue M16.9-Semantic-/Executor-Regressionsitems | 30 |
+| neue M16.10-Release-/Artefakt-Regressionsitems | 5 |
 | M13-Image-Runtime-Abnahme | Pluginstatus `loaded`, 19 Toolfabriken, 5 typisierte Hooks, keine Diagnosen |
 | Gesamt-Coverage inklusive Branches (M7) | 59,18 % |
 | reine Branch-Coverage (M7) | 43,83 % |
@@ -290,6 +292,9 @@ der aktuellen Python-Dateien.
 | Gesamt-Coverage nach M16.9 | 70,27 % |
 | reine Statement-Coverage nach M16.9 | 74,47 % |
 | reine Branch-Coverage nach M16.9 | 57,66 % |
+| Gesamt-Coverage nach M16.10/r29 | 70,27 % |
+| reine Statement-Coverage nach M16.10/r29 | 74,47 % |
+| reine Branch-Coverage nach M16.10/r29 | 57,66 % |
 | Laufzeit des finalen lokalen M6-Testlaufs | 62,94 s |
 | Laufzeit des finalen lokalen M7-Gesamtchecks | 63,04 s |
 | Laufzeit des finalen lokalen M8-Testlaufs | 56,65 s |
@@ -315,6 +320,8 @@ der aktuellen Python-Dateien.
 | M16.6-Collection | 1.152 pytest-Items plus 111 Subtests; 1.263 erfolgreiche JUnit-Faelle |
 | Laufzeit des ersten erfolgreichen lokalen M16.6-Testlaufs | 143,92 s |
 | Laufzeit der finalen M16.6-Kontrollwiederholung | 155,91 s |
+| Laufzeit des lokalen M16.10-r29-Gesamttestlaufs | 183,27 s |
+| Laufzeit der installierten r29-Wheel-Suite | 157,92 s |
 | M16.3 Synthetic Full-Sync Walltime p50/p95 (100 Objekte, 5 Samples) | 564,726 / 573,555 ms |
 | M16.3 Synthetic No-op-Sync Walltime p50/p95 (100 Objekte, 5 Samples) | 4,899 / 5,291 ms |
 | M16.3 Synthetic Einzel-Delta Walltime p50/p95 (100 Objekte, 5 Samples) | 9,297 / 10,660 ms |

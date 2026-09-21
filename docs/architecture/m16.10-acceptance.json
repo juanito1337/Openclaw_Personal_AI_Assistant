@@ -1,30 +1,30 @@
 {
   "schema_version": 1,
   "milestone": "M16.10",
-  "audited_source_revision": "127868f6312fcad31aa7c3dc3ae783e79383bff9",
+  "audited_source_revision": "external-exact-commit-evidence-pending",
   "measured_at": "2026-09-21",
   "verdict": "M16 NICHT ABGENOMMEN",
   "productive_changes": false,
   "local_quality": {
     "ok": true,
-    "collection_items": 1218,
-    "junit_executed_including_subtests": 1329,
+    "collection_items": 1221,
+    "junit_executed_including_subtests": 1332,
     "subtests": 111,
     "failures": 0,
     "errors": 0,
     "skipped": 0,
-    "combined_coverage_percent": 70.280,
-    "branch_coverage_percent": 57.667,
+    "combined_coverage_percent": 70.272,
+    "branch_coverage_percent": 57.657,
     "ruff_known_findings": 470,
     "ruff_resolved_since_baseline": 311,
     "mypy_known_findings": 108,
     "mypy_resolved_since_baseline": 16
   },
   "m16_0_comparison": {
-    "collection_delta": 161,
-    "junit_delta": 161,
-    "combined_coverage_percentage_point_delta": 1.778,
-    "branch_coverage_percentage_point_delta": 1.863,
+    "collection_delta": 164,
+    "junit_delta": 164,
+    "combined_coverage_percentage_point_delta": 1.770,
+    "branch_coverage_percentage_point_delta": 1.853,
     "ruff_known_findings_delta": -16,
     "mypy_known_findings_delta": 0,
     "job_control_combined_coverage_percentage_point_delta": -0.548
@@ -34,37 +34,14 @@
       "build_install_cli_release_and_test": true,
       "artifact_hygiene": true,
       "bytes": 659369,
-      "build_ms": 3275,
-      "installed_test_seconds": 128.22
+      "build_ms": 4200,
+      "installed_test_seconds": 157.92
     },
     "images": {
-      "runtime": {
-        "local_image_id": "sha256:8e217c00029eb709671d5e3f211338b9d906db0df453ce83bf99ed233250ca0c",
-        "size_bytes": 377307259,
-        "critical_vulnerabilities": 0,
-        "high_vulnerabilities": 28,
-        "secrets": 0
-      },
-      "proxy": {
-        "local_image_id": "sha256:1b34a2fc5e08ee81b9608deb5e1ffa8499ee1b81635789250319151d376394a0",
-        "size_bytes": 23426255,
-        "critical_vulnerabilities": 0,
-        "high_vulnerabilities": 13,
-        "secrets": 0
-      },
-      "maintenance": {
-        "local_image_id": "sha256:3f17313dcd4c35e66528711fa2af5158e80897bb6e1f14989628d7f0c7e232b9",
-        "size_bytes": 45638781,
-        "critical_vulnerabilities": 0,
-        "high_vulnerabilities": 13,
-        "secrets": 0
-      },
-      "role_smokes": true,
-      "sbom": true,
-      "local_provenance": true,
-      "artifact_hygiene": true,
-      "reproducible_oci_exports": true,
-      "clean_build_seconds": [172, 199]
+      "exact_candidate_evidence": "external-after-final-commit",
+      "tracked_self_reference_prohibited": true,
+      "pre_release_audit_revision": "127868f6312fcad31aa7c3dc3ae783e79383bff9",
+      "pre_release_audit_passed": true
     },
     "source_secret_scan": true
   },
@@ -116,13 +93,14 @@
     "interpretation": "coverage and boundaries improved, but absolute domain-module size remains technical debt"
   },
   "promotion": {
-    "release_candidate_state": "draft",
-    "release_identity": "3.4.0-r28",
+    "release_candidate_state": "r29-local-candidate",
+    "release_identity": "3.4.0-r29",
     "planned_release_identity": "3.4.0-r29",
     "ci_for_exact_commit": "not-measured",
     "signed_git_tag_verified": false,
     "registry_digests_verified": false,
     "cosign_verified": false,
+    "rollback_registry_roles_verified": true,
     "rollback_set_verified": false,
     "main_promoted": false,
     "image_published": false,
@@ -135,10 +113,9 @@
   },
   "blockers": [
     "exact-commit-ci-not-observed",
-    "release-r29-not-finalized",
     "signed-tag-not-verified",
-    "registry-digests-and-cosign-not-verified",
-    "signed-rollback-set-not-established",
+    "r29-registry-digests-and-cosign-not-verified",
+    "productive-backup-restore-evidence-not-verified",
     "separate-promotion-approvals-pending"
   ]
 }

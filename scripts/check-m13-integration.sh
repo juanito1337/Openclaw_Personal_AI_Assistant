@@ -155,7 +155,7 @@ if (!versionPayload.evidence.ok || versionPayload.evidence.tool_id !== "assistan
   throw new Error("version evidence failed");
 }
 const finalVerdict = await hooks.get("before_agent_finalize")(
-  {runId:"run-version",lastAssistantMessage:"OpenClaw Local Personal Assistant 3.4.0-r28"},
+  {runId:"run-version",lastAssistantMessage:"OpenClaw Local Personal Assistant 3.4.0-r29"},
   {runId:"run-version",sessionId:"session-version"},
 );
 if (finalVerdict !== undefined) throw new Error("grounded version was rejected");

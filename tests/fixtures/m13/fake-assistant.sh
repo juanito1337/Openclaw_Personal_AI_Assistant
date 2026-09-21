@@ -4,7 +4,7 @@ set -eu
 command_line="$*"
 case "$command_line" in
   "version --verify")
-    printf '%s\n' '{"ok":true,"product":"OpenClaw Local Personal Assistant","version":"3.4.0-r28","complete":true}'
+    printf '%s\n' '{"ok":true,"product":"OpenClaw Local Personal Assistant","version":"3.4.0-r29","complete":true}'
     ;;
   "status")
     printf '%s\n' '{"ok":true,"complete":true,"checked_at":"2026-09-01T00:00:00Z"}'
