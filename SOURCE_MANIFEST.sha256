@@ -185,7 +185,7 @@ d0c9ac3229078d7fce345b35d7aca528aad926cfab2cc77e410802dd60a4ea53  ./docs/archite
 a245e2a2737c26221eb40128959109241bdbb07204b00102fb56a9c14fb73a14  ./docs/architecture/adr/README.md
 b99c97a76723cd2ece9e00dc9ece17aac47daaa672657252d63cdb234645fcd9  ./docs/architecture/clamd-operating-budget-m14.json
 d27b02d1ed286794ce453b80b4911bcbf476dfb08d005437510e5419f237203c  ./docs/architecture/compatibility-policy.json
-e8e91393bf12e9d309b6f00babf85eab4ec8bede399b7fea8163acc501795262  ./docs/architecture/component-inventory.json
+e579350aa4277a9cb7cbe3d339502a270b32bf337f68e1db3cfe3990b1012b9a  ./docs/architecture/component-inventory.json
 1f707ea0d3c63cf76a35d64fd62988a6f59c1c5e73fe7a09fe62fdb7901a919c  ./docs/architecture/image-baseline-m7.json
 b397cdaa70d5dbcd4bfd22ed503433570b67bb978059bd5916e8793d173807c3  ./docs/architecture/legacy-decisions.json
 08e9adaf4971a11f91b043fb89f899bb730ca702dc3c5e7bdaf6f1710045755c  ./docs/architecture/m16-baseline.json
