@@ -86,8 +86,8 @@ nicht produktiv aktiviert; Gateway, Rollenmounts und Secrets bleiben unveraender
 
 ## Qualitaets- und Leistungsbaseline
 
-Der lokale M16.10-Auditpfad sammelte 1.218 pytest-Items und fuehrte zusammen mit
-111 Subtests 1.329 JUnit-Faelle ohne Fehler oder Skips aus. Die kombinierte
+Der lokale M16.10-Auditpfad sammelte 1.221 pytest-Items und fuehrte zusammen mit
+111 Subtests 1.332 JUnit-Faelle ohne Fehler oder Skips aus. Die kombinierte
 Coverage lag bei 70,272 %, die reine Branch-Coverage bei 57,657 %. Ruff, mypy,
 ShellCheck, Hadolint, Compose-Render, Python-Kompilierung, Dokumentpruefung,
 Komponenteninventar, Quellmanifest und `git diff --check` waren gruen.

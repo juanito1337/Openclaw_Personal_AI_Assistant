@@ -243,3 +243,15 @@ def test_m16_acceptance_cannot_claim_success_without_immutable_evidence() -> Non
         "pending_separate_approvals": list(promotion.ACTIONS),
     }
     assert len(report["blockers"]) == 5
+
+
+def test_r29_release_report_matches_machine_readable_test_totals() -> None:
+    report = promotion.load_json(ROOT / "docs/architecture/m16.10-acceptance.json")
+    release_report = (ROOT / "docs/RELEASE_3_4_0_R29.md").read_text(encoding="utf-8")
+    collection = f'{int(report["local_quality"]["collection_items"]):,}'.replace(",", ".")
+    junit = f'{int(report["local_quality"]["junit_executed_including_subtests"]):,}'.replace(
+        ",", "."
+    )
+    subtests = int(report["local_quality"]["subtests"])
+    assert f"{collection} pytest-Items" in release_report
+    assert f"{subtests} Subtests {junit} JUnit-Faelle" in release_report
