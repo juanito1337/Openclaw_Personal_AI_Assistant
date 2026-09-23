@@ -206,6 +206,11 @@ def test_normal_ci_runs_all_hermetic_release_scenarios_and_reproducibility() -> 
     )
     assert workflow.count("fetch-depth: 0") == 2
     assert container_workflow.count("fetch-depth: 0") == 2
+    ci_container_job = workflow.split("\n  container:\n", maxsplit=1)[1]
+    assert (
+        "docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f"
+        in ci_container_job
+    )
     for command in (
         "./scripts/check-m11-integration.sh",
         "./scripts/check-m12-integration.sh",
