@@ -19,7 +19,7 @@ import release_promotion as promotion  # noqa: E402
 
 def _git(command: str) -> str:
     if os.environ.get("OPENCLAW_TEST_INSTALLED") == "1":
-        if command in {"rev-parse HEAD", "rev-parse main"}:
+        if command in {"rev-parse HEAD", "rev-parse refs/remotes/origin/main"}:
             return "a" * 40
         raise AssertionError(f"Nicht unterstuetzter installierter Git-Fixture-Befehl: {command}")
     return subprocess.run(
@@ -42,7 +42,7 @@ def _ready_contract(tmp_path: Path) -> tuple[dict[str, Any], Path, str, str]:
     release_path = tmp_path / "RELEASE.json"
     release_path.write_text(json.dumps(release, sort_keys=True) + "\n", encoding="utf-8")
     head = _git("rev-parse HEAD")
-    main_before = _git("rev-parse main")
+    main_before = _git("rev-parse refs/remotes/origin/main")
     digest = "sha256:" + "a" * 64
     image = {
         "digest": digest,
@@ -201,6 +201,11 @@ def test_local_image_paths_derive_version_from_release_manifest() -> None:
 
 def test_normal_ci_runs_all_hermetic_release_scenarios_and_reproducibility() -> None:
     workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    container_workflow = (ROOT / ".github/workflows/container.yml").read_text(
+        encoding="utf-8"
+    )
+    assert workflow.count("fetch-depth: 0") == 2
+    assert container_workflow.count("fetch-depth: 0") == 2
     for command in (
         "./scripts/check-m11-integration.sh",
         "./scripts/check-m12-integration.sh",
