@@ -383,6 +383,7 @@ class CalendarManager:
             body,
             recipient=self._approval_recipient(),
             reply_to=reply_to,
+            original_message=message,
         )
         if not sent.ok:
             self.storage.update_calendar_approval(approval_id, "send-error", error=sent.detail)
@@ -720,7 +721,6 @@ class CalendarManager:
             "VERSION:2.0",
             "PRODID:-//Local Mail Agent//DE",
             "CALSCALE:GREGORIAN",
-            "METHOD:PUBLISH",
             "BEGIN:VEVENT",
             f"UID:{_escape_ics(uid)}",
             f"DTSTAMP:{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}",

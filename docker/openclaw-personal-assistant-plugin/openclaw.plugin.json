@@ -2,7 +2,7 @@
   "id": "personal-assistant-tools",
   "name": "Personal Assistant Tools",
   "description": "Native structured tools, deterministic routing and evidence guards for the local Personal Assistant",
-  "version": "3.4.0-r29.0.2",
+  "version": "3.4.0-r29.0.3",
   "contracts": {
     "tools": [
       "personal_assistant_runtime_read",

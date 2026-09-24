@@ -502,6 +502,38 @@ END:VCALENDAR
         self.assertNotIn("message/rfc822", fake.templates[0])
         self.assertEqual(result.path, "")
 
+    def test_calendar_approval_mail_attaches_original_zip_without_sent_copy(self) -> None:
+        class FakeHimalaya:
+            def __init__(self) -> None:
+                self.templates: list[str] = []
+                self.save_copy_values: list[bool | None] = []
+
+            def send_template(
+                self, template: str, *, save_copy: bool | None = None
+            ) -> OperationResult:
+                self.templates.append(template)
+                self.save_copy_values.append(save_copy)
+                return OperationResult(True, "sent")
+
+        message = parse_eml(SAMPLE, Envelope("71"), "INBOX")
+        fake = FakeHimalaya()
+        forwarder = Forwarder(self.config, fake)  # type: ignore[arg-type]
+        result = forwarder.send_plain_to(
+            "Terminfreigabe",
+            "JA oder NEIN",
+            recipient="jan@example.test",
+            reply_to="agent@example.test",
+            original_message=message,
+        )
+
+        self.assertTrue(result.ok)
+        self.assertEqual(fake.save_copy_values, [False])
+        self.assertIn("To: jan@example.test", fake.templates[0])
+        self.assertIn("Reply-To: agent@example.test", fake.templates[0])
+        self.assertIn("application/zip", fake.templates[0])
+        self.assertIn("name=original-message.eml.zip", fake.templates[0])
+        self.assertEqual(result.path, "")
+
     def test_delivery_uncertain_is_not_marked_for_retry(self) -> None:
         message = parse_eml(SAMPLE, Envelope("69"), "INBOX")
         classification = Classification("relevant", 0.99, 9, True, "Wichtig")

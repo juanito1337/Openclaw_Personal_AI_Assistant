@@ -1,3 +1,3 @@
 """Stable mail tool/subsystem of the local Personal Assistant."""
 
-__version__ = "3.4.0-r29.0.2"
+__version__ = "3.4.0-r29.0.3"

@@ -28,12 +28,7 @@ class Forwarder:
         zip_path: Path | None = None
 
         if self.config.forwarding.attach_original_eml:
-            payload_name = safe_filename(message.stable_key.replace(":", "-"), "message") + ".eml"
-            payload_path = self.config.forwarding.payload_dir / payload_name
-            zip_path = payload_path.with_suffix(".eml.zip")
-            atomic_write_bytes(payload_path, message.raw)
-            with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-                archive.write(payload_path, arcname="original-message.eml")
+            payload_path, zip_path = self._original_archive(message)
             body += (
                 "\n\nDie Originalmail ist unveraendert als ZIP angehaengt. "
                 "Dadurch werden verschachtelte Mail-Header nicht vom IMAP-Server verarbeitet."
@@ -59,6 +54,15 @@ class Forwarder:
             self._cleanup(*(path for path in (payload_path, zip_path) if path is not None))
             result.path = ""
         return result
+
+    def _original_archive(self, message: ParsedMessage) -> tuple[Path, Path]:
+        payload_name = safe_filename(message.stable_key.replace(":", "-"), "message") + ".eml"
+        payload_path = self.config.forwarding.payload_dir / payload_name
+        zip_path = payload_path.with_suffix(".eml.zip")
+        atomic_write_bytes(payload_path, message.raw)
+        with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.write(payload_path, arcname="original-message.eml")
+        return payload_path, zip_path
 
     @staticmethod
     def _cleanup(*paths: Path) -> None:
@@ -138,6 +142,7 @@ class Forwarder:
         *,
         recipient: str | None = None,
         reply_to: str | None = None,
+        original_message: ParsedMessage | None = None,
     ) -> OperationResult:
         headers = [
             f"From: {self.config.mailbox.from_header}",
@@ -146,5 +151,29 @@ class Forwarder:
         ]
         if reply_to:
             headers.append(f"Reply-To: {clean_single_line(reply_to, 500)}")
-        template = "\n".join(headers) + "\n\n" + body.replace("<#", "< #") + "\n"
+        safe_body = body.replace("<#", "< #")
+        payload_path: Path | None = None
+        zip_path: Path | None = None
+        if original_message is not None and self.config.forwarding.attach_original_eml:
+            payload_path, zip_path = self._original_archive(original_message)
+            safe_body += (
+                "\n\nDie Originalmail ist unveraendert als ZIP angehaengt. "
+                "Dadurch werden verschachtelte Mail-Header nicht vom IMAP-Server verarbeitet."
+            )
+            template = "\n".join(headers) + "\n\n" + "\n".join(
+                [
+                    "<#multipart type=mixed>",
+                    "<#part type=text/plain>",
+                    safe_body,
+                    f"<#part type=application/zip filename={zip_path} name=original-message.eml.zip><#/part>",
+                    "<#/multipart>",
+                ]
+            ) + "\n"
+            result = self.himalaya.send_template(template, save_copy=False)
+            result.path = str(zip_path)
+            if result.ok:
+                self._cleanup(payload_path, zip_path)
+                result.path = ""
+            return result
+        template = "\n".join(headers) + "\n\n" + safe_body + "\n"
         return self.himalaya.send_template(template)

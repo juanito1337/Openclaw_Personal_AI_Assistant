@@ -319,14 +319,22 @@ class InvoiceCalendarApprovalTests(unittest.TestCase):
         self.config.calendar.require_future = True
         self.config.calendar.approval_recipient = "jan.approval@example.test"
         self.config.calendar.approval_reply_from = "jan.approval@example.test"
-        sent: list[dict[str, str]] = []
+        sent: list[dict[str, object]] = []
 
-        def send_mail(subject: str, body: str, *, recipient: str = "", reply_to: str = "") -> OperationResult:
+        def send_mail(
+            subject: str,
+            body: str,
+            *,
+            recipient: str = "",
+            reply_to: str = "",
+            original_message: ParsedMessage | None = None,
+        ) -> OperationResult:
             sent.append({
                 "subject": subject,
                 "body": body,
                 "recipient": recipient,
                 "reply_to": reply_to,
+                "original_message": original_message,
             })
             return OperationResult(True, "sent")
 
@@ -373,7 +381,8 @@ class InvoiceCalendarApprovalTests(unittest.TestCase):
         self.assertEqual(requested.status, "approval-requested")
         self.assertEqual(len(sent), 1)
         self.assertEqual(sent[0]["recipient"], "jan.approval@example.test")
-        token = re.search(r"MAIL-AGENT TERMIN ([A-Z2-9]+)", sent[0]["subject"]).group(1)
+        self.assertIs(sent[0]["original_message"], message)
+        token = re.search(r"MAIL-AGENT TERMIN ([A-Z2-9]+)", str(sent[0]["subject"])).group(1)
         self.assertEqual(nextcloud.created, [])
 
         reply = ParsedMessage(
@@ -390,6 +399,7 @@ class InvoiceCalendarApprovalTests(unittest.TestCase):
         self.assertEqual(created.status, "approval-created")
         self.assertEqual(len(nextcloud.created), 1)
         self.assertEqual(nextcloud.created[0].event.title, "Projektbesprechung")
+        self.assertNotRegex(nextcloud.created[0].ics, r"(?im)^METHOD(?:;|:)")
 
     def test_past_context_event_never_sends_approval(self) -> None:
         manager, nextcloud, sent = self._calendar_manager()

@@ -1,19 +1,29 @@
 {
   "schema_version": 1,
   "product": "OpenClaw Local Personal Assistant",
-  "version": "3.4.0-r29.0.2",
-  "release": "r29.0.2",
-  "title": "Sichere Worker-Startabnahme",
+  "version": "3.4.0-r29.0.3",
+  "release": "r29.0.3",
+  "title": "Vollstaendige Terminfreigaben und CalDAV-Kompatibilitaet",
   "released_at": "2026-09-24",
   "installed_at": null,
-  "previous_version": "3.4.0-r29.0.1",
+  "previous_version": "3.4.0-r29.0.2",
   "installation_id": null,
   "changes": [
-    "Frische Worker-Heartbeats im absichtlichen Startwartefenster werden bis zum ersten abgeschlossenen Lauf als in-progress statt als fehlgeschlagen bewertet.",
-    "Ein bereits abgeschlossener fehlgeschlagener Lauf bleibt weiterhin fail-closed sichtbar; nur Telemetrie ohne vorherigen Abschluss gilt als Startzustand.",
-    "Der speichersichere, auf 16 KiB begrenzte Agent-CLI-Logtail aus r29.0.1 bleibt unveraendert enthalten; Runtime-Limits werden nicht erhoeht."
+    "Terminfreigabemails enthalten die vollstaendige unveraenderte Originalmail wieder als ZIP-Anhang und umgehen fuer diesen Versand weiterhin die fehleranfaellige IMAP-Gesendet-Kopie.",
+    "Fuer die CalDAV-Ablage erzeugte VCALENDAR-Objekte enthalten keine METHOD-Eigenschaft mehr und werden dadurch von Nextcloud gemaess dem Serververtrag akzeptiert.",
+    "Regressionstests sichern ZIP-Anhang, Empfaenger und Reply-To, den Versand ohne Sent-Kopie sowie METHOD-freie Kalenderobjekte ab."
   ],
   "history": [
+    {
+      "version": "3.4.0-r29.0.3",
+      "released_at": "2026-09-24",
+      "title": "Vollstaendige Terminfreigaben und CalDAV-Kompatibilitaet",
+      "changes": [
+        "Terminfreigabemails enthalten die vollstaendige unveraenderte Originalmail wieder als ZIP-Anhang und umgehen fuer diesen Versand weiterhin die fehleranfaellige IMAP-Gesendet-Kopie.",
+        "Fuer die CalDAV-Ablage erzeugte VCALENDAR-Objekte enthalten keine METHOD-Eigenschaft mehr und werden dadurch von Nextcloud gemaess dem Serververtrag akzeptiert.",
+        "Regressionstests sichern ZIP-Anhang, Empfaenger und Reply-To, den Versand ohne Sent-Kopie sowie METHOD-freie Kalenderobjekte ab."
+      ]
+    },
     {
       "version": "3.4.0-r29.0.2",
       "released_at": "2026-09-24",

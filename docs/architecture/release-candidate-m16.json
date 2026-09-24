@@ -11,18 +11,18 @@
   "force_push_allowed": false,
   "tested_commit_mutable": false,
   "candidate": {
-    "planned_version": "3.4.0-r29.0.2",
-    "planned_release": "r29.0.2",
-    "planned_signed_tag": "r29.0.2",
+    "planned_version": "3.4.0-r29.0.3",
+    "planned_release": "r29.0.3",
+    "planned_signed_tag": "r29.0.3",
     "source_revision": null,
-    "main_before": "1483d57e1beec11c163f601d9d2d934430b528b7",
+    "main_before": "a6e48df5c4ccf1adcd8312bb59c9594da09221ee",
     "release_manifest_sha256": null,
     "signed_tag_target": null
   },
   "release_scope": {
     "report": "docs/M16_RELEASE_SCOPE.md",
     "milestones": ["M11", "M12", "M13", "M14", "M15", "M16"],
-    "status": "r29.0.2-hotfix-candidate-identity-prepared"
+    "status": "r29.0.3-hotfix-candidate-identity-prepared"
   },
   "images": {
     "runtime": {
@@ -52,11 +52,11 @@
   },
   "rollback": {
     "status": "not-established",
-    "version": "3.4.0-r29.0.1",
+    "version": "3.4.0-r29.0.2",
     "source_revision": null,
     "images": null,
-    "registry_evidence": "docs/architecture/m16-rollback-r29.0.1.json",
-    "reason": "r29.0.1-Rollen sind signiert verifiziert und schema-6-kompatibel; produktive Backup-/Restoreevidenz bleibt getrennt offen"
+    "registry_evidence": "docs/architecture/m16-rollback-r29.0.2.json",
+    "reason": "r29.0.2-Rollen sind signiert verifiziert, schema-6-kompatibel und produktiv backup-/restoregeprueft"
   },
   "approval_gates": {
     "main-promotion": {

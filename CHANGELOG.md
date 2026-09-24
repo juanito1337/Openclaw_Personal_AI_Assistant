@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 3.4.0-r29.0.3 – Vollstaendige Terminfreigaben und CalDAV-Kompatibilitaet
+
+- Terminfreigabemails enthalten die vollstaendige Originalmail wieder als
+  `original-message.eml.zip`; der Versand erfolgt wie bei Weiterleitungen ohne
+  nachgelagerte IMAP-Kopie im Gesendet-Ordner.
+- Fuer Nextcloud bestimmte Kalenderobjekte enthalten keine `METHOD`-Eigenschaft
+  mehr und erfuellen damit den CalDAV-Speichervertrag.
+- Regressionstests pruefen den ZIP-Anhang samt Empfaenger und Reply-To sowie
+  die METHOD-freie Kalendererstellung.
+
 ## 3.4.0-r29.0.2 – Sichere Worker-Startabnahme
 
 - Frische Worker-Heartbeats mit `state=starting|waiting|queued`,

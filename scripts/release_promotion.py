@@ -96,8 +96,8 @@ def verify_draft(contract: dict[str, Any]) -> dict[str, Any]:
     _require(contract.get("state") == "draft", "Getrackter M16-Vertrag muss vor M16.10 draft sein")
     _require(contract.get("ready_for_promotion") is False, "Draft darf nicht promotionsbereit sein")
     candidate = _object(contract.get("candidate"), "Kandidat fehlt")
-    _require(candidate.get("planned_version") == "3.4.0-r29.0.2", "Naechste Version muss festgelegt sein")
-    _require(candidate.get("planned_release") == "r29.0.2", "Naechstes Release muss festgelegt sein")
+    _require(candidate.get("planned_version") == "3.4.0-r29.0.3", "Naechste Version muss festgelegt sein")
+    _require(candidate.get("planned_release") == "r29.0.3", "Naechstes Release muss festgelegt sein")
     for field in ("source_revision", "release_manifest_sha256", "signed_tag_target"):
         _require(candidate.get(field) is None, f"Draftfeld {field} muss bis zur Abnahme leer bleiben")
     images = _object(contract.get("images"), "Drei Rollenimages fehlen")

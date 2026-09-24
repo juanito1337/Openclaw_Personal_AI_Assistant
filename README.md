@@ -1,4 +1,4 @@
-# OpenClaw Personal Assistant 3.4.0-r29.0.2
+# OpenClaw Personal Assistant 3.4.0-r29.0.3
 
 OpenClaw ist ein einzelner lokaler Personal Assistant, dessen Gateway, Koordinator,
 Fachworker und Diagnose-CLI als getrennte Prozesse aus demselben unveraenderlichen
@@ -12,7 +12,7 @@ Zustand, Instanzkonfiguration und Secrets bleiben ausserhalb des Images unter
 
 | Thema | Einstieg |
 | --- | --- |
-| Aktuelles Patch-Update und Abnahme | [Release 3.4.0-r29.0.2](docs/RELEASE_3_4_0_R29_0_2.md) |
+| Aktuelles Patch-Update und Abnahme | [Release 3.4.0-r29.0.3](docs/RELEASE_3_4_0_R29_0_3.md) |
 | Kumulatives Basisrelease | [Release 3.4.0-r29](docs/RELEASE_3_4_0_R29.md) |
 | Systemkontext, Container- und Komponentenarchitektur | [Architekturvertrag](docs/architecture/README.md) |
 | Komponentenstatus, Legacy- und Upgradegrenze | [M6-Inventar](docs/architecture/component-inventory.json) und [Kompatibilitaet](docs/architecture/compatibility-policy.json) |

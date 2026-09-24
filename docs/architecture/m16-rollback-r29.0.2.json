@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "checked_at": "2026-09-24",
+  "purpose": "r29.0.3 rollback candidate evidence from the signed and productively accepted r29.0.2 publication",
+  "version": "3.4.0-r29.0.2",
+  "source_revision": "a6e48df5c4ccf1adcd8312bb59c9594da09221ee",
+  "registry": "ghcr.io/juanito1337/openclaw_personal_ai_assistant",
+  "images": {
+    "runtime": {
+      "digest": "sha256:00d3076308a79a060e0e5e581ee2a79da28827e53a2ab2cb848d81656fdec7c0",
+      "oci_revision": "a6e48df5c4ccf1adcd8312bb59c9594da09221ee",
+      "version": "3.4.0-r29.0.2",
+      "role": "runtime",
+      "signature_verified": true,
+      "slsa_provenance_verified": true,
+      "spdx_attestation_verified": true
+    },
+    "proxy": {
+      "digest": "sha256:86732f48b02a091081eee6f25cc4e27661109be23883b02d98078521ec4522a2",
+      "oci_revision": "a6e48df5c4ccf1adcd8312bb59c9594da09221ee",
+      "version": "3.4.0-r29.0.2",
+      "role": "proxy",
+      "signature_verified": true,
+      "slsa_provenance_verified": true,
+      "spdx_attestation_verified": true
+    },
+    "maintenance": {
+      "digest": "sha256:e707f0698ce113bd1c799aceb94e030f07c104ad10bc5db64ae0b1298d70d928",
+      "oci_revision": "a6e48df5c4ccf1adcd8312bb59c9594da09221ee",
+      "version": "3.4.0-r29.0.2",
+      "role": "maintenance",
+      "signature_verified": true,
+      "slsa_provenance_verified": true,
+      "spdx_attestation_verified": true
+    }
+  },
+  "signature_identity": "https://github.com/juanito1337/Openclaw_Personal_AI_Assistant/.github/workflows/container.yml@refs/tags/r29.0.2",
+  "signature_issuer": "https://token.actions.githubusercontent.com",
+  "git_tag": {
+    "name": "r29.0.2",
+    "target": "a6e48df5c4ccf1adcd8312bb59c9594da09221ee",
+    "annotated": true,
+    "cryptographic_signature_verified": true,
+    "detail": "git tag -v r29.0.2: good SSH ED25519 signature"
+  },
+  "productive_backup_restore_evidence": {
+    "checked": true,
+    "verified": true,
+    "detail": "The r29.0.2 deployment backup, restore test and final productive acceptance completed successfully on 2026-09-24."
+  },
+  "registry_rollback_set_verified": true,
+  "promotion_rollback_contract_complete": true
+}
