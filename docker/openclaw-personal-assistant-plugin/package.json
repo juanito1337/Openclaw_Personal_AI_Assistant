@@ -1,6 +1,6 @@
 {
   "name": "@openclaw-local/personal-assistant-tools",
-  "version": "3.4.0-r29.0.1",
+  "version": "3.4.0-r29.0.2",
   "private": true,
   "type": "module",
   "openclaw": {

@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "checked_at": "2026-09-24",
+  "purpose": "r29.0.2 rollback candidate evidence from the signed r29.0.1 publication and the 2026-09-24 productive backup/restore exercise",
+  "version": "3.4.0-r29.0.1",
+  "source_revision": "1483d57e1beec11c163f601d9d2d934430b528b7",
+  "registry": "ghcr.io/juanito1337/openclaw_personal_ai_assistant",
+  "images": {
+    "runtime": {
+      "digest": "sha256:89325baa2f5adda078533199b7ad4430d94748bd86201b0527b043c1f8c23089",
+      "oci_revision": "1483d57e1beec11c163f601d9d2d934430b528b7",
+      "version": "3.4.0-r29.0.1",
+      "role": "runtime",
+      "signature_verified": true,
+      "slsa_provenance_verified": true,
+      "spdx_attestation_verified": true
+    },
+    "proxy": {
+      "digest": "sha256:aed94574e885a342a36e7c40d838fb517cf9fe92f83240353f17ebcf6c30a35d",
+      "oci_revision": "1483d57e1beec11c163f601d9d2d934430b528b7",
+      "version": "3.4.0-r29.0.1",
+      "role": "proxy",
+      "signature_verified": true,
+      "slsa_provenance_verified": true,
+      "spdx_attestation_verified": true
+    },
+    "maintenance": {
+      "digest": "sha256:b0e975d333ec9c3e4ced234e9a9bbd5f26f5894469ee9c05f07e614078980fd2",
+      "oci_revision": "1483d57e1beec11c163f601d9d2d934430b528b7",
+      "version": "3.4.0-r29.0.1",
+      "role": "maintenance",
+      "signature_verified": true,
+      "slsa_provenance_verified": true,
+      "spdx_attestation_verified": true
+    }
+  },
+  "signature_identity": "https://github.com/juanito1337/Openclaw_Personal_AI_Assistant/.github/workflows/container.yml@refs/tags/r29.0.1",
+  "signature_issuer": "https://token.actions.githubusercontent.com",
+  "git_tag": {
+    "name": "r29.0.1",
+    "target": "1483d57e1beec11c163f601d9d2d934430b528b7",
+    "annotated": true,
+    "cryptographic_signature_verified": true,
+    "detail": "git tag -v r29.0.1: good SSH ED25519 signature"
+  },
+  "productive_backup_restore_evidence": {
+    "checked": true,
+    "verified": true,
+    "detail": "The r29.0.1 deployment backup and restore test completed successfully on 2026-09-24; final activation rolled back after the separate startup-status acceptance failure."
+  },
+  "registry_rollback_set_verified": true,
+  "promotion_rollback_contract_complete": true
+}

@@ -1,19 +1,29 @@
 {
   "schema_version": 1,
   "product": "OpenClaw Local Personal Assistant",
-  "version": "3.4.0-r29.0.1",
-  "release": "r29.0.1",
-  "title": "Speichersicherer Agent-CLI-Status",
+  "version": "3.4.0-r29.0.2",
+  "release": "r29.0.2",
+  "title": "Sichere Worker-Startabnahme",
   "released_at": "2026-09-24",
   "installed_at": null,
-  "previous_version": "3.4.0-r29",
+  "previous_version": "3.4.0-r29.0.1",
   "installation_id": null,
   "changes": [
-    "Der Agent-CLI-Status liest grosse Container-Workerlogs per seek nur noch als begrenzten 16-KiB-Tail, statt die komplette Datei vor dem Zuschneiden in den Speicher zu laden.",
-    "Die sichtbare Diagnose bleibt auf 8000 Zeichen begrenzt und kennzeichnet ausgelassene Bytes explizit.",
-    "Regressionstest und Produktionslog-Probe belegen den Fix ohne Erhoehung der rollenbezogenen Runtime-Speicherlimits."
+    "Frische Worker-Heartbeats im absichtlichen Startwartefenster werden bis zum ersten abgeschlossenen Lauf als in-progress statt als fehlgeschlagen bewertet.",
+    "Ein bereits abgeschlossener fehlgeschlagener Lauf bleibt weiterhin fail-closed sichtbar; nur Telemetrie ohne vorherigen Abschluss gilt als Startzustand.",
+    "Der speichersichere, auf 16 KiB begrenzte Agent-CLI-Logtail aus r29.0.1 bleibt unveraendert enthalten; Runtime-Limits werden nicht erhoeht."
   ],
   "history": [
+    {
+      "version": "3.4.0-r29.0.2",
+      "released_at": "2026-09-24",
+      "title": "Sichere Worker-Startabnahme",
+      "changes": [
+        "Frische Worker-Heartbeats im absichtlichen Startwartefenster werden bis zum ersten abgeschlossenen Lauf als in-progress statt als fehlgeschlagen bewertet.",
+        "Ein bereits abgeschlossener fehlgeschlagener Lauf bleibt weiterhin fail-closed sichtbar; nur Telemetrie ohne vorherigen Abschluss gilt als Startzustand.",
+        "Der speichersichere, auf 16 KiB begrenzte Agent-CLI-Logtail aus r29.0.1 bleibt unveraendert enthalten; Runtime-Limits werden nicht erhoeht."
+      ]
+    },
     {
       "version": "3.4.0-r29.0.1",
       "released_at": "2026-09-24",

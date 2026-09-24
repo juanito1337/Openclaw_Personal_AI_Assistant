@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 3.4.0-r29.0.2 – Sichere Worker-Startabnahme
+
+- Frische Worker-Heartbeats mit `state=starting|waiting|queued`,
+  `result=unknown` und ohne abgeschlossenen Lauf gelten waehrend der
+  absichtlichen Startverzoegerung als `in-progress`.
+- Bereits abgeschlossene fehlgeschlagene Laeufe bleiben weiterhin fail-closed
+  sichtbar; die Korrektur verdeckt keine echte Workerstoerung.
+- Der begrenzte Agent-CLI-Logtail aus r29.0.1 bleibt enthalten, und kein
+  Runtime-Speicherlimit wird erhoeht.
+
 ## 3.4.0-r29.0.1 – Speichersicherer Agent-CLI-Status
 
 - Der Container-Statuspfad liest wachsende Workerlogs nicht mehr vollstaendig in

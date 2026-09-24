@@ -253,6 +253,42 @@ raise SystemExit(86)
             self.assertEqual(report["jobs"][0]["service"]["Result"], "in-progress")
             self.assertEqual(report["jobs"][0]["service"]["ExecMainStatus"], "0")
 
+    def test_fresh_worker_waiting_for_first_run_is_not_failed(self) -> None:
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            status_dir = root / "personal_assistant/data/container_jobs"
+            status_dir.mkdir(parents=True)
+            (status_dir / "sync.json").write_text(
+                json.dumps(
+                    {
+                        "updated_at": datetime.now(UTC).isoformat(),
+                        "state": "waiting",
+                        "result": "unknown",
+                        "last_exit_code": None,
+                        "next_run_in_seconds": 299,
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            with patch.dict(
+                os.environ,
+                {
+                    "OPENCLAW_RUNTIME": "container",
+                    "OPENCLAW_JOB_STATUS_DIR": str(status_dir),
+                },
+            ):
+                controller = JobController(
+                    workspace_root=root,
+                    state_path=root / "personal_assistant/data/job_control.json",
+                )
+                controller.state["desired"]["sync"] = True
+                report = controller.status(target="sync")
+            self.assertTrue(report["ok"])
+            self.assertEqual(report["jobs"][0]["state"], "on")
+            self.assertEqual(report["jobs"][0]["service"]["Result"], "in-progress")
+            self.assertEqual(report["jobs"][0]["service"]["ExecMainStatus"], "0")
+
     def test_clamav_updater_has_its_own_database_healthcheck(self) -> None:
         root = Path(__file__).resolve().parents[1]
         compose = (root / "compose.yaml").read_text(encoding="utf-8")

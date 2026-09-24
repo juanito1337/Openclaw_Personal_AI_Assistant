@@ -376,12 +376,20 @@ class JobController:
             else heartbeat
         )
         heartbeat_state = str(status_heartbeat.get("state") or "")
+        pending_first_run = bool(
+            heartbeat_state in {"starting", "waiting", "queued"}
+            and str(status_heartbeat.get("result") or "") == "unknown"
+            and status_heartbeat.get("last_exit_code") is None
+            and not status_heartbeat.get("last_finished_at")
+        )
         # A worker publishes ``running`` before starting its child. Its previous
         # result remains useful history but must not be treated as the result of
         # the in-flight run. This is essential for the supervisor checking its
         # own status: otherwise one failed run permanently latches the next run
-        # into the same failure.
-        in_flight = heartbeat_state == "running" or owner_new_attempt
+        # into the same failure.  A newly started worker may intentionally wait
+        # for its initial delay before its first child run; ``unknown`` without
+        # any finished attempt is startup telemetry, not a failed result.
+        in_flight = heartbeat_state == "running" or owner_new_attempt or pending_first_run
         selected_raw_result = str(status_heartbeat.get("result") or "completed")
         try:
             selected_result = canonical_run_result(
