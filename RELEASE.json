@@ -1,24 +1,29 @@
 {
   "schema_version": 1,
   "product": "OpenClaw Local Personal Assistant",
-  "version": "3.4.0-r29",
-  "release": "r29",
-  "title": "Belegte Agentenwerkzeuge, Mailindex und Betriebsstabilitaet",
-  "released_at": "2026-09-21",
+  "version": "3.4.0-r29.0.1",
+  "release": "r29.0.1",
+  "title": "Speichersicherer Agent-CLI-Status",
+  "released_at": "2026-09-24",
   "installed_at": null,
-  "previous_version": "3.4.0-r28",
+  "previous_version": "3.4.0-r29",
   "installation_id": null,
   "changes": [
-    "M11 und M12 liefern einen autoritativen Vollkonto-Mailindex mit FTS, Kontext, stabilen Live-Locators und nativer read-only IMAP-Reconciliation fuer externe Moves, Copies und Deletes.",
-    "M13 exponiert die Fachfunktionen als typisierte native Werkzeuge mit deterministischem Routing, Evidenzvertrag, Antwortguard und Loop-Schutz; rohe Shell- oder Himalaya-Fallbacks bleiben ausgeschlossen.",
-    "M14 betreibt ClamAV resident und fail-closed ueber einen privaten Socket; Scannerfrische, Cacheidentitaet, Quarantaene und Indexfreigabe werden zusammen geprueft.",
-    "M15 bindet Schreibaktionen an den aktuellen Turn, unveraenderte Vorschauen und Einmalfreigaben und belegt Mail-, Kalender- und Gruppenware-Abschluss durch einen exakten Remote-Read-back.",
-    "M16 vereinheitlicht Telemetrie, Scheduler, inkrementellen Nextcloud-Sync, stabile Ressourcenidentitaeten, Runtimebudgets sowie Rechnungs- und Portfoliodiagnosen ohne automatische Rechteausweitung.",
-    "Der gemeinsame lokale und CI-Pfad sammelt mindestens 1218 pytest-Items plus 111 Subtests und prueft Coverage, Ruff, mypy, ShellCheck, Container-Lints, Wheel, drei Rollenimages und hermetische M8-/M11- bis M15-Szenarien.",
-    "Eine synthetische Evaluation behaelt semantische Suche wegen fehlenden eindeutigen Qualitaetsgewinns deaktiviert; der authentisierte Executor-RPC bleibt ein nicht produktiver Prototyp.",
-    "Imageveroeffentlichung, Main-Promotion und produktives Deployment bleiben drei getrennte, explizit freizugebende Schritte mit signiertem Rollbacksatz und unveraenderlichen Digests."
+    "Der Agent-CLI-Status liest grosse Container-Workerlogs per seek nur noch als begrenzten 16-KiB-Tail, statt die komplette Datei vor dem Zuschneiden in den Speicher zu laden.",
+    "Die sichtbare Diagnose bleibt auf 8000 Zeichen begrenzt und kennzeichnet ausgelassene Bytes explizit.",
+    "Regressionstest und Produktionslog-Probe belegen den Fix ohne Erhoehung der rollenbezogenen Runtime-Speicherlimits."
   ],
   "history": [
+    {
+      "version": "3.4.0-r29.0.1",
+      "released_at": "2026-09-24",
+      "title": "Speichersicherer Agent-CLI-Status",
+      "changes": [
+        "Der Agent-CLI-Status liest grosse Container-Workerlogs per seek nur noch als begrenzten 16-KiB-Tail, statt die komplette Datei vor dem Zuschneiden in den Speicher zu laden.",
+        "Die sichtbare Diagnose bleibt auf 8000 Zeichen begrenzt und kennzeichnet ausgelassene Bytes explizit.",
+        "Regressionstest und Produktionslog-Probe belegen den Fix ohne Erhoehung der rollenbezogenen Runtime-Speicherlimits."
+      ]
+    },
     {
       "version": "3.4.0-r29",
       "released_at": "2026-09-21",

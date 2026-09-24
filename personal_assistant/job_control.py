@@ -21,6 +21,8 @@ from .work_scheduler import AdaptiveWorkScheduler
 STATE_VERSION = 2
 AUTO_RECOVERY_COOLDOWN = timedelta(minutes=30)
 ALERT_TTL = timedelta(hours=24)
+JOURNAL_TAIL_BYTES = 16 * 1024
+JOURNAL_TAIL_CHARACTERS = 8000
 DEFAULT_STATE_PATH = WORKSPACE_ROOT / "personal_assistant/data/job_control.json"
 USER_UNIT_DIR = Path("~/.config/systemd/user").expanduser()
 
@@ -893,7 +895,22 @@ class JobController:
             log_name = "mail" if spec.name == "mail-index" else spec.name
             path = log_root / f"{log_name}.log"
             try:
-                return path.read_text(encoding="utf-8", errors="replace")[-8000:]
+                # Worker logs are append-only and may be hundreds of MiB after
+                # long runtimes.  Reading the complete file before slicing the
+                # diagnostic tail can OOM the memory-bounded agent-cli.  Seek
+                # from EOF and decode only a small bounded byte window.
+                with path.open("rb") as handle:
+                    handle.seek(0, os.SEEK_END)
+                    size = handle.tell()
+                    start = max(0, size - JOURNAL_TAIL_BYTES)
+                    handle.seek(start)
+                    tail = handle.read(JOURNAL_TAIL_BYTES).decode(
+                        "utf-8", errors="replace"
+                    )
+                if start:
+                    marker = f"[... {start} bytes omitted ...]\n"
+                    return marker + tail[-(JOURNAL_TAIL_CHARACTERS - len(marker)) :]
+                return tail[-JOURNAL_TAIL_CHARACTERS:]
             except OSError as exc:
                 return str(exc)
         result = self._run(

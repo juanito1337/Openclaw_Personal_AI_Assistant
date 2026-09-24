@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 3.4.0-r29.0.1 – Speichersicherer Agent-CLI-Status
+
+- Der Container-Statuspfad liest wachsende Workerlogs nicht mehr vollstaendig in
+  den Agent-CLI-Prozess, sondern nur noch einen seek-basierten 16-KiB-Tail.
+- Die bestehende Diagnosegrenze von 8000 Zeichen bleibt erhalten und weist
+  ausgelassene Bytes sichtbar aus.
+- Ein Sparse-Log-Regressionstest und die Probe gegen das produktionsgrosse
+  Supervisor-Log sichern den Fix ohne hoehere Runtime-Speicherlimits ab.
+
 ## 3.4.0-r29 – Belegte Agentenwerkzeuge, Mailindex und Betriebsstabilitaet
 
 - Stabilisierung/M16.10: Die unabhaengige lokale Gesamtpruefung deckt Tests,

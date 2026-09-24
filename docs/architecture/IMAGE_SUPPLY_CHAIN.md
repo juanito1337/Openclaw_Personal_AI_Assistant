@@ -8,7 +8,7 @@ Die reproduzierbaren Messwerte stehen in
 
 ## Rollenimages
 
-Alle Images stammen aus demselben Commit, tragen Release `3.4.0-r29` und
+Alle Images stammen aus demselben Commit, tragen Release `3.4.0-r29.0.1` und
 Layout 3, haben aber nach Messung drei Runtime-Ziele:
 
 | Target | Dienste | Beabsichtigter Inhalt |

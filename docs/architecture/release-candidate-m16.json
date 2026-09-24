@@ -11,18 +11,18 @@
   "force_push_allowed": false,
   "tested_commit_mutable": false,
   "candidate": {
-    "planned_version": "3.4.0-r29",
-    "planned_release": "r29",
-    "planned_signed_tag": "r29",
+    "planned_version": "3.4.0-r29.0.1",
+    "planned_release": "r29.0.1",
+    "planned_signed_tag": "r29.0.1",
     "source_revision": null,
-    "main_before": "09eaa24a3bd6618ae177dcc019b7fd89106e34ea",
+    "main_before": "cb1d4666bb793cb77d7af4383445880172ceed09",
     "release_manifest_sha256": null,
     "signed_tag_target": null
   },
   "release_scope": {
     "report": "docs/M16_RELEASE_SCOPE.md",
     "milestones": ["M11", "M12", "M13", "M14", "M15", "M16"],
-    "status": "r29-candidate-identity-prepared"
+    "status": "r29.0.1-hotfix-candidate-identity-prepared"
   },
   "images": {
     "runtime": {

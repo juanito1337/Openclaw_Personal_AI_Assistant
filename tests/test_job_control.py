@@ -591,6 +591,39 @@ class JobControlTests(unittest.TestCase):
             )
             self.assertEqual(controller._journal(spec), "shared mail owner evidence\n")
 
+    def test_container_journal_reads_only_bounded_tail_of_large_log(self) -> None:
+        spec = next(item for item in default_job_specs() if item.name == "supervisor")
+        log_dir = self.root / "container-large-logs"
+        log_dir.mkdir()
+        log_path = log_dir / "supervisor.log"
+        with log_path.open("wb") as handle:
+            handle.seek(32 * 1024 * 1024)
+            handle.write(b"old-prefix-must-not-be-loaded\n")
+            handle.seek(64 * 1024 * 1024)
+            handle.write(b"bounded-tail-evidence\n")
+        with patch.dict(
+            "os.environ",
+            {
+                "OPENCLAW_RUNTIME": "container",
+                "OPENCLAW_LOG_DIR": str(log_dir),
+            },
+            clear=False,
+        ):
+            controller = JobController(
+                state_path=self.root / "container-large-log-control.json",
+                workspace_root=self.workspace,
+                unit_dir=self.unit_dir,
+                runner=self.system,
+                specs=(spec,),
+                sleeper=lambda _seconds: None,
+            )
+            journal = controller._journal(spec)
+
+        self.assertLessEqual(len(journal), 8000)
+        self.assertIn("bytes omitted", journal)
+        self.assertIn("bounded-tail-evidence", journal)
+        self.assertNotIn("old-prefix-must-not-be-loaded", journal)
+
     def test_container_shared_mail_owner_must_itself_be_fresh(self) -> None:
         spec = next(
             item for item in default_job_specs() if item.name == "mail-index"
