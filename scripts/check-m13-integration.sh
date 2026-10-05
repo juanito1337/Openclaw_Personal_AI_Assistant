@@ -242,11 +242,11 @@ const localWriteApproval = await hooks.get("before_tool_call")(
   {runId:"run-local-write"},
 );
 if (
-  !localWriteApproval?.requireApproval ||
-  localWriteApproval.requireApproval.severity !== "warning" ||
-  localWriteApproval.requireApproval.allowedDecisions.join(",") !== "allow-once,deny"
+  localWriteApproval?.requireApproval ||
+  typeof localWriteApproval?.params?.__approval_nonce !== "string" ||
+  localWriteApproval.params.__approval_run_id !== "run-local-write"
 ) {
-  throw new Error("local write approval contract invalid");
+  throw new Error("bounded configured-policy authorization contract invalid");
 }
 const writeRegistration = factories.find(({options}) => options.name === "personal_assistant_tasks_write");
 const writeResult = await writeRegistration.factory({sessionId:"session-resumed-without-run-id"}).execute(

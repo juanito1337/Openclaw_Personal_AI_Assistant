@@ -124,6 +124,26 @@ class AgentToolContractTests(unittest.TestCase):
         )
         self.assertIn("write-success", route["claim_classes"])
 
+    def test_risk_based_approval_policy_keeps_sensitive_actions_native(self) -> None:
+        payload = build_native_tool_contract()
+        operations = {item["tool_id"]: item for item in payload["operations"]}
+        portfolio_import = operations["portfolio.import.csv.nextcloud.confirm"]
+        mail_send = operations["mail.compose-send"]
+        quote_refresh = operations["portfolio.quotes.refresh"]
+
+        self.assertEqual(portfolio_import["approval_policy"]["risk_level"], 2)
+        self.assertTrue(portfolio_import["approval_policy"]["explicit_request_satisfies"])
+        self.assertTrue(portfolio_import["approval_policy"]["simple_confirmation_satisfies"])
+        self.assertEqual(mail_send["approval_policy"]["risk_level"], 3)
+        self.assertTrue(mail_send["approval_policy"]["native_dialog_required"])
+        self.assertEqual(quote_refresh["approval_policy"]["risk_level"], 1)
+        self.assertEqual(quote_refresh["approval_policy"]["authorization"], "configured-policy")
+
+        route = next(item for item in payload["routes"] if item["id"] == "portfolio")
+        self.assertIn("portfolio.import.csv.nextcloud.confirm", route["operations"])
+        self.assertTrue(payload["security"]["writes_require_bound_authorization"])
+        self.assertTrue(payload["security"]["simple_confirmation_requires_one_pending_action"])
+
     def test_shell_and_unknown_executable_templates_are_rejected(self) -> None:
         for command in (
             "./scripts/assistant.sh status && touch /tmp/unsafe",
@@ -242,8 +262,9 @@ class AgentPluginRuntimeTests(unittest.TestCase):
     def test_node_runtime_treats_hostile_arguments_as_data_and_binds_approval(self) -> None:
         script = r"""
 import {
-  compileInvocation, createApprovalLedger, guardAnswer, makeEvidence,
-  routePrompt, shouldBlockGenericTool
+  approvalDecision, compileInvocation, createApprovalLedger, guardAnswer,
+  isSimpleConfirmation, makeEvidence, routePrompt, shouldBlockGenericTool,
+  selectPendingConfirmation, stableDigest
 } from './docker/openclaw-personal-assistant-plugin/runtime.js';
 import contract from './docker/openclaw-personal-assistant-plugin/generated-tools.json' with {type:'json'};
 const op = contract.operations.find((row) => row.tool_id === 'nextcloud.calendar.create');
@@ -289,6 +310,37 @@ const changed = ledger.consume({
   toolCallId:'call-2', runId:'run-1'
 });
 const mailOp = contract.operations.find((row) => row.tool_id === 'mail.search');
+const importOp = contract.operations.find((row) => row.tool_id === 'portfolio.import.csv.nextcloud.confirm');
+const importArgs = {nextcloud_path:'Assistent/Finanzen/Portfolio/depot-export-05.10.2026.csv'};
+const importRoute = routePrompt(contract, 'Importiere depot-export-05.10.2026.csv jetzt in mein Depot.');
+const directImport = approvalDecision(importOp, {
+  prompt:'Importiere depot-export-05.10.2026.csv jetzt in mein Depot.',
+  route:importRoute, args:importArgs
+});
+const vagueImport = approvalDecision(importOp, {
+  prompt:'Importiere die neueste Datei jetzt in mein Depot.',
+  route:routePrompt(contract, 'Importiere die neueste Datei jetzt in mein Depot.'), args:importArgs
+});
+const confirmedImport = approvalDecision(importOp, {
+  args:importArgs,
+  confirmed:{operation:importOp.tool_id, arguments_digest:stableDigest(importArgs)}
+});
+const changedConfirmation = approvalDecision(importOp, {
+  args:{nextcloud_path:'Assistent/Finanzen/Portfolio/other.csv'},
+  confirmed:{operation:importOp.tool_id, arguments_digest:stableDigest(importArgs)}
+});
+const composeSend = contract.operations.find((row) => row.tool_id === 'mail.compose-send');
+const criticalDirect = approvalDecision(composeSend, {
+  prompt:'Sende den Entwurf draft-1 jetzt.',
+  route:routePrompt(contract, 'Sende die Mail jetzt.'), args:{draft_id:'draft-1'}
+});
+const pendingOne = {id:'pending-1', expires_at:2000};
+const singlePending = selectPendingConfirmation('JA', [pendingOne], 1000);
+const noPending = selectPendingConfirmation('JA', [], 1000);
+const expiredPending = selectPendingConfirmation('JA', [{id:'old', expires_at:999}], 1000);
+const ambiguousPending = selectPendingConfirmation(
+  'JA', [pendingOne, {id:'pending-2', expires_at:2000}], 1000
+);
 const incomplete = makeEvidence(
   mailOp, {returncode:0,stderr:''}, {ok:true,complete:false,results:[]},
   'run-1','call-3'
@@ -298,6 +350,9 @@ const guard = guardAnswer(contract, route, 'Nein, es gibt keine Mail.', [incompl
 console.log(JSON.stringify({invocation, researchInvocation, mappingSuggestInvocation,
   mappingDiscoverInvocation, replyDraftInvocation, unresolvedTemplate,
   missingMappingArgument, accepted, replay, changed, guard,
+  directImport, vagueImport, confirmedImport, changedConfirmation, criticalDirect,
+  simpleYes:isSimpleConfirmation('JA'), compoundYes:isSimpleConfirmation('Ja, importiere die Datei'),
+  singlePending, noPending, expiredPending, ambiguousPending,
   execBlocked: shouldBlockGenericTool('exec',{
     command:'/opt/openclaw-agent/scripts/assistant.sh mail search --query Test'
   }),
@@ -345,6 +400,18 @@ console.log(JSON.stringify({invocation, researchInvocation, mappingSuggestInvoca
         self.assertTrue(payload["accepted"])
         self.assertFalse(payload["replay"])
         self.assertFalse(payload["changed"])
+        self.assertTrue(payload["directImport"]["authorized"])
+        self.assertEqual(payload["directImport"]["source"], "explicit-user-request")
+        self.assertFalse(payload["vagueImport"]["authorized"])
+        self.assertTrue(payload["confirmedImport"]["authorized"])
+        self.assertFalse(payload["changedConfirmation"]["authorized"])
+        self.assertFalse(payload["criticalDirect"]["authorized"])
+        self.assertTrue(payload["simpleYes"])
+        self.assertFalse(payload["compoundYes"])
+        self.assertEqual(payload["singlePending"]["confirmation"]["id"], "pending-1")
+        self.assertIsNone(payload["noPending"]["confirmation"])
+        self.assertIsNone(payload["expiredPending"]["confirmation"])
+        self.assertEqual(payload["ambiguousPending"]["reason"], "ambiguous-pending-actions")
         self.assertFalse(payload["guard"]["ok"])
         self.assertTrue(payload["execBlocked"])
         self.assertTrue(payload["secretBlocked"])

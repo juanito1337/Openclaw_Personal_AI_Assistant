@@ -43,6 +43,13 @@ Rechnungs- und Portfoliobestaende. Semantic Search und ein minimal
 privilegierter Tool-Executor werden dabei getrennt gemessen und entschieden,
 nicht still aktiviert. Roadmap und eigenstaendige Entwicklungsprompts stehen in
 [`AGENT_STABILIZATION_ROADMAP.md`](AGENT_STABILIZATION_ROADMAP.md).
+Der geplante M17-Milestone erschliesst den Personal Assistant ueber die native
+Nextcloud-Talk-App auf Android und iOS. Er haelt das Gateway vom Telefon
+getrennt, fuehrt nur einen exakt begrenzten signierten Webhookpfad ein, pinnt den
+offiziellen Talk-Connector reproduzierbar und bewahrt den risikobasierten
+Approval-Vertrag. Entwicklung, signiertes Patch-Release und produktiver Rollout
+bleiben getrennte Stufen. Die Roadmap steht in
+[`MOBILE_NEXTCLOUD_TALK_ROADMAP.md`](MOBILE_NEXTCLOUD_TALK_ROADMAP.md).
 
 M0 bis M10 sind kumulativ in `3.4.0-r28` enthalten. Die Roadmaps bleiben als
 Umsetzungs- und Testevidenz bestehen; die aktuelle Release-, Upgrade- und

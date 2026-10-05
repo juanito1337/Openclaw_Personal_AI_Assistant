@@ -57,15 +57,18 @@ The runtime answer guard may request one corrected pass. Follow its registered
 tool instruction once. If evidence remains unavailable, report that exact
 limitation; do not guess.
 
-Native write approval belongs to the exact current tool call. Use the displayed
-approval button or the complete `/approve <ID> allow-once` command from that
-dialog; never ask Jan to enter a bare `/approve`. If a tool reports
-`missing-or-stale-bound-approval`, it proves that the operation did not start.
-Do not retry automatically. Report `approval-required`; Jan must request the
-concrete action again so a new registered call can create a new native approval.
-Do not end a blocked action with “Soll ich es noch einmal versuchen?”: a bare
-yes/no answer cannot establish a new turn-bound action. Report the exact typed
-blocker and give Jan one fully worded new action instruction instead.
+Write authorization belongs to the exact current tool call. Risk-level-1 work
+uses its configured bounded policy. For risk level 2, a current explicit request
+containing the exact arguments is sufficient; otherwise use the displayed
+approval button. A short `JA`/`YES` is accepted only when the runtime has exactly
+one unexpired pending risk-level-2 action for the session and its operation and
+argument digest are unchanged. Risk-level-3 actions always use the native
+allow-once button or, as a technical fallback, the complete
+`/approve <ID> allow-once` command; never ask Jan to enter a bare `/approve`.
+If a tool reports `missing-or-stale-bound-approval`, it proves that the operation
+did not start. Do not retry automatically. Without one provable pending bounded
+action, report `approval-required` and give Jan one fully worded new action
+instruction instead of asking an unbound yes/no retry question.
 
 ## Finish explicit actions in the same turn
 
@@ -97,9 +100,9 @@ allow-once approval and must return a verified completed postcondition.
 
 The standard operating profile makes already configured normal capabilities
 available at startup. It does not waive per-action policy. Every Local-write or
-Write tool retains its generated approval label, exact arguments, current turn,
-expiry, ActionPlan/ETag/idempotency/audit rules and remote verification. Draft and
-send remain separate. Delete, overwrite, share, bulk edit, merge, arbitrary
+Write tool retains its generated risk level and approval label, exact arguments,
+current turn, expiry, ActionPlan/ETag/idempotency/audit rules and remote
+verification. Draft and send remain separate. Delete, overwrite, share, bulk edit, merge, arbitrary
 cross-resource moves and permission expansion remain prohibited.
 
 On a failed native call, preserve its error category and use the domain's

@@ -4,7 +4,7 @@
   "plugin_id": "personal-assistant-tools",
   "plugin_path": "/opt/openclaw-plugins/personal-assistant-tools",
   "product_version": "3.4.0-r29.0.3",
-  "catalog_sha256": "b403f76a033f358ca4f3e467801dd6a0efab17844ad4d5966d11b5d6e64a187e",
+  "catalog_sha256": "d9e2d088256fef360830aa9875783e281c488314c3613c6340087f01cd4878ad",
   "catalog_tool_count": 170,
   "supported_operation_count": 169,
   "excluded_operation_count": 1,
@@ -16,6 +16,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh agent-tools status",
       "argument_schema": {
@@ -45,6 +53,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh status",
       "argument_schema": {
@@ -74,6 +90,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh version --verify",
       "argument_schema": {
@@ -104,6 +128,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh version --verify --history --limit 10",
       "argument_schema": {
@@ -133,6 +165,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh version --verify --history --since \"<Version>\" --limit 20",
       "argument_schema": {
@@ -176,6 +216,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh search \"<Suchbegriff>\"",
       "argument_schema": {
@@ -220,6 +268,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-standard-operations-profile",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh setup standard-operations --yes",
       "argument_schema": {
@@ -251,6 +307,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh resources status",
       "argument_schema": {
@@ -280,6 +344,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh resources calendar-migration --dry-run",
       "argument_schema": {
@@ -309,6 +381,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-calendar-resource-identity-migration",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh resources calendar-migration --yes --expected-preview-sha256 \"<Digest>\"",
       "argument_schema": {
@@ -353,6 +433,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-calendar-resource-identity-migration-rollback",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh resources calendar-migration --rollback \"<tools.toml.backup>\" --yes",
       "argument_schema": {
@@ -398,6 +486,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh monitor status --days 7 --live",
       "argument_schema": {
@@ -427,6 +523,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh jobs status --target all",
       "argument_schema": {
@@ -456,6 +560,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh scheduler status",
       "argument_schema": {
@@ -485,6 +597,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh scheduler doctor",
       "argument_schema": {
@@ -514,6 +634,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh scheduler activity",
       "argument_schema": {
@@ -543,6 +671,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "adaptive-local-focus-only",
+      "approval_policy": {
+        "risk_level": 1,
+        "risk_class": "bounded-background",
+        "authorization": "configured-policy",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh scheduler focus --topic \"<mail|portfolio|knowledge|planning|operations>\" --minutes 30",
       "argument_schema": {
@@ -593,6 +729,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "job-monitoring-and-safe-mail-recovery",
+      "approval_policy": {
+        "risk_level": 1,
+        "risk_class": "bounded-background",
+        "authorization": "configured-policy",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh jobs check --target all --deep",
       "argument_schema": {
@@ -624,6 +768,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh jobs alerts",
       "argument_schema": {
@@ -653,6 +805,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-start",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh jobs on standard",
       "argument_schema": {
@@ -684,6 +844,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-restart",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh jobs restart standard",
       "argument_schema": {
@@ -715,6 +883,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-stop",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh jobs off standard",
       "argument_schema": {
@@ -746,6 +922,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh ollama status",
       "argument_schema": {
@@ -775,6 +959,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh ollama check",
       "argument_schema": {
@@ -804,6 +996,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh ollama queue",
       "argument_schema": {
@@ -833,6 +1033,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-start",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh ollama start",
       "argument_schema": {
@@ -864,6 +1072,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-restart",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh ollama restart",
       "argument_schema": {
@@ -895,6 +1111,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh performance mail --limit 20",
       "argument_schema": {
@@ -924,6 +1148,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh performance runtime",
       "argument_schema": {
@@ -953,6 +1185,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "monitoring-local-only",
+      "approval_policy": {
+        "risk_level": 1,
+        "risk_class": "bounded-background",
+        "authorization": "configured-policy",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh monitor record --days 7 --live",
       "argument_schema": {
@@ -984,6 +1224,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh monitor history --days 30",
       "argument_schema": {
@@ -1013,6 +1261,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio status",
       "argument_schema": {
@@ -1042,6 +1298,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-permission-setup",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh setup portfolio --provider eodhd --interval-minutes 15 --approve-permissions",
       "argument_schema": {
@@ -1073,6 +1337,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio doctor",
       "argument_schema": {
@@ -1102,6 +1374,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-import-with-preview",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio import-pp --file \"<Datei-im-Importordner>\" --dry-run",
       "argument_schema": {
@@ -1147,6 +1427,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-confirmed-import",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio import-pp --file \"<Datei-im-Importordner>\" --yes",
       "argument_schema": {
@@ -1192,6 +1480,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-import-with-preview",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio import-csv --file \"<Datei-im-Importordner>\" --dry-run",
       "argument_schema": {
@@ -1237,6 +1533,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-import-with-preview",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio import-csv --nextcloud-path \"Assistent/Finanzen/Portfolio/<Datei-DD.MM.YYYY.csv>\" --dry-run",
       "argument_schema": {
@@ -1282,6 +1586,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-confirmed-import",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio import-csv --file \"<Datei-im-Importordner>\" --yes",
       "argument_schema": {
@@ -1327,6 +1639,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-confirmed-import",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio import-csv --nextcloud-path \"Assistent/Finanzen/Portfolio/<Datei-DD.MM.YYYY.csv>\" --yes",
       "argument_schema": {
@@ -1372,6 +1692,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio holdings",
       "argument_schema": {
@@ -1401,6 +1729,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio valuation",
       "argument_schema": {
@@ -1430,6 +1766,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio watchlist list",
       "argument_schema": {
@@ -1459,6 +1803,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio mapping suggest --isin \"<ISIN>\"",
       "argument_schema": {
@@ -1501,6 +1853,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio mapping suggest --query \"<Unternehmen-oder-Symbol>\"",
       "argument_schema": {
@@ -1544,6 +1904,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-watchlist-change",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio watchlist add --isin \"<ISIN>\" --name \"<Name>\" --symbol \"<Symbol>\" --mic \"<MIC>\" --currency \"<ISO>\" --yes",
       "argument_schema": {
@@ -1630,6 +1998,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-watchlist-change",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio watchlist disable --isin \"<ISIN>\" --yes",
       "argument_schema": {
@@ -1674,6 +2050,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio quotes status",
       "argument_schema": {
@@ -1703,6 +2087,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio quotes get --isin \"<ISIN>\"",
       "argument_schema": {
@@ -1745,6 +2137,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "scheduled-market-data-refresh",
+      "approval_policy": {
+        "risk_level": 1,
+        "risk_class": "bounded-background",
+        "authorization": "configured-policy",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio quotes refresh",
       "argument_schema": {
@@ -1776,6 +2176,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-diagnostic-refresh",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio quotes refresh --force",
       "argument_schema": {
@@ -1807,6 +2215,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio analyze --isin \"<ISIN>\"",
       "argument_schema": {
@@ -1849,6 +2265,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio research status",
       "argument_schema": {
@@ -1878,6 +2302,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio research models",
       "argument_schema": {
@@ -1907,6 +2339,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "provider-research-cache-local-only",
+      "approval_policy": {
+        "risk_level": 1,
+        "risk_class": "bounded-background",
+        "authorization": "configured-policy",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio research screen --strategy \"<auto|balanced|quality-value|quality-growth|dividend-quality>\" --exchange \"<Boerse-optional>\" --sector \"<Sektor-optional>\" --limit 5",
       "argument_schema": {
@@ -1977,6 +2417,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "provider-research-cache-local-only",
+      "approval_policy": {
+        "risk_level": 1,
+        "risk_class": "bounded-background",
+        "authorization": "configured-policy",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio research analyze --isin \"<ISIN>\" --strategy \"<auto|balanced|quality-value|quality-growth|dividend-quality>\"",
       "argument_schema": {
@@ -2037,6 +2485,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio research history --limit 20",
       "argument_schema": {
@@ -2066,6 +2522,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio philosophy show",
       "argument_schema": {
@@ -2095,6 +2559,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio philosophy review",
       "argument_schema": {
@@ -2124,6 +2596,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio philosophy history --limit 20",
       "argument_schema": {
@@ -2153,6 +2633,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-investment-profile-change",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio philosophy set --risk-tolerance \"<conservative|balanced|growth>\" --horizon-years <1-50> --strategy \"<balanced|quality-value|quality-growth|dividend-quality>\" --max-position-pct \"<Prozent>\" --max-sector-pct \"<Prozent>\" --preferred-sectors \"<Kommaliste>\" --excluded-sectors \"<Kommaliste>\" --notes \"<Notiz>\" --yes",
       "argument_schema": {
@@ -2282,6 +2770,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-investment-feedback",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio philosophy feedback --candidate-id \"<Research-Kandidaten-ID>\" --decision \"<interested|rejected|watch|bought|sold>\" --reason \"<Begruendung>\" --yes",
       "argument_schema": {
@@ -2354,6 +2850,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio alerts list",
       "argument_schema": {
@@ -2383,6 +2887,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-alert-change",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio alerts add --isin \"<ISIN>\" --direction \"<above|below>\" --threshold \"<Kurs>\" --currency \"<ISO>\" --yes",
       "argument_schema": {
@@ -2461,6 +2973,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-alert-change",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio alerts disable --id \"<Regel-ID>\" --yes",
       "argument_schema": {
@@ -2506,6 +3026,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh portfolio performance",
       "argument_schema": {
@@ -2535,6 +3063,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-start",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh jobs on portfolio",
       "argument_schema": {
@@ -2566,6 +3102,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-restart",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh jobs restart portfolio",
       "argument_schema": {
@@ -2597,6 +3141,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-stop",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh jobs off portfolio",
       "argument_schema": {
@@ -2628,6 +3180,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh security antivirus doctor",
       "argument_schema": {
@@ -2657,6 +3217,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh security antivirus self-test",
       "argument_schema": {
@@ -2686,6 +3254,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "host-antivirus-read-only",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh security antivirus scan --file \"personal_assistant/data/workspace_outbox/<Datei>\"",
       "argument_schema": {
@@ -2729,6 +3305,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh nextcloud list --path \"Assistent\"",
       "argument_schema": {
@@ -2758,6 +3342,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh nextcloud sync",
       "argument_schema": {
@@ -2787,6 +3379,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail status",
       "argument_schema": {
@@ -2816,6 +3416,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail doctor",
       "argument_schema": {
@@ -2845,6 +3453,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail review status --days 7",
       "argument_schema": {
@@ -2874,6 +3490,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail review list --reason \"<Grund>\" --limit 50",
       "argument_schema": {
@@ -2917,6 +3541,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "mail-move",
       "command": "./scripts/assistant.sh mail review suggest --folder \"<Ordner>\" --message-id \"<ID>\" --expected-subject \"<Betreff>\"",
       "argument_schema": {
@@ -2982,6 +3614,14 @@
       "mode": "write",
       "writes_external_data": true,
       "approval": "explicit-user-review-correction",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "mail-move",
       "command": "./scripts/assistant.sh mail review correct --source \"Agent/Pruefen\" --message-id \"<ID>\" --expected-subject \"<Betreff>\" --verdict \"<relevant|routine|spam>\" --yes",
       "argument_schema": {
@@ -3052,6 +3692,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail folders plan",
       "argument_schema": {
@@ -3081,6 +3729,14 @@
       "mode": "write",
       "writes_external_data": true,
       "approval": "explicit-user-create-configured-mail-folders",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail folders apply --yes",
       "argument_schema": {
@@ -3112,6 +3768,14 @@
       "mode": "write",
       "writes_external_data": true,
       "approval": "explicit-user-configure-and-create-relevant-folder",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail folders activate-relevant --relevant \"Agent/Relevant\" --yes",
       "argument_schema": {
@@ -3143,6 +3807,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail index capabilities --no-raw-probe",
       "argument_schema": {
@@ -3172,6 +3844,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail index status",
       "argument_schema": {
@@ -3201,6 +3881,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail index doctor",
       "argument_schema": {
@@ -3230,6 +3918,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail index plan",
       "argument_schema": {
@@ -3259,6 +3955,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail index blocked --limit 100",
       "argument_schema": {
@@ -3288,6 +3992,14 @@
       "mode": "write",
       "writes_external_data": true,
       "approval": "explicit-user-single-infected-mail-quarantine",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "mail-move",
       "command": "./scripts/assistant.sh mail index quarantine --candidate-id \"<Kandidaten-ID>\" --expected-source \"<Quelle>\" --expected-message-id \"<Mail-ID>\" --expected-sha256 \"<SHA-256>\" --yes",
       "argument_schema": {
@@ -3366,6 +4078,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail index shadow --query \"<Suchbegriff>\" --limit 50",
       "argument_schema": {
@@ -3409,6 +4129,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-local-mail-index-canary",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail index canary --folder \"<exakter Ordner>\" --page-size 20 --max-pages 5 --max-messages 100 --max-bytes 100000000 --max-message-bytes 25000000 --max-runtime 600 --request-interval 0.2 --yes",
       "argument_schema": {
@@ -3454,6 +4182,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-local-mail-index-backfill",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail index backfill --page-size 50 --max-pages 200 --max-messages 10000 --max-bytes 1000000000 --max-message-bytes 100000000 --max-runtime 3600 --request-interval 0.2 --yes",
       "argument_schema": {
@@ -3485,6 +4221,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-local-mail-index-rebuild",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail index backfill --restart --page-size 50 --max-pages 200 --max-messages 10000 --max-bytes 1000000000 --max-message-bytes 100000000 --max-runtime 3600 --request-interval 0.2 --yes",
       "argument_schema": {
@@ -3516,6 +4260,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-local-mail-index-reconcile",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail index reconcile --max-folders 500 --max-messages 100000 --max-bytes 2000000000 --max-message-bytes 100000000 --max-runtime 3600 --request-interval 0.2 --retention-generations 2 --yes",
       "argument_schema": {
@@ -3547,6 +4299,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail search-local --query \"<Suchbegriff>\" --limit 50",
       "argument_schema": {
@@ -3591,6 +4351,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail learning status",
       "argument_schema": {
@@ -3620,6 +4388,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail learning feedback --limit 50",
       "argument_schema": {
@@ -3649,6 +4425,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail learning not-spam --limit 100",
       "argument_schema": {
@@ -3678,6 +4462,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail learning mixed-senders --limit 100",
       "argument_schema": {
@@ -3707,6 +4499,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail learning conflicts --limit 100",
       "argument_schema": {
@@ -3736,6 +4536,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-feedback-delete",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail learning forget-feedback --id <ID> --yes",
       "argument_schema": {
@@ -3781,6 +4589,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail learning evaluate --limit 5000",
       "argument_schema": {
@@ -3810,6 +4626,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "learning-dataset-local-only",
+      "approval_policy": {
+        "risk_level": 1,
+        "risk_class": "bounded-background",
+        "authorization": "configured-policy",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail learning dataset-export --output \"mail_agent/data/learning_dataset.json\" --limit 5000",
       "argument_schema": {
@@ -3841,6 +4665,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail learning folder-list",
       "argument_schema": {
@@ -3870,6 +4702,14 @@
       "mode": "write",
       "writes_external_data": true,
       "approval": "explicit-user-create-correction-folder",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail learning folder-create --parent \"<routine|important|spam|not-spam>\" --name \"<Name>\" --label \"<Typ>\" --yes",
       "argument_schema": {
@@ -3941,6 +4781,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-disable-learning-folder",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail learning folder-disable --folder \"<Ordner>\" --yes",
       "argument_schema": {
@@ -3986,6 +4834,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "safe-settings",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh setup mail-sources --primary \"INBOX\" --quarantine-folder \"Spamverdacht\"",
       "argument_schema": {
@@ -4017,6 +4873,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail dry-run --limit 20",
       "argument_schema": {
@@ -4046,6 +4910,14 @@
       "mode": "write",
       "writes_external_data": true,
       "approval": "configured-policy",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail run --limit 20",
       "argument_schema": {
@@ -4077,6 +4949,14 @@
       "mode": "write",
       "writes_external_data": true,
       "approval": "quarantine-rescue-policy",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh mail spam-review --limit 20",
       "argument_schema": {
@@ -4108,6 +4988,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "mail-move",
       "command": "./scripts/assistant.sh mail move-status",
       "argument_schema": {
@@ -4137,6 +5025,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "mail-move",
       "command": "./scripts/assistant.sh mail recent --limit 20",
       "argument_schema": {
@@ -4166,6 +5062,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "mail-move",
       "command": "./scripts/assistant.sh mail list --folder \"<Ordner>\" --limit 50",
       "argument_schema": {
@@ -4209,6 +5113,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "mail-move",
       "command": "./scripts/assistant.sh mail search --query \"<Suchbegriff>\" --limit 50",
       "argument_schema": {
@@ -4253,6 +5165,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "mail-move",
       "command": "./scripts/assistant.sh mail read --folder \"<Ordner>\" --message-id \"<ID>\" --expected-subject \"<Betreff>\"",
       "argument_schema": {
@@ -4318,6 +5238,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "draft-only-no-send",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "mail-move",
       "command": "./scripts/assistant.sh mail reply-draft --folder \"<Ordner>\" --message-id \"<ID>\" --expected-subject \"<Betreff>\" --body \"<Entwurf>\"",
       "argument_schema": {
@@ -4396,6 +5324,14 @@
       "mode": "write",
       "writes_external_data": true,
       "approval": "explicit-user-approved-presented-draft",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "mail-move",
       "command": "./scripts/assistant.sh mail reply-send --draft-id \"<Entwurfs-ID>\" --yes",
       "argument_schema": {
@@ -4441,6 +5377,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "draft-only-no-send",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "mail-move",
       "command": "./scripts/assistant.sh mail compose-draft --to \"<Empfaenger>\" --subject \"<Betreff>\" --body \"<Entwurf>\"",
       "argument_schema": {
@@ -4508,6 +5452,14 @@
       "mode": "write",
       "writes_external_data": true,
       "approval": "explicit-user-approved-presented-draft",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "mail-move",
       "command": "./scripts/assistant.sh mail compose-send --draft-id \"<Entwurfs-ID>\" --yes",
       "argument_schema": {
@@ -4553,6 +5505,14 @@
       "mode": "write",
       "writes_external_data": true,
       "approval": "configured-mail-organize-single-message",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "mail-move",
       "command": "./scripts/assistant.sh mail move --source \"<Quelle>\" --destination \"<Ziel>\" --message-id \"<ID>\" --expected-subject \"<Betreff>\"",
       "argument_schema": {
@@ -4631,6 +5591,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh contacts discover",
       "argument_schema": {
@@ -4660,6 +5628,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-addressbook-selection",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh contacts configure --resource \"<resource_id>\" --allow-update --yes",
       "argument_schema": {
@@ -4705,6 +5681,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh calendar discover",
       "argument_schema": {
@@ -4734,6 +5718,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-calendar-selection",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh calendar configure --resource \"<resource_id>\" --allow-update --yes",
       "argument_schema": {
@@ -4779,6 +5771,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh tasks discover",
       "argument_schema": {
@@ -4808,6 +5808,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-task-list-selection",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "always",
       "command": "./scripts/assistant.sh tasks configure --resource \"<resource_id>\" --allow-update --yes",
       "argument_schema": {
@@ -4853,6 +5861,14 @@
       "mode": "write",
       "writes_external_data": true,
       "approval": "workspace-create",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "workspace-mkdir",
       "command": "./scripts/assistant.sh nextcloud mkdir --path \"{workspace_root}/<Ordner>\"",
       "argument_schema": {
@@ -4898,6 +5914,14 @@
       "mode": "write",
       "writes_external_data": true,
       "approval": "workspace-create-only",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "workspace-write-text",
       "command": "printf \"%s\" \"<Inhalt>\" | ./scripts/assistant.sh nextcloud write-text --path \"{workspace_root}/<Datei>.md\"",
       "argument_schema": {
@@ -4954,6 +5978,14 @@
       "mode": "write",
       "writes_external_data": true,
       "approval": "workspace-create-only",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "workspace-upload",
       "command": "./scripts/assistant.sh nextcloud upload --local \"personal_assistant/data/workspace_outbox/<Datei>\" --path \"{workspace_root}/<Ziel>\"",
       "argument_schema": {
@@ -5010,6 +6042,14 @@
       "mode": "write",
       "writes_external_data": true,
       "approval": "workspace-organize-no-overwrite",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "workspace-move",
       "command": "./scripts/assistant.sh nextcloud move --source \"{workspace_root}/<Quelle>\" --destination \"{workspace_root}/<Ziel>\"",
       "argument_schema": {
@@ -5066,6 +6106,14 @@
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "explicit-user-permission",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "workspace",
       "command": "./scripts/assistant.sh setup workspace --root \"{workspace_root}\" --approve-permissions",
       "argument_schema": {
@@ -5097,6 +6145,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "calendar",
       "command": "./scripts/assistant.sh calendar status",
       "argument_schema": {
@@ -5126,6 +6182,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "calendar-list",
       "command": "./scripts/assistant.sh calendar list --limit 100",
       "argument_schema": {
@@ -5155,6 +6219,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "calendar-list",
       "command": "./scripts/assistant.sh calendar search --query \"<Suchbegriff>\" --limit 50",
       "argument_schema": {
@@ -5198,6 +6270,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "calendar-from-mail",
       "command": "./scripts/assistant.sh calendar from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --dry-run",
       "argument_schema": {
@@ -5263,6 +6343,14 @@
       "mode": "write",
       "writes_external_data": true,
       "approval": "explicit-user-calendar-from-mail-create-only",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "calendar-from-mail",
       "command": "./scripts/assistant.sh calendar from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --preview-digest \"<preview_digest>\" --candidate-id \"<candidate_id>\" --yes",
       "argument_schema": {
@@ -5351,6 +6439,14 @@
       "mode": "write",
       "writes_external_data": true,
       "approval": "explicit-user-calendar-update-etag-guarded",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "calendar-update",
       "command": "./scripts/assistant.sh calendar update --uid \"<UID>\" --expected-title \"<aktueller Titel>\" --start \"<ISO-8601>\" --yes",
       "argument_schema": {
@@ -5418,6 +6514,14 @@
       "mode": "write",
       "writes_external_data": true,
       "approval": "configured-calendar-create-only",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "calendar-create",
       "command": "./scripts/assistant.sh calendar create --title \"<Titel>\" --start \"<ISO-8601>\" --end \"<ISO-8601>\" --location \"<Ort>\" --description \"<Beschreibung>\"",
       "argument_schema": {
@@ -5507,6 +6611,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "tasks",
       "command": "./scripts/assistant.sh tasks status",
       "argument_schema": {
@@ -5536,6 +6648,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "tasks-list",
       "command": "./scripts/assistant.sh tasks list --include-completed --limit 100",
       "argument_schema": {
@@ -5565,6 +6685,14 @@
       "mode": "write",
       "writes_external_data": true,
       "approval": "explicit-user-task-update-etag-guarded",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "tasks-update",
       "command": "./scripts/assistant.sh tasks update --uid \"<UID>\" --expected-title \"<aktueller Titel>\" --status COMPLETED --yes",
       "argument_schema": {
@@ -5621,6 +6749,14 @@
       "mode": "write",
       "writes_external_data": true,
       "approval": "configured-tasks-create-only",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "tasks-create",
       "command": "./scripts/assistant.sh tasks create --title \"<Titel>\" --due \"<YYYY-MM-DD oder ISO-8601>\" --priority <0-9> --description \"<Beschreibung>\"",
       "argument_schema": {
@@ -5699,6 +6835,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "contacts",
       "command": "./scripts/assistant.sh contacts status",
       "argument_schema": {
@@ -5728,6 +6872,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "contacts-list",
       "command": "./scripts/assistant.sh contacts list --limit 100",
       "argument_schema": {
@@ -5757,6 +6909,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "contacts-list",
       "command": "./scripts/assistant.sh contacts search --query \"<Suchbegriff>\" --limit 50",
       "argument_schema": {
@@ -5800,6 +6960,14 @@
       "mode": "write",
       "writes_external_data": true,
       "approval": "explicit-user-contact-update-etag-guarded",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "contacts-update",
       "command": "./scripts/assistant.sh contacts update --uid \"<UID>\" --expected-name \"<aktueller Name>\" --phone \"<neue Telefonnummer>\" --yes",
       "argument_schema": {
@@ -5867,6 +7035,14 @@
       "mode": "write",
       "writes_external_data": true,
       "approval": "explicit-user-contact-create-only",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "contacts-create",
       "command": "./scripts/assistant.sh contacts create --name \"<Name>\" --email \"<E-Mail>\" --phone \"<Telefon>\" --organization \"<Firma>\" --yes",
       "argument_schema": {
@@ -5945,6 +7121,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "contacts-create",
       "command": "./scripts/assistant.sh contacts from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --dry-run",
       "argument_schema": {
@@ -6010,6 +7194,14 @@
       "mode": "write",
       "writes_external_data": true,
       "approval": "explicit-user-contact-from-mail-create-only",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "contacts-create",
       "command": "./scripts/assistant.sh contacts from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --yes",
       "argument_schema": {
@@ -6077,6 +7269,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "orders",
       "command": "./scripts/assistant.sh orders status",
       "argument_schema": {
@@ -6106,6 +7306,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "orders",
       "command": "./scripts/assistant.sh orders list --limit 100",
       "argument_schema": {
@@ -6135,6 +7343,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "orders",
       "command": "./scripts/assistant.sh deck discover",
       "argument_schema": {
@@ -6164,6 +7380,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "orders",
       "command": "./scripts/assistant.sh mail orders-import --limit 500 --dry-run",
       "argument_schema": {
@@ -6193,6 +7417,14 @@
       "mode": "write",
       "writes_external_data": true,
       "approval": "managed-order-cards-only",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "orders",
       "command": "./scripts/assistant.sh orders sync --limit 500",
       "argument_schema": {
@@ -6224,6 +7456,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "orders",
       "command": "./scripts/assistant.sh orders due-date-backfill --limit 500 --dry-run",
       "argument_schema": {
@@ -6253,6 +7493,14 @@
       "mode": "write",
       "writes_external_data": true,
       "approval": "managed-order-cards-missing-due-only",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "orders",
       "command": "./scripts/assistant.sh orders due-date-backfill --limit 500 --yes",
       "argument_schema": {
@@ -6284,6 +7532,14 @@
       "mode": "write",
       "writes_external_data": true,
       "approval": "configured-invoice-archive-and-managed-register-sync",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "invoices",
       "command": "./scripts/assistant.sh mail run --limit 20",
       "argument_schema": {
@@ -6315,6 +7571,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "invoices",
       "command": "./scripts/assistant.sh invoices status",
       "argument_schema": {
@@ -6344,6 +7608,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "invoices",
       "command": "./scripts/assistant.sh invoices files --limit 100",
       "argument_schema": {
@@ -6373,6 +7645,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "invoices",
       "command": "./scripts/assistant.sh invoices audit",
       "argument_schema": {
@@ -6402,6 +7682,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "invoices",
       "command": "./scripts/assistant.sh invoices list --year <YYYY> --limit 100",
       "argument_schema": {
@@ -6445,6 +7733,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "invoices",
       "command": "./scripts/assistant.sh invoices review --limit 100",
       "argument_schema": {
@@ -6474,6 +7770,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "invoices",
       "command": "./scripts/assistant.sh invoices export --year <YYYY> --dry-run",
       "argument_schema": {
@@ -6517,6 +7821,14 @@
       "mode": "write",
       "writes_external_data": true,
       "approval": "explicit-user-managed-register-replace",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "invoices",
       "command": "./scripts/assistant.sh invoices export --year <YYYY> --yes",
       "argument_schema": {
@@ -6562,6 +7874,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "invoices",
       "command": "./scripts/assistant.sh invoices backfill --year <YYYY> --limit 500 --dry-run",
       "argument_schema": {
@@ -6605,6 +7925,14 @@
       "mode": "write",
       "writes_external_data": true,
       "approval": "explicit-user-backfill-and-managed-register-replace",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "invoices",
       "command": "./scripts/assistant.sh invoices backfill --year <YYYY> --limit 500 --yes",
       "argument_schema": {
@@ -6650,6 +7978,14 @@
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
+      "approval_policy": {
+        "risk_level": 0,
+        "risk_class": "read-only",
+        "authorization": "none",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": false
+      },
       "availability": "invoices",
       "command": "./scripts/assistant.sh invoices reprocess --status \"<review|unclassified>\" --source-year <YYYY> --limit 100 --dry-run",
       "argument_schema": {
@@ -6706,6 +8042,14 @@
       "mode": "write",
       "writes_external_data": true,
       "approval": "explicit-user-single-invoice-reprocess",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "invoices",
       "command": "./scripts/assistant.sh invoices reprocess-apply --hash \"<SHA256>\" --expected-preview-sha256 \"<Digest>\" --yes",
       "argument_schema": {
@@ -6760,6 +8104,14 @@
       "mode": "write",
       "writes_external_data": true,
       "approval": "explicit-user-correction-and-managed-register-replace",
+      "approval_policy": {
+        "risk_level": 3,
+        "risk_class": "sensitive-change",
+        "authorization": "native-allow-once",
+        "explicit_request_satisfies": false,
+        "simple_confirmation_satisfies": false,
+        "native_dialog_required": true
+      },
       "availability": "invoices",
       "command": "./scripts/assistant.sh invoices correct --hash <SHA256> --date <YYYY-MM-DD> --number \"<Nr>\" --supplier \"<Steller>\" --category \"<Kategorie>\" --gross \"<Betrag>\" --yes",
       "argument_schema": {
@@ -6858,6 +8210,14 @@
       "mode": "write",
       "writes_external_data": true,
       "approval": "trusted-owner-command",
+      "approval_policy": {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": true,
+        "simple_confirmation_satisfies": true,
+        "native_dialog_required": false
+      },
       "availability": "calendar-mail",
       "command": "Subject: {calendar_subject_prefix} <Terminbeschreibung>",
       "argument_schema": {
@@ -8546,6 +9906,10 @@
         "portfolio.quotes.status",
         "portfolio.valuation",
         "portfolio.status",
+        "portfolio.import.csv",
+        "portfolio.import.csv.nextcloud",
+        "portfolio.import.csv.confirm",
+        "portfolio.import.csv.nextcloud.confirm",
         "portfolio.mapping.discover",
         "portfolio.mapping.suggest",
         "portfolio.research.status"
@@ -8711,7 +10075,10 @@
   "security": {
     "shell": false,
     "argv_only": true,
-    "writes_require_allow_once": true,
+    "writes_require_bound_authorization": true,
+    "explicit_request_may_satisfy_bounded_approval": true,
+    "simple_confirmation_requires_one_pending_action": true,
+    "sensitive_changes_require_native_allow_once": true,
     "conversation_guard_fail_closed": true,
     "router_may_execute_writes": false,
     "content_may_change_route": false,

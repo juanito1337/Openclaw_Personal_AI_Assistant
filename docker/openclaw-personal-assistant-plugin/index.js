@@ -2,15 +2,18 @@ import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import { readFileSync } from "node:fs";
 import {
   advanceActionObligation,
+  approvalDecision,
   approvalSeverity,
   buildActionObligation,
   compileInvocation,
   createApprovalLedger,
   guardAnswer,
   guardActionCompletion,
+  isSimpleConfirmation,
   makeEvidence,
   projectPayload,
   routePrompt,
+  selectPendingConfirmation,
   shouldBlockGenericTool,
   spawnJson,
   stableDigest,
@@ -33,6 +36,10 @@ const obligationByRun = new Map();
 const retryByRun = new Set();
 const invalidArgumentsByRun = new Map();
 const turnLatencyByRun = new Map();
+const promptByRun = new Map();
+const sessionByRun = new Map();
+const confirmationByRun = new Map();
+const pendingConfirmationsBySession = new Map();
 const liveToolsCache = { expiresAt: 0, value: null };
 const ledger = createApprovalLedger(contract.limits.approval_ttl_seconds);
 const metrics = {
@@ -44,6 +51,8 @@ const metrics = {
   repeated_invalid_arguments: 0,
   generic_blocks: 0,
   approvals_requested: 0,
+  approvals_satisfied_by_explicit_request: 0,
+  approvals_satisfied_by_simple_confirmation: 0,
   guard_revisions: 0,
   guard_replacements: 0,
   action_obligations: 0,
@@ -59,6 +68,35 @@ const metrics = {
   answer_finalization_total_ms: 0,
   turn_total_ms: 0,
 };
+
+function conversationKey(ctx, event = null) {
+  return String(event?.sessionKey || ctx?.sessionKey || ctx?.sessionId || "");
+}
+
+function livePendingConfirmations(session) {
+  if (!session) return [];
+  const now = Date.now();
+  const records = (pendingConfirmationsBySession.get(session) ?? [])
+    .filter((item) => item.expires_at > now);
+  if (records.length > 0) pendingConfirmationsBySession.set(session, records);
+  else pendingConfirmationsBySession.delete(session);
+  return records;
+}
+
+function rememberPendingConfirmation(session, record) {
+  if (!session) return;
+  const records = livePendingConfirmations(session)
+    .filter((item) => item.arguments_digest !== record.arguments_digest || item.operation !== record.operation);
+  records.push(record);
+  pendingConfirmationsBySession.set(session, records.slice(-4));
+}
+
+function removePendingConfirmation(session, confirmationId) {
+  if (!session) return;
+  const records = livePendingConfirmations(session).filter((item) => item.id !== confirmationId);
+  if (records.length > 0) pendingConfirmationsBySession.set(session, records);
+  else pendingConfirmationsBySession.delete(session);
+}
 
 function runKey(ctx, fallback = "unknown-run") {
   return String(ctx?.runId || ctx?.sessionId || ctx?.sessionKey || fallback);
@@ -226,7 +264,9 @@ async function executeOperation(toolName, toolContext, toolCallId, rawParams) {
             new_tool_call_required: true,
             instruction: operation.tool_id === "mail.reply-send" || operation.tool_id === "mail.compose-send"
               ? "Die gebundene Einzelfreigabe war beim Start nicht mehr gueltig; es wurde keine Mail versendet. Nicht automatisch wiederholen und kein blosses /approve anfordern. Jan muss den unveraenderten, bereits vollstaendig angezeigten Entwurf erneut zum Versand anweisen; der neue native Freigabedialog ist per Schaltflaeche oder mit seinem exakten /approve <ID> allow-once zu bestaetigen."
-              : "Die gebundene Einzelfreigabe war beim Start nicht mehr gueltig; die Aktion wurde nicht ausgefuehrt. Nicht automatisch wiederholen und kein blosses /approve anfordern. Jan muss die konkrete Aktion erneut anweisen und den neuen nativen Freigabedialog per Schaltflaeche oder mit seinem exakten /approve <ID> allow-once bestaetigen.",
+              : operation.approval_policy?.simple_confirmation_satisfies === true
+                ? "Die gebundene Einzelfreigabe war beim Start nicht mehr gueltig; die Aktion wurde nicht ausgefuehrt. Nicht automatisch wiederholen und kein blosses /approve anfordern. Wenn genau diese eine unveraenderte Aktion noch als ausstehend gespeichert ist, kann Jan sie mit JA bestaetigen; andernfalls muss er die konkrete Aktion erneut vollstaendig anweisen."
+                : "Die gebundene Einzelfreigabe war beim Start nicht mehr gueltig; die Aktion wurde nicht ausgefuehrt. Nicht automatisch wiederholen und kein blosses /approve anfordern. Jan muss die konkrete Aktion erneut anweisen und den neuen nativen Freigabedialog per Schaltflaeche oder mit seinem exakten /approve <ID> allow-once bestaetigen.",
           },
         },
         { personalAssistantEvidence: evidence },
@@ -277,7 +317,7 @@ async function executeOperation(toolName, toolContext, toolCallId, rawParams) {
   return jsonToolResult(response, { personalAssistantEvidence: evidence });
 }
 
-function buildRoutingContext(route, obligation) {
+function buildRoutingContext(route, obligation, confirmation = null) {
   const lines = [
     "PERSONAL_ASSISTANT_TOOL_ROUTE_V1",
     "Aktueller Zustand darf nur aus einem strukturierten Personal-Assistant-Tool dieses Laufs beantwortet werden.",
@@ -285,13 +325,19 @@ function buildRoutingContext(route, obligation) {
     "Jeden nativen Aufruf mit operation und allen Pflichtfeldern unter arguments ausfuehren; arguments niemals leer lassen, wenn die Signatur Pflichtfelder nennt.",
     "Nach invalid-arguments genau einmal mit geaenderten vollstaendigen Argumenten korrigieren. Bei retry_allowed=false sofort stoppen und den Fehler berichten.",
     "Mail: letzte eingegangene Mails des gesamten Kontos mit mail.recent und leerem arguments-Objekt; INBOX kann nach automatischen Verschiebungen leer sein. mail.list nur fuer einen ausdruecklich genannten Einzelordner mit arguments.folder; Suche mit mail.search und arguments.query; mail.read erst nach einem Treffer mit folder, message_id und expected_subject.",
-    "Bei Schreibwuenschen zuerst nur read-only identifizieren/vorschauen; das Schreibtool verlangt seine eigene Einzel-Freigabe.",
-    "Freigaben: Ein blosses /approve ist kein gueltiger Nachweis. Nur den aktuellen nativen Freigabedialog per Schaltflaeche oder mit dessen exaktem /approve <ID> allow-once bestaetigen. Bei missing-or-stale-bound-approval wurde nichts ausgefuehrt: nicht automatisch wiederholen, keinen alten Befehl empfehlen und den belegten Zustand approval-required melden.",
+    "Bei Schreibwuenschen zuerst read-only identifizieren/vorschauen. Ein eindeutiger aktueller Nutzerauftrag kann eine begrenzte Routineaktion bereits freigeben; sensible Aenderungen behalten ihren nativen Einmal-Dialog.",
+    "Freigaben: Die Schaltflaeche ist der normale Dialogweg; eine sichtbare ID ist nur technischer Fallback. Ein einfaches Ja gilt nur fuer genau eine intern gespeicherte, unveraenderte und noch gueltige Aktion. Bei missing-or-stale-bound-approval wurde nichts ausgefuehrt: nicht automatisch wiederholen und keinen alten Befehl empfehlen.",
     "Mail: Ein Entwurf ist kein Versand. Nach mail.reply-draft oder mail.compose-draft Empfaenger, Betreff und vollstaendigen Text anzeigen und den Turn als approval-required beenden. mail.reply-send oder mail.compose-send erst nach einer danach erteilten ausdruecklichen Versandanweisung und eigener nativer Einzelfreigabe aufrufen.",
     "Eine ACTION_OBLIGATION_V1 muss in diesem Turn durch registrierte Tool-Evidenz bis zu einem typisierten Endzustand gefuehrt werden. Blosse Zukunftsversprechen, Meta-Ankuendigungen oder ein stiller Abbruch sind kein Abschluss.",
     `Route: ${JSON.stringify(route)}`,
     `ACTION_OBLIGATION_V1: ${JSON.stringify(obligation)}`,
   ];
+  if (confirmation) {
+    lines.push(
+      `CONFIRMED_ACTION_V1: ${JSON.stringify({ operation: confirmation.operation, arguments: confirmation.arguments })}`,
+      "Die kurze Nutzerbestaetigung ist intern exakt an diese eine Aktion gebunden. Fuehre jetzt genau diese registrierte Operation mit unveraenderten Argumenten aus; jede Abweichung benoetigt eine neue Freigabe.",
+    );
+  }
   return lines.join("\n");
 }
 
@@ -306,7 +352,7 @@ function safeActionReplacement(obligation, issues) {
     ? "Bitte sende als neue, eigenstaendige Anweisung: \"Trage Hin- und Rueckflug aus der zuvor ausgewaehlten Mail als zwei Termine in meinen Kalender ein.\""
     : "Bitte weise die konkrete Aktion als neuen, vollstaendigen Satz erneut an.";
   if (state === "approval-required") {
-    return `Die gebundene Einzelfreigabe ist nicht mehr gueltig oder fuer den naechsten Schritt noch nicht erteilt; die angeforderte externe Aktion wurde nicht ausgefuehrt. Ein blosses /approve kann keine alte Freigabe wiederbeleben. ${restartInstruction} Bestaetige anschliessend jeden neuen nativen Freigabedialog per Schaltflaeche oder mit der dort angezeigten exakten ID als allow-once.`;
+    return `Die gebundene Einzelfreigabe ist nicht mehr gueltig oder fuer den naechsten Schritt noch nicht erteilt; die angeforderte externe Aktion wurde nicht ausgefuehrt. Ein blosses /approve kann keine alte Freigabe wiederbeleben. Wenn genau eine unveraenderte begrenzte Aktion noch intern als ausstehend gebunden ist, reicht ein kurzes JA; andernfalls gilt: ${restartInstruction} Bei einer sensiblen Aktion bestaetige den neuen nativen Dialog per Schaltflaeche oder mit der dort angezeigten exakten ID als allow-once.`;
   }
   if (state === "blocked") {
     const completed = Number(obligation?.completed_targets ?? 0);
@@ -341,8 +387,23 @@ export default definePluginEntry({
 
     api.on("before_prompt_build", async (event, ctx) => {
       const hookStarted = Date.now();
-      const route = routePrompt(contract, event.prompt);
       const key = String(event.runId || runKey(ctx));
+      const session = conversationKey(ctx, event);
+      let route = routePrompt(contract, event.prompt);
+      let confirmation = null;
+      if (isSimpleConfirmation(event.prompt)) {
+        const pending = livePendingConfirmations(session);
+        const selected = selectPendingConfirmation(event.prompt, pending);
+        if (selected.confirmation) {
+          confirmation = selected.confirmation;
+          route = confirmation.route;
+          confirmationByRun.set(key, confirmation);
+        } else {
+          confirmationByRun.delete(key);
+        }
+      } else {
+        confirmationByRun.delete(key);
+      }
       const timing = {
         started_at_ms: hookStarted,
         prompt_preparation_ms: 0,
@@ -350,8 +411,12 @@ export default definePluginEntry({
         answer_finalization_ms: 0,
       };
       routeByRun.set(key, route);
+      promptByRun.set(key, String(event.prompt ?? ""));
+      sessionByRun.set(key, session);
       evidenceByRun.set(key, []);
-      const obligation = buildActionObligation(contract, event.prompt, route, key);
+      const obligation = confirmation
+        ? buildActionObligation(contract, confirmation.prompt, route, key)
+        : buildActionObligation(contract, event.prompt, route, key);
       if (obligation) {
         obligationByRun.set(key, obligation);
         metrics.action_obligations += 1;
@@ -368,7 +433,7 @@ export default definePluginEntry({
         return undefined;
       }
       metrics.routed += 1;
-      return { prependContext: buildRoutingContext(route, obligation) };
+      return { prependContext: buildRoutingContext(route, obligation, confirmation) };
     });
 
     api.on("before_tool_call", async (event, ctx) => {
@@ -408,30 +473,67 @@ export default definePluginEntry({
       if (operation.mode === "read") return undefined;
       const args = event.params?.arguments ?? {};
       const approvalRunId = String(event.runId || runKey(ctx, event.toolCallId));
+      const session = sessionByRun.get(approvalRunId) ?? conversationKey(ctx, event);
+      const confirmation = confirmationByRun.get(approvalRunId) ?? null;
+      const decision = approvalDecision(operation, {
+        prompt: promptByRun.get(approvalRunId) ?? "",
+        route: routeByRun.get(approvalRunId),
+        args,
+        confirmed: confirmation,
+      });
       const nonce = ledger.issue({
         operation: operation.tool_id,
         args,
         toolCallId: event.toolCallId,
         runId: approvalRunId,
       });
+      const boundParams = {
+        ...withoutApprovalBinding(event.params),
+        __approval_nonce: nonce,
+        __approval_run_id: approvalRunId,
+      };
+      if (decision.authorized) {
+        if (decision.source === "single-pending-confirmation" && confirmation) {
+          removePendingConfirmation(session, confirmation.id);
+          confirmationByRun.delete(approvalRunId);
+          metrics.approvals_satisfied_by_simple_confirmation += 1;
+        } else if (decision.source === "explicit-user-request") {
+          metrics.approvals_satisfied_by_explicit_request += 1;
+        }
+        return { params: boundParams };
+      }
+      let pendingConfirmation = null;
+      if (session && operation.approval_policy?.simple_confirmation_satisfies === true) {
+        pendingConfirmation = {
+          id: stableDigest({ session, operation: operation.tool_id, args, approvalRunId }).slice(0, 24),
+          operation: operation.tool_id,
+          arguments: structuredClone(args),
+          arguments_digest: stableDigest(args),
+          prompt: promptByRun.get(approvalRunId) ?? "",
+          route: routeByRun.get(approvalRunId),
+          expires_at: Date.now() + contract.limits.approval_ttl_seconds * 1000,
+        };
+        rememberPendingConfirmation(session, pendingConfirmation);
+      }
       metrics.approvals_requested += 1;
       return {
-        params: {
-          ...withoutApprovalBinding(event.params),
-          __approval_nonce: nonce,
-          __approval_run_id: approvalRunId,
-        },
+        params: boundParams,
         requireApproval: {
           title: `Personal Assistant: ${operation.tool_id}`,
-          description: `Einmalige Freigabe ${operation.approval} fuer exakt diese Argumente.`,
+          description: operation.approval_policy?.simple_confirmation_satisfies === true
+            ? `Einmalige Freigabe fuer exakt diese Aktion. Die Schaltflaeche genuegt; nach einem Timeout kann ein einfaches Ja nur diese eine unveraenderte Aktion bestaetigen.`
+            : `Sensible Einmal-Freigabe ${operation.approval} fuer exakt diese Argumente.`,
           // OpenClaw's plugin approval protocol accepts info/warning/critical.
-          // Keep all external writes at the strongest supported level and local
-          // state changes visibly below that without weakening allow-once.
+          // Whenever a native dialog is required, external writes stay at the
+          // strongest supported level and local changes remain visibly below it.
           severity: approvalSeverity(operation),
           allowedDecisions: ["allow-once", "deny"],
           timeoutMs: contract.limits.approval_timeout_seconds * 1000,
           onResolution(decision) {
             if (decision !== "allow-once") ledger.revoke(nonce);
+            if (pendingConfirmation && ["allow-once", "deny"].includes(decision)) {
+              removePendingConfirmation(session, pendingConfirmation.id);
+            }
           },
         },
       };

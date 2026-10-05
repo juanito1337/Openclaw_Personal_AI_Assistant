@@ -25,7 +25,10 @@ Der Pluginpfad fuehrt den Zustand nur aus echter aktueller Werkzeugevidenz fort:
 
 1. `before_prompt_build` erzeugt Route und Verpflichtung ohne Remoteinhalt.
 2. `before_tool_call` validiert Operation und Argumente und bindet jeden Write
-   weiterhin an einen eigenen kurzlebigen Allow-once-Nonce. Die von OpenClaw
+   weiterhin an einen eigenen kurzlebigen Einmal-Nonce. Seine Quelle ist je nach
+   generierter Risikostufe eine konfigurierte eng begrenzte Policy, der aktuelle
+   exakte Nutzerauftrag, genau eine unveraenderte gespeicherte Kurzbestätigung
+   oder der native Allow-once-Dialog. Die von OpenClaw
    eingefrorenen genehmigten Parameter tragen zusaetzlich die opake Run-Bindung
    des Hooks, weil eine nach der Freigabe fortgesetzte Tool-Factory keinen
    identischen Laufkontext liefern muss.
@@ -69,8 +72,9 @@ kein automatisches Delete, Update oder Remote-Rollback.
 - Ein fehlender, abgelaufener, veraenderter oder bereits verbrauchter Nonce wird
   vor Prozessstart als `approval-required` mit `executed=false` belegt. Er darf
   nicht automatisch erneut benutzt werden. Ein blosses `/approve` ist keine
-  gebundene Entscheidung; Chatfreigaben verwenden ausschliesslich die aktuelle
-  Dialog-ID mit `allow-once`.
+  gebundene Entscheidung. Ein kurzes `JA`/`YES` ist nur bei genau einer noch
+  gueltigen gespeicherten Stufe-2-Aktion und identischem Argumentdigest zulaessig;
+  Stufe 3 verwendet ausschliesslich den aktuellen Dialog mit `allow-once`.
 - Ein Mailentwurf ist nur lokale Vorbereitung. Er beendet den Turn als
   `approval-required`; erst eine spaetere ausdrueckliche Versandanweisung darf
   den unveraenderten Draft mit einer neuen eigenen Einzelfreigabe senden.

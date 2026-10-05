@@ -31,6 +31,18 @@ read-only Canary ausdrücklich voneinander.
   lokale Schreibwerkzeuge bleiben nicht replay-sicher.
 - inhaltsfreie Laufzeitmetriken; keine Queries, Adressen, Resultate oder Secrets.
 
+## Erweiterung vom 5. Oktober 2026
+
+Die Einzelfreigabe-UX ist nun risikobasiert, waehrend die technische Bindung an
+Turn, ToolCall, Operation, Argumentdigest, Ablauf und Einmalverbrauch erhalten
+bleibt. Konfigurierte begrenzte Hintergrundaktionen (Stufe 1) benoetigen keinen
+Dialog. Ein exakter aktueller Nutzerauftrag kann eine begrenzte Stufe-2-Aktion
+direkt autorisieren; andernfalls bleibt die Schaltflaeche. Ein kurzes `JA`/`YES`
+gilt nur fuer genau eine unabgelaufene gespeicherte Stufe-2-Aktion mit identischen
+Argumenten. Stufe 3 behaelt den nativen Allow-once-Dialog zwingend. Die sichtbare
+`/approve <ID> allow-once`-Form ist nur technischer Fallback, nicht der normale
+Bedienweg.
+
 Der maschinenlesbare Diagnosepfad ist:
 
 ```bash

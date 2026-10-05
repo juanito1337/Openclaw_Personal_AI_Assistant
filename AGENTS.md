@@ -80,18 +80,25 @@ A supported capability exists in all four places:
 
 M13 additionally projects that contract into the generated immutable OpenClaw
 plugin. `./scripts/assistant.sh agent-tools status` verifies its catalog digest,
-schema and operation counts. Local-write and Write calls require an OpenClaw
-allow-once approval bound to turn, tool call, operation, argument digest and
-expiry; this never weakens the underlying ActionPlan/ETag/audit contract.
-The approval resume carries the hook's opaque run binding in OpenClaw's frozen
-approved parameters because a resumed tool factory need not expose the same
-runtime context. A bare `/approve` is never sufficient: use the current native
-approval button or exactly `/approve <ID> allow-once` from that prompt. On
-`missing-or-stale-bound-approval`, no operation started; never auto-retry it or
-ask for another bare `/approve`.
-After any blocked turn-bound action, do not ask an unbound yes/no retry
-question. Report the typed blocker and give one complete new action instruction;
-a bare “yes” cannot establish the next action obligation.
+schema and operation counts. Every Local-write and Write call still requires a
+single-use authorization bound to turn, tool call, operation, argument digest
+and expiry; this never weakens the underlying ActionPlan/ETag/audit contract.
+Risk level 1 uses an already configured bounded policy. For risk level 2, one
+current explicit request whose exact arguments are present in the user message is
+itself the authorization; otherwise use the native allow-once button. A short
+`JA`/`YES` may authorize only one still-current pending risk-level-2 action in
+the same session and only with its unchanged operation and argument digest. Risk
+level 3 (mail send, permission/resource changes, service control, quarantine,
+updates of existing objects and comparable sensitive changes) always retains the
+native allow-once dialog. The approval resume carries the hook's opaque run
+binding in OpenClaw's frozen approved parameters because a resumed tool factory
+need not expose the same runtime context. A bare `/approve` command is never
+sufficient: the normal path is the button; the technical fallback is exactly
+`/approve <ID> allow-once` from that prompt. On
+`missing-or-stale-bound-approval`, no operation started; never auto-retry it.
+If no single pending risk-level-2 action can be proven, report the typed blocker
+and give one complete new action instruction instead of asking an unbound yes/no
+retry question.
 
 The typed catalog defines known IDs, commands, modes, effects and approvals. Live
 `tools list`/`capabilities` defines configured availability and current permissions.

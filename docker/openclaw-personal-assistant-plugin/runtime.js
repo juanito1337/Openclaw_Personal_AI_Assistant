@@ -27,6 +27,69 @@ export function approvalSeverity(operation) {
   return operation?.writes_external_data ? "critical" : "warning";
 }
 
+const SIMPLE_CONFIRMATION = /^(?:ja|jawohl|okay|ok|bestaetigt|bestätigt|yes|confirm|confirmed)[.!]?$/iu;
+const PATH_ARGUMENTS = new Set(["file", "nextcloud_path", "source", "destination"]);
+
+export function isSimpleConfirmation(prompt) {
+  return SIMPLE_CONFIRMATION.test(normalizedText(prompt));
+}
+
+export function selectPendingConfirmation(prompt, records, now = Date.now()) {
+  if (!isSimpleConfirmation(prompt)) return { confirmation: null, reason: "not-a-confirmation" };
+  const live = (Array.isArray(records) ? records : []).filter(
+    (item) => Number(item?.expires_at ?? 0) > now,
+  );
+  if (live.length === 0) return { confirmation: null, reason: "no-pending-action" };
+  if (live.length !== 1) return { confirmation: null, reason: "ambiguous-pending-actions" };
+  return { confirmation: live[0], reason: "single-pending-action" };
+}
+
+function promptContainsArgument(prompt, name, value) {
+  const text = normalizedText(prompt);
+  const expected = normalizedText(value);
+  if (!expected) return false;
+  if (text.includes(expected)) return true;
+  if (PATH_ARGUMENTS.has(name)) {
+    const leaf = expected.split(/[\\/]/u).filter(Boolean).at(-1) ?? "";
+    return leaf.length > 0 && text.includes(leaf);
+  }
+  return false;
+}
+
+export function explicitRequestAuthorizes(operation, prompt, route, args) {
+  const policy = operation?.approval_policy ?? {};
+  if (operation?.mode === "read") return true;
+  if (Number(policy.risk_level) === 1 && policy.authorization === "configured-policy") return true;
+  if (policy.explicit_request_satisfies !== true || policy.native_dialog_required === true) return false;
+  if (classifyActionIntent(null, prompt, route) !== "execute") return false;
+  if (!(route?.routes ?? []).some((item) => item.domain === operation.domain)) return false;
+  for (const [name, value] of Object.entries(args ?? {})) {
+    if (!promptContainsArgument(prompt, name, value)) return false;
+  }
+  return true;
+}
+
+export function approvalDecision(operation, { prompt = "", route = null, args = {}, confirmed = null } = {}) {
+  if (operation?.mode === "read") return { authorized: true, source: "read-only" };
+  const policy = operation?.approval_policy ?? {};
+  if (policy.native_dialog_required === true) return { authorized: false, source: "native-allow-once" };
+  if (
+    confirmed
+    && policy.simple_confirmation_satisfies === true
+    && confirmed.operation === operation.tool_id
+    && confirmed.arguments_digest === stableDigest(args)
+  ) {
+    return { authorized: true, source: "single-pending-confirmation" };
+  }
+  if (explicitRequestAuthorizes(operation, prompt, route, args)) {
+    return {
+      authorized: true,
+      source: Number(policy.risk_level) === 1 ? "configured-policy" : "explicit-user-request",
+    };
+  }
+  return { authorized: false, source: "native-allow-once" };
+}
+
 export function tokenizeCommand(command) {
   if (typeof command !== "string" || command.length === 0 || command.includes("\0")) {
     throw new Error("invalid-command-template");
@@ -407,7 +470,7 @@ function normalizedText(value) {
 
 const ACTION_EXECUTE_PATTERNS = [
   /\b(?:trag|trage|tragt|tragen)\b.{0,80}\b(?:ein|kalender)\b/iu,
-  /\b(?:eintragen|anlegen|erstellen|verschieben|aktualisieren|abschliessen|abschließen|send(?:e|en|et)|verschick(?:e|en|t)|beantwort(?:e|en|et))\b/iu,
+  /\b(?:eintragen|anlegen|erstellen|importier(?:e|en|t)|verschieben|aktualisieren|abschliessen|abschließen|send(?:e|en|et)|verschick(?:e|en|t)|beantwort(?:e|en|et))\b/iu,
   /\b(?:fuehre|führe)\b.{0,40}\b(?:aus|durch)\b/iu,
   /\b(?:crea|crear|anade|añade|agrega|envia|envía|actualiza|mueve|completa)\b/iu,
   /\b(?:create|add|send|move|update|complete)\b/iu,

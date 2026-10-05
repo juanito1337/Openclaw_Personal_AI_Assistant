@@ -74,9 +74,18 @@ höchstens bekannte Leseoperationen verlangen und kann keinen Write, Jobstart,
 Versand oder Permission-Setup auslösen. Mail- und Dokumentinhalt wird nie erneut
 geroutet.
 
-Jede Local-write-/Write-Operation benötigt eine OpenClaw-Einzelfreigabe mit den
-Entscheidungen `allow-once` oder `deny`. Ein flüchtiger Nonce bindet Freigabe an
-Turn, ToolCall, exakte Katalog-ID, kanonischen Argumentdigest und 180 Sekunden.
+Jede Local-write-/Write-Operation benötigt weiterhin eine einmalige, technisch
+gebundene Autorisierung. Der generierte Vertrag teilt sie in Risikostufen: Stufe
+1 nutzt nur eine bereits konfigurierte eng begrenzte Policy; in Stufe 2 kann ein
+aktueller ausdruecklicher Auftrag selbst autorisieren, wenn jedes fachliche
+Argument im Nutzertext gebunden ist. Andernfalls bleibt der OpenClaw-Dialog mit
+`allow-once` oder `deny`. Ein kurzes `JA`/`YES` gilt nur fuer genau eine
+unabgelaufene, im selben Sessionkontext gespeicherte Stufe-2-Aktion mit
+unveraenderter Operation und unveraendertem Argumentdigest. Stufe 3 behaelt den
+nativen Dialog zwingend. Dazu gehoeren insbesondere Mailversand,
+Berechtigungs-/Ressourcenaenderungen, Dienststeuerung, Quarantaene und Updates
+bestehender Objekte. Ein flüchtiger Nonce bindet jede dieser Autorisierungsquellen
+an Turn, ToolCall, exakte Katalog-ID, kanonischen Argumentdigest und 180 Sekunden.
 Er wird vor Ausführung einmalig verbraucht. Die bestehende CLI bleibt danach für
 Policy, ActionPlan, UID/ETag, Idempotenz, Audit, ClamAV und Nachzustand
 verantwortlich. Das Gateway-Protokoll erhält ausschließlich seine gültigen
@@ -100,7 +109,7 @@ erhalten diese Markierung nie.
 
 Technisch erzwungen sind Werkzeug-/Operationsenum, Argumentvalidierung,
 argv-only-Ausführung, Live-Verfügbarkeit, Rohfach-Exec- und Secretpfadblock,
-Einzelfreigabe, Replay-/Digest-/Ablaufprüfung sowie der letzte Antwortguard. Das
+Risikostufe, Autorisierungsquelle, Replay-/Digest-/Ablaufprüfung sowie der letzte Antwortguard. Das
 Modell formuliert weiterhin Suchbegriffe, wählt innerhalb der gerouteten
 Leseoperationen und erklärt belegte Ergebnisse. Allgemeine Unterhaltung ohne
 erkannten Fachintent bleibt unberührt.
@@ -115,7 +124,9 @@ erkannten Fachintent bleibt unberührt.
   Versuch muss enden; OpenClaws zusaetzlicher Circuit Breaker begrenzt auch
   andere wiederholte beziehungsweise wechselnde No-Progress-Schleifen.
 - Approval-Timeout, veränderte Argumente, Wiederverwendung oder fremder Turn
-  blockiert vor dem CLI-Aufruf.
+  blockiert vor dem CLI-Aufruf. Nur eine danach ausdruecklich gegebene kurze
+  Bestaetigung darf genau eine noch gueltige gespeicherte Stufe-2-Aktion neu
+  autorisieren; sie ist kein automatischer Retry.
 - Ein Hookfehler darf keine Berechtigung erzeugen. Der Antwortguard endet nach
   einem Versuch fail-closed.
 - Rollback verwendet das vorherige verifizierte Rollenimage. M13 besitzt keine

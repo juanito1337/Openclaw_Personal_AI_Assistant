@@ -20,6 +20,40 @@ PLUGIN_ID = "personal-assistant-tools"
 PLUGIN_PATH = "/opt/openclaw-plugins/personal-assistant-tools"
 MAX_ROUTED_DOMAINS = 3
 
+_BACKGROUND_APPROVALS = frozenset(
+    {
+        "adaptive-local-focus-only",
+        "job-monitoring-and-safe-mail-recovery",
+        "learning-dataset-local-only",
+        "monitoring-local-only",
+        "provider-research-cache-local-only",
+        "scheduled-market-data-refresh",
+    }
+)
+_CRITICAL_APPROVAL_MARKERS = (
+    "backfill",
+    "calendar-resource-identity-migration",
+    "contact-update",
+    "correction",
+    "delete",
+    "disable",
+    "feedback-delete",
+    "mail-index",
+    "managed-register-replace",
+    "permission",
+    "quarantine",
+    "reconcile",
+    "restart",
+    "rollback",
+    "standard-operations",
+    "start",
+    "stop",
+    "task-update",
+    "presented-draft",
+    "single-invoice-reprocess",
+    "update-etag",
+)
+
 _PLACEHOLDER = re.compile(r"<([^>]+)>")
 _SHELL_OPERATORS = frozenset({"&&", "||", ";", ">", ">>", "<", "2>", "2>>"})
 _DOMAIN_TOOL_NAMES = {
@@ -251,6 +285,47 @@ def _allowed_claims(tool_id: str, mode: str) -> list[str]:
     return claims
 
 
+def _approval_policy(definition: Any) -> dict[str, Any]:
+    """Project the user-facing approval UX without weakening action binding."""
+
+    if definition.mode == "read":
+        return {
+            "risk_level": 0,
+            "risk_class": "read-only",
+            "authorization": "none",
+            "explicit_request_satisfies": True,
+            "simple_confirmation_satisfies": False,
+            "native_dialog_required": False,
+        }
+    approval = str(definition.approval)
+    if approval in _BACKGROUND_APPROVALS:
+        return {
+            "risk_level": 1,
+            "risk_class": "bounded-background",
+            "authorization": "configured-policy",
+            "explicit_request_satisfies": True,
+            "simple_confirmation_satisfies": False,
+            "native_dialog_required": False,
+        }
+    if any(marker in approval for marker in _CRITICAL_APPROVAL_MARKERS):
+        return {
+            "risk_level": 3,
+            "risk_class": "sensitive-change",
+            "authorization": "native-allow-once",
+            "explicit_request_satisfies": False,
+            "simple_confirmation_satisfies": False,
+            "native_dialog_required": True,
+        }
+    return {
+        "risk_level": 2,
+        "risk_class": "bounded-user-action",
+        "authorization": "explicit-request-or-native-allow-once",
+        "explicit_request_satisfies": True,
+        "simple_confirmation_satisfies": True,
+        "native_dialog_required": False,
+    }
+
+
 def _route_definitions() -> list[dict[str, Any]]:
     """Small deterministic intent contract; only the user prompt is routed."""
 
@@ -371,6 +446,10 @@ def _route_definitions() -> list[dict[str, Any]]:
                 "portfolio.quotes.status",
                 "portfolio.valuation",
                 "portfolio.status",
+                "portfolio.import.csv",
+                "portfolio.import.csv.nextcloud",
+                "portfolio.import.csv.confirm",
+                "portfolio.import.csv.nextcloud.confirm",
                 "portfolio.mapping.discover",
                 "portfolio.mapping.suggest",
                 "portfolio.research.status",
@@ -499,6 +578,7 @@ def _operation_entry(definition: Any) -> dict[str, Any]:
         "mode": definition.mode,
         "writes_external_data": definition.writes_external_data,
         "approval": definition.approval,
+        "approval_policy": _approval_policy(definition),
         "availability": definition.availability,
         "command": definition.command,
         "argument_schema": argument_schema,
@@ -676,7 +756,10 @@ def build_native_tool_contract() -> dict[str, Any]:
         "security": {
             "shell": False,
             "argv_only": True,
-            "writes_require_allow_once": True,
+            "writes_require_bound_authorization": True,
+            "explicit_request_may_satisfy_bounded_approval": True,
+            "simple_confirmation_requires_one_pending_action": True,
+            "sensitive_changes_require_native_allow_once": True,
             "conversation_guard_fail_closed": True,
             "router_may_execute_writes": False,
             "content_may_change_route": False,
