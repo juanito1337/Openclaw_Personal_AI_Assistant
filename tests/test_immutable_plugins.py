@@ -42,6 +42,11 @@ class ImmutablePluginTests(unittest.TestCase):
                         "resolvedVersion": "2026.6.11",
                         "installPath": "/home/user/.openclaw/npm/brave",
                     },
+                    "nextcloud-talk": {
+                        "resolvedName": "@openclaw/nextcloud-talk",
+                        "resolvedVersion": "2026.6.11",
+                        "installPath": "/home/user/.openclaw/npm/nextcloud-talk",
+                    },
                     "signal": {
                         "resolvedName": "@openclaw/signal",
                         "resolvedVersion": "2026.6.11",
@@ -52,7 +57,7 @@ class ImmutablePluginTests(unittest.TestCase):
 
             first = synchronize_installed_plugin_index(database, self.contract)
             self.assertEqual(first["registry_rows_changed"], 1)
-            self.assertEqual(first["managed_records_changed"], 2)
+            self.assertEqual(first["managed_records_changed"], 3)
             connection = sqlite3.connect(database)
             raw = connection.execute("SELECT install_records_json FROM installed_plugin_index").fetchone()
             self.assertEqual(connection.execute("PRAGMA quick_check").fetchone(), ("ok",))

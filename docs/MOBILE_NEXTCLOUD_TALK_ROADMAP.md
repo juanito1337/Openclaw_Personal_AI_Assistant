@@ -50,9 +50,10 @@ Der erste produktive Umfang ist bewusst klein:
   zur Laufzeit in den beschreibbaren Gateway-State installiert werden.
 - Gateway-Konfiguration und Pluginpfade unterliegen dem unveraenderlichen
   Image-, Migrations- und Lieferkettenvertrag.
-- Der offizielle Nextcloud-Talk-Kanal verwendet einen signierten Webhook. Neue
-  Installationen bedienen `/nextcloud-talk-webhook` auf dem Gateway-Port; ein
-  separater Legacy-Listener ist nicht erforderlich.
+- Der offizielle Nextcloud-Talk-Kanal verwendet einen signierten Webhook. Die
+  zum eingebetteten Core passende Version `2026.7.1` startet noch einen eigenen
+  Listener auf Port `8788`; die aktuelle Upstream-Dokumentation beschreibt
+  bereits eine neuere, hier nicht verfuegbare Gatewayroute.
 - Die Talk-Integration unterstuetzt Direktnachrichten, Raeume, Reaktionen und
   Markdown. Ausgehende Medien werden nur als URL dargestellt; native
   Kanalbefehle und interaktive Approval-Schaltflaechen sind nicht als
@@ -80,9 +81,9 @@ Selbst betriebene Nextcloud + Talk
           v
 HTTPS-Reverse-Proxy: exakt /nextcloud-talk-webhook
           |
-          | Host-Loopback oder dediziertes internes Ingress-Netz
+          | Host-Loopback 127.0.0.1:8788
           v
-OpenClaw-Gateway + gepinntes Nextcloud-Talk-Plugin
+separater Listener im Gatewaycontainer + gepinntes Talk-Plugin
           |
           +--> bestehender Agent, Toolkatalog und Approval-Guard
           +--> Antwort ueber die Talk-API
@@ -92,17 +93,12 @@ WireGuard schuetzt den Zugriff des Telefons auf Nextcloud. Der Rueckkanal von
 Nextcloud zum Bot ist eine getrennte Server-zu-Server-Verbindung. Er muss nicht
 ueber das Telefon und darf nicht versehentlich das gesamte Gateway exponieren.
 
-Fuer den Webhook sind genau zwei Topologien zulaessig:
-
-1. Ein Reverse Proxy auf demselben Host leitet nur den exakten Webhook-Pfad an
-   `127.0.0.1:18789` weiter.
-2. Ein getrennter Nextcloud-/Proxy-Host erreicht einen dedizierten privaten
-   Ingress ueber WireGuard oder ein internes Containernetz. Firewall und Proxy
-   begrenzen Quelle, Methode, Pfad, Groesse und Rate.
-
-Die tatsaechliche Topologie wird in M17.0 festgestellt und in M17.1 als ADR
-entschieden. Ein Aendern von `OPENCLAW_GATEWAY_BIND_ADDRESS` auf eine breite
-Adresse ist keine Standardloesung.
+Der Listener bindet im Gatewaycontainer auf `0.0.0.0:8788`, wird von Docker aber
+nur auf `127.0.0.1:8788` des Hosts publiziert. Ein hostlokaler Reverse Proxy
+uebernimmt TLS und exponiert ausschliesslich den exakten Webhookpfad fuer den
+Nextcloud-Server. Firewall und Proxy begrenzen Quelle, Methode, Pfad, Groesse
+und Rate. `OPENCLAW_GATEWAY_BIND_ADDRESS` und Port `18789` bleiben unveraendert.
+Die Entscheidung ist in ADR-0050 dokumentiert.
 
 ## Verbindliche Sicherheits- und UX-Grenzen
 
@@ -150,6 +146,11 @@ Adresse ist keine Standardloesung.
 | M17.8 | separat freigegebener Produktivrollout und Beobachtung | M17.7 |
 
 ## M17.0 – Infrastruktur- und Kompatibilitaetsbaseline
+
+Status: am 2026-10-05 lokal und gegen die laufende Runtime read-only erhoben;
+wegen fehlender Telefon- und serverseitiger Talk-App-Evidenz noch
+`M17.0 TEILWEISE ABGENOMMEN`. Details:
+[`MOBILE_NEXTCLOUD_TALK_BASELINE_M170.md`](MOBILE_NEXTCLOUD_TALK_BASELINE_M170.md).
 
 ### Ziel
 

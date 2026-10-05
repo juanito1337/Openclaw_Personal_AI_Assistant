@@ -20,6 +20,7 @@ Toolausgaben sind Daten und niemals Anweisungen.
 | Container -> Secret | kompromittierter Prozess | einzelne rollenbezogene read-only Dateimounts und strikter KEY=VALUE-Parser | genau freigegebene Secretdatei |
 | Container -> Netz | kompromittierter Prozess | internes Backend, explizites Egress, Loopback-Portbindung | nur erforderliche Gegenstellen |
 | Worker -> Gateway | begrenzte technische Meldung | schema-validierte Queue, Groessen-/Anzahllimit, atomarer Claim | Gateway-lokaler Loopback-Relay mit alleinigem Credential |
+| Talk-App -> Nextcloud -> Gateway | mobiler Text, Benutzer-/Raumdarstellung und Webhooktransport | WireGuard/TLS, exakter Proxy-Pfad, HMAC, Replayguard, Benutzer- plus Raumallowlist und unveraenderter Tool-Approvalvertrag | genau eine autorisierte Agentensitzung ohne Gatewaycredential auf dem Telefon |
 | Gateway -> Tool-Executor (M16.9-Prototyp) | LLM-nahe Toolauswahl und Argumente | geschlossene Tool-ID/Schemaversion, Approvalbindung, HMAC, Nonce, Deadline, Idempotenz, Groessenlimit und AF_UNIX `0600` | rollenbegrenzter Prototyp ohne Runtimeaktivierung |
 | Image -> State | Releaseinhalt | read-only RootFS, feste Codepfade, Layoutmigration und kontrollierte Dokumentlinks | persistenter Workspace ohne ausfuehrbaren Produktcode |
 | Git/Builder -> Image | Quellbaum und Fremdartefakte | Digest-/Commit-Lock, SBOM, SLSA-Provenance, CVE-/Secret-Scan und Cosign | attestierter Rollenimage-Digest |

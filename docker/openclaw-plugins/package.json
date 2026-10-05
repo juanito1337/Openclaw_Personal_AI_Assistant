@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@openclaw/brave-plugin": "2026.7.1",
+    "@openclaw/nextcloud-talk": "2026.7.1",
     "@openclaw/signal": "2026.7.1"
   }
 }

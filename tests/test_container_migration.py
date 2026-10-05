@@ -145,6 +145,7 @@ class ContainerMigrationTests(unittest.TestCase):
             projects = {
                 "signal": "@openclaw/signal",
                 "brave": "@openclaw/brave-plugin",
+                "nextcloud-talk": "@openclaw/nextcloud-talk",
             }
             install_paths: dict[str, str] = {}
             for project, package in projects.items():
@@ -177,6 +178,10 @@ class ContainerMigrationTests(unittest.TestCase):
                                 "installPath": install_paths["brave"],
                                 "resolvedName": "@openclaw/brave-plugin",
                             },
+                            "nextcloud-talk": {
+                                "installPath": install_paths["nextcloud-talk"],
+                                "resolvedName": "@openclaw/nextcloud-talk",
+                            },
                         }
                     ),
                     "[]",
@@ -203,9 +208,9 @@ class ContainerMigrationTests(unittest.TestCase):
             result = subprocess.run(command, text=True, capture_output=True, check=True)
             report = json.loads(result.stdout)
             self.assertEqual(report["managed_plugin_state"]["registry_rows_changed"], 1)
-            self.assertEqual(report["managed_plugin_state"]["managed_records_checked"], 2)
-            self.assertEqual(report["managed_plugin_state"]["managed_records_changed"], 2)
-            self.assertEqual(report["managed_plugin_state"]["payload_projects_removed"], 2)
+            self.assertEqual(report["managed_plugin_state"]["managed_records_checked"], 3)
+            self.assertEqual(report["managed_plugin_state"]["managed_records_changed"], 3)
+            self.assertEqual(report["managed_plugin_state"]["payload_projects_removed"], 3)
 
             connection = sqlite3.connect(database)
             raw_records = connection.execute(
@@ -220,6 +225,11 @@ class ContainerMigrationTests(unittest.TestCase):
             )
             self.assertEqual(records["brave"]["resolvedVersion"], "2026.7.1")
             self.assertEqual(
+                records["nextcloud-talk"]["installPath"],
+                "/opt/openclaw-plugins/node_modules/@openclaw/nextcloud-talk",
+            )
+            self.assertEqual(records["nextcloud-talk"]["resolvedVersion"], "2026.7.1")
+            self.assertEqual(
                 records["signal"]["installPath"],
                 "/opt/openclaw-plugins/node_modules/@openclaw/signal",
             )
@@ -232,6 +242,7 @@ class ContainerMigrationTests(unittest.TestCase):
                 migrated["plugins"]["load"]["paths"],
                 [
                     "/opt/openclaw-plugins/node_modules/@openclaw/brave-plugin",
+                    "/opt/openclaw-plugins/node_modules/@openclaw/nextcloud-talk",
                     "/opt/openclaw-plugins/node_modules/@openclaw/signal",
                     "/opt/openclaw-plugins/personal-assistant-tools",
                 ],

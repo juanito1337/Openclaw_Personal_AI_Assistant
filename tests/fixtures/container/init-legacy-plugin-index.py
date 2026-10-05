@@ -28,6 +28,14 @@ records = {
         "resolvedName": "@openclaw/brave-plugin",
         "resolvedVersion": "2026.6.11",
     },
+    "nextcloud-talk": {
+        "source": "npm",
+        "spec": "@openclaw/nextcloud-talk@2026.6.11",
+        "installPath": "/home/jan/.openclaw/npm/projects/nextcloud-talk/node_modules/@openclaw/nextcloud-talk",
+        "version": "2026.6.11",
+        "resolvedName": "@openclaw/nextcloud-talk",
+        "resolvedVersion": "2026.6.11",
+    },
     "signal": {
         "source": "npm",
         "spec": "@openclaw/signal@2026.6.11",

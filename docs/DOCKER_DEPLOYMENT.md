@@ -271,7 +271,7 @@ Mail-Kalender und -Kontakte verwenden die native, release-eigene
 CalDAV/CardDAV-Bruecke. Ein workspace-lokaler `openclaw-nextcloud`-Community-Skill
 wird weder benoetigt noch ausgefuehrt; Kalenderwrites loesen genau eine konfigurierte
 Ressource auf und verwenden create-only `If-None-Match`.
-Die offiziellen externen Plugins Brave und Signal liegen ebenfalls read-only
+Die offiziellen externen Plugins Brave, Signal und Nextcloud Talk liegen ebenfalls read-only
 unter `/opt/openclaw-plugins`, sind durch npm-Lockdatei und Supply-Chain-Vertrag
 gepinnt und werden ueber feste `plugins.load.paths` geladen. Ausfuehrbare
 npm-Payloads im Gateway-State sind nicht erlaubt; `OPENCLAW_NIX_MODE=1` sperrt
@@ -497,7 +497,7 @@ abgeschlossener oder bearbeiteter aktiver Setup wird niemals ueberschrieben.
 Historische `TOOLS.md`- und `MEMORY.md`-Anweisungen bleiben zur bewussten Sichtung
 quarantiniert.
 
-Vor der SQLite-Gesamtpruefung ersetzt die Migration Brave und Signal durch ihre
+Vor der SQLite-Gesamtpruefung ersetzt die Migration Brave, Signal und Nextcloud Talk durch ihre
 read-only Imagepfade, synchronisiert den generierten `installed_plugin_index`
 transaktional auf Version, Integritaet und Pfad des Imagevertrags und entfernt
 ihre alten npm-Projektverzeichnisse nur aus dem Staging. Jedes nicht im

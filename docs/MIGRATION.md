@@ -22,8 +22,8 @@ Container-State-Migration und verifizierte Legacy-Archive bleiben verpflichtend.
 ## Externe OpenClaw-Plugins
 
 Ausfuehrbare Plugins duerfen im Containerbetrieb nicht aus dem beschreibbaren
-Gateway-State geladen werden. Der aktuelle Runtime-Imagevertrag enthaelt Brave
-und Signal in den durch `docker/openclaw-plugins/package-lock.json` gesperrten
+Gateway-State geladen werden. Der aktuelle Runtime-Imagevertrag enthaelt Brave,
+Signal und Nextcloud Talk in den durch `docker/openclaw-plugins/package-lock.json` gesperrten
 Versionen. Die Native-zu-Container-Migration fuegt deren read-only Imagepfade in
 `plugins.load.paths` ein, prueft die bisherigen Datensaetze in
 `installed_plugin_index`, synchronisiert diesen generierten Registrycache

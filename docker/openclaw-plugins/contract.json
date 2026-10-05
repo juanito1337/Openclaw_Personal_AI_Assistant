@@ -9,6 +9,13 @@
       "shasum": "55470c1ca206a37dd919ceec78e7534390d8d97e",
       "path": "/opt/openclaw-plugins/node_modules/@openclaw/brave-plugin"
     },
+    "nextcloud-talk": {
+      "package": "@openclaw/nextcloud-talk",
+      "version": "2026.7.1",
+      "integrity": "sha512-a+ret5WnmxLjEBwU26wl5YicOcDSEY3E34yoakQ8OKlDrwH5jIM2UbKUnq4kkoMJtROw/FF3j/GFA7ISlIXQIA==",
+      "shasum": "1fc4b4938ae8785d547d9a8d1c222532f2550f4c",
+      "path": "/opt/openclaw-plugins/node_modules/@openclaw/nextcloud-talk"
+    },
     "signal": {
       "package": "@openclaw/signal",
       "version": "2026.7.1",

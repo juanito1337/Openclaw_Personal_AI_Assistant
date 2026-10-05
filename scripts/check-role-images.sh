@@ -35,11 +35,14 @@ docker run --rm --network none --entrypoint /bin/sh "$runtime" -c '
   test "$(node -p '"'"'require("/usr/local/lib/node_modules/npm/node_modules/tar/package.json").version'"'"')" = 7.5.19
   test "${OPENCLAW_NIX_MODE:-}" = 1
   test "$(node -p '"'"'require("/opt/openclaw-plugins/node_modules/@openclaw/brave-plugin/package.json").version'"'"')" = 2026.7.1
+  test "$(node -p '"'"'require("/opt/openclaw-plugins/node_modules/@openclaw/nextcloud-talk/package.json").version'"'"')" = 2026.7.1
   test "$(node -p '"'"'require("/opt/openclaw-plugins/node_modules/@openclaw/signal/package.json").version'"'"')" = 2026.7.1
   test "$(readlink /opt/openclaw-plugins/node_modules/openclaw)" = /app
   test "$(readlink /opt/openclaw-plugins/node_modules/@openclaw/brave-plugin/node_modules/openclaw)" = /app
+  test "$(readlink /opt/openclaw-plugins/node_modules/@openclaw/nextcloud-talk/node_modules/openclaw)" = /app
   test "$(readlink /opt/openclaw-plugins/node_modules/@openclaw/signal/node_modules/openclaw)" = /app
   test ! -w /opt/openclaw-plugins/node_modules/@openclaw/brave-plugin
+  test ! -w /opt/openclaw-plugins/node_modules/@openclaw/nextcloud-talk
   test ! -w /opt/openclaw-plugins/node_modules/@openclaw/signal
   test -s /opt/openclaw-plugins/personal-assistant-tools/generated-tools.json
   test -s /opt/openclaw-plugins/personal-assistant-tools/openclaw.plugin.json
@@ -70,7 +73,7 @@ docker run --rm --network none \
 docker run --rm --network none --entrypoint /opt/openclaw-agent/scripts/assistant.sh "$runtime" version --verify >/dev/null
 
 plugin_config="$root/tests/fixtures/container/immutable-plugins-openclaw.json"
-for plugin in brave signal personal-assistant-tools; do
+for plugin in brave nextcloud-talk signal personal-assistant-tools; do
   docker run --rm --network none --read-only \
     --cap-drop ALL \
     --security-opt no-new-privileges:true \
@@ -176,8 +179,10 @@ row = connection.execute(
 assert row is not None
 records = json.loads(row[0])
 assert records["brave"]["installPath"] == "/opt/openclaw-plugins/node_modules/@openclaw/brave-plugin"
+assert records["nextcloud-talk"]["installPath"] == "/opt/openclaw-plugins/node_modules/@openclaw/nextcloud-talk"
 assert records["signal"]["installPath"] == "/opt/openclaw-plugins/node_modules/@openclaw/signal"
 assert records["brave"]["resolvedVersion"] == "2026.7.1"
+assert records["nextcloud-talk"]["resolvedVersion"] == "2026.7.1"
 assert records["signal"]["resolvedVersion"] == "2026.7.1"
 assert connection.execute("PRAGMA quick_check").fetchone() == ("ok",)
 '

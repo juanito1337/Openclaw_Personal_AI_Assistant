@@ -16,12 +16,17 @@
     "sha256_linux_amd64": "9529d2584add1c4343f32524e6f985e7c98d491f3b854747318020eb1ec1df7f"
   },
   "immutable_openclaw_plugins": {
-    "package_lock_sha256": "e1f6eecc0072a9aa27c4ace302d8af011fed122a9ece55fb9a382c8b9c9c569d",
+    "package_lock_sha256": "f862574edfa93a0d4c20a6e91d21f8ede3057fb872d680195ca0fff067705ee6",
     "packages": {
       "@openclaw/brave-plugin": {
         "version": "2026.7.1",
         "integrity": "sha512-7Z+GZ/6K6a8LlkTsWVnAZ1hv8EarORzHQvFHD7ekcg033FGJOXYPEZSbvvE3qR9vM+vnoZplNjMZ7vFMRcvQgw==",
         "shasum": "55470c1ca206a37dd919ceec78e7534390d8d97e"
+      },
+      "@openclaw/nextcloud-talk": {
+        "version": "2026.7.1",
+        "integrity": "sha512-a+ret5WnmxLjEBwU26wl5YicOcDSEY3E34yoakQ8OKlDrwH5jIM2UbKUnq4kkoMJtROw/FF3j/GFA7ISlIXQIA==",
+        "shasum": "1fc4b4938ae8785d547d9a8d1c222532f2550f4c"
       },
       "@openclaw/signal": {
         "version": "2026.7.1",
