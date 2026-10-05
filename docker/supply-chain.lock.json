@@ -7,7 +7,7 @@
     "python_runtime": "python:3.11-alpine3.22@sha256:a4fc589b32e824f3f02ed9d7e7be19518aa47e105b80416336af9f202275a489"
   },
   "runtime_package_pins": {
-    "python3": "3.12.14-r0"
+    "python3": "3.12.15-r0"
   },
   "himalaya": {
     "version": "1.2.0",

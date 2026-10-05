@@ -7,7 +7,7 @@ d1383ffff37a355f384976fef186e9de4bba65eaaca7c4eece4a39ab52ba1502  ./.dockerignor
 b1e199e197170ae93b07fe4a49e912372fd166792c3e7e14502ba7e5b8feb628  ./AGENTS.md
 beb8cb27f6f2d1285cd0e621f9e749d3e2ef1a6e601499ac3d1d22073d5bec08  ./CHANGELOG.md
 f38e641eaf48ada58510f6c6c1db64ee57390be2838493350b591f87f7e3908f  ./CONTRIBUTING.md
-100aaabfb5085b2c0958f2a2c40bc97575c976623a21362b2bd108c3a5f84713  ./Dockerfile
+cf36eb2bbe4f5a0319e3583e3d62d04c313a0011d2fd4cd8456ed23435e67497  ./Dockerfile
 dd2bd2aa9bed882e4a7942981299d0e87c70ac8ddd50ca67126eca0af0055e94  ./HEARTBEAT.md
 f6e47cdfa1ba07da92bc236eaf82a407bd225b9376a73ba44d412f01c411ad4a  ./README.md
 b3d2a3db8a9d9f1a04aab3a7eb2dcd0d1cdaf5926246bd41ed5b858914c05ada  ./RELEASE.json
@@ -58,7 +58,7 @@ d919dc90c4b99c7a76b92ee01c45a2fe5589bec13454730b13dcbdedfb40a564  ./docker/scrip
 30db71b5742ffbe5e127a5f2375bd4facb5677bce3f5ceb1e33b8119f8cca51f  ./docker/scripts/smoke-test.sh
 00fa610ba4394c9cb6fceb8acc1403071ea4a21c917db2c2616661ac5f69ac25  ./docker/scripts/verify-backup.sh
 566be2e461edba2f5d287341f34b36065d23a062c28c70b9b289473fa0ff42a5  ./docker/scripts/verify-image-supply-chain.sh
-9ff5fda5ea04a9d86c2fec69239895a08b679cabf177a5cd67d66f99172c3052  ./docker/supply-chain.lock.json
+cfcf5c8dd215ad5cc12fd381326b7491da6bea8803fc08587edead56d765bdee  ./docker/supply-chain.lock.json
 ed593b0d07260aad2afec058a8da2464860c1e7e1ed7e34f82a4653e894b294d  ./docs/ADAPTIVE_BATCHING.md
 a2b743fcefcc6b467d82e2a6224eabdc02a0feb01f801085535a750cf1603d15  ./docs/ADAPTIVE_SCHEDULER.md
 105b5c63b77887f1a93350ba6cecdbb18512401efa850834ee1036d5703c6c4f  ./docs/AGENT_ACTION_COMPLETION_BASELINE_M150.md
@@ -191,7 +191,7 @@ d0c9ac3229078d7fce345b35d7aca528aad926cfab2cc77e410802dd60a4ea53  ./docs/archite
 d9a430145ea4081575d1b036c8a914b7ebbba85697cc25f4805427d4951ea687  ./docs/architecture/adr/README.md
 b99c97a76723cd2ece9e00dc9ece17aac47daaa672657252d63cdb234645fcd9  ./docs/architecture/clamd-operating-budget-m14.json
 d27b02d1ed286794ce453b80b4911bcbf476dfb08d005437510e5419f237203c  ./docs/architecture/compatibility-policy.json
-9eb43342f32a17c5db84c68c34b540c109d7c487ee1893e01db4bb3c4c3f08de  ./docs/architecture/component-inventory.json
+304323c047add127c09b8fd2830b2e1a5753a5bfd3d601607f1faf3742367575  ./docs/architecture/component-inventory.json
 1f707ea0d3c63cf76a35d64fd62988a6f59c1c5e73fe7a09fe62fdb7901a919c  ./docs/architecture/image-baseline-m7.json
 b397cdaa70d5dbcd4bfd22ed503433570b67bb978059bd5916e8793d173807c3  ./docs/architecture/legacy-decisions.json
 08e9adaf4971a11f91b043fb89f899bb730ca702dc3c5e7bdaf6f1710045755c  ./docs/architecture/m16-baseline.json

@@ -34,8 +34,10 @@ WORKDIR /plugins
 COPY docker/openclaw-plugins/package.json docker/openclaw-plugins/package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts --legacy-peer-deps --no-audit --no-fund \
     && test "$(node -p 'require("./node_modules/@openclaw/brave-plugin/package.json").version')" = "2026.7.1" \
+    && test "$(node -p 'require("./node_modules/@openclaw/nextcloud-talk/package.json").version')" = "2026.7.1" \
     && test "$(node -p 'require("./node_modules/@openclaw/signal/package.json").version')" = "2026.7.1" \
     && test -s node_modules/@openclaw/brave-plugin/openclaw.plugin.json \
+    && test -s node_modules/@openclaw/nextcloud-talk/openclaw.plugin.json \
     && test -s node_modules/@openclaw/signal/openclaw.plugin.json
 
 FROM ${NODE_BASE_IMAGE} AS himalaya-builder
@@ -96,7 +98,7 @@ RUN apk add --no-cache \
        zstd=1.5.7-r0 \
        procps-ng=4.0.4-r3 \
        tini=0.19.0-r3 \
-       python3=3.12.14-r0 \
+       python3=3.12.15-r0 \
        poppler-utils=25.04.0-r0 \
        tesseract-ocr=5.5.0-r2 \
        tesseract-ocr-data-deu=5.5.0-r2 \
@@ -113,11 +115,14 @@ RUN rm -rf /app/node_modules/@vitest/browser \
     && cp -a /app/node_modules/tar /usr/local/lib/node_modules/npm/node_modules/tar \
     && ln -s /app /opt/openclaw-plugins/node_modules/openclaw \
     && mkdir -p /opt/openclaw-plugins/node_modules/@openclaw/brave-plugin/node_modules \
+                /opt/openclaw-plugins/node_modules/@openclaw/nextcloud-talk/node_modules \
                 /opt/openclaw-plugins/node_modules/@openclaw/signal/node_modules \
     && ln -s /app /opt/openclaw-plugins/node_modules/@openclaw/brave-plugin/node_modules/openclaw \
+    && ln -s /app /opt/openclaw-plugins/node_modules/@openclaw/nextcloud-talk/node_modules/openclaw \
     && ln -s /app /opt/openclaw-plugins/node_modules/@openclaw/signal/node_modules/openclaw \
     && ln -s /app/openclaw.mjs /usr/local/bin/openclaw \
     && test "$(node -p 'require("/opt/openclaw-plugins/node_modules/@openclaw/brave-plugin/package.json").version')" = "2026.7.1" \
+    && test "$(node -p 'require("/opt/openclaw-plugins/node_modules/@openclaw/nextcloud-talk/package.json").version')" = "2026.7.1" \
     && test "$(node -p 'require("/opt/openclaw-plugins/node_modules/@openclaw/signal/package.json").version')" = "2026.7.1" \
     && test "$(node -p 'require("/usr/local/lib/node_modules/npm/node_modules/tar/package.json").version')" = "7.5.19" \
     && test "$(openclaw --version)" = "OpenClaw 2026.7.1"
