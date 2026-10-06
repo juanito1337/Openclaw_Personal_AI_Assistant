@@ -40,10 +40,12 @@ deshalb vom OpenClaw-Rechner betrieben und nimmt die Webhookverbindung nur an
 einer privaten, vom Nextcloud-Server erreichbaren Adresse an. Beide Rechner
 befinden sich im selben lokalen Netzwerk; ein Server-zu-Server-WireGuard-Tunnel
 ist deshalb fuer M17 nicht erforderlich. Seine Firewall- und Proxy-Allowlist
-wird auf die stabile Quelladresse des Nextcloud-Servers begrenzt. Am
-OpenClaw-Rechner wurde `192.168.2.38/24` read-only beobachtet; interner DNS-Name,
-TLS-Zertifikatsmodell und stabile Nextcloud-Quelladresse werden vor Aktivierung
-gesondert belegt.
+wird auf die stabile Nextcloud-Quelladresse `192.168.2.3` begrenzt. Am
+OpenClaw-Rechner wurde `192.168.2.38/24` read-only beobachtet. Nextcloud ist
+ueber `1337-cloud.ddns.net` erreichbar; der Name loest im lokalen Netz auf
+`192.168.2.3` auf und seine TLS-Kette sowie DNS-Identitaet werden auf dem
+OpenClaw-Rechner akzeptiert. Interner DNS-Name und TLS-Zertifikatsmodell des
+separaten Webhookhosts werden vor Aktivierung gesondert belegt.
 
 Die erste Aktivierung verwendet genau einen dedizierten Talk-Raum. Sowohl die
 stabile Nextcloud-Benutzer-ID als auch der Raumtoken muessen allowlisted sein;

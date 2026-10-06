@@ -8,9 +8,9 @@ Telefonbetriebssystem sowie Nextcloud `35.0.1` und die aktivierte serverseitige
 Talk-App `25.0.5` bestaetigt. Nextcloud und OpenClaw laufen auf getrennten
 Rechnern; der geplante HTTPS-Reverse-Proxy gehoert auf den OpenClaw-Rechner.
 Beide Rechner befinden sich laut Jan im selben lokalen Netzwerk. Offen sind
-noch die stabile Quelladresse des Nextcloud-Servers sowie interner DNS-Name und
-TLS-Zertifikatsmodell des Webhookhosts. Es wurde kein Plugin installiert, kein
-Bot angelegt, kein Secret geaendert und kein Port freigegeben.
+noch interner DNS-Name und TLS-Zertifikatsmodell des Webhookhosts. Es wurde kein
+Plugin installiert, kein Bot angelegt, kein Secret geaendert und kein Port
+freigegeben.
 
 ## Quell- und Releaseidentitaet
 
@@ -111,6 +111,8 @@ Proxy bereitstellen. Alternativ waere ein eigener Coreupgrade-Milestone noetig.
 | WireGuard-Interface am Entwicklungsrechner | zum Messzeitpunkt nicht beobachtet; keine Negativaussage ueber andere Hosts oder inaktive Profile |
 | Nextcloud-/OpenClaw-Topologie | getrennte Rechner, von Jan am 2026-10-06 bestaetigt |
 | privater Server-zu-Server-Pfad | gemeinsames lokales Netzwerk, von Jan am 2026-10-06 bestaetigt |
+| Nextcloud-LAN-Endpunkt | `192.168.2.3:9001`, von Jan benannt und vom OpenClaw-Rechner read-only per direkter LAN-Route und TCP-Verbindung belegt |
+| Nextcloud-DNS-/TLS-Identitaet | `1337-cloud.ddns.net` loest lokal auf `192.168.2.3` auf; TLS 1.3, Zertifikatskette und DNS-Hostname wurden am 2026-10-06 erfolgreich verifiziert; die rohe IP ist erwartungsgemaess kein Zertifikats-SAN |
 | OpenClaw-LAN-Adresse | `192.168.2.38/24` auf `enp2s0`, am 2026-10-06 read-only beobachtet |
 | HTTPS-Reverse-Proxy fuer Talk-Webhook | auf dem OpenClaw-Rechner vorgesehen; `443/tcp` und `8788/tcp` waren am Messzeitpunkt unbelegt |
 | Nextcloud-Version | `35.0.1` (`Nextcloud Hub 26 Spring`), von Jan am 2026-10-06 bestaetigt; technische Liveabfrage noch ausstehend |
@@ -130,8 +132,8 @@ nicht durchsucht oder ausgegeben.
   `/nextcloud-talk-webhook` an diesen Loopbackport weiterleiten.
 - Weil Nextcloud auf einem separaten Rechner laeuft, nimmt der Proxy die
   Server-zu-Server-Verbindung ueber das gemeinsame LAN an der privaten Adresse
-  des OpenClaw-Rechners an. Die Firewall erlaubt dabei nur die noch zu
-  belegende stabile Quelladresse des Nextcloud-Servers.
+  des OpenClaw-Rechners an. Die Firewall erlaubt dabei nur `192.168.2.3` als
+  Quelladresse des Nextcloud-Servers.
 - Der Gateway-Port `18789` bleibt unveraendert loopbackgebunden und wird nicht
   zum Mobilendpoint.
 - Der erste produktive Schnitt behandelt den freigegebenen Talk-Raum als
@@ -146,7 +148,6 @@ betriebsseitig bestaetigt. Eine technische Liveabfrage bleibt Teil der spaeteren
 realen Abnahme. M17.0 kann erst `ABGENOMMEN` werden, wenn ausserdem read-only
 geklaert ist:
 
-- stabile private IP beziehungsweise interner DNS-Name des Nextcloud-Servers;
 - interner DNS-Name und vertrauenswuerdiges TLS-Zertifikatsmodell fuer den
   Webhookhost auf dem OpenClaw-Rechner;
 - read-only Erreichbarkeitsbeleg vom Nextcloud-Server zum geplanten Webhookhost.
