@@ -115,8 +115,9 @@ Proxy bereitstellen. Alternativ waere ein eigener Coreupgrade-Milestone noetig.
 | Nextcloud-DNS-/TLS-Identitaet | `1337-cloud.ddns.net` loest lokal auf `192.168.2.3` auf; TLS 1.3, Zertifikatskette und DNS-Hostname wurden am 2026-10-06 erfolgreich verifiziert; die rohe IP ist erwartungsgemaess kein Zertifikats-SAN |
 | OpenClaw-LAN-Adresse | `192.168.2.38/24` auf `enp2s0`, am 2026-10-06 read-only beobachtet |
 | HTTPS-Reverse-Proxy fuer Talk-Webhook | auf dem OpenClaw-Rechner vorgesehen; `443/tcp` und `8788/tcp` waren am Messzeitpunkt unbelegt |
-| angelegter Webhook-Alias | `home-agent`, von Jan am 2026-10-06 benannt; der autoritative DNS-Server `192.168.2.3` liefert `192.168.2.38` mit TTL 0 |
-| Runtime-DNS-Eignung | direkte DNS-Abfrage aus dem Gatewaynetz gegen `192.168.2.3` ist erfolgreich; Dockers Standardresolver lehnt den einteiligen Namen mit `SERVFAIL` ab, daher noch keine belastbare produktive URL |
+| Webhook-DNS-Name | `home-agent.home.arpa`, von Jan angelegt und am 2026-10-07 gegen den autoritativen DNS-Server, den Host-Resolver und Dockers Standardresolver jeweils als `192.168.2.38` verifiziert |
+| veralteter Kurzname | `home-agent` wird vom autoritativen DNS-Server nicht mehr geliefert und bleibt wegen seiner zuvor belegten Single-Label-Probleme unbenutzt |
+| Webhook-TLS-Endpunkt | noch nicht vorhanden; TCP-Verbindung zu `home-agent.home.arpa:443` wurde am 2026-10-07 erwartungsgemaess abgelehnt |
 | Nextcloud-Version | `35.0.1` (`Nextcloud Hub 26 Spring`), von Jan am 2026-10-06 bestaetigt; technische Liveabfrage noch ausstehend |
 | Nextcloud-Talk-App serverseitig | installiert und aktiviert, Version `25.0.5`, von Jan am 2026-10-06 bestaetigt; technische Liveabfrage noch ausstehend |
 | primaeres Telefonbetriebssystem | Android, von Jan am 2026-10-06 bestaetigt |
@@ -150,11 +151,10 @@ betriebsseitig bestaetigt. Eine technische Liveabfrage bleibt Teil der spaeteren
 realen Abnahme. M17.0 kann erst `ABGENOMMEN` werden, wenn ausserdem read-only
 geklaert ist:
 
-- vollstaendig qualifizierter LAN-DNS-Name, bevorzugt
-  `home-agent.home.arpa -> 192.168.2.38`, der auch ueber Dockers Standardresolver
-  stabil aufloest;
-- Zertifikat fuer diesen vollstaendigen Namen, dessen ausstellender CA der
+- Zertifikat fuer `home-agent.home.arpa`, dessen ausstellender CA der
   Nextcloud-Server vertraut;
+- HTTPS-Reverse-Proxy auf `192.168.2.38:443` mit exakter Pfad-, Methoden-,
+  Quelladress-, Groessen- und Rate-Grenze;
 - read-only Erreichbarkeitsbeleg vom Nextcloud-Server zum geplanten Webhookhost.
 
 Diese Angaben autorisieren noch keine Botanlage, Portfreigabe oder
