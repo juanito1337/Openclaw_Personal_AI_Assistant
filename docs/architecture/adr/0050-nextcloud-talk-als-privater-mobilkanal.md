@@ -35,6 +35,13 @@ exakten Pfad `/nextcloud-talk-webhook` weiter. Port `18789` und alle anderen
 Gatewaypfade bleiben unveraendert auf Host-Loopback und werden nicht durch diese
 Route erreichbar.
 
+Nextcloud und OpenClaw laufen auf getrennten Rechnern. Der Reverse-Proxy wird
+deshalb vom OpenClaw-Rechner betrieben und nimmt die Webhookverbindung nur an
+einer privaten, vom Nextcloud-Server erreichbaren Adresse an. Seine Firewall-
+und Proxy-Allowlist wird auf die stabile Quelladresse des Nextcloud-Servers
+begrenzt; der konkrete private Netzpfad und DNS-Name werden erst nach
+read-only-Netzwerkerhebung festgelegt.
+
 Die erste Aktivierung verwendet genau einen dedizierten Talk-Raum. Sowohl die
 stabile Nextcloud-Benutzer-ID als auch der Raumtoken muessen allowlisted sein;
 Gruppenwildcards, Gaeste und offene DMs bleiben deaktiviert. Diese doppelte

@@ -5,9 +5,10 @@ Datum: 2026-10-05
 Status: `M17.0 TEILWEISE ABGENOMMEN`. Die lokale und produktive Runtimebaseline
 ist read-only erhoben. Jan hat am 2026-10-06 Android als primaeres
 Telefonbetriebssystem sowie Nextcloud `35.0.1` und die aktivierte serverseitige
-Talk-App `25.0.5` bestaetigt. Offen sind noch Standort/Eigner des geplanten
-HTTPS-Reverse-Proxys und die Erreichbarkeit seines privaten Webhookhosts vom
-Nextcloud-Server. Es wurde kein Plugin installiert, kein Bot angelegt, kein
+Talk-App `25.0.5` bestaetigt. Nextcloud und OpenClaw laufen auf getrennten
+Rechnern; der geplante HTTPS-Reverse-Proxy gehoert auf den OpenClaw-Rechner.
+Offen sind noch der private Netzpfad und die Erreichbarkeit seines Webhookhosts
+vom Nextcloud-Server. Es wurde kein Plugin installiert, kein Bot angelegt, kein
 Secret geaendert und kein Port freigegeben.
 
 ## Quell- und Releaseidentitaet
@@ -107,7 +108,8 @@ Proxy bereitstellen. Alternativ waere ein eigener Coreupgrade-Milestone noetig.
 | --- | --- |
 | Gateway auf Host-Loopback | vorhanden und belegt |
 | WireGuard-Interface am Entwicklungsrechner | zum Messzeitpunkt nicht beobachtet; keine Negativaussage ueber andere Hosts oder inaktive Profile |
-| HTTPS-Reverse-Proxy fuer Talk-Webhook | Standort, Eigner und privater Erreichbarkeitspfad noch nicht festgelegt |
+| Nextcloud-/OpenClaw-Topologie | getrennte Rechner, von Jan am 2026-10-06 bestaetigt |
+| HTTPS-Reverse-Proxy fuer Talk-Webhook | auf dem OpenClaw-Rechner vorgesehen; privater Erreichbarkeitspfad noch nicht festgelegt |
 | Nextcloud-Version | `35.0.1` (`Nextcloud Hub 26 Spring`), von Jan am 2026-10-06 bestaetigt; technische Liveabfrage noch ausstehend |
 | Nextcloud-Talk-App serverseitig | installiert und aktiviert, Version `25.0.5`, von Jan am 2026-10-06 bestaetigt; technische Liveabfrage noch ausstehend |
 | primaeres Telefonbetriebssystem | Android, von Jan am 2026-10-06 bestaetigt |
@@ -123,6 +125,10 @@ nicht durchsucht oder ausgegeben.
   nur auf `127.0.0.1:8788` des Hosts publiziert.
 - Ein hostlokaler HTTPS-Reverse-Proxy darf nur
   `/nextcloud-talk-webhook` an diesen Loopbackport weiterleiten.
+- Weil Nextcloud auf einem separaten Rechner laeuft, nimmt der Proxy die
+  Server-zu-Server-Verbindung an einer privaten Adresse des OpenClaw-Rechners
+  an. Die Firewall erlaubt dabei nur die belegte Quelladresse des
+  Nextcloud-Servers.
 - Der Gateway-Port `18789` bleibt unveraendert loopbackgebunden und wird nicht
   zum Mobilendpoint.
 - Der erste produktive Schnitt behandelt den freigegebenen Talk-Raum als
@@ -137,7 +143,7 @@ betriebsseitig bestaetigt. Eine technische Liveabfrage bleibt Teil der spaeteren
 realen Abnahme. M17.0 kann erst `ABGENOMMEN` werden, wenn ausserdem read-only
 geklaert ist:
 
-- Standort/Eigner des HTTPS-Reverse-Proxys;
+- privater Netzpfad zwischen Nextcloud- und OpenClaw-Rechner;
 - private IP beziehungsweise DNS-Name des geplanten Webhookhosts;
 - Erreichbarkeit dieses Webhookhosts vom Nextcloud-Server.
 
