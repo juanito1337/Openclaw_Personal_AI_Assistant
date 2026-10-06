@@ -44,10 +44,13 @@ wird auf die stabile Nextcloud-Quelladresse `192.168.2.3` begrenzt. Am
 OpenClaw-Rechner wurde `192.168.2.38/24` read-only beobachtet. Nextcloud ist
 ueber `1337-cloud.ddns.net` erreichbar; der Name loest im lokalen Netz auf
 `192.168.2.3` auf und seine TLS-Kette sowie DNS-Identitaet werden auf dem
-OpenClaw-Rechner akzeptiert. Fuer den separaten Webhookhost ist `home-agent`
-festgelegt. Vor Aktivierung muessen der LAN-DNS-Eintrag auf `192.168.2.38` und
-ein vom Nextcloud-Server validierbares Zertifikat mit `DNS:home-agent` belegt
-werden; am 2026-10-06 war beides noch nicht vorhanden.
+OpenClaw-Rechner akzeptiert. Fuer den separaten Webhookhost wurde zunaechst der
+lokale Alias `home-agent` angelegt; der autoritative DNS-Server liefert dafuer
+`192.168.2.38`. Der einteilige Name wird jedoch von Dockers Standardresolver
+mit `SERVFAIL` abgelehnt und ist deshalb keine produktive TLS-Identitaet. Vor
+Aktivierung werden ein vollstaendig qualifizierter LAN-Name, bevorzugt
+`home-agent.home.arpa`, und ein vom Nextcloud-Server validierbares Zertifikat
+fuer exakt diesen Namen belegt.
 
 Die erste Aktivierung verwendet genau einen dedizierten Talk-Raum. Sowohl die
 stabile Nextcloud-Benutzer-ID als auch der Raumtoken muessen allowlisted sein;
