@@ -42,10 +42,14 @@ eigene Lebensdauer, Healthgrenze und Fehlergrenze geben.
 
 Der Stack verwendet kein Hostnetz. `backend` ist ein internes Bridge-Netz fuer
 Gateway/Proxy/interne Aufrufer, `egress` nur fuer Rollen mit externen Abhaengigkeiten.
-Gateway publiziert als einzigen Port standardmaessig `127.0.0.1:18789`. Nur der
-Ollama-Proxy erhaelt den in ADR-0008 begruendeten Host-Gateway-Alias; sein Port 11435
-bleibt ausschliesslich im Backend. Only one set of writer containers may run at a
-time.
+Die Gatewayrolle publiziert standardmaessig nur zwei Host-Loopback-Ports:
+`127.0.0.1:18789` fuer das Gateway und `127.0.0.1:8788` fuer den separaten,
+standardmaessig nicht konfigurierten Nextcloud-Talk-Webhooklistener. Ein
+separat freizugebender HTTPS-Reverse-Proxy darf ausschliesslich den exakten
+Webhookpfad an `8788` weiterleiten; `18789` wird dadurch nicht erreichbar. Nur
+der Ollama-Proxy erhaelt den in ADR-0008 begruendeten Host-Gateway-Alias; sein
+Port 11435 bleibt ausschliesslich im Backend. Only one set of writer containers
+may run at a time.
 
 Der konfigurierte Ollama-Upstream muss vom Docker-Host-Gateway erreichbar sein.
 Ein ausschliesslich an Host-Loopback gebundener Daemon ist aus einem Bridge-Container
@@ -68,7 +72,8 @@ One immutable OpenClaw release
 │
 ├── runtime image
 │   ├── openclaw-gateway
-│   └── openclaw gateway --bind lan --port 18789
+│   ├── openclaw gateway --bind lan --port 18789
+│   └── optionaler Talk-Listener 8788, nur Host-Loopback publiziert
 │
 │   ├── openclaw-mail-worker
 │   └── job_loop.py mail

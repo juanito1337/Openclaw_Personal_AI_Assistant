@@ -10,7 +10,10 @@
     "logging_max_file": "3"
   },
   "published_ports": {
-    "gateway": [{"mode": "ingress", "host_ip": "127.0.0.1", "published": "18789", "target": 18789, "protocol": "tcp"}]
+    "gateway": [
+      {"mode": "ingress", "host_ip": "127.0.0.1", "published": "18789", "target": 18789, "protocol": "tcp"},
+      {"mode": "ingress", "host_ip": "127.0.0.1", "published": "8788", "target": 8788, "protocol": "tcp"}
+    ]
   },
   "roles": {
     "layout-init": {"user": "1000:1000", "networks": [], "pids": 128, "memory": 1073741824, "cpus": 1.0, "env_files": [], "secret_files": []},

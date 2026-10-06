@@ -115,6 +115,7 @@ Proxy bereitstellen. Alternativ waere ein eigener Coreupgrade-Milestone noetig.
 | Nextcloud-DNS-/TLS-Identitaet | `1337-cloud.ddns.net` loest lokal auf `192.168.2.3` auf; TLS 1.3, Zertifikatskette und DNS-Hostname wurden am 2026-10-06 erfolgreich verifiziert; die rohe IP ist erwartungsgemaess kein Zertifikats-SAN |
 | OpenClaw-LAN-Adresse | `192.168.2.38/24` auf `enp2s0`, am 2026-10-06 read-only beobachtet |
 | HTTPS-Reverse-Proxy fuer Talk-Webhook | auf dem OpenClaw-Rechner vorgesehen; `443/tcp` und `8788/tcp` waren am Messzeitpunkt unbelegt |
+| geplanter Webhookname | `home-agent`, von Jan am 2026-10-06 benannt; loest auf dem OpenClaw-Rechner noch nicht auf und besitzt dort noch keinen TLS-Endpunkt |
 | Nextcloud-Version | `35.0.1` (`Nextcloud Hub 26 Spring`), von Jan am 2026-10-06 bestaetigt; technische Liveabfrage noch ausstehend |
 | Nextcloud-Talk-App serverseitig | installiert und aktiviert, Version `25.0.5`, von Jan am 2026-10-06 bestaetigt; technische Liveabfrage noch ausstehend |
 | primaeres Telefonbetriebssystem | Android, von Jan am 2026-10-06 bestaetigt |
@@ -148,8 +149,9 @@ betriebsseitig bestaetigt. Eine technische Liveabfrage bleibt Teil der spaeteren
 realen Abnahme. M17.0 kann erst `ABGENOMMEN` werden, wenn ausserdem read-only
 geklaert ist:
 
-- interner DNS-Name und vertrauenswuerdiges TLS-Zertifikatsmodell fuer den
-  Webhookhost auf dem OpenClaw-Rechner;
+- LAN-DNS-Eintrag `home-agent -> 192.168.2.38`;
+- Zertifikat mit `DNS:home-agent`, dessen ausstellender CA der Nextcloud-Server
+  vertraut;
 - read-only Erreichbarkeitsbeleg vom Nextcloud-Server zum geplanten Webhookhost.
 
 Diese Angaben autorisieren noch keine Botanlage, Portfreigabe oder

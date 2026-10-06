@@ -186,6 +186,10 @@ raise SystemExit(86)
     def test_only_gateway_publishes_loopback_port(self) -> None:
         published = {name: value.get("ports", []) for name, value in self.compose["services"].items()}
         self.assertEqual(published["gateway"], self.contract["published_ports"]["gateway"])
+        self.assertEqual(
+            {(item["host_ip"], item["published"], item["target"]) for item in published["gateway"]},
+            {("127.0.0.1", "18789", 18789), ("127.0.0.1", "8788", 8788)},
+        )
         self.assertTrue(all(not ports for name, ports in published.items() if name != "gateway"))
         self.assertFalse(self.contract["exceptions"]["host_network_roles"])
         self.assertEqual(self.contract["exceptions"]["host_gateway_roles"], ["ollama-proxy"])

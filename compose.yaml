@@ -215,6 +215,10 @@ services:
     command: ["openclaw", "gateway", "--bind", "lan", "--port", "18789"]
     ports:
       - ${OPENCLAW_GATEWAY_BIND_ADDRESS:-127.0.0.1}:${OPENCLAW_GATEWAY_PORT:-18789}:18789
+      # The pinned Nextcloud Talk plugin owns a separate webhook listener.
+      # It remains host-loopback-only; a separately approved HTTPS reverse
+      # proxy exposes only /nextcloud-talk-webhook to the Nextcloud server.
+      - ${OPENCLAW_TALK_BIND_ADDRESS:-127.0.0.1}:${OPENCLAW_TALK_WEBHOOK_PORT:-8788}:8788
     networks: [backend, egress]
     depends_on:
       layout-init:

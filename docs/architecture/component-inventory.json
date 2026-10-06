@@ -1991,7 +1991,7 @@
         "docs/MOBILE_NEXTCLOUD_TALK_ROADMAP.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-05T22:34:05+02:00",
+      "last_git_change": "2026-10-06T12:54:58+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -2011,7 +2011,7 @@
         "docs/ROADMAP.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-05T22:34:05+02:00",
+      "last_git_change": "2026-10-06T10:30:35+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -3780,7 +3780,7 @@
         "docs/architecture/owners.json"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-05T22:34:05+02:00",
+      "last_git_change": "2026-10-06T12:54:58+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
