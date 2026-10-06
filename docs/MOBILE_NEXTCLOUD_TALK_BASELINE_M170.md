@@ -3,10 +3,12 @@
 Datum: 2026-10-05
 
 Status: `M17.0 TEILWEISE ABGENOMMEN`. Die lokale und produktive Runtimebaseline
-ist read-only erhoben. Zwei Betriebsangaben bleiben offen: das primaere
-Telefonbetriebssystem und der aktuelle serverseitige Nextcloud-Talk-Appstatus.
-Es wurde kein Plugin installiert, kein Bot angelegt, kein Secret geaendert und
-kein Port freigegeben.
+ist read-only erhoben. Jan hat am 2026-10-06 Android als primaeres
+Telefonbetriebssystem sowie Nextcloud `35.0.1` und die aktivierte serverseitige
+Talk-App `25.0.5` bestaetigt. Offen sind noch Standort/Eigner des geplanten
+HTTPS-Reverse-Proxys und die Erreichbarkeit seines privaten Webhookhosts vom
+Nextcloud-Server. Es wurde kein Plugin installiert, kein Bot angelegt, kein
+Secret geaendert und kein Port freigegeben.
 
 ## Quell- und Releaseidentitaet
 
@@ -105,10 +107,10 @@ Proxy bereitstellen. Alternativ waere ein eigener Coreupgrade-Milestone noetig.
 | --- | --- |
 | Gateway auf Host-Loopback | vorhanden und belegt |
 | WireGuard-Interface am Entwicklungsrechner | zum Messzeitpunkt nicht beobachtet; keine Negativaussage ueber andere Hosts oder inaktive Profile |
-| HTTPS-Reverse-Proxy fuer Talk-Webhook | nicht gemessen |
-| Nextcloud-Version | historischer Monitoringbeleg `34.0.1`; aktuelle Liveversion nicht gemessen |
-| Nextcloud-Talk-App serverseitig | nicht gemessen |
-| primaeres Telefonbetriebssystem | Information erforderlich |
+| HTTPS-Reverse-Proxy fuer Talk-Webhook | Standort, Eigner und privater Erreichbarkeitspfad noch nicht festgelegt |
+| Nextcloud-Version | `35.0.1` (`Nextcloud Hub 26 Spring`), von Jan am 2026-10-06 bestaetigt; technische Liveabfrage noch ausstehend |
+| Nextcloud-Talk-App serverseitig | installiert und aktiviert, Version `25.0.5`, von Jan am 2026-10-06 bestaetigt; technische Liveabfrage noch ausstehend |
+| primaeres Telefonbetriebssystem | Android, von Jan am 2026-10-06 bestaetigt |
 | mobile Talk-App | nicht gemessen |
 
 Secretpfade, produktive Nextcloud-Zugangsdaten und Gatewaykonfiguration wurden
@@ -130,13 +132,14 @@ nicht durchsucht oder ausgegeben.
 
 ## Offene Abnahmepunkte
 
-M17.0 kann erst `ABGENOMMEN` werden, wenn Jan das primaere Telefonbetriebssystem
-benannt hat und der Nextcloud-Administrator read-only bestaetigt hat:
+Android, Nextcloud `35.0.1` und die aktivierte Talk-App `25.0.5` sind
+betriebsseitig bestaetigt. Eine technische Liveabfrage bleibt Teil der spaeteren
+realen Abnahme. M17.0 kann erst `ABGENOMMEN` werden, wenn ausserdem read-only
+geklaert ist:
 
-- aktuelle Nextcloud-Version;
-- installierte und aktivierte Talk-App-Version;
 - Standort/Eigner des HTTPS-Reverse-Proxys;
-- Erreichbarkeit des geplanten Webhookhosts vom Nextcloud-Server.
+- private IP beziehungsweise DNS-Name des geplanten Webhookhosts;
+- Erreichbarkeit dieses Webhookhosts vom Nextcloud-Server.
 
 Diese Angaben autorisieren noch keine Botanlage, Portfreigabe oder
 Konfigurationsaenderung.

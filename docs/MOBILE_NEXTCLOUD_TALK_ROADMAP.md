@@ -147,8 +147,10 @@ Die Entscheidung ist in ADR-0050 dokumentiert.
 
 ## M17.0 – Infrastruktur- und Kompatibilitaetsbaseline
 
-Status: am 2026-10-05 lokal und gegen die laufende Runtime read-only erhoben;
-wegen fehlender Telefon- und serverseitiger Talk-App-Evidenz noch
+Status: am 2026-10-05 lokal und gegen die laufende Runtime read-only erhoben.
+Android, Nextcloud `35.0.1` und die aktivierte Talk-App `25.0.5` wurden am
+2026-10-06 von Jan bestaetigt. Wegen des noch nicht festgelegten privaten
+Reverse-Proxy- und Webhookpfads bleibt der Status
 `M17.0 TEILWEISE ABGENOMMEN`. Details:
 [`MOBILE_NEXTCLOUD_TALK_BASELINE_M170.md`](MOBILE_NEXTCLOUD_TALK_BASELINE_M170.md).
 
