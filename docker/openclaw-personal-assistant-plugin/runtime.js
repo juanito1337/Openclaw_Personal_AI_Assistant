@@ -470,10 +470,11 @@ function normalizedText(value) {
 
 const ACTION_EXECUTE_PATTERNS = [
   /\b(?:trag|trage|tragt|tragen)\b.{0,80}\b(?:ein|kalender)\b/iu,
-  /\b(?:eintragen|anlegen|erstellen|importier(?:e|en|t)|verschieben|aktualisieren|abschliessen|abschließen|send(?:e|en|et)|verschick(?:e|en|t)|beantwort(?:e|en|et))\b/iu,
+  /\bleit(?:e|en|et)\b.{0,160}\bweiter\b/iu,
+  /\b(?:eintragen|anlegen|erstellen|importier(?:e|en|t)|verschieben|aktualisieren|abschliessen|abschließen|send(?:e|en|et)|verschick(?:e|en|t)|beantwort(?:e|en|et)|weiterleit(?:e|en|et))\b/iu,
   /\b(?:fuehre|führe)\b.{0,40}\b(?:aus|durch)\b/iu,
   /\b(?:crea|crear|anade|añade|agrega|envia|envía|actualiza|mueve|completa)\b/iu,
-  /\b(?:create|add|send|move|update|complete)\b/iu,
+  /\b(?:create|add|send|move|update|complete|forward)\b/iu,
 ];
 const ACTION_PREVIEW_PATTERNS = [
   /\b(?:vorschau|preview|dry[- ]?run|simulier)\w*\b/iu,
@@ -589,7 +590,7 @@ export function advanceActionObligation(contract, obligation, operation, evidenc
     ) {
       return { ...result, status: "terminal", terminal_state: "blocked", last_error: "unexpected-write-operation" };
     }
-    if (["mail.reply-draft", "mail.compose-draft"].includes(operation.tool_id)) {
+    if (["mail.reply-draft", "mail.compose-draft", "mail.forward-draft"].includes(operation.tool_id)) {
       return {
         ...result,
         status: "terminal",

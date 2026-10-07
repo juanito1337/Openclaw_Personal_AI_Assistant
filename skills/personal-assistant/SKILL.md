@@ -89,12 +89,16 @@ matching fields. For multiple candidates, process them separately and stop on th
 first failure; report completed, failed and not-attempted targets without delete
 or rollback claims.
 
-For mail, `mail.reply-draft` and `mail.compose-draft` only prepare and return a
-complete immutable draft. Show its recipient, subject and full body. Do not call
+For mail, `mail.reply-draft`, `mail.compose-draft` and `mail.forward-draft` only
+prepare and return a complete immutable draft. Show its recipient, subject and
+full body; for a forward also show the ZIP attachment and the names of the
+physical attachments preserved inside the unchanged original `.eml`. Do not call
 that sent or continue to a send in the same turn: finish as `approval-required`.
 Only a later explicit instruction to send that unchanged draft may call the
-matching `mail.reply-send` or `mail.compose-send`, which has a separate native
-allow-once approval and must return a verified completed postcondition.
+matching `mail.reply-send`, `mail.compose-send` or `mail.forward-send`, which has
+a separate native allow-once approval and must return a verified completed
+postcondition. A forward must re-read the exact source, match its SHA-256 and pass
+the fail-closed raw-mail and physical-attachment antivirus gate before SMTP.
 
 ## Writes and failures
 

@@ -952,6 +952,22 @@
     "approval": "explicit-user-approved-presented-draft"
   },
   {
+    "id": "mail.forward-draft",
+    "description": "Eine eindeutig ausgewaehlte Originalmail nach fail-closed Virenscan samt ihrer vollstaendigen MIME-Struktur und aller Original-Anhaenge als unveraenderte ZIP-Weiterleitung vorbereiten und Empfaenger, Betreff, Text sowie Anhang anzeigen",
+    "command": "./scripts/assistant.sh mail forward-draft --folder \"<Ordner>\" --message-id \"<ID>\" --expected-subject \"<Betreff>\" --to \"<Empfaenger>\" --body \"<Entwurf>\"",
+    "mode": "local-write",
+    "writes_external_data": false,
+    "approval": "draft-only-no-send"
+  },
+  {
+    "id": "mail.forward-send",
+    "description": "Nur eine zuvor angezeigte und am unveraenderten Quell-Digest gebundene Originalmail-Weiterleitung nach ausdruecklicher Nutzerfreigabe versenden",
+    "command": "./scripts/assistant.sh mail forward-send --draft-id \"<Entwurfs-ID>\" --yes",
+    "mode": "write",
+    "writes_external_data": true,
+    "approval": "explicit-user-approved-presented-draft"
+  },
+  {
     "id": "mail.move",
     "description": "Eine eindeutig per Mail-ID ausgewaehlte Mail zwischen vorhandenen, nicht-destruktiven Ordnern verschieben",
     "command": "./scripts/assistant.sh mail move --source \"<Quelle>\" --destination \"<Ziel>\" --message-id \"<ID>\" --expected-subject \"<Betreff>\"",

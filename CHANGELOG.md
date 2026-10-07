@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Der native Agent-Werkzeugvertrag enthaelt einen getrennten
+  `mail.forward-draft`-/`mail.forward-send`-Ablauf fuer exakt ausgewaehlte
+  Nachrichten. Die vollstaendige Originalmail und alle Originalanhaenge werden
+  als digestgebundene `original-message.eml.zip` weitergegeben.
+- Vor Entwurf und Versand prueft ClamAV fail-closed die komplette Rohmail und
+  jeden physischen Anhang; der Versand liest die Quelle erneut und bricht bei
+  geaendertem SHA-256 vor SMTP ab.
+- Das ZIP wird mit begrenztem Zusatzspeicher atomar in eine temporaere
+  mode-0600-Datei geschrieben. Entwurf und Versand bleiben getrennt, und der
+  Versand erfordert weiterhin eine native Einmalfreigabe.
+
 ## 3.4.0-r29.0.3 – Vollstaendige Terminfreigaben und CalDAV-Kompatibilitaet
 
 - Terminfreigabemails enthalten die vollstaendige Originalmail wieder als

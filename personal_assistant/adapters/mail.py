@@ -12,6 +12,7 @@ from typing import Any
 
 from mail_agent.command import CommandRunner
 from mail_agent.config import load_config as load_mail_config
+from mail_agent.forwarding import write_original_message_zip
 from mail_agent.himalaya import HimalayaClient
 from mail_agent.imap_inventory import ImapInventoryError, native_backend
 from mail_agent.index_quarantine import (
@@ -26,6 +27,7 @@ from mail_agent.parser import parse_eml
 from mail_agent.search_backfill import (
     BackfillEnvelope,
     BackfillFolder,
+    physical_attachments,
     require_index_antivirus_ready,
 )
 from mail_agent.utils import clean_single_line
@@ -69,12 +71,14 @@ class MailMoveService:
         policy: PolicyEngine,
         storage: AssistantStorage,
         client: HimalayaClient | None = None,
+        antivirus: HostAntivirus | None = None,
     ) -> None:
         self.settings = settings
         self.registry = registry
         self.policy = policy
         self.storage = storage
         self._client_override = client
+        self._antivirus_override = antivirus
 
     def _client(self) -> HimalayaClient:
         if self._client_override is not None:
@@ -1045,11 +1049,180 @@ class MailMoveService:
             "requires_explicit_approval": True,
         }
 
+    @staticmethod
+    def _file_sha256(path: Path) -> str:
+        digest = hashlib.sha256()
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+
+    @classmethod
+    def _write_forward_archive(cls, path: Path, raw: bytes) -> str:
+        """Write a byte-stable archive and hash it with bounded extra memory."""
+
+        write_original_message_zip(path, raw)
+        return cls._file_sha256(path)
+
+    def _scan_forward_source(self, message: ParsedMessage) -> dict[str, Any]:
+        owned_antivirus: HostAntivirus | None = None
+        antivirus = self._antivirus_override
+        if antivirus is None:
+            antivirus_settings = load_tool_settings().security.antivirus
+            if not (
+                antivirus_settings.enabled
+                and antivirus_settings.fail_closed
+                and antivirus_settings.scan_raw_mail
+                and antivirus_settings.scan_attachments
+            ):
+                raise PermissionError(
+                    "Mailweiterleitung benoetigt aktivierten fail-closed Raw- und Attachment-Scan"
+                )
+            owned_antivirus = HostAntivirus(antivirus_settings)
+            antivirus = owned_antivirus
+        try:
+            readiness = require_index_antivirus_ready(antivirus)
+            raw_scan = antivirus.scan_bytes(
+                message.raw,
+                name="original-message.eml",
+                source_type="mail-forward-raw",
+            )
+            if not bool(getattr(raw_scan, "clean", False)):
+                raise PermissionError(
+                    "Originalmail wurde durch den Virenscan blockiert: "
+                    + str(getattr(raw_scan, "status", "scanner-error"))
+                )
+            attachment_names: list[str] = []
+            for name, payload in physical_attachments(message.raw):
+                attachment_scan = antivirus.scan_bytes(
+                    payload,
+                    name=name,
+                    source_type="mail-forward-attachment",
+                )
+                if not bool(getattr(attachment_scan, "clean", False)):
+                    raise PermissionError(
+                        "Originalanhang wurde durch den Virenscan blockiert: "
+                        + str(getattr(attachment_scan, "status", "scanner-error"))
+                    )
+                attachment_names.append(name)
+            return {
+                "raw_sha256": hashlib.sha256(message.raw).hexdigest(),
+                "scanner_identity": str(getattr(raw_scan, "scanner_identity", "")),
+                "scanner_ready": bool(readiness.get("index_ready")),
+                "attachment_count": len(attachment_names),
+                "attachment_names": attachment_names,
+            }
+        finally:
+            if owned_antivirus is not None:
+                owned_antivirus.close()
+
+    def draft_forward(
+        self,
+        folder: str,
+        message_id: str,
+        recipient: str,
+        body: str,
+        *,
+        expected_subject: str = "",
+    ) -> dict[str, Any]:
+        """Prepare an exact-source forward without sending external data."""
+
+        message = self.read_message(folder, message_id, expected_subject=expected_subject)
+        normalized_recipient = self._recipient(recipient)
+        message_body = str(body or "").strip().replace("<#", "< #")
+        if not message_body:
+            raise ValueError("Begleittext der Weiterleitung darf nicht leer sein")
+        subject = message.subject.strip()
+        if not subject.casefold().startswith(("fwd:", "wg:")):
+            subject = f"Fwd: {subject}"
+        subject = clean_single_line(subject, 900)
+        scan = self._scan_forward_source(message)
+        source_sha256 = str(scan["raw_sha256"])
+        attachment_name = "original-message.eml.zip"
+        with tempfile.TemporaryDirectory(prefix="openclaw-mail-forward-preview-") as folder_path:
+            archive_path = Path(folder_path) / attachment_name
+            attachment_sha256 = self._write_forward_archive(archive_path, message.raw)
+        complete_body = (
+            message_body + "\n\nDie vollstaendige Originalmail inklusive ihrer MIME-Struktur und aller "
+            "Original-Anhaenge ist unveraendert als ZIP angehaengt."
+        )
+        payload = {
+            "draft_kind": "forward",
+            "folder": message.source_folder,
+            "mailbox_id": message.mailbox_id,
+            "expected_subject": message.subject,
+            "recipient": normalized_recipient,
+            "subject": subject,
+            "body": complete_body,
+            "source_sha256": source_sha256,
+            "attachment_name": attachment_name,
+            "attachment_sha256": attachment_sha256,
+            "original_attachment_names": list(scan["attachment_names"]),
+        }
+        decision = self.policy.decide(self.settings.resource_id, "mail.send", payload)
+        if not decision.allowed:
+            raise PermissionError(decision.reason)
+        material = "\0".join(
+            (
+                message.source_folder.casefold(),
+                message.mailbox_id,
+                source_sha256,
+                normalized_recipient,
+                subject,
+                complete_body,
+            )
+        )
+        plan = self.storage.create_action(
+            idempotency_key="mail-forward:" + hashlib.sha256(material.encode("utf-8")).hexdigest(),
+            action_type="mail.send",
+            resource_id=self.settings.resource_id,
+            payload=payload,
+            requires_approval=True,
+        )
+        self.storage.audit(
+            "mail.forward.drafted",
+            {
+                "id": plan.id,
+                "folder": message.source_folder,
+                "mailbox_id": message.mailbox_id,
+                "recipient": normalized_recipient,
+                "source_sha256": source_sha256,
+                "attachment_count": int(scan["attachment_count"]),
+            },
+            resource_id=plan.resource_id,
+        )
+        return {
+            "ok": True,
+            "draft_id": plan.id,
+            "status": plan.status,
+            "to": normalized_recipient,
+            "subject": subject,
+            "body": complete_body,
+            "attachment": {
+                "name": attachment_name,
+                "content_type": "application/zip",
+                "sha256": payload["attachment_sha256"],
+                "contains": "original-message.eml",
+                "original_attachment_names": list(scan["attachment_names"]),
+            },
+            "source_sha256": source_sha256,
+            "antivirus": {
+                "ready": bool(scan["scanner_ready"]),
+                "scanner_identity": str(scan["scanner_identity"]),
+                "raw_clean": True,
+                "attachments_clean": True,
+            },
+            "requires_explicit_approval": True,
+        }
+
     def send_reply(self, draft_id: str, *, approved: bool = False) -> dict[str, Any]:
         return self._send_draft(draft_id, approved=approved, expected_kind="reply")
 
     def send_message(self, draft_id: str, *, approved: bool = False) -> dict[str, Any]:
         return self._send_draft(draft_id, approved=approved, expected_kind="compose")
+
+    def send_forward(self, draft_id: str, *, approved: bool = False) -> dict[str, Any]:
+        return self._send_draft(draft_id, approved=approved, expected_kind="forward")
 
     def _send_draft(
         self,
@@ -1077,8 +1250,41 @@ class MailMoveService:
         decision = self.policy.decide(self.settings.resource_id, "mail.send", payload)
         if not decision.allowed:
             raise PermissionError(decision.reason)
+        event_prefix = {
+            "reply": "mail.reply",
+            "compose": "mail.compose",
+            "forward": "mail.forward",
+        }[actual_kind]
+        forward_temp: tempfile.TemporaryDirectory[str] | None = None
+        forward_archive_path: Path | None = None
+        if actual_kind == "forward":
+            try:
+                source = self.read_message(
+                    str(payload["folder"]),
+                    str(payload["mailbox_id"]),
+                    expected_subject=str(payload["expected_subject"]),
+                )
+                source_sha256 = hashlib.sha256(source.raw).hexdigest()
+                if source_sha256 != str(payload.get("source_sha256") or ""):
+                    raise PermissionError("Originalmail hat sich seit dem angezeigten Entwurf geaendert")
+                self._scan_forward_source(source)
+                forward_temp = tempfile.TemporaryDirectory(prefix="openclaw-mail-forward-")
+                os.chmod(forward_temp.name, 0o700)
+                forward_archive_path = Path(forward_temp.name) / str(payload["attachment_name"])
+                archive_sha256 = self._write_forward_archive(forward_archive_path, source.raw)
+                if archive_sha256 != str(payload.get("attachment_sha256") or ""):
+                    raise PermissionError("ZIP-Anhang stimmt nicht mehr mit dem angezeigten Entwurf ueberein")
+            except Exception as exc:
+                if forward_temp is not None:
+                    forward_temp.cleanup()
+                self.storage.update_action(plan.id, "failed", str(exc)[:1000])
+                self.storage.audit(
+                    "mail.forward.failed",
+                    {"id": plan.id, "error_type": type(exc).__name__},
+                    resource_id=plan.resource_id,
+                )
+                raise
         approved_plan = self.storage.update_action(plan.id, "approved")
-        event_prefix = "mail.reply" if actual_kind == "reply" else "mail.compose"
         self.storage.audit(
             f"{event_prefix}.approved", {"id": plan.id}, resource_id=plan.resource_id, actor="user"
         )
@@ -1092,8 +1298,45 @@ class MailMoveService:
         source_message_id = clean_single_line(str(payload.get("source_message_id") or ""), 500)
         if source_message_id:
             headers.extend([f"In-Reply-To: {source_message_id}", f"References: {source_message_id}"])
-        template = "\n".join(headers) + "\n\n" + str(payload["body"]) + "\n"
-        result = client.send_template(template)
+        if actual_kind == "forward":
+            assert forward_temp is not None
+            assert forward_archive_path is not None
+            template = (
+                "\n".join(headers)
+                + "\n\n"
+                + "\n".join(
+                    (
+                        "<#multipart type=mixed>",
+                        "<#part type=text/plain>",
+                        str(payload["body"]),
+                        (
+                            "<#part type=application/zip "
+                            f"filename={forward_archive_path} "
+                            f"name={payload['attachment_name']}><#/part>"
+                        ),
+                        "<#/multipart>",
+                    )
+                )
+                + "\n"
+            )
+            # Nested original messages can be accepted by SMTP while a later
+            # IMAP APPEND fails. Match the automatic forwarder's unambiguous
+            # transport contract and do not report that APPEND as send failure.
+            try:
+                result = client.send_template(template, save_copy=False)
+            except Exception as exc:
+                self.storage.update_action(approved_plan.id, "failed", str(exc)[:1000])
+                self.storage.audit(
+                    "mail.forward.failed",
+                    {"id": plan.id, "error_type": type(exc).__name__},
+                    resource_id=plan.resource_id,
+                )
+                raise
+            finally:
+                forward_temp.cleanup()
+        else:
+            template = "\n".join(headers) + "\n\n" + str(payload["body"]) + "\n"
+            result = client.send_template(template)
         if not result.ok:
             failed = self.storage.update_action(approved_plan.id, "failed", result.detail)
             self.storage.audit(
@@ -1109,7 +1352,19 @@ class MailMoveService:
             resource_id=plan.resource_id,
             actor=f"user-approved-mail-{actual_kind}",
         )
-        return {"ok": True, "duplicate": False, "draft_id": plan.id, "status": completed.status}
+        response = {
+            "ok": True,
+            "duplicate": False,
+            "draft_id": plan.id,
+            "status": completed.status,
+        }
+        if actual_kind == "forward":
+            response.update(
+                source_sha256=str(payload["source_sha256"]),
+                attachment_name=str(payload["attachment_name"]),
+                attachment_sha256=str(payload["attachment_sha256"]),
+            )
+        return response
 
     def move(
         self,

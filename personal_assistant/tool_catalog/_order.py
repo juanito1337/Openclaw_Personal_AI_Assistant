@@ -121,6 +121,8 @@ TOOL_ORDER: tuple[str, ...] = (
     "mail.reply-send",
     "mail.compose-draft",
     "mail.compose-send",
+    "mail.forward-draft",
+    "mail.forward-send",
     "mail.move",
     "nextcloud.contacts.discover",
     "nextcloud.contacts.configure",

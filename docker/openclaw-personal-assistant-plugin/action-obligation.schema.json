@@ -154,6 +154,7 @@
         "type": "string",
         "enum": [
           "mail.compose-send",
+          "mail.forward-send",
           "mail.move",
           "mail.reply-send",
           "nextcloud.calendar.create",

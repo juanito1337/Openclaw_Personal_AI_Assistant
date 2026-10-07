@@ -40,6 +40,8 @@ class AgentCapabilityExposureTests(unittest.TestCase):
             "mail index doctor",
             "mail compose-draft --to",
             "mail compose-send --draft-id",
+            "mail forward-draft --folder",
+            "mail forward-send --draft-id",
             "invoices files --limit 100",
             "portfolio import-csv --file",
             "portfolio import-csv --nextcloud-path",

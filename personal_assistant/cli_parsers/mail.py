@@ -325,6 +325,20 @@ def add_commands(sub: Any) -> None:
     )
     mail_compose_send.add_argument("--draft-id", required=True)
     mail_compose_send.add_argument("--yes", action="store_true")
+    mail_forward_draft = mail_sub.add_parser(
+        "forward-draft",
+        help="Eine Originalmail samt aller Anhaenge als ZIP-Weiterleitung vorbereiten",
+    )
+    mail_forward_draft.add_argument("--folder", required=True)
+    mail_forward_draft.add_argument("--message-id", required=True)
+    mail_forward_draft.add_argument("--expected-subject", required=True)
+    mail_forward_draft.add_argument("--to", required=True)
+    mail_forward_draft.add_argument("--body", required=True)
+    mail_forward_send = mail_sub.add_parser(
+        "forward-send", help="Eine zuvor angezeigte Originalmail-Weiterleitung versenden"
+    )
+    mail_forward_send.add_argument("--draft-id", required=True)
+    mail_forward_send.add_argument("--yes", action="store_true")
     mail_move = mail_sub.add_parser(
         "move", help="Eine eindeutig identifizierte Mail kontrolliert verschieben"
     )

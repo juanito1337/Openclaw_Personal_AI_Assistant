@@ -229,6 +229,16 @@ def handle(args: argparse.Namespace, assistant: Any, emit: Callable[[Any], None]
         result = assistant.mail_draft_message(args.to, args.subject, args.body)
     elif command == "compose-send":
         result = assistant.mail_send_message(args.draft_id, approved=args.yes)
+    elif command == "forward-draft":
+        result = assistant.mail_draft_forward(
+            args.folder,
+            args.message_id,
+            args.to,
+            args.body,
+            expected_subject=args.expected_subject,
+        )
+    elif command == "forward-send":
+        result = assistant.mail_send_forward(args.draft_id, approved=args.yes)
     elif command == "move":
         result = assistant.mail_move_message(
             source=args.source,

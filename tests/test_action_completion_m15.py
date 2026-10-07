@@ -317,6 +317,28 @@ class ActionIntentAndContractTests(unittest.TestCase):
         self.assertEqual(terminal["write_operations"], [])
         self.assertEqual(terminal["last_error"], "presented-draft-send-approval-required")
 
+    def test_forward_prompt_and_draft_create_bound_send_obligation(self) -> None:
+        prompt = "Leite die ausgewaehlte Mail an recipient@example.invalid weiter."
+        route = route_intent(prompt)
+        obligation = build_action_obligation(prompt, route, turn_id="turn-mail-forward")
+        self.assertIsNotNone(obligation)
+        assert obligation is not None
+        terminal = advance_action_obligation(
+            obligation,
+            operation="mail.forward-draft",
+            mode="local-write",
+            ok=True,
+            postcondition_verified=True,
+            payload={
+                "ok": True,
+                "draft_id": "synthetic-forward",
+                "attachment": {"name": "original-message.eml.zip"},
+            },
+            evidence_turn_id="turn-mail-forward",
+        )
+        self.assertEqual(terminal["terminal_state"], "approval-required")
+        self.assertEqual(terminal["last_error"], "presented-draft-send-approval-required")
+
     def test_explicit_send_of_presented_draft_can_complete_directly(self) -> None:
         prompt = "Sende den bereits vollstaendig angezeigten Mailentwurf jetzt."
         obligation = build_action_obligation(
@@ -613,6 +635,30 @@ class CalendarPostconditionTests(unittest.TestCase):
 
 
 class PluginActionRuntimeTests(unittest.TestCase):
+    def test_node_runtime_recognizes_forward_as_execute_intent(self) -> None:
+        script = r"""
+import {
+  buildActionObligation, routePrompt
+} from './docker/openclaw-personal-assistant-plugin/runtime.js';
+import contract from './docker/openclaw-personal-assistant-plugin/generated-tools.json' with {type:'json'};
+const prompt = 'Leite die ausgewaehlte Mail an recipient@example.invalid weiter.';
+const route = routePrompt(contract, prompt);
+const obligation = buildActionObligation(contract, prompt, route, 'turn-forward');
+console.log(JSON.stringify({route, obligation}));
+"""
+        result = subprocess.run(
+            ["node", "--input-type=module", "-e", script],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertTrue(payload["route"]["resolved"])
+        self.assertEqual(payload["obligation"]["intent"], "execute")
+        self.assertEqual(payload["obligation"]["workflow_kind"], "single-action")
+
     def test_node_runtime_enforces_promise_guard_and_turn_binding(self) -> None:
         script = r"""
 import {

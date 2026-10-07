@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
+import tempfile
 import zipfile
 from contextlib import suppress
 from email.utils import parseaddr
@@ -11,6 +13,31 @@ from .config import Config
 from .himalaya import HimalayaClient
 from .models import Classification, OperationResult, ParsedMessage
 from .utils import atomic_write_bytes, clean_single_line, safe_filename
+
+
+def write_original_message_zip(path: Path, raw: bytes) -> None:
+    """Atomically write a deterministic ZIP without retaining compressed bytes in memory."""
+
+    destination = path.expanduser().resolve()
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{destination.name}.", suffix=".tmp", dir=destination.parent
+    )
+    os.close(descriptor)
+    temporary = Path(temporary_name)
+    try:
+        with zipfile.ZipFile(temporary, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            entry = zipfile.ZipInfo("original-message.eml", date_time=(1980, 1, 1, 0, 0, 0))
+            entry.compress_type = zipfile.ZIP_DEFLATED
+            entry.external_attr = 0o600 << 16
+            with archive.open(entry, "w") as member:
+                view = memoryview(raw)
+                for offset in range(0, len(view), 1024 * 1024):
+                    member.write(view[offset : offset + 1024 * 1024])
+        os.chmod(temporary, 0o600)
+        os.replace(temporary, destination)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 class Forwarder:
@@ -60,8 +87,7 @@ class Forwarder:
         payload_path = self.config.forwarding.payload_dir / payload_name
         zip_path = payload_path.with_suffix(".eml.zip")
         atomic_write_bytes(payload_path, message.raw)
-        with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-            archive.write(payload_path, arcname="original-message.eml")
+        write_original_message_zip(zip_path, message.raw)
         return payload_path, zip_path
 
     @staticmethod
