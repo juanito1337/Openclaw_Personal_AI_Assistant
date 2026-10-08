@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "product": "OpenClaw Local Personal Assistant",
-  "version": "3.4.0-r29.0.4",
-  "release": "r29.0.4",
+  "version": "3.4.0-r29.0.5",
+  "release": "r29.0.5",
   "title": "Sichere manuelle Originalmail-Weiterleitung",
   "released_at": "2026-10-08",
   "installed_at": null,
@@ -11,17 +11,19 @@
   "changes": [
     "Exakt ausgewaehlte vorhandene Nachrichten koennen ueber getrennte native Forward-Entwurfs- und Versandwerkzeuge inklusive vollstaendiger Originalmail und aller Originalanhaenge weitergeleitet werden.",
     "ClamAV prueft fail-closed die komplette Rohmail und jeden physischen Anhang; vor dem Versand wird die Quelle erneut gelesen und ihr SHA-256 gegen den freigegebenen Entwurf geprueft.",
-    "Die Originalmail wird mit begrenztem Zusatzspeicher atomar als mode-0600-ZIP erzeugt; der unveraenderte Entwurf bleibt an eine native Einmalfreigabe gebunden."
+    "Die Originalmail wird mit begrenztem Zusatzspeicher atomar als mode-0600-ZIP erzeugt; der unveraenderte Entwurf bleibt an eine native Einmalfreigabe gebunden.",
+    "Exakte Alpine-3.22-Pins fuer Python und Zeitzonendaten wurden auf die aktuell verfuegbaren Revisionen angehoben, nachdem r29.0.4 vor jeder Imageveroeffentlichung fail-closed abbrach."
   ],
   "history": [
     {
-      "version": "3.4.0-r29.0.4",
+      "version": "3.4.0-r29.0.5",
       "released_at": "2026-10-08",
       "title": "Sichere manuelle Originalmail-Weiterleitung",
       "changes": [
         "Exakt ausgewaehlte vorhandene Nachrichten koennen ueber getrennte native Forward-Entwurfs- und Versandwerkzeuge inklusive vollstaendiger Originalmail und aller Originalanhaenge weitergeleitet werden.",
         "ClamAV prueft fail-closed die komplette Rohmail und jeden physischen Anhang; vor dem Versand wird die Quelle erneut gelesen und ihr SHA-256 gegen den freigegebenen Entwurf geprueft.",
-        "Die Originalmail wird mit begrenztem Zusatzspeicher atomar als mode-0600-ZIP erzeugt; der unveraenderte Entwurf bleibt an eine native Einmalfreigabe gebunden."
+        "Die Originalmail wird mit begrenztem Zusatzspeicher atomar als mode-0600-ZIP erzeugt; der unveraenderte Entwurf bleibt an eine native Einmalfreigabe gebunden.",
+        "Exakte Alpine-3.22-Pins fuer Python und Zeitzonendaten wurden auf die aktuell verfuegbaren Revisionen angehoben, nachdem r29.0.4 vor jeder Imageveroeffentlichung fail-closed abbrach."
       ]
     },
     {

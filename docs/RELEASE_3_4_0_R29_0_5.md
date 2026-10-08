@@ -1,4 +1,4 @@
-# Release 3.4.0-r29.0.4
+# Release 3.4.0-r29.0.5
 
 Dieses Patch-Release ergaenzt die sichere manuelle Weiterleitung einer exakt
 ausgewaehlten vorhandenen Mail. Der Empfaenger erhaelt die vollstaendige
@@ -17,12 +17,18 @@ und-Neuversandpfad in Aussicht.
 Ordner, stabiler Mail-ID, erwartetem Betreff und SHA-256 an einen vollstaendig
 angezeigten Entwurf. Die Rohmail und jeder physische Anhang passieren ClamAV
 fail-closed. `mail.forward-send` liest die Quelle vor SMTP erneut, verwirft einen
-geanderten Digest und versendet nur den unveraenderten Entwurf nach nativer
+geaenderten Digest und versendet nur den unveraenderten Entwurf nach nativer
 Einmalfreigabe.
 
 Das ZIP entsteht atomar in einer temporaeren mode-0600-Datei. Rohmail und
 ZIP-Inhalt werden nicht gleichzeitig vollstaendig im Arbeitsspeicher gehalten;
 die bestehenden Runtime-Limits bleiben unveraendert.
+
+Der signierte Kandidat `r29.0.4` scheiterte korrekt vor der
+Imageveroeffentlichung, weil zwei exakt gepinnte Alpine-3.22-Paketrevisionen
+nicht mehr im Repository lagen. `r29.0.5` aktualisiert ausschliesslich Python
+von `3.12.14-r0` auf `3.12.15-r0` und die Zeitzonendaten von `2026d-r0` auf
+`2026e-r0`. `r29.0.4` wurde weder promotiert noch produktiv installiert.
 
 ## Verifikation und Installation
 
@@ -32,7 +38,7 @@ die bestehenden Runtime-Limits bleiben unveraendert.
   Forward-Versandoperationen mit unveraenderter Allow-once-Grenze.
 - Das Rollbackziel `r29.0.3` ist mit drei signierten, attestierten Rollenimages
   und einem verifizierten produktiven Releasebackup belegt.
-- Veroeffentlichung und Installation verwenden den signierten Tag `r29.0.4`
+- Veroeffentlichung und Installation verwenden den signierten Tag `r29.0.5`
   sowie drei unveraenderliche, attestierte Rollenimage-Digests.
 
 Die produktive Abnahme ist erst erfolgreich, wenn Version, Quellrevision,

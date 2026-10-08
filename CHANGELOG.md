@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-## 3.4.0-r29.0.4 – Sichere manuelle Originalmail-Weiterleitung
+## 3.4.0-r29.0.5 – Sichere manuelle Originalmail-Weiterleitung
 
 - Der native Agent-Werkzeugvertrag enthaelt einen getrennten
   `mail.forward-draft`-/`mail.forward-send`-Ablauf fuer exakt ausgewaehlte
@@ -14,6 +14,10 @@
 - Das ZIP wird mit begrenztem Zusatzspeicher atomar in eine temporaere
   mode-0600-Datei geschrieben. Entwurf und Versand bleiben getrennt, und der
   Versand erfordert weiterhin eine native Einmalfreigabe.
+- Die Alpine-3.22-Pins fuer Python und Zeitzonendaten folgen den aktuell
+  verfuegbaren, weiterhin exakt festgelegten Revisionen. Der signierte
+  `r29.0.4`-Kandidat brach deshalb vor Imageveroeffentlichung ab und wurde nie
+  promotiert oder produktiv installiert.
 
 ## 3.4.0-r29.0.3 – Vollstaendige Terminfreigaben und CalDAV-Kompatibilitaet
 

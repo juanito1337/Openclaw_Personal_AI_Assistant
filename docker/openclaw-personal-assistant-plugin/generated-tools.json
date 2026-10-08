@@ -3,7 +3,7 @@
   "contract_id": "openclaw-personal-assistant-native-tools-v1",
   "plugin_id": "personal-assistant-tools",
   "plugin_path": "/opt/openclaw-plugins/personal-assistant-tools",
-  "product_version": "3.4.0-r29.0.4",
+  "product_version": "3.4.0-r29.0.5",
   "catalog_sha256": "bcd96204e7b481d0f27c72018e7dd312a826d3e67456f7ff72097ae4326d80f2",
   "catalog_tool_count": 172,
   "supported_operation_count": 171,
