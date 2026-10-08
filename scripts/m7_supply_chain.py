@@ -152,6 +152,55 @@ def verify_lock(root: Path = ROOT) -> dict[str, Any]:
             continue
         if f"{package}={version}" not in dockerfile:
             errors.append(f"Dockerfile does not use locked runtime package {package}={version}")
+    security_overrides = cast(
+        dict[str, Any],
+        lock.get("runtime_security_overrides")
+        if isinstance(lock.get("runtime_security_overrides"), dict)
+        else {},
+    )
+    override_package_json = root / "docker/openclaw-security-overrides/package.json"
+    override_package_lock = root / "docker/openclaw-security-overrides/package-lock.json"
+    expected_override_digest = str(security_overrides.get("package_lock_sha256") or "")
+    if (
+        not override_package_lock.is_file()
+        or sha256_file(override_package_lock) != expected_override_digest
+    ):
+        errors.append("runtime security override package-lock does not match the supply-chain lock")
+    locked_overrides = security_overrides.get("packages")
+    declared_overrides = (
+        load_json(override_package_json).get("dependencies")
+        if override_package_json.is_file()
+        else None
+    )
+    if not isinstance(locked_overrides, dict) or not isinstance(declared_overrides, dict):
+        errors.append("runtime security override declarations are missing")
+    else:
+        expected_overrides = {
+            name: str(contract.get("version") or "")
+            for name, contract in locked_overrides.items()
+            if isinstance(name, str) and isinstance(contract, dict)
+        }
+        if declared_overrides != expected_overrides:
+            errors.append("runtime security override versions differ from package.json")
+        override_entries = load_json(override_package_lock).get("packages")
+        if not isinstance(override_entries, dict):
+            errors.append("runtime security override package-lock has no package entries")
+        else:
+            for name, contract in locked_overrides.items():
+                entry = override_entries.get(f"node_modules/{name}")
+                if not isinstance(contract, dict) or not isinstance(entry, dict):
+                    errors.append(f"runtime security override is absent from package-lock: {name}")
+                    continue
+                if entry.get("version") != contract.get("version"):
+                    errors.append(f"runtime security override version mismatch: {name}")
+                if entry.get("integrity") != contract.get("integrity"):
+                    errors.append(f"runtime security override integrity mismatch: {name}")
+                verification = (
+                    f'/app/node_modules/{name}/package.json").version\')" = '
+                    f'"{contract.get("version")}"'
+                )
+                if verification not in dockerfile:
+                    errors.append(f"runtime image does not verify security override: {name}")
     deploy_verifier = (root / "docker/scripts/verify-image-supply-chain.sh").read_text(encoding="utf-8")
     scanner_images = cast(dict[str, Any], lock.get("scanner_images") or {})
     cosign_reference = str(scanner_images.get("cosign") or "")
@@ -217,11 +266,15 @@ def verify_lock(root: Path = ROOT) -> dict[str, Any]:
                     errors.append(f"immutable OpenClaw runtime contract mismatch: {name}")
     if "COPY --from=openclaw-plugin-builder" not in dockerfile or "OPENCLAW_NIX_MODE=1" not in dockerfile:
         errors.append("runtime image does not enforce immutable OpenClaw plugins")
+    if "COPY --from=openclaw-security-override-builder" not in dockerfile:
+        errors.append("runtime image does not install integrity-locked security overrides")
     if "COPY docker/openclaw-plugins/contract.json" not in dockerfile:
         errors.append("runtime image does not contain the immutable plugin contract")
     dockerignore = (root / ".dockerignore").read_text(encoding="utf-8").splitlines()
     if "!docker/openclaw-plugins/package-lock.json" not in dockerignore:
         errors.append("immutable OpenClaw plugin lock is excluded from the Docker context")
+    if "!docker/openclaw-security-overrides/package-lock.json" not in dockerignore:
+        errors.append("runtime security override lock is excluded from the Docker context")
     policy = cast(dict[str, Any], lock.get("vulnerability_policy") or {})
     if policy.get("fail_severities") != ["CRITICAL"]:
         errors.append("critical vulnerabilities are not fail-closed")
@@ -233,6 +286,7 @@ def verify_lock(root: Path = ROOT) -> dict[str, Any]:
         "ok": True,
         "base_images": len(lock["base_images"]),
         "runtime_package_pins": len(runtime_package_pins),
+        "runtime_security_overrides": len(security_overrides.get("packages", {})),
         "scanner_images": len(lock["scanner_images"]),
         "immutable_openclaw_plugins": len(plugin_lock.get("packages", {})),
         "github_actions": len(actions),

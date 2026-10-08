@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "checked_at": "2026-10-08",
-  "purpose": "r29.0.5 rollback candidate evidence from the signed and productively accepted r29.0.3 publication",
+  "purpose": "r29.0.6 rollback candidate evidence from the signed and productively accepted r29.0.3 publication",
   "version": "3.4.0-r29.0.3",
   "source_revision": "7f6c57628750846cb38c5351b2fe0211eb052dd6",
   "registry": "ghcr.io/juanito1337/openclaw_personal_ai_assistant",

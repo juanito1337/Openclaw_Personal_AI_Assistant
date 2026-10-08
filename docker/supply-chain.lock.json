@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "release": "3.4.0-r29.0.5",
+  "release": "3.4.0-r29.0.6",
   "base_images": {
     "openclaw_source": "ghcr.io/openclaw/openclaw:2026.7.1-2@sha256:8789721d2e9b24b780a1504b56deb4c6bd5c7dbf96a1dd117e7c45c2ed72c8ac",
     "node_runtime": "node:24-alpine3.22@sha256:191c9f0080fcbbc6547a85dc0ff7988072214a355aabdc1d2ec55a7dae5eea8a",
@@ -8,6 +8,17 @@
   },
   "runtime_package_pins": {
     "python3": "3.12.15-r0"
+  },
+  "runtime_security_overrides": {
+    "package_lock_sha256": "7505ff87b2611c0b6b7d4dff7ca88409494837b68aed9a1c46186d5491341290",
+    "packages": {
+      "proxy-addr": {
+        "version": "2.0.8",
+        "integrity": "sha512-5nnx0yGyVUcY6t9RnWcARWtwT9F1D8O9rt08htPvnd49W1IgZtmLkhu9WfMzQj1cFxjHIO6connUNVW5k7AVyQ==",
+        "shasum": "624e760fd8ab06b1b8320c2f8506d4422cf8e932",
+        "reason": "CVE-2026-90711"
+      }
+    }
   },
   "himalaya": {
     "version": "1.2.0",

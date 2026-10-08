@@ -32,6 +32,7 @@ class M7SupplyChainTests(unittest.TestCase):
         self.assertTrue(report["ok"])
         self.assertGreaterEqual(report["base_images"], 2)
         self.assertGreaterEqual(report["runtime_package_pins"], 1)
+        self.assertEqual(report["runtime_security_overrides"], 1)
         self.assertEqual(report["immutable_openclaw_plugins"], 2)
         self.assertGreaterEqual(report["github_actions"], 8)
 
@@ -50,6 +51,20 @@ class M7SupplyChainTests(unittest.TestCase):
 
         compose = (ROOT / "compose.yaml").read_text(encoding="utf-8")
         self.assertIn('OPENCLAW_NIX_MODE: "1"', compose)
+
+    def test_runtime_security_override_is_exactly_locked(self) -> None:
+        lock = self.module.load_lock()["runtime_security_overrides"]
+        package_lock_path = ROOT / "docker/openclaw-security-overrides/package-lock.json"
+        self.assertEqual(self.module.sha256_file(package_lock_path), lock["package_lock_sha256"])
+        package_lock = json.loads(package_lock_path.read_text(encoding="utf-8"))
+        proxy_addr = package_lock["packages"]["node_modules/proxy-addr"]
+        self.assertEqual(proxy_addr["version"], "2.0.8")
+        self.assertEqual(proxy_addr["integrity"], lock["packages"]["proxy-addr"]["integrity"])
+        self.assertEqual(lock["packages"]["proxy-addr"]["reason"], "CVE-2026-90711")
+
+        dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+        self.assertIn("FROM ${NODE_BASE_IMAGE} AS openclaw-security-override-builder", dockerfile)
+        self.assertIn("/app/node_modules/proxy-addr/package.json", dockerfile)
 
     def test_private_repository_uses_registry_native_attestations(self) -> None:
         workflow = (ROOT / ".github/workflows/container.yml").read_text(encoding="utf-8")

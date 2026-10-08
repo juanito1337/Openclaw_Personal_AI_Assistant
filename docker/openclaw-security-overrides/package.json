@@ -1,0 +1,8 @@
+{
+  "name": "@openclaw-local/runtime-security-overrides",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "proxy-addr": "2.0.8"
+  }
+}

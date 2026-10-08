@@ -1,4 +1,4 @@
-# Release 3.4.0-r29.0.5
+# Release 3.4.0-r29.0.6
 
 Dieses Patch-Release ergaenzt die sichere manuelle Weiterleitung einer exakt
 ausgewaehlten vorhandenen Mail. Der Empfaenger erhaelt die vollstaendige
@@ -26,9 +26,16 @@ die bestehenden Runtime-Limits bleiben unveraendert.
 
 Der signierte Kandidat `r29.0.4` scheiterte korrekt vor der
 Imageveroeffentlichung, weil zwei exakt gepinnte Alpine-3.22-Paketrevisionen
-nicht mehr im Repository lagen. `r29.0.5` aktualisiert ausschliesslich Python
+nicht mehr im Repository lagen. Der nachfolgende Kandidat aktualisierte Python
 von `3.12.14-r0` auf `3.12.15-r0` und die Zeitzonendaten von `2026d-r0` auf
 `2026e-r0`. `r29.0.4` wurde weder promotiert noch produktiv installiert.
+
+Der signierte Kandidat `r29.0.5` erreichte anschliessend den aktualisierten
+CVE-Gate, wurde dort aber wegen `CVE-2026-90711` in der vom unveraenderlichen
+OpenClaw-Upstream-Image geerbten Abhaengigkeit `proxy-addr 2.0.7` ebenfalls vor
+Registry-Publikation gestoppt. `r29.0.6` installiert die verfuegbare Fix-Version
+`proxy-addr 2.0.8` aus einem separaten, SHA-256- und npm-integritaetsgebundenen
+Lockfile. Die bestehende Critical-Policy enthaelt weiterhin keine Ausnahme.
 
 ## Verifikation und Installation
 
@@ -38,7 +45,7 @@ von `3.12.14-r0` auf `3.12.15-r0` und die Zeitzonendaten von `2026d-r0` auf
   Forward-Versandoperationen mit unveraenderter Allow-once-Grenze.
 - Das Rollbackziel `r29.0.3` ist mit drei signierten, attestierten Rollenimages
   und einem verifizierten produktiven Releasebackup belegt.
-- Veroeffentlichung und Installation verwenden den signierten Tag `r29.0.5`
+- Veroeffentlichung und Installation verwenden den signierten Tag `r29.0.6`
   sowie drei unveraenderliche, attestierte Rollenimage-Digests.
 
 Die produktive Abnahme ist erst erfolgreich, wenn Version, Quellrevision,
