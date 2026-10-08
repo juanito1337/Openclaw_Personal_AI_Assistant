@@ -1,19 +1,29 @@
 {
   "schema_version": 1,
   "product": "OpenClaw Local Personal Assistant",
-  "version": "3.4.0-r29.0.3",
-  "release": "r29.0.3",
-  "title": "Vollstaendige Terminfreigaben und CalDAV-Kompatibilitaet",
-  "released_at": "2026-09-24",
+  "version": "3.4.0-r29.0.4",
+  "release": "r29.0.4",
+  "title": "Sichere manuelle Originalmail-Weiterleitung",
+  "released_at": "2026-10-08",
   "installed_at": null,
-  "previous_version": "3.4.0-r29.0.2",
+  "previous_version": "3.4.0-r29.0.3",
   "installation_id": null,
   "changes": [
-    "Terminfreigabemails enthalten die vollstaendige unveraenderte Originalmail wieder als ZIP-Anhang und umgehen fuer diesen Versand weiterhin die fehleranfaellige IMAP-Gesendet-Kopie.",
-    "Fuer die CalDAV-Ablage erzeugte VCALENDAR-Objekte enthalten keine METHOD-Eigenschaft mehr und werden dadurch von Nextcloud gemaess dem Serververtrag akzeptiert.",
-    "Regressionstests sichern ZIP-Anhang, Empfaenger und Reply-To, den Versand ohne Sent-Kopie sowie METHOD-freie Kalenderobjekte ab."
+    "Exakt ausgewaehlte vorhandene Nachrichten koennen ueber getrennte native Forward-Entwurfs- und Versandwerkzeuge inklusive vollstaendiger Originalmail und aller Originalanhaenge weitergeleitet werden.",
+    "ClamAV prueft fail-closed die komplette Rohmail und jeden physischen Anhang; vor dem Versand wird die Quelle erneut gelesen und ihr SHA-256 gegen den freigegebenen Entwurf geprueft.",
+    "Die Originalmail wird mit begrenztem Zusatzspeicher atomar als mode-0600-ZIP erzeugt; der unveraenderte Entwurf bleibt an eine native Einmalfreigabe gebunden."
   ],
   "history": [
+    {
+      "version": "3.4.0-r29.0.4",
+      "released_at": "2026-10-08",
+      "title": "Sichere manuelle Originalmail-Weiterleitung",
+      "changes": [
+        "Exakt ausgewaehlte vorhandene Nachrichten koennen ueber getrennte native Forward-Entwurfs- und Versandwerkzeuge inklusive vollstaendiger Originalmail und aller Originalanhaenge weitergeleitet werden.",
+        "ClamAV prueft fail-closed die komplette Rohmail und jeden physischen Anhang; vor dem Versand wird die Quelle erneut gelesen und ihr SHA-256 gegen den freigegebenen Entwurf geprueft.",
+        "Die Originalmail wird mit begrenztem Zusatzspeicher atomar als mode-0600-ZIP erzeugt; der unveraenderte Entwurf bleibt an eine native Einmalfreigabe gebunden."
+      ]
+    },
     {
       "version": "3.4.0-r29.0.3",
       "released_at": "2026-09-24",

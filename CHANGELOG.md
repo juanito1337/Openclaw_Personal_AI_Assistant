@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 3.4.0-r29.0.4 – Sichere manuelle Originalmail-Weiterleitung
+
 - Der native Agent-Werkzeugvertrag enthaelt einen getrennten
   `mail.forward-draft`-/`mail.forward-send`-Ablauf fuer exakt ausgewaehlte
   Nachrichten. Die vollstaendige Originalmail und alle Originalanhaenge werden

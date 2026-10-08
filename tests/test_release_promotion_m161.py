@@ -34,8 +34,8 @@ def _git(command: str) -> str:
 def _ready_contract(tmp_path: Path) -> tuple[dict[str, Any], Path, str, str]:
     release = {
         "schema_version": 1,
-        "version": "3.4.0-r29.0.3",
-        "release": "r29.0.3",
+        "version": "3.4.0-r29.0.4",
+        "release": "r29.0.4",
         "installed_at": None,
         "installation_id": None,
     }

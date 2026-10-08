@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "checked_at": "2026-10-08",
+  "purpose": "r29.0.4 rollback candidate evidence from the signed and productively accepted r29.0.3 publication",
+  "version": "3.4.0-r29.0.3",
+  "source_revision": "7f6c57628750846cb38c5351b2fe0211eb052dd6",
+  "registry": "ghcr.io/juanito1337/openclaw_personal_ai_assistant",
+  "images": {
+    "runtime": {
+      "digest": "sha256:b68bdd1d6a0f73e9339a18c02e8818ec5e390781bd4ab19fd862939a6ca4e95c",
+      "oci_revision": "7f6c57628750846cb38c5351b2fe0211eb052dd6",
+      "version": "3.4.0-r29.0.3",
+      "role": "runtime",
+      "signature_verified": true,
+      "slsa_provenance_verified": true,
+      "spdx_attestation_verified": true
+    },
+    "proxy": {
+      "digest": "sha256:7324c21650f036a400e4044bab3998c72c8a62b21dbda9ad88c7f28b22a168f7",
+      "oci_revision": "7f6c57628750846cb38c5351b2fe0211eb052dd6",
+      "version": "3.4.0-r29.0.3",
+      "role": "proxy",
+      "signature_verified": true,
+      "slsa_provenance_verified": true,
+      "spdx_attestation_verified": true
+    },
+    "maintenance": {
+      "digest": "sha256:64b2cbfd20649312a95b56bc177712ea01e911666f37715f669b2cb2a2463c35",
+      "oci_revision": "7f6c57628750846cb38c5351b2fe0211eb052dd6",
+      "version": "3.4.0-r29.0.3",
+      "role": "maintenance",
+      "signature_verified": true,
+      "slsa_provenance_verified": true,
+      "spdx_attestation_verified": true
+    }
+  },
+  "signature_identity": "https://github.com/juanito1337/Openclaw_Personal_AI_Assistant/.github/workflows/container.yml@refs/tags/r29.0.3",
+  "signature_issuer": "https://token.actions.githubusercontent.com",
+  "git_tag": {
+    "name": "r29.0.3",
+    "target": "7f6c57628750846cb38c5351b2fe0211eb052dd6",
+    "annotated": true,
+    "cryptographic_signature_verified": true,
+    "detail": "git tag r29.0.3 contains an SSH ED25519 signature matching the release signer"
+  },
+  "productive_backup_restore_evidence": {
+    "checked": true,
+    "verified": true,
+    "detail": "The r29.0.3 deployment backup, temporary restore test and final productive acceptance completed successfully; the stored release backup was reverified on 2026-10-08."
+  },
+  "registry_rollback_set_verified": true,
+  "promotion_rollback_contract_complete": true
+}
