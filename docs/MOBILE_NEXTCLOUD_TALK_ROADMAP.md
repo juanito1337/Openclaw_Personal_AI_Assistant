@@ -1,8 +1,10 @@
 # M17-Roadmap: Mobile Agentenkommunikation ueber Nextcloud Talk
 
-Status: geplant. Diese Roadmap beschreibt Entwicklung, Abnahme und den
-kontrollierten produktiven Rollout. Sie installiert kein Plugin, legt keinen
-Nextcloud-Bot an, aendert keine Secrets und aktiviert keinen produktiven Kanal.
+Status: in Umsetzung auf `feature/m17-nextcloud-talk`. Die Entwicklungslinie ist
+mit dem produktiven Stand `3.4.0-r29.0.6` zusammengefuehrt. Diese Roadmap
+beschreibt Entwicklung, Abnahme und den kontrollierten produktiven Rollout. Der
+aktuelle Entwicklungsstand legt keinen Nextcloud-Bot an, schreibt kein Secret
+und aktiviert keinen produktiven Kanal.
 
 ## Ziel
 
@@ -45,9 +47,10 @@ Der erste produktive Umfang ist bewusst klein:
 
 - Der produktive Gateway-Port wird im Compose-Vertrag standardmaessig nur an
   Host-Loopback publiziert. Diese Voreinstellung bleibt erhalten.
-- Das Runtime-Image enthaelt derzeit die exakt gepinnten externen Plugins Brave
-  und Signal. `@openclaw/nextcloud-talk` ist noch kein Buildinput und darf nicht
-  zur Laufzeit in den beschreibbaren Gateway-State installiert werden.
+- Der M17-Kandidat enthaelt Brave, Signal und
+  `@openclaw/nextcloud-talk@2026.7.1` als exakt gepinnte Buildinputs. Talk bleibt
+  bis zur spaeteren Aktivierungsstufe im Gatewayprofil deaktiviert und darf
+  nicht zur Laufzeit in den beschreibbaren Gateway-State installiert werden.
 - Gateway-Konfiguration und Pluginpfade unterliegen dem unveraenderlichen
   Image-, Migrations- und Lieferkettenvertrag.
 - Der offizielle Nextcloud-Talk-Kanal verwendet einen signierten Webhook. Die
@@ -63,8 +66,9 @@ Der erste produktive Umfang ist bewusst klein:
   Sitzung. Risikostufe 3 behaelt die gebundene native Allow-once-Freigabe oder
   den exakten technischen Fallback `/approve <ID> allow-once`.
 
-Vor M17.2 muss die Kompatibilitaet der zum eingebetteten OpenClaw-Core passenden
-Pluginversion reproduzierbar belegt werden. Die aktuelle Upstream-Dokumentation
+Die Kompatibilitaet der zum eingebetteten OpenClaw-Core passenden Pluginversion
+ist paket- und schemaorientiert belegt. Die vollstaendige M17.2-Image- und
+Reproduzierbarkeitsabnahme bleibt offen. Die aktuelle Upstream-Dokumentation
 allein autorisiert weder ein Core-Upgrade noch die Installation eines
 ungepinnten `latest`-Pakets.
 
@@ -219,6 +223,10 @@ Den kleinsten erreichbaren und rueckrollbaren Netzwerkpfad festlegen.
 
 ## M17.2 – Reproduzierbare Plugin-Lieferkette
 
+Status: implementiert, technische Rollenimage-, Reproduzierbarkeits- und
+Ressourcenabnahme noch offen. Paket, Integritaet, Imagepfad, Registryprojektion
+und Loopback-Publikation sind im Entwicklungsbranch fest gebunden.
+
 ### Ziel
 
 Das offizielle Plugin unveraenderlich und nachvollziehbar ins Runtime-Image
@@ -248,6 +256,13 @@ aufnehmen.
 
 ## M17.3 – Konfiguration, Secrets, Migration und Diagnose
 
+Status: in Umsetzung. Der Kandidat besitzt eine kanonische
+`prepared-disabled`-Policy, vorschaugebundene atomare Konfigurationsmigration,
+verifiziertes Backup/Rollback, ein ausschliesslich im Gateway gemountetes
+Botsecret sowie registrierte read-only Befehle `talk status` und
+`talk doctor`. Botanlage, Secretbefuellung, Proxy/TLS und Kanalaktivierung sind
+weiterhin nicht ausgefuehrt.
+
 ### Ziel
 
 Eine deklarative, fail-closed und rueckrollbare Kanalkonfiguration schaffen.
@@ -262,7 +277,8 @@ Eine deklarative, fail-closed und rueckrollbare Kanalkonfiguration schaffen.
 - `dangerouslyAllowPrivateNetwork` nur fuer die exakt festgelegte interne
   Nextcloud-URL zulassen; keine allgemeine private Zielerlaubnis daraus ableiten.
 - Operator-Setup als kurzlebigen, explizit freizugebenden Migrationspfad
-  implementieren. Der normale Gatewaystart bleibt ohne Config-Schreibrecht.
+  implementieren. Die vorbereitende Stufe darf ausschliesslich ein deaktiviertes
+  Profil schreiben; eine produktive Aktivierung bleibt ein spaeterer Auftrag.
 - Status-/Doctor-Ausgabe fuer Plugin, Webhooklistener, HMAC-Konfiguration,
   Nextcloud-Erreichbarkeit, Botfeatures und Policy bereitstellen, ohne Secretwerte
   auszugeben.

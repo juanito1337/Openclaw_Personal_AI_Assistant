@@ -4,6 +4,8 @@ from __future__ import annotations
 TOOL_ORDER: tuple[str, ...] = (
     "assistant.agent-tools.status",
     "assistant.status",
+    "assistant.talk.status",
+    "assistant.talk.doctor",
     "assistant.version",
     "assistant.version.history",
     "assistant.version.since",

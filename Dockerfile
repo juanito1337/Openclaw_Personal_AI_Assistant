@@ -26,6 +26,7 @@ COPY scripts/assistant.sh scripts/mail-agent.sh scripts/ollama-priority-proxy.sh
 COPY docker/entrypoint.sh docker/healthcheck.sh docker/job_loop.py docker/clamav-update.sh \
      docker/clamd.sh docker/clamav-socket-init.sh \
      docker/himalaya-agent-guard.sh /docker/
+COPY docker/scripts/nextcloud-talk-config.py /docker/
 
 FROM ${OPENCLAW_BASE_IMAGE} AS openclaw-source
 
@@ -157,6 +158,7 @@ WORKDIR /opt/openclaw-agent
 RUN printf '%s\n' "${OPENCLAW_SOURCE_REVISION}" > /opt/openclaw-agent/SOURCE_REVISION \
     && chmod 0444 /opt/openclaw-agent/SOURCE_REVISION \
     && chmod 0555 /opt/openclaw-agent/scripts/*.sh /opt/openclaw-agent/docker/*.sh \
+       /opt/openclaw-agent/docker/nextcloud-talk-config.py \
        /usr/local/bin/himalaya /usr/local/libexec/openclaw/himalaya \
     && chmod -R a-w /opt/openclaw-agent \
     && chmod -R a-w /opt/openclaw-plugins/personal-assistant-tools \

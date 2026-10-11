@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import stat
 import subprocess
 import sys
 import tarfile
@@ -419,6 +420,9 @@ raise SystemExit(86)
                 (hooks / "pre-deploy.sh").read_text(encoding="utf-8"),
                 "local hook\n",
             )
+            talk_secret = target / "secrets/nextcloud-talk-bot-secret"
+            self.assertEqual(talk_secret.read_bytes(), b"")
+            self.assertEqual(stat.S_IMODE(talk_secret.stat().st_mode), 0o600)
 
     def test_deploy_verifies_source_revision_and_disables_legacy_writers(self) -> None:
         root = Path(__file__).resolve().parents[1]

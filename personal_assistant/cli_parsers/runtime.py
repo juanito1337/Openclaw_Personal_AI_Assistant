@@ -21,6 +21,14 @@ def add_commands(sub: Any) -> None:
         help="Konfigurationsfreies Schema der Live-Capabilities anzeigen",
     )
 
+    talk = sub.add_parser("talk", help="Nextcloud-Talk-Kanal sicher diagnostizieren")
+    talk_sub = talk.add_subparsers(dest="talk_command", required=True)
+    talk_sub.add_parser("status", help="Deklarative Konfiguration und Secretstatus pruefen")
+    talk_doctor = talk_sub.add_parser(
+        "doctor", help="Zusaetzlich DNS, TLS und Nextcloud-Status live pruefen"
+    )
+    talk_doctor.add_argument("--no-live", action="store_true")
+
     version = sub.add_parser("version", help="Installierte Version, Konsistenz und Updatehistorie anzeigen")
     version.add_argument(
         "--verify",

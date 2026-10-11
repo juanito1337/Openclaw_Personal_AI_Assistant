@@ -26,6 +26,8 @@ from .config import DEFAULT_CONFIG, DEFAULT_SECRETS, load_config
 from .env import load_env
 from .job_control import JobController
 from .mail_source_setup import configure_mail_sources
+from .nextcloud_talk import doctor as nextcloud_talk_doctor
+from .nextcloud_talk import status as nextcloud_talk_status
 from .release import release_report
 from .setup import configure_nextcloud, initialize_local_files
 from .tool_registry import capability_schema, static_tool_catalog
@@ -288,6 +290,21 @@ def _handle_scheduler(args: argparse.Namespace) -> int:
         scheduler.close()
 
 
+def _handle_talk(args: argparse.Namespace) -> int:
+    try:
+        if args.talk_command == "status":
+            payload = nextcloud_talk_status()
+        elif args.talk_command == "doctor":
+            payload = nextcloud_talk_doctor(live=not args.no_live)
+        else:
+            raise ValueError(f"Unbekannter Talk-Befehl: {args.talk_command}")
+        _print(payload)
+        return 0 if payload.get("ok") else 1
+    except (OSError, ValueError) as exc:
+        _print({"ok": False, "operation": f"nextcloud-talk.{args.talk_command}", "error": str(exc)})
+        return 1
+
+
 def _interactive_topic(args: argparse.Namespace) -> str:
     mapping = {
         "mail": "mail",
@@ -367,6 +384,14 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "performance":
         return _handle_performance(args)
+
+    if args.command == "talk":
+        try:
+            _load_container_role_environment()
+        except (OSError, RuntimeError, ValueError) as exc:
+            _print({"ok": False, "operation": "nextcloud-talk.environment", "error": str(exc)})
+            return 2
+        return _handle_talk(args)
 
     if args.command == "setup" and args.setup_command == "init":
         _print({"created": initialize_local_files(), "config": str(DEFAULT_CONFIG)})

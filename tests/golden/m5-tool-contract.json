@@ -16,6 +16,22 @@
     "approval": "none"
   },
   {
+    "id": "assistant.talk.status",
+    "description": "Nextcloud-Talk-Plugin, vorbereitete Kanalkonfiguration und Botsecret ohne Secret- oder Chatinhalt pruefen",
+    "command": "./scripts/assistant.sh talk status",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
+    "id": "assistant.talk.doctor",
+    "description": "Nextcloud-Talk-Konfiguration sowie den gebundenen DNS-, TLS- und Nextcloud-Statuspfad read-only pruefen",
+    "command": "./scripts/assistant.sh talk doctor",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
     "id": "assistant.version",
     "description": "Installiertes OpenClaw-Local-Personal-Assistant-Produktrelease und Konsistenz aus RELEASE.json pruefen; keine eingebettete Core-, Plugin- oder CLI-Version",
     "command": "./scripts/assistant.sh version --verify",

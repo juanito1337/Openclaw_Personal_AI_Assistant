@@ -28,6 +28,36 @@ TOOLS: tuple[ToolDefinition, ...] = (
         test_anchor="tests/test_m5_tool_contract.py",
     ),
     define(
+        id="assistant.talk.status",
+        domain="runtime",
+        description=(
+            "Nextcloud-Talk-Plugin, vorbereitete Kanalkonfiguration und Botsecret "
+            "ohne Secret- oder Chatinhalt pruefen"
+        ),
+        command="./scripts/assistant.sh talk status",
+        mode="read",
+        writes_external_data=False,
+        approval="none",
+        availability="always",
+        documentation_anchor="docs/MOBILE_NEXTCLOUD_TALK_ROADMAP.md",
+        test_anchor="tests/test_nextcloud_talk_m17.py",
+    ),
+    define(
+        id="assistant.talk.doctor",
+        domain="runtime",
+        description=(
+            "Nextcloud-Talk-Konfiguration sowie den gebundenen DNS-, TLS- und "
+            "Nextcloud-Statuspfad read-only pruefen"
+        ),
+        command="./scripts/assistant.sh talk doctor",
+        mode="read",
+        writes_external_data=False,
+        approval="none",
+        availability="always",
+        documentation_anchor="docs/MOBILE_NEXTCLOUD_TALK_ROADMAP.md",
+        test_anchor="tests/test_nextcloud_talk_m17.py",
+    ),
+    define(
         id="assistant.version",
         domain="runtime",
         description=(

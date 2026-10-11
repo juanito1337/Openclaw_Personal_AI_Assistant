@@ -31,7 +31,10 @@ records = {
     "nextcloud-talk": {
         "source": "npm",
         "spec": "@openclaw/nextcloud-talk@2026.6.11",
-        "installPath": "/home/jan/.openclaw/npm/projects/nextcloud-talk/node_modules/@openclaw/nextcloud-talk",
+        "installPath": (
+            "/home/jan/.openclaw/npm/projects/nextcloud-talk/"
+            "node_modules/@openclaw/nextcloud-talk"
+        ),
         "version": "2026.6.11",
         "resolvedName": "@openclaw/nextcloud-talk",
         "resolvedVersion": "2026.6.11",

@@ -255,6 +255,7 @@ services:
       - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/personal-assistant.env:/run/openclaw-env/personal-assistant.env:ro
       - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/himalaya-imap-password:/run/openclaw-secrets/himalaya-imap-password:ro
       - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/himalaya-smtp-password:/run/openclaw-secrets/himalaya-smtp-password:ro
+      - ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/nextcloud-talk-bot-secret:/run/openclaw-secrets/nextcloud-talk-bot-secret:ro
       - clamav-db:/var/lib/clamav:ro
       - clamav-socket:/run/clamav:ro
 

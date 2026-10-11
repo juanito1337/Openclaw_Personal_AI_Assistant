@@ -28,6 +28,19 @@ install -m 700 "$SOURCE_ROOT/personal_assistant/immutable_plugins.py" \
 install -m 700 "$SOURCE_ROOT/personal_assistant/ollama_priority_config.py" \
   "$DEPLOYMENT/scripts/ollama_priority_config.py"
 
+# Compose bind-mounts an exact file. Existing installations receive only an
+# empty, disabled credential slot; no bot, channel or runtime is activated.
+install -d -m 700 "$TARGET_ROOT/secrets"
+talk_secret="$TARGET_ROOT/secrets/nextcloud-talk-bot-secret"
+if [[ ! -e "$talk_secret" ]]; then
+  install -m 600 /dev/null "$talk_secret"
+elif [[ -L "$talk_secret" || ! -f "$talk_secret" ]]; then
+  echo "Ungueltiger Nextcloud-Talk-Secretpfad: $talk_secret" >&2
+  exit 2
+else
+  chmod 600 "$talk_secret"
+fi
+
 # Only refresh examples. Active local hooks and .env are administrator state and
 # must never be overwritten by a source update.
 install -m 600 "$SOURCE_ROOT/docker/hooks/pre-deploy.example.sh" \

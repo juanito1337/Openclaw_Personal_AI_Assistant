@@ -281,6 +281,38 @@ unter `/opt/openclaw-plugins`, sind durch npm-Lockdatei und Supply-Chain-Vertrag
 gepinnt und werden ueber feste `plugins.load.paths` geladen. Ausfuehrbare
 npm-Payloads im Gateway-State sind nicht erlaubt; `OPENCLAW_NIX_MODE=1` sperrt
 Plugininstallation und -update zur Laufzeit.
+
+Der M17-Kandidat mountet das feste Botsecret
+`nextcloud-talk-bot-secret` ausschliesslich im Gateway. Die kurzlebige
+`agent-cli`-Rolle kann das deaktivierte Profil vorbereiten, erhaelt aber keinen
+Zugriff auf den Secretinhalt. Die vorbereitende Konfiguration bleibt immer deaktiviert und
+wird ueber eine digestgebundene Vorschau mit lokalem Backup geschrieben:
+
+```bash
+cd /srv/openclaw/deployment
+docker compose --env-file .env --profile tools run --rm --no-deps agent-cli \
+  python3 -P /opt/openclaw-agent/docker/nextcloud-talk-config.py plan \
+  --base-url 'https://1337-cloud.ddns.net:9001' \
+  --webhook-public-url \
+    'https://home-agent.home.arpa/nextcloud-talk-webhook' \
+  --expected-nextcloud-ip '192.168.2.3' \
+  --expected-webhook-ip '192.168.2.38'
+```
+
+Der anschliessende `apply`-Aufruf benoetigt dieselben Argumente,
+`--expected-preview-sha256 '<Digest>'` und `--yes`. Er aktiviert weder Plugin
+noch Kanal. `assistant.sh talk status` liest Konfiguration, Pluginvertrag und
+Secretzustand ohne Secretwert; `assistant.sh talk doctor` prueft zusaetzlich
+DNS, TLS und das oeffentliche Nextcloud-`status.php`. Botfeatures und Talk-App-
+Version bleiben bis zur spaeteren authentisierten Realabnahme explizit
+`not-measured`. Ein Rollback verwendet ausschliesslich die vom Apply gemeldete
+Backup-ID:
+
+```bash
+python3 -P /opt/openclaw-agent/docker/nextcloud-talk-config.py rollback \
+  --backup-id '<Backup-ID>' --yes
+```
+
 Der Entry Point parst nur die fuer die konkrete Rolle fest hinterlegten Env-Dateien
 als begrenzte `KEY=VALUE`-Daten. Shellauswertung, Verzeichnissuche sowie unbekannte
 Schluessel sind gesperrt. PID-/CPU-/RAM-Grenzen, sichere tmpfs-Pfade und lokale

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "inventory_date": "2026-08-06",
   "source_scope": "all Python modules, shell entrypoints, skills, systemd units, migrations and Markdown documents",
-  "component_count": 546,
+  "component_count": 551,
   "classification_values": [
     "active",
     "compatibility",
@@ -63,7 +63,7 @@
         "docs/archive/AUDIT_INITIAL_IMPORT.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-08T08:08:49+02:00",
+      "last_git_change": "2026-10-08T08:29:52+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -97,7 +97,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-08T08:08:49+02:00",
+      "last_git_change": "2026-10-08T08:29:52+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -197,7 +197,7 @@
         "docs/archive/README.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-08T08:08:49+02:00",
+      "last_git_change": "2026-10-08T08:29:52+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -712,6 +712,30 @@
         "reason": "M6 inventory stores no user content or production telemetry"
       },
       "rollback_relevance": "container-migration"
+    },
+    {
+      "path": "docker/scripts/nextcloud-talk-config.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Operations Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "Dockerfile"
+      ],
+      "test_evidence": [
+        "tests/test_nextcloud_talk_m17.py"
+      ],
+      "documentation_evidence": [
+        "docs/DOCKER_DEPLOYMENT.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
     },
     {
       "path": "docker/scripts/refresh-deployment.sh",
@@ -1426,7 +1450,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-05T22:34:05+02:00",
+      "last_git_change": "2026-10-06T22:02:26+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1991,7 +2015,7 @@
         "docs/MOBILE_NEXTCLOUD_TALK_ROADMAP.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-06T12:54:58+02:00",
+      "last_git_change": "2026-10-07T01:47:08+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -2005,9 +2029,12 @@
       ],
       "owner": "Documentation Maintainers",
       "classification": "active",
-      "productive_callers": [],
+      "productive_callers": [
+        "personal_assistant/tool_catalog/runtime.py"
+      ],
       "test_evidence": [],
       "documentation_evidence": [
+        "docs/COMMAND_REFERENCE.md",
         "docs/ROADMAP.md"
       ],
       "line_coverage_percent": null,
@@ -2274,7 +2301,7 @@
         "README.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-10-08T08:29:52+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -2311,7 +2338,9 @@
       ],
       "owner": "Documentation Maintainers",
       "classification": "active",
-      "productive_callers": [],
+      "productive_callers": [
+        "personal_assistant/tool_catalog/runtime.py"
+      ],
       "test_evidence": [],
       "documentation_evidence": [
         "README.md",
@@ -2319,6 +2348,7 @@
         "docs/AGENT_STABILIZATION_ROADMAP.md",
         "docs/AGENT_TOOL_ORCHESTRATION_ROADMAP.md",
         "docs/ANTIVIRUS.md",
+        "docs/COMMAND_REFERENCE.md",
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
         "docs/DOCKER_DEPLOYMENT.md",
         "docs/INVOICE_QUALITY_REPROCESSING_ROADMAP.md",
@@ -2600,7 +2630,7 @@
         "docs/architecture/owners.json"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-08T08:08:49+02:00",
+      "last_git_change": "2026-10-08T08:29:52+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -2640,7 +2670,7 @@
         "docs/archive/README.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-08T08:08:49+02:00",
+      "last_git_change": "2026-10-08T08:29:52+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -3798,7 +3828,7 @@
         "docs/architecture/owners.json"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-06T12:54:58+02:00",
+      "last_git_change": "2026-10-07T01:47:08+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -4564,7 +4594,7 @@
       ],
       "documentation_evidence": [],
       "line_coverage_percent": 100.0,
-      "last_git_change": "2026-10-08T08:08:49+02:00",
+      "last_git_change": "2026-10-08T08:29:52+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -4819,6 +4849,7 @@
       "owner": "Mail Domain Maintainers",
       "classification": "active",
       "productive_callers": [
+        "Dockerfile",
         "docker/scripts/refresh-deployment.sh",
         "docker/scripts/setup-host.sh",
         "personal_assistant/adapters/mail.py",
@@ -4848,11 +4879,14 @@
         "tests/test_mail_agent.py",
         "tests/test_mail_quarantine_sources.py",
         "tests/test_mail_review_m9.py",
+        "tests/test_nextcloud_talk_m17.py",
         "tests/test_not_spam_learning.py",
         "tests/test_portfolio_mapping.py",
         "tests/test_r261_ollama_reliability.py"
       ],
-      "documentation_evidence": [],
+      "documentation_evidence": [
+        "docs/DOCKER_DEPLOYMENT.md"
+      ],
       "line_coverage_percent": 95.73,
       "last_git_change": "2026-08-23T17:42:29+02:00",
       "runtime_telemetry": {
@@ -5814,7 +5848,7 @@
       ],
       "documentation_evidence": [],
       "line_coverage_percent": 100.0,
-      "last_git_change": "2026-10-08T08:08:49+02:00",
+      "last_git_change": "2026-10-08T08:29:52+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -6220,7 +6254,7 @@
         "docs/architecture/m16.6-risk-coverage.json",
         "docs/archive/AUDIT_INITIAL_IMPORT.md"
       ],
-      "line_coverage_percent": 45.23,
+      "line_coverage_percent": 43.68,
       "last_git_change": "2026-10-07T21:25:53+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -6662,6 +6696,7 @@
       "owner": "Core Maintainers",
       "classification": "active",
       "productive_callers": [
+        "Dockerfile",
         "docker/scripts/refresh-deployment.sh",
         "docker/scripts/setup-host.sh",
         "mail_agent/assistant_bridge.py",
@@ -6683,10 +6718,13 @@
         "tests/test_mail_search_contract_m111.py",
         "tests/test_mail_search_reconcile_m113.py",
         "tests/test_monitoring_tool.py",
+        "tests/test_nextcloud_talk_m17.py",
         "tests/test_personal_assistant_core.py",
         "tests/test_runtime_telemetry_m162.py"
       ],
-      "documentation_evidence": [],
+      "documentation_evidence": [
+        "docs/DOCKER_DEPLOYMENT.md"
+      ],
       "line_coverage_percent": 75.25,
       "last_git_change": "2026-09-10T15:08:43+02:00",
       "runtime_telemetry": {
@@ -7771,6 +7809,28 @@
       ],
       "line_coverage_percent": 79.43,
       "last_git_change": "2026-09-20T22:15:29+02:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "personal_assistant/nextcloud_talk.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Core Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "docker/scripts/nextcloud-talk-config.py"
+      ],
+      "test_evidence": [
+        "tests/test_nextcloud_talk_m17.py"
+      ],
+      "documentation_evidence": [],
+      "line_coverage_percent": 63.56,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -9825,7 +9885,7 @@
         "docs/BUILD_AND_CI.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-08T08:08:49+02:00",
+      "last_git_change": "2026-10-08T08:29:52+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -10381,7 +10441,7 @@
         "docs/architecture/IMAGE_SUPPLY_CHAIN.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-17T00:24:54+02:00",
+      "last_git_change": "2026-10-08T08:29:52+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -10552,7 +10612,7 @@
         "docs/M16_RELEASE_SCOPE.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-08T08:08:49+02:00",
+      "last_git_change": "2026-10-08T08:29:52+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -10748,7 +10808,7 @@
         "docs/architecture/legacy-decisions.json"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-08T08:08:49+02:00",
+      "last_git_change": "2026-10-08T08:29:52+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -10943,7 +11003,7 @@
         "skills/personal-assistant/references/runtime-security.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-08T08:08:49+02:00",
+      "last_git_change": "2026-10-08T08:29:52+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -11222,7 +11282,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-08T08:08:49+02:00",
+      "last_git_change": "2026-10-08T08:29:52+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -11580,7 +11640,7 @@
         "docs/architecture/adr/0008-container-netze-host-ollama.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-09T09:35:29+02:00",
+      "last_git_change": "2026-10-06T22:02:26+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -12257,7 +12317,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-05T22:34:05+02:00",
+      "last_git_change": "2026-10-08T08:29:52+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -12879,6 +12939,29 @@
       "rollback_relevance": "none"
     },
     {
+      "path": "tests/test_nextcloud_talk_m17.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "personal_assistant/tool_catalog/runtime.py"
+      ],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/COMMAND_REFERENCE.md",
+        "skills/personal-assistant/references/tool-contract.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
       "path": "tests/test_nextcloud_workspace_tools.py",
       "types": [
         "python-module"
@@ -13199,7 +13282,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-08T08:08:49+02:00",
+      "last_git_change": "2026-10-08T08:29:52+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -13235,7 +13318,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-08T08:08:49+02:00",
+      "last_git_change": "2026-10-08T08:29:52+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"

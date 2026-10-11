@@ -1,17 +1,18 @@
 usage: __main__.py [-h] [--config CONFIG] [--verbose]
-                   {setup,agent-tools,doctor,status,capabilities,version,monitor,scheduler,jobs,ollama,performance,portfolio,invoices,security,tools,mail,nextcloud,calendar,tasks,contacts,deck,orders,resources,index,search,actions,settings}
+                   {setup,agent-tools,doctor,status,capabilities,talk,version,monitor,scheduler,jobs,ollama,performance,portfolio,invoices,security,tools,mail,nextcloud,calendar,tasks,contacts,deck,orders,resources,index,search,actions,settings}
                    ...
 
 Lokale Personal-Assistant-Plattform
 
 positional arguments:
-  {setup,agent-tools,doctor,status,capabilities,version,monitor,scheduler,jobs,ollama,performance,portfolio,invoices,security,tools,mail,nextcloud,calendar,tasks,contacts,deck,orders,resources,index,search,actions,settings}
+  {setup,agent-tools,doctor,status,capabilities,talk,version,monitor,scheduler,jobs,ollama,performance,portfolio,invoices,security,tools,mail,nextcloud,calendar,tasks,contacts,deck,orders,resources,index,search,actions,settings}
     setup               Zentrale Einrichtung
     agent-tools         Native Agentenwerkzeuge, Routing und Evidenzvertrag
                         pruefen
     doctor              Core, Index, Policies und Nextcloud pruefen
     status              Kompakten Status anzeigen
     capabilities        Maschinenlesbare Rechte und Grenzen anzeigen
+    talk                Nextcloud-Talk-Kanal sicher diagnostizieren
     version             Installierte Version, Konsistenz und Updatehistorie
                         anzeigen
     monitor             Leistung, Zuverlaessigkeit und Datenfrische bewerten

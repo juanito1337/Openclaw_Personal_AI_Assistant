@@ -16,6 +16,8 @@ den fuehrenden Launcher durch `/opt/openclaw-agent/scripts/assistant.sh` ersetze
 |---|---|---:|---|---|---|---|
 | `assistant.agent-tools.status` | `read` | nein | `none` | `always` | `./scripts/assistant.sh agent-tools status` | `tests/test_agent_tool_orchestration_m13.py` |
 | `assistant.status` | `read` | nein | `none` | `always` | `./scripts/assistant.sh status` | `tests/test_m5_tool_contract.py` |
+| `assistant.talk.status` | `read` | nein | `none` | `always` | `./scripts/assistant.sh talk status` | `tests/test_nextcloud_talk_m17.py` |
+| `assistant.talk.doctor` | `read` | nein | `none` | `always` | `./scripts/assistant.sh talk doctor` | `tests/test_nextcloud_talk_m17.py` |
 | `assistant.version` | `read` | nein | `none` | `always` | `./scripts/assistant.sh version --verify` | `tests/test_m5_tool_contract.py` |
 | `assistant.version.history` | `read` | nein | `none` | `always` | `./scripts/assistant.sh version --verify --history --limit 10` | `tests/test_m5_tool_contract.py` |
 | `assistant.version.since` | `read` | nein | `none` | `always` | `./scripts/assistant.sh version --verify --history --since "<Version>" --limit 20` | `tests/test_m5_tool_contract.py` |

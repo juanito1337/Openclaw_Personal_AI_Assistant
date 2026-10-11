@@ -60,7 +60,7 @@ if [[ ! -f "$TARGET_ROOT/config/personal-assistant.env" ]]; then
   sudo cp "$SOURCE_ROOT/docker/config/personal-assistant.env.example" "$TARGET_ROOT/config/personal-assistant.env"
 fi
 for secret in gateway.env mail-agent.env personal-assistant.env \
-  himalaya-imap-password himalaya-smtp-password; do
+  himalaya-imap-password himalaya-smtp-password nextcloud-talk-bot-secret; do
   if [[ ! -e "$TARGET_ROOT/secrets/$secret" ]]; then
     sudo install -m 600 /dev/null "$TARGET_ROOT/secrets/$secret"
   fi

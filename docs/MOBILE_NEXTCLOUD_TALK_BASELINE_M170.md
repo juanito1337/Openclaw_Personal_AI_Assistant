@@ -19,9 +19,9 @@ freigegeben.
 | Ausgangscommit | `8e63d9f865a103ce034ca0504f39914bf904b99b` |
 | Entwicklungsbranch | `feature/m17-nextcloud-talk` |
 | Produkt | OpenClaw Local Personal Assistant |
-| Produktrelease | `3.4.0-r29.0.3` |
+| Produktrelease | `3.4.0-r29.0.6` (am 2026-10-11 erneut verifiziert) |
 | eingebetteter OpenClaw-Core | `2026.7.1` |
-| produktives Runtime-Image | Release `3.4.0-r29.0.3`, Revision `7f6c57628750846cb38c5351b2fe0211eb052dd6` |
+| produktives Runtime-Image | Release `3.4.0-r29.0.6`, Revision `3b477ddd6f580b85e7557047a6990662cbeee974` |
 | Quellmanifest vor M17-Aenderungen | 646 Eintraege, verifiziert |
 
 Der Entwicklungscheckout ist absichtlich keine installierte Instanz. `status`,
@@ -32,8 +32,8 @@ die laufende Gatewayrolle erhoben.
 
 ## Produktive Runtimebaseline
 
-Am Messzeitpunkt liefen Gateway, alle Fachworker, Ollama-Proxy und ClamAV seit
-elf Tagen gesund. Der Gateway-Port war ausschliesslich als
+Bei der urspruenglichen M17.0-Messung liefen Gateway, alle Fachworker,
+Ollama-Proxy und ClamAV seit elf Tagen gesund. Der Gateway-Port war ausschliesslich als
 `127.0.0.1:18789 -> 18789/tcp` publiziert.
 
 | Messwert | Wert |
