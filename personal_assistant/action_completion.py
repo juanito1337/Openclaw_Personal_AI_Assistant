@@ -32,10 +32,11 @@ MAX_WORKFLOW_TOOL_CALLS = 12
 
 _EXECUTE_PATTERNS = (
     r"\b(?:trag|trage|tragt|tragen)\b.{0,80}\b(?:ein|kalender)\b",
-    r"\b(?:eintragen|anlegen|erstellen|verschieben|aktualisieren|abschliessen|abschließen|send(?:e|en|et)|verschick(?:e|en|t)|beantwort(?:e|en|et))\b",
+    r"\bleit(?:e|en|et)\b.{0,160}\bweiter\b",
+    r"\b(?:eintragen|anlegen|erstellen|verschieben|aktualisieren|abschliessen|abschließen|send(?:e|en|et)|verschick(?:e|en|t)|beantwort(?:e|en|et)|weiterleit(?:e|en|et))\b",
     r"\b(?:fuehre|führe)\b.{0,40}\b(?:aus|durch)\b",
     r"\b(?:crea|crear|anade|añade|agrega|envia|envía|actualiza|mueve|completa)\b",
-    r"\b(?:create|add|send|move|update|complete)\b",
+    r"\b(?:create|add|send|move|update|complete|forward)\b",
 )
 _PREVIEW_PATTERNS = (
     r"\b(?:vorschau|preview|dry[- ]?run|simulier)\w*\b",
@@ -121,6 +122,7 @@ def action_completion_contract(operation_ids: Iterable[str]) -> dict[str, Any]:
                 "nextcloud.workspace.move",
                 "mail.reply-send",
                 "mail.compose-send",
+                "mail.forward-send",
                 "mail.move",
             }
         ),
@@ -310,7 +312,7 @@ def advance_action_obligation(
                 last_error="unexpected-write-operation",
             )
             return result
-        if operation in {"mail.reply-draft", "mail.compose-draft"}:
+        if operation in {"mail.reply-draft", "mail.compose-draft", "mail.forward-draft"}:
             result.update(
                 status="terminal",
                 terminal_state="approval-required",

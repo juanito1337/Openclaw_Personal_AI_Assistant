@@ -345,6 +345,7 @@ def _route_definitions() -> list[dict[str, Any]]:
                 r"\b(?:e-?mails?|mails?|postfach|nachricht(?:en)?)\b",
                 r"\bcorreo(?:s)?\b",
                 r"\b(?:mail|antwort)?entw(?:urf|uerfe|ürfe)(?:s|n)?\b",
+                r"\b(?:weiterleit(?:en|ung)|forward(?:ing|ed)?)\b",
             ],
             "tool": _DOMAIN_TOOL_NAMES["mail"]["read"],
             "operations": [
@@ -356,6 +357,8 @@ def _route_definitions() -> list[dict[str, Any]]:
                 "mail.reply-send",
                 "mail.compose-draft",
                 "mail.compose-send",
+                "mail.forward-draft",
+                "mail.forward-send",
                 "mail.move",
             ],
             "claim_classes": ["mail-state", "negative", "write-success"],
@@ -669,10 +672,13 @@ def build_native_tool_contract() -> dict[str, Any]:
                 )
             elif domain == "mail" and kind == "write":
                 domain_guidance = (
-                    " Ein gespeicherter mail.reply-draft oder mail.compose-draft ist noch kein "
+                    " Ein gespeicherter mail.reply-draft, mail.compose-draft oder "
+                    "mail.forward-draft ist noch kein "
                     "Versand: Empfaenger, Betreff und vollstaendigen Text anzeigen und erst "
                     "nach einer danach erteilten ausdruecklichen Versandanweisung das passende "
-                    "mail.reply-send oder mail.compose-send ausfuehren. Jede Operation hat ihren "
+                    "mail.reply-send, mail.compose-send oder mail.forward-send ausfuehren. "
+                    "Bei Weiterleitungen zusaetzlich den ZIP-Anhang mit Original-Anhangsnamen "
+                    "anzeigen. Jede Operation hat ihren "
                     "eigenen nativen Allow-once-Dialog. Ein blosses /approve ist ungueltig; nur "
                     "Schaltflaeche oder exaktes /approve <ID> allow-once des aktuellen Dialogs "
                     "verwenden. missing-or-stale-bound-approval bedeutet sicher nicht ausgefuehrt "

@@ -40,6 +40,17 @@ RUN npm ci --omit=dev --ignore-scripts --legacy-peer-deps --no-audit --no-fund \
     && test -s node_modules/@openclaw/nextcloud-talk/openclaw.plugin.json \
     && test -s node_modules/@openclaw/signal/openclaw.plugin.json
 
+# The upstream OpenClaw image is immutable, so security fixes released between
+# upstream image revisions are overlaid from a separate integrity-locked tree.
+FROM ${NODE_BASE_IMAGE} AS openclaw-security-override-builder
+WORKDIR /overrides
+COPY docker/openclaw-security-overrides/package.json \
+     docker/openclaw-security-overrides/package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund \
+    && test "$(node -p 'require("./node_modules/proxy-addr/package.json").version')" = "2.0.8" \
+    && test "$(node -p 'require("./node_modules/forwarded/package.json").version')" = "0.2.0" \
+    && test "$(node -p 'require("./node_modules/ipaddr.js/package.json").version')" = "1.9.1"
+
 FROM ${NODE_BASE_IMAGE} AS himalaya-builder
 ARG HIMALAYA_VERSION
 ARG HIMALAYA_ARCHIVE_SHA256
@@ -103,11 +114,18 @@ RUN apk add --no-cache \
        tesseract-ocr=5.5.0-r2 \
        tesseract-ocr-data-deu=5.5.0-r2 \
        tesseract-ocr-data-eng=5.5.0-r2 \
-       tzdata=2026d-r0 \
+       tzdata=2026e-r0 \
        clamav=1.4.3-r0 \
        freshclam=1.4.3-r0
 
 COPY --from=openclaw-source /app /app
+RUN rm -rf /app/node_modules/proxy-addr /app/node_modules/forwarded
+COPY --from=openclaw-security-override-builder /overrides/node_modules/proxy-addr \
+     /app/node_modules/proxy-addr
+COPY --from=openclaw-security-override-builder /overrides/node_modules/forwarded \
+     /app/node_modules/forwarded
+COPY --from=openclaw-security-override-builder /overrides/node_modules/ipaddr.js \
+     /app/node_modules/proxy-addr/node_modules/ipaddr.js
 COPY --from=openclaw-plugin-builder /plugins/node_modules /opt/openclaw-plugins/node_modules
 RUN rm -rf /app/node_modules/@vitest/browser \
        /usr/local/share/corepack \
@@ -124,6 +142,8 @@ RUN rm -rf /app/node_modules/@vitest/browser \
     && test "$(node -p 'require("/opt/openclaw-plugins/node_modules/@openclaw/brave-plugin/package.json").version')" = "2026.7.1" \
     && test "$(node -p 'require("/opt/openclaw-plugins/node_modules/@openclaw/nextcloud-talk/package.json").version')" = "2026.7.1" \
     && test "$(node -p 'require("/opt/openclaw-plugins/node_modules/@openclaw/signal/package.json").version')" = "2026.7.1" \
+    && test "$(node -p 'require("/app/node_modules/proxy-addr/package.json").version')" = "2.0.8" \
+    && test "$(node -p 'require("/app/node_modules/proxy-addr/node_modules/ipaddr.js/package.json").version')" = "1.9.1" \
     && test "$(node -p 'require("/usr/local/lib/node_modules/npm/node_modules/tar/package.json").version')" = "7.5.19" \
     && test "$(openclaw --version)" = "OpenClaw 2026.7.1"
 

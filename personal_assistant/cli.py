@@ -517,6 +517,8 @@ def main(argv: list[str] | None = None) -> int:
         "reply-send",
         "compose-draft",
         "compose-send",
+        "forward-draft",
+        "forward-send",
         "move",
     }
     direct_review_correction = bool(

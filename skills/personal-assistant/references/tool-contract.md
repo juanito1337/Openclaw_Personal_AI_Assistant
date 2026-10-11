@@ -1,6 +1,6 @@
 # Generierter Skill-Toolvertrag
 
-Release: `3.4.0-r29.0.3`. Quelle: typisierte Tooldefinitionen unter
+Release: `3.4.0-r29.0.6`. Quelle: typisierte Tooldefinitionen unter
 `personal_assistant/tool_catalog/` und `RELEASE.json`. Nicht manuell bearbeiten;
 `python3 scripts/generate-skill-tool-contract.py` erzeugt diese Datei deterministisch.
 Die statische Liste belegt keine live erteilte Berechtigung; dafuer immer
@@ -158,6 +158,8 @@ den fuehrenden Launcher durch `/opt/openclaw-agent/scripts/assistant.sh` ersetze
 | `mail.reply-send` | `write` | ja | `explicit-user-approved-presented-draft` | `mail-move` | `./scripts/assistant.sh mail reply-send --draft-id "<Entwurfs-ID>" --yes` | `tests/test_agent_tool_architecture.py` |
 | `mail.compose-draft` | `local-write` | nein | `draft-only-no-send` | `mail-move` | `./scripts/assistant.sh mail compose-draft --to "<Empfaenger>" --subject "<Betreff>" --body "<Entwurf>"` | `tests/test_agent_tool_architecture.py` |
 | `mail.compose-send` | `write` | ja | `explicit-user-approved-presented-draft` | `mail-move` | `./scripts/assistant.sh mail compose-send --draft-id "<Entwurfs-ID>" --yes` | `tests/test_agent_tool_architecture.py` |
+| `mail.forward-draft` | `local-write` | nein | `draft-only-no-send` | `mail-move` | `./scripts/assistant.sh mail forward-draft --folder "<Ordner>" --message-id "<ID>" --expected-subject "<Betreff>" --to "<Empfaenger>" --body "<Entwurf>"` | `tests/test_mail_forward_tool.py` |
+| `mail.forward-send` | `write` | ja | `explicit-user-approved-presented-draft` | `mail-move` | `./scripts/assistant.sh mail forward-send --draft-id "<Entwurfs-ID>" --yes` | `tests/test_mail_forward_tool.py` |
 | `mail.move` | `write` | ja | `configured-mail-organize-single-message` | `mail-move` | `./scripts/assistant.sh mail move --source "<Quelle>" --destination "<Ziel>" --message-id "<ID>" --expected-subject "<Betreff>"` | `tests/test_agent_tool_architecture.py` |
 | `mail.calendar-command` | `write` | ja | `trusted-owner-command` | `calendar-mail` | `Subject: {calendar_subject_prefix} <Terminbeschreibung>` | `tests/test_agent_tool_architecture.py` |
 

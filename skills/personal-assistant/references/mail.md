@@ -444,8 +444,20 @@ search. A local image/index rollback never restores or changes remote mail.
 - Always produce the complete reply with `mail reply-draft` before a reply send.
 - Always produce the complete new message with `mail compose-draft` before a new
   send.
+- Always produce a complete `mail forward-draft` for one exact folder, mailbox ID
+  and expected subject before forwarding. It preserves the complete original
+  RFC822 message and every physical attachment inside
+  `original-message.eml.zip`; present recipient, subject, full body, ZIP digest
+  and the original attachment names.
 - Present recipient, subject and body. Send only the unchanged draft ID after
-  Jan's explicit approval with the registered `--yes` command.
+  Jan's explicit approval with the matching registered `--yes` command.
+- `mail forward-send` re-reads the exact source, compares its SHA-256 with the
+  displayed draft, scans the complete raw mail and every physical attachment
+  fail-closed, and sends the byte-stable ZIP without a separate IMAP Sent-copy.
+  The ZIP is written to a mode-0600 temporary file and hashed in bounded chunks;
+  compressed archive bytes are not duplicated in process memory. A changed
+  source, scanner error, infected payload or digest mismatch blocks the send
+  before SMTP.
 - The draft result is preparation, never evidence that mail was sent. End the
   draft turn as `approval-required`; a later explicit instruction to send that
   unchanged draft starts the registered send call and its separate native

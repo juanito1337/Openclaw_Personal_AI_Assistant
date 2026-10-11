@@ -17,6 +17,7 @@
 *.log
 *.lock
 !docker/openclaw-plugins/package-lock.json
+!docker/openclaw-security-overrides/package-lock.json
 *.zip
 *.secret
 *.pem

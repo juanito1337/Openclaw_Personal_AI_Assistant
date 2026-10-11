@@ -547,6 +547,41 @@ TOOLS: tuple[ToolDefinition, ...] = (
         test_anchor="tests/test_agent_tool_architecture.py",
     ),
     define(
+        id="mail.forward-draft",
+        domain="mail",
+        description=(
+            "Eine eindeutig ausgewaehlte Originalmail nach fail-closed Virenscan samt ihrer "
+            "vollstaendigen MIME-Struktur und aller Original-Anhaenge als unveraenderte ZIP-"
+            "Weiterleitung vorbereiten und Empfaenger, Betreff, Text sowie Anhang anzeigen"
+        ),
+        command=(
+            './scripts/assistant.sh mail forward-draft --folder "<Ordner>" '
+            '--message-id "<ID>" --expected-subject "<Betreff>" '
+            '--to "<Empfaenger>" --body "<Entwurf>"'
+        ),
+        mode="local-write",
+        writes_external_data=False,
+        approval="draft-only-no-send",
+        availability="mail-move",
+        documentation_anchor="skills/personal-assistant/references/mail.md",
+        test_anchor="tests/test_mail_forward_tool.py",
+    ),
+    define(
+        id="mail.forward-send",
+        domain="mail",
+        description=(
+            "Nur eine zuvor angezeigte und am unveraenderten Quell-Digest gebundene "
+            "Originalmail-Weiterleitung nach ausdruecklicher Nutzerfreigabe versenden"
+        ),
+        command='./scripts/assistant.sh mail forward-send --draft-id "<Entwurfs-ID>" --yes',
+        mode="write",
+        writes_external_data=True,
+        approval="explicit-user-approved-presented-draft",
+        availability="mail-move",
+        documentation_anchor="skills/personal-assistant/references/mail.md",
+        test_anchor="tests/test_mail_forward_tool.py",
+    ),
+    define(
         id="mail.move",
         domain="mail",
         description="Eine eindeutig per Mail-ID ausgewaehlte Mail zwischen vorhandenen, nicht-destruktiven Ordnern verschieben",

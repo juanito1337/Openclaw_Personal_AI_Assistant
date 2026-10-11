@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+## 3.4.0-r29.0.6 – Sichere manuelle Originalmail-Weiterleitung
+
+- Der native Agent-Werkzeugvertrag enthaelt einen getrennten
+  `mail.forward-draft`-/`mail.forward-send`-Ablauf fuer exakt ausgewaehlte
+  Nachrichten. Die vollstaendige Originalmail und alle Originalanhaenge werden
+  als digestgebundene `original-message.eml.zip` weitergegeben.
+- Vor Entwurf und Versand prueft ClamAV fail-closed die komplette Rohmail und
+  jeden physischen Anhang; der Versand liest die Quelle erneut und bricht bei
+  geaendertem SHA-256 vor SMTP ab.
+- Das ZIP wird mit begrenztem Zusatzspeicher atomar in eine temporaere
+  mode-0600-Datei geschrieben. Entwurf und Versand bleiben getrennt, und der
+  Versand erfordert weiterhin eine native Einmalfreigabe.
+- Die Alpine-3.22-Pins fuer Python und Zeitzonendaten folgen den aktuell
+  verfuegbaren, weiterhin exakt festgelegten Revisionen. Der signierte
+  `r29.0.4`-Kandidat brach deshalb vor Imageveroeffentlichung ab und wurde nie
+  promotiert oder produktiv installiert.
+- Der signierte `r29.0.5`-Kandidat wurde ebenfalls vor Registry-Publikation
+  verworfen, nachdem der aktualisierte CVE-Scan `CVE-2026-90711` in der
+  Upstream-Abhaengigkeit `proxy-addr 2.0.7` erkannte. `r29.0.6` ueberlagert sie
+  reproduzierbar aus einem separaten integritaetsgebundenen Lockfile mit
+  `proxy-addr 2.0.8`; die Critical-Policy bleibt ausnahmslos fail-closed.
+
 ## 3.4.0-r29.0.3 – Vollstaendige Terminfreigaben und CalDAV-Kompatibilitaet
 
 - Terminfreigabemails enthalten die vollstaendige Originalmail wieder als

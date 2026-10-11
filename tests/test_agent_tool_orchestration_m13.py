@@ -120,6 +120,8 @@ class AgentToolContractTests(unittest.TestCase):
                 "mail.reply-send",
                 "mail.compose-draft",
                 "mail.compose-send",
+                "mail.forward-draft",
+                "mail.forward-send",
             }.issubset(route["operations"])
         )
         self.assertIn("write-success", route["claim_classes"])
@@ -129,6 +131,7 @@ class AgentToolContractTests(unittest.TestCase):
         operations = {item["tool_id"]: item for item in payload["operations"]}
         portfolio_import = operations["portfolio.import.csv.nextcloud.confirm"]
         mail_send = operations["mail.compose-send"]
+        mail_forward_send = operations["mail.forward-send"]
         quote_refresh = operations["portfolio.quotes.refresh"]
 
         self.assertEqual(portfolio_import["approval_policy"]["risk_level"], 2)
@@ -136,6 +139,8 @@ class AgentToolContractTests(unittest.TestCase):
         self.assertTrue(portfolio_import["approval_policy"]["simple_confirmation_satisfies"])
         self.assertEqual(mail_send["approval_policy"]["risk_level"], 3)
         self.assertTrue(mail_send["approval_policy"]["native_dialog_required"])
+        self.assertEqual(mail_forward_send["approval_policy"]["risk_level"], 3)
+        self.assertTrue(mail_forward_send["approval_policy"]["native_dialog_required"])
         self.assertEqual(quote_refresh["approval_policy"]["risk_level"], 1)
         self.assertEqual(quote_refresh["approval_policy"]["authorization"], "configured-policy")
 

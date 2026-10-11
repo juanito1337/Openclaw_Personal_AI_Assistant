@@ -27,7 +27,7 @@ class AgentCapabilityExposureTests(unittest.TestCase):
         normalized_agents = " ".join(agents.split())
         normalized_references = " ".join(references.split())
 
-        self.assertIn("Release identity: `3.4.0-r29.0.3`", skill)
+        self.assertIn("Release identity: `3.4.0-r29.0.6`", skill)
         for command in (
             "calendar list --limit 100",
             "calendar search --query",
@@ -40,6 +40,8 @@ class AgentCapabilityExposureTests(unittest.TestCase):
             "mail index doctor",
             "mail compose-draft --to",
             "mail compose-send --draft-id",
+            "mail forward-draft --folder",
+            "mail forward-send --draft-id",
             "invoices files --limit 100",
             "portfolio import-csv --file",
             "portfolio import-csv --nextcloud-path",

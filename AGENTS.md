@@ -8,7 +8,7 @@ the other references below that skill. Release-specific history belongs in
 
 ## Release identity
 
-- Installed package release: **3.4.0-r29.0.3**.
+- Installed package release: **3.4.0-r29.0.6**.
 - `RELEASE.json` is authoritative, never conversational memory, an archive name,
   README alone or an old session.
 - An unqualified question such as "Welche Version verwendest du?", "Welche
@@ -113,10 +113,13 @@ failure, or cancelled by the user. A future promise, waiting phrase, meta-commen
 about calling a tool, silence or a partial multi-object result is not completion.
 Use the bounded registered source -> preview -> single write -> remote read-back
 workflow; never transfer one candidate's approval or evidence to another.
-For mail, creating a reply/new-message draft is a local preparation step, not a
-send completion. Show recipient, subject and full body, end as
-`approval-required`, and execute the unchanged draft's send operation only after
-a later explicit send instruction and its own current native allow-once approval.
+For mail, creating a reply/new-message/forward draft is a local preparation step,
+not a send completion. Show recipient, subject and full body; for a forward also
+show its ZIP attachment and preserved original attachment names. End as
+`approval-required`, and execute the unchanged draft's matching send operation
+only after a later explicit send instruction and its own current native
+allow-once approval. A forward remains bound to the exact source SHA-256 and must
+pass the fail-closed raw-mail and physical-attachment scan again before SMTP.
 
 The release-owned `standard` operations profile is applied at every process
 start. All normal non-destructive tools for resources already enabled and exactly

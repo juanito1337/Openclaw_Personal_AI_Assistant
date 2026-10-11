@@ -262,7 +262,7 @@ async function executeOperation(toolName, toolContext, toolCallId, rawParams) {
             code: "missing-or-stale-bound-approval",
             retry_allowed: false,
             new_tool_call_required: true,
-            instruction: operation.tool_id === "mail.reply-send" || operation.tool_id === "mail.compose-send"
+            instruction: ["mail.reply-send", "mail.compose-send", "mail.forward-send"].includes(operation.tool_id)
               ? "Die gebundene Einzelfreigabe war beim Start nicht mehr gueltig; es wurde keine Mail versendet. Nicht automatisch wiederholen und kein blosses /approve anfordern. Jan muss den unveraenderten, bereits vollstaendig angezeigten Entwurf erneut zum Versand anweisen; der neue native Freigabedialog ist per Schaltflaeche oder mit seinem exakten /approve <ID> allow-once zu bestaetigen."
               : operation.approval_policy?.simple_confirmation_satisfies === true
                 ? "Die gebundene Einzelfreigabe war beim Start nicht mehr gueltig; die Aktion wurde nicht ausgefuehrt. Nicht automatisch wiederholen und kein blosses /approve anfordern. Wenn genau diese eine unveraenderte Aktion noch als ausstehend gespeichert ist, kann Jan sie mit JA bestaetigen; andernfalls muss er die konkrete Aktion erneut vollstaendig anweisen."
@@ -327,7 +327,7 @@ function buildRoutingContext(route, obligation, confirmation = null) {
     "Mail: letzte eingegangene Mails des gesamten Kontos mit mail.recent und leerem arguments-Objekt; INBOX kann nach automatischen Verschiebungen leer sein. mail.list nur fuer einen ausdruecklich genannten Einzelordner mit arguments.folder; Suche mit mail.search und arguments.query; mail.read erst nach einem Treffer mit folder, message_id und expected_subject.",
     "Bei Schreibwuenschen zuerst read-only identifizieren/vorschauen. Ein eindeutiger aktueller Nutzerauftrag kann eine begrenzte Routineaktion bereits freigeben; sensible Aenderungen behalten ihren nativen Einmal-Dialog.",
     "Freigaben: Die Schaltflaeche ist der normale Dialogweg; eine sichtbare ID ist nur technischer Fallback. Ein einfaches Ja gilt nur fuer genau eine intern gespeicherte, unveraenderte und noch gueltige Aktion. Bei missing-or-stale-bound-approval wurde nichts ausgefuehrt: nicht automatisch wiederholen und keinen alten Befehl empfehlen.",
-    "Mail: Ein Entwurf ist kein Versand. Nach mail.reply-draft oder mail.compose-draft Empfaenger, Betreff und vollstaendigen Text anzeigen und den Turn als approval-required beenden. mail.reply-send oder mail.compose-send erst nach einer danach erteilten ausdruecklichen Versandanweisung und eigener nativer Einzelfreigabe aufrufen.",
+    "Mail: Ein Entwurf ist kein Versand. Nach mail.reply-draft, mail.compose-draft oder mail.forward-draft Empfaenger, Betreff und vollstaendigen Text anzeigen; bei Weiterleitungen auch ZIP-Digest und Original-Anhangsnamen. Den Turn als approval-required beenden. Den passenden reply-, compose- oder forward-send erst nach einer danach erteilten ausdruecklichen Versandanweisung und eigener nativer Einzelfreigabe aufrufen.",
     "Eine ACTION_OBLIGATION_V1 muss in diesem Turn durch registrierte Tool-Evidenz bis zu einem typisierten Endzustand gefuehrt werden. Blosse Zukunftsversprechen, Meta-Ankuendigungen oder ein stiller Abbruch sind kein Abschluss.",
     `Route: ${JSON.stringify(route)}`,
     `ACTION_OBLIGATION_V1: ${JSON.stringify(obligation)}`,

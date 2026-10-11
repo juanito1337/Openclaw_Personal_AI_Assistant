@@ -145,6 +145,26 @@ class MailApplicationMixin:
     def mail_send_message(self, draft_id: str, *, approved: bool = False) -> dict[str, Any]:
         return self.mail_move_service.send_message(draft_id, approved=approved)
 
+    def mail_draft_forward(
+        self,
+        folder: str,
+        message_id: str,
+        recipient: str,
+        body: str,
+        *,
+        expected_subject: str = "",
+    ) -> dict[str, Any]:
+        return self.mail_move_service.draft_forward(
+            folder,
+            message_id,
+            recipient,
+            body,
+            expected_subject=expected_subject,
+        )
+
+    def mail_send_forward(self, draft_id: str, *, approved: bool = False) -> dict[str, Any]:
+        return self.mail_move_service.send_forward(draft_id, approved=approved)
+
     def mail_move_message(
         self,
         *,
