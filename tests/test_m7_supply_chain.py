@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -417,6 +418,66 @@ class M7SupplyChainTests(unittest.TestCase):
             observed_calls = calls.read_text(encoding="utf-8")
             self.assertIn("info", observed_calls)
             self.assertNotIn("compose stop", observed_calls)
+
+    def test_requested_deployment_revision_survives_persisted_defaults(self) -> None:
+        persisted = "b" * 40
+        for requested in (None, "c" * 40, "", "invalid"):
+            with self.subTest(requested=requested), tempfile.TemporaryDirectory() as temporary:
+                base = Path(temporary)
+                scripts = base / "scripts"
+                scripts.mkdir()
+                for name in ("deploy.sh", "common.sh"):
+                    shutil.copy2(ROOT / "docker/scripts" / name, scripts / name)
+                verifier = scripts / "verify-image-supply-chain.sh"
+                verifier.write_text(
+                    '#!/bin/sh\nprintf "%s\\n" "$2" >> "$REVISION_PROBE"\nexit 0\n',
+                    encoding="utf-8",
+                )
+                verifier.chmod(0o755)
+                maintenance = scripts / "check-maintenance-runtime.sh"
+                maintenance.write_text("#!/bin/sh\nexit 47\n", encoding="utf-8")
+                maintenance.chmod(0o755)
+                binary = base / "bin"
+                binary.mkdir()
+                for name, body in {
+                    "docker": 'printf "%s\\n" "$*" >> "$DOCKER_PROBE"\nexit 0\n',
+                    "systemctl": "exit 1\n",
+                }.items():
+                    stub = binary / name
+                    stub.write_text("#!/bin/sh\n" + body, encoding="utf-8")
+                    stub.chmod(0o755)
+                environment_file = base / "deployment.env"
+                environment_file.write_text(
+                    "OPENCLAW_IMAGE=fixture.invalid/previous:runtime\n"
+                    "OPENCLAW_CURRENT_RUNTIME=docker\n"
+                    "OPENCLAW_TALK_PROXY_ENABLED=false\n"
+                    "OPENCLAW_WRITE_TEST_ENABLED=false\n"
+                    f"OPENCLAW_EXPECTED_SOURCE_REVISION={persisted}\n",
+                    encoding="utf-8",
+                )
+                environment = os.environ.copy()
+                environment.pop("OPENCLAW_EXPECTED_SOURCE_REVISION", None)
+                environment.update({
+                    "PATH": f"{binary}:{environment['PATH']}",
+                    "OPENCLAW_DEPLOY_ENV": str(environment_file),
+                    "REVISION_PROBE": str(base / "revision"),
+                    "DOCKER_PROBE": str(base / "docker-calls"),
+                })
+                if requested is not None:
+                    environment["OPENCLAW_EXPECTED_SOURCE_REVISION"] = requested
+                result = subprocess.run(
+                    [str(scripts / "deploy.sh"), *["fixture.invalid/candidate@sha256:" + "a" * 64] * 3],
+                    env=environment, capture_output=True, text=True, check=False,
+                )
+                if requested in ("", "invalid"):
+                    self.assertEqual(result.returncode, 2, result.stderr)
+                    self.assertFalse((base / "revision").exists())
+                else:
+                    self.assertEqual(result.returncode, 47, result.stderr)
+                    self.assertEqual(
+                        (base / "revision").read_text().splitlines(), [requested or persisted] * 3,
+                    )
+                self.assertNotIn("stop", (base / "docker-calls").read_text())
 
     def test_compose_assigns_minimal_role_images(self) -> None:
         result = subprocess.run(

@@ -568,6 +568,7 @@
       ],
       "test_evidence": [
         "tests/test_container_runtime.py",
+        "tests/test_m7_supply_chain.py",
         "tests/test_m8_recovery.py",
         "tests/test_talk_proxy_lifecycle.py"
       ],
@@ -598,6 +599,7 @@
         "docker/scripts/verify-backup.sh"
       ],
       "test_evidence": [
+        "tests/test_m7_supply_chain.py",
         "tests/test_m8_recovery.py",
         "tests/test_nextcloud_setup_container.py",
         "tests/test_talk_proxy_lifecycle.py"
@@ -656,7 +658,9 @@
       ],
       "owner": "Operations Maintainers",
       "classification": "active",
-      "productive_callers": [],
+      "productive_callers": [
+        "docker/scripts/deploy.sh"
+      ],
       "test_evidence": [
         "tests/test_container_runtime.py"
       ],
@@ -8993,7 +8997,7 @@
         "tests/test_talk_proxy_guard.py"
       ],
       "documentation_evidence": [],
-      "line_coverage_percent": 89.27,
+      "line_coverage_percent": 88.98,
       "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",

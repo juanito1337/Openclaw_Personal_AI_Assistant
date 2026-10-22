@@ -601,6 +601,10 @@ API. It never changes host group membership itself. It also passes the complete
 Git commit to the deployment, which verifies both the image label and the source
 revision visible inside the running tool container.
 
+An explicitly supplied `OPENCLAW_EXPECTED_SOURCE_REVISION` takes precedence over
+a persisted deployment default. An empty or invalid explicit value fails before
+image verification or writer shutdown; it never falls back to an older commit.
+
 ## 2. Prepare the host
 
 ```bash

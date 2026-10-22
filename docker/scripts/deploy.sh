@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# The selected commit belongs to this invocation. A persisted default must not
+# replace the revision exported by live-test-branch.sh when common.sh loads .env.
+deployment_revision_was_set=${OPENCLAW_EXPECTED_SOURCE_REVISION+x}
+deployment_requested_revision=${OPENCLAW_EXPECTED_SOURCE_REVISION-}
 SCRIPT_DIR=$(CDPATH='' cd "$(dirname "$0")" && pwd)
 # shellcheck source=docker/scripts/common.sh
 # shellcheck source=common.sh
@@ -44,7 +48,11 @@ previous_talk_nextcloud_ip=""
 if [[ "$target_talk_proxy_enabled" == true ]]; then
   validate_talk_proxy_addresses "$target_talk_proxy_ip" "$target_talk_nextcloud_ip"
 fi
-expected_source_revision=${OPENCLAW_EXPECTED_SOURCE_REVISION:-}
+if [[ "$deployment_revision_was_set" == x ]]; then
+  expected_source_revision=$deployment_requested_revision
+else
+  expected_source_revision=${OPENCLAW_EXPECTED_SOURCE_REVISION:-}
+fi
 mail_relevant_folder=${OPENCLAW_MAIL_RELEVANT_FOLDER:-}
 mail_relevant_approved=${OPENCLAW_MAIL_RELEVANT_FOLDER_APPROVED:-false}
 [[ -n "$previous_image" ]] || { echo "OPENCLAW_IMAGE fehlt in $ENV_FILE" >&2; exit 2; }
