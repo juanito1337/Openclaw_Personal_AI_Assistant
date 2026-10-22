@@ -31,6 +31,18 @@ def _environment(tmp_path: Path) -> tuple[dict[str, str], Path, Path]:
     fake_bin.mkdir()
     _stub(fake_bin / "sqlite3", "printf 'ok\\n'\n")
     _stub(fake_bin / "systemctl", "exit 1\n")
+    # Lifecycle fixtures must never change ownership or invoke host sudo. CI
+    # runners need not have the production runtime's fixed UID/GID 1000.
+    _stub(
+        fake_bin / "chown",
+        'printf "%s\\n" "$*" >> "$TALK_TEST_CHOWN_LOG"\n'
+        '[[ "${TALK_TEST_CHOWN_DENIED:-false}" != true ]]\n',
+    )
+    _stub(
+        fake_bin / "sudo",
+        '[[ "$1" == chown ]] || exit 97\n'
+        'printf "%s\\n" "$*" >> "$TALK_TEST_SUDO_LOG"\n',
+    )
     _stub(
         fake_bin / "docker",
         'printf "%s\\n" "$*" >> "$TALK_TEST_DOCKER_LOG"\n'
@@ -70,6 +82,8 @@ def _environment(tmp_path: Path) -> tuple[dict[str, str], Path, Path]:
             "TALK_TEST_DOCKER_LOG": str(tmp_path / "docker.log"),
             "TALK_TEST_BIN": str(fake_bin),
             "TALK_TEST_RUNNING": str(tmp_path / "running"),
+            "TALK_TEST_CHOWN_LOG": str(tmp_path / "chown.log"),
+            "TALK_TEST_SUDO_LOG": str(tmp_path / "sudo.log"),
         }
     )
     return env, env_file, root
@@ -360,15 +374,51 @@ def test_manual_backup_records_stopped_container_addresses_not_candidate_env(tmp
     assert "{{json .Config.Env}}" not in commands
 
 
-def test_refresh_preserves_ca_contents_and_does_not_import_trust(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "reported_owner,chown_denied",
+    [("1000:1000", False), ("1001:1001", False), ("1001:1001", True)],
+)
+def test_refresh_preserves_ca_contents_and_does_not_import_trust(
+    tmp_path: Path, reported_owner: str, chown_denied: bool
+) -> None:
     env, _, root = _environment(tmp_path)
+    # Exercise both the configured owner and GitHub runner mismatch locally,
+    # including the permission fallback, without any real privilege change.
+    _stub(
+        Path(env["TALK_TEST_BIN"]) / "stat",
+        '[[ "$#" == 3 && "$1" == -c && "$2" == "%u:%g" ]] || exit 96\n'
+        'printf "%s\\n" "$TALK_TEST_REPORTED_OWNER"\n',
+    )
+    env["TALK_TEST_REPORTED_OWNER"] = reported_owner
+    env["TALK_TEST_CHOWN_DENIED"] = str(chown_denied).lower()
     # refresh-deployment uses the instance's deployment directory.
     (root / "deployment").mkdir()
     fixture = root / "secrets/talk-proxy-pki/test-only.txt"
     fixture.write_text("synthetic persistent state", encoding="utf-8")
+    original_owner = fixture.parent.stat().st_uid
     result = _run([str(SCRIPTS / "refresh-deployment.sh")], env)
     assert result.returncode == 0, result.stderr
     assert fixture.read_text() == "synthetic persistent state"
     assert (root / "secrets/talk-proxy-pki").stat().st_mode & 0o777 == 0o700
+    assert fixture.parent.stat().st_uid == original_owner
     assert (root / "config/talk-proxy-public").is_dir()
     assert not (root / "config/ca").exists()
+    chown_log = Path(env["TALK_TEST_CHOWN_LOG"])
+    sudo_log = Path(env["TALK_TEST_SUDO_LOG"])
+    if reported_owner == "1000:1000":
+        assert not chown_log.exists()
+        assert not sudo_log.exists()
+    else:
+        expected = [
+            f"1000:1000 {root / relative}"
+            for relative in (
+                "secrets/talk-proxy-pki",
+                "config/talk-proxy-public",
+                "secrets/nextcloud-connection",
+            )
+        ]
+        assert chown_log.read_text().splitlines() == expected
+        if chown_denied:
+            assert sudo_log.read_text().splitlines() == [f"chown {call}" for call in expected]
+        else:
+            assert not sudo_log.exists()

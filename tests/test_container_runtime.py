@@ -394,6 +394,19 @@ raise SystemExit(86)
 
             environment = os.environ.copy()
             environment["OPENCLAW_ROOT"] = str(target)
+            fake_bin = Path(folder) / "bin"
+            fake_bin.mkdir()
+            # Host test runners may use UID 1001. Never change fixture ownership
+            # through real chown/sudo while exercising the container UID branch.
+            for command, body in {
+                "stat": "printf '1001:1001\\n'\n",
+                "chown": "exit 0\n",
+                "sudo": "exit 97\n",
+            }.items():
+                stub = fake_bin / command
+                stub.write_text("#!/bin/sh\nset -eu\n" + body, encoding="utf-8")
+                stub.chmod(0o755)
+            environment["PATH"] = f"{fake_bin}:{environment['PATH']}"
             subprocess.run(
                 [str(root / "docker/scripts/refresh-deployment.sh")],
                 cwd=root,

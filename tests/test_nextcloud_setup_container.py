@@ -287,6 +287,13 @@ def test_rollback_starts_owner_only_for_compatible_image(
 
 def test_refresh_preserves_connection_contents_and_rejects_symlink(tmp_path: Path) -> None:
     env, root = _environment(tmp_path)
+    binary = Path(env["SETUP_TEST_BIN"])
+    # Exercise a host UID different from the container UID without changing
+    # fixture ownership or invoking the runner's real sudo command.
+    _stub(binary / "stat", "printf '1001:1001\\n'\n")
+    _stub(binary / "chown", 'printf "%s\\n" "$*" >> "$SETUP_TEST_CHOWN_LOG"\n')
+    _stub(binary / "sudo", "exit 97\n")
+    env["SETUP_TEST_CHOWN_LOG"] = str(tmp_path / "chown.log")
     directory = root / "secrets/nextcloud-connection"
     fixture = directory / "fixture.txt"
     fixture.write_text("fixture-original", encoding="utf-8")
@@ -294,6 +301,7 @@ def test_refresh_preserves_connection_contents_and_rejects_symlink(tmp_path: Pat
     assert result.returncode == 0, result.stderr
     assert fixture.read_text() == "fixture-original"
     assert directory.stat().st_mode & 0o777 == 0o700
+    assert f"1000:1000 {directory}" in Path(env["SETUP_TEST_CHOWN_LOG"]).read_text().splitlines()
     shutil.move(str(directory), str(root / "untouched"))
     directory.symlink_to(root / "untouched", target_is_directory=True)
     result = _run([str(SCRIPTS / "refresh-deployment.sh")], env)

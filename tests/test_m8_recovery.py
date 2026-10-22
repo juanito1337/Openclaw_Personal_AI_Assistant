@@ -204,8 +204,11 @@ def test_rollback_normalizes_runtime_owned_paths_before_restore(tmp_path: Path) 
     assert not runtime_created.exists()
     assert (tmp_path / "openclaw/state/release.txt").read_text() == "safe-old-state\n"
     chown_calls = (tmp_path / "chown.log").read_text(encoding="utf-8").splitlines()
-    assert len(chown_calls) == 2
-    assert all(str(tmp_path / "openclaw/state") in call for call in chown_calls)
+    normalization_calls = [call for call in chown_calls if call.startswith("-R ")]
+    assert len(normalization_calls) == 2
+    assert all(str(tmp_path / "openclaw/state") in call for call in normalization_calls)
+    connection_owner = f"1000:1000 {tmp_path / 'openclaw/secrets/nextcloud-connection'}"
+    assert all(call in normalization_calls or call == connection_owner for call in chown_calls)
     commands = docker_log.read_text(encoding="utf-8")
     assert "up -d --no-deps ollama-proxy gateway" in commands
 
