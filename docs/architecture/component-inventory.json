@@ -9554,6 +9554,7 @@
         "tests/test_mail_owner_cycle_m126.py",
         "tests/test_mail_projection_m96.py",
         "tests/test_mail_search_lexical_m114.py",
+        "tests/test_nextcloud_resource_tool_contract.py",
         "tests/test_nextcloud_workspace_tools.py",
         "tests/test_portfolio_mapping.py",
         "tests/test_release_awareness.py"
@@ -11464,7 +11465,9 @@
         "scripts/check-m13-integration.sh",
         "scripts/check-m15-integration.sh"
       ],
-      "test_evidence": [],
+      "test_evidence": [
+        "tests/test_nextcloud_resource_tool_contract.py"
+      ],
       "documentation_evidence": [],
       "line_coverage_percent": null,
       "last_git_change": "2026-09-21T15:20:43+02:00",
@@ -11485,7 +11488,9 @@
         "scripts/check-m13-integration.sh",
         "scripts/check-m15-integration.sh"
       ],
-      "test_evidence": [],
+      "test_evidence": [
+        "tests/test_nextcloud_resource_tool_contract.py"
+      ],
       "documentation_evidence": [],
       "line_coverage_percent": null,
       "last_git_change": "2026-09-14T15:07:40+02:00",

@@ -64,6 +64,22 @@
   "channels": [
     "nextcloud-account-talk"
   ],
+  "channelConfigs": {
+    "nextcloud-account-talk": {
+      "label": "Nextcloud Talk Konto",
+      "description": "Kontoverbindung, Räume und Benutzer ausschließlich über Nextcloud einrichten in der administrativen OpenClaw-Oberfläche verwalten.",
+      "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "commands": {
+        "nativeCommandsAutoEnabled": false,
+        "nativeSkillsAutoEnabled": false
+      }
+    }
+  },
   "configSchema": {
     "type": "object",
     "additionalProperties": false,

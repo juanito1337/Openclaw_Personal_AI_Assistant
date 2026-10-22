@@ -10,7 +10,7 @@ case "$command_line" in
     printf '%s\n' '{"ok":true,"complete":true,"checked_at":"2026-09-01T00:00:00Z"}'
     ;;
   "tools list")
-    printf '%s\n' '[{"id":"mail.search","command":"./scripts/assistant.sh mail search --query \"<Suchbegriff>\" --limit 50"},{"id":"nextcloud.tasks.status","command":"./scripts/assistant.sh tasks status"},{"id":"nextcloud.tasks.update","command":"./scripts/assistant.sh tasks update --uid \"<UID>\" --expected-title \"<aktueller Titel>\" --status COMPLETED --yes"}]'
+    printf '%s\n' '[{"id":"mail.search","command":"./scripts/assistant.sh mail search --query \"<Suchbegriff>\" --limit 50"},{"id":"nextcloud.tasks.status","command":"./scripts/assistant.sh tasks status --resource \"<resource-optional>\""},{"id":"nextcloud.tasks.update","command":"./scripts/assistant.sh tasks update --uid \"<UID>\" --expected-title \"<aktueller Titel>\" --status COMPLETED --yes --resource \"<resource-optional>\""}]'
     ;;
   "mail search --query Synthetic --limit 50")
     printf '%s\n' '{"ok":true,"complete":true,"results_may_be_truncated":false,"folder_errors":[],"results":[{"folder":"INBOX","mailbox_id":"42","subject":"Synthetic result"}]}'
@@ -18,7 +18,7 @@ case "$command_line" in
   "mail search --query Partial --limit 50")
     printf '%s\n' '{"ok":true,"complete":false,"results_may_be_truncated":true,"folder_errors":[{"folder":"Archive","error":"synthetic-timeout"}],"results":[]}'
     ;;
-  "nextcloud list --path Assistent")
+  "nextcloud list"|"nextcloud list --path Assistent")
     printf '%s\n' '{"ok":true,"complete":true,"results_may_be_truncated":false,"files":[{"path":"Assistent/Synthetic.txt"}]}'
     ;;
   "tasks status")

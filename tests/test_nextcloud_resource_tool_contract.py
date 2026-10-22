@@ -13,6 +13,20 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class NextcloudResourceToolContractTests(unittest.TestCase):
+    def test_integration_fixture_commands_match_the_current_tool_contract(self) -> None:
+        commands = {definition.id: definition.command for definition in tool_definitions()}
+        for milestone in ("m13", "m15"):
+            result = subprocess.run(
+                [str(ROOT / "tests/fixtures" / milestone / "fake-assistant.sh"), "tools", "list"],
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=5,
+            )
+            for operation in json.loads(result.stdout):
+                with self.subTest(fixture=milestone, operation=operation["id"]):
+                    self.assertEqual(operation["command"], commands[operation["id"]])
+
     def test_resource_selection_is_optional_without_weakening_write_approval(self) -> None:
         operations = {
             operation["tool_id"]: operation

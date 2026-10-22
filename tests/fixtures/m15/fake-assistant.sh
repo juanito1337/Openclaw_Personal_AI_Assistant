@@ -4,7 +4,7 @@ set -eu
 command_line="$*"
 case "$command_line" in
   "tools list")
-    printf '%s\n' '[{"id":"mail.search","command":"./scripts/assistant.sh mail search --query \"<Suchbegriff>\" --limit 50"},{"id":"mail.read","command":"./scripts/assistant.sh mail read --folder \"<Ordner>\" --message-id \"<ID>\" --expected-subject \"<Betreff>\""},{"id":"nextcloud.calendar.from-mail-preview","command":"./scripts/assistant.sh calendar from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --dry-run"},{"id":"nextcloud.calendar.from-mail-create","command":"./scripts/assistant.sh calendar from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --preview-digest \"<preview_digest>\" --candidate-id \"<candidate_id>\" --yes"}]'
+    printf '%s\n' '[{"id":"mail.search","command":"./scripts/assistant.sh mail search --query \"<Suchbegriff>\" --limit 50"},{"id":"mail.read","command":"./scripts/assistant.sh mail read --folder \"<Ordner>\" --message-id \"<ID>\" --expected-subject \"<Betreff>\""},{"id":"nextcloud.calendar.from-mail-preview","command":"./scripts/assistant.sh calendar from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --dry-run --resource \"<resource-optional>\""},{"id":"nextcloud.calendar.from-mail-create","command":"./scripts/assistant.sh calendar from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --preview-digest \"<preview_digest>\" --candidate-id \"<candidate_id>\" --yes --resource \"<resource-optional>\""}]'
     ;;
   "mail search --query Synthetic --limit 50")
     printf '%s\n' '{"ok":true,"complete":true,"results_may_be_truncated":false,"folder_errors":[],"results":[{"folder":"Agent/Test","mailbox_id":"synthetic-42","subject":"Synthetic flights"}]}'
@@ -30,10 +30,10 @@ case "$command_line" in
     printf '%s\n' '{"ok":true,"complete":false,"decision":"information-required","candidate_count":1,"missing_fields":["end-time"]}'
     ;;
   "calendar from-mail --folder Agent/Test --message-id synthetic-42 --expected-subject Synthetic flights --preview-digest aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa --candidate-id outbound --yes")
-    printf '%s\n' '{"ok":true,"complete":true,"postcondition_verified":true,"remote":{"uid":"synthetic-outbound@local","etag":"m15-outbound"}}'
+    printf '%s\n' '{"ok":true,"complete":true,"postcondition_verified":true,"candidate_id":"outbound","remote":{"uid":"synthetic-outbound@local","etag":"m15-outbound"}}'
     ;;
   "calendar from-mail --folder Agent/Test --message-id synthetic-42 --expected-subject Synthetic flights --preview-digest aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa --candidate-id inbound --yes")
-    printf '%s\n' '{"ok":true,"complete":true,"postcondition_verified":true,"remote":{"uid":"synthetic-inbound@local","etag":"m15-inbound"}}'
+    printf '%s\n' '{"ok":true,"complete":true,"postcondition_verified":true,"candidate_id":"inbound","remote":{"uid":"synthetic-inbound@local","etag":"m15-inbound"}}'
     ;;
   "calendar from-mail --folder Agent/Test --message-id synthetic-42 --expected-subject Synthetic flights --preview-digest aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa --candidate-id delivery-uncertain --yes")
     printf '%s\n' '{"ok":false,"complete":false,"delivery_uncertain":true,"postcondition_verified":false,"error":"synthetic-network-loss"}'

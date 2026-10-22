@@ -537,6 +537,19 @@ console.log(JSON.stringify({
         self.assertIn("personal_assistant_mail_read", replay_safe)
         self.assertNotIn("personal_assistant_mail_write", replay_safe)
 
+    def test_account_channel_manifest_has_no_parallel_credential_or_pairing_controls(self) -> None:
+        manifest = json.loads((PLUGIN / "openclaw.plugin.json").read_text(encoding="utf-8"))
+        self.assertEqual(set(manifest["channelConfigs"]), set(manifest["channels"]))
+        descriptor = manifest["channelConfigs"]["nextcloud-account-talk"]
+        schema = descriptor["schema"]
+        self.assertEqual(schema["type"], "object")
+        self.assertFalse(schema["additionalProperties"])
+        self.assertEqual(schema["properties"], {})
+        self.assertNotIn("patternProperties", schema)
+        self.assertIn("administrativen OpenClaw-Oberfläche", descriptor["description"])
+        self.assertFalse(descriptor["commands"]["nativeCommandsAutoEnabled"])
+        self.assertFalse(descriptor["commands"]["nativeSkillsAutoEnabled"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -49,6 +49,27 @@ def render_manifest() -> str:
             },
             "activation": {"onStartup": True},
             "channels": ["nextcloud-account-talk"],
+            "channelConfigs": {
+                "nextcloud-account-talk": {
+                    "label": "Nextcloud Talk Konto",
+                    "description": (
+                        "Kontoverbindung, Räume und Benutzer ausschließlich über "
+                        "Nextcloud einrichten in der administrativen OpenClaw-Oberfläche verwalten."
+                    ),
+                    # The channel reads its confirmed account selection from
+                    # the protected connection store, never channels.* config.
+                    "schema": {
+                        "$schema": "http://json-schema.org/draft-07/schema#",
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {},
+                    },
+                    "commands": {
+                        "nativeCommandsAutoEnabled": False,
+                        "nativeSkillsAutoEnabled": False,
+                    },
+                },
+            },
             "configSchema": {
                 "type": "object",
                 "additionalProperties": False,
