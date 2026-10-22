@@ -11,6 +11,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from ...config import AssistantConfig
+from ...nextcloud_connection import load_connection
 
 
 @dataclass(slots=True, frozen=True)
@@ -29,8 +30,12 @@ class NextcloudError(RuntimeError):
 class NextcloudClient:
     def __init__(self, config: AssistantConfig) -> None:
         self.config = config
+        self.connection = load_connection()
 
     def credentials(self) -> tuple[str, str, str]:
+        if self.connection:
+            return (self.connection["server_url"], self.connection["login_name"],
+                    self.connection["app_password"])
         cfg = self.config.nextcloud
         return (
             os.environ.get(cfg.base_url_env, "").strip().rstrip("/"),
@@ -39,6 +44,8 @@ class NextcloudClient:
         )
 
     def missing_environment(self) -> list[str]:
+        if self.connection:
+            return []
         cfg = self.config.nextcloud
         return [
             name
@@ -73,6 +80,9 @@ class NextcloudClient:
         timeout: int | None = None,
         expected: set[int] | None = None,
     ) -> DavResponse:
+        current = load_connection()
+        if (current or {}).get("revision", "") != (self.connection or {}).get("revision", ""):
+            raise NextcloudError("nextcloud-connection-changed: Status und Auswahl erneut pruefen")
         missing = self.missing_environment()
         if missing:
             raise NextcloudError("Fehlende Umgebungsvariablen: " + ", ".join(missing))
@@ -85,6 +95,30 @@ class NextcloudClient:
             "User-Agent": "Personal-Assistant/3.4.0",
             **dict(headers or {}),
         }
+        if self.connection:
+            from ...nextcloud_onboarding import OnboardingError, SafeNextcloudTransport
+
+            try:
+                transport = SafeNextcloudTransport(
+                    base_url, allow_private=True,
+                    expected_ips=tuple(self.connection["expected_ips"]),
+                    timeout_seconds=timeout or self.config.nextcloud.request_timeout_seconds,
+                    max_response_bytes=max(self.config.search.max_file_bytes, 4 * 1024 * 1024),
+                )
+                # Legacy connectors use installation-relative /remote.php and
+                # /status.php. Verified DAV hrefs already carry the installation
+                # prefix (or full origin) and must not receive it twice.
+                managed_path = path
+                if path == "/status.php" or path.startswith(("/remote.php/", "/ocs/")):
+                    managed_path = path.lstrip("/")
+                response = transport.request(method, managed_path, headers=request_headers, data=data)
+                result = DavResponse(response.status, "", response.headers, response.body,
+                                     transport.resolve_url(managed_path))
+            except OnboardingError as exc:
+                raise NextcloudError(exc.code) from exc
+            if expected and result.status not in expected:
+                raise NextcloudError(f"nextcloud-http-{result.status}")
+            return result
         request = urllib.request.Request(url, data=data, headers=request_headers, method=method)
         try:
             with urllib.request.urlopen(
@@ -129,4 +163,6 @@ class NextcloudClient:
 
     @property
     def username(self) -> str:
+        if self.connection:
+            return str(self.connection["user_id"])
         return self.credentials()[1]

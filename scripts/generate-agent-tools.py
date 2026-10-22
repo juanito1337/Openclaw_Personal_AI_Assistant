@@ -48,10 +48,44 @@ def render_manifest() -> str:
                 name: {"replaySafe": True} for name in replay_safe_tools
             },
             "activation": {"onStartup": True},
+            "channels": ["nextcloud-account-talk"],
             "configSchema": {
                 "type": "object",
                 "additionalProperties": False,
-                "properties": {},
+                "properties": {
+                    "setupUiEnabled": {
+                        "type": "boolean",
+                        "default": True,
+                        "description": (
+                            "Nextcloud-Einrichtungsseite für Administratoren anzeigen. "
+                            "Benötigt den separaten Einrichtungsdienst."
+                        ),
+                    },
+                    "accountTalkEnabled": {
+                        "type": "boolean",
+                        "default": True,
+                        "description": (
+                            "Den nativen Nextcloud-Kontokanal bereitstellen. "
+                            "Aktive Räume und Benutzer werden separat in der Einrichtung bestätigt."
+                        ),
+                    },
+                },
+            },
+            "uiHints": {
+                "setupUiEnabled": {
+                    "label": "Nextcloud-Einrichtung anzeigen",
+                    "help": (
+                        "Nextcloud einrichten in der Seitenleiste öffnen: Serveradresse eingeben, "
+                        "bei Nextcloud anmelden und Ressourcen prüfen. Keine Zugangsdaten hier eingeben."
+                    ),
+                },
+                "accountTalkEnabled": {
+                    "label": "Nextcloud-Kontokanal bereitstellen",
+                    "help": (
+                        "Der Kanal wartet bis zur ausdrücklich bestätigten Talk-Auswahl. "
+                        "Diese Option erteilt keine Raum- oder Benutzerfreigaben."
+                    ),
+                },
             },
         },
         ensure_ascii=False,

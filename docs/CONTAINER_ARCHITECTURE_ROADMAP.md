@@ -1,5 +1,11 @@
 # Roadmap zur sicheren Container-Architektur
 
+Diese historische Ausgangsplanung beschreibt den Stand vom August 2026.
+Die aktuelle Architektur steht unter [Architektur](architecture/README.md).
+Die neue grafische Nextcloud-Einrichtung mit Talk-Kontokanal ist in
+[Einrichtung](NEXTCLOUD_SETUP_UI.md) und
+[ADR-0051](architecture/adr/0051-openclaw-einrichtung-und-nextcloud-konto.md) dokumentiert.
+
 Stand: 2026-08-05
 Gepruefte Release-Identitaet: `3.4.0-r27.2.5`
 Status dieses Dokuments: Architekturplanung, keine Produktionsmigration

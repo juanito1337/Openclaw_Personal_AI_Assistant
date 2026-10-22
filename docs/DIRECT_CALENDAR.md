@@ -1,6 +1,31 @@
 # Direktes Nextcloud-Kalenderwerkzeug
 
-Der Personal Assistant kann Termine in genau einem bewusst ausgewaehlten Nextcloud-CalDAV-Kalender lesen, suchen, neu anlegen und – nach gesonderter Freigabe – kontrolliert bearbeiten.
+Der Personal Assistant kann Termine in freigegebenen Nextcloud-CalDAV-Kalendern
+lesen, suchen, neu anlegen und nach gesonderter Freigabe kontrolliert bearbeiten.
+Jede Schreiboperation richtet sich an genau einen Kalender.
+
+## Kontoverbindung ueber OpenClaw
+
+Die [Nextcloud-Einrichtung](NEXTCLOUD_SETUP_UI.md) erkennt alle fuer das
+angemeldete Konto verfuegbaren Kalender mit ihren Serverrechten. `calendar status`,
+`calendar list` und `calendar search` umfassen ohne Auswahl alle freigegebenen
+Kalender; Zeilen behalten ihre `resource_id`, Teilfehler bleiben sichtbar.
+`--resource "<resource_id>"` begrenzt diese Operationen auf einen Kalender.
+
+Bei mehreren Kalendern ist derselbe Parameter fuer `create`, `update` und
+`from-mail` erforderlich. Die UID allein reicht zur Auswahl nicht aus, weil
+verschiedene Kalender dieselbe UID enthalten koennen. Beispiel:
+
+```bash
+./scripts/assistant.sh calendar list --resource "<resource_id>" --limit 100
+./scripts/assistant.sh calendar create --resource "<resource_id>" --title "Termin" --start "2026-11-03T14:00:00+01:00" --end "2026-11-03T15:00:00+01:00"
+```
+
+Die GUI-Kontofreigabe erweitert keine Serverrechte und ersetzt keine konkrete
+Writefreigabe. Gleichnamige Kalender werden nicht automatisch zusammengefasst.
+Die folgenden Konfigurationsbefehle beschreiben den bisherigen Einzelkalender-
+Pfad; bei einer GUI-verwalteten Verbindung verweist `configure` auf die
+Einrichtungsoberflaeche.
 
 ## Discovery und Freigabe
 
@@ -124,7 +149,7 @@ Dabei wird nur die Master-Komponente der Serie aktualisiert; Ausnahmen und unbek
 ## Sicherheitsgrenzen
 
 - keine automatische Kalenderauswahl
-- Update nur nach `--allow-update` bei der Konfiguration und `--yes` pro Aenderung
+- Update nur mit bestaetigtem Serverrecht und konkreter Freigabe; beim Legacy-Konfigurationspfad zusaetzlich `--allow-update`, pro CLI-Aenderung `--yes`
 - exakte UID sowie optional `--expected-title` und `--expected-start` als Auswahlwache
 - ETag/`If-Match` gegen paralleles Ueberschreiben
 - Teilaktualisierung erhaelt Teilnehmer, Alarme, Zeitzonen, benutzerdefinierte Felder und nicht genannte Eigenschaften

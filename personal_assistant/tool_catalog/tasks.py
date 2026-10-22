@@ -30,8 +30,8 @@ TOOLS: tuple[ToolDefinition, ...] = (
     define(
         id="nextcloud.tasks.status",
         domain="tasks",
-        description="Konfiguration sowie Lese-, Anlege- und Aktualisierungsrechte des Nextcloud-Aufgabenwerkzeugs pruefen",
-        command="./scripts/assistant.sh tasks status",
+        description='Konfiguration sowie Lese-, Anlege- und Aktualisierungsrechte des Nextcloud-Aufgabenwerkzeugs pruefen; ohne --resource alle freigegebenen Ressourcen, optional genau eine stabile Ressourcen-ID',
+        command='./scripts/assistant.sh tasks status --resource "<resource-optional>"',
         mode="read",
         writes_external_data=False,
         approval="none",
@@ -42,8 +42,8 @@ TOOLS: tuple[ToolDefinition, ...] = (
     define(
         id="nextcloud.tasks.list",
         domain="tasks",
-        description="Aufgaben aus der freigegebenen Nextcloud-Aufgabenliste mit UID lesen",
-        command="./scripts/assistant.sh tasks list --include-completed --limit 100",
+        description='Aufgaben aus der freigegebenen Nextcloud-Aufgabenliste mit UID lesen; ohne --resource alle freigegebenen Ressourcen, optional genau eine stabile Ressourcen-ID',
+        command='./scripts/assistant.sh tasks list --include-completed --limit 100 --resource "<resource-optional>"',
         mode="read",
         writes_external_data=False,
         approval="none",
@@ -54,8 +54,8 @@ TOOLS: tuple[ToolDefinition, ...] = (
     define(
         id="nextcloud.tasks.update",
         domain="tasks",
-        description="Eine zuvor eindeutig per UID ausgewaehlte Aufgabe nach ausdruecklichem Nutzerauftrag ETag-geschuetzt aktualisieren oder abschliessen; Serien nur mit gesonderter Freigabe",
-        command='./scripts/assistant.sh tasks update --uid "<UID>" --expected-title "<aktueller Titel>" --status COMPLETED --yes',
+        description='Eine zuvor eindeutig per UID ausgewaehlte Aufgabe nach ausdruecklichem Nutzerauftrag ETag-geschuetzt aktualisieren oder abschliessen; Serien nur mit gesonderter Freigabe; bei mehreren Ressourcen ist --resource aus status/list fuer genau ein Schreibziel erforderlich',
+        command='./scripts/assistant.sh tasks update --uid "<UID>" --expected-title "<aktueller Titel>" --status COMPLETED --yes --resource "<resource-optional>"',
         mode="write",
         writes_external_data=True,
         approval="explicit-user-task-update-etag-guarded",
@@ -66,8 +66,8 @@ TOOLS: tuple[ToolDefinition, ...] = (
     define(
         id="nextcloud.tasks.create",
         domain="tasks",
-        description="Neue Aufgabe in der freigegebenen Nextcloud-Aufgabenliste anlegen",
-        command='./scripts/assistant.sh tasks create --title "<Titel>" --due "<YYYY-MM-DD oder ISO-8601>" --priority <0-9> --description "<Beschreibung>"',
+        description='Neue Aufgabe in der freigegebenen Nextcloud-Aufgabenliste anlegen; bei mehreren Ressourcen ist --resource aus status/list fuer genau ein Schreibziel erforderlich',
+        command='./scripts/assistant.sh tasks create --title "<Titel>" --due "<YYYY-MM-DD oder ISO-8601>" --priority <0-9> --description "<Beschreibung>" --resource "<resource-optional>"',
         mode="write",
         writes_external_data=True,
         approval="configured-tasks-create-only",

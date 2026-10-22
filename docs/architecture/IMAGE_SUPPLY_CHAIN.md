@@ -62,6 +62,11 @@ Runtime-Paketpins. Damit scheitert bereits der Quellcheck, wenn ein aktualisiert
 Alpine-Pin nicht gleichzeitig im Supply-Chain-Vertrag festgehalten wurde. Der
 dynamische Rollenbuild bleibt die verbindliche Pruefung, dass der gepinnte
 Paketstand im unveraenderten Basisimage-Repository tatsaechlich aufloesbar ist.
+Am 2026-10-22 wurden die nicht mehr aufloesbaren bisherigen Pins gezielt auf
+[`ca-certificates=20261020-r0`](https://pkgs.alpinelinux.org/package/v3.22/main/x86_64/ca-certificates)
+und [`curl=8.14.1-r4`](https://pkgs.alpinelinux.org/package/v3.22/main/x86_64/curl)
+aus dem offiziellen Alpine-v3.22-main-Index aktualisiert; andere Paketpins und
+Basisimage-Digests blieben dabei erhalten.
 Es gibt keine pauschale Vulnerability-Ausnahme: jede bekannte kritische
 Schwachstelle, auch ohne Fix, stoppt die Freigabe.
 

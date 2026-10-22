@@ -402,6 +402,7 @@ function isComplete(operation, payload, ok) {
 
 function postconditionVerified(operation, payload, ok) {
   if (operation.mode === "read" || !ok || !payload || typeof payload !== "object") return false;
+  if (payload.dry_run === true || tokenizeCommand(operation.command ?? "").includes("--dry-run")) return false;
   if (payload.delivery_uncertain === true || payload.conflict === true || payload.complete === false) return false;
   if (Object.hasOwn(payload, "postcondition_verified")) {
     return payload.postcondition_verified === true;
@@ -471,7 +472,7 @@ function normalizedText(value) {
 const ACTION_EXECUTE_PATTERNS = [
   /\b(?:trag|trage|tragt|tragen)\b.{0,80}\b(?:ein|kalender)\b/iu,
   /\bleit(?:e|en|et)\b.{0,160}\bweiter\b/iu,
-  /\b(?:eintragen|anlegen|erstellen|importier(?:e|en|t)|verschieben|aktualisieren|abschliessen|abschließen|send(?:e|en|et)|verschick(?:e|en|t)|beantwort(?:e|en|et)|weiterleit(?:e|en|et))\b/iu,
+  /\b(?:eintragen|anlegen|erstell(?:e|en|t)|importier(?:e|en|t)|verschieb(?:e|en|t)|aktualisier(?:e|en|t)|abschliessen|abschließen|send(?:e|en|et)|verschick(?:e|en|t)|beantwort(?:e|en|et)|weiterleit(?:e|en|et))\b/iu,
   /\b(?:fuehre|führe)\b.{0,40}\b(?:aus|durch)\b/iu,
   /\b(?:crea|crear|anade|añade|agrega|envia|envía|actualiza|mueve|completa)\b/iu,
   /\b(?:create|add|send|move|update|complete|forward)\b/iu,
@@ -503,6 +504,7 @@ const ACTION_UNBOUND_RETRY_QUESTION_PATTERNS = [
   /\bshould i\b.{0,180}\b(?:try again|retry)/iu,
   /\b(?:quieres que|debo)\b.{0,180}\b(?:intente de nuevo|reintente)/iu,
 ];
+const ALL_TARGETS_COMPLETED = /\b(?:alle|beide|all|both)\b.{0,100}\b(?:erledigt|abgeschlossen|angelegt|erstellt|aktualisiert|gesendet|verschickt|done|completed|created|updated|sent)\b/iu;
 
 export function classifyActionIntent(contract, prompt, route) {
   if (!route?.resolved) return "ambiguous";
@@ -513,14 +515,31 @@ export function classifyActionIntent(contract, prompt, route) {
   return "ambiguous";
 }
 
-function actionTargetCount(text, workflowKind) {
+function actionTargetScope(prompt, workflowKind) {
+  // Ambiguity detection is not authorization or a free-text target resolver.
+  const text = normalizedText(prompt).replace(/"[^"\n]*"|'[^'\n]*'|„[^“\n]*“|«[^»\n]*»/gu, "");
+  const plural = "(?:aufgaben|tasks|termine|events|kontakte|contacts|mails|e-mails|nachrichten|messages|dateien|files|folders|fluege|flüge|flights|vuelos)";
+  const counts = { zwei: 2, beide: 2, beiden: 2, two: 2, both: 2, dos: 2,
+    drei: 3, three: 3, tres: 3, vier: 4, four: 4, cuatro: 4, fuenf: 5, fünf: 5, five: 5 };
+  const quantities = [...text.matchAll(new RegExp(`\\b(\\d{1,4}|${Object.keys(counts).join("|")})\\s+(?:${plural}|ordner)\\b(?!-)`, "giu"))]
+    .map((match) => counts[match[1]] ?? Number(match[1]));
+  if (quantities.some((count) => count > 4 || count < 1)) return { count: 4, error: "target-limit" };
+  const count = Math.max(1, ...quantities);
+  if (new Set(quantities).size > 1) return { count, error: "multiple-targets-not-bound" };
   if (
     workflowKind === "mail-to-calendar" &&
     (/\bhin(?:-| )?und(?:-| )?rueckflug\b/iu.test(text) ||
       (/\bhinflug\b/iu.test(text) && /\br(?:ue|ü)ckflug\b/iu.test(text)) ||
       /\b(?:fluege|flüge|flights|vuelos)\b/iu.test(text))
-  ) return 2;
-  return 1;
+  ) return { count: Math.max(2, count), error: null };
+  if (workflowKind === "mail-to-calendar") return { count, error: null };
+  const pluralRequest = new RegExp(`(?:^|\\b(?:bitte|erstelle|erstellen|aktualisiere|aktualisieren|verschiebe|verschieben|sende|send|create|update|complete|move|forward)\\s+)(?:(?:die|diese|meine|alle|saemtliche|sämtliche|mehrere|einige|the|these|all|some)\\s+)?${plural}\\b(?!-)`, "iu");
+  const singular = "(?:aufgabe|task|termin|event|kontakt|contact|mail|e-mail|nachricht|message|datei|file|ordner|folder)";
+  const repeatedTarget = new RegExp(`\\b${singular}\\b.{0,160}\\b(?:und|and|sowie)\\s+(?:(?:erstelle|aktualisiere|verschiebe|erledige|create|update|complete|move)\\s+)?(?:(?:eine|einen|ein|die|den|der|a|an|the)\\s+)?${singular}\\b`, "iu");
+  if (count > 1 || pluralRequest.test(text) || repeatedTarget.test(text) || /(?:^|\n)\s*(?:[-*]|\d+[.)])\s/u.test(text)) {
+    return { count, error: "multiple-targets-not-bound" };
+  }
+  return { count, error: null };
 }
 
 export function buildActionObligation(contract, prompt, route, turnId) {
@@ -533,7 +552,7 @@ export function buildActionObligation(contract, prompt, route, turnId) {
   const steps = workflowKind === "mail-to-calendar"
     ? [...contract.action_completion.workflow_steps]
     : ["resolve-target", "execute-one", "verify-one", "finish"];
-  const targetCount = actionTargetCount(text, workflowKind);
+  const { count: targetCount, error: scopeError } = actionTargetScope(text, workflowKind);
   const identity = { turn_id: String(turnId), intent: "execute", domains, workflow_kind: workflowKind, target_count: targetCount };
   return {
     schema_version: contract.action_completion.schema_version,
@@ -549,9 +568,9 @@ export function buildActionObligation(contract, prompt, route, turnId) {
     current_step: steps[0],
     step_index: 0,
     tool_calls: 0,
-    status: "open",
-    terminal_state: null,
-    last_error: null,
+    status: scopeError ? "terminal" : "open",
+    terminal_state: scopeError ? (scopeError === "target-limit" ? "blocked" : "information-required") : null,
+    last_error: scopeError,
     write_operations: [],
     write_digests: [],
     required_slots: workflowKind === "mail-to-calendar"
@@ -585,10 +604,13 @@ export function advanceActionObligation(contract, obligation, operation, evidenc
   }
   if (operation.mode !== "read") {
     if (
-      (result.domains.length > 0 && !result.domains.includes(operation.domain)) ||
+      !result.domains.includes(operation.domain) ||
       (result.workflow_kind === "mail-to-calendar" && operation.tool_id !== "nextcloud.calendar.from-mail-create")
     ) {
       return { ...result, status: "terminal", terminal_state: "blocked", last_error: "unexpected-write-operation" };
+    }
+    if (operation.mode === "local-write" && tokenizeCommand(operation.command).includes("--dry-run")) {
+      return result; // A local import preview is preparation, not the requested import.
     }
     if (["mail.reply-draft", "mail.compose-draft", "mail.forward-draft"].includes(operation.tool_id)) {
       return {
@@ -607,11 +629,21 @@ export function advanceActionObligation(contract, obligation, operation, evidenc
     if (result.current_step !== "execute-one") {
       return { ...result, status: "terminal", terminal_state: "blocked", last_error: "unexpected-workflow-step" };
     }
-    result.write_operations.push(operation.tool_id);
-    result.write_digests.push(argumentDigest);
-    if (evidence.postcondition_verified !== true) {
+    if (evidence.postcondition_verified !== true || payload?.dry_run === true) {
       return { ...result, status: "terminal", terminal_state: "blocked", last_error: "write-postcondition-unverified" };
     }
+    let identityDigest = argumentDigest;
+    if (result.workflow_kind === "mail-to-calendar") {
+      if (!payload?.candidate_id) {
+        return { ...result, status: "terminal", terminal_state: "blocked", last_error: "target-identity-unverified" };
+      }
+      identityDigest = stableDigest({ operation: operation.tool_id, target: String(payload.candidate_id) });
+    }
+    if (identityDigest && result.write_digests.includes(identityDigest)) {
+      return { ...result, status: "terminal", terminal_state: "blocked", last_error: "duplicate-target-evidence" };
+    }
+    result.write_operations.push(operation.tool_id);
+    result.write_digests.push(identityDigest);
     result.completed_targets += 1;
     result.postconditions_verified += 1;
     if (result.completed_targets >= result.target_count) {
@@ -626,20 +658,16 @@ export function advanceActionObligation(contract, obligation, operation, evidenc
     "read-source": { operations: ["mail.read"], next: "build-preview" },
     "build-preview": { operations: ["nextcloud.calendar.from-mail-preview"], next: "execute-one" },
   };
-  const singleOperations = new Set([
-    "nextcloud.calendar.status", "nextcloud.calendar.search", "nextcloud.tasks.status",
-    "nextcloud.tasks.list", "nextcloud.contacts.status", "nextcloud.contacts.search",
-    "mail.search", "mail.read",
-  ]);
   let allowed = [];
   let nextStep = "";
   if (result.workflow_kind === "mail-to-calendar") {
     const transition = mailCalendarProgress[result.current_step];
     allowed = transition?.operations ?? [];
     nextStep = transition?.next ?? "";
-  } else if (result.current_step === "resolve-target") {
-    allowed = [...singleOperations];
-    nextStep = "execute-one";
+  } else if (["resolve-target", "execute-one"].includes(result.current_step)) {
+    allowed = contract.operations.filter((item) => item.mode === "read" && result.domains.includes(item.domain))
+      .map((item) => item.tool_id);
+    nextStep = result.current_step;
   }
   if (!allowed.includes(operation.tool_id)) {
     return { ...result, status: "terminal", terminal_state: "blocked", last_error: "unexpected-workflow-step" };
@@ -665,6 +693,24 @@ export function advanceActionObligation(contract, obligation, operation, evidenc
   return result;
 }
 
+// This gate is checked both before issuing approval and again before execution.
+// A reply can be followed by more payloads or a resumed factory, so terminal
+// obligations remain immutable; only read-back/diagnostic calls may continue.
+export function actionWriteBlock(contract, obligation, operation, args = {}) {
+  if (operation.mode === "read" || !obligation) return "";
+  if (obligation.terminal_state) return obligation.last_error || `action-${obligation.terminal_state}`;
+  if (obligation.tool_calls >= contract.action_completion.limits.max_tool_calls) return "tool-call-limit";
+  if (!obligation.domains.includes(operation.domain)) return "unexpected-write-operation";
+  if (obligation.workflow_kind === "mail-to-calendar") {
+    if (operation.tool_id !== "nextcloud.calendar.from-mail-create") return "unexpected-write-operation";
+    if (obligation.current_step !== "execute-one") return "unexpected-workflow-step";
+    if (obligation.write_digests.includes(stableDigest({ operation: operation.tool_id, target: String(args.candidate_id ?? "") }))) {
+      return "duplicate-target-evidence";
+    }
+  }
+  return "";
+}
+
 export function guardActionCompletion(contract, obligation, answer) {
   const text = normalizedText(answer);
   if (!obligation) {
@@ -675,6 +721,11 @@ export function guardActionCompletion(contract, obligation, answer) {
   }
   if (contract.action_completion.terminal_states.includes(obligation.terminal_state)) {
     const issues = [];
+    const incomplete = obligation.completed_targets < obligation.target_count;
+    if ((incomplete && obligation.terminal_state === "completed") ||
+      ((incomplete || obligation.completed_targets < 2) && ALL_TARGETS_COMPLETED.test(text))) {
+      issues.push("all-targets-completion-unverified");
+    }
     if (
       ["approval-required", "information-required", "blocked"].includes(obligation.terminal_state)
       && ACTION_WRITE_PROMISE_PATTERNS.some((pattern) => pattern.test(text))
@@ -682,7 +733,7 @@ export function guardActionCompletion(contract, obligation, answer) {
       issues.push("write-promise-without-action-obligation");
     }
     if (
-      ["approval-required", "blocked"].includes(obligation.terminal_state) &&
+      ["approval-required", "information-required", "blocked"].includes(obligation.terminal_state) &&
       ACTION_UNBOUND_RETRY_QUESTION_PATTERNS.some((pattern) => pattern.test(text))
     ) {
       issues.push("unbound-yes-no-retry-question");
@@ -742,6 +793,9 @@ export function guardAnswer(contract, route, answer, evidence) {
 }
 
 export function shouldBlockGenericTool(toolName, params) {
+  if (process.env.OPENCLAW_SETUP_SOCKET && ["exec", "process", "read", "write", "edit", "apply_patch"].includes(toolName)) {
+    return "Die administrative Einrichtung ist getrennt; Fachzugriff erfolgt ausschliesslich ueber native Personal-Assistant-Werkzeuge";
+  }
   const serialized = JSON.stringify(params ?? {});
   if (["read", "write", "edit", "apply_patch"].includes(toolName) && SECRET_PATH.test(serialized)) {
     return "Direkter Zugriff auf Personal-Assistant-Secrets ist gesperrt";
@@ -752,27 +806,71 @@ export function shouldBlockGenericTool(toolName, params) {
   return "";
 }
 
-export function createApprovalLedger(ttlSeconds = 180) {
+// Fixed retention is intentionally independent of model/runtime memory limits.
+// 128 concurrent/recent turns and at most 4 pending approvals per retained turn
+// are generous for this single-user agent but bound abandoned sessions as well.
+export const RUN_RETENTION = Object.freeze({ maxRuns: 128, ttlMs: 15 * 60_000, maxPromptBytes: 65_536 });
+
+export function createRunRetention({ maxRuns = RUN_RETENTION.maxRuns, ttlMs = RUN_RETENTION.ttlMs, now = Date.now, onEvict = () => {} } = {}) {
+  if (!Number.isInteger(maxRuns) || maxRuns < 1 || !Number.isFinite(ttlMs) || ttlMs <= 0) throw new Error("invalid-retention-limits");
   const records = new Map();
+  const remove = (key) => { records.delete(key); onEvict(key); };
+  const sweep = () => {
+    const time = now();
+    for (const [key, expiresAt] of records) if (expiresAt <= time) remove(key);
+  };
+  return {
+    start(key) {
+      sweep();
+      if (records.has(key)) remove(key);
+      while (records.size >= maxRuns) remove(records.keys().next().value);
+      records.set(key, now() + ttlMs);
+    },
+    has(key) { sweep(); return records.has(key); },
+    size() { sweep(); return records.size; },
+    sweep,
+  };
+}
+
+export function createApprovalLedger(ttlSeconds = 180, { maxEntries = 512, now = Date.now } = {}) {
+  if (!Number.isInteger(maxEntries) || maxEntries < 1 || !Number.isFinite(ttlSeconds) || ttlSeconds <= 0) throw new Error("invalid-approval-limits");
+  const records = new Map();
+  const sweep = () => {
+    for (const [nonce, record] of records) if (record.expiresAt <= now()) records.delete(nonce);
+  };
+  const check = ({ nonce, operation, args, toolCallId, runId }) => {
+    sweep();
+    const record = records.get(nonce);
+    const valid = Boolean(record && record.digest === stableDigest({ operation, args, toolCallId, runId }));
+    if (!valid) records.delete(nonce);
+    return valid;
+  };
   return {
     issue({ operation, args, toolCallId, runId }) {
+      sweep();
+      while (records.size >= maxEntries) records.delete(records.keys().next().value);
       const nonce = randomUUID();
       records.set(nonce, {
         digest: stableDigest({ operation, args, toolCallId, runId }),
-        expiresAt: Date.now() + ttlSeconds * 1000,
+        runId,
+        expiresAt: now() + ttlSeconds * 1000,
       });
       return nonce;
     },
     consume({ nonce, operation, args, toolCallId, runId }) {
-      const record = records.get(nonce);
+      const valid = check({ nonce, operation, args, toolCallId, runId });
       records.delete(nonce);
-      if (!record || record.expiresAt < Date.now()) return false;
-      return record.digest === stableDigest({ operation, args, toolCallId, runId });
+      return valid;
     },
+    check,
     revoke(nonce) {
       records.delete(nonce);
     },
+    revokeRun(runId) {
+      for (const [nonce, record] of records) if (record.runId === runId) records.delete(nonce);
+    },
     size() {
+      sweep();
       return records.size;
     },
   };

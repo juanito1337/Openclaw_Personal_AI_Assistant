@@ -41,6 +41,30 @@ else
   chmod 600 "$talk_secret"
 fi
 
+# Preserve existing PKI, create empty slots only. In particular never place the
+# exported public CA in config/ca: trust import remains an explicit operation.
+for directory in "$TARGET_ROOT/secrets/talk-proxy-pki" "$TARGET_ROOT/config/talk-proxy-public"; do
+  if [[ -L "$directory" || ( -e "$directory" && ! -d "$directory" ) ]]; then
+    echo "Ungueltiger Talk-Proxy-Verzeichnispfad: $directory" >&2
+    exit 2
+  fi
+  install -d -m 700 "$directory"
+  if [[ $(stat -c '%u:%g' "$directory") != 1000:1000 ]]; then
+    chown 1000:1000 "$directory" 2>/dev/null || sudo chown 1000:1000 "$directory"
+  fi
+done
+
+# Creating the private slot does not log in or activate any account or room.
+connection_directory="$TARGET_ROOT/secrets/nextcloud-connection"
+if [[ -L "$connection_directory" || ( -e "$connection_directory" && ! -d "$connection_directory" ) ]]; then
+  echo "Ungueltiger Nextcloud-Verbindungsstore." >&2
+  exit 2
+fi
+install -d -m 700 "$connection_directory"
+if [[ $(stat -c '%u:%g' "$connection_directory") != 1000:1000 ]]; then
+  chown 1000:1000 "$connection_directory" 2>/dev/null || sudo chown 1000:1000 "$connection_directory"
+fi
+
 # Only refresh examples. Active local hooks and .env are administrator state and
 # must never be overwritten by a source update.
 install -m 600 "$SOURCE_ROOT/docker/hooks/pre-deploy.example.sh" \

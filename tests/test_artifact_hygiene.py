@@ -5,6 +5,21 @@ from pathlib import Path
 from scripts.check_artifact import inspect_files, inspect_image_root
 
 
+def test_docker_context_includes_only_the_required_talk_configuration_helper() -> None:
+    root = Path(__file__).resolve().parents[1]
+    patterns = (root / ".dockerignore").read_text(encoding="utf-8").splitlines()
+    excluded = "/docker/scripts/"
+    helper = "!/docker/scripts/nextcloud-talk-config.py"
+
+    assert excluded in patterns
+    assert patterns.index(helper) > patterns.index(excluded)
+    assert [pattern for pattern in patterns if pattern.startswith("!/docker/")] == [helper]
+    assert {"*.env", "*.key", "*.pem"}.issubset(patterns)
+    assert "COPY docker/scripts/nextcloud-talk-config.py /docker/" in (
+        root / "Dockerfile"
+    ).read_text(encoding="utf-8")
+
+
 def test_artifact_hygiene_accepts_source_and_example_configuration() -> None:
     issues = inspect_files(
         [

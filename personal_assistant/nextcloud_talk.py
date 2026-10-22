@@ -13,6 +13,9 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
+from .nextcloud_connection import ConnectionError, load_connection
+from .nextcloud_talk_status import invalid_managed_status, managed_doctor, managed_status
+
 PLUGIN_ID = "nextcloud-talk"
 PLUGIN_PACKAGE = "@openclaw/nextcloud-talk"
 PLUGIN_VERSION = "2026.7.1"
@@ -24,6 +27,12 @@ WEBHOOK_HOST = "0.0.0.0"
 BOT_SECRET_FILE = "/run/openclaw-secrets/nextcloud-talk-bot-secret"
 HISTORY_LIMIT = 20
 TEXT_CHUNK_LIMIT = 3500
+PRIVATE_LAN_NETWORKS = (
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("fc00::/7"),
+)
 
 POLICY_KEYS = {
     "schema_version",
@@ -117,19 +126,41 @@ def load_json_object(path: Path, *, label: str) -> dict[str, Any]:
     return payload
 
 
-def normalize_https_url(value: str, *, label: str, required_path: str | None = None) -> str:
+def _private_lan_address(value: str, *, label: str) -> ipaddress.IPv4Address | ipaddress.IPv6Address:
+    try:
+        address = ipaddress.ip_address(value)
+    except ValueError as exc:
+        raise ValueError(f"{label} enthaelt keine gueltige IP-Adresse") from exc
+    # is_private also covers reserved/documentation ranges on some Python
+    # versions. Only RFC1918 and unscoped IPv6 ULA are valid LAN destinations.
+    if "%" in value or not any(address in network for network in PRIVATE_LAN_NETWORKS):
+        raise ValueError(f"{label} muss auf eine private LAN-Adresse (RFC1918 oder IPv6 ULA) begrenzt sein")
+    return address
+
+
+def normalize_https_url(
+    value: str,
+    *,
+    label: str,
+    required_path: str | None = None,
+    allow_private_ip: bool = False,
+) -> str:
     raw = value.strip()
     parsed = urllib.parse.urlsplit(raw)
     if parsed.scheme.casefold() != "https" or not parsed.hostname:
         raise ValueError(f"{label} muss eine vollstaendige HTTPS-URL sein")
-    if parsed.username or parsed.password or parsed.query or parsed.fragment:
+    if parsed.username is not None or parsed.password is not None or "?" in raw or "#" in raw:
         raise ValueError(f"{label} darf keine Zugangsdaten, Query oder Fragment enthalten")
+    hostname = parsed.hostname.casefold()
     try:
-        ipaddress.ip_address(parsed.hostname)
+        address = ipaddress.ip_address(hostname)
     except ValueError:
         pass
     else:
-        raise ValueError(f"{label} muss einen TLS-validierbaren DNS-Namen verwenden")
+        if not allow_private_ip:
+            raise ValueError(f"{label} muss einen TLS-validierbaren DNS-Namen verwenden")
+        address = _private_lan_address(hostname, label=label)
+        hostname = f"[{address}]" if address.version == 6 else str(address)
     path = parsed.path or "/"
     if required_path is not None and path != required_path:
         raise ValueError(f"{label} muss exakt den Pfad {required_path} verwenden")
@@ -139,24 +170,13 @@ def normalize_https_url(value: str, *, label: str, required_path: str | None = N
         raise ValueError(f"{label} darf nur den HTTPS-Standardport 443 verwenden")
     normalized_path = required_path if required_path is not None else ""
     port = f":{parsed.port}" if parsed.port is not None else ""
-    return f"https://{parsed.hostname.casefold()}{port}{normalized_path}"
+    return f"https://{hostname}{port}{normalized_path}"
 
 
 def normalize_private_ips(values: list[str] | tuple[str, ...], *, label: str) -> list[str]:
     result: list[str] = []
     for value in values:
-        try:
-            address = ipaddress.ip_address(value.strip())
-        except ValueError as exc:
-            raise ValueError(f"{label} enthaelt keine gueltige IP-Adresse") from exc
-        if (
-            not address.is_private
-            or address.is_loopback
-            or address.is_link_local
-            or address.is_multicast
-            or address.is_unspecified
-        ):
-            raise ValueError(f"{label} muss auf eine private LAN-Adresse begrenzt sein")
+        address = _private_lan_address(value.strip(), label=label)
         rendered = str(address)
         if rendered not in result:
             result.append(rendered)
@@ -178,6 +198,7 @@ def prepared_channel_config(*, base_url: str, webhook_public_url: str) -> dict[s
             webhook_public_url,
             label="oeffentliche Webhook-URL",
             required_path=WEBHOOK_PATH,
+            allow_private_ip=True,
         ),
         "allowFrom": [],
         "groupAllowFrom": [],
@@ -201,17 +222,23 @@ def build_prepared_policy(
     expected_webhook_ips: list[str] | tuple[str, ...],
 ) -> dict[str, Any]:
     channel = prepared_channel_config(base_url=base_url, webhook_public_url=webhook_public_url)
+    nextcloud_ips = normalize_private_ips(expected_nextcloud_ips, label="erwartete Nextcloud-IP")
+    webhook_ips = normalize_private_ips(expected_webhook_ips, label="erwartete Webhook-IP")
+    webhook_host = urllib.parse.urlsplit(channel["webhookPublicUrl"]).hostname
+    try:
+        webhook_address = ipaddress.ip_address(str(webhook_host))
+    except ValueError:
+        pass  # DNS destinations are checked against the full bound set by doctor.
+    else:
+        if webhook_ips != [str(webhook_address)]:
+            raise ValueError("Webhook-IP muss exakt der einzigen erwarteten Webhook-IP entsprechen")
     return {
         "schema_version": POLICY_SCHEMA_VERSION,
         "state": "prepared-disabled",
         "base_url": channel["baseUrl"],
         "webhook_public_url": channel["webhookPublicUrl"],
-        "expected_nextcloud_ips": normalize_private_ips(
-            expected_nextcloud_ips, label="erwartete Nextcloud-IP"
-        ),
-        "expected_webhook_ips": normalize_private_ips(
-            expected_webhook_ips, label="erwartete Webhook-IP"
-        ),
+        "expected_nextcloud_ips": nextcloud_ips,
+        "expected_webhook_ips": webhook_ips,
         "channel_config_sha256": digest_json(channel),
     }
 
@@ -316,6 +343,13 @@ def status(
     secret_path: Path | None = None,
     contract_path: Path | None = None,
 ) -> dict[str, Any]:
+    if config_path is None and policy_path is None and secret_path is None:
+        try:
+            connection = load_connection()
+        except ConnectionError as exc:
+            return invalid_managed_status(str(exc))
+        if connection is not None:
+            return managed_status(connection)
     config_path = config_path or default_config_path()
     policy_path = policy_path or default_policy_path()
     secret_path = secret_path or default_secret_path()
@@ -417,6 +451,12 @@ def status(
 
 
 def _resolve_ips(hostname: str) -> list[str]:
+    try:
+        address = ipaddress.ip_address(hostname)
+    except ValueError:
+        pass
+    else:
+        return [str(address)]
     addresses: list[str] = []
     for item in socket.getaddrinfo(hostname, None, type=socket.SOCK_STREAM):
         rendered = str(ipaddress.ip_address(item[4][0]))
@@ -426,6 +466,8 @@ def _resolve_ips(hostname: str) -> list[str]:
 
 
 def _tls_probe(hostname: str, port: int, *, timeout: float) -> dict[str, Any]:
+    # Passing an IP as server_hostname still verifies its iPAddress SAN against
+    # the trusted certificate chain; never omit it or disable verification.
     context = ssl.create_default_context()
     with (
         socket.create_connection((hostname, port), timeout=timeout) as raw,
@@ -473,6 +515,15 @@ def doctor(
     live: bool = True,
     timeout: float = 5.0,
 ) -> dict[str, Any]:
+    if config_path is None and policy_path is None and secret_path is None:
+        try:
+            connection = load_connection()
+        except ConnectionError as exc:
+            report = invalid_managed_status(str(exc))
+            report["live"] = {"requested": live, "ok": False, "worker_health_proven": False}
+            return report
+        if connection is not None:
+            return managed_doctor(connection, live=live, timeout=timeout)
     report = status(
         config_path=config_path,
         policy_path=policy_path,
@@ -494,7 +545,7 @@ def doctor(
         webhook_dns_ok = webhook_ips == policy["expected_webhook_ips"]
         if not nextcloud_dns_ok or not webhook_dns_ok:
             raise ValueError(
-                "DNS-Ziel weicht von der gebundenen Nextcloud- oder Webhook-IP ab; "
+                "DNS/IP-Ziel weicht von der gebundenen Nextcloud- oder Webhook-IP ab; "
                 "Live-Verbindungen wurden nicht gestartet"
             )
         nextcloud_tls = _tls_probe(str(base.hostname), base.port or 443, timeout=timeout)
@@ -511,7 +562,11 @@ def doctor(
             "requested": True,
             "ok": live_ok,
             "nextcloud_dns": {"ok": nextcloud_dns_ok, "address_count": len(nextcloud_ips)},
-            "webhook_dns": {"ok": webhook_dns_ok, "address_count": len(webhook_ips)},
+            "webhook_dns": {
+                "ok": webhook_dns_ok,
+                "address_count": len(webhook_ips),
+                "mode": "ip-literal" if webhook.hostname in webhook_ips else "dns",
+            },
             "nextcloud_tls": nextcloud_tls,
             "webhook_tls": webhook_tls,
             "nextcloud": nextcloud,

@@ -734,8 +734,11 @@ class AssistantStorage:
         source_type: str,
         etag: str = "",
         modified_at: str = "",
+        sha256: str = "",
     ) -> None:
         with self.knowledge_connection:
+            previous = self.get_sync_inventory(resource_id, scope, previous_remote_id)
+            content_sha256 = sha256 or (str(previous["sha256"] or "") if previous else "")
             self.knowledge_connection.execute(
                 "DELETE FROM sync_inventory WHERE resource_id=? AND scope=? AND remote_id=?",
                 (resource_id, scope, previous_remote_id),
@@ -749,7 +752,8 @@ class AssistantStorage:
                 ON CONFLICT(resource_id,scope,remote_id) DO UPDATE SET
                     source_id=excluded.source_id,source_type=excluded.source_type,
                     etag=excluded.etag,modified_at=excluded.modified_at,
-                    updated_at=excluded.updated_at
+                    sha256=CASE WHEN excluded.sha256<>'' THEN excluded.sha256
+                        ELSE sync_inventory.sha256 END,updated_at=excluded.updated_at
                 """,
                 (
                     resource_id,
@@ -759,7 +763,7 @@ class AssistantStorage:
                     source_type,
                     etag,
                     modified_at,
-                    "",
+                    content_sha256,
                     now_utc_iso(),
                 ),
             )

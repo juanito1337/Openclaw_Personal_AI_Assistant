@@ -26,6 +26,16 @@ verify_labels "$runtime" runtime
 verify_labels "$proxy" proxy
 verify_labels "$maintenance" maintenance
 
+# The administrative owner uses runtime Node for browser signature proofs and
+# must start within its own 128 MiB budget without a real account or network.
+OPENCLAW_TEST_SETUP_IMAGE="$runtime" python3 -m unittest discover \
+  -s "$root/tests" -p test_nextcloud_setup_image.py
+
+# Run against the freshly built signed-role payload, isolated from the real
+# stack and without published host ports. Standard library only on the host.
+OPENCLAW_TEST_TALK_PROXY_IMAGE="$proxy" python3 -m unittest discover \
+  -s "$root/tests" -p test_talk_proxy_container.py
+
 docker run --rm --network none --entrypoint /bin/sh "$runtime" -c '
   command -v openclaw
   command -v himalaya
@@ -101,6 +111,7 @@ done
   docker run --rm --network none \
     --mount "type=volume,src=$gateway_volume,dst=/home/node/.openclaw" \
     --mount "type=bind,src=$root/tests/fixtures/container/init-legacy-plugin-index.py,dst=/fixture/init.py,readonly" \
+    --mount "type=bind,src=$plugin_config,dst=/fixture/openclaw.json,readonly" \
     --entrypoint python3 \
     "$runtime" /fixture/init.py
   docker run -d \
@@ -114,8 +125,10 @@ done
     --env OPENCLAW_ROLE=gateway \
     --env OPENCLAW_LAYOUT_MODE=verify \
     --env OPENCLAW_EVENT_QUEUE_DIR=/var/lib/openclaw/gateway-events \
+    --env OPENCLAW_SETUP_SOCKET=/run/openclaw-setup/control.sock \
+    --env OPENCLAW_NEXTCLOUD_CONNECTION_DIR=/tmp/nextcloud-fixture \
+    --env OPENCLAW_CORE_DATA_DIR=/var/lib/openclaw/core \
     --mount "type=volume,src=$gateway_volume,dst=/home/node/.openclaw" \
-    --mount "type=bind,src=$plugin_config,dst=/home/node/.openclaw/openclaw.json,readonly" \
     --mount "type=bind,src=$root/tests/fixtures/container/layout-v3.json,dst=/home/node/.openclaw/workspace/.layout-version.json,readonly" \
     --mount "type=bind,src=$root/tests/fixtures/container/empty.env.example,dst=/run/openclaw-env/mail-agent.env,readonly" \
     --mount "type=bind,src=$root/tests/fixtures/container/empty.env.example,dst=/run/openclaw-env/personal-assistant.env,readonly" \
@@ -139,6 +152,56 @@ done
     docker logs "$gateway_container" >&2 || true
     exit 1
   fi
+  # Exercise the actual pinned plugin registration. No setup owner, Nextcloud
+  # account, external network or productive state is available in this fixture.
+  docker exec "$gateway_container" python3 -P -c '
+import json
+import os
+import re
+import subprocess
+import urllib.request
+
+from personal_assistant.container_entrypoint import load_mounted_role_environment
+
+environment = dict(os.environ)
+load_mounted_role_environment("gateway", environment)
+port = environment.get("OPENCLAW_GATEWAY_PORT", "18789")
+base = f"http://127.0.0.1:{port}/plugins/personal-assistant-tools/nextcloud"
+for suffix, marker in (("", "Nextcloud verbinden"), ("/setup", "Deine Nextcloud in OpenClaw")):
+    with urllib.request.urlopen(base + suffix, timeout=8) as response:
+        assert response.status == 200
+        assert response.headers.get_content_type() == "text/html"
+        body = response.read(65537)
+        assert len(body) <= 65536 and marker in body.decode("utf-8")
+
+# Load only the mounted public fixture environment through its existing role
+# parser; the synthetic gateway token never enters argv or test output.
+result = subprocess.run(
+    ["openclaw", "gateway", "call", "channels.status", "--params", "{\"probe\":false}",
+     "--timeout", "15000", "--json"],
+    env=environment, capture_output=True, text=True, timeout=45, check=False,
+)
+if result.returncode != 0:
+    diagnostic = result.stderr + "\n" + result.stdout
+    for name, value in environment.items():
+        if value and any(marker in name.upper() for marker in ("TOKEN", "PASSWORD", "SECRET", "API_KEY")):
+            diagnostic = diagnostic.replace(value, "<redacted>")
+            diagnostic = diagnostic.replace(json.dumps(value)[1:-1], "<redacted>")
+    diagnostic = re.sub(r"[^\x20-\x7e\n]", "?", diagnostic)[-1600:]
+    raise AssertionError(f"Native Gateway-Kanalstatusabfrage fehlgeschlagen (exit={result.returncode}): {diagnostic}")
+payload = json.loads(result.stdout)
+accounts = payload.get("channelAccounts", {}).get("nextcloud-account-talk")
+assert accounts, "Nextcloud-Kontokanal wurde im gepinnten Core nicht registriert"
+if isinstance(accounts, dict):
+    accounts = list(accounts.values())
+assert isinstance(accounts, list) and len(accounts) == 1
+account = accounts[0]
+assert account.get("accountId") == "default"
+assert account.get("configured") is False, "Synthetisches Konto darf nicht konfiguriert erscheinen"
+assert account.get("connected") is False, "Synthetisches Konto darf nicht verbunden erscheinen"
+assert account.get("running") is True, "Kontokanal muss ohne Konto im Bereitschaftszustand starten"
+assert not account.get("lastError"), "Kontokanal meldet einen Startfehler"
+'
   docker exec "$gateway_container" \
     python3 -P -m personal_assistant.gateway_events enqueue \
     --text "Hermetischer Gateway-Relay-Smoke" >/dev/null
@@ -171,6 +234,7 @@ from pathlib import Path
 
 config = json.loads(Path("/home/node/.openclaw/openclaw.json").read_text())
 assert config["tools"]["fs"]["workspaceOnly"] is True
+assert {"group:runtime", "group:fs"} <= set(config["tools"]["deny"])
 connection = sqlite3.connect("/home/node/.openclaw/state/openclaw.sqlite")
 row = connection.execute(
     "SELECT install_records_json FROM installed_plugin_index WHERE index_key = ?",

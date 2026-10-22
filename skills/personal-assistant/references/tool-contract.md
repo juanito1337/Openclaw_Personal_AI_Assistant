@@ -103,7 +103,7 @@ den fuehrenden Launcher durch `/opt/openclaw-agent/scripts/assistant.sh` ersetze
 
 | Tool-ID | Modus | externe Wirkung | Approval | Verfuegbarkeit | Kommando | Test |
 |---|---|---:|---|---|---|---|
-| `nextcloud.list` | `read` | nein | `none` | `always` | `./scripts/assistant.sh nextcloud list --path "Assistent"` | `tests/test_nextcloud_workspace_tools.py` |
+| `nextcloud.list` | `read` | nein | `none` | `always` | `./scripts/assistant.sh nextcloud list --path "<path-optional>"` | `tests/test_nextcloud_workspace_tools.py` |
 | `nextcloud.sync` | `read` | nein | `none` | `always` | `./scripts/assistant.sh nextcloud sync` | `tests/test_nextcloud_workspace_tools.py` |
 | `nextcloud.workspace.mkdir` | `write` | ja | `workspace-create` | `workspace-mkdir` | `./scripts/assistant.sh nextcloud mkdir --path "{workspace_root}/<Ordner>"` | `tests/test_nextcloud_workspace_tools.py` |
 | `nextcloud.workspace.write-text` | `write` | ja | `workspace-create-only` | `workspace-write-text` | `printf "%s" "<Inhalt>" \| ./scripts/assistant.sh nextcloud write-text --path "{workspace_root}/<Datei>.md"` | `tests/test_nextcloud_workspace_tools.py` |
@@ -171,13 +171,13 @@ den fuehrenden Launcher durch `/opt/openclaw-agent/scripts/assistant.sh` ersetze
 |---|---|---:|---|---|---|---|
 | `nextcloud.contacts.discover` | `read` | nein | `none` | `always` | `./scripts/assistant.sh contacts discover` | `tests/test_carddav_contact_tools.py` |
 | `nextcloud.contacts.configure` | `local-write` | nein | `explicit-user-addressbook-selection` | `always` | `./scripts/assistant.sh contacts configure --resource "<resource_id>" --allow-update --yes` | `tests/test_carddav_contact_tools.py` |
-| `nextcloud.contacts.status` | `read` | nein | `none` | `contacts` | `./scripts/assistant.sh contacts status` | `tests/test_carddav_contact_tools.py` |
-| `nextcloud.contacts.list` | `read` | nein | `none` | `contacts-list` | `./scripts/assistant.sh contacts list --limit 100` | `tests/test_carddav_contact_tools.py` |
-| `nextcloud.contacts.search` | `read` | nein | `none` | `contacts-list` | `./scripts/assistant.sh contacts search --query "<Suchbegriff>" --limit 50` | `tests/test_carddav_contact_tools.py` |
-| `nextcloud.contacts.update` | `write` | ja | `explicit-user-contact-update-etag-guarded` | `contacts-update` | `./scripts/assistant.sh contacts update --uid "<UID>" --expected-name "<aktueller Name>" --phone "<neue Telefonnummer>" --yes` | `tests/test_carddav_contact_tools.py` |
-| `nextcloud.contacts.create` | `write` | ja | `explicit-user-contact-create-only` | `contacts-create` | `./scripts/assistant.sh contacts create --name "<Name>" --email "<E-Mail>" --phone "<Telefon>" --organization "<Firma>" --yes` | `tests/test_carddav_contact_tools.py` |
-| `nextcloud.contacts.from-mail-preview` | `read` | nein | `none` | `contacts-create` | `./scripts/assistant.sh contacts from-mail --folder "<Ordner>" --message-id "<Mail-ID>" --expected-subject "<Betreff>" --dry-run` | `tests/test_carddav_contact_tools.py` |
-| `nextcloud.contacts.from-mail-create` | `write` | ja | `explicit-user-contact-from-mail-create-only` | `contacts-create` | `./scripts/assistant.sh contacts from-mail --folder "<Ordner>" --message-id "<Mail-ID>" --expected-subject "<Betreff>" --yes` | `tests/test_carddav_contact_tools.py` |
+| `nextcloud.contacts.status` | `read` | nein | `none` | `contacts` | `./scripts/assistant.sh contacts status --resource "<resource-optional>"` | `tests/test_carddav_contact_tools.py` |
+| `nextcloud.contacts.list` | `read` | nein | `none` | `contacts-list` | `./scripts/assistant.sh contacts list --limit 100 --resource "<resource-optional>"` | `tests/test_carddav_contact_tools.py` |
+| `nextcloud.contacts.search` | `read` | nein | `none` | `contacts-list` | `./scripts/assistant.sh contacts search --query "<Suchbegriff>" --limit 50 --resource "<resource-optional>"` | `tests/test_carddav_contact_tools.py` |
+| `nextcloud.contacts.update` | `write` | ja | `explicit-user-contact-update-etag-guarded` | `contacts-update` | `./scripts/assistant.sh contacts update --uid "<UID>" --expected-name "<aktueller Name>" --phone "<neue Telefonnummer>" --yes --resource "<resource-optional>"` | `tests/test_carddav_contact_tools.py` |
+| `nextcloud.contacts.create` | `write` | ja | `explicit-user-contact-create-only` | `contacts-create` | `./scripts/assistant.sh contacts create --name "<Name>" --email "<E-Mail>" --phone "<Telefon>" --organization "<Firma>" --yes --resource "<resource-optional>"` | `tests/test_carddav_contact_tools.py` |
+| `nextcloud.contacts.from-mail-preview` | `read` | nein | `none` | `contacts-create` | `./scripts/assistant.sh contacts from-mail --folder "<Ordner>" --message-id "<Mail-ID>" --expected-subject "<Betreff>" --dry-run --resource "<resource-optional>"` | `tests/test_carddav_contact_tools.py` |
+| `nextcloud.contacts.from-mail-create` | `write` | ja | `explicit-user-contact-from-mail-create-only` | `contacts-create` | `./scripts/assistant.sh contacts from-mail --folder "<Ordner>" --message-id "<Mail-ID>" --expected-subject "<Betreff>" --yes --resource "<resource-optional>"` | `tests/test_carddav_contact_tools.py` |
 
 ## calendar
 
@@ -185,13 +185,13 @@ den fuehrenden Launcher durch `/opt/openclaw-agent/scripts/assistant.sh` ersetze
 |---|---|---:|---|---|---|---|
 | `nextcloud.calendar.discover` | `read` | nein | `none` | `always` | `./scripts/assistant.sh calendar discover` | `tests/test_direct_calendar_tool.py` |
 | `nextcloud.calendar.configure` | `local-write` | nein | `explicit-user-calendar-selection` | `always` | `./scripts/assistant.sh calendar configure --resource "<resource_id>" --allow-update --yes` | `tests/test_direct_calendar_tool.py` |
-| `nextcloud.calendar.status` | `read` | nein | `none` | `calendar` | `./scripts/assistant.sh calendar status` | `tests/test_direct_calendar_tool.py` |
-| `nextcloud.calendar.list` | `read` | nein | `none` | `calendar-list` | `./scripts/assistant.sh calendar list --limit 100` | `tests/test_direct_calendar_tool.py` |
-| `nextcloud.calendar.search` | `read` | nein | `none` | `calendar-list` | `./scripts/assistant.sh calendar search --query "<Suchbegriff>" --limit 50` | `tests/test_direct_calendar_tool.py` |
-| `nextcloud.calendar.from-mail-preview` | `read` | nein | `none` | `calendar-from-mail` | `./scripts/assistant.sh calendar from-mail --folder "<Ordner>" --message-id "<Mail-ID>" --expected-subject "<Betreff>" --dry-run` | `tests/test_action_completion_m15.py` |
-| `nextcloud.calendar.from-mail-create` | `write` | ja | `explicit-user-calendar-from-mail-create-only` | `calendar-from-mail` | `./scripts/assistant.sh calendar from-mail --folder "<Ordner>" --message-id "<Mail-ID>" --expected-subject "<Betreff>" --preview-digest "<preview_digest>" --candidate-id "<candidate_id>" --yes` | `tests/test_action_completion_m15.py` |
-| `nextcloud.calendar.update` | `write` | ja | `explicit-user-calendar-update-etag-guarded` | `calendar-update` | `./scripts/assistant.sh calendar update --uid "<UID>" --expected-title "<aktueller Titel>" --start "<ISO-8601>" --yes` | `tests/test_direct_calendar_tool.py` |
-| `nextcloud.calendar.create` | `write` | ja | `configured-calendar-create-only` | `calendar-create` | `./scripts/assistant.sh calendar create --title "<Titel>" --start "<ISO-8601>" --end "<ISO-8601>" --location "<Ort>" --description "<Beschreibung>"` | `tests/test_direct_calendar_tool.py` |
+| `nextcloud.calendar.status` | `read` | nein | `none` | `calendar` | `./scripts/assistant.sh calendar status --resource "<resource-optional>"` | `tests/test_direct_calendar_tool.py` |
+| `nextcloud.calendar.list` | `read` | nein | `none` | `calendar-list` | `./scripts/assistant.sh calendar list --limit 100 --resource "<resource-optional>"` | `tests/test_direct_calendar_tool.py` |
+| `nextcloud.calendar.search` | `read` | nein | `none` | `calendar-list` | `./scripts/assistant.sh calendar search --query "<Suchbegriff>" --limit 50 --resource "<resource-optional>"` | `tests/test_direct_calendar_tool.py` |
+| `nextcloud.calendar.from-mail-preview` | `read` | nein | `none` | `calendar-from-mail` | `./scripts/assistant.sh calendar from-mail --folder "<Ordner>" --message-id "<Mail-ID>" --expected-subject "<Betreff>" --dry-run --resource "<resource-optional>"` | `tests/test_action_completion_m15.py` |
+| `nextcloud.calendar.from-mail-create` | `write` | ja | `explicit-user-calendar-from-mail-create-only` | `calendar-from-mail` | `./scripts/assistant.sh calendar from-mail --folder "<Ordner>" --message-id "<Mail-ID>" --expected-subject "<Betreff>" --preview-digest "<preview_digest>" --candidate-id "<candidate_id>" --yes --resource "<resource-optional>"` | `tests/test_action_completion_m15.py` |
+| `nextcloud.calendar.update` | `write` | ja | `explicit-user-calendar-update-etag-guarded` | `calendar-update` | `./scripts/assistant.sh calendar update --uid "<UID>" --expected-title "<aktueller Titel>" --start "<ISO-8601>" --yes --resource "<resource-optional>"` | `tests/test_direct_calendar_tool.py` |
+| `nextcloud.calendar.create` | `write` | ja | `configured-calendar-create-only` | `calendar-create` | `./scripts/assistant.sh calendar create --title "<Titel>" --start "<ISO-8601>" --end "<ISO-8601>" --location "<Ort>" --description "<Beschreibung>" --resource "<resource-optional>"` | `tests/test_direct_calendar_tool.py` |
 
 ## tasks
 
@@ -199,10 +199,10 @@ den fuehrenden Launcher durch `/opt/openclaw-agent/scripts/assistant.sh` ersetze
 |---|---|---:|---|---|---|---|
 | `nextcloud.tasks.discover` | `read` | nein | `none` | `always` | `./scripts/assistant.sh tasks discover` | `tests/test_direct_tasks_tool.py` |
 | `nextcloud.tasks.configure` | `local-write` | nein | `explicit-user-task-list-selection` | `always` | `./scripts/assistant.sh tasks configure --resource "<resource_id>" --allow-update --yes` | `tests/test_direct_tasks_tool.py` |
-| `nextcloud.tasks.status` | `read` | nein | `none` | `tasks` | `./scripts/assistant.sh tasks status` | `tests/test_direct_tasks_tool.py` |
-| `nextcloud.tasks.list` | `read` | nein | `none` | `tasks-list` | `./scripts/assistant.sh tasks list --include-completed --limit 100` | `tests/test_direct_tasks_tool.py` |
-| `nextcloud.tasks.update` | `write` | ja | `explicit-user-task-update-etag-guarded` | `tasks-update` | `./scripts/assistant.sh tasks update --uid "<UID>" --expected-title "<aktueller Titel>" --status COMPLETED --yes` | `tests/test_direct_tasks_tool.py` |
-| `nextcloud.tasks.create` | `write` | ja | `configured-tasks-create-only` | `tasks-create` | `./scripts/assistant.sh tasks create --title "<Titel>" --due "<YYYY-MM-DD oder ISO-8601>" --priority <0-9> --description "<Beschreibung>"` | `tests/test_direct_tasks_tool.py` |
+| `nextcloud.tasks.status` | `read` | nein | `none` | `tasks` | `./scripts/assistant.sh tasks status --resource "<resource-optional>"` | `tests/test_direct_tasks_tool.py` |
+| `nextcloud.tasks.list` | `read` | nein | `none` | `tasks-list` | `./scripts/assistant.sh tasks list --include-completed --limit 100 --resource "<resource-optional>"` | `tests/test_direct_tasks_tool.py` |
+| `nextcloud.tasks.update` | `write` | ja | `explicit-user-task-update-etag-guarded` | `tasks-update` | `./scripts/assistant.sh tasks update --uid "<UID>" --expected-title "<aktueller Titel>" --status COMPLETED --yes --resource "<resource-optional>"` | `tests/test_direct_tasks_tool.py` |
+| `nextcloud.tasks.create` | `write` | ja | `configured-tasks-create-only` | `tasks-create` | `./scripts/assistant.sh tasks create --title "<Titel>" --due "<YYYY-MM-DD oder ISO-8601>" --priority <0-9> --description "<Beschreibung>" --resource "<resource-optional>"` | `tests/test_direct_tasks_tool.py` |
 
 ## orders
 

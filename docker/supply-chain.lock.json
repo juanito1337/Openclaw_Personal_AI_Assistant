@@ -4,9 +4,12 @@
   "base_images": {
     "openclaw_source": "ghcr.io/openclaw/openclaw:2026.7.1-2@sha256:8789721d2e9b24b780a1504b56deb4c6bd5c7dbf96a1dd117e7c45c2ed72c8ac",
     "node_runtime": "node:24-alpine3.22@sha256:191c9f0080fcbbc6547a85dc0ff7988072214a355aabdc1d2ec55a7dae5eea8a",
-    "python_runtime": "python:3.11-alpine3.22@sha256:a4fc589b32e824f3f02ed9d7e7be19518aa47e105b80416336af9f202275a489"
+    "python_runtime": "python:3.11-alpine3.22@sha256:a4fc589b32e824f3f02ed9d7e7be19518aa47e105b80416336af9f202275a489",
+    "caddy_binary": "docker.io/library/caddy:2.11.7-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f"
   },
   "runtime_package_pins": {
+    "ca-certificates": "20261020-r0",
+    "curl": "8.14.1-r4",
     "python3": "3.12.15-r0"
   },
   "runtime_security_overrides": {
@@ -72,12 +75,12 @@
   },
   "targets": {
     "runtime": {
-      "services": ["layout-init", "gateway", "mail-worker", "sync-worker", "supervisor-worker", "portfolio-worker", "monitor-worker", "agent-cli"],
+      "services": ["setup-service", "layout-init", "gateway", "mail-worker", "sync-worker", "supervisor-worker", "portfolio-worker", "monitor-worker", "agent-cli"],
       "reason": "These roles use the OpenClaw CLI directly or expose the complete assistant tool surface; gateway mail tools also require Himalaya, OCR and ClamAV."
     },
     "proxy-runtime": {
-      "services": ["ollama-proxy"],
-      "reason": "The proxy uses only the Python standard library, CA certificates, curl health checks and tini."
+      "services": ["ollama-proxy", "talk-proxy"],
+      "reason": "Standard-library Python proxies with CA certificates, curl and tini; the opt-in Talk edge additionally uses the digest-pinned static Caddy binary and its isolated private PKI."
     },
     "maintenance-runtime": {
       "services": ["clamav-socket-init", "clamd", "clamav-update"],

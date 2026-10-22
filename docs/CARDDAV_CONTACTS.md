@@ -4,6 +4,14 @@
 
 Der Personal Assistant kann ein ausgewaehltes Nextcloud-Adressbuch per CardDAV lesen, durchsuchen, neue Kontakte create-only anlegen und bestehende Kontakte nach ausdruecklichem Nutzerauftrag kontrolliert aktualisieren. Loeschen, automatisches Zusammenfuehren und Massenbearbeitung bleiben gesperrt.
 
+Die [Nextcloud-Einrichtung in OpenClaw](NEXTCLOUD_SETUP_UI.md) erweitert diesen
+Pfad auf die lesbaren Adressbuecher eines angemeldeten Kontos. `contacts status`,
+`list` und `search` umfassen ohne Auswahl alle freigegebenen Adressbuecher; jedes
+Ergebnis behaelt seine `resource_id`. `--resource "<resource_id>"` waehlt genau
+ein Adressbuch. Bei mehreren Adressbuechern ist dieser Parameter fuer `create`,
+`update` und `from-mail` erforderlich. Die folgenden `configure`-Beispiele
+bleiben dem Legacy-Pfad vorbehalten; verwaltete Konten verweisen auf die GUI.
+
 ## Discovery, Auswahl und Rechte
 
 ```bash

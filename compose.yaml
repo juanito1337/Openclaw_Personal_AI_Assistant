@@ -81,6 +81,53 @@ x-openclaw-common: &openclaw-common
     SCHEDULER_STARVATION_SECONDS: ${SCHEDULER_STARVATION_SECONDS:-1800}
 
 services:
+  setup-service:
+    <<: *openclaw-common
+    container_name: openclaw-setup-service
+    pids_limit: 128
+    cpus: 0.5
+    mem_limit: 128m
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,noexec,size=32m,mode=1777
+    stop_grace_period: 30s
+    environment:
+      OPENCLAW_ROLE: setup-service
+      OPENCLAW_NEXTCLOUD_CONNECTION_DIR: /run/openclaw-nextcloud
+      OPENCLAW_SETUP_SOCKET: /run/openclaw-setup/control.sock
+      OPENCLAW_SETUP_DEVICES_FILE: /run/openclaw-gateway-devices/paired.json
+      OPENCLAW_CA_DIR: /etc/openclaw-ca
+      PYTHONPATH: /opt/openclaw-agent
+      PYTHONSAFEPATH: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+    command: ["python3", "-P", "-m", "personal_assistant.nextcloud_setup", "--socket", "/run/openclaw-setup/control.sock"]
+    # The transport permits only validated HTTPS origins and pins DNS/IP/TLS.
+    # No shared backend, public listener or credentials of another domain.
+    networks: [setup-egress]
+    depends_on:
+      layout-init:
+        condition: service_completed_successfully
+    volumes:
+      - type: bind
+        source: ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/gateway/devices
+        target: /run/openclaw-gateway-devices
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/nextcloud-connection
+        target: /run/openclaw-nextcloud
+        bind:
+          create_host_path: false
+      - setup-control:/run/openclaw-setup
+      - ${OPENCLAW_CONFIG_DIR:-/srv/openclaw/config}/ca:/etc/openclaw-ca:ro
+    healthcheck:
+      test: ["CMD", "/opt/openclaw-agent/docker/healthcheck.sh", "setup"]
+      interval: 30s
+      timeout: 8s
+      retries: 3
+      start_period: 10s
+
   layout-init:
     <<: *openclaw-common
     container_name: openclaw-layout-init
@@ -127,6 +174,56 @@ services:
     volumes:
       - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/instance:/home/node/.openclaw/workspace:ro
       - ${OPENCLAW_CONFIG_DIR:-/srv/openclaw/config}/ollama-priority.env:/etc/openclaw-env/ollama-priority.env:ro
+
+  talk-proxy:
+    <<: *openclaw-common
+    image: ${OPENCLAW_PROXY_IMAGE:?OPENCLAW_PROXY_IMAGE must be set}
+    container_name: openclaw-talk-proxy
+    profiles: [talk]
+    pids_limit: 128
+    cpus: 0.5
+    mem_limit: 128m
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,noexec,size=32m,mode=1777
+    stop_grace_period: 10s
+    entrypoint: ["/sbin/tini", "--", "python3", "-P", "-m", "personal_assistant.talk_proxy_runtime"]
+    command: ["serve"]
+    environment:
+      OPENCLAW_TALK_PROXY_ENABLED: ${OPENCLAW_TALK_PROXY_ENABLED:-false}
+      OPENCLAW_TALK_PROXY_IP: ${OPENCLAW_TALK_PROXY_IP:-127.0.0.1}
+      OPENCLAW_TALK_NEXTCLOUD_IP: ${OPENCLAW_TALK_NEXTCLOUD_IP:-}
+      GOMEMLIMIT: 96MiB
+      GOMAXPROCS: "1"
+      PYTHONPATH: /opt/openclaw-agent
+      PYTHONSAFEPATH: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+    ports:
+      - target: 8443
+        published: "443"
+        host_ip: ${OPENCLAW_TALK_PROXY_IP:-127.0.0.1}
+        protocol: tcp
+    networks: [talk-ingress, talk-link]
+    depends_on:
+      gateway:
+        condition: service_healthy
+    volumes:
+      - type: bind
+        source: ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/talk-proxy-pki
+        target: /var/lib/openclaw-talk
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${OPENCLAW_CONFIG_DIR:-/srv/openclaw/config}/talk-proxy-public
+        target: /var/lib/openclaw-talk-public
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: ["CMD", "python3", "-P", "-m", "personal_assistant.talk_proxy_runtime", "health"]
+      interval: 30s
+      timeout: 8s
+      retries: 3
+      start_period: 30s
 
   clamav-socket-init:
     image: ${OPENCLAW_MAINTENANCE_IMAGE:?OPENCLAW_MAINTENANCE_IMAGE must be set}
@@ -212,15 +309,19 @@ services:
     environment:
       <<: *openclaw-environment
       OPENCLAW_ROLE: gateway
+      OPENCLAW_NEXTCLOUD_CONNECTION_DIR: /run/openclaw-nextcloud
+      OPENCLAW_SETUP_SOCKET: /run/openclaw-setup/control.sock
     command: ["openclaw", "gateway", "--bind", "lan", "--port", "18789"]
     ports:
       - ${OPENCLAW_GATEWAY_BIND_ADDRESS:-127.0.0.1}:${OPENCLAW_GATEWAY_PORT:-18789}:18789
       # The pinned Nextcloud Talk plugin owns a separate webhook listener.
-      # It remains host-loopback-only; a separately approved HTTPS reverse
-      # proxy exposes only /nextcloud-talk-webhook to the Nextcloud server.
+      # Compatibility loopback remains private; the opt-in talk-proxy service
+      # reaches this listener on talk-link, never the gateway RPC endpoint.
       - ${OPENCLAW_TALK_BIND_ADDRESS:-127.0.0.1}:${OPENCLAW_TALK_WEBHOOK_PORT:-8788}:8788
-    networks: [backend, egress]
+    networks: [backend, egress, talk-link]
     depends_on:
+      setup-service:
+        condition: service_healthy
       layout-init:
         condition: service_completed_successfully
       ollama-proxy:
@@ -234,6 +335,13 @@ services:
       retries: 8
       start_period: 90s
     volumes:
+      - type: bind
+        source: ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/nextcloud-connection
+        target: /run/openclaw-nextcloud
+        read_only: true
+        bind:
+          create_host_path: false
+      - setup-control:/run/openclaw-setup:ro
       - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/gateway:/home/node/.openclaw
       - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/instance:/home/node/.openclaw/workspace
       # The interactive agent may maintain its profile and memory, but instance
@@ -269,6 +377,7 @@ services:
     environment:
       <<: *openclaw-environment
       OPENCLAW_ROLE: mail-worker
+      OPENCLAW_NEXTCLOUD_CONNECTION_DIR: /run/openclaw-nextcloud
     command: ["python3", "/opt/openclaw-agent/docker/job_loop.py", "mail"]
     networks: [backend, egress]
     depends_on:
@@ -285,6 +394,12 @@ services:
       retries: 5
       start_period: 60s
     volumes:
+      - type: bind
+        source: ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/nextcloud-connection
+        target: /run/openclaw-nextcloud
+        read_only: true
+        bind:
+          create_host_path: false
       - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/instance:/home/node/.openclaw/workspace:ro
       - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/domains/mail:/var/lib/openclaw/mail
       - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/domains/orders:/var/lib/openclaw/orders
@@ -310,6 +425,7 @@ services:
     environment:
       <<: *openclaw-environment
       OPENCLAW_ROLE: sync-worker
+      OPENCLAW_NEXTCLOUD_CONNECTION_DIR: /run/openclaw-nextcloud
     command: ["python3", "/opt/openclaw-agent/docker/job_loop.py", "sync"]
     networks: [backend, egress]
     depends_on:
@@ -324,6 +440,12 @@ services:
       retries: 5
       start_period: 60s
     volumes:
+      - type: bind
+        source: ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/nextcloud-connection
+        target: /run/openclaw-nextcloud
+        read_only: true
+        bind:
+          create_host_path: false
       - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/instance:/home/node/.openclaw/workspace:ro
       - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/domains/mail:/var/lib/openclaw/mail:ro
       - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/domains/knowledge:/var/lib/openclaw/knowledge
@@ -400,6 +522,7 @@ services:
     environment:
       <<: *openclaw-environment
       OPENCLAW_ROLE: monitor-worker
+      OPENCLAW_NEXTCLOUD_CONNECTION_DIR: /run/openclaw-nextcloud
     command: ["python3", "/opt/openclaw-agent/docker/job_loop.py", "monitor"]
     networks: [backend, egress]
     depends_on:
@@ -414,6 +537,12 @@ services:
       retries: 5
       start_period: 60s
     volumes:
+      - type: bind
+        source: ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/nextcloud-connection
+        target: /run/openclaw-nextcloud
+        read_only: true
+        bind:
+          create_host_path: false
       - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/instance:/home/node/.openclaw/workspace:ro
       - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/domains/mail:/var/lib/openclaw/mail:ro
       - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/domains/portfolio:/var/lib/openclaw/portfolio:ro
@@ -440,12 +569,19 @@ services:
     environment:
       <<: *openclaw-environment
       OPENCLAW_ROLE: agent-cli
+      OPENCLAW_NEXTCLOUD_CONNECTION_DIR: /run/openclaw-nextcloud
     command: ["/opt/openclaw-agent/scripts/assistant.sh", "status"]
     networks: [backend, egress]
     depends_on:
       layout-init:
         condition: service_completed_successfully
     volumes:
+      - type: bind
+        source: ${OPENCLAW_SECRETS_DIR:-/srv/openclaw/secrets}/nextcloud-connection
+        target: /run/openclaw-nextcloud
+        read_only: true
+        bind:
+          create_host_path: false
       - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/gateway:/home/node/.openclaw
       - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/instance:/home/node/.openclaw/workspace
       - ${OPENCLAW_STATE_DIR:-/srv/openclaw/state}/v3/domains/mail:/var/lib/openclaw/mail
@@ -509,10 +645,15 @@ services:
       start_period: 2m
 
 networks:
+  setup-egress: {}
+  talk-ingress: {}
+  talk-link:
+    internal: true
   backend:
     internal: true
   egress: {}
 
 volumes:
+  setup-control:
   clamav-db:
   clamav-socket:

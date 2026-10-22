@@ -1,6 +1,32 @@
 # Direkte Nextcloud-Aufgaben
 
-Der Personal Assistant kann CalDAV-`VTODO`-Aufgaben in genau einer bewusst ausgewaehlten Nextcloud-Aufgabenliste lesen, neu anlegen und – nach gesonderter Freigabe – kontrolliert bearbeiten oder abschliessen.
+Der Personal Assistant kann CalDAV-`VTODO`-Aufgaben in freigegebenen
+Nextcloud-Aufgabenlisten lesen, neu anlegen und nach gesonderter Freigabe
+kontrolliert bearbeiten oder abschliessen. Jede Aenderung betrifft genau eine
+Aufgabe in genau einer Liste.
+
+## Kontoverbindung ueber OpenClaw
+
+Die [Nextcloud-Einrichtung](NEXTCLOUD_SETUP_UI.md) erkennt die Aufgabenlisten des
+angemeldeten Kontos und deren Serverrechte. Ohne `--resource` zeigen `tasks status`
+und `tasks list` alle freigegebenen Listen mit Herkunfts-ID und sichtbaren
+Teilabdeckungen. Eine exakte Ressourcen-ID begrenzt die Abfrage auf eine Liste.
+
+Bei mehreren Listen ist `--resource "<resource_id>"` fuer `tasks create` und
+`tasks update` erforderlich. Zum Abschliessen zuerst aktuelle Liste und UID
+auswaehlen, dann genau diese Liste und Aufgabe aendern:
+
+```bash
+./scripts/assistant.sh tasks status
+./scripts/assistant.sh tasks list --resource "<resource_id>" --include-completed --limit 100
+./scripts/assistant.sh tasks update --resource "<resource_id>" --uid "<UID>" --expected-title "Rechnung pruefen" --status COMPLETED --yes
+```
+
+Die native Einzelfreigabe und der Remote-Readback bleiben erforderlich. Ein nur
+lesbares Ziel wird durch die Kontofreigabe nicht beschreibbar. Die folgenden
+`configure`-Beispiele gelten fuer die Legacy-Einzelressource; GUI-verwaltete
+Kontoverbindungen werden in OpenClaw aktualisiert und umgehen weder den
+schreibgeschuetzten Gateway-Mount noch Serverrechte.
 
 ## Discovery und Freigabe
 
@@ -101,7 +127,7 @@ Der Agent liest das Objekt unmittelbar vor dem PUT anhand der exakten UID und sc
 ## Sicherheitsgrenzen
 
 - keine automatische Aufgabenlistenauswahl
-- Update nur nach `--allow-update` bei der Konfiguration und `--yes` pro Aenderung
+- Update nur mit bestaetigtem Serverrecht und konkreter Freigabe; beim Legacy-Konfigurationspfad zusaetzlich `--allow-update`, pro CLI-Aenderung `--yes`
 - exakte UID sowie optional `--expected-title` und `--expected-due`
 - ETag/`If-Match` verhindert stilles Ueberschreiben
 - unbekannte Eigenschaften, Alarme und nicht genannte Felder bleiben erhalten

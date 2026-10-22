@@ -52,6 +52,8 @@ def _decimal(value: object, *, scale: int = 0) -> Decimal:
         number = Decimal(text)
     except InvalidOperation as exc:
         raise ValueError(f"Ungueltige Zahl im Portfolio-Import: {text[:80]}") from exc
+    if not number.is_finite():
+        raise ValueError("Portfolio-Import verlangt endliche Zahlen")
     return number / (Decimal(10) ** scale) if scale else number
 
 
@@ -238,9 +240,12 @@ def _dkb_decimal(value: object, *, field: str, allow_currency_or_percent: bool =
         text if is_percent and "." in text and "," not in text else text.replace(".", "").replace(",", ".")
     )
     try:
-        return Decimal(normalized)
+        number = Decimal(normalized)
     except InvalidOperation as exc:
         raise ValueError(f"DKB-CSV: {field} ist ungueltig: {text[:80]}") from exc
+    if not number.is_finite():
+        raise ValueError(f"DKB-CSV: {field} muss eine endliche Zahl sein")
+    return number
 
 
 def _dkb_currency(*values: object) -> str:

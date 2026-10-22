@@ -34,6 +34,16 @@ previous_proxy_image=${OPENCLAW_PROXY_IMAGE:-$previous_image}
 previous_maintenance_image=${OPENCLAW_MAINTENANCE_IMAGE:-$previous_image}
 previous_clamd_image=${OPENCLAW_CLAMD_IMAGE:-}
 previous_runtime=${OPENCLAW_CURRENT_RUNTIME:-docker}
+target_talk_proxy_enabled=${OPENCLAW_TALK_PROXY_ENABLED:-false}
+validate_talk_proxy_flag "$target_talk_proxy_enabled"
+previous_talk_proxy_enabled=false
+target_talk_proxy_ip=${OPENCLAW_TALK_PROXY_IP:-}
+target_talk_nextcloud_ip=${OPENCLAW_TALK_NEXTCLOUD_IP:-}
+previous_talk_proxy_ip=""
+previous_talk_nextcloud_ip=""
+if [[ "$target_talk_proxy_enabled" == true ]]; then
+  validate_talk_proxy_addresses "$target_talk_proxy_ip" "$target_talk_nextcloud_ip"
+fi
 expected_source_revision=${OPENCLAW_EXPECTED_SOURCE_REVISION:-}
 mail_relevant_folder=${OPENCLAW_MAIL_RELEVANT_FOLDER:-}
 mail_relevant_approved=${OPENCLAW_MAIL_RELEVANT_FOLDER_APPROVED:-false}
@@ -72,6 +82,7 @@ legacy_writer_timers=(
   personal-assistant-monitor.timer
 )
 container_writer_services=(
+  setup-service
   mail-worker
   sync-worker
   supervisor-worker
@@ -175,6 +186,20 @@ echo "Pruefe signierte M7-Images vor jeder Aenderung am laufenden Stack."
 "$SCRIPT_DIR/verify-image-supply-chain.sh" "$target_image" "$expected_source_revision" runtime
 "$SCRIPT_DIR/verify-image-supply-chain.sh" "$target_proxy_image" "$expected_source_revision" proxy
 "$SCRIPT_DIR/verify-image-supply-chain.sh" "$target_maintenance_image" "$expected_source_revision" maintenance
+if [[ "$target_talk_proxy_enabled" == true ]]; then
+  verify_talk_proxy_image "$target_proxy_image"
+fi
+previous_talk_proxy_enabled=$(talk_proxy_running_state)
+if [[ "$previous_talk_proxy_enabled" == true ]]; then
+  [[ "$previous_runtime" == docker ]] || {
+    echo "Talk-Proxy laeuft trotz Legacy-Runtime-Identitaet; Deployment abgebrochen." >&2
+    exit 2
+  }
+  verify_talk_proxy_image "$previous_proxy_image"
+  previous_talk_proxy_ip=$(talk_proxy_container_address OPENCLAW_TALK_PROXY_IP)
+  previous_talk_nextcloud_ip=$(talk_proxy_container_address OPENCLAW_TALK_NEXTCLOUD_IP)
+  validate_talk_proxy_addresses "$previous_talk_proxy_ip" "$previous_talk_nextcloud_ip"
+fi
 echo "Pruefe ClamAV-Maintenance-Laufzeit und TLS-Transport vor dem Writer-Stopp."
 "$SCRIPT_DIR/check-maintenance-runtime.sh" "$target_maintenance_image"
 
@@ -210,13 +235,41 @@ restart_previous_on_prebackup_failure() {
       done < "$units_file"
     fi
   else
-    compose up -d >/dev/null 2>&1 || true
+    # A caller may have just opted in. Restore actual prior service state, not
+    # the uncommitted desired flag, if the first activation backup fails.
+    restore_talk_proxy_configuration "$previous_talk_proxy_enabled" \
+      "$previous_talk_proxy_ip" "$previous_talk_nextcloud_ip"
+    start_setup_service_if_supported || {
+      echo "Backup fehlgeschlagen; vorheriger Setup-Service konnte nicht wiederhergestellt werden." >&2
+      exit 70
+    }
+    COMPOSE_PROFILES='' compose up -d --no-deps \
+      ollama-proxy gateway mail-worker sync-worker supervisor-worker portfolio-worker monitor-worker clamd \
+      >/dev/null 2>&1 || true
+    if [[ "$previous_talk_proxy_enabled" == true ]]; then
+      if ! start_talk_proxy; then
+        echo "Backup fehlgeschlagen; zusaetzlich konnte der vorherige Talk-Proxy nicht verifiziert wiederhergestellt werden." >&2
+        exit 70
+      fi
+    fi
   fi
   exit "$code"
 }
 trap restart_previous_on_prebackup_failure ERR
 
 echo "Stoppe alle schreibenden Laufzeiten."
+compose stop setup-service
+setup_service_is_offline || {
+  echo "Setup-Service laeuft noch; Verbindungsbackup ist nicht konsistent." >&2
+  false
+}
+# Explicitly stop even a currently exited/restarting proxy so Docker's restart
+# policy cannot revive it after the prior-state observation and during backup.
+compose --profile talk stop talk-proxy
+talk_proxy_is_offline || {
+  echo "Talk-Proxy laeuft noch; CA-Backup ist nicht konsistent." >&2
+  false
+}
 if [[ "$previous_runtime" == "legacy-systemd" ]]; then
   disable_legacy_writer_timers
   for unit in "${legacy_units[@]}"; do
@@ -239,6 +292,12 @@ export PREVIOUS_IMAGE="$previous_image" PREVIOUS_PROXY_IMAGE="$previous_proxy_im
   PREVIOUS_MAINTENANCE_IMAGE="$previous_maintenance_image" TARGET_IMAGE="$target_image" \
   TARGET_PROXY_IMAGE="$target_proxy_image" TARGET_MAINTENANCE_IMAGE="$target_maintenance_image" \
   PREVIOUS_CLAMD_IMAGE="$previous_clamd_image" TARGET_CLAMD_IMAGE="$target_maintenance_image" \
+  PREVIOUS_TALK_PROXY_ENABLED="$previous_talk_proxy_enabled" \
+  TARGET_TALK_PROXY_ENABLED="$target_talk_proxy_enabled" \
+  PREVIOUS_TALK_PROXY_IP="$previous_talk_proxy_ip" \
+  PREVIOUS_TALK_NEXTCLOUD_IP="$previous_talk_nextcloud_ip" \
+  TARGET_TALK_PROXY_IP="$target_talk_proxy_ip" \
+  TARGET_TALK_NEXTCLOUD_IP="$target_talk_nextcloud_ip" \
   EXTERNAL_BACKUP_REFERENCE="$external_reference" PREVIOUS_RUNTIME="$previous_runtime"
 backup_id=$("$SCRIPT_DIR/backup.sh" "${previous_image##*:}-to-${target_image##*:}")
 echo "Verifiziertes Release-Backup: $backup_id"
@@ -270,6 +329,10 @@ compose --profile maintenance run --rm --no-deps --entrypoint python3 clamav-upd
   -P -m personal_assistant.clamav_health
 compose up -d clamd
 wait_for_healthy clamd 300
+ensure_nextcloud_connection_directory
+# This also completes layout-init before binding the exact pairing directory.
+compose up -d setup-service
+wait_for_healthy setup-service 60
 # clamd and its one-shot socket initializer were already started and verified
 # above. Do not traverse that dependency again: Compose would execute the
 # initializer a second time while the live daemon owns the socket volume.
@@ -293,6 +356,9 @@ if [[ -n "$mail_relevant_folder" ]]; then
     --relevant "$mail_relevant_folder" --yes
 fi
 "$SCRIPT_DIR/smoke-test.sh" "$write_test"
+if [[ "$target_talk_proxy_enabled" == true ]]; then
+  start_talk_proxy
+fi
 compose --profile maintenance up -d clamav-update
 wait_for_healthy clamav-update 180
 compose up -d --no-deps mail-worker sync-worker supervisor-worker portfolio-worker monitor-worker

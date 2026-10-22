@@ -5,6 +5,7 @@ import json
 import posixpath
 import re
 import urllib.parse
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import Any
@@ -253,6 +254,8 @@ class NextcloudFiles:
         max_depth: int,
         batch_size: int = 100,
     ) -> dict[str, Any]:
+        if max_items < 1 or max_depth < 0:
+            raise ValueError("Nextcloud-Sync benoetigt max_items >= 1 und max_depth >= 0")
         stats: dict[str, Any] = {
             "folders": 0,
             "files": 0,
@@ -265,15 +268,22 @@ class NextcloudFiles:
             "resume_required": False,
             "cursor_reset": False,
             "authoritative": False,
+            "complete": False,
+            "results_may_be_truncated": False,
+            "discovery_limitations": [],
         }
         telemetry = StageTelemetry()
         telemetry.start("discovery")
         queue: list[tuple[str, int]] = [(self.clean_path(root), 0) for root in roots]
         seen: set[str] = set()
         remote_files: list[RemoteFile] = []
+        discovery_limitations: set[str] = set()
         while queue and len(remote_files) < max_items:
             folder, depth = queue.pop(0)
-            if folder in seen or depth > max_depth:
+            if folder in seen:
+                continue
+            if depth > max_depth:
+                discovery_limitations.add("max-depth")
                 continue
             seen.add(folder)
             try:
@@ -292,16 +302,26 @@ class NextcloudFiles:
                 if entry.is_collection:
                     if depth < max_depth:
                         queue.append((entry.path, depth + 1))
+                    elif entry.path not in seen:
+                        discovery_limitations.add("max-depth")
                     continue
+                # Reaching the bound is not itself truncation: the final entry
+                # may exactly complete the snapshot. Detect the first omitted
+                # entry, including entries left in this already-popped folder.
+                if len(remote_files) >= max_items:
+                    discovery_limitations.add("max-items")
+                    break
                 remote_files.append(entry)
                 stats["files"] = int(stats["files"]) + 1
                 if entry.size > self.config.search.max_file_bytes:
                     stats["skipped_large"] = int(stats["skipped_large"]) + 1
-                if len(remote_files) >= max_items:
-                    break
+        if queue:
+            discovery_limitations.add("max-items")
         telemetry.stop("discovery")
-        authoritative = not queue and int(stats["errors"]) == 0
+        authoritative = not discovery_limitations and int(stats["errors"]) == 0
         stats["authoritative"] = authoritative
+        stats["results_may_be_truncated"] = bool(discovery_limitations)
+        stats["discovery_limitations"] = sorted(discovery_limitations)
         state = storage.get_sync_state(resource_id, "files")
         plan = plan_batch(
             [RemoteObject(item.path, item.etag, item.modified_at) for item in remote_files],
@@ -311,6 +331,8 @@ class NextcloudFiles:
         stats["resume_required"] = plan.resume_required
         stats["cursor_reset"] = plan.cursor_reset
         by_path = {item.path: item for item in remote_files}
+        remote_ids = set(by_path)
+        remote_etags = Counter(item.etag for item in remote_files if item.etag)
         batch_errors = 0
         for remote in plan.objects:
             entry = by_path[remote.remote_id]
@@ -339,41 +361,55 @@ class NextcloudFiles:
                 telemetry.add("metadata_hits")
                 telemetry.stop("metadata_compare")
                 continue
-            moved = storage.find_sync_inventory_by_etag(resource_id, "files", entry.etag)
-            if moved is not None and str(moved["remote_id"]) != entry.path:
-                previous_source = str(moved["source_id"])
-                relocated = storage.update_document_locator(
-                    resource_id=resource_id,
-                    source_id=previous_source,
-                    new_source_id=entry.path,
-                    uri=self.client.validate_url() + entry.href,
-                    title=entry.name,
-                    modified_at=entry.modified_at,
-                    etag=entry.etag,
-                    metadata={"path": entry.path, "size": entry.size},
-                )
-                if relocated:
-                    storage.move_sync_inventory(
-                        resource_id=resource_id,
-                        scope="files",
-                        previous_remote_id=str(moved["remote_id"]),
-                        remote_id=entry.path,
-                        source_id=entry.path,
-                        source_type="nextcloud-file",
-                        etag=entry.etag,
-                        modified_at=entry.modified_at,
-                    )
-                    stats["moved"] = int(stats["moved"]) + 1
-                    telemetry.add("moves")
-                    telemetry.stop("metadata_compare")
-                    continue
+            moved = (
+                storage.find_sync_inventory_by_etag(resource_id, "files", entry.etag)
+                if authoritative and remote_etags[entry.etag] == 1
+                else None
+            )
             telemetry.add("metadata_misses")
             telemetry.stop("metadata_compare")
             try:
                 telemetry.start("download")
-                data = self.download(entry.path)
+                data = self.download(entry.path, expected_etag=entry.etag)
+                content_sha256 = hashlib.sha256(data).hexdigest()
                 telemetry.add("download_bytes", len(data))
                 telemetry.stop("download")
+                # ETags are scoped to a remote locator, not globally unique
+                # content identities. Even a unique move candidate needs its
+                # downloaded bytes checked before reusing a local projection.
+                if (
+                    moved is not None
+                    and str(moved["remote_id"]) not in remote_ids
+                    and str(moved["sha256"] or "") == content_sha256
+                ):
+                    telemetry.start("commit")
+                    relocated = storage.update_document_locator(
+                        resource_id=resource_id,
+                        source_id=str(moved["source_id"]),
+                        new_source_id=entry.path,
+                        uri=self.client.validate_url() + entry.href,
+                        title=entry.name,
+                        modified_at=entry.modified_at,
+                        etag=entry.etag,
+                        metadata={"path": entry.path, "size": entry.size},
+                    )
+                    if relocated:
+                        storage.move_sync_inventory(
+                            resource_id=resource_id,
+                            scope="files",
+                            previous_remote_id=str(moved["remote_id"]),
+                            remote_id=entry.path,
+                            source_id=entry.path,
+                            source_type="nextcloud-file",
+                            etag=entry.etag,
+                            modified_at=entry.modified_at,
+                            sha256=content_sha256,
+                        )
+                        stats["moved"] = int(stats["moved"]) + 1
+                        telemetry.add("moves")
+                    telemetry.stop("commit")
+                    if relocated:
+                        continue
                 telemetry.start("parse")
                 changed = indexer.index_binary_document(
                     resource_id=resource_id,
@@ -400,7 +436,7 @@ class NextcloudFiles:
                     source_type="nextcloud-file",
                     etag=entry.etag,
                     modified_at=entry.modified_at,
-                    sha256=hashlib.sha256(data).hexdigest(),
+                    sha256=content_sha256,
                 )
                 telemetry.stop("commit")
                 key = "indexed" if changed else "unchanged"
@@ -416,12 +452,13 @@ class NextcloudFiles:
                         resource_id=resource_id,
                     )
         complete = plan.complete and authoritative and batch_errors == 0
+        stats["complete"] = complete
         if complete:
             telemetry.start("commit")
             removed = storage.reconcile_sync_inventory(
                 resource_id=resource_id,
                 scope="files",
-                remote_ids={item.path for item in remote_files},
+                remote_ids=remote_ids,
             )
             telemetry.stop("commit")
             stats["removed"] = removed

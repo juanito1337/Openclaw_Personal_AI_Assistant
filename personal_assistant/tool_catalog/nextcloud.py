@@ -6,8 +6,8 @@ TOOLS: tuple[ToolDefinition, ...] = (
     define(
         id="nextcloud.list",
         domain="nextcloud",
-        description="Live-Dateien und Ordner read-only ueber den nativen Nextcloud-WebDAV-Connector auflisten; kein lokaler Mount, Hostpfad oder zusaetzlicher Skill erforderlich",
-        command='./scripts/assistant.sh nextcloud list --path "Assistent"',
+        description="Live-Dateien und Ordner read-only ueber den nativen Nextcloud-WebDAV-Connector auflisten; ohne --path Kontowurzel oder eingerichteter Workspace, optional genauer erlaubter Pfad; kein lokaler Mount, Hostpfad oder zusaetzlicher Skill erforderlich",
+        command='./scripts/assistant.sh nextcloud list --path "<path-optional>"',
         mode="read",
         writes_external_data=False,
         approval="none",

@@ -12,6 +12,8 @@ geteilte Koordination. `H` ist Himalaya-Konfiguration, `K` externe Konfiguration
 `E` einzelne Env-Dateien, `X` einzelne Secretdateien, `V` das
 ClamAV-Signaturvolume und `D` der private ClamAV-Daemonsocket. Ganze Config-
 oder Secretwurzeln werden nicht gemountet.
+`NC` bezeichnet den dedizierten Nextcloud-Verbindungsstore, `U` den privaten
+Unixsocket des administrativen Einrichtungsowners.
 
 Die Rolle bestimmt ab M7 auch das kleinste belegte Runtime-Target. Alle Targets
 tragen denselben Release und Commit; Inhalt, Messung und Freigabe beschreibt der
@@ -22,8 +24,9 @@ tragen denselben Release und Commit; Inhalt, Messung und Freigabe beschreibt der
 | Rolle | Image-Target | Primaerer Owner | Persistenter Zugriff | Begrenzung |
 | --- | --- | --- | --- | --- |
 | `layout-init` | `runtime` | Layoutmigration | gesamter State `rw`; kein E/X | einziger Prozess mit universellem State-Mount; ohne Netzwerk; beendet sich vor allen Rollen |
+| `setup-service` | `runtime` | administrative Nextcloud-Kontoanbindung | NC/U `rw`, CA-Vertrauen und exakter Gateway-Geräteordner `ro` | 128 MiB, 0,5 CPU, 128 PIDs; kein Fachstate/Envsecret/Docker-Socket/Port; eigener HTTPS-Transport und eigenes `setup-egress` |
 | `ollama-proxy` | `proxy-runtime` | In-Memory-Modellqueue | I `ro`, eine Proxy-Envdatei | kein OpenClaw/Mail/OCR/ClamAV, keine Secrets/Fachdaten; einzige Host-Gateway-Ausnahme |
-| `gateway` | `runtime` | Gateway/Sessions und Toolaufrufe | G/M/O/P/N/W/C/S/Q `rw`; I-Profil/Memory `rw`, I-Konfigurationsordner `ro`; H/E/X/V/D `ro` | interaktive Universalrolle; Konfigurationssetup ausschliesslich ueber `agent-cli`, fachliche Rechte bleiben Policy-/Approval-gebunden |
+| `gateway` | `runtime` | Gateway/Sessions und Toolaufrufe | G/M/O/P/N/W/C/S/Q `rw`; I-Profil/Memory `rw`, I-Konfigurationsordner `ro`; H/E/X/V/D `ro` | interaktive Universalrolle; Nextcloud-Einrichtung ueber `setup-service`, weitere Konfiguration ueber `agent-cli`; fachliche Rechte bleiben Policy-/Approval-gebunden |
 | `mail-worker` | `runtime` | Mail, Orders, delegierte ActionPlans | I `ro`, M/O/C/S/Q `rw`, H/E/X/V/D `ro` | nur Mail-/PA-Secrets; einziger produktiver Mailwriter und Indexowner |
 | `sync-worker` | `runtime` | Index und Syncstatus | I/M/C `ro`, W/Q `rw`, E/X `ro` | Live-Discovery ohne Core-Persistierung; nur Nextcloud/Mail-Envdateien; keine Orders-/Portfolio-/Monitoring-DB |
 | `supervisor-worker` | `runtime` | Job-Sollzustand und Heartbeats | I `ro`, Q `rw`; kein E/X | nur Beobachter; internes `backend`, keine direkte Egress-Route; 1 GiB fuer die belegte OpenClaw-CLI-Spitze |
@@ -33,6 +36,19 @@ tragen denselben Release und Commit; Inhalt, Messung und Freigabe beschreibt der
 | `clamav-socket-init` | `maintenance-runtime` | Socketvolume initialisieren | D `rw`; kein anderer State | beendet sich vor `clamd`; einzige enge Root-Ausnahme mit `CHOWN` und `DAC_OVERRIDE`, ohne Netzwerk |
 | `clamd` | `maintenance-runtime` | residenter Streamscanner | V `ro`, D `rw` | non-root, kein Netzwerk, keine Secrets/Fachstates; nur PING, VERSION und INSTREAM für Clients |
 | `clamav-update` | `maintenance-runtime` | ClamAV-Signaturen | V `rw` | nur ClamAV/Health; keine OpenClaw-State- oder Secret-Mounts |
+
+Gateway, Mail-, Sync-, Monitorworker und `agent-cli` erhalten NC ausschliesslich
+`ro`; Portfolio, Supervisor und Proxy erhalten ihn nicht. Nur Gateway bekommt U
+`ro` zum Verbinden; der Owner besitzt das Socketvolume `rw`. Die Einrichtung ist
+ein authentisierter Operatorpfad gemaess ADR-0051 und kein Agentenwerkzeug. Der
+Owner laeuft unabhaengig vom Job-Sollzustand; ein leerer Store ist gesund und
+autorisiert kein Konto. Der Gateway erhaelt dadurch keinen Konfigurations-Schreibmount.
+Der Owner prueft Browsersignaturen gegen ausschliesslich `devices/paired.json`
+im schreibgeschuetzten Geraeteordner; ein fehlendes Pairing wird nicht durch ein
+Pending-Pairing ersetzt. Beim Gatewaystart mit Einrichtungs-Socket sperrt der
+Core die generischen Agentenwerkzeuge `group:runtime` und `group:fs`. Damit kann
+der Agent weder die Pairingregistrierung aendern noch den Administratorkanal per
+Shell umgehen; die typisierten `personal_assistant_*`-Werkzeuge bleiben verfuegbar.
 
 Alle langlebigen Rollen laufen mit read-only Rootfs, `cap_drop: ALL`,
 `no-new-privileges`, explizitem Nicht-root-Benutzer, sicherem `tmpfs`, PID-/CPU-/
@@ -63,6 +79,9 @@ Subsystemkonfigurationen veraendern. Die kurzlebige, nur explizit gestartete
 ## Netzmatrix
 
 `backend` ist `internal: true`; `egress` erlaubt erforderliche externe Zugriffe.
+`setup-egress` ist ein eigenes Netz ohne andere Container. Der Einrichtungsowner
+erlaubt ausgehend ausschliesslich seine validierten HTTPS-Anfragen mit
+Origin-/IP-/TLS-Bindung; die Netzdefinition allein ist kein Portfilter.
 Nur Gateway publiziert `127.0.0.1:18789`. Supervisor besitzt nur `backend`;
 `layout-init`, `clamav-socket-init` und `clamd` besitzen gar kein Netzwerk. Nur
 der Proxy erhaelt gemaess
@@ -96,8 +115,10 @@ Ticket, Owner, Token und Ablaufzeit gebunden.
 
 ## Healthchecks
 
-Gateway, Proxy und `clamd` besitzen direkte Liveness-/Readiness-Probes. Die
-`clamd`-Probe verlangt einen echten PING-/VERSION-Kontakt und eine frische
+Gateway, Proxy und `clamd` besitzen direkte Liveness-/Readiness-Probes.
+Einrichtungsprobe `nextcloud_setup --check` prueft nur den lokalen Unixsocket;
+ein erfolgreiches Ergebnis behauptet keine Nextcloud-Anmeldung oder Erreichbarkeit.
+Die `clamd`-Probe verlangt einen echten PING-/VERSION-Kontakt und eine frische
 vollständige Signaturdatenbank. Worker-Dockerhealth prueft nur
 Prozess-Liveness: frischer Heartbeat und nicht `stopped`. Readiness prueft separat
 Start-/Stopzustand und Schedulerfehler. `business_status` und

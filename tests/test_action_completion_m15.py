@@ -227,6 +227,7 @@ class ActionIntentAndContractTests(unittest.TestCase):
             ok=True,
             postcondition_verified=True,
             argument_digest="1" * 64,
+            payload={"candidate_id": "synthetic-first"},
             evidence_turn_id="turn-1",
         )
         second = advance_action_obligation(
@@ -695,9 +696,11 @@ const okEvidence = makeEvidence(op, {returncode:0,stderr:''}, {
 const oldEvidence = {...okEvidence, turn_id:'turn-old'};
 const unchanged = advanceActionObligation(contract, ready, op, oldEvidence, {ok:true}, 'a'.repeat(64));
 const jumped = advanceActionObligation(contract, base, op, okEvidence, {ok:true}, 'a'.repeat(64));
-const first = advanceActionObligation(contract, ready, op, okEvidence, {ok:true}, 'a'.repeat(64));
+const first = advanceActionObligation(contract, ready, op, okEvidence,
+  {ok:true,candidate_id:'synthetic-first'}, 'a'.repeat(64));
 const secondEvidence = {...okEvidence, turn_id:'turn-1', run_id:'second'};
-const second = advanceActionObligation(contract, first, op, secondEvidence, {ok:true}, 'b'.repeat(64));
+const second = advanceActionObligation(contract, first, op, secondEvidence,
+  {ok:true,candidate_id:'synthetic-second'}, 'b'.repeat(64));
 const unverifiedEvidence = makeEvidence(op, {returncode:0,stderr:''}, {
   ok:true, postcondition_verified:false, delivery_uncertain:true
 }, 'turn-1', 'call-3');

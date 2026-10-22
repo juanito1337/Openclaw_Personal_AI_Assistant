@@ -6,6 +6,26 @@ beschreibt Entwicklung, Abnahme und den kontrollierten produktiven Rollout. Der
 aktuelle Entwicklungsstand legt keinen Nextcloud-Bot an, schreibt kein Secret
 und aktiviert keinen produktiven Kanal.
 
+## Ergaenzung: Kontoanbindung ueber die OpenClaw-Einrichtung
+
+Der nachfolgende Bot-/Webhookplan beschreibt weiterhin die separate offizielle
+Kanalvariante. Die neue [Nextcloud-Einrichtung](NEXTCLOUD_SETUP_UI.md) ergaenzt
+einen eigenen Kontokanal gemaess
+[ADR-0051](architecture/adr/0051-openclaw-einrichtung-und-nextcloud-konto.md):
+URL-first Login Flow v2, ausdrueckliche Kontobestaetigung sowie Auswahl exakter
+Talk-Raeume und Sender. Der Kanal pollt ausgehend mit den Kontorechten. Dafuer
+sind weder Botinstallation, Nextcloud-Administratorrechte noch ein eingehender
+Webhook oder Talk-Proxy erforderlich.
+
+Beide Varianten verwenden denselben Assistant und dessen Toolfreigaben. Sie
+duerfen denselben Raum nicht gleichzeitig verarbeiten. Der Kontokanal beginnt
+ohne Replay alter Chathistorie, persistiert Cursor/Inbox/Sendereferenzen und
+wiederholt ungewisse Verarbeitung oder Zustellung nicht automatisch. Sein
+Entwicklungsnachweis erweitert keine historische M17-Abnahme und aktiviert
+keine produktive Verbindung. Die folgenden Webhook-, PKI- und Proxyabnahmen
+bleiben ausschliesslich fuer die Botvariante relevant; die Kontoanbindung
+benoetigt vor Produktivbetrieb ihre eigene Browser-, Konto- und Mobilabnahme.
+
 ## Ziel
 
 Jan soll den Personal Assistant aus der nativen Nextcloud-Talk-App auf Android
@@ -83,9 +103,9 @@ Selbst betriebene Nextcloud + Talk
           |
           | signierter Bot-Webhook, serverseitiger Privatpfad
           v
-HTTPS-Reverse-Proxy: exakt /nextcloud-talk-webhook
+Optionaler talk-proxy im Agentenstack: private CA, HTTPS, enger Guard
           |
-          | Host-Loopback 127.0.0.1:8788
+          | internes talk-link-Netz, gateway:8788
           v
 separater Listener im Gatewaycontainer + gepinntes Talk-Plugin
           |
@@ -98,11 +118,39 @@ Nextcloud zum Bot ist eine getrennte Server-zu-Server-Verbindung. Er muss nicht
 ueber das Telefon und darf nicht versehentlich das gesamte Gateway exponieren.
 
 Der Listener bindet im Gatewaycontainer auf `0.0.0.0:8788`, wird von Docker aber
-nur auf `127.0.0.1:8788` des Hosts publiziert. Ein hostlokaler Reverse Proxy
-uebernimmt TLS und exponiert ausschliesslich den exakten Webhookpfad fuer den
-Nextcloud-Server. Firewall und Proxy begrenzen Quelle, Methode, Pfad, Groesse
-und Rate. `OPENCLAW_GATEWAY_BIND_ADDRESS` und Port `18789` bleiben unveraendert.
-Die Entscheidung ist in ADR-0050 dokumentiert.
+nur auf `127.0.0.1:8788` des Hosts publiziert. Der zusaetzliche optionale
+Stackdienst `talk-proxy` uebernimmt TLS und erreicht den Listener direkt ueber
+das interne `talk-link`-Netz. Er exponiert ausschliesslich den exakten
+Webhookpfad fuer den Nextcloud-Server. Eine zusaetzliche Proxyinstallation auf
+dem Host ist nicht vorgesehen. Firewall und Proxy begrenzen Quelle, Methode,
+Pfad, Groesse und Rate. `OPENCLAW_GATEWAY_BIND_ADDRESS` und Port `18789` bleiben
+unveraendert. Die Entscheidung ist in ADR-0050 dokumentiert.
+
+Fuer den am 2026-10-13 freigegebenen Entwicklungsweg lautet der Callback
+`https://192.168.2.38/nextcloud-talk-webhook`. Damit ist fuer diesen Rueckkanal
+kein lokaler DNS-Eintrag im Nextcloud-Container erforderlich. Die Nextcloud-
+Basisadresse bleibt `https://1337-cloud.ddns.net:9001`. Ein DNS-Webhookname
+bleibt unterstuetzt, ist aber keine Voraussetzung fuer die IP-Variante. Der
+IP-Pfad erfordert eine feste Adresse, ein gueltiges IP-SAN-Zertifikat und
+explizites CA-Vertrauen; er schwaecht TLS nicht ab und aktiviert keinen Dienst.
+
+Die anschliessend beauftragte Stackintegration ergaenzt Caddy `2.11.7`
+digestgebunden im bestehenden signierten Proxy-Rollenimage. Das Compose-Profil
+`talk` bleibt mit `OPENCLAW_TALK_PROXY_ENABLED=false` ausgeschaltet. Ein
+spaeteres kontrolliertes Opt-in bindet ausschliesslich die private Agent-IP an
+TCP-Port 443 und erlaubt nur die direkte Peer-IP des Nextcloud-Servers. Die
+zusaetzliche Rolle hat ein eigenes Budget von 128 MiB, 0,5 CPU und 128 PIDs;
+keine bestehende Rolle erhaelt hoehere Limits.
+
+Caddy verwaltet ein IP-SAN-Zertifikat und eine dedizierte persistente private
+CA. Nur der Proxy erhaelt das PKI-Mount; ausschliesslich das oeffentliche
+`ca.crt` wird separat exportiert. Trustimport in Nextcloud und das
+Doctor-CA-Bundle bleibt ein ausdruecklicher Betriebsschritt. Die bestehende
+Nextcloud-`Certificate ID` und Androids Zertifikatsspeicher bleiben unveraendert.
+Der lokale Guard begrenzt genau einen POST-Pfad ohne Query, Bodygroesse 1 MiB,
+vier parallele Bearbeitungen und einen Request pro Sekunde mit Burst zehn.
+Backup und Rollback erhalten die CA und den vorherigen Proxy-Laufzustand;
+waehrend des Backups ist auch der Proxy als PKI-Writer gestoppt.
 
 ## Verbindliche Sicherheits- und UX-Grenzen
 
@@ -153,8 +201,10 @@ Die Entscheidung ist in ADR-0050 dokumentiert.
 
 Status: am 2026-10-05 lokal und gegen die laufende Runtime read-only erhoben.
 Android, Nextcloud `35.0.1` und die aktivierte Talk-App `25.0.5` wurden am
-2026-10-06 von Jan bestaetigt. Wegen des noch nicht festgelegten privaten
-Reverse-Proxy- und Webhookpfads bleibt der Status
+2026-10-06 von Jan bestaetigt. Der private IP-Webhookpfad wurde am 2026-10-13
+fuer die Entwicklung ausgewaehlt und der optionale Stack-Proxy anschliessend
+beauftragt. Produktive Proxyaktivierung, TLS-Vertrauen und der
+Erreichbarkeitsbeleg aus Nextcloud fehlen weiterhin. Deshalb bleibt der Status
 `M17.0 TEILWEISE ABGENOMMEN`. Details:
 [`MOBILE_NEXTCLOUD_TALK_BASELINE_M170.md`](MOBILE_NEXTCLOUD_TALK_BASELINE_M170.md).
 
@@ -206,11 +256,23 @@ Den kleinsten erreichbaren und rueckrollbaren Netzwerkpfad festlegen.
   Zeitlimits, Rate-/Parallelitaetsgrenzen und Logging-Redaktion definieren.
 - Zertifikats- und Namensmodell festlegen. Selbst signierte Zertifikate sind nur
   mit explizit verwalteter privater CA zulaessig; TLS-Pruefung bleibt aktiv.
+- Optionalen Caddy-Dienst als eigene Rolle aus dem bestehenden signierten
+  Proxyimage aufnehmen, standardmaessig ausgeschaltet. Direkte Peer-IP,
+  separates Ingress-/Gatewaynetz, enge Route und eigenes begrenztes Budget
+  festlegen; kein Docker-Socket, kein Hostnetz und keine weiteren Credentials.
+- IP-Literale im Webhook nur fuer RFC1918-IPv4 oder IPv6-ULA, exakt gebunden an
+  die einzige erwartete IP, zulassen. Zertifikat mit passendem IP-SAN und
+  privates CA-Vertrauen in Nextcloud sowie im Doctor-Runtimebundle pruefen.
+  Ein DNS-SAN fuer dieselbe Zeichenfolge ist kein IP-Identitaetsbeleg.
 - Ausfall-, Replay-, DoS-, Prompt-Injection-, Identitaetsverwechslungs- und
   Secretabfluss-Szenarien modellieren.
 - Rollback definieren: Kanal deaktivieren, Proxyroute entfernen, Bot deaktivieren
   und vorheriges Image starten, ohne Talk-Verlauf oder fremde Nextcloud-Daten zu
   loeschen.
+- Persistente private CA nur fuer den Proxy mounten, ausschliesslich das
+  oeffentliche Rootzertifikat exportieren und Trustimport getrennt freigeben.
+  Backup muss den PKI-Writer stoppen; Rollback erhaelt CA und vorherigen
+  tatsaechlichen Laufzustand auch bei einer fehlgeschlagenen Erstaktivierung.
 
 ### Pflichttests und Abnahme
 
@@ -239,6 +301,9 @@ aufnehmen.
   Integritaet und Paket-Hash erweitern.
 - Plugin ausschliesslich in das Runtime-Target aufnehmen; Proxy- und
   Maintenance-Images bleiben frei davon.
+- Caddy ausschliesslich als digestgebundenen Buildinput im Proxy-Target
+  aufnehmen und ueber dessen bestehenden SBOM-/Signaturvertrag ausliefern.
+  Keine vierte Release-Imageklasse und keine Laufzeitinstallation.
 - Generierten Pluginindex deterministisch auf den read-only Imagepfad
   normalisieren. Keine aus dem Gateway-State geladene Laufzeitkopie zulassen.
 - Rollen-, Offline-, Immutable-, SBOM-, Provenance-, CVE-, Secret- und
@@ -252,7 +317,8 @@ aufnehmen.
 - Manipulierte Version, Integritaet, Registryquelle oder Pluginpfad wird vor dem
   Gatewaystart abgelehnt.
 - Das Gateway versucht weder npm-Zugriff noch Pluginmutation zur Laufzeit.
-- Es gibt keine Erhoehung der Runtime-, PIDs- oder CPU-Limits.
+- Es gibt keine Erhoehung bestehender Runtime-, PIDs- oder CPU-Limits. Die
+  neue optionale Proxyrolle wird separat innerhalb ihres festen Budgets gemessen.
 
 ## M17.3 – Konfiguration, Secrets, Migration und Diagnose
 
@@ -260,8 +326,13 @@ Status: in Umsetzung. Der Kandidat besitzt eine kanonische
 `prepared-disabled`-Policy, vorschaugebundene atomare Konfigurationsmigration,
 verifiziertes Backup/Rollback, ein ausschliesslich im Gateway gemountetes
 Botsecret sowie registrierte read-only Befehle `talk status` und
-`talk doctor`. Botanlage, Secretbefuellung, Proxy/TLS und Kanalaktivierung sind
-weiterhin nicht ausgefuehrt.
+`talk doctor`. Die am 2026-10-13 beauftragte IP-Alternative ergaenzt
+Webhookvalidierung, Adress-/TLS-Diagnose und deren Regressionen. Die
+anschliessend beauftragte Stackintegration ergaenzt den optionalen Proxy,
+private PKI, oeffentlichen CA-Export und dessen Backup-/Rollbackvertrag.
+Produktive Botanlage, Secretbefuellung, Proxyaktivierung, Trustimport und
+Kanalaktivierung sind weiterhin nicht ausgefuehrt. Nextcloud-`baseUrl`,
+HTTPS-Pflicht und `prepared-disabled` bleiben erhalten.
 
 ### Ziel
 
@@ -290,6 +361,10 @@ Eine deklarative, fail-closed und rueckrollbare Kanalkonfiguration schaffen.
   den Kanal, nicht das gesamte Datenmodell.
 - Unbekannte Konfigurationsfelder, unsichere URL, falscher Pfad und widerspruech-
   liche Listenerkonfiguration scheitern vor Aktivierung.
+- RFC1918-/ULA-Webhookliterale funktionieren ohne DNS-Aufloesung und nur bei
+  exakter Bindung an eine erwartete IP. Oeffentliche, Loopback-, Link-Local-,
+  mehrdeutige oder abweichende Adressen sowie falsche IP-SANs werden abgelehnt;
+  bestehende DNS-Webhooks bleiben regressionsgetestet.
 - Logs, Status, Doctor, Backupmetadaten und Supportbundle enthalten keine
   Secretwerte oder Nachrichteninhalte.
 - Migration ist idempotent und kann das vorherige funktionsfaehige Gatewayprofil
@@ -444,8 +519,11 @@ aktivieren und den Erfolg auf dem echten Telefon belegen.
   Gateway-/Fachfunktionscanary ausfuehren.
 - Nextcloud-Bot mit zufaelligem Secret und den Features `webhook`, `response`
   und `reaction` anlegen; nur im dedizierten Dialog aktivieren.
-- Exakte Proxyroute und Firewallregel aktivieren, danach Kanalstatus und
-  Signaturpfad pruefen.
+- Den optionalen Stack-Proxy kontrolliert aktivieren; IP-SAN und CA-Fingerprint
+  pruefen, nur die oeffentliche CA in Nextcloud und das Doctor-Bundle
+  importieren. Die tatsaechliche Nextcloud-Peer-IP hinter Docker sowie die
+  exakte Proxyroute und Docker-wirksame Firewallregel pruefen. Ein lokaler
+  Proxy-Healthcheck allein belegt weder diesen Pfad noch Kanal oder Signatur.
 - Jan einmalig paaren, stabilen Benutzerbeleg kontrollieren und Gruppen
   deaktiviert lassen.
 - Canary-Reihenfolge: Status -> unkritische Frage -> belegte Read-only-Abfrage
@@ -480,6 +558,8 @@ aktivieren und den Erfolg auf dem echten Telefon belegen.
 | Kritischer Write | gebundenes Allow-once | blosses JA, Reaktion oder Zitat |
 | Zustellung | dauerhaft angenommen, einmal verarbeitet | Timeout, Doppelzustellung, Restart |
 | Netzwerk | WireGuard, TLS, privater Rueckkanal | VPN aus, falsches Zertifikat, SSRF |
+| IP-Webhook | RFC1918/ULA, exakt eine erwartete IP, passender IP-SAN ohne DNS | oeffentlich/Loopback/Link-Local, Mehrfachziel, Adressabweichung, DNS-SAN statt IP-SAN |
+| Stack-Proxy/PKI | explizites Opt-in, private Bindung, CA bleibt nach Restart/Restore identisch | Defaultstart, gefaelschte Forwarded-IP, Query/normalisierter Pfad, Keyexport, stille CA-Rotation |
 | Mobile | Vordergrund, Hintergrund, Netzwechsel | Offlinezustand als Erfolg gemeldet |
 | Datenschutz | redigierte Logs und Status | Secret oder Chatinhalt in Diagnose |
 | Runtime | Baseline innerhalb Limits | Limitanhebung, OOM, unerklaerter RSS-Anstieg |
@@ -509,9 +589,13 @@ M17 ist erst abgeschlossen, wenn:
 
 ## Naechster erlaubter Schritt
 
-Nur M17.0 ist ohne weitere Designentscheidung zulaessig. Es ist read-only und
-veraendert weder Nextcloud noch Gateway, Secrets, Netzwerk oder produktive
-Container. M17.1 darf erst auf Basis dieser gemessenen Topologie entscheiden.
+Die freigegebene Entwicklung und hermetische Abnahme der M17.3-IP-Alternative
+samt optionalem Stack-Proxy erfolgt im Feature-Branch. Die offene
+M17.2-Image-/Ressourcenabnahme und die weiteren M17-Stufen bleiben
+Releasevoraussetzungen. Produktiver Proxy und private CA,
+Nextcloud-Vertrauensimport, Bot und Kanalaktivierung werden nicht als
+Nebenwirkung eingerichtet. Die konkrete spaetere Betriebsschrittfolge steht
+im [Deployment-Runbook](DOCKER_DEPLOYMENT.md#m17-ip-rueckkanal-tls-und-noch-offene-betriebsschritte).
 
 ## Unabhaengiger Abschluss-Audit-Prompt
 

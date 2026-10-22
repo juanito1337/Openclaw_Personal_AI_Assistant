@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import tempfile
 import unittest
@@ -32,12 +33,15 @@ ISIN = "DE000BASF111"
 
 class CleanAntivirus:
     def scan_path(self, path: Path, *, source_type: str = "file") -> AntivirusResult:
+        return self.scan_bytes(path.read_bytes(), name=path.name, source_type=source_type)
+
+    def scan_bytes(self, data: bytes, *, name: str, source_type: str) -> AntivirusResult:
         return AntivirusResult(
             status="clean",
-            sha256="a" * 64,
-            size_bytes=path.stat().st_size,
+            sha256=hashlib.sha256(data).hexdigest(),
+            size_bytes=len(data),
             source_type=source_type,
-            name=path.name,
+            name=name,
             scanner="test",
             scanner_identity="test",
         )

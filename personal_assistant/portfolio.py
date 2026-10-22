@@ -767,11 +767,20 @@ class PortfolioService:
     ) -> dict[str, Any]:
         self._require_enabled()
         path = self._input_path(value)
-        scan = self.antivirus.scan_path(path, source_type="portfolio-import")
+        # Freeze one bounded snapshot before scanning. Reopening the path after
+        # a clean scan could parse different, unscanned bytes during a file swap.
+        with path.open("rb") as source:
+            data = source.read(MAX_IMPORT_BYTES + 1)
+        if len(data) > MAX_IMPORT_BYTES:
+            raise ValueError("Portfolio-Import ist groesser als 25 MB")
+        digest = hashlib.sha256(data).hexdigest()
+        scan = self.antivirus.scan_bytes(data, name=path.name, source_type="portfolio-import")
         if not scan.clean:
             raise PermissionError(f"Portfolio-Import fail-closed gesperrt: ClamAV-Status {scan.status}")
-        data = path.read_bytes()
-        digest = hashlib.sha256(data).hexdigest()
+        if scan.sha256 != digest or scan.size_bytes != len(data):
+            raise PermissionError(
+                "Portfolio-Import fail-closed gesperrt: Scan-Nachweis passt nicht zu Importbytes"
+            )
         parsed = parser(data)
         if expected_as_of and str(parsed.get("as_of") or "") != expected_as_of:
             raise ValueError("Erwarteter Portfolio-Stichtag stimmt nicht mit dem Dateiinhalt ueberein")

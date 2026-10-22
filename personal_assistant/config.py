@@ -206,6 +206,11 @@ def load_config(path: str | Path | None = None) -> AssistantConfig:
         self_management=self_management,
         path=config_path,
     )
+    from .nextcloud_connection import load_connection
+
+    if load_connection() is not None:
+        config.nextcloud.enabled = True
+        config.nextcloud.allowed_file_roots = ()
     _validate(config)
     config.ensure_dirs()
     return config

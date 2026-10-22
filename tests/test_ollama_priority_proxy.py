@@ -6,6 +6,7 @@ import socket
 import threading
 import time
 import unittest
+import urllib.error
 import urllib.request
 from argparse import Namespace
 from contextlib import redirect_stdout
@@ -18,6 +19,7 @@ from mail_agent.classifier import OllamaClassifier
 from personal_assistant.cli import _run_mail_tool
 from personal_assistant.ollama_priority_proxy import (
     PriorityGate,
+    PriorityProxyHandler,
     PriorityProxyServer,
     ProxyConfig,
     QueueFullError,
@@ -314,6 +316,86 @@ class ProxyIntegrationTests(unittest.TestCase):
         self.assertIsNotNone(wait_header)
         self.assertNotIn("x-openclaw-priority", _UpstreamHandler.seen_headers)
         self.assertNotIn("x-openclaw-source", _UpstreamHandler.seen_headers)
+
+    def test_unexpected_gate_failure_never_bypasses_occupied_slot(self) -> None:
+        active = self.proxy.gate.acquire("interactive", timeout=1)
+        request = urllib.request.Request(
+            self.base_url + "/api/chat", data=b'{"id":"must-not-run"}',
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with patch.object(self.proxy.gate, "acquire", side_effect=RuntimeError("synthetic failure")):
+                with self.assertRaises(urllib.error.HTTPError) as caught:
+                    urllib.request.urlopen(request, timeout=3)
+                with caught.exception as response:
+                    payload = json.loads(response.read())
+                    self.assertEqual(response.code, 503)
+                    self.assertEqual(response.headers["Retry-After"], "30")
+            self.assertEqual(payload["error_type"], "queue_unavailable")
+            self.assertEqual(_UpstreamHandler.request_order, [])
+            self.assertEqual(self.proxy.gate.snapshot()["active_count"], 1)
+            self.assertEqual(self.proxy.stats.snapshot()["queue_failures"], 1)
+            self.assertEqual(self.proxy.stats.snapshot()["failed_requests"], 1)
+        finally:
+            self.proxy.gate.release(active)
+
+    def test_post_grant_failure_releases_ticket_and_allows_next_request(self) -> None:
+        for target, method in ((self.proxy.gate, "snapshot"), (self.proxy.stats, "record_grant")):
+            with self.subTest(method=method):
+                handler = object.__new__(PriorityProxyHandler)
+                handler.server = self.proxy
+                handler.command = "POST"
+                handler.path = "/api/chat"
+                handler.headers = {}
+                with (
+                    patch.object(handler, "_request_body", return_value=b"{}"),
+                    patch.object(handler, "_json_response") as respond,
+                    patch.object(handler, "_forward") as forward,
+                    patch.object(type(target), method, side_effect=RuntimeError("synthetic failure")),
+                ):
+                    handler._proxy_request()
+                forward.assert_not_called()
+                self.assertEqual(respond.call_args.args[0], 503)
+                self.assertEqual(respond.call_args.args[1]["error_type"], "queue_unavailable")
+                self.assertEqual(self.proxy.gate.snapshot()["active_count"], 0)
+                ticket = self.proxy.gate.acquire("interactive", timeout=0.1)
+                self.proxy.gate.release(ticket)
+        self.assertEqual(self.proxy.stats.snapshot()["queue_failures"], 2)
+        self.assertEqual(self.proxy.stats.snapshot()["failed_requests"], 2)
+
+    def test_post_grant_failure_releases_ticket_when_client_disconnects(self) -> None:
+        handler = object.__new__(PriorityProxyHandler)
+        handler.server = self.proxy
+        handler.command = "POST"
+        handler.path = "/api/chat"
+        handler.headers = {}
+        with (
+            patch.object(handler, "_request_body", return_value=b"{}"),
+            patch.object(handler, "_json_response", side_effect=BrokenPipeError),
+            patch.object(handler, "_forward") as forward,
+            patch.object(self.proxy.gate, "snapshot", side_effect=RuntimeError("synthetic failure")),
+            self.assertRaises(BrokenPipeError),
+        ):
+            handler._proxy_request()
+        forward.assert_not_called()
+        self.assertEqual(self.proxy.gate.snapshot()["active_count"], 0)
+
+    def test_upstream_telemetry_failure_cannot_leak_granted_slot(self) -> None:
+        handler = object.__new__(PriorityProxyHandler)
+        handler.server = self.proxy
+        handler.command = "POST"
+        handler.path = "/api/chat"
+        handler.headers = {}
+        with (
+            patch.object(handler, "_request_body", return_value=b"{}"),
+            patch.object(handler, "_forward", return_value=2),
+            patch.object(
+                type(self.proxy.stats), "record_upstream", side_effect=RuntimeError("synthetic failure"),
+            ),
+            self.assertRaises(RuntimeError),
+        ):
+            handler._proxy_request()
+        self.assertEqual(self.proxy.gate.snapshot()["active_count"], 0)
 
     def test_http_proxy_runs_interactive_before_queued_background(self) -> None:
         errors: list[Exception] = []

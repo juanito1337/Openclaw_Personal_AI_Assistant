@@ -57,4 +57,6 @@ verweist mit Status `Superseded` auf den Nachfolger.
 | [0049](0049-privilegiengetrennter-tool-executor-prototyp.md) | Accepted | authentisierter privilegiengetrennter Tool-Executor bleibt hermetischer Prototyp |
 | [0050](0050-nextcloud-talk-als-privater-mobilkanal.md) | Accepted | native Talk-App ueber Nextcloud; nur gepinnter, eng begrenzter privater Webhook zum Gateway |
 
+| [0051](0051-openclaw-einrichtung-und-nextcloud-konto.md) | Accepted | administrative Plugin-GUI, Login Flow v2 und ressourcengebundener Talk-Benutzerkanal |
+
 Neue ADRs beginnen mit der [Vorlage](0000-template.md).

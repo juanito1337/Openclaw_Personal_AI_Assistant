@@ -72,6 +72,7 @@ class NextcloudWorkspaceToolSettings:
 class DirectCalendarToolSettings:
     enabled: bool = False
     resource_id: str = ""
+    resource_ids: tuple[str, ...] = ()
     allow_create: bool = True
     allow_list: bool = True
     allow_update: bool = False
@@ -85,6 +86,7 @@ class DirectCalendarToolSettings:
 class DirectTasksToolSettings:
     enabled: bool = False
     resource_id: str = ""
+    resource_ids: tuple[str, ...] = ()
     allow_create: bool = True
     allow_list: bool = True
     allow_update: bool = False
@@ -96,6 +98,7 @@ class DirectTasksToolSettings:
 class DirectContactsToolSettings:
     enabled: bool = False
     resource_id: str = ""
+    resource_ids: tuple[str, ...] = ()
     allow_list: bool = True
     allow_create: bool = False
     allow_update: bool = False
@@ -609,7 +612,7 @@ def load_tool_settings(
     if antivirus.enabled and not antivirus.binary and not antivirus.fallback_binary:
         raise ValueError("tools.toml: security.antivirus benoetigt mindestens einen Scanner")
 
-    return ToolSettings(
+    result = ToolSettings(
         path=config_path,
         operations_profile=operations_profile,
         mail=MailToolSettings(
@@ -628,3 +631,7 @@ def load_tool_settings(
         security=SecurityToolSettings(antivirus=antivirus),
         portfolio=portfolio,
     )
+    from .nextcloud_connection import apply_tool_connection, load_connection
+
+    connection = load_connection()
+    return apply_tool_connection(result, connection) if connection else result

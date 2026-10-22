@@ -534,7 +534,7 @@ raise SystemExit(86)
         )
         self.assertIn("OPENCLAW_RESTORE_OFFLINE=YES", rollback)
         self.assertIn('tar -xzf "$backup/payload.tar.gz" -C "$restore_root"', restore)
-        self.assertIn('rsync -a --delete "$restore_root/state/"', restore)
+        self.assertIn('rsync -a --checksum --delete "$restore_root/state/"', restore)
         self.assertIn("setup-host.sh muss die geschuetzte Hoststruktur anlegen", restore)
 
     def test_legacy_rollback_never_replaces_the_original_workspace_from_container_state(self) -> None:

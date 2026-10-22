@@ -24,6 +24,8 @@ jeweiligen SQLite-Datenbank und duerfen nicht einzeln gesichert werden.
 | Datei | Writer | Leser | Invariante |
 | --- | --- | --- | --- |
 | `shared/core/assistant.sqlite3` | Gateway/CLI, Sync, Mail-ActionBridge | Core, Monitor `ro` | ActionPlan, Status und Audit laufen in Transaktionen; `idempotency_key` bleibt eindeutig |
+| `shared/core/nextcloud-talk.sqlite3` | Gateway-Kontokanal | Gateway | Schema 1, ein Prozessowner unter `flock`, WAL und `synchronous=FULL`; Inboxannahme und Raumcursor in einer Transaktion; Referenz-/Nachrichten-IDs gegen Echo und Doppelversand; laufende Verarbeitung oder Sendung nach Crash wird ungewiss und nicht automatisch wiederholt; ausstehende/ungewisse Inboxtexte sind Inhaltsdaten, keine Telemetrie |
+| `shared/core/nextcloud-talk.status.json` | Gateway-Kontokanal | Setupservice `ro` | atomare, inhaltsfreie Beobachtung mit Zeitpunkt, Kontodigest, Aktivierung, Verbindung, Fehlercode und begrenzten Zaehlern; Frische pruefen, kein Zustellbeweis allein |
 | `domains/knowledge/knowledge.sqlite3` | Gateway/CLI, Sync | Suche, Monitor `ro` | Dokumente, Chunks, feldgetrenntes BM25-Mail-FTS, geschlossene Tags, Threads, `mail-embedding-v1` und Sync-Cursor bilden einen konsistenten SQLite-Satz; Vektoren binden Content-/Retrieval-SHA, Version, Chunk und Modelldigest, nie Locator; eine komplette v2-Generation und ihr Cursor werden gemeinsam committed; `mail-hybrid-rrf-v1` liest diese Tabellen nur und ein Live-Locator bleibt serverseitige Evidenz; aktive Locatorcoverage zaehlt nur nicht-tombstonte Maildokumente, waehrend historische Contents fuer Audit/Cache erhalten bleiben duerfen; Querymetriken enthalten keine Suchtexte, Adressen oder Snippets |
 | `domains/mail/mail_agent.sqlite3` | Mailworker oder explizite Mail-CLI | Mail, Monitor `ro` | genau ein produktiver Remote-Mailwriter; der Sync-Worker oeffnet diese SQLite/WAL-Domaene nicht |
 | `domains/mail/search_documents/_projection.json` und v1-Datensaetze | Mailworker | Sync `ro`, Mail `ro` | v1 bleibt strikt lesbar; Stable-Keys, SHA-256 und Quellzeitpunkte werden validiert; v1 allein belegt keine Vollkonto-Coverage |
@@ -65,3 +67,34 @@ Instanzkonfiguration bleibt unter `/srv/openclaw/config`, Secrets unter
 `/srv/openclaw/secrets` und ClamAV-Signaturen im Volume `clamav-db`. Sie sind nicht
 Teil des State-Layouts und folgen dem Releasebackupvertrag. Lokales Restore allein
 setzt keine bereits erfolgten IMAP-/Nextcloud-/CalDAV-/CardDAV-Aenderungen zurueck.
+
+Der neue Store `/srv/openclaw/secrets/nextcloud-connection` gehoert ausschliesslich
+dem `setup-service` (UID 1000, Verzeichnis 0700, Credentialdatei 0600). Sein
+atomarer Schema-1-Snapshot enthaelt die bestaetigte Kontobindung, DNS-Adressen,
+Discovery und Talkauswahl. Die ownerverwaltete `operator-nonces.sqlite3` speichert
+Hashes von Geraete-ID/Nonce mit Zeitpunkten zur Replayabwehr ueber Neustarts und
+wird bei Backup und vor Restore gezielt mit SQLite-Quick-Check geprueft.
+Runtimeprozesse lesen den Store nur. Ein leeres
+Verzeichnis wird durch Hostsetup/Deployment-Refresh angelegt; Credentials werden
+erst nach Operatoranmeldung und ausdruecklicher Kontobestaetigung publiziert.
+Releasebackup umfasst den Store im bestehenden Secrets-Payload und verweigert
+Backup/Restore bei laufendem, pausiertem oder nicht nachweislich gestopptem Owner.
+Das separate `setup-control`-Volume enthaelt nur den lokalen Kontrollsocket und
+Laufzeitsperren, wird nicht gesichert und enthaelt keine Credentials.
+
+`connection.json` und `previous.json` im Connectionstore enthalten beide Secrets.
+Die vorherige Kontobindung ist ein geschuetzter Rueckfallstand und darf weder in
+Git noch in Diagnoseausgaben oder einen ungeschuetzten Export gelangen. Jeder
+Save prueft die erwartete Revision, erstellt den vorherigen Snapshot, publiziert
+atomar und verifiziert den Read-back. `audit.jsonl` haelt nur Zeitpunkt, feste
+Operation, neue Revision und den gehashten Kontonamensraum fest; weder URLs noch
+Benutzernamen, App-Passwoerter oder Nutzinhalte. Ein fehlgeschlagener Auditwrite
+blockiert den Save und fuehrt nicht zu einer bestaetigten neuen Verbindung.
+Audit und vorheriger Snapshot gehoeren zum selben geschuetzten Releasebackup.
+
+Der Talkzustand wird mit `shared/core/` gesichert und bei Restore mit seinem
+Schema und SQLite-Integritaetsnachweis wiederhergestellt. Die Datei wird nicht
+als Reparatur geloescht; verlorene Deduplizierungs- oder Ungewissheitsdaten
+koennten bereits ausgefuehrte Auftraege erneut ausloesen. Die Status-JSON bleibt
+ein technischer, zeitgebundener Nachweis und macht einen restaurierten Worker
+nicht automatisch gesund. Bedienung: [Nextcloud-Einrichtung](../NEXTCLOUD_SETUP_UI.md).

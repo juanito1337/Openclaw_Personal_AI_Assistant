@@ -9,6 +9,10 @@ image_root=${OPENCLAW_IMAGE_ROOT:-/opt/openclaw-agent}
 [[ -x "$image_root/scripts/mail-agent.sh" ]]
 
 case "$mode" in
+  setup)
+    python3 -P -m personal_assistant.nextcloud_setup \
+      --socket "${OPENCLAW_SETUP_SOCKET:-/run/openclaw-setup/control.sock}" --check >/dev/null
+    ;;
   gateway)
     curl --fail --silent --show-error --max-time 8 "http://127.0.0.1:${OPENCLAW_GATEWAY_PORT:-18789}/healthz" >/dev/null
     python3 -P -m personal_assistant.gateway_events status >/dev/null

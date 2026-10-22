@@ -4,7 +4,7 @@
   "plugin_id": "personal-assistant-tools",
   "plugin_path": "/opt/openclaw-plugins/personal-assistant-tools",
   "product_version": "3.4.0-r29.0.6",
-  "catalog_sha256": "b2e62514b36eb4ee1a46a34d415cbd7336a1b8c5e8beffef0f7ae92b55380a7f",
+  "catalog_sha256": "a15544f37e56c97decb378510f7918f5cd1fb5787bd9e5f95264bfdc5cf9aa7a",
   "catalog_tool_count": 174,
   "supported_operation_count": 173,
   "excluded_operation_count": 1,
@@ -3375,7 +3375,7 @@
     {
       "tool_id": "nextcloud.list",
       "domain": "nextcloud",
-      "description": "Live-Dateien und Ordner read-only ueber den nativen Nextcloud-WebDAV-Connector auflisten; kein lokaler Mount, Hostpfad oder zusaetzlicher Skill erforderlich",
+      "description": "Live-Dateien und Ordner read-only ueber den nativen Nextcloud-WebDAV-Connector auflisten; ohne --path Kontowurzel oder eingerichteter Workspace, optional genauer erlaubter Pfad; kein lokaler Mount, Hostpfad oder zusaetzlicher Skill erforderlich",
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
@@ -3388,14 +3388,26 @@
         "native_dialog_required": false
       },
       "availability": "always",
-      "command": "./scripts/assistant.sh nextcloud list --path \"Assistent\"",
+      "command": "./scripts/assistant.sh nextcloud list --path \"<path-optional>\"",
       "argument_schema": {
         "type": "object",
-        "properties": {},
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
         "required": [],
         "additionalProperties": false
       },
-      "parameter_bindings": [],
+      "parameter_bindings": [
+        {
+          "placeholder": "path-optional",
+          "parameter": "path",
+          "required": false
+        }
+      ],
       "stdin_parameter": null,
       "supported": true,
       "exclusion_reason": "",
@@ -6365,7 +6377,7 @@
     {
       "tool_id": "nextcloud.calendar.status",
       "domain": "calendar",
-      "description": "Konfiguration sowie Lese-, Anlege- und Aktualisierungsrechte des direkten Nextcloud-Kalenderwerkzeugs pruefen",
+      "description": "Konfiguration sowie Lese-, Anlege- und Aktualisierungsrechte des direkten Nextcloud-Kalenderwerkzeugs pruefen; ohne --resource alle freigegebenen Ressourcen, optional genau eine stabile Ressourcen-ID",
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
@@ -6378,14 +6390,26 @@
         "native_dialog_required": false
       },
       "availability": "calendar",
-      "command": "./scripts/assistant.sh calendar status",
+      "command": "./scripts/assistant.sh calendar status --resource \"<resource-optional>\"",
       "argument_schema": {
         "type": "object",
-        "properties": {},
+        "properties": {
+          "resource": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
         "required": [],
         "additionalProperties": false
       },
-      "parameter_bindings": [],
+      "parameter_bindings": [
+        {
+          "placeholder": "resource-optional",
+          "parameter": "resource",
+          "required": false
+        }
+      ],
       "stdin_parameter": null,
       "supported": true,
       "exclusion_reason": "",
@@ -6402,7 +6426,7 @@
     {
       "tool_id": "nextcloud.calendar.list",
       "domain": "calendar",
-      "description": "Termine aus dem freigegebenen Nextcloud-Kalender mit UID lesen",
+      "description": "Termine aus dem freigegebenen Nextcloud-Kalender mit UID lesen; ohne --resource alle freigegebenen Ressourcen, optional genau eine stabile Ressourcen-ID",
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
@@ -6415,14 +6439,26 @@
         "native_dialog_required": false
       },
       "availability": "calendar-list",
-      "command": "./scripts/assistant.sh calendar list --limit 100",
+      "command": "./scripts/assistant.sh calendar list --limit 100 --resource \"<resource-optional>\"",
       "argument_schema": {
         "type": "object",
-        "properties": {},
+        "properties": {
+          "resource": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
         "required": [],
         "additionalProperties": false
       },
-      "parameter_bindings": [],
+      "parameter_bindings": [
+        {
+          "placeholder": "resource-optional",
+          "parameter": "resource",
+          "required": false
+        }
+      ],
       "stdin_parameter": null,
       "supported": true,
       "exclusion_reason": "",
@@ -6439,7 +6475,7 @@
     {
       "tool_id": "nextcloud.calendar.search",
       "domain": "calendar",
-      "description": "Termine nach Titel, Ort, Beschreibung oder UID suchen",
+      "description": "Termine nach Titel, Ort, Beschreibung oder UID suchen; ohne --resource alle freigegebenen Ressourcen, optional genau eine stabile Ressourcen-ID",
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
@@ -6452,7 +6488,7 @@
         "native_dialog_required": false
       },
       "availability": "calendar-list",
-      "command": "./scripts/assistant.sh calendar search --query \"<Suchbegriff>\" --limit 50",
+      "command": "./scripts/assistant.sh calendar search --query \"<Suchbegriff>\" --limit 50 --resource \"<resource-optional>\"",
       "argument_schema": {
         "type": "object",
         "properties": {
@@ -6460,6 +6496,11 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 20000
+          },
+          "resource": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
           }
         },
         "required": [
@@ -6472,6 +6513,11 @@
           "placeholder": "Suchbegriff",
           "parameter": "query",
           "required": true
+        },
+        {
+          "placeholder": "resource-optional",
+          "parameter": "resource",
+          "required": false
         }
       ],
       "stdin_parameter": null,
@@ -6490,7 +6536,7 @@
     {
       "tool_id": "nextcloud.calendar.from-mail-preview",
       "domain": "calendar",
-      "description": "Aus genau einer aktuell gebundenen und vollstaendig gescannten Mail read-only belegte Terminkandidaten mit Duplikatpruefung erzeugen",
+      "description": "Aus genau einer aktuell gebundenen und vollstaendig gescannten Mail read-only belegte Terminkandidaten mit Duplikatpruefung erzeugen; bei mehreren Ressourcen ist --resource aus status/list fuer genau ein Schreibziel erforderlich",
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
@@ -6503,7 +6549,7 @@
         "native_dialog_required": false
       },
       "availability": "calendar-from-mail",
-      "command": "./scripts/assistant.sh calendar from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --dry-run",
+      "command": "./scripts/assistant.sh calendar from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --dry-run --resource \"<resource-optional>\"",
       "argument_schema": {
         "type": "object",
         "properties": {
@@ -6518,6 +6564,11 @@
             "maxLength": 2048
           },
           "expected_subject": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "resource": {
             "type": "string",
             "minLength": 1,
             "maxLength": 2048
@@ -6545,6 +6596,11 @@
           "placeholder": "Betreff",
           "parameter": "expected_subject",
           "required": true
+        },
+        {
+          "placeholder": "resource-optional",
+          "parameter": "resource",
+          "required": false
         }
       ],
       "stdin_parameter": null,
@@ -6563,7 +6619,7 @@
     {
       "tool_id": "nextcloud.calendar.from-mail-create",
       "domain": "calendar",
-      "description": "Genau einen unveraenderten Mail-Terminkandidaten nach Einzelfreigabe create-only anlegen und remote per UID sowie ETag verifizieren",
+      "description": "Genau einen unveraenderten Mail-Terminkandidaten nach Einzelfreigabe create-only anlegen und remote per UID sowie ETag verifizieren; bei mehreren Ressourcen ist --resource aus status/list fuer genau ein Schreibziel erforderlich",
       "mode": "write",
       "writes_external_data": true,
       "approval": "explicit-user-calendar-from-mail-create-only",
@@ -6576,7 +6632,7 @@
         "native_dialog_required": false
       },
       "availability": "calendar-from-mail",
-      "command": "./scripts/assistant.sh calendar from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --preview-digest \"<preview_digest>\" --candidate-id \"<candidate_id>\" --yes",
+      "command": "./scripts/assistant.sh calendar from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --preview-digest \"<preview_digest>\" --candidate-id \"<candidate_id>\" --yes --resource \"<resource-optional>\"",
       "argument_schema": {
         "type": "object",
         "properties": {
@@ -6600,6 +6656,11 @@
             "pattern": "^[0-9a-f]{64}$"
           },
           "candidate_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "resource": {
             "type": "string",
             "minLength": 1,
             "maxLength": 2048
@@ -6639,6 +6700,11 @@
           "placeholder": "candidate_id",
           "parameter": "candidate_id",
           "required": true
+        },
+        {
+          "placeholder": "resource-optional",
+          "parameter": "resource",
+          "required": false
         }
       ],
       "stdin_parameter": null,
@@ -6659,7 +6725,7 @@
     {
       "tool_id": "nextcloud.calendar.update",
       "domain": "calendar",
-      "description": "Einen zuvor eindeutig per UID ausgewaehlten Termin nach ausdruecklichem Nutzerauftrag ETag-geschuetzt aktualisieren; Serien nur mit gesonderter Freigabe",
+      "description": "Einen zuvor eindeutig per UID ausgewaehlten Termin nach ausdruecklichem Nutzerauftrag ETag-geschuetzt aktualisieren; Serien nur mit gesonderter Freigabe; bei mehreren Ressourcen ist --resource aus status/list fuer genau ein Schreibziel erforderlich",
       "mode": "write",
       "writes_external_data": true,
       "approval": "explicit-user-calendar-update-etag-guarded",
@@ -6672,7 +6738,7 @@
         "native_dialog_required": true
       },
       "availability": "calendar-update",
-      "command": "./scripts/assistant.sh calendar update --uid \"<UID>\" --expected-title \"<aktueller Titel>\" --start \"<ISO-8601>\" --yes",
+      "command": "./scripts/assistant.sh calendar update --uid \"<UID>\" --expected-title \"<aktueller Titel>\" --start \"<ISO-8601>\" --yes --resource \"<resource-optional>\"",
       "argument_schema": {
         "type": "object",
         "properties": {
@@ -6690,6 +6756,11 @@
             "type": "string",
             "minLength": 10,
             "maxLength": 64
+          },
+          "resource": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
           }
         },
         "required": [
@@ -6714,6 +6785,11 @@
           "placeholder": "ISO-8601",
           "parameter": "start",
           "required": true
+        },
+        {
+          "placeholder": "resource-optional",
+          "parameter": "resource",
+          "required": false
         }
       ],
       "stdin_parameter": null,
@@ -6734,7 +6810,7 @@
     {
       "tool_id": "nextcloud.calendar.create",
       "domain": "calendar",
-      "description": "Neuen Termin direkt in den freigegebenen Nextcloud-Kalender eintragen; calendar create akzeptiert kein --yes",
+      "description": "Neuen Termin direkt in den freigegebenen Nextcloud-Kalender eintragen; calendar create akzeptiert kein --yes; bei mehreren Ressourcen ist --resource aus status/list fuer genau ein Schreibziel erforderlich",
       "mode": "write",
       "writes_external_data": true,
       "approval": "configured-calendar-create-only",
@@ -6747,7 +6823,7 @@
         "native_dialog_required": false
       },
       "availability": "calendar-create",
-      "command": "./scripts/assistant.sh calendar create --title \"<Titel>\" --start \"<ISO-8601>\" --end \"<ISO-8601>\" --location \"<Ort>\" --description \"<Beschreibung>\"",
+      "command": "./scripts/assistant.sh calendar create --title \"<Titel>\" --start \"<ISO-8601>\" --end \"<ISO-8601>\" --location \"<Ort>\" --description \"<Beschreibung>\" --resource \"<resource-optional>\"",
       "argument_schema": {
         "type": "object",
         "properties": {
@@ -6775,6 +6851,11 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 20000
+          },
+          "resource": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
           }
         },
         "required": [
@@ -6811,6 +6892,11 @@
           "placeholder": "Beschreibung",
           "parameter": "description",
           "required": true
+        },
+        {
+          "placeholder": "resource-optional",
+          "parameter": "resource",
+          "required": false
         }
       ],
       "stdin_parameter": null,
@@ -6831,7 +6917,7 @@
     {
       "tool_id": "nextcloud.tasks.status",
       "domain": "tasks",
-      "description": "Konfiguration sowie Lese-, Anlege- und Aktualisierungsrechte des Nextcloud-Aufgabenwerkzeugs pruefen",
+      "description": "Konfiguration sowie Lese-, Anlege- und Aktualisierungsrechte des Nextcloud-Aufgabenwerkzeugs pruefen; ohne --resource alle freigegebenen Ressourcen, optional genau eine stabile Ressourcen-ID",
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
@@ -6844,14 +6930,26 @@
         "native_dialog_required": false
       },
       "availability": "tasks",
-      "command": "./scripts/assistant.sh tasks status",
+      "command": "./scripts/assistant.sh tasks status --resource \"<resource-optional>\"",
       "argument_schema": {
         "type": "object",
-        "properties": {},
+        "properties": {
+          "resource": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
         "required": [],
         "additionalProperties": false
       },
-      "parameter_bindings": [],
+      "parameter_bindings": [
+        {
+          "placeholder": "resource-optional",
+          "parameter": "resource",
+          "required": false
+        }
+      ],
       "stdin_parameter": null,
       "supported": true,
       "exclusion_reason": "",
@@ -6868,7 +6966,7 @@
     {
       "tool_id": "nextcloud.tasks.list",
       "domain": "tasks",
-      "description": "Aufgaben aus der freigegebenen Nextcloud-Aufgabenliste mit UID lesen",
+      "description": "Aufgaben aus der freigegebenen Nextcloud-Aufgabenliste mit UID lesen; ohne --resource alle freigegebenen Ressourcen, optional genau eine stabile Ressourcen-ID",
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
@@ -6881,14 +6979,26 @@
         "native_dialog_required": false
       },
       "availability": "tasks-list",
-      "command": "./scripts/assistant.sh tasks list --include-completed --limit 100",
+      "command": "./scripts/assistant.sh tasks list --include-completed --limit 100 --resource \"<resource-optional>\"",
       "argument_schema": {
         "type": "object",
-        "properties": {},
+        "properties": {
+          "resource": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
         "required": [],
         "additionalProperties": false
       },
-      "parameter_bindings": [],
+      "parameter_bindings": [
+        {
+          "placeholder": "resource-optional",
+          "parameter": "resource",
+          "required": false
+        }
+      ],
       "stdin_parameter": null,
       "supported": true,
       "exclusion_reason": "",
@@ -6905,7 +7015,7 @@
     {
       "tool_id": "nextcloud.tasks.update",
       "domain": "tasks",
-      "description": "Eine zuvor eindeutig per UID ausgewaehlte Aufgabe nach ausdruecklichem Nutzerauftrag ETag-geschuetzt aktualisieren oder abschliessen; Serien nur mit gesonderter Freigabe",
+      "description": "Eine zuvor eindeutig per UID ausgewaehlte Aufgabe nach ausdruecklichem Nutzerauftrag ETag-geschuetzt aktualisieren oder abschliessen; Serien nur mit gesonderter Freigabe; bei mehreren Ressourcen ist --resource aus status/list fuer genau ein Schreibziel erforderlich",
       "mode": "write",
       "writes_external_data": true,
       "approval": "explicit-user-task-update-etag-guarded",
@@ -6918,7 +7028,7 @@
         "native_dialog_required": true
       },
       "availability": "tasks-update",
-      "command": "./scripts/assistant.sh tasks update --uid \"<UID>\" --expected-title \"<aktueller Titel>\" --status COMPLETED --yes",
+      "command": "./scripts/assistant.sh tasks update --uid \"<UID>\" --expected-title \"<aktueller Titel>\" --status COMPLETED --yes --resource \"<resource-optional>\"",
       "argument_schema": {
         "type": "object",
         "properties": {
@@ -6928,6 +7038,11 @@
             "maxLength": 2048
           },
           "expected_title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "resource": {
             "type": "string",
             "minLength": 1,
             "maxLength": 2048
@@ -6949,6 +7064,11 @@
           "placeholder": "aktueller Titel",
           "parameter": "expected_title",
           "required": true
+        },
+        {
+          "placeholder": "resource-optional",
+          "parameter": "resource",
+          "required": false
         }
       ],
       "stdin_parameter": null,
@@ -6969,7 +7089,7 @@
     {
       "tool_id": "nextcloud.tasks.create",
       "domain": "tasks",
-      "description": "Neue Aufgabe in der freigegebenen Nextcloud-Aufgabenliste anlegen",
+      "description": "Neue Aufgabe in der freigegebenen Nextcloud-Aufgabenliste anlegen; bei mehreren Ressourcen ist --resource aus status/list fuer genau ein Schreibziel erforderlich",
       "mode": "write",
       "writes_external_data": true,
       "approval": "configured-tasks-create-only",
@@ -6982,7 +7102,7 @@
         "native_dialog_required": false
       },
       "availability": "tasks-create",
-      "command": "./scripts/assistant.sh tasks create --title \"<Titel>\" --due \"<YYYY-MM-DD oder ISO-8601>\" --priority <0-9> --description \"<Beschreibung>\"",
+      "command": "./scripts/assistant.sh tasks create --title \"<Titel>\" --due \"<YYYY-MM-DD oder ISO-8601>\" --priority <0-9> --description \"<Beschreibung>\" --resource \"<resource-optional>\"",
       "argument_schema": {
         "type": "object",
         "properties": {
@@ -7005,6 +7125,11 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 20000
+          },
+          "resource": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
           }
         },
         "required": [
@@ -7035,6 +7160,11 @@
           "placeholder": "Beschreibung",
           "parameter": "description",
           "required": true
+        },
+        {
+          "placeholder": "resource-optional",
+          "parameter": "resource",
+          "required": false
         }
       ],
       "stdin_parameter": null,
@@ -7055,7 +7185,7 @@
     {
       "tool_id": "nextcloud.contacts.status",
       "domain": "contacts",
-      "description": "Konfiguration sowie Lese-, Anlege- und Aktualisierungsrechte des CardDAV-Kontaktwerkzeugs pruefen",
+      "description": "Konfiguration sowie Lese-, Anlege- und Aktualisierungsrechte des CardDAV-Kontaktwerkzeugs pruefen; ohne --resource alle freigegebenen Ressourcen, optional genau eine stabile Ressourcen-ID",
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
@@ -7068,14 +7198,26 @@
         "native_dialog_required": false
       },
       "availability": "contacts",
-      "command": "./scripts/assistant.sh contacts status",
+      "command": "./scripts/assistant.sh contacts status --resource \"<resource-optional>\"",
       "argument_schema": {
         "type": "object",
-        "properties": {},
+        "properties": {
+          "resource": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
         "required": [],
         "additionalProperties": false
       },
-      "parameter_bindings": [],
+      "parameter_bindings": [
+        {
+          "placeholder": "resource-optional",
+          "parameter": "resource",
+          "required": false
+        }
+      ],
       "stdin_parameter": null,
       "supported": true,
       "exclusion_reason": "",
@@ -7092,7 +7234,7 @@
     {
       "tool_id": "nextcloud.contacts.list",
       "domain": "contacts",
-      "description": "Kontakte aus dem freigegebenen CardDAV-Adressbuch lesen",
+      "description": "Kontakte aus dem freigegebenen CardDAV-Adressbuch lesen; ohne --resource alle freigegebenen Ressourcen, optional genau eine stabile Ressourcen-ID",
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
@@ -7105,14 +7247,26 @@
         "native_dialog_required": false
       },
       "availability": "contacts-list",
-      "command": "./scripts/assistant.sh contacts list --limit 100",
+      "command": "./scripts/assistant.sh contacts list --limit 100 --resource \"<resource-optional>\"",
       "argument_schema": {
         "type": "object",
-        "properties": {},
+        "properties": {
+          "resource": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
         "required": [],
         "additionalProperties": false
       },
-      "parameter_bindings": [],
+      "parameter_bindings": [
+        {
+          "placeholder": "resource-optional",
+          "parameter": "resource",
+          "required": false
+        }
+      ],
       "stdin_parameter": null,
       "supported": true,
       "exclusion_reason": "",
@@ -7129,7 +7283,7 @@
     {
       "tool_id": "nextcloud.contacts.search",
       "domain": "contacts",
-      "description": "Kontakte nach Name, E-Mail, Telefon oder Organisation suchen",
+      "description": "Kontakte nach Name, E-Mail, Telefon oder Organisation suchen; ohne --resource alle freigegebenen Ressourcen, optional genau eine stabile Ressourcen-ID",
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
@@ -7142,7 +7296,7 @@
         "native_dialog_required": false
       },
       "availability": "contacts-list",
-      "command": "./scripts/assistant.sh contacts search --query \"<Suchbegriff>\" --limit 50",
+      "command": "./scripts/assistant.sh contacts search --query \"<Suchbegriff>\" --limit 50 --resource \"<resource-optional>\"",
       "argument_schema": {
         "type": "object",
         "properties": {
@@ -7150,6 +7304,11 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 20000
+          },
+          "resource": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
           }
         },
         "required": [
@@ -7162,6 +7321,11 @@
           "placeholder": "Suchbegriff",
           "parameter": "query",
           "required": true
+        },
+        {
+          "placeholder": "resource-optional",
+          "parameter": "resource",
+          "required": false
         }
       ],
       "stdin_parameter": null,
@@ -7180,7 +7344,7 @@
     {
       "tool_id": "nextcloud.contacts.update",
       "domain": "contacts",
-      "description": "Einen zuvor eindeutig gesuchten Kontakt per UID nach ausdruecklichem Nutzerauftrag ETag-geschuetzt aktualisieren; kein Loeschen oder Merge",
+      "description": "Einen zuvor eindeutig gesuchten Kontakt per UID nach ausdruecklichem Nutzerauftrag ETag-geschuetzt aktualisieren; kein Loeschen oder Merge; bei mehreren Ressourcen ist --resource aus status/list fuer genau ein Schreibziel erforderlich",
       "mode": "write",
       "writes_external_data": true,
       "approval": "explicit-user-contact-update-etag-guarded",
@@ -7193,7 +7357,7 @@
         "native_dialog_required": true
       },
       "availability": "contacts-update",
-      "command": "./scripts/assistant.sh contacts update --uid \"<UID>\" --expected-name \"<aktueller Name>\" --phone \"<neue Telefonnummer>\" --yes",
+      "command": "./scripts/assistant.sh contacts update --uid \"<UID>\" --expected-name \"<aktueller Name>\" --phone \"<neue Telefonnummer>\" --yes --resource \"<resource-optional>\"",
       "argument_schema": {
         "type": "object",
         "properties": {
@@ -7208,6 +7372,11 @@
             "maxLength": 2048
           },
           "phone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "resource": {
             "type": "string",
             "minLength": 1,
             "maxLength": 2048
@@ -7235,6 +7404,11 @@
           "placeholder": "neue Telefonnummer",
           "parameter": "phone",
           "required": true
+        },
+        {
+          "placeholder": "resource-optional",
+          "parameter": "resource",
+          "required": false
         }
       ],
       "stdin_parameter": null,
@@ -7255,7 +7429,7 @@
     {
       "tool_id": "nextcloud.contacts.create",
       "domain": "contacts",
-      "description": "Neuen Kontakt nach ausdruecklichem Nutzerauftrag create-only anlegen; bestehende Kontakte werden nicht veraendert",
+      "description": "Neuen Kontakt nach ausdruecklichem Nutzerauftrag create-only anlegen; bestehende Kontakte werden nicht veraendert; bei mehreren Ressourcen ist --resource aus status/list fuer genau ein Schreibziel erforderlich",
       "mode": "write",
       "writes_external_data": true,
       "approval": "explicit-user-contact-create-only",
@@ -7268,7 +7442,7 @@
         "native_dialog_required": false
       },
       "availability": "contacts-create",
-      "command": "./scripts/assistant.sh contacts create --name \"<Name>\" --email \"<E-Mail>\" --phone \"<Telefon>\" --organization \"<Firma>\" --yes",
+      "command": "./scripts/assistant.sh contacts create --name \"<Name>\" --email \"<E-Mail>\" --phone \"<Telefon>\" --organization \"<Firma>\" --yes --resource \"<resource-optional>\"",
       "argument_schema": {
         "type": "object",
         "properties": {
@@ -7288,6 +7462,11 @@
             "maxLength": 2048
           },
           "organization": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "resource": {
             "type": "string",
             "minLength": 1,
             "maxLength": 2048
@@ -7321,6 +7500,11 @@
           "placeholder": "Firma",
           "parameter": "organization",
           "required": true
+        },
+        {
+          "placeholder": "resource-optional",
+          "parameter": "resource",
+          "required": false
         }
       ],
       "stdin_parameter": null,
@@ -7341,7 +7525,7 @@
     {
       "tool_id": "nextcloud.contacts.from-mail-preview",
       "domain": "contacts",
-      "description": "Absender und konservativ erkannte Signaturdaten einer eindeutig ausgewaehlten Mail als Kontaktvorschlag pruefen",
+      "description": "Absender und konservativ erkannte Signaturdaten einer eindeutig ausgewaehlten Mail als Kontaktvorschlag pruefen; bei mehreren Ressourcen ist --resource aus status/list fuer genau ein Schreibziel erforderlich",
       "mode": "read",
       "writes_external_data": false,
       "approval": "none",
@@ -7354,7 +7538,7 @@
         "native_dialog_required": false
       },
       "availability": "contacts-create",
-      "command": "./scripts/assistant.sh contacts from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --dry-run",
+      "command": "./scripts/assistant.sh contacts from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --dry-run --resource \"<resource-optional>\"",
       "argument_schema": {
         "type": "object",
         "properties": {
@@ -7369,6 +7553,11 @@
             "maxLength": 2048
           },
           "expected_subject": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "resource": {
             "type": "string",
             "minLength": 1,
             "maxLength": 2048
@@ -7396,6 +7585,11 @@
           "placeholder": "Betreff",
           "parameter": "expected_subject",
           "required": true
+        },
+        {
+          "placeholder": "resource-optional",
+          "parameter": "resource",
+          "required": false
         }
       ],
       "stdin_parameter": null,
@@ -7414,7 +7608,7 @@
     {
       "tool_id": "nextcloud.contacts.from-mail-create",
       "domain": "contacts",
-      "description": "Kontakt aus einer eindeutig ausgewaehlten Mail nach Vorschau und ausdruecklichem Nutzerauftrag create-only anlegen",
+      "description": "Kontakt aus einer eindeutig ausgewaehlten Mail nach Vorschau und ausdruecklichem Nutzerauftrag create-only anlegen; bei mehreren Ressourcen ist --resource aus status/list fuer genau ein Schreibziel erforderlich",
       "mode": "write",
       "writes_external_data": true,
       "approval": "explicit-user-contact-from-mail-create-only",
@@ -7427,7 +7621,7 @@
         "native_dialog_required": false
       },
       "availability": "contacts-create",
-      "command": "./scripts/assistant.sh contacts from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --yes",
+      "command": "./scripts/assistant.sh contacts from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --yes --resource \"<resource-optional>\"",
       "argument_schema": {
         "type": "object",
         "properties": {
@@ -7442,6 +7636,11 @@
             "maxLength": 2048
           },
           "expected_subject": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "resource": {
             "type": "string",
             "minLength": 1,
             "maxLength": 2048
@@ -7469,6 +7668,11 @@
           "placeholder": "Betreff",
           "parameter": "expected_subject",
           "required": true
+        },
+        {
+          "placeholder": "resource-optional",
+          "parameter": "resource",
+          "required": false
         }
       ],
       "stdin_parameter": null,
@@ -8923,9 +9127,15 @@
           },
           "arguments": {
             "type": "object",
-            "properties": {},
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              }
+            },
             "additionalProperties": false,
-            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: nextcloud.list: keine; nextcloud.sync: keine"
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: nextcloud.list: path?; nextcloud.sync: keine"
           }
         },
         "required": [
@@ -9027,6 +9237,11 @@
           "arguments": {
             "type": "object",
             "properties": {
+              "resource": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
               "query": {
                 "type": "string",
                 "minLength": 1,
@@ -9049,7 +9264,7 @@
               }
             },
             "additionalProperties": false,
-            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: nextcloud.contacts.discover: keine; nextcloud.contacts.status: keine; nextcloud.contacts.list: keine; nextcloud.contacts.search: query; nextcloud.contacts.from-mail-preview: expected_subject, folder, message_id"
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: nextcloud.contacts.discover: keine; nextcloud.contacts.status: resource?; nextcloud.contacts.list: resource?; nextcloud.contacts.search: query, resource?; nextcloud.contacts.from-mail-preview: expected_subject, folder, message_id, resource?"
           }
         },
         "required": [
@@ -9139,7 +9354,7 @@
               }
             },
             "additionalProperties": false,
-            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: nextcloud.contacts.configure: resource; nextcloud.contacts.update: expected_name, phone, uid; nextcloud.contacts.create: email, name, organization, phone; nextcloud.contacts.from-mail-create: expected_subject, folder, message_id"
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: nextcloud.contacts.configure: resource; nextcloud.contacts.update: expected_name, phone, uid, resource?; nextcloud.contacts.create: email, name, organization, phone, resource?; nextcloud.contacts.from-mail-create: expected_subject, folder, message_id, resource?"
           }
         },
         "required": [
@@ -9177,6 +9392,11 @@
           "arguments": {
             "type": "object",
             "properties": {
+              "resource": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              },
               "query": {
                 "type": "string",
                 "minLength": 1,
@@ -9199,7 +9419,7 @@
               }
             },
             "additionalProperties": false,
-            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: nextcloud.calendar.discover: keine; nextcloud.calendar.status: keine; nextcloud.calendar.list: keine; nextcloud.calendar.search: query; nextcloud.calendar.from-mail-preview: expected_subject, folder, message_id"
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: nextcloud.calendar.discover: keine; nextcloud.calendar.status: resource?; nextcloud.calendar.list: resource?; nextcloud.calendar.search: query, resource?; nextcloud.calendar.from-mail-preview: expected_subject, folder, message_id, resource?"
           }
         },
         "required": [
@@ -9303,7 +9523,7 @@
               }
             },
             "additionalProperties": false,
-            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: nextcloud.calendar.configure: resource; nextcloud.calendar.from-mail-create: candidate_id, expected_subject, folder, message_id, preview_digest; nextcloud.calendar.update: expected_title, start, uid; nextcloud.calendar.create: description, end, location, start, title"
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: nextcloud.calendar.configure: resource; nextcloud.calendar.from-mail-create: candidate_id, expected_subject, folder, message_id, preview_digest, resource?; nextcloud.calendar.update: expected_title, start, uid, resource?; nextcloud.calendar.create: description, end, location, start, title, resource?"
           }
         },
         "required": [
@@ -9338,9 +9558,15 @@
           },
           "arguments": {
             "type": "object",
-            "properties": {},
+            "properties": {
+              "resource": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048
+              }
+            },
             "additionalProperties": false,
-            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: nextcloud.tasks.discover: keine; nextcloud.tasks.status: keine; nextcloud.tasks.list: keine"
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: nextcloud.tasks.discover: keine; nextcloud.tasks.status: resource?; nextcloud.tasks.list: resource?"
           }
         },
         "required": [
@@ -9412,7 +9638,7 @@
               }
             },
             "additionalProperties": false,
-            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: nextcloud.tasks.configure: resource; nextcloud.tasks.update: expected_title, uid; nextcloud.tasks.create: description, due, priority, title"
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: nextcloud.tasks.configure: resource; nextcloud.tasks.update: expected_title, uid, resource?; nextcloud.tasks.create: description, due, priority, title, resource?"
           }
         },
         "required": [

@@ -72,6 +72,7 @@ def replay_case(case: dict[str, Any], *, phase: str) -> dict[str, Any]:
                     ok=True,
                     postcondition_verified=True,
                     argument_digest=f"{index + 1:064x}",
+                    payload={"candidate_id": f"synthetic-candidate-{index + 1}"},
                     evidence_turn_id=f"synthetic-{case['id']}",
                 )
             terminal_state = obligation["terminal_state"]

@@ -21,7 +21,8 @@ backup="$OPENCLAW_BACKUP_DIR/$backup_id"
 read_manifest() {
   python3 - "$backup/manifest.json" "$1" <<'PY'
 import json, sys
-print(json.load(open(sys.argv[1], encoding="utf-8")).get(sys.argv[2], ""))
+value = json.load(open(sys.argv[1], encoding="utf-8")).get(sys.argv[2], "")
+print(str(value).lower() if isinstance(value, bool) else value)
 PY
 }
 previous_image=$(read_manifest previous_image)
@@ -31,6 +32,11 @@ target_maintenance_image=$(read_manifest target_maintenance_image)
 previous_clamd_image=$(read_manifest previous_clamd_image)
 target_clamd_image=$(read_manifest target_clamd_image)
 previous_runtime=$(read_manifest previous_runtime)
+previous_talk_proxy_enabled=$(read_manifest previous_talk_proxy_enabled)
+previous_talk_proxy_enabled=${previous_talk_proxy_enabled:-false}
+validate_talk_proxy_flag "$previous_talk_proxy_enabled"
+previous_talk_proxy_ip=$(read_manifest previous_talk_proxy_ip)
+previous_talk_nextcloud_ip=$(read_manifest previous_talk_nextcloud_ip)
 legacy_home=$(read_manifest legacy_home)
 legacy_migration_backup=$(read_manifest legacy_migration_backup)
 legacy_migration_member=$(read_manifest legacy_migration_member)
@@ -50,6 +56,18 @@ if [[ "$previous_runtime" == "docker" && -z "$previous_clamd_image" ]]; then
   rollback_clamd_image=${target_clamd_image:-$rollback_maintenance_image}
 fi
 restore_hook=${OPENCLAW_EXTERNAL_RESTORE_HOOK:-}
+
+if [[ "$previous_talk_proxy_enabled" == true ]]; then
+  validate_talk_proxy_addresses "$previous_talk_proxy_ip" "$previous_talk_nextcloud_ip"
+  [[ "$previous_runtime" == docker ]] || {
+    echo "Talk-Proxy kann nicht als Teil einer Legacy-Runtime restauriert werden." >&2
+    exit 2
+  }
+  # Check before stopping the candidate: pre-Caddy releases must not be started
+  # with a service entrypoint they do not contain.
+  docker pull "$previous_proxy_image" >/dev/null
+  verify_talk_proxy_image "$previous_proxy_image"
+fi
 
 # The executable contract is checked before stopping anything. The hook can
 # still fail while restoring; in that case local rollback continues and the
@@ -135,13 +153,22 @@ if [[ "$previous_runtime" == "legacy-systemd" ]] && ! legacy_home_ready; then
 fi
 
 echo "Stoppe aktuellen Containerstand."
-compose down --remove-orphans >/dev/null 2>&1 || true
+compose --profile talk down --remove-orphans >/dev/null 2>&1 || true
+setup_service_is_offline || {
+  echo "Rollback abgebrochen: Setup-Service ist nicht sicher gestoppt; Verbindungsstore bleibt unveraendert." >&2
+  exit 1
+}
+talk_proxy_is_offline || {
+  echo "Rollback abgebrochen: Talk-Proxy ist nicht sicher gestoppt; CA-Zustand bleibt unveraendert." >&2
+  exit 1
+}
 
 # Preserve the failed state for later diagnosis. It is deliberately excluded
 # from normal retention deletion during this rollback operation.
 if [[ -d "$OPENCLAW_STATE_DIR" ]]; then
   BACKUP_RETENTION_RELEASES=100000 PREVIOUS_IMAGE=${OPENCLAW_IMAGE:-unknown} \
     TARGET_IMAGE="forensic-before-rollback" PREVIOUS_RUNTIME=docker \
+    PREVIOUS_TALK_PROXY_ENABLED=false TARGET_TALK_PROXY_ENABLED=false \
     EXTERNAL_BACKUP_REFERENCE="" "$SCRIPT_DIR/backup.sh" "forensic-before-rollback" >/dev/null || true
 fi
 
@@ -166,6 +193,11 @@ normalize_local_restore_ownership
 echo "Stelle lokalen Zustand aus $backup_id wieder her."
 OPENCLAW_RESTORE_OFFLINE=YES "$SCRIPT_DIR/restore-local-state.sh" "$backup"
 normalize_local_restore_ownership
+
+# .env is deployment state, not part of the payload archive. An old manifest
+# deliberately restores OFF, including a failed first-time Talk activation.
+restore_talk_proxy_configuration "$previous_talk_proxy_enabled" \
+  "$previous_talk_proxy_ip" "$previous_talk_nextcloud_ip"
 
 if [[ "$previous_runtime" == "legacy-systemd" ]]; then
   legacy_home_ready || {
@@ -199,6 +231,10 @@ else
   docker pull "$previous_proxy_image" >/dev/null
   docker pull "$rollback_maintenance_image" >/dev/null
   docker pull "$rollback_clamd_image" >/dev/null
+  # Old backups predate this dedicated slot; create an empty directory only.
+  # Existing restored credentials remain unchanged.
+  ensure_nextcloud_connection_directory
+  start_setup_service_if_supported
   compose --profile maintenance run --rm --entrypoint freshclam clamav-update --verbose || true
   compose up -d clamd
   wait_for_healthy clamd 300
@@ -207,6 +243,9 @@ else
   compose up -d --no-deps ollama-proxy gateway
   wait_for_healthy ollama-proxy 180
   wait_for_healthy gateway 300
+  if [[ "$previous_talk_proxy_enabled" == true ]]; then
+    start_talk_proxy
+  fi
   compose --profile maintenance up -d clamav-update
   compose up -d --no-deps mail-worker sync-worker supervisor-worker portfolio-worker monitor-worker
   wait_for_healthy mail-worker 180

@@ -11,7 +11,9 @@ def add_commands(sub: Any) -> None:
     discover.add_argument("--no-persist", action="store_true")
     nc_sub.add_parser("sync")
     nc_list = nc_sub.add_parser("list", help="Erlaubte Nextcloud-Dateien read-only auflisten")
-    nc_list.add_argument("--path", default="Assistent")
+    nc_list.add_argument(
+        "--path", default=None, help="Kontowurzel oder eingerichteter Workspace, wenn ausgelassen"
+    )
     nc_list.add_argument("--max-depth", type=int, default=3)
     nc_mkdir = nc_sub.add_parser("mkdir", help="Ordner innerhalb des erlaubten Arbeitsbereichs anlegen")
     nc_mkdir.add_argument("--path", required=True)
@@ -32,7 +34,7 @@ def add_commands(sub: Any) -> None:
     calendar = sub.add_parser("calendar", help="Direktes Nextcloud-Kalenderwerkzeug")
     calendar_sub = calendar.add_subparsers(dest="calendar_command", required=True)
     calendar_sub.add_parser("discover", help="Erreichbare VEVENT-Kalender read-only auflisten")
-    calendar_sub.add_parser(
+    calendar_status = calendar_sub.add_parser(
         "status", help="Konfiguration sowie Lese-, Anlege- und Aktualisierungsrechte pruefen"
     )
     calendar_configure = calendar_sub.add_parser(
@@ -231,6 +233,17 @@ def add_commands(sub: Any) -> None:
     contacts_mail.add_argument("--allow-name-collision", action="store_true")
     contacts_mail.add_argument("--dry-run", action="store_true")
     contacts_mail.add_argument("--yes", action="store_true")
+
+    for parser in (
+        calendar_status, calendar_list, calendar_search, calendar_create, calendar_update,
+        calendar_from_mail, tasks_status, tasks_list, tasks_create, tasks_update,
+        contacts_status, contacts_list, contacts_search, contacts_create, contacts_update,
+        contacts_mail,
+    ):
+        parser.add_argument(
+            "--resource", default="",
+            help="Exakte Ressourcen-ID; bei mehreren Zielen fuer Writes erforderlich",
+        )
 
     deck = sub.add_parser("deck", help="Nextcloud Deck-Verbindung und Bestellboard")
     deck_sub = deck.add_subparsers(dest="deck_command", required=True)

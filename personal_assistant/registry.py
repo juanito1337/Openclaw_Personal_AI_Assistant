@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import builtins
 import shutil
 import tomllib
 from datetime import datetime
@@ -18,10 +19,10 @@ class ResourceRegistry:
     def load(self) -> None:
         self.resources.clear()
         self.duplicate_ids.clear()
-        if not self.path.exists():
-            return
-        with self.path.open("rb") as handle:
-            data = tomllib.load(handle)
+        data: dict = {"resources": []}
+        if self.path.exists():
+            with self.path.open("rb") as handle:
+                data = tomllib.load(handle)
         values = data.get("resources", [])
         if not isinstance(values, list):
             raise ValueError("resources.toml: [[resources]] fehlt oder ist ungueltig")
@@ -47,6 +48,14 @@ class ResourceRegistry:
                 permissions=tuple(str(v) for v in item.get("permissions", [])),
                 metadata=metadata,
             )
+        from .nextcloud_connection import apply_registry_connection, load_connection
+
+        connection = load_connection()
+        self._persistent_resources = dict(self.resources)
+        self.managed_connection = connection is not None
+        self.connection_revision = str((connection or {}).get("revision", ""))
+        if connection:
+            apply_registry_connection(self, connection)
 
     def list(self, *, kind: str = "", enabled_only: bool = False) -> list[Resource]:
         result = list(self.resources.values())
@@ -68,7 +77,25 @@ class ResourceRegistry:
         resource = self.get(resource_id)
         return resource.enabled and permission in resource.permissions
 
-    def write(self, resources: list[Resource]) -> Path | None:
+    def write(self, resources: builtins.list[Resource]) -> Path | None:
+        if self.managed_connection:
+            # The operator store owns the in-memory Nextcloud projection. A
+            # mail-only registry update must preserve dormant legacy entries
+            # without publishing the managed credentials/resource overlay.
+            projected = []
+            for resource in resources:
+                if resource.metadata.get("managed_connection"):
+                    continue
+                if resource.connector.startswith("nextcloud"):
+                    if self._persistent_resources.get(resource.id) != resource:
+                        raise PermissionError(
+                            "nextcloud-managed-configuration: OpenClaw-Einrichtung verwenden"
+                        )
+                    continue
+                projected.append(resource)
+            projected.extend(item for item in self._persistent_resources.values()
+                             if item.connector.startswith("nextcloud"))
+            resources = projected
         self.path.parent.mkdir(parents=True, exist_ok=True)
         backup: Path | None = None
         if self.path.exists():
@@ -110,6 +137,8 @@ class ResourceRegistry:
         return backup
 
     def upsert(self, resource: Resource) -> Path | None:
+        if self.managed_connection and resource.connector.startswith("nextcloud"):
+            raise PermissionError("nextcloud-managed-configuration: OpenClaw-Einrichtung verwenden")
         values = list(self.resources.values())
         values = [item for item in values if item.id != resource.id]
         values.append(resource)

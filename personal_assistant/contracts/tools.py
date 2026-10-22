@@ -80,15 +80,20 @@ class ToolDefinition:
 
 def _argument_schema(command: str) -> dict[str, Any]:
     names: list[str] = []
+    required: list[str] = []
     for raw in _PLACEHOLDER.findall(command):
-        name = re.sub(r"[^a-z0-9]+", "_", raw.casefold()).strip("_") or "value"
+        optional = raw.casefold().endswith("-optional")
+        label = raw[:-len("-optional")] if optional else raw
+        name = re.sub(r"[^a-z0-9]+", "_", label.casefold()).strip("_") or "value"
         if name not in names:
             names.append(name)
+        if not optional and name not in required:
+            required.append(name)
     properties = {name: {"type": "string"} for name in names}
     return {
         "type": "object",
         "properties": properties,
-        "required": names,
+        "required": required,
         "additionalProperties": True,
     }
 

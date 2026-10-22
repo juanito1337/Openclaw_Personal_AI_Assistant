@@ -6,9 +6,15 @@ Status: `M17.0 TEILWEISE ABGENOMMEN`. Die lokale und produktive Runtimebaseline
 ist read-only erhoben. Jan hat am 2026-10-06 Android als primaeres
 Telefonbetriebssystem sowie Nextcloud `35.0.1` und die aktivierte serverseitige
 Talk-App `25.0.5` bestaetigt. Nextcloud und OpenClaw laufen auf getrennten
-Rechnern; der geplante HTTPS-Reverse-Proxy gehoert auf den OpenClaw-Rechner.
-Beide Rechner befinden sich laut Jan im selben lokalen Netzwerk. Offen sind
-noch interner DNS-Name und TLS-Zertifikatsmodell des Webhookhosts. Es wurde kein
+Rechnern; der geplante HTTPS-Reverse-Proxy gehoert in den Stack auf dem
+OpenClaw-Rechner.
+Beide Rechner befinden sich laut Jan im selben lokalen Netzwerk. Am 2026-10-13
+hat Jan die Entwicklung des IP-Rueckkanals
+`https://192.168.2.38/nextcloud-talk-webhook` freigegeben. Der bisherige DNS-Name
+bleibt eine Alternative. Jan hat danach die Entwicklung des optionalen
+Stackdienstes `talk-proxy` mit privater Zertifikatsverwaltung freigegeben.
+Produktive Proxyaktivierung, Zertifikatsausstellung und Vertrauensimport
+sowie deren reale Abnahme sind noch offen. Es wurde produktiv kein
 Plugin installiert, kein Bot angelegt, kein Secret geaendert und kein Port
 freigegeben.
 
@@ -114,10 +120,12 @@ Proxy bereitstellen. Alternativ waere ein eigener Coreupgrade-Milestone noetig.
 | Nextcloud-LAN-Endpunkt | `192.168.2.3:9001`, von Jan benannt und vom OpenClaw-Rechner read-only per direkter LAN-Route und TCP-Verbindung belegt |
 | Nextcloud-DNS-/TLS-Identitaet | `1337-cloud.ddns.net` loest lokal auf `192.168.2.3` auf; TLS 1.3, Zertifikatskette und DNS-Hostname wurden am 2026-10-06 erfolgreich verifiziert; die rohe IP ist erwartungsgemaess kein Zertifikats-SAN |
 | OpenClaw-LAN-Adresse | `192.168.2.38/24` auf `enp2s0`, am 2026-10-06 read-only beobachtet |
-| HTTPS-Reverse-Proxy fuer Talk-Webhook | auf dem OpenClaw-Rechner vorgesehen; `443/tcp` und `8788/tcp` waren am Messzeitpunkt unbelegt |
+| HTTPS-Reverse-Proxy fuer Talk-Webhook | optionaler Stackdienst `talk-proxy` auf dem OpenClaw-Rechner, standardmaessig AUS; `443/tcp` und `8788/tcp` waren am urspruenglichen Messzeitpunkt unbelegt |
 | Webhook-DNS-Name | `home-agent.home.arpa`, von Jan angelegt und am 2026-10-07 gegen den autoritativen DNS-Server, den Host-Resolver und Dockers Standardresolver jeweils als `192.168.2.38` verifiziert |
+| Nextcloud-Container-DNS am 2026-10-13 | Jans Ausgabe zeigt `nameserver 127.0.0.11` und `ExtServers: [8.8.8.8 8.8.4.4]`; der lokale DNS auf demselben TrueNAS wird hier nicht verwendet, `getent` fuer den Webhooknamen lieferte Status 2. Die Messung vom 2026-10-07 belegt nicht diesen Nextcloud-seitigen Resolverpfad |
+| ausgewaehlte Webhook-Alternative | `https://192.168.2.38/nextcloud-talk-webhook`, Entwicklung am 2026-10-13 freigegeben; feste Adresse und passendes IP-SAN-Zertifikat vor Betrieb zu belegen |
 | veralteter Kurzname | `home-agent` wird vom autoritativen DNS-Server nicht mehr geliefert und bleibt wegen seiner zuvor belegten Single-Label-Probleme unbenutzt |
-| Webhook-TLS-Endpunkt | noch nicht vorhanden; TCP-Verbindung zu `home-agent.home.arpa:443` wurde am 2026-10-07 erwartungsgemaess abgelehnt |
+| Webhook-TLS-Endpunkt | bei der Pruefung am 2026-10-07 nicht vorhanden; TCP-Verbindung zu `home-agent.home.arpa:443` wurde abgelehnt. Einrichtung und erneute Abnahme fuer die IP-Variante stehen aus |
 | Nextcloud-Version | `35.0.1` (`Nextcloud Hub 26 Spring`), von Jan am 2026-10-06 bestaetigt; technische Liveabfrage noch ausstehend |
 | Nextcloud-Talk-App serverseitig | installiert und aktiviert, Version `25.0.5`, von Jan am 2026-10-06 bestaetigt; technische Liveabfrage noch ausstehend |
 | primaeres Telefonbetriebssystem | Android, von Jan am 2026-10-06 bestaetigt |
@@ -131,12 +139,40 @@ nicht durchsucht oder ausgegeben.
 - M17 bleibt auf Core und Talk-Plugin `2026.7.1`.
 - Der separate Listener wird intern auf `0.0.0.0:8788` betrieben, aber von Docker
   nur auf `127.0.0.1:8788` des Hosts publiziert.
-- Ein hostlokaler HTTPS-Reverse-Proxy darf nur
-  `/nextcloud-talk-webhook` an diesen Loopbackport weiterleiten.
+- Ein separater `talk-proxy`-Container aus dem signierten Proxy-Rollenimage
+  nimmt HTTPS auf der privaten Host-IP entgegen. Caddy und ein begrenzter
+  lokaler Guard leiten nur exakt `POST /nextcloud-talk-webhook` ueber das
+  interne `talk-link`-Netz an `gateway:8788` weiter. Eine zusaetzliche
+  Hostinstallation ist nicht vorgesehen. Das Compose-Profil `talk` und
+  `OPENCLAW_TALK_PROXY_ENABLED=false` halten ihn standardmaessig ausgeschaltet.
+- Der ausgewaehlte Callback verwendet zunaechst `192.168.2.38` direkt und
+  benoetigt damit keine DNS-Aufloesung im Nextcloud-Container. Nur RFC1918-IPv4
+  oder IPv6-ULA-Literale sind zulaessig; das Literal muss der einzigen
+  erwarteten Webhook-IP entsprechen. HTTPS auf Port 443 bleibt verpflichtend.
+- Die bestehende Nextcloud-URL `https://1337-cloud.ddns.net:9001` und deren
+  Zertifikatsidentitaet bleiben unveraendert. Der DNS-Webhookname bleibt eine
+  spaetere, separat zu pruefende Alternative.
+- Der Proxy benoetigt ein Zertifikat mit IP-SAN `192.168.2.38` aus einer
+  verwalteten privaten CA. Der gepinnte Caddy stellt dieses beim spaeteren
+  autorisierten Start aus und erneuert es. Sein dediziertes persistentes
+  PKI-Verzeichnis ist nur im Talk-Proxy gemountet und wird bei gestopptem
+  Proxy gesichert und zurueckgerollt. Deren oeffentliches Rootzertifikat muss in
+  Nextclouds Zertifikatsspeicher sowie fuer den Agenten-Doctor im bestehenden
+  Runtime-CA-Bundle vertraut sein. Ein DNS-SAN, ein Storage-Mount allein oder
+  ein deaktivierter TLS-Check ersetzt diese Schritte nicht.
+- Ausschliesslich das oeffentliche `config/talk-proxy-public/ca.crt` wird
+  bereitgestellt; keine automatische Trustinstallation, keine privaten
+  Schluessel in Nextcloud. Die bestehende TrueNAS-`Certificate ID` und das
+  Nextcloud-Serverzertifikat bleiben unveraendert. Android erreicht weiterhin
+  nur Nextcloud und benoetigt fuer den Bot-Rueckkanal keinen CA-Import.
 - Weil Nextcloud auf einem separaten Rechner laeuft, nimmt der Proxy die
   Server-zu-Server-Verbindung ueber das gemeinsame LAN an der privaten Adresse
-  des OpenClaw-Rechners an. Die Firewall erlaubt dabei nur `192.168.2.3` als
-  Quelladresse des Nextcloud-Servers.
+  des OpenClaw-Rechners an. Proxy und Docker-wirksame Firewall werden dabei
+  auf `192.168.2.3` als Quelladresse des Nextcloud-Servers begrenzt. Die
+  tatsaechliche Peer-IP hinter Docker-NAT muss vor Betrieb belegt werden;
+  Forwarded-Header oder pauschale Bridge-Subnetze ersetzen diesen Beleg nicht.
+- Der neue optionale Proxy erhaelt ein eigenes Budget von 128 MiB, 0,5 CPU
+  und 128 PIDs. Keine bestehende Rolle erhaelt hoehere Runtime-Limits.
 - Der Gateway-Port `18789` bleibt unveraendert loopbackgebunden und wird nicht
   zum Mobilendpoint.
 - Der erste produktive Schnitt behandelt den freigegebenen Talk-Raum als
@@ -151,11 +187,14 @@ betriebsseitig bestaetigt. Eine technische Liveabfrage bleibt Teil der spaeteren
 realen Abnahme. M17.0 kann erst `ABGENOMMEN` werden, wenn ausserdem read-only
 geklaert ist:
 
-- Zertifikat fuer `home-agent.home.arpa`, dessen ausstellender CA der
-  Nextcloud-Server vertraut;
+- dauerhaft feste OpenClaw-IP und Zertifikat mit IP-SAN `192.168.2.38`, dessen
+  ausstellender CA der Nextcloud-Server und der Agenten-Doctor vertrauen;
 - HTTPS-Reverse-Proxy auf `192.168.2.38:443` mit exakter Pfad-, Methoden-,
   Quelladress-, Groessen- und Rate-Grenze;
 - read-only Erreichbarkeitsbeleg vom Nextcloud-Server zum geplanten Webhookhost.
 
-Diese Angaben autorisieren noch keine Botanlage, Portfreigabe oder
-Konfigurationsaenderung.
+Die Entwicklungsfreigaben fuer die IP-Alternative und den Stack-Proxy autorisieren noch keine
+Botanlage, Portfreigabe, Zertifikats-/Trustinstallation oder produktive
+Konfigurationsaenderung. Der Ablauf ist im
+[Deployment-Runbook](DOCKER_DEPLOYMENT.md#m17-ip-rueckkanal-tls-und-noch-offene-betriebsschritte)
+festgehalten.

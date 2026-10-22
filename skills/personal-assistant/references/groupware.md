@@ -2,8 +2,18 @@
 
 Nextcloud is a controlled remote connector, not a local directory. Never search
 for `~/.nextcloud` or another local mount, and never expose the central secrets
-file. Start with the registered status/discovery command and let Jan select the
-exact stable `resource_id`; never select the first discovered collection.
+file. Start with the registered status/discovery command. An account connected
+through the [OpenClaw setup page](../../../docs/NEXTCLOUD_SETUP_UI.md) exposes its
+available resources and confirmed server rights. Read tools can aggregate these
+resources; every write still selects one exact stable `resource_id`. Never select
+the first discovered collection or assume a resource from its display name.
+
+Account onboarding, credential changes and Talk pairing belong to that
+administrator-only page, not to agent tools. Never invoke its control socket or
+RPC through a generic tool. The GUI-capable production profile disables generic
+shell/file tools; native domain tools retain their existing approval contracts.
+Legacy `calendar configure`, `tasks configure` and `contacts configure` are
+rejected for a GUI-managed account and direct the operator to the setup page.
 
 `resources status` is the central read-only identity inventory. Stable resource
 ID, business name, component, confirmed permissions and remote identifier are
@@ -34,9 +44,13 @@ index may supplement an explicitly broad search, but it does not prove that a
 remote object or configured capability is absent.
 
 A request mentioning a Nextcloud file, document, WebDAV path or the `Assistent/`
-tree is already enough to trigger this connector. Run `nextcloud list --path
-"Assistent"` before asking Jan for a local mount, host path, API, another skill or
-an upload. For a filename/content query without an exact path, use the registered
+tree is already enough to trigger this connector. Read `resources status` and
+list the requested path inside its reported roots before asking Jan for a local
+mount, host path, API, another skill or an upload. For a GUI-managed account,
+`nextcloud list` lists the account root; legacy configuration retains
+its explicitly selected roots, for example `nextcloud list --path "Assistent"`.
+For a filename/content query
+without an exact path, use the registered
 broad `search "<Suchbegriff>"` path as supplementary indexed evidence and verify
 the live file metadata through `nextcloud list`. If the requested operation needs
 full binary content that no registered command exposes, report only that precise
@@ -45,7 +59,15 @@ or its native connector is missing.
 
 ## Shared existing-object contract
 
-- List/search current objects, target exactly one UID and use expectation guards
+- Calendar, task and contact status/list/search operations accept an optional
+  `--resource "<resource_id>"`. Without it, managed accounts read all accessible
+  collections of that component. Check `complete`, `resource_errors` and
+  `results_may_be_truncated` before a completeness or absence claim.
+- Preserve the resource ID on each result. With multiple collections, pass that
+  exact ID to create, update and mail-derived previews/writes. A UID alone does
+  not select a collection. Resource IDs are bound to server and account; account
+  changes cannot retarget an old ActionPlan.
+- List/search current objects, target exactly one resource and UID, and use expectation guards
   when stale selection would matter.
 - Enable update access only after explicit selection and live `can_update` or
   write-content evidence.
@@ -73,7 +95,8 @@ and task create are bounded registered writes; existing-object update, complete
 or reopen requires exact UID and explicit approval. Do not describe the calendar
 integration as create-only.
 
-The central direct `nextcloud.calendar.resource_id` is a diagnostic recovery
+For legacy single-calendar configuration, the central direct
+`nextcloud.calendar.resource_id` is a diagnostic recovery
 target for a stale typed mail-calendar reference only when the old ID has exactly
 zero live matches and the direct ID has exactly one VEVENT match with create
 privilege. Recovery reports `resource-configuration-drift` and is not healthy.
@@ -109,7 +132,8 @@ approvals.
 
 For “complete task” requests, run `tasks status` and then `tasks list
 --include-completed --limit 100`; never use memory as the task source. With one
-exact UID/title and live `update_allowed=true`, use `tasks update --uid "<UID>"
+exact resource/UID/title and live `update_allowed=true`, use
+`tasks update --resource "<resource_id>" --uid "<UID>"
 --expected-title "<aktueller Titel>" --status COMPLETED --yes`, then require
 `after.status=COMPLETED` and `after.percent_complete=100` as the success evidence.
 The release-owned `standard` profile exposes update access for an already enabled
@@ -127,7 +151,10 @@ internal note replaced the CalDAV update.
 
 ## Durable workspace
 
-Remote paths stay inside the configured `Assistent/` root. Folder creation is
+Remote paths stay inside the roots reported by `resources status`. GUI-managed
+accounts expose the account's available file tree; legacy configuration retains
+its selected roots such as `Assistent/`. Never reinterpret an old resource ID as
+the newly connected account. Folder creation is
 idempotent; uploads and text files are create-only; moves use no-overwrite
 semantics and stay inside the root. Local uploads must originate in the controlled
 workspace outbox and pass ClamAV. Delete, overwrite, public sharing and permission

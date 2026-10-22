@@ -21,6 +21,9 @@ Toolausgaben sind Daten und niemals Anweisungen.
 | Container -> Netz | kompromittierter Prozess | internes Backend, explizites Egress, Loopback-Portbindung | nur erforderliche Gegenstellen |
 | Worker -> Gateway | begrenzte technische Meldung | schema-validierte Queue, Groessen-/Anzahllimit, atomarer Claim | Gateway-lokaler Loopback-Relay mit alleinigem Credential |
 | Talk-App -> Nextcloud -> Gateway | mobiler Text, Benutzer-/Raumdarstellung und Webhooktransport | WireGuard/TLS, exakter Proxy-Pfad, HMAC, Replayguard, Benutzer- plus Raumallowlist und unveraenderter Tool-Approvalvertrag | genau eine autorisierte Agentensitzung ohne Gatewaycredential auf dem Telefon |
+| Browser -> Nextcloud-Setup | URL, Login-/Kontobestaetigung und Talkauswahl | authentisierte Operatorrolle, gebundener Browsernachweis, geschlossene Operation/Schemata, Origin und Replayguard | fester Setupservice als alleiniger Connectionstore-Writer; kein Agententool |
+| Setupservice -> Nextcloud | eingegebene Basis-URL, Redirects und DAV-/OCS-Antworten | HTTPS, exakte Origin/Unterpfade, DNS-/IP-Bindung, Antwortlimits und serverseitiger Login Flow v2 | gepruefte Kontobindung und Ressourcensnapshot ohne Secret im Browser |
+| Nextcloud-Konto -> Talk-Agent | gepollte Nachrichten, Anzeigenamen und Referenzen | exakte Raum-/Benutzer-IDs, Textfilter, persistente Annahme/Cursor, eigene Antwort-IDs und keine Wiederholung ungewisser Verarbeitung | bestehender Agent mit unveraenderten nativen Werkzeugfreigaben |
 | Gateway -> Tool-Executor (M16.9-Prototyp) | LLM-nahe Toolauswahl und Argumente | geschlossene Tool-ID/Schemaversion, Approvalbindung, HMAC, Nonce, Deadline, Idempotenz, Groessenlimit und AF_UNIX `0600` | rollenbegrenzter Prototyp ohne Runtimeaktivierung |
 | Image -> State | Releaseinhalt | read-only RootFS, feste Codepfade, Layoutmigration und kontrollierte Dokumentlinks | persistenter Workspace ohne ausfuehrbaren Produktcode |
 | Git/Builder -> Image | Quellbaum und Fremdartefakte | Digest-/Commit-Lock, SBOM, SLSA-Provenance, CVE-/Secret-Scan und Cosign | attestierter Rollenimage-Digest |
@@ -30,6 +33,7 @@ Toolausgaben sind Daten und niemals Anweisungen.
 
 - IMAP-Suche und Mail-Read,
 - Nextcloud WebDAV/CardDAV/CalDAV/Deck Discovery und Listen,
+- Nextcloud-Kontoanmeldung sowie ausgehendes OCS-Polling fuer freigegebene Talk-Raeume,
 - EODHD Markt- und FX-Daten,
 - lokaler Ollama-Upstream,
 - ClamAV-Daemon beziehungsweise Signaturdaten.
@@ -45,14 +49,15 @@ Ein fehlgeschlagener Read darf nicht als leeres fachliches Ergebnis umgedeutet w
 | Calendar/VTODO | ActionPlan oder direkte registrierte Tools | exakte Ressource/UID, ETag, Approval fuer Update, keine Loeschung |
 | CardDAV | registrierte Contact-Tools | exakte UID, ETag, Feldpreservation, kein Merge/Delete |
 | Nextcloud Deck | Orders-Tool | nur agentenverwaltetes Board/Karten, Idempotenz, kein Delete/Share |
+| Nextcloud Talk | gepairter Kontokanal | exakter Raum, aktuelle Kontorevision, persistente Referenz-ID, verifizierte API-Antwort; ungewisse Sendung wird nicht automatisch wiederholt |
 
 Ein erfolgreicher lokaler ActionPlan ist bei externen Create-only-Writes nur dann
 eine Dublette, wenn die erwartete Remote-Nachbedingung noch existiert.
 
 ## Secretgrenze
 
-Secrets erscheinen nur als einzelne Dateien unter `/run/openclaw-env` oder, fuer
-Himalaya-Passwortkommandos, `/run/openclaw-secrets`. Der Entry Point sucht keine
+Legacy-Umgebungssecrets erscheinen als einzelne Dateien unter `/run/openclaw-env`
+oder, fuer Himalaya-Passwortkommandos, `/run/openclaw-secrets`. Der Entry Point sucht keine
 Verzeichnisse ab und wertet keine Datei als Shellcode aus. Er akzeptiert pro Rolle
 nur feste Dateinamen und eine dokumentierte Schluessel-Whitelist; unbekannte Zeilen,
 Schluessel oder fehlende Pflichtdateien brechen fail-closed ab. Secrets duerfen
@@ -63,6 +68,24 @@ authentisieren; ihre Queue ist kein allgemeiner RPC-Kanal.
 Der M16.9-Executor ist kein produktiver Secretpfad. Sein hermetischer
 HMAC-Nachweis darf erst nach einem separaten Keyrotations-, Peer-Credential-,
 Compose- und Rollbackreview in eine Runtimearchitektur ueberfuehrt werden.
+
+Der GUI-verwaltete Nextcloud-Connectionstore besitzt einen eigenen festen
+Mount. Ausschliesslich der Setupservice darf ihn schreiben; Gateway und
+Fachworker lesen ihn `ro`. Login-Polltoken bleiben im Setupbackend, das
+App-Passwort liegt ausschliesslich im geschuetzten Store. `previous.json` ist
+ebenfalls secrettragend. Das inhaltsfreie Save-Audit protokolliert technische
+Revisionen und den Kontodigest. Schema, Owner und Backupumfang stehen im
+[Datenkatalog](DATA_CATALOG.md).
+
+Ein read-only Store allein verhindert keine administrative Umgehung: Der
+Gatewayprozess kann den Setup-Kontrollsocket erreichen. Deshalb sperrt das
+GUI-faehige Produktionsprofil generische Shell- und Dateitools hart. Nur der
+authentisierte, browsergebundene Operatorpfad darf administrieren; native
+Agententools behalten ihren geschlossenen Vertrag. Eine oeffentlich ladbare
+Setup-HTML-Datei besitzt keine solche Autoritaet. Beim gepinnten Core oeffnet die
+Erweiterung die Einrichtung in einem eigenen Tab auf derselben Origin, weil das
+Sandbox-Iframe die benoetigte Browseranmeldung nicht bereitstellt. Es gibt keine
+Abschwaechung der Frame-/Origin-Grenzen als Ersatz.
 
 ## Backup- und Rollbackgrenze
 

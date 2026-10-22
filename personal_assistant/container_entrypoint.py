@@ -18,6 +18,8 @@ ENV_ROOTS = (Path("/etc/openclaw-env"), Path("/run/openclaw-env"))
 ROLE_ENV_FILES: dict[str, tuple[str, ...]] = {
     "standalone": (),
     "layout-init": (),
+    # The administrative connection owner reads only its dedicated store and CA.
+    "setup-service": (),
     "ollama-proxy": ("/etc/openclaw-env/ollama-priority.env",),
     "gateway": (
         "/run/openclaw-env/mail-agent.env",
@@ -202,7 +204,7 @@ def configure_custom_ca(environment: MutableMapping[str, str]) -> None:
         environment[key] = str(bundle)
 
 
-def ensure_personal_assistant_plugin_config(path: Path) -> bool:
+def ensure_personal_assistant_plugin_config(path: Path, *, setup_enabled: bool = False) -> bool:
     """Enable the immutable image-owned bridge without weakening other plugin policy."""
 
     from personal_assistant.immutable_plugins import ensure_tool_loop_detection_config
@@ -238,6 +240,17 @@ def ensure_personal_assistant_plugin_config(path: Path) -> bool:
         raise ValueError("Personal-Assistant-Plugin-Hooks muessen ein JSON-Objekt sein")
 
     before = json.dumps(data, ensure_ascii=False, sort_keys=True)
+    if setup_enabled:
+        # Device signatures bind the administrative setup path. Generic agent
+        # shell/file tools share the gateway UID and must not read credentials
+        # or rewrite its pairing registry. Native catalog tools retain their
+        # bounded backend IPC and do not use these generic OpenClaw groups.
+        deny = tools.setdefault("deny", [])
+        if not isinstance(deny, list) or not all(isinstance(item, str) for item in deny):
+            raise ValueError("openclaw.json tools.deny muss eine String-Liste sein")
+        for group in ("group:runtime", "group:fs"):
+            if group not in deny:
+                deny.append(group)
     if PERSONAL_ASSISTANT_PLUGIN_ID not in also_allow:
         also_allow.append(PERSONAL_ASSISTANT_PLUGIN_ID)
     if PERSONAL_ASSISTANT_PLUGIN_PATH not in paths:
@@ -277,6 +290,11 @@ def main(argv: list[str] | None = None) -> int:
     workspace = Path(environment.get("OPENCLAW_WORKSPACE", "/home/node/.openclaw/workspace")).resolve()
     state_root = Path(environment.get("OPENCLAW_STATE_ROOT", str(workspace.parent))).resolve()
     layout_mode = environment.get("OPENCLAW_LAYOUT_MODE", "migrate")
+    if role == "setup-service":
+        # This owner has no legacy workspace or domain-state mount. Do not run
+        # migrations or interpret a missing layout marker as first-time setup.
+        workspace = image_root
+        layout_mode = "setup-owner"
     protected = {
         "HOME": "/home/node",
         "OPENCLAW_IMAGE_ROOT": str(image_root),
@@ -310,7 +328,9 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     configure_custom_ca(environment)
-    if layout_mode == "migrate":
+    if role == "setup-service":
+        pass
+    elif layout_mode == "migrate":
         subprocess.run(
             [
                 sys.executable,
@@ -342,7 +362,10 @@ def main(argv: list[str] | None = None) -> int:
         )
 
         gateway_data = Path(environment["OPENCLAW_GATEWAY_DATA_DIR"])
-        ensure_personal_assistant_plugin_config(gateway_data / "openclaw.json")
+        ensure_personal_assistant_plugin_config(
+            gateway_data / "openclaw.json",
+            setup_enabled=bool(environment.get("OPENCLAW_SETUP_SOCKET", "").strip()),
+        )
         plugin_contract = load_contract(Path("/usr/share/openclaw/immutable-plugins.json"))
         plugin_report = synchronize_installed_plugin_index(
             gateway_data / "state/openclaw.sqlite",

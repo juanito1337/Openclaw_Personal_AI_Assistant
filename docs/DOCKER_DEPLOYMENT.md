@@ -25,11 +25,13 @@ eigene Lebensdauer, Healthgrenze und Fehlergrenze geben.
 │   └── v3/                  # rollenbezogene persistente Teilbaeume
 ├── config/
 │   ├── ca/                   # public local CA certificates (*.crt)
+│   ├── talk-proxy-public/    # optionaler Export: nur oeffentliches ca.crt
 │   ├── himalaya/
 │   ├── mail-agent.env
 │   ├── personal-assistant.env
 │   └── ollama-priority.env
 ├── secrets/                  # *.env and password files, never committed
+│   └── talk-proxy-pki/       # optionale private CA; nur talk-proxy erhaelt Zugriff
 ├── backups/
 │   ├── migration/
 │   └── releases/
@@ -44,9 +46,15 @@ Der Stack verwendet kein Hostnetz. `backend` ist ein internes Bridge-Netz fuer
 Gateway/Proxy/interne Aufrufer, `egress` nur fuer Rollen mit externen Abhaengigkeiten.
 Die Gatewayrolle publiziert standardmaessig nur zwei Host-Loopback-Ports:
 `127.0.0.1:18789` fuer das Gateway und `127.0.0.1:8788` fuer den separaten,
-standardmaessig nicht konfigurierten Nextcloud-Talk-Webhooklistener. Ein
-separat freizugebender HTTPS-Reverse-Proxy darf ausschliesslich den exakten
-Webhookpfad an `8788` weiterleiten; `18789` wird dadurch nicht erreichbar. Nur
+standardmaessig nicht konfigurierten Nextcloud-Talk-Webhooklistener. Der optionale,
+standardmaessig deaktivierte Stackdienst `talk-proxy` publiziert nach separater
+Freigabe ausschliesslich HTTPS auf der konfigurierten privaten Host-IP, Port 443.
+Er erreicht `gateway:8788` ueber das interne Netz `talk-link`; ein eigenes
+Bridge-Netz `talk-ingress` ermoeglicht den LAN-Ingress. Nur Gateway und Talk-Proxy
+teilen `talk-link`, nur der Talk-Proxy ist Mitglied von `talk-ingress`.
+Der exakte POST-Webhook ist die einzige weitergeleitete Route; `18789` wird
+dadurch nicht erreichbar. Das Ingress-Bridge-Netz ist keine Zusage einer
+ausgehenden Netzsperre. Nur
 der Ollama-Proxy erhaelt den in ADR-0008 begruendeten Host-Gateway-Alias; sein
 Port 11435 bleibt ausschliesslich im Backend. Only one set of writer containers
 may run at a time.
@@ -94,8 +102,10 @@ One immutable OpenClaw release
 │       └── one requested assistant.sh command, then exit
 │
 ├── proxy-runtime image
-│   └── openclaw-ollama-proxy
-│       └── ollama-priority-proxy.sh serve
+│   ├── openclaw-ollama-proxy
+│   │   └── ollama-priority-proxy.sh serve
+│   └── openclaw-talk-proxy (optionales Talk-Profil, standardmaessig AUS)
+│       └── Caddy + begrenzter Webhook-Guard, private TLS-CA
 
 └── maintenance-runtime image
     ├── openclaw-clamav-socket-init
@@ -117,6 +127,7 @@ assistant, not autonomous agents.
 | --- | --- | --- |
 | `openclaw-gateway` | Chat sessions, agent context, tool selection and system events | starts after the Ollama proxy is healthy |
 | `openclaw-ollama-proxy` | Prioritizes interactive and background model requests and bounds concurrency | connects to the configured Ollama upstream |
+| `openclaw-talk-proxy` | Optionaler TLS-Eingang fuer genau einen privaten Talk-Webhook | eigenes PKI-Mount, Nextcloud-Quell-IP und `gateway:8788`; erst nach explizitem Opt-in |
 | `openclaw-mail-worker` | Scheduled IMAP processing, ClamAV gates, classification and approved mail actions | uses the Ollama proxy; must be the only mail writer |
 | `openclaw-portfolio-worker` | Due EODHD refreshes, quote storage, freshness checks and price alerts | uses confirmed mappings and persistent portfolio state |
 | `openclaw-sync-worker` | Read-only synchronization of configured external sources into the local index | starts after the gateway is healthy |
@@ -288,13 +299,18 @@ Der M17-Kandidat mountet das feste Botsecret
 Zugriff auf den Secretinhalt. Die vorbereitende Konfiguration bleibt immer deaktiviert und
 wird ueber eine digestgebundene Vorschau mit lokalem Backup geschrieben:
 
+Fuer den am 2026-10-13 ausgewaehlten IP-Rueckkanal bleibt die bestehende
+Nextcloud-URL unveraendert. Nur der Webhook verwendet die feste private IP des
+OpenClaw-Rechners. Das folgende Beispiel beschreibt die spaetere Vorbereitung
+mit dem M17-Kandidaten, keine bereits ausgefuehrte produktive Migration:
+
 ```bash
 cd /srv/openclaw/deployment
 docker compose --env-file .env --profile tools run --rm --no-deps agent-cli \
   python3 -P /opt/openclaw-agent/docker/nextcloud-talk-config.py plan \
   --base-url 'https://1337-cloud.ddns.net:9001' \
   --webhook-public-url \
-    'https://home-agent.home.arpa/nextcloud-talk-webhook' \
+    'https://192.168.2.38/nextcloud-talk-webhook' \
   --expected-nextcloud-ip '192.168.2.3' \
   --expected-webhook-ip '192.168.2.38'
 ```
@@ -303,7 +319,9 @@ Der anschliessende `apply`-Aufruf benoetigt dieselben Argumente,
 `--expected-preview-sha256 '<Digest>'` und `--yes`. Er aktiviert weder Plugin
 noch Kanal. `assistant.sh talk status` liest Konfiguration, Pluginvertrag und
 Secretzustand ohne Secretwert; `assistant.sh talk doctor` prueft zusaetzlich
-DNS, TLS und das oeffentliche Nextcloud-`status.php`. Botfeatures und Talk-App-
+Adressbindung, TLS und das oeffentliche Nextcloud-`status.php`. DNS-Namen werden
+auf die erwarteten privaten Adressen geprueft; eine IP-Webhook-URL benoetigt
+keine DNS-Aufloesung. Botfeatures und Talk-App-
 Version bleiben bis zur spaeteren authentisierten Realabnahme explizit
 `not-measured`. Ein Rollback verwendet ausschliesslich die vom Apply gemeldete
 Backup-ID:
@@ -312,6 +330,126 @@ Backup-ID:
 python3 -P /opt/openclaw-agent/docker/nextcloud-talk-config.py rollback \
   --backup-id '<Backup-ID>' --yes
 ```
+
+#### M17-IP-Rueckkanal: TLS und noch offene Betriebsschritte
+
+Der IP-Webhook akzeptiert ausschliesslich private IPv4-Adressen aus RFC1918
+oder IPv6-ULA-Adressen (`fc00::/7`). Die URL-Adresse muss genau der einzigen
+`--expected-webhook-ip` entsprechen. HTTPS, Port 443 und der exakte Pfad
+`/nextcloud-talk-webhook` bleiben verpflichtend; oeffentliche, Loopback-,
+Link-Local- und mehrdeutige Adressen sind keine Alternative. Fuer IPv6 wird
+die URL-Adresse in eckige Klammern gesetzt. Der vorhandene DNS-Weg, etwa
+`https://home-agent.home.arpa/nextcloud-talk-webhook`, bleibt unter seiner
+DNS-/Adresspruefung unterstuetzt. Die Nextcloud-`baseUrl` bleibt ein DNS-Name
+mit gueltiger TLS-Identitaet und wird nicht auf die NAS-IP umgestellt.
+
+Die von Jan am 2026-10-13 gelieferte Nextcloud-Resolverausgabe zeigt Dockers
+`127.0.0.11` mit den Upstreams `8.8.8.8` und `8.8.4.4`. Der lokale DNS auf
+demselben TrueNAS kennt zwar `home-agent.home.arpa`, wird von diesem Container
+aber nicht verwendet. Die IP-Variante umgeht nur diese Namensaufloesung;
+NAS-Nameserver und Container-`resolv.conf` muessen dafuer nicht geaendert werden.
+
+Jan hat anschliessend die Aufnahme des HTTPS-Proxys und der privaten
+Zertifikatsverwaltung in den Agentenstack freigegeben. Dafuer ist keine
+zusaetzliche Caddy-Installation auf dem Host notwendig. Die folgende
+Stackeinbindung ist Entwicklungsstand, keine Aussage ueber einen laufenden
+produktiven Proxy:
+
+- `talk-proxy` gehoert zum Compose-Profil `talk` und verwendet dasselbe
+  signierte `OPENCLAW_PROXY_IMAGE` wie der Ollama-Proxy, aber als separater
+  Container mit eigener Lebensdauer. Es gibt weiterhin drei Releaseimages.
+  Caddy `2.11.7` wird ueber einen festen Image-Digest als Buildinput bezogen;
+  im Betrieb gibt es weder Paketinstallation noch einen beweglichen `latest`-Pin.
+- `OPENCLAW_TALK_PROXY_ENABLED=false` ist der Default. Ein spaeteres
+  kontrolliertes Deployment setzt nach Betriebsfreigabe explizit `true`,
+  `OPENCLAW_TALK_PROXY_IP=192.168.2.38` und
+  `OPENCLAW_TALK_NEXTCLOUD_IP=192.168.2.3`. Beide IPs muessen private, verschiedene
+  RFC1918-/ULA-Adressen sein. Nur die Agent-IP wird als Hostbindung fuer
+  `443/tcp -> 8443/tcp` benutzt; kein HTTP-Port, UDP-443 oder Adminport wird
+  veroeffentlicht. Der integrierte Proxy ist fuer diesen IP-Weg ausgelegt;
+  der weiterhin unterstuetzte DNS-Webhook ist eine getrennt zu pruefende
+  Ingresskonfiguration.
+- Caddy prueft die direkte Peer-IP gegen die exakte Nextcloud-IP, nicht gegen
+  frei gesetzte Forwarded-Header. Dahinter begrenzt ein lokaler Guard den rohen
+  Requestpfad auf exakt `POST /nextcloud-talk-webhook` ohne Query,
+  den Body auf 1 MiB, parallele Bearbeitungen auf vier und die globale Rate
+  auf einen Request pro Sekunde mit einem Burst von zehn. Header, Lesezeit,
+  Upstreamzeit und Antwortgroesse sind ebenfalls begrenzt. Keine Redirects
+  oder automatischen Webhookwiederholungen; keine Inhalts-/Headerlogs.
+- Die neue optionale Rolle hat ein eigenes Budget von 128 MiB, 0,5 CPU und
+  128 PIDs. Bestehende Rollenlimits bleiben unveraendert. Non-root, read-only
+  Rootfilesystem, `cap_drop: ALL` und `no-new-privileges` bleiben Pflicht.
+- Caddy stellt beim spaeteren Start ueber `tls internal` das IP-SAN-Zertifikat
+  aus und erneuert es. Die persistente private CA liegt ausschliesslich im
+  geschuetzten `talk-proxy-pki`-Mount; Mailzugangsdaten, Gatewaytoken,
+  Botsecret und Docker-Socket sind dort nicht gemountet. Nur das oeffentliche
+  Rootzertifikat wird nach `config/talk-proxy-public/ca.crt` exportiert.
+  Automatische Trustinstallation ist abgeschaltet. Die PKI gehoert weder ins
+  Image noch nach Git oder Nextcloud. [Caddy Local HTTPS](https://caddyserver.com/docs/automatic-https#local-https).
+- Setup und Deployment-Refresh legen nur leere Zielverzeichnisse an und
+  bewahren eine vorhandene CA. Releasebackup und Rollback erfassen PKI und
+  oeffentlichen Export gemeinsam; der Proxy muss waehrend des Backups gestoppt
+  sein, weil Zertifikatserneuerungen Schreibvorgaenge sind. Ein manuelles
+  Backup mit laufendem Proxy bricht ab. Das Backup merkt den vorherigen
+  tatsaechlichen Laufzustand, damit auch eine fehlgeschlagene Erstaktivierung
+  wieder zu einem ausgeschalteten Proxy zurueckkehrt. Eine abweichende CA
+  wird nicht still exportiert oder in bestehende Truststores uebernommen.
+
+Vor einer separat freizugebenden produktiven Aktivierung bleiben folgende
+Schritte offen:
+
+1. `192.168.2.38` dauerhaft reservieren; nach signiertem Release und verifiziertem
+   Backup den optionalen Proxy im kontrollierten Deployment aktivieren.
+   Die private Bindung und eine Docker-wirksame Host-Firewallregel auf die
+   Nextcloud-Quelle pruefen. Insbesondere muss die direkte Quell-IP aus
+   Nextcloud im Container als `192.168.2.3` ankommen; bei abweichendem NAT-
+   Verhalten bleibt die Route gesperrt. Nicht pauschal ein Bridge-Subnetz oder
+   Forwarded-Header freigeben. Gatewayport `18789`, sonstige Pfade und
+   Internet-Portweiterleitung bleiben ausgeschlossen.
+2. Das erzeugte Serverzertifikat auf **IP-SAN `192.168.2.38`**, Kette und
+   Gueltigkeit pruefen. Ein DNS-SAN oder Common Name mit dieser Zeichenfolge
+   genuegt nicht. Produktive CA und Zertifikate wurden durch die Entwicklung
+   noch nicht erzeugt; ihre privaten Schluessel bleiben beim Proxy.
+3. Nach Pruefung des Fingerprints ausschliesslich das oeffentliche CA-Zertifikat
+   aus `/srv/openclaw/config/talk-proxy-public/ca.crt` in Nextclouds
+   Zertifikatsspeicher importieren. Zuerst einen konkreten, fuer den
+   Nextcloud-Benutzer lesbaren Uebergabepfad in dessen Container festlegen;
+   ein Hostpfad ist nicht automatisch ein Containerpfad. In der Shell der
+   offiziellen TrueNAS-Nextcloud-App den vorhandenen `occ`-Wrapper verwenden:
+
+   ```bash
+   occ security:certificates:import '/tatsaechlicher/lesbarer/pfad/ca.crt'
+   occ security:certificates
+   ```
+
+   Der Wrapper fuehrt `occ` als Nextcloud-Benutzer aus. Der Import kann ohne
+   Textausgabe erfolgreich mit Status 0 enden; anschliessend den Eintrag und
+   Fingerprint pruefen. Der Listenbefehl heisst nicht `security:certificates:list`.
+   Talk `25.0.5` verwendet diesen persistenten Nextcloud-Truststore fuer
+   Bot-Webhooks. Ein Storage-Mount allein importiert kein Vertrauen. Der
+   CA-Import gilt fuer Nextclouds entsprechende HTTP-Clients, nicht nur fuer
+   diesen einen Webhook; deshalb erhaelt der Proxy eine dedizierte CA.
+   [Nextcloud-Importvertrag](https://raw.githubusercontent.com/nextcloud/server/v35.0.1/core/Command/Security/ImportCertificate.php),
+   [Zertifikatsliste](https://raw.githubusercontent.com/nextcloud/server/v35.0.1/core/Command/Security/ListCertificates.php),
+   [Talk-Webhook-TLS](https://raw.githubusercontent.com/nextcloud/spreed/v25.0.5/lib/Service/BotService.php).
+4. Dieselbe oeffentliche CA ueber den bestehenden Runtime-CA-Vertrag aus
+   Abschnitt 4 bereitstellen, damit `talk doctor` den IP-Webhook ebenfalls
+   mit aktiver Zertifikats- und IP-SAN-Pruefung prueft. Ein gruener Doctor vom
+   Agenten belegt nicht den Netzwerk- oder Vertrauenspfad aus Nextcloud;
+   diesen anschliessend separat read-only pruefen. Weder `verify=false`,
+   `curl -k` noch eine globale SSRF-Freigabe ist Teil der Einrichtung.
+   Das vorhandene Zertifikat fuer `1337-cloud.ddns.net` und die TrueNAS-
+   `Certificate ID` bleiben unveraendert. Auf Android ist fuer diesen
+   ausschliesslich serverseitigen Rueckkanal kein zusaetzlicher CA-Import noetig.
+5. Erst nach den offenen M17-Tests, signiertem Release, Backup und eigener
+   Betriebsfreigabe Konfiguration vorbereiten, Bot und exakten Raum-/Benutzer-
+   Bezug einrichten und den Kanal aktivieren. `prepared-disabled` ist kein
+   erreichbarer oder produktiv abgenommener Chatkanal.
+
+Ein gesunder `talk-proxy`-Healthcheck belegt seine lokale TLS-Identitaet und
+den lokalen Guard, nicht die Nextcloud-Erreichbarkeit, HMAC-Pruefung, einen
+aktivierten Kanal oder eine zugestellte Agentenantwort. Diese Nachweise bleiben
+eigene Abnahmeschritte.
 
 Der Entry Point parst nur die fuer die konkrete Rolle fest hinterlegten Env-Dateien
 als begrenzte `KEY=VALUE`-Daten. Shellauswertung, Verzeichnissuche sowie unbekannte
@@ -589,6 +727,17 @@ The deployment sequence is deliberately strict:
 12. start mail, sync and supervisor workers only after success,
 13. verify worker health and the current job heartbeat after the workers have
     actually started.
+
+The optional Talk proxy adds no fourth image to this sequence. With
+`OPENCLAW_TALK_PROXY_ENABLED=true`, the verified proxy image must also advertise
+the Talk-proxy capability. Deployment stops the old Talk proxy before the
+backup and starts the candidate only in the controlled opt-in lifecycle. Its
+PKI and public CA export are part of the verified local backup. Rollback stops
+the optional profile as well, restores the prior CA and actual enabled state,
+and rejects an enabled rollback to an image without the capability. Older
+backup manifests imply that the Talk proxy was disabled. This restores neither
+Nextcloud's certificate store nor a remote Bot configuration; those remain
+separate external changes and require their own recovery procedure.
 
 Any failing command after the verified backup triggers `rollback.sh`
 automatically, including a failure inside the Compose shell helper. A runtime

@@ -44,6 +44,18 @@ Statement-Coverage darf nicht sinken. `scripts/check-risk-coverage.py` läuft
 nach dem normalen Coverage-Lauf und schlägt bei fehlenden Modulen, Gleichstand
 oder Regression fehl.
 
+Die M18-Nachhaertung prueft ausserdem Schema, nichtleere Modulliste und alle
+Pflichtmesswerte: Nur endliche Zahlen zwischen 0 und 100 gelten als Coverage.
+Fehlende Werte, boolesche Werte, numerische Strings und NaN/Infinity blockieren
+den Check. Normale pytest-Ausgabeoptionen wie `./scripts/run-tests.sh -q`
+umgehen das Risikogate nicht; der vollstaendige Collection-Floor bleibt aktiv.
+Coverage-Daten und JSON entstehen in einem laufexklusiven temporaeren
+Verzeichnis. Das Gate prueft genau diesen Bericht vor seiner Veroeffentlichung
+unter `build/coverage.json`; weder `--no-cov` noch parallele Laeufe koennen
+einen alten oder fremden Bericht als neuen Erfolgsnachweis verwenden.
+Der separate installierte Wheel-Lauf erzeugt weiterhin keinen zweiten
+Source-Coveragebericht und ersetzt den Source-Check nicht.
+
 Der Collection-Floor in `tests/test-baseline.json` wird nur auf den tatsächlich
 gesammelten vollständigen Stand angehoben. Ruff- und mypy-Baselines dürfen nicht
 wachsen. Der bestehende AST-Schichtentest prüft den gesamten internen

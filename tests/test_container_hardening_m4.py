@@ -23,7 +23,7 @@ class ContainerHardeningM4Tests(unittest.TestCase):
     def setUpClass(cls) -> None:
         rendered = subprocess.run(
             [
-                "docker", "compose", "--profile", "tools", "--profile", "maintenance",
+                "docker", "compose", "--profile", "tools", "--profile", "maintenance", "--profile", "talk",
                 "--env-file", "docker/deployment.env.example", "-f", "compose.yaml",
                 "config", "--format", "json",
             ],
@@ -183,14 +183,28 @@ raise SystemExit(86)
         self.assertIn("Speicherlimit nicht nachgewiesen", result.stderr)
         self.assertIn("Exit=7", result.stderr)
 
-    def test_only_gateway_publishes_loopback_port(self) -> None:
+    def test_only_gateway_and_opt_in_talk_proxy_publish_ports(self) -> None:
         published = {name: value.get("ports", []) for name, value in self.compose["services"].items()}
         self.assertEqual(published["gateway"], self.contract["published_ports"]["gateway"])
         self.assertEqual(
             {(item["host_ip"], item["published"], item["target"]) for item in published["gateway"]},
             {("127.0.0.1", "18789", 18789), ("127.0.0.1", "8788", 8788)},
         )
-        self.assertTrue(all(not ports for name, ports in published.items() if name != "gateway"))
+        self.assertEqual(published["talk-proxy"], self.contract["published_ports"]["talk-proxy"])
+        self.assertTrue(all(
+            not ports for name, ports in published.items() if name not in {"gateway", "talk-proxy"}
+        ))
+        proxy = self.compose["services"]["talk-proxy"]
+        self.assertEqual(proxy["profiles"], ["talk"])
+        self.assertEqual(proxy["environment"]["OPENCLAW_TALK_PROXY_ENABLED"], "false")
+        self.assertEqual({item["target"] for item in proxy["volumes"]}, {
+            "/var/lib/openclaw-talk", "/var/lib/openclaw-talk-public",
+        })
+        for name, service in self.compose["services"].items():
+            if name != "talk-proxy":
+                self.assertFalse(any(
+                    "talk-proxy-pki" in item.get("source", "") for item in service.get("volumes", [])
+                ))
         self.assertFalse(self.contract["exceptions"]["host_network_roles"])
         self.assertEqual(self.contract["exceptions"]["host_gateway_roles"], ["ollama-proxy"])
         self.assertIn(

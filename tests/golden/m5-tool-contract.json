@@ -593,8 +593,8 @@
   },
   {
     "id": "nextcloud.list",
-    "description": "Live-Dateien und Ordner read-only ueber den nativen Nextcloud-WebDAV-Connector auflisten; kein lokaler Mount, Hostpfad oder zusaetzlicher Skill erforderlich",
-    "command": "./scripts/assistant.sh nextcloud list --path \"Assistent\"",
+    "description": "Live-Dateien und Ordner read-only ueber den nativen Nextcloud-WebDAV-Connector auflisten; ohne --path Kontowurzel oder eingerichteter Workspace, optional genauer erlaubter Pfad; kein lokaler Mount, Hostpfad oder zusaetzlicher Skill erforderlich",
+    "command": "./scripts/assistant.sh nextcloud list --path \"<path-optional>\"",
     "mode": "read",
     "writes_external_data": false,
     "approval": "none"
@@ -1081,144 +1081,144 @@
   },
   {
     "id": "nextcloud.calendar.status",
-    "description": "Konfiguration sowie Lese-, Anlege- und Aktualisierungsrechte des direkten Nextcloud-Kalenderwerkzeugs pruefen",
-    "command": "./scripts/assistant.sh calendar status",
+    "description": "Konfiguration sowie Lese-, Anlege- und Aktualisierungsrechte des direkten Nextcloud-Kalenderwerkzeugs pruefen; ohne --resource alle freigegebenen Ressourcen, optional genau eine stabile Ressourcen-ID",
+    "command": "./scripts/assistant.sh calendar status --resource \"<resource-optional>\"",
     "mode": "read",
     "writes_external_data": false,
     "approval": "none"
   },
   {
     "id": "nextcloud.calendar.list",
-    "description": "Termine aus dem freigegebenen Nextcloud-Kalender mit UID lesen",
-    "command": "./scripts/assistant.sh calendar list --limit 100",
+    "description": "Termine aus dem freigegebenen Nextcloud-Kalender mit UID lesen; ohne --resource alle freigegebenen Ressourcen, optional genau eine stabile Ressourcen-ID",
+    "command": "./scripts/assistant.sh calendar list --limit 100 --resource \"<resource-optional>\"",
     "mode": "read",
     "writes_external_data": false,
     "approval": "none"
   },
   {
     "id": "nextcloud.calendar.search",
-    "description": "Termine nach Titel, Ort, Beschreibung oder UID suchen",
-    "command": "./scripts/assistant.sh calendar search --query \"<Suchbegriff>\" --limit 50",
+    "description": "Termine nach Titel, Ort, Beschreibung oder UID suchen; ohne --resource alle freigegebenen Ressourcen, optional genau eine stabile Ressourcen-ID",
+    "command": "./scripts/assistant.sh calendar search --query \"<Suchbegriff>\" --limit 50 --resource \"<resource-optional>\"",
     "mode": "read",
     "writes_external_data": false,
     "approval": "none"
   },
   {
     "id": "nextcloud.calendar.from-mail-preview",
-    "description": "Aus genau einer aktuell gebundenen und vollstaendig gescannten Mail read-only belegte Terminkandidaten mit Duplikatpruefung erzeugen",
-    "command": "./scripts/assistant.sh calendar from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --dry-run",
+    "description": "Aus genau einer aktuell gebundenen und vollstaendig gescannten Mail read-only belegte Terminkandidaten mit Duplikatpruefung erzeugen; bei mehreren Ressourcen ist --resource aus status/list fuer genau ein Schreibziel erforderlich",
+    "command": "./scripts/assistant.sh calendar from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --dry-run --resource \"<resource-optional>\"",
     "mode": "read",
     "writes_external_data": false,
     "approval": "none"
   },
   {
     "id": "nextcloud.calendar.from-mail-create",
-    "description": "Genau einen unveraenderten Mail-Terminkandidaten nach Einzelfreigabe create-only anlegen und remote per UID sowie ETag verifizieren",
-    "command": "./scripts/assistant.sh calendar from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --preview-digest \"<preview_digest>\" --candidate-id \"<candidate_id>\" --yes",
+    "description": "Genau einen unveraenderten Mail-Terminkandidaten nach Einzelfreigabe create-only anlegen und remote per UID sowie ETag verifizieren; bei mehreren Ressourcen ist --resource aus status/list fuer genau ein Schreibziel erforderlich",
+    "command": "./scripts/assistant.sh calendar from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --preview-digest \"<preview_digest>\" --candidate-id \"<candidate_id>\" --yes --resource \"<resource-optional>\"",
     "mode": "write",
     "writes_external_data": true,
     "approval": "explicit-user-calendar-from-mail-create-only"
   },
   {
     "id": "nextcloud.calendar.update",
-    "description": "Einen zuvor eindeutig per UID ausgewaehlten Termin nach ausdruecklichem Nutzerauftrag ETag-geschuetzt aktualisieren; Serien nur mit gesonderter Freigabe",
-    "command": "./scripts/assistant.sh calendar update --uid \"<UID>\" --expected-title \"<aktueller Titel>\" --start \"<ISO-8601>\" --yes",
+    "description": "Einen zuvor eindeutig per UID ausgewaehlten Termin nach ausdruecklichem Nutzerauftrag ETag-geschuetzt aktualisieren; Serien nur mit gesonderter Freigabe; bei mehreren Ressourcen ist --resource aus status/list fuer genau ein Schreibziel erforderlich",
+    "command": "./scripts/assistant.sh calendar update --uid \"<UID>\" --expected-title \"<aktueller Titel>\" --start \"<ISO-8601>\" --yes --resource \"<resource-optional>\"",
     "mode": "write",
     "writes_external_data": true,
     "approval": "explicit-user-calendar-update-etag-guarded"
   },
   {
     "id": "nextcloud.calendar.create",
-    "description": "Neuen Termin direkt in den freigegebenen Nextcloud-Kalender eintragen; calendar create akzeptiert kein --yes",
-    "command": "./scripts/assistant.sh calendar create --title \"<Titel>\" --start \"<ISO-8601>\" --end \"<ISO-8601>\" --location \"<Ort>\" --description \"<Beschreibung>\"",
+    "description": "Neuen Termin direkt in den freigegebenen Nextcloud-Kalender eintragen; calendar create akzeptiert kein --yes; bei mehreren Ressourcen ist --resource aus status/list fuer genau ein Schreibziel erforderlich",
+    "command": "./scripts/assistant.sh calendar create --title \"<Titel>\" --start \"<ISO-8601>\" --end \"<ISO-8601>\" --location \"<Ort>\" --description \"<Beschreibung>\" --resource \"<resource-optional>\"",
     "mode": "write",
     "writes_external_data": true,
     "approval": "configured-calendar-create-only"
   },
   {
     "id": "nextcloud.tasks.status",
-    "description": "Konfiguration sowie Lese-, Anlege- und Aktualisierungsrechte des Nextcloud-Aufgabenwerkzeugs pruefen",
-    "command": "./scripts/assistant.sh tasks status",
+    "description": "Konfiguration sowie Lese-, Anlege- und Aktualisierungsrechte des Nextcloud-Aufgabenwerkzeugs pruefen; ohne --resource alle freigegebenen Ressourcen, optional genau eine stabile Ressourcen-ID",
+    "command": "./scripts/assistant.sh tasks status --resource \"<resource-optional>\"",
     "mode": "read",
     "writes_external_data": false,
     "approval": "none"
   },
   {
     "id": "nextcloud.tasks.list",
-    "description": "Aufgaben aus der freigegebenen Nextcloud-Aufgabenliste mit UID lesen",
-    "command": "./scripts/assistant.sh tasks list --include-completed --limit 100",
+    "description": "Aufgaben aus der freigegebenen Nextcloud-Aufgabenliste mit UID lesen; ohne --resource alle freigegebenen Ressourcen, optional genau eine stabile Ressourcen-ID",
+    "command": "./scripts/assistant.sh tasks list --include-completed --limit 100 --resource \"<resource-optional>\"",
     "mode": "read",
     "writes_external_data": false,
     "approval": "none"
   },
   {
     "id": "nextcloud.tasks.update",
-    "description": "Eine zuvor eindeutig per UID ausgewaehlte Aufgabe nach ausdruecklichem Nutzerauftrag ETag-geschuetzt aktualisieren oder abschliessen; Serien nur mit gesonderter Freigabe",
-    "command": "./scripts/assistant.sh tasks update --uid \"<UID>\" --expected-title \"<aktueller Titel>\" --status COMPLETED --yes",
+    "description": "Eine zuvor eindeutig per UID ausgewaehlte Aufgabe nach ausdruecklichem Nutzerauftrag ETag-geschuetzt aktualisieren oder abschliessen; Serien nur mit gesonderter Freigabe; bei mehreren Ressourcen ist --resource aus status/list fuer genau ein Schreibziel erforderlich",
+    "command": "./scripts/assistant.sh tasks update --uid \"<UID>\" --expected-title \"<aktueller Titel>\" --status COMPLETED --yes --resource \"<resource-optional>\"",
     "mode": "write",
     "writes_external_data": true,
     "approval": "explicit-user-task-update-etag-guarded"
   },
   {
     "id": "nextcloud.tasks.create",
-    "description": "Neue Aufgabe in der freigegebenen Nextcloud-Aufgabenliste anlegen",
-    "command": "./scripts/assistant.sh tasks create --title \"<Titel>\" --due \"<YYYY-MM-DD oder ISO-8601>\" --priority <0-9> --description \"<Beschreibung>\"",
+    "description": "Neue Aufgabe in der freigegebenen Nextcloud-Aufgabenliste anlegen; bei mehreren Ressourcen ist --resource aus status/list fuer genau ein Schreibziel erforderlich",
+    "command": "./scripts/assistant.sh tasks create --title \"<Titel>\" --due \"<YYYY-MM-DD oder ISO-8601>\" --priority <0-9> --description \"<Beschreibung>\" --resource \"<resource-optional>\"",
     "mode": "write",
     "writes_external_data": true,
     "approval": "configured-tasks-create-only"
   },
   {
     "id": "nextcloud.contacts.status",
-    "description": "Konfiguration sowie Lese-, Anlege- und Aktualisierungsrechte des CardDAV-Kontaktwerkzeugs pruefen",
-    "command": "./scripts/assistant.sh contacts status",
+    "description": "Konfiguration sowie Lese-, Anlege- und Aktualisierungsrechte des CardDAV-Kontaktwerkzeugs pruefen; ohne --resource alle freigegebenen Ressourcen, optional genau eine stabile Ressourcen-ID",
+    "command": "./scripts/assistant.sh contacts status --resource \"<resource-optional>\"",
     "mode": "read",
     "writes_external_data": false,
     "approval": "none"
   },
   {
     "id": "nextcloud.contacts.list",
-    "description": "Kontakte aus dem freigegebenen CardDAV-Adressbuch lesen",
-    "command": "./scripts/assistant.sh contacts list --limit 100",
+    "description": "Kontakte aus dem freigegebenen CardDAV-Adressbuch lesen; ohne --resource alle freigegebenen Ressourcen, optional genau eine stabile Ressourcen-ID",
+    "command": "./scripts/assistant.sh contacts list --limit 100 --resource \"<resource-optional>\"",
     "mode": "read",
     "writes_external_data": false,
     "approval": "none"
   },
   {
     "id": "nextcloud.contacts.search",
-    "description": "Kontakte nach Name, E-Mail, Telefon oder Organisation suchen",
-    "command": "./scripts/assistant.sh contacts search --query \"<Suchbegriff>\" --limit 50",
+    "description": "Kontakte nach Name, E-Mail, Telefon oder Organisation suchen; ohne --resource alle freigegebenen Ressourcen, optional genau eine stabile Ressourcen-ID",
+    "command": "./scripts/assistant.sh contacts search --query \"<Suchbegriff>\" --limit 50 --resource \"<resource-optional>\"",
     "mode": "read",
     "writes_external_data": false,
     "approval": "none"
   },
   {
     "id": "nextcloud.contacts.update",
-    "description": "Einen zuvor eindeutig gesuchten Kontakt per UID nach ausdruecklichem Nutzerauftrag ETag-geschuetzt aktualisieren; kein Loeschen oder Merge",
-    "command": "./scripts/assistant.sh contacts update --uid \"<UID>\" --expected-name \"<aktueller Name>\" --phone \"<neue Telefonnummer>\" --yes",
+    "description": "Einen zuvor eindeutig gesuchten Kontakt per UID nach ausdruecklichem Nutzerauftrag ETag-geschuetzt aktualisieren; kein Loeschen oder Merge; bei mehreren Ressourcen ist --resource aus status/list fuer genau ein Schreibziel erforderlich",
+    "command": "./scripts/assistant.sh contacts update --uid \"<UID>\" --expected-name \"<aktueller Name>\" --phone \"<neue Telefonnummer>\" --yes --resource \"<resource-optional>\"",
     "mode": "write",
     "writes_external_data": true,
     "approval": "explicit-user-contact-update-etag-guarded"
   },
   {
     "id": "nextcloud.contacts.create",
-    "description": "Neuen Kontakt nach ausdruecklichem Nutzerauftrag create-only anlegen; bestehende Kontakte werden nicht veraendert",
-    "command": "./scripts/assistant.sh contacts create --name \"<Name>\" --email \"<E-Mail>\" --phone \"<Telefon>\" --organization \"<Firma>\" --yes",
+    "description": "Neuen Kontakt nach ausdruecklichem Nutzerauftrag create-only anlegen; bestehende Kontakte werden nicht veraendert; bei mehreren Ressourcen ist --resource aus status/list fuer genau ein Schreibziel erforderlich",
+    "command": "./scripts/assistant.sh contacts create --name \"<Name>\" --email \"<E-Mail>\" --phone \"<Telefon>\" --organization \"<Firma>\" --yes --resource \"<resource-optional>\"",
     "mode": "write",
     "writes_external_data": true,
     "approval": "explicit-user-contact-create-only"
   },
   {
     "id": "nextcloud.contacts.from-mail-preview",
-    "description": "Absender und konservativ erkannte Signaturdaten einer eindeutig ausgewaehlten Mail als Kontaktvorschlag pruefen",
-    "command": "./scripts/assistant.sh contacts from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --dry-run",
+    "description": "Absender und konservativ erkannte Signaturdaten einer eindeutig ausgewaehlten Mail als Kontaktvorschlag pruefen; bei mehreren Ressourcen ist --resource aus status/list fuer genau ein Schreibziel erforderlich",
+    "command": "./scripts/assistant.sh contacts from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --dry-run --resource \"<resource-optional>\"",
     "mode": "read",
     "writes_external_data": false,
     "approval": "none"
   },
   {
     "id": "nextcloud.contacts.from-mail-create",
-    "description": "Kontakt aus einer eindeutig ausgewaehlten Mail nach Vorschau und ausdruecklichem Nutzerauftrag create-only anlegen",
-    "command": "./scripts/assistant.sh contacts from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --yes",
+    "description": "Kontakt aus einer eindeutig ausgewaehlten Mail nach Vorschau und ausdruecklichem Nutzerauftrag create-only anlegen; bei mehreren Ressourcen ist --resource aus status/list fuer genau ein Schreibziel erforderlich",
+    "command": "./scripts/assistant.sh contacts from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --yes --resource \"<resource-optional>\"",
     "mode": "write",
     "writes_external_data": true,
     "approval": "explicit-user-contact-from-mail-create-only"

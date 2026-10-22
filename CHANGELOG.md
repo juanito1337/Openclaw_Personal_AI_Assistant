@@ -2,6 +2,68 @@
 
 ## Unreleased
 
+- Entwicklung: OpenClaw erhaelt eine administrative Nextcloud-Einrichtung mit
+  URL-first Login Flow v2, kontoweiter Ressourcenerkennung und einem gepairten
+  Talk-Kontokanal ohne Botinstallation oder eingehenden Webhook. Mehrere
+  Kalender, Aufgabenlisten und Adressbuecher werden gemeinsam gelesen;
+  Schreibziele bleiben explizit per Ressourcen-ID ausgewaehlt. Secretstore,
+  Operatornachweis, Deduplizierung und ungewisse Zustellungen sind abgesichert.
+  Dies aktiviert keinen produktiven Dienst und verbindet kein echtes Konto.
+
+- M18: Die Gesamtverbesserungs-Roadmap in
+  `docs/AGENT_IMPROVEMENT_ROADMAP.md` trennt aktuelle Entwicklungsnachweise von
+  historischer M16-Abnahme und produktiver Aktivierung.
+- M18: Statische CLI-Einstiege laden den schweren Service-/Mailadaptergraphen
+  erst bei tatsaechlicher Nutzung. Frische-Prozess-Regressionen schuetzen
+  Hilfetext, Version, statischen Katalog, Schema und Pluginstatus vor
+  unnoetigen Fachimporten und Zugriff auf konfigurierte Laufzeitdaten.
+- M18: Coveragepruefungen verwerfen leere oder ungueltige Vertraege und
+  fehlende/nicht-endliche Messwerte; `-q` ueberspringt das Risikogate nicht.
+  Jeder Lauf prueft ausschliesslich seinen eigenen frischen Coveragebericht,
+  bevor dieser am gemeinsamen Diagnosepfad veroeffentlicht wird.
+  Promotionsaktionen pruefen den technischen Ready-Vertrag erneut und binden
+  jede getrennte Freigabe an dessen unveraenderten Digest und eine gueltige
+  Freigabezeit. Es werden keine Freigaben oder Releaseaktionen erzeugt.
+- M18: Begrenzte Nextcloud-Dateiinventuren melden Teilabdeckung und entfernen
+  keine lokalen Projektionen. URI-uebergreifende ETag-Gleichheit allein gilt
+  nicht als Inhaltsidentitaet; Locator-Wiederverwendung benoetigt einen
+  bedingten Download und passenden SHA-256. No-op am selben Locator bleibt
+  downloadfrei; kein Datenbankschema wird migriert.
+- M18: Unerwartete Ollama-Koordinatorfehler liefern `503 queue_unavailable`
+  statt unkoordiniert zum Modell weiterzuleiten. Erteilte Reservierungen
+  werden auch bei nachfolgenden Telemetriefehlern und Client-Abbruch freigegeben.
+- M18: Native Einzelauftraege erlauben mehrere kataloggebundene vorbereitende
+  Leseschritte innerhalb des unveraenderten Aufrufbudgets. Erkannte ungebundene
+  Mehrfachziele werden vor Writes gestoppt; doppelte Kalenderkandidaten und
+  reine Importvorschauen zaehlen nicht als weitere abgeschlossene Aktionen.
+  Laufzustand und Genehmigungsnonces besitzen feste Mengen-/Altersgrenzen;
+  abgelaufene Freigaben waehrend asynchroner Vorbereitung sowie parallele
+  Wiederaufnahmen koennen keinen zweiten Schreibstart ausloesen.
+- M18: Portfolioimporte pruefen endliche CSV-/XML-Zahlen und verwenden fuer
+  Virenscan und Parser exakt denselben groessenbegrenzten Byte-Snapshot.
+  Gefaehrliche freie Textfelder im Rechnungs-CSV erhalten am Exportboundary
+  eine sichtbare `Text: `-Markierung. Originaldaten/Provenienz und negative
+  numerische Betraege bleiben unveraendert.
+- M17: Der vorbereitete, weiterhin deaktivierte Talk-Rueckkanal unterstuetzt
+  jetzt HTTPS-URLs mit privater RFC1918-IP oder IPv6-ULA statt eines DNS-Namens.
+  Die IP muss exakt der einzigen freigegebenen Webhook-Zieladresse entsprechen;
+  Port 443, exakter Webhookpfad und vollstaendige TLS-/IP-SAN-Pruefung bleiben
+  verpflichtend. Nextcloud selbst behaelt seine DNS-Basis-URL. Zertifikat,
+  Vertrauensimport und produktive Aktivierung bleiben separate Betriebsschritte.
+- M17: Der optionale Stackdienst `talk-proxy` integriert den digestgebundenen
+  Caddy `2.11.7` und einen begrenzten Webhook-Guard in das bestehende signierte
+  Proxy-Rollenimage. Er bleibt standardmaessig ausgeschaltet und publiziert
+  nach separatem Opt-in nur HTTPS an der ausgewaehlten privaten Agent-IP.
+  Nextcloud-Quell-IP, exakter POST-Pfad, Body-, Zeit-, Rate- und
+  Parallelitaetsgrenzen bleiben fail-closed; bestehende Rollenlimits werden
+  nicht erhoeht.
+- Die private Talk-CA bleibt persistent in einem ausschliesslich vom Proxy
+  gemounteten PKI-Verzeichnis. Nur ihr oeffentliches Rootzertifikat wird
+  exportiert; Trustimport erfolgt nicht automatisch. Offlinebackup und
+  Rollback erfassen CA und vorherigen Proxy-Laufzustand auch bei einer
+  fehlgeschlagenen Erstaktivierung. Die Entwicklung installiert keine
+  produktiven Zertifikate und aktiviert weder Proxy noch Talk-Kanal.
+
 ## 3.4.0-r29.0.6 – Sichere manuelle Originalmail-Weiterleitung
 
 - Der native Agent-Werkzeugvertrag enthaelt einen getrennten

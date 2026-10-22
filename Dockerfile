@@ -6,6 +6,7 @@
 ARG OPENCLAW_BASE_IMAGE=ghcr.io/openclaw/openclaw:2026.7.1-2@sha256:8789721d2e9b24b780a1504b56deb4c6bd5c7dbf96a1dd117e7c45c2ed72c8ac
 ARG NODE_BASE_IMAGE=node:24-alpine3.22@sha256:191c9f0080fcbbc6547a85dc0ff7988072214a355aabdc1d2ec55a7dae5eea8a
 ARG PYTHON_BASE_IMAGE=python:3.11-alpine3.22@sha256:a4fc589b32e824f3f02ed9d7e7be19518aa47e105b80416336af9f202275a489
+ARG CADDY_BASE_IMAGE=docker.io/library/caddy:2.11.7-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f
 ARG HIMALAYA_VERSION=1.2.0
 ARG HIMALAYA_ARCHIVE_SHA256=e04e6382e3e664ef34b01afa1a2216113194a2975d2859727647b22d9b36d4e4
 ARG HIMALAYA_SHA256=9529d2584add1c4343f32524e6f985e7c98d491f3b854747318020eb1ec1df7f
@@ -29,6 +30,11 @@ COPY docker/entrypoint.sh docker/healthcheck.sh docker/job_loop.py docker/clamav
 COPY docker/scripts/nextcloud-talk-config.py /docker/
 
 FROM ${OPENCLAW_BASE_IMAGE} AS openclaw-source
+
+# The official static binary is immutable. Remove the upstream low-port file
+# capability: our non-root service binds 8443 with ALL capabilities dropped.
+FROM ${CADDY_BASE_IMAGE} AS caddy-source
+RUN setcap -r /usr/bin/caddy
 
 FROM ${NODE_BASE_IMAGE} AS openclaw-plugin-builder
 WORKDIR /plugins
@@ -87,6 +93,7 @@ LABEL org.opencontainers.image.title="OpenClaw Personal Assistant runtime" \
       org.opencontainers.image.base.name="node:24-alpine3.22" \
       org.opencontainers.image.base.digest="sha256:191c9f0080fcbbc6547a85dc0ff7988072214a355aabdc1d2ec55a7dae5eea8a" \
       org.opencontainers.image.openclaw.role="runtime" \
+      org.opencontainers.image.openclaw.setup-owner="1" \
       org.opencontainers.image.openclaw.layout-min="1" \
       org.opencontainers.image.openclaw.layout-max="3" \
       org.opencontainers.image.openclaw.layout-current="3"
@@ -102,8 +109,8 @@ ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
 # OS is the substantially smaller Alpine base measured for M7.
 RUN apk add --no-cache \
        bash=5.2.37-r0 \
-       ca-certificates=20260909-r0 \
-       curl=8.14.1-r3 \
+       ca-certificates=20261020-r0 \
+       curl=8.14.1-r4 \
        jq=1.8.2-r0 \
        rsync=3.5.0-r0 \
        sqlite=3.49.2-r1 \
@@ -168,6 +175,9 @@ RUN printf '%s\n' "${OPENCLAW_SOURCE_REVISION}" > /opt/openclaw-agent/SOURCE_REV
     && node --check /opt/openclaw-plugins/personal-assistant-tools/index.js \
     && mkdir -p /home/node/.openclaw/workspace /home/node/.config/himalaya /var/lib/clamav \
     && chown -R node:node /home/node/.openclaw /home/node/.config \
+    && mkdir -p /run/openclaw-setup \
+    && chown node:node /run/openclaw-setup \
+    && chmod 0700 /run/openclaw-setup \
     && chown -R clamav:clamav /var/lib/clamav \
     && ln -sf /opt/openclaw-agent/scripts/assistant.sh /usr/local/bin/personal-assistant \
     && ln -sf /opt/openclaw-agent/scripts/mail-agent.sh /usr/local/bin/mail-agent \
@@ -215,19 +225,25 @@ LABEL org.opencontainers.image.title="OpenClaw Ollama priority proxy" \
       org.opencontainers.image.base.name="python:3.11-alpine3.22" \
       org.opencontainers.image.base.digest="sha256:a4fc589b32e824f3f02ed9d7e7be19518aa47e105b80416336af9f202275a489" \
       org.opencontainers.image.openclaw.role="proxy" \
+      org.opencontainers.image.openclaw.talk-proxy="1" \
       org.opencontainers.image.openclaw.layout-min="1" \
       org.opencontainers.image.openclaw.layout-max="3" \
       org.opencontainers.image.openclaw.layout-current="3"
 USER 0
 RUN apk add --no-cache \
        bash=5.2.37-r0 \
-       ca-certificates=20260909-r0 \
-       curl=8.14.1-r3 \
+       ca-certificates=20261020-r0 \
+       curl=8.14.1-r4 \
        tini=0.19.0-r3 \
     && addgroup -g 1000 -S node \
     && adduser -u 1000 -S -D -G node -h /home/node -s /sbin/nologin node
 COPY VERSION RELEASE.json /opt/openclaw-agent/
 COPY personal_assistant/__init__.py personal_assistant/container_entrypoint.py personal_assistant/ollama_priority_proxy.py /opt/openclaw-agent/personal_assistant/
+COPY personal_assistant/talk_proxy_runtime.py personal_assistant/talk_proxy_guard.py /opt/openclaw-agent/personal_assistant/
+COPY --from=caddy-source /usr/bin/caddy /usr/bin/caddy
+RUN caddy version > /tmp/caddy-version \
+    && grep '^v2.11.7 ' /tmp/caddy-version \
+    && rm /tmp/caddy-version
 COPY scripts/assistant.sh scripts/mail-agent.sh scripts/ollama-priority-proxy.sh /opt/openclaw-agent/scripts/
 COPY docker/entrypoint.sh docker/healthcheck.sh /opt/openclaw-agent/docker/
 COPY docker/supply-chain.lock.json /usr/share/openclaw/supply-chain.lock.json
@@ -275,7 +291,7 @@ LABEL org.opencontainers.image.title="OpenClaw ClamAV maintenance" \
 USER 0
 RUN apk add --no-cache \
        bash=5.2.37-r0 \
-       ca-certificates=20260909-r0 \
+       ca-certificates=20261020-r0 \
        clamav=1.4.3-r0 \
        freshclam=1.4.3-r0 \
        tini=0.19.0-r3

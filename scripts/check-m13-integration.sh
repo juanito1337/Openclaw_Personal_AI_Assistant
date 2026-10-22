@@ -136,6 +136,14 @@ function nativeTool(name, runId) {
   if (!registration) throw new Error(`native tool missing: ${name}`);
   return registration.factory({runId,sessionId:`session-${runId}`});
 }
+async function startRun(runId, prompt) {
+  // Every synthetic call needs the same current-turn lifecycle as the gateway.
+  // Do not bypass expired/missing-run guards by invoking an unstarted factory.
+  await hooks.get("before_prompt_build")(
+    {runId,prompt,messages:[]},
+    {runId,sessionId:`session-${runId}`},
+  );
+}
 async function invoke(name, operation, args, runId, callId) {
   const result = await nativeTool(name, runId).execute(callId, {operation,arguments:args});
   const payload = JSON.parse(result.content[0].text);
@@ -159,6 +167,7 @@ const finalVerdict = await hooks.get("before_agent_finalize")(
   {runId:"run-version",sessionId:"session-version"},
 );
 if (finalVerdict !== undefined) throw new Error("grounded version was rejected");
+await startRun("run-mail-invalid", "Zeige die Mails im Ordner INBOX.");
 const invalidMailFirst = await invoke(
   "personal_assistant_mail_read", "mail.list", {}, "run-mail-invalid", "call-mail-invalid-1",
 );
@@ -181,24 +190,30 @@ if (
 ) {
   throw new Error("bounded invalid-argument result failed");
 }
+await startRun("run-status", "Wie ist der aktuelle Agenten-Status inklusive Jobs?");
 const statusPayload = await invoke(
   "personal_assistant_runtime_read", "assistant.status", {}, "run-status", "call-status",
 );
+await startRun("run-mail-positive", "Suche die Mail zu Synthetic.");
 const mailPayload = await invoke(
   "personal_assistant_mail_read", "mail.search", {query:"Synthetic"}, "run-mail-positive", "call-mail-positive",
 );
 if (!mailPayload.evidence.complete || mailPayload.result.results.length !== 1) {
   throw new Error("complete mail evidence failed");
 }
+await startRun("run-nextcloud", "Zeige die Dateien in Nextcloud.");
 const nextcloudPayload = await invoke(
   "personal_assistant_nextcloud_read", "nextcloud.list", {}, "run-nextcloud", "call-nextcloud",
 );
+await startRun("run-tasks", "Wie ist der Status meiner Aufgaben?");
 const taskPayload = await invoke(
   "personal_assistant_tasks_read", "nextcloud.tasks.status", {}, "run-tasks", "call-tasks",
 );
+await startRun("run-portfolio", "Zeige mein Depot.");
 const portfolioPayload = await invoke(
   "personal_assistant_portfolio_read", "portfolio.holdings", {}, "run-portfolio", "call-portfolio",
 );
+await startRun("run-mapping", "Welches Kursmapping passt zur ISIN US4592001014?");
 const mappingPayload = await invoke(
   "personal_assistant_portfolio_read", "portfolio.mapping.suggest",
   {isin:"US4592001014"}, "run-mapping", "call-mapping",
@@ -219,6 +234,7 @@ const rawBlock = await hooks.get("before_tool_call")(
 );
 if (rawBlock?.block !== true) throw new Error("raw domain exec not blocked");
 const writeArgs = {uid:"synthetic-uid",expected_title:"Synthetic task"};
+await startRun("run-invalid-write", "Bitte die Aufgabe Synthetic task abschliessen.");
 const invalidWrite = await hooks.get("before_tool_call")(
   {toolName:"personal_assistant_tasks_write",params:{operation:"nextcloud.tasks.update",arguments:{}},toolCallId:"invalid-write"},
   {runId:"run-invalid-write"},
@@ -226,6 +242,7 @@ const invalidWrite = await hooks.get("before_tool_call")(
 if (invalidWrite?.block !== true || !invalidWrite.blockReason.includes("keine Freigabe erzeugt")) {
   throw new Error("invalid write received an approval path");
 }
+await startRun("run-write", "Bitte die Aufgabe Synthetic task abschliessen.");
 const writeApproval = await hooks.get("before_tool_call")(
   {toolName:"personal_assistant_tasks_write",params:{operation:"nextcloud.tasks.update",arguments:writeArgs},toolCallId:"write"},
   {runId:"run-write"},
@@ -237,6 +254,7 @@ if (
 ) {
   throw new Error("bound approval missing");
 }
+await startRun("run-local-write", "Bitte den Zustand der Jobs pruefen.");
 const localWriteApproval = await hooks.get("before_tool_call")(
   {toolName:"personal_assistant_runtime_write",params:{operation:"assistant.jobs.check",arguments:{}},toolCallId:"local-write"},
   {runId:"run-local-write"},
@@ -248,6 +266,7 @@ if (
 ) {
   throw new Error("bounded configured-policy authorization contract invalid");
 }
+writeApproval.requireApproval.onResolution("allow-once");
 const writeRegistration = factories.find(({options}) => options.name === "personal_assistant_tasks_write");
 const writeResult = await writeRegistration.factory({sessionId:"session-resumed-without-run-id"}).execute(
   "write", writeApproval.params,

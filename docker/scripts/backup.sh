@@ -9,6 +9,49 @@ require_command sqlite3
 require_command tar
 require_command sha256sum
 
+if [[ -e "$OPENCLAW_SECRETS_DIR/nextcloud-connection" || -L "$OPENCLAW_SECRETS_DIR/nextcloud-connection" ]]; then
+  require_command docker
+  if ! setup_service_is_offline; then
+    echo "Backup abgebrochen: Setup-Service muss fuer ein konsistentes Verbindungsbackup gestoppt sein." >&2
+    exit 2
+  fi
+fi
+
+validate_talk_proxy_flag "${OPENCLAW_TALK_PROXY_ENABLED:-false}"
+# Caddy renews CA/leaf state independently of the domain writers. Refuse a
+# manual online backup rather than taking a possibly inconsistent key store.
+# Legacy installations without Talk state retain their offline backup path.
+if [[ -d "$OPENCLAW_SECRETS_DIR/talk-proxy-pki" || ${OPENCLAW_TALK_PROXY_ENABLED:-false} == true ]]; then
+  require_command docker
+  if ! talk_proxy_is_offline; then
+    echo "Backup abgebrochen: Talk-Proxy muss fuer ein konsistentes CA-Backup gestoppt sein." >&2
+    exit 2
+  fi
+fi
+
+previous_talk_proxy_enabled=${PREVIOUS_TALK_PROXY_ENABLED:-${OPENCLAW_TALK_PROXY_ENABLED:-false}}
+target_talk_proxy_enabled=${TARGET_TALK_PROXY_ENABLED:-${OPENCLAW_TALK_PROXY_ENABLED:-false}}
+validate_talk_proxy_flag "$previous_talk_proxy_enabled"
+validate_talk_proxy_flag "$target_talk_proxy_enabled"
+previous_talk_proxy_ip=${PREVIOUS_TALK_PROXY_IP:-}
+previous_talk_nextcloud_ip=${PREVIOUS_TALK_NEXTCLOUD_IP:-}
+target_talk_proxy_ip=${TARGET_TALK_PROXY_IP:-${OPENCLAW_TALK_PROXY_IP:-}}
+target_talk_nextcloud_ip=${TARGET_TALK_NEXTCLOUD_IP:-${OPENCLAW_TALK_NEXTCLOUD_IP:-}}
+if [[ "$previous_talk_proxy_enabled" == true ]]; then
+  # Deployment passes the pre-stop snapshot. A manual offline backup reads
+  # only those two public values from the stopped container, never from a
+  # possibly already edited candidate .env file.
+  if [[ ! -v PREVIOUS_TALK_PROXY_IP || ! -v PREVIOUS_TALK_NEXTCLOUD_IP ]]; then
+    require_command docker
+    previous_talk_proxy_ip=$(talk_proxy_container_address OPENCLAW_TALK_PROXY_IP)
+    previous_talk_nextcloud_ip=$(talk_proxy_container_address OPENCLAW_TALK_NEXTCLOUD_IP)
+  fi
+  validate_talk_proxy_addresses "$previous_talk_proxy_ip" "$previous_talk_nextcloud_ip"
+fi
+if [[ "$target_talk_proxy_enabled" == true ]]; then
+  validate_talk_proxy_addresses "$target_talk_proxy_ip" "$target_talk_nextcloud_ip"
+fi
+
 label=${1:-manual}
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 safe_label=$(printf '%s' "$label" | tr -cs 'A-Za-z0-9._-' '-')
@@ -34,6 +77,7 @@ while IFS= read -r -d '' db; do
   printf '%s: %s\n' "$db" "$result" >> "$integrity"
   [[ "$result" == "ok" ]] || { echo "SQLite-Pruefung fehlgeschlagen: $db" >&2; exit 1; }
 done < <(find "$OPENCLAW_STATE_DIR" -type f \( -name '*.sqlite' -o -name '*.sqlite3' -o -name '*.db' \) -print0)
+check_nextcloud_nonce_integrity "$OPENCLAW_SECRETS_DIR/nextcloud-connection"
 
 archive="$destination/payload.tar.gz"
 tar --numeric-owner -C "$OPENCLAW_ROOT" -czf "$archive" \
@@ -57,7 +101,7 @@ legacy_migration_backup=${OPENCLAW_LEGACY_MIGRATION_BACKUP:-}
 legacy_migration_member=${OPENCLAW_LEGACY_MIGRATION_MEMBER:-}
 legacy_migration_sha256=${OPENCLAW_LEGACY_MIGRATION_SHA256:-}
 
-python3 - "$destination/manifest.json" "$backup_id" "$previous" "$target" "$archive_sha" "$external" "$previous_runtime" "$legacy_home" "$legacy_migration_backup" "$legacy_migration_member" "$legacy_migration_sha256" "$previous_proxy" "$target_proxy" "$previous_maintenance" "$target_maintenance" "$previous_clamd" "$target_clamd" <<'PY'
+python3 - "$destination/manifest.json" "$backup_id" "$previous" "$target" "$archive_sha" "$external" "$previous_runtime" "$legacy_home" "$legacy_migration_backup" "$legacy_migration_member" "$legacy_migration_sha256" "$previous_proxy" "$target_proxy" "$previous_maintenance" "$target_maintenance" "$previous_clamd" "$target_clamd" "$previous_talk_proxy_enabled" "$target_talk_proxy_enabled" "$previous_talk_proxy_ip" "$previous_talk_nextcloud_ip" "$target_talk_proxy_ip" "$target_talk_nextcloud_ip" <<'PY'
 from datetime import datetime, timezone
 import json, os, socket, sys
 from pathlib import Path
@@ -82,6 +126,12 @@ payload={
   "target_maintenance_image": sys.argv[15],
   "previous_clamd_image": sys.argv[16],
   "target_clamd_image": sys.argv[17],
+  "previous_talk_proxy_enabled": sys.argv[18] == "true",
+  "target_talk_proxy_enabled": sys.argv[19] == "true",
+  "previous_talk_proxy_ip": sys.argv[20],
+  "previous_talk_nextcloud_ip": sys.argv[21],
+  "target_talk_proxy_ip": sys.argv[22],
+  "target_talk_nextcloud_ip": sys.argv[23],
   "state_directory": os.environ.get("OPENCLAW_STATE_DIR", ""),
   "verified": False,
 }

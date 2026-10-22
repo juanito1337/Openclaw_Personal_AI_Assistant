@@ -105,6 +105,32 @@ def _verify(contract: dict[str, Any], release: Path, head: str, main_before: str
     )
 
 
+def _verify_action(
+    contract: dict[str, Any], action: str, release: Path, head: str, main_before: str
+) -> dict[str, Any]:
+    return promotion.verify_action(
+        contract,
+        action,
+        release_path=release,
+        head=head,
+        main_before=main_before,
+        tag_target=head,
+        tag_verified=True,
+    )
+
+
+def _approve(contract: dict[str, Any], action: str, report: dict[str, Any]) -> None:
+    contract["approval_gates"][action].update(
+        {
+            "status": "approved",
+            "approved_action": action,
+            "approved_by": "synthetic-operator",
+            "approved_at": "2020-01-01T20:00:00Z",
+            "ready_contract_sha256": report["ready_contract_sha256"],
+        }
+    )
+
+
 def test_tracked_candidate_is_an_explicitly_blocked_draft() -> None:
     contract = promotion.load_json(ROOT / "docs/architecture/release-candidate-m16.json")
     report = promotion.verify_draft(contract)
@@ -126,6 +152,95 @@ def test_ready_contract_binds_release_images_tag_and_rollback(tmp_path: Path) ->
     assert report["ok"] is True
     assert report["source_revision"] == head
     assert report["separate_approvals_pending"] == list(promotion.ACTIONS)
+
+
+@pytest.mark.parametrize("invalid", (True, False, 1.0, "1", None))
+@pytest.mark.parametrize("schema_target", ("contract", "release"))
+def test_ready_schema_versions_are_exact_integers(
+    tmp_path: Path, invalid: Any, schema_target: str
+) -> None:
+    contract, release, head, main_before = _ready_contract(tmp_path)
+    if schema_target == "contract":
+        contract["schema_version"] = invalid
+    else:
+        payload = promotion.load_json(release)
+        payload["schema_version"] = invalid
+        release.write_text(json.dumps(payload), encoding="utf-8")
+        contract["candidate"]["release_manifest_sha256"] = promotion.sha256_file(release)
+    _approve(contract, "main-promotion", {
+        "ready_contract_sha256": promotion._ready_contract_sha256(contract),
+    })
+    with pytest.raises(promotion.PromotionContractError, match="[Vv]ersion"):
+        _verify(contract, release, head, main_before)
+    with pytest.raises(promotion.PromotionContractError, match="[Vv]ersion"):
+        _verify_action(contract, "main-promotion", release, head, main_before)
+
+
+@pytest.mark.parametrize("field", ("version", "release"))
+@pytest.mark.parametrize("invalid", (None, "", " ", True, 123, [], {}, "OpenClaw 2026.7.1"))
+def test_matching_invalid_release_identifiers_never_become_ready(
+    tmp_path: Path, field: str, invalid: Any
+) -> None:
+    contract, release, head, main_before = _ready_contract(tmp_path)
+    payload = promotion.load_json(release)
+    payload[field] = invalid
+    contract["candidate"]["planned_" + field] = invalid
+    if field == "version":
+        for image in contract["images"].values():
+            image["version"] = invalid
+    release.write_text(json.dumps(payload), encoding="utf-8")
+    contract["candidate"]["release_manifest_sha256"] = promotion.sha256_file(release)
+    # Even a matching new digest and approval cannot cure malformed identities.
+    _approve(contract, "main-promotion", {
+        "ready_contract_sha256": promotion._ready_contract_sha256(contract),
+    })
+    with pytest.raises(promotion.PromotionContractError, match="Produktversion|Releasebezeichner"):
+        _verify(contract, release, head, main_before)
+    with pytest.raises(promotion.PromotionContractError, match="Produktversion|Releasebezeichner"):
+        _verify_action(contract, "main-promotion", release, head, main_before)
+
+
+@pytest.mark.parametrize("version", ("3.4.0-r29", "3.4.0-r29.0.6", "4.0.0-r1"))
+def test_product_release_format_accepts_base_and_patch_releases(tmp_path: Path, version: str) -> None:
+    contract, release, head, main_before = _ready_contract(tmp_path)
+    payload = promotion.load_json(release)
+    payload.update(version=version, release=version.split("-", 1)[1])
+    contract["candidate"].update(planned_version=payload["version"], planned_release=payload["release"])
+    for image in contract["images"].values():
+        image["version"] = version
+    release.write_text(json.dumps(payload), encoding="utf-8")
+    contract["candidate"]["release_manifest_sha256"] = promotion.sha256_file(release)
+    assert _verify(contract, release, head, main_before)["version"] == version
+
+
+def test_valid_but_mismatched_release_suffix_fails_closed(tmp_path: Path) -> None:
+    contract, release, head, main_before = _ready_contract(tmp_path)
+    payload = promotion.load_json(release)
+    payload["release"] = "r1"
+    contract["candidate"]["planned_release"] = "r1"
+    release.write_text(json.dumps(payload), encoding="utf-8")
+    contract["candidate"]["release_manifest_sha256"] = promotion.sha256_file(release)
+    with pytest.raises(promotion.PromotionContractError, match="passt nicht zur Produktversion"):
+        _verify(contract, release, head, main_before)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    (
+        (lambda row: row["rollback"].__setitem__("version", None), "Rollbackversion"),
+        (lambda row: row["rollback"].__setitem__("version", "r28"), "Rollbackversion"),
+        (lambda row: row["rollback"].__setitem__("source_revision", int("1" * 40)), "Rollbackcommit"),
+        (lambda row: row["images"]["runtime"].__setitem__("sbom_sha256", int("1" * 64)), "sbom_sha256"),
+        (lambda row: row["images"]["proxy"].__setitem__("provenance_sha256", int("1" * 64)), "provenance"),
+    ),
+)
+def test_other_required_identifiers_are_typed_and_nonempty(
+    tmp_path: Path, mutation: Any, message: str
+) -> None:
+    contract, release, head, main_before = _ready_contract(tmp_path)
+    mutation(contract)
+    with pytest.raises(promotion.PromotionContractError, match=message):
+        _verify(contract, release, head, main_before)
 
 
 @pytest.mark.parametrize(
@@ -166,15 +281,152 @@ def test_foreign_main_commit_cannot_be_promoted_silently(tmp_path: Path) -> None
 
 
 def test_each_external_promotion_action_needs_its_own_approval(tmp_path: Path) -> None:
-    contract, _release, _head, _main_before = _ready_contract(tmp_path)
+    contract, release, head, main_before = _ready_contract(tmp_path)
+    ready = _verify(contract, release, head, main_before)
     for action in promotion.ACTIONS:
         with pytest.raises(promotion.PromotionContractError, match="Separate Freigabe"):
-            promotion.verify_action(contract, action)
-    selected = promotion.ACTIONS[0]
-    contract["approval_gates"][selected].update(
-        {"status": "approved", "approved_by": "operator", "approved_at": "2026-09-20T20:00:00Z"}
+            _verify_action(contract, action, release, head, main_before)
+    for selected in promotion.ACTIONS:
+        _approve(contract, selected, ready)
+        assert _verify_action(contract, selected, release, head, main_before)["approved"] is True
+        assert _verify(contract, release, head, main_before)["ready_contract_sha256"] == ready[
+            "ready_contract_sha256"
+        ]
+    # Recording another independent approval must not invalidate the first one.
+    assert _verify_action(contract, promotion.ACTIONS[0], release, head, main_before)["ok"] is True
+
+
+def test_ready_label_and_unbound_success_report_cannot_authorize_action(tmp_path: Path) -> None:
+    contract, release, head, main_before = _ready_contract(tmp_path)
+    malformed = {
+        "state": "ready",
+        "approval_gates": {
+            "main-promotion": {
+                "status": "approved",
+                "approved_by": "synthetic-review",
+                "approved_at": "not-a-timestamp",
+            }
+        },
+    }
+    with pytest.raises(promotion.PromotionContractError, match="Ready-Pruefkontext"):
+        promotion.verify_action(malformed, "main-promotion")
+    with pytest.raises(promotion.PromotionContractError, match="Promotionsvertragsversion"):
+        _verify_action(malformed, "main-promotion", release, head, main_before)
+    report = _verify(contract, release, head, main_before)
+    with pytest.raises(promotion.PromotionContractError, match="Promotionsvertragsversion"):
+        _verify_action(report, "main-promotion", release, head, main_before)
+
+
+@pytest.mark.parametrize("missing", ("candidate", "images", "rollback", "ready_evidence"))
+def test_action_revalidates_complete_ready_contract(tmp_path: Path, missing: str) -> None:
+    contract, release, head, main_before = _ready_contract(tmp_path)
+    _approve(contract, "main-promotion", _verify(contract, release, head, main_before))
+    del contract[missing]
+    with pytest.raises(promotion.PromotionContractError):
+        _verify_action(contract, "main-promotion", release, head, main_before)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        lambda row: row["images"]["runtime"].__setitem__("digest", "sha256:" + "f" * 64),
+        lambda row: row["images"]["maintenance"].__setitem__("provenance_sha256", "f" * 64),
+        lambda row: row["rollback"]["images"]["proxy"].__setitem__("digest", "sha256:" + "f" * 64),
+        lambda row: row["release_scope"].__setitem__("report", "changed-release-scope.md"),
+    ),
+)
+def test_approval_does_not_transfer_to_changed_but_valid_ready_contract(
+    tmp_path: Path, mutation: Any
+) -> None:
+    contract, release, head, main_before = _ready_contract(tmp_path)
+    _approve(contract, "main-promotion", _verify(contract, release, head, main_before))
+    mutation(contract)
+    assert _verify(contract, release, head, main_before)["ok"] is True
+    with pytest.raises(promotion.PromotionContractError, match="unveraenderten Ready-Vertrag"):
+        _verify_action(contract, "main-promotion", release, head, main_before)
+
+
+def test_approval_cannot_be_copied_to_another_action(tmp_path: Path) -> None:
+    contract, release, head, main_before = _ready_contract(tmp_path)
+    _approve(contract, "main-promotion", _verify(contract, release, head, main_before))
+    contract["approval_gates"]["production-deployment"] = copy.deepcopy(
+        contract["approval_gates"]["main-promotion"]
     )
-    assert promotion.verify_action(contract, selected)["approved"] is True
+    with pytest.raises(promotion.PromotionContractError, match="an Aktion gebunden"):
+        _verify_action(contract, "production-deployment", release, head, main_before)
+
+
+@pytest.mark.parametrize(
+    ("field", "invalid", "message"),
+    (
+        ("approved_by", "  ", "Freigabeverantwortlicher"),
+        ("approved_by", ["synthetic-operator"], "Freigabeverantwortlicher"),
+        ("approved_at", None, "Freigabezeit"),
+        ("approved_at", True, "Freigabezeit"),
+        ("approved_at", "not-a-timestamp", "Freigabezeit"),
+        ("approved_at", "2020-01-01", "Freigabezeit"),
+        ("approved_at", "2020-01-01T20:00:00", "Freigabezeit"),
+        ("approved_at", "2020-02-30T20:00:00Z", "Freigabezeit"),
+        ("approved_at", "2020-01-01T20:00:00+00:99", "Freigabezeit"),
+        ("approved_at", "2999-01-01T20:00:00Z", "Zukunft"),
+        ("ready_contract_sha256", "f" * 64, "unveraenderten Ready-Vertrag"),
+        ("ready_contract_sha256", None, "unveraenderten Ready-Vertrag"),
+    ),
+)
+def test_action_rejects_invalid_approval_fields(
+    tmp_path: Path, field: str, invalid: Any, message: str
+) -> None:
+    contract, release, head, main_before = _ready_contract(tmp_path)
+    _approve(contract, "main-promotion", _verify(contract, release, head, main_before))
+    contract["approval_gates"]["main-promotion"][field] = invalid
+    with pytest.raises(promotion.PromotionContractError, match=message):
+        _verify_action(contract, "main-promotion", release, head, main_before)
+
+
+def test_action_revalidates_manifest_and_tag_evidence(tmp_path: Path) -> None:
+    contract, release, head, main_before = _ready_contract(tmp_path)
+    _approve(contract, "main-promotion", _verify(contract, release, head, main_before))
+    with pytest.raises(promotion.PromotionContractError, match="nicht kryptografisch"):
+        promotion.verify_action(
+            contract,
+            "main-promotion",
+            release_path=release,
+            head=head,
+            main_before=main_before,
+            tag_target=head,
+        )
+    # Even a semantically identical reserialization changes the approved bytes.
+    release.write_text(release.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+    with pytest.raises(promotion.PromotionContractError, match="RELEASE.json-Digest"):
+        _verify_action(contract, "main-promotion", release, head, main_before)
+
+
+def test_action_cli_requires_and_rechecks_ready_context(tmp_path: Path) -> None:
+    contract, release, head, main_before = _ready_contract(tmp_path)
+    _approve(contract, "image-publication", _verify(contract, release, head, main_before))
+    contract_path = tmp_path / "ready-contract.json"
+    contract_path.write_text(json.dumps(contract), encoding="utf-8")
+    command = [
+        sys.executable,
+        str(ROOT / "scripts/release_promotion.py"),
+        "verify-action",
+        "--contract", str(contract_path),
+        "--action", "image-publication",
+    ]
+    missing_context = subprocess.run(command, capture_output=True, text=True, check=False)
+    assert missing_context.returncode == 2
+    command.extend([
+        "--release", str(release), "--head", head, "--main-before", main_before,
+        "--tag-target", head, "--tag-verified",
+    ])
+    approved = subprocess.run(command, capture_output=True, text=True, check=False)
+    assert approved.returncode == 0, approved.stdout + approved.stderr
+    assert json.loads(approved.stdout)["approved"] is True
+    contract["images"]["proxy"]["signature_verified"] = False
+    contract_path.write_text(json.dumps(contract), encoding="utf-8")
+    invalidated = subprocess.run(command, capture_output=True, text=True, check=False)
+    assert invalidated.returncode == 1
+    assert json.loads(invalidated.stdout)["ok"] is False
 
 
 def test_container_workflow_uses_release_manifest_version() -> None:

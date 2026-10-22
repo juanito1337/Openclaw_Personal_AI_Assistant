@@ -60,6 +60,7 @@ V3_DIRECTORIES = (
     "instance/mail_agent",
     "instance/personal_assistant",
     "gateway",
+    "gateway/devices",
     "domains/mail",
     "domains/orders",
     "domains/portfolio",
@@ -684,7 +685,11 @@ def _build_v3_stage(image_root: Path, state_root: Path, workspace: Path) -> Path
     stage = staging_root / f"v3-{os.getpid()}-{time.monotonic_ns()}"
     stage.mkdir(mode=0o700)
     for relative in V3_DIRECTORIES:
-        (stage / relative).mkdir(parents=True, exist_ok=True)
+        (stage / relative).mkdir(
+            mode=0o700 if relative == "gateway/devices" else 0o777,
+            parents=True,
+            exist_ok=True,
+        )
 
     for relative in CONFIG_TEMPLATES:
         source = workspace / relative
@@ -1171,6 +1176,19 @@ def _write_marker(
     return True
 
 
+def ensure_gateway_devices_directory(gateway: Path) -> bool:
+    """Prepare only the pairing mountpoint, without creating a paired device."""
+    directory = gateway / "devices"
+    if gateway.is_symlink() or not gateway.is_dir():
+        raise RuntimeError("Gateway-Verzeichnis fuer Geraetebindungen ist ungueltig")
+    if directory.is_symlink() or (directory.exists() and not directory.is_dir()):
+        raise RuntimeError("Gateway-Geraeteverzeichnis ist ungueltig")
+    if directory.is_dir():
+        return False
+    directory.mkdir(mode=0o700)
+    return True
+
+
 def migrate_layout(image_root: Path, state_root: Path, workspace: Path) -> LayoutReport:
     image_root = image_root.resolve()
     state_root = state_root.resolve()
@@ -1227,10 +1245,11 @@ def migrate_layout(image_root: Path, state_root: Path, workspace: Path) -> Layou
                 f"Aktiver Layout-v3-Instanzbereich fehlt: {active_instance}"
             )
         active_gateway = state_root / V3_ROOT_NAME / "gateway"
+        runtime_config_changed = ensure_gateway_devices_directory(active_gateway)
         runtime_config_changed = _promote_completed_legacy_workspace_profile(
             active_instance,
             active_gateway,
-        )
+        ) or runtime_config_changed
         runtime_config_changed = (
             _remove_obsolete_workspace_skill_link(active_instance, image_root)
             or runtime_config_changed

@@ -67,9 +67,35 @@ for secret in gateway.env mail-agent.env personal-assistant.env \
 done
 sudo chmod 600 "$DEPLOYMENT/immutable-plugins.json"
 sudo chmod 700 "$DEPLOYMENT/scripts/"*.sh "$DEPLOYMENT/scripts/"*.py "$DEPLOYMENT/hooks/"*.sh
-sudo chmod 600 "$TARGET_ROOT/secrets/"*
-sudo chown -R "$OWNER":"$OWNER" "$DEPLOYMENT" "$TARGET_ROOT/config" "$TARGET_ROOT/secrets" "$TARGET_ROOT/backups"
+for secret in gateway.env mail-agent.env personal-assistant.env \
+  himalaya-imap-password himalaya-smtp-password nextcloud-talk-bot-secret; do
+  sudo chmod 600 "$TARGET_ROOT/secrets/$secret"
+done
+sudo chown -R "$OWNER":"$OWNER" "$DEPLOYMENT" "$TARGET_ROOT/config" "$TARGET_ROOT/backups"
+sudo chown "$OWNER":"$OWNER" "$TARGET_ROOT/secrets"
+for secret in gateway.env mail-agent.env personal-assistant.env \
+  himalaya-imap-password himalaya-smtp-password nextcloud-talk-bot-secret; do
+  sudo chown "$OWNER":"$OWNER" "$TARGET_ROOT/secrets/$secret"
+done
 sudo chown -R 1000:1000 "$TARGET_ROOT/state" "$TARGET_ROOT/config/himalaya"
+
+# Only the isolated proxy receives private CA state. These paths are covered
+# by the existing secrets/config backup, but neither is an automatic trust
+# import. Creating empty directories does not create keys or activate Talk.
+for directory in "$TARGET_ROOT/secrets/talk-proxy-pki" "$TARGET_ROOT/config/talk-proxy-public"; do
+  if [[ -L "$directory" || ( -e "$directory" && ! -d "$directory" ) ]]; then
+    echo "Ungueltiger Talk-Proxy-Verzeichnispfad: $directory" >&2
+    exit 2
+  fi
+  sudo install -d -m 700 -o 1000 -g 1000 "$directory"
+done
+
+connection_directory="$TARGET_ROOT/secrets/nextcloud-connection"
+if [[ -L "$connection_directory" || ( -e "$connection_directory" && ! -d "$connection_directory" ) ]]; then
+  echo "Ungueltiger Nextcloud-Verbindungsstore." >&2
+  exit 2
+fi
+sudo install -d -m 700 -o 1000 -g 1000 "$connection_directory"
 
 cat <<MSG
 Hoststruktur erstellt: $TARGET_ROOT

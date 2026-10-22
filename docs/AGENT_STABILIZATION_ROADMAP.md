@@ -4,6 +4,12 @@ Stand: 2026-09-21
 Vorgesehener Arbeitsbranch: `development/stabilization-performance-m16`
 Status: M16.0 bis M16.9 abgeschlossen; r29-Kandidat lokal gruen, externe M16.10-Promotion offen
 
+Diese Statuszeile beschreibt die historische Abnahme vom 2026-09-21, nicht den
+heutigen Installationszustand. Die erneute Gesamtpruefung und anschliessende
+Verbesserungen werden in der [M18-Roadmap](AGENT_IMPROVEMENT_ROADMAP.md)
+fortgeschrieben. Releaseberichte und aktuelle verifizierte Betriebsevidenz sind
+von diesem historischen Entwicklungsnachweis getrennt.
+
 ## Ausgangslage
 
 Der Agent besitzt nach M0 bis M15 eine breite, sicherheitsorientierte

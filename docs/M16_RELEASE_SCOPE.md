@@ -75,3 +75,44 @@ Der spaetere `verify-ready`-Pfad verlangt alle unveraenderlichen Identitaeten un
 blockiert Drift, Fremdcommit, fehlende Signatur-/Attestierungsevidenz und ein
 uneindeutiges Rollbackziel. `verify-action` prueft danach jede der drei
 Freigaben einzeln.
+
+### Aktionspruefung mit unveraenderter Ready-Evidenz
+
+Seit der M18-Haertung verlangt `verify-action` denselben externen Pruefkontext
+wie `verify-ready` und validiert den vollstaendigen Vertrag erneut. Ein bloßes
+`state: ready` oder ein gespeicherter erfolgreicher Pruefbericht genuegt nicht.
+Der Bedienpfad fuer einen bereits technisch verifizierten Kandidaten lautet:
+
+```bash
+.venv/bin/python scripts/release_promotion.py verify-ready \
+  --contract "<externes-ready-artefakt.json>" --release "<RELEASE.json>" \
+  --head "<getesteter-commit>" --main-before "<main-ausgangscommit>" \
+  --tag-target "<verifiziertes-tagziel>" --tag-verified
+
+.venv/bin/python scripts/release_promotion.py verify-action \
+  --contract "<externes-ready-artefakt.json>" --release "<RELEASE.json>" \
+  --head "<getesteter-commit>" --main-before "<main-ausgangscommit>" \
+  --tag-target "<verifiziertes-tagziel>" --tag-verified \
+  --action main-promotion
+```
+
+Zwischen den beiden Pruefungen darf der Betreiber ausschliesslich nach der
+tatsaechlichen separaten Freigabe das betreffende `approval_gates`-Objekt
+vervollstaendigen: `status: approved`, `approved_action` mit der exakten Aktion,
+`approved_by`, `approved_at` als ISO-Zeitstempel mit Zeitzone sowie
+`ready_contract_sha256` aus dem erfolgreichen `verify-ready`-Bericht. Ungueltige
+oder zukuenftige Zeitstempel werden abgewiesen. Derselbe Ablauf gilt getrennt
+fuer `image-publication` und `production-deployment`; eine kopierte Freigabe
+fuer eine andere Aktion gilt nicht.
+
+Der Digest schuetzt alle technischen Ready-Felder, nicht die nachfolgenden
+separaten Freigabeentscheidungen. Eine neue Image-, Manifest-, Rollback- oder
+Umfangsevidenz erfordert eine neue dazu passende Freigabe. Die Pruefung erzeugt
+selbst keine Freigabe und ersetzt weder die kryptografische Tag-/Cosign-Pruefung
+noch die nachgelagerte produktive Abnahme. `--tag-verified` darf nur nach der
+tatsaechlichen kryptografischen Pruefung gesetzt werden.
+
+Die signierten unveraenderlichen Kandidatenimages muessen bereits als
+Buildartefakte vorliegen. Ihre spaetere Veroeffentlichung als Release bleibt die
+eigene Aktion; die Aktionspruefung fordert keine bereits erfolgte
+Releaseveroeffentlichung und fuehrt keine Registry- oder Deploymentaktion aus.

@@ -1,5 +1,11 @@
 # Roadmap
 
+Die aktuelle Gesamtpruefung und schrittweise Verbesserung von Effizienz,
+Werkzeugverwendung und Zuverlaessigkeit steht in
+[`AGENT_IMPROVEMENT_ROADMAP.md`](AGENT_IMPROVEMENT_ROADMAP.md).
+Sie fuehrt die M16-Stabilisierung weiter und trennt Entwicklungsergebnisse
+weiterhin von signiertem Release und produktiver Abnahme.
+
 Diese Datei beschreibt die fachliche Produktentwicklung. Die priorisierte technische
 Modernisierung des Docker-Stacks, einschliesslich eigenstaendiger Entwicklungs-Prompts
 und Milestone-Tests, steht in

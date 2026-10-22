@@ -52,6 +52,7 @@ SOURCE_MANIFEST.sha256
 /docs/
 /.github/
 /docker/scripts/
+!/docker/scripts/nextcloud-talk-config.py
 /requirements-dev.lock
 /CONTRIBUTING.md
 /SECURITY.md

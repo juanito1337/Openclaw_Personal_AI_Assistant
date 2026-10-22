@@ -5,6 +5,7 @@ import json
 import re
 import unicodedata
 from collections.abc import Iterable, Mapping
+from functools import lru_cache
 from typing import Any
 
 ACTION_SCHEMA_VERSION = 1
@@ -33,7 +34,7 @@ MAX_WORKFLOW_TOOL_CALLS = 12
 _EXECUTE_PATTERNS = (
     r"\b(?:trag|trage|tragt|tragen)\b.{0,80}\b(?:ein|kalender)\b",
     r"\bleit(?:e|en|et)\b.{0,160}\bweiter\b",
-    r"\b(?:eintragen|anlegen|erstellen|verschieben|aktualisieren|abschliessen|abschließen|send(?:e|en|et)|verschick(?:e|en|t)|beantwort(?:e|en|et)|weiterleit(?:e|en|et))\b",
+    r"\b(?:eintragen|anlegen|erstell(?:e|en|t)|importier(?:e|en|t)|verschieb(?:e|en|t)|aktualisier(?:e|en|t)|abschliessen|abschließen|send(?:e|en|et)|verschick(?:e|en|t)|beantwort(?:e|en|et)|weiterleit(?:e|en|et))\b",
     r"\b(?:fuehre|führe)\b.{0,40}\b(?:aus|durch)\b",
     r"\b(?:crea|crear|anade|añade|agrega|envia|envía|actualiza|mueve|completa)\b",
     r"\b(?:create|add|send|move|update|complete|forward)\b",
@@ -68,6 +69,10 @@ _UNBOUND_RETRY_QUESTION_PATTERNS = (
     r"\bshould i\b.{0,180}\b(?:try again|retry)",
     r"\b(?:quieres que|debo)\b.{0,180}\b(?:intente de nuevo|reintente)",
 )
+_ALL_TARGETS_COMPLETED = (
+    r"\b(?:alle|beide|all|both)\b.{0,100}\b(?:erledigt|abgeschlossen|angelegt|erstellt|"
+    r"aktualisiert|gesendet|verschickt|done|completed|created|updated|sent)\b"
+)
 
 
 def _normalized(value: str) -> str:
@@ -81,11 +86,7 @@ def action_completion_contract(operation_ids: Iterable[str]) -> dict[str, Any]:
     workflow_operations = {
         "select-source": [item for item in ("mail.search", "mail.recent") if item in known],
         "read-source": [item for item in ("mail.read",) if item in known],
-        "build-preview": [
-            item
-            for item in ("nextcloud.calendar.from-mail-preview",)
-            if item in known
-        ],
+        "build-preview": [item for item in ("nextcloud.calendar.from-mail-preview",) if item in known],
         "resolve-target": [
             item
             for item in (
@@ -183,15 +184,69 @@ def _workflow_kind(prompt: str, domains: set[str]) -> str:
     return "mail-to-calendar" if source_mail and calendar else "single-action"
 
 
-def _target_count(prompt: str, workflow_kind: str) -> int:
-    text = _normalized(prompt)
+def _target_scope(prompt: str, workflow_kind: str) -> tuple[int, str | None]:
+    # Counts inside quoted titles and dates are not requested target quantities.
+    # This detects ambiguity only; it never grants authority or resolves targets.
+    text = re.sub(r'"[^"\n]*"|\x27[^\x27\n]*\x27|„[^“\n]*“|«[^»\n]*»', "", _normalized(prompt))
+    plural = (
+        r"(?:aufgaben|tasks|termine|events|kontakte|contacts|mails|e-mails|nachrichten|messages|"
+        r"dateien|files|folders|fluege|flüge|flights|vuelos)"
+    )
+    counts = {
+        "zwei": 2,
+        "beide": 2,
+        "beiden": 2,
+        "two": 2,
+        "both": 2,
+        "dos": 2,
+        "drei": 3,
+        "three": 3,
+        "tres": 3,
+        "vier": 4,
+        "four": 4,
+        "cuatro": 4,
+        "fuenf": 5,
+        "fünf": 5,
+        "five": 5,
+    }
+    matches = re.findall(rf"\b(\d{{1,4}}|{'|'.join(counts)})\s+(?:{plural}|ordner)\b(?!-)", text)
+    quantities = [int(item) if item.isdecimal() else counts[item] for item in matches]
+    if quantities and (max(quantities) > MAX_ACTION_TARGETS or min(quantities) < 1):
+        return MAX_ACTION_TARGETS, "target-limit"
+    if len(set(quantities)) > 1:
+        return max(quantities), "multiple-targets-not-bound"
+    count = max(quantities, default=1)
     if workflow_kind == "mail-to-calendar" and (
         re.search(r"\bhin(?:-| )?und(?:-| )?rueckflug\b", text)
-        or re.search(r"\bhinflug\b", text) and re.search(r"\br(?:ue|ü)ckflug\b", text)
+        or re.search(r"\bhinflug\b", text)
+        and re.search(r"\br(?:ue|ü)ckflug\b", text)
         or re.search(r"\b(?:fluege|flüge|flights|vuelos)\b", text)
     ):
-        return 2
-    return 1
+        return max(2, count), None
+    if workflow_kind == "mail-to-calendar":
+        return count, None  # The registered preview binds exact candidate identities.
+    plural_request = (
+        r"(?:^|\b(?:bitte|erstelle|erstellen|aktualisiere|aktualisieren|verschiebe|verschieben|"
+        r"sende|send|create|update|complete|move|forward)\s+)"
+        r"(?:(?:die|diese|meine|alle|saemtliche|sämtliche|mehrere|einige|the|these|all|some)\s+)?"
+        rf"{plural}\b(?!-)"
+    )
+    singular = (
+        r"(?:aufgabe|task|termin|event|kontakt|contact|mail|e-mail|nachricht|message|datei|file|ordner|folder)"
+    )
+    repeated_target = (
+        rf"\b{singular}\b.{{0,160}}\b(?:und|and|sowie)\s+"
+        r"(?:(?:erstelle|aktualisiere|verschiebe|erledige|create|update|complete|move)\s+)?"
+        rf"(?:(?:eine|einen|ein|die|den|der|a|an|the)\s+)?{singular}\b"
+    )
+    if (
+        count > 1
+        or re.search(plural_request, text)
+        or re.search(repeated_target, text)
+        or re.search(r"(?:^|\n)\s*(?:[-*]|\d+[.)])\s", text)
+    ):
+        return count, "multiple-targets-not-bound"
+    return count, None
 
 
 def build_action_obligation(
@@ -205,6 +260,7 @@ def build_action_obligation(
         return None
     domains = {str(item.get("domain") or "") for item in route.get("routes") or []}
     workflow_kind = _workflow_kind(prompt, domains)
+    target_count, scope_error = _target_scope(prompt, workflow_kind)
     steps = (
         list(WORKFLOW_STEPS)
         if workflow_kind == "mail-to-calendar"
@@ -217,7 +273,7 @@ def build_action_obligation(
                 "intent": intent,
                 "domains": sorted(domains),
                 "workflow_kind": workflow_kind,
-                "target_count": _target_count(prompt, workflow_kind),
+                "target_count": target_count,
             },
             sort_keys=True,
             separators=(",", ":"),
@@ -231,15 +287,17 @@ def build_action_obligation(
         "domains": sorted(domains),
         "workflow_kind": workflow_kind,
         "effect": "external-create" if workflow_kind == "mail-to-calendar" else "external-write",
-        "target_count": _target_count(prompt, workflow_kind),
+        "target_count": target_count,
         "completed_targets": 0,
         "steps": steps,
         "current_step": steps[0],
         "step_index": 0,
         "tool_calls": 0,
-        "status": "open",
-        "terminal_state": None,
-        "last_error": None,
+        "status": "terminal" if scope_error else "open",
+        "terminal_state": ("blocked" if scope_error == "target-limit" else "information-required")
+        if scope_error
+        else None,
+        "last_error": scope_error,
         "write_operations": [],
         "write_digests": [],
         "required_slots": (
@@ -260,6 +318,30 @@ def _copy_obligation(obligation: Mapping[str, Any]) -> dict[str, Any]:
     return json.loads(json.dumps(dict(obligation)))
 
 
+@lru_cache(maxsize=1)
+def _operation_domains() -> dict[str, str]:
+    from .tool_registry import tool_definitions
+
+    return {item.id: item.domain for item in tool_definitions()}
+
+
+@lru_cache(maxsize=1)
+def _read_operation_domains() -> dict[str, str]:
+    from .tool_registry import tool_definitions
+
+    return {item.id: item.domain for item in tool_definitions() if item.mode == "read"}
+
+
+@lru_cache(maxsize=1)
+def _local_preview_operations() -> set[str]:
+    from .tool_registry import tool_definitions
+
+    return {
+        item.id for item in tool_definitions()
+        if item.mode == "local-write" and "--dry-run" in item.command.split()
+    }
+
+
 def advance_action_obligation(
     obligation: Mapping[str, Any],
     *,
@@ -277,7 +359,7 @@ def advance_action_obligation(
     result = _copy_obligation(obligation)
     if result.get("terminal_state") in ACTION_TERMINAL_STATES:
         return result
-    if evidence_turn_id and evidence_turn_id != str(result.get("turn_id") or ""):
+    if evidence_turn_id != str(result.get("turn_id") or ""):
         return result
     if int(result.get("tool_calls") or 0) >= MAX_WORKFLOW_TOOL_CALLS:
         result.update(status="terminal", terminal_state="blocked", last_error="tool-call-limit")
@@ -302,15 +384,19 @@ def advance_action_obligation(
     workflow_kind = str(result.get("workflow_kind") or "single-action")
 
     if mode != "read":
-        if (
-            workflow_kind == "mail-to-calendar"
-            and operation != "nextcloud.calendar.from-mail-create"
+        # Use the typed catalog rather than guessing a domain from an ID prefix
+        # (mail.invoice and mail.order operations belong to different domains).
+        domain = _operation_domains().get(operation, "")
+        if domain not in result.get("domains", []) or (
+            workflow_kind == "mail-to-calendar" and operation != "nextcloud.calendar.from-mail-create"
         ):
             result.update(
                 status="terminal",
                 terminal_state="blocked",
                 last_error="unexpected-write-operation",
             )
+            return result
+        if mode == "local-write" and operation in _local_preview_operations():
             return result
         if operation in {"mail.reply-draft", "mail.compose-draft", "mail.forward-draft"}:
             result.update(
@@ -332,18 +418,33 @@ def advance_action_obligation(
                 last_error="unexpected-workflow-step",
             )
             return result
-        result["write_operations"] = [*list(result.get("write_operations") or []), operation]
-        result["write_digests"] = [
-            *list(result.get("write_digests") or []),
-            str(argument_digest or ""),
-        ]
-        if not postcondition_verified:
+        if not postcondition_verified or (payload or {}).get("dry_run") is True:
             result.update(
                 status="terminal",
                 terminal_state="blocked",
                 last_error="write-postcondition-unverified",
             )
             return result
+        identity_digest = str(argument_digest or "")
+        if workflow_kind == "mail-to-calendar":
+            candidate_id = str((payload or {}).get("candidate_id") or "")
+            if not candidate_id:
+                result.update(
+                    status="terminal", terminal_state="blocked", last_error="target-identity-unverified"
+                )
+                return result
+            identity_digest = hashlib.sha256(
+                json.dumps(
+                    {"operation": operation, "target": candidate_id},
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ).hexdigest()
+        if identity_digest and identity_digest in result.get("write_digests", []):
+            result.update(status="terminal", terminal_state="blocked", last_error="duplicate-target-evidence")
+            return result
+        result["write_operations"] = [*list(result.get("write_operations") or []), operation]
+        result["write_digests"] = [*list(result.get("write_digests") or []), identity_digest]
         completed = int(result.get("completed_targets") or 0) + 1
         result["completed_targets"] = completed
         result["postconditions_verified"] = int(result.get("postconditions_verified") or 0) + 1
@@ -366,20 +467,13 @@ def advance_action_obligation(
         # deliberately atomic at the tool boundary.
         "build-preview": ({"nextcloud.calendar.from-mail-preview"}, "execute-one"),
     }
-    single_operations = {
-        "nextcloud.calendar.status",
-        "nextcloud.calendar.search",
-        "nextcloud.tasks.status",
-        "nextcloud.tasks.list",
-        "nextcloud.contacts.status",
-        "nextcloud.contacts.search",
-        "mail.search",
-        "mail.read",
-    }
     if workflow_kind == "mail-to-calendar":
         allowed, next_step = mail_calendar_progress.get(current, (set(), ""))
-    elif current == "resolve-target":
-        allowed, next_step = single_operations, "execute-one"
+    elif current in {"resolve-target", "execute-one"}:
+        allowed = {
+            item for item, domain in _read_operation_domains().items() if domain in result.get("domains", [])
+        }
+        next_step = current
     else:
         allowed, next_step = set(), ""
     if operation not in allowed:
@@ -433,10 +527,7 @@ def action_completion_guard(
     normalized = _normalized(answer)
     if obligation is None:
         no_obligation_issues: list[str] = []
-        if any(
-            re.search(pattern, normalized, flags=re.IGNORECASE)
-            for pattern in _WRITE_PROMISE_PATTERNS
-        ):
+        if any(re.search(pattern, normalized, flags=re.IGNORECASE) for pattern in _WRITE_PROMISE_PATTERNS):
             no_obligation_issues.append("write-promise-without-action-obligation")
         return {
             "ok": not no_obligation_issues,
@@ -447,12 +538,17 @@ def action_completion_guard(
     terminal = obligation.get("terminal_state")
     if terminal in ACTION_TERMINAL_STATES:
         issues: list[str] = []
+        completed = int(obligation.get("completed_targets") or 0)
+        incomplete = completed < int(obligation.get("target_count") or 1)
+        if (incomplete and terminal == "completed") or (
+            (incomplete or completed < 2) and re.search(_ALL_TARGETS_COMPLETED, normalized)
+        ):
+            issues.append("all-targets-completion-unverified")
         if terminal in {"approval-required", "information-required", "blocked"} and any(
-            re.search(pattern, normalized, flags=re.IGNORECASE)
-            for pattern in _WRITE_PROMISE_PATTERNS
+            re.search(pattern, normalized, flags=re.IGNORECASE) for pattern in _WRITE_PROMISE_PATTERNS
         ):
             issues.append("write-promise-without-action-obligation")
-        if terminal in {"approval-required", "blocked"} and any(
+        if terminal in {"approval-required", "information-required", "blocked"} and any(
             re.search(pattern, normalized, flags=re.IGNORECASE)
             for pattern in _UNBOUND_RETRY_QUESTION_PATTERNS
         ):

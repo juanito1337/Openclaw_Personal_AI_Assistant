@@ -241,7 +241,21 @@ def inventory_report(
 ) -> dict[str, Any]:
     credentials = sorted({str(value) for value in missing_credentials if str(value)})
     items: list[dict[str, Any]] = []
+    references = []
     for reference in configured_references(settings):
+        domain_settings = getattr(settings.nextcloud, reference.domain, None)
+        resource_ids = getattr(domain_settings, "resource_ids", ())
+        if reference.enabled and not reference.resource_id and resource_ids:
+            for identifier in resource_ids:
+                resource = registry.resources.get(identifier)
+                permissions = tuple(permission for permission in reference.required_permissions
+                                    if resource is None or permission in resource.permissions)
+                references.append(replace(
+                    reference, resource_id=identifier, required_permissions=permissions,
+                ))
+        else:
+            references.append(reference)
+    for reference in references:
         payload: dict[str, Any] = {
             **asdict(reference),
             "ok": True,
@@ -283,7 +297,8 @@ def inventory_report(
 
     direct = next(item for item in items if item["domain"] == "calendar")
     mail = next(item for item in items if item["domain"] == "mail-calendar")
-    drift = bool(direct["enabled"] and mail["enabled"] and direct["resource_id"] != mail["resource_id"])
+    direct_ids = settings.nextcloud.calendar.resource_ids or (direct["resource_id"],)
+    drift = bool(direct["enabled"] and mail["enabled"] and mail["resource_id"] not in direct_ids)
     if drift:
         mail["ok"] = False
         mail["state"] = "resource-configuration-drift"
@@ -304,7 +319,8 @@ def inventory_report(
         },
         "calendar_identity": {
             "ok": not drift,
-            "direct_resource_id": direct["resource_id"],
+            "direct_resource_id": settings.nextcloud.calendar.resource_id,
+            "direct_resource_ids": list(settings.nextcloud.calendar.resource_ids),
             "mail_resource_id": mail["resource_id"],
             "same_resource": not drift,
             "error_code": "resource-configuration-drift" if drift else "",

@@ -28,6 +28,52 @@ domain, prefer its registered list/search/status tool over `assistant.search`;
 use the broad search only for its documented indexed sources and keep its default
 bounded result path.
 
+## Nextcloud setup and account channel
+
+The [Nextcloud setup page](../../../docs/NEXTCLOUD_SETUP_UI.md) is an OpenClaw
+operator interface. Login Flow v2, account confirmation, resource refresh and
+Talk room/sender pairing are administrative operations, never agent tools. The
+setup service alone writes its fixed connection store; gateway and workers mount
+the store read-only. Do not probe that store, recover credentials from a parent
+directory, or invoke the setup socket/RPC from a generic tool.
+
+The GUI-capable production profile hard-denies generic shell and filesystem
+tools, including command execution, file reads and file mutation. Workspace-only
+file restrictions alone cannot protect an administrative socket in the same
+gateway. Registered native domain tools and their argument, approval, ActionPlan
+and evidence guards remain the supported route. Local development verification
+does not authorize production deployment or connecting a real account.
+
+The `nextcloud-account-talk` channel polls the saved account with exact room and
+sender allowlists. It uses the existing OpenClaw agent and native tools. A saved
+enabled flag is configuration, not current connection evidence; inspect the
+fresh worker observation. Initial pairing skips existing history, and accepted
+messages plus cursors are persisted before execution. Restarted processing or
+uncertain sends are never automatically replayed. Text from Talk cannot grant
+setup permissions or replace native allow-once dialogs. The separate official
+bot/webhook channel must not process the same room concurrently.
+
+The Talk inbox/outbox database belongs to the gateway and is part of the core
+backup. Pending/uncertain inbox records can contain message text; only the
+separate status JSON is content-free telemetry. Never call either an empty inbox
+or a stored status flag proof of successful message delivery.
+
+## Bounded action state
+
+The native plugin retains at most 128 recent runs for 15 minutes and at most
+64 KiB of prompt per run. Oversized instructions are rejected for writes, not
+truncated into apparent approval. Expiration or eviction revokes bound pending
+authorizations; it never creates a new approval or transfers evidence to a new
+run. Several reply payloads are not proof that a run is over. An expired action
+requires a new, complete instruction and its normal typed approval path.
+
+Preparatory read operations from the typed catalog may precede a single write
+within the currently routed domains and the existing workflow call budget.
+General multiple-target requests without individually bound targets end as
+`information-required`, never as successful after one write. The registered
+mail-to-calendar preview remains the supported bounded multi-candidate workflow;
+each candidate still needs its own unchanged approval and verified postcondition.
+
 ## Jobs and single writer
 
 - `ON`, `OFF` and `FAILED/DEGRADED` are different states. Never report a job as
@@ -72,6 +118,10 @@ suggest --isin "<ISIN>"` may use Ollama only through this coordinator; its model
 output remains bounded by that domain tool's deterministic validation and approval
 contract.
 
+An unexpected coordinator admission failure is `503 queue_unavailable`, not a
+reason to call the upstream model directly. Report it through registered
+diagnostics; no automatic proxy restart or limit expansion is authorized.
+
 Performance evidence separates queue wait, prompt preparation, upstream
 inference, tool loops and finalization. A projected large tool result is explicitly
 incomplete and may not support a negative completeness claim; its digest and
@@ -105,8 +155,10 @@ For service-backed tools also run `jobs check --target all --deep`. Do not chang
 credentials, policy, permissions, forwarding or security gates as an automatic
 repair.
 
-Generic filesystem tools are restricted to the controlled workspace by
-`tools.fs.workspaceOnly=true`. They are never credential discovery: do not
+Where a legacy profile still provides generic filesystem tools, they are
+restricted to the controlled workspace by `tools.fs.workspaceOnly=true`. The
+GUI-capable production profile additionally hard-denies them as described above.
+They are never credential discovery: do not
 read, list, search, glob, stat or retry the parent of
 `~/.config/personal-assistant`, `/run/openclaw-env`,
 `/run/openclaw-secrets`, `/srv/openclaw/secrets`, `secrets.env` or another

@@ -50,6 +50,7 @@ from .resource_identity import (
 )
 from .runtime_identity import runtime_identity
 from .services.mail import MailApplicationMixin
+from .services.nextcloud_account import NextcloudAccountMixin
 from .services.orders import OrderApplicationMixin
 from .services.portfolio import PortfolioApplicationMixin
 from .services.security import SecurityApplicationMixin
@@ -110,6 +111,7 @@ def _replace_discovered_nextcloud_resources(
 
 
 class PersonalAssistant(
+    NextcloudAccountMixin,
     MailApplicationMixin,
     PortfolioApplicationMixin,
     OrderApplicationMixin,
@@ -145,6 +147,7 @@ class PersonalAssistant(
             self.storage = AssistantStorage(config.runtime.database, read_only=True)
             self.registry = ResourceRegistry(config.runtime.resources_file)
             self.nextcloud_client = NextcloudClient(config)
+            self._verify_nextcloud_connection_snapshot()
             self.nextcloud_discovery = NextcloudDiscovery(self.nextcloud_client)
             self.monitor = PerformanceMonitor(
                 config,
@@ -164,6 +167,7 @@ class PersonalAssistant(
         self.policy = PolicyEngine(config.runtime.policies_file, self.registry)
         self.indexer = KnowledgeIndexer(config, self.storage)
         self.nextcloud_client = NextcloudClient(config)
+        self._verify_nextcloud_connection_snapshot()
         self.nextcloud_discovery = NextcloudDiscovery(self.nextcloud_client)
         self.nextcloud_files = NextcloudFiles(config, self.nextcloud_client)
         self.nextcloud_contacts = NextcloudContacts(config, self.nextcloud_client)
@@ -184,6 +188,7 @@ class PersonalAssistant(
         )
         self.settings = SettingsService(config.path, self.storage)
         self.tool_settings = load_tool_settings()
+        self._verify_nextcloud_connection_snapshot()
         self.antivirus = HostAntivirus(self.tool_settings.security.antivirus)
         if mail_operations_factory is None:
             raise RuntimeError(
@@ -273,6 +278,7 @@ class PersonalAssistant(
         permissions are accepted only from an exact, current, read-only DAV
         discovery result.  The selected resources themselves never change.
         """
+        self._require_legacy_nextcloud_configuration()
         if not approve_permissions:
             raise PermissionError("Standardbetrieb benoetigt die einmalige ausdrueckliche Freigabe --yes")
 
@@ -486,6 +492,7 @@ class PersonalAssistant(
         allow_read: bool,
         allow_update: bool = False,
     ):
+        self._require_legacy_nextcloud_configuration()
         component = component.upper()
         collections = self.nextcloud_discovery.calendar_collections()
         selected = select_exact_discovered(
@@ -651,6 +658,7 @@ class PersonalAssistant(
         allow_read: bool,
         allow_update: bool,
     ):
+        self._require_legacy_nextcloud_configuration()
         if allow_update and not allow_read:
             raise ValueError("Kontakt-Aktualisierung benoetigt Leserechte fuer Auswahl und ETag-Pruefung")
         addressbooks = self.nextcloud_discovery.addressbooks()
@@ -743,6 +751,8 @@ class PersonalAssistant(
         )
 
     def direct_contacts_status(self, *, live: bool = True) -> dict[str, Any]:
+        if self._multiple_nextcloud_resources("contacts"):
+            return self._account_domain_status("contacts", live=live)
         settings = self.tool_settings.nextcloud.contacts
         reference = next(
             item for item in configured_references(self.tool_settings) if item.domain == "contacts"
@@ -833,6 +843,8 @@ class PersonalAssistant(
         return resource, contacts
 
     def contacts_list(self, *, limit: int = 100) -> dict[str, Any]:
+        if self._multiple_nextcloud_resources("contacts"):
+            return self._account_domain_list("contacts", limit=limit)
         settings = self.tool_settings.nextcloud.contacts
         resource, contacts = self._contacts_live()
         bounded = max(1, min(int(limit), settings.max_results))
@@ -843,10 +855,14 @@ class PersonalAssistant(
             "addressbook": str(resource.metadata.get("name") or resource.id),
             "count": len(selected),
             "total_available": len(contacts),
+            "complete": len(contacts) == len(selected),
+            "results_may_be_truncated": len(contacts) > len(selected),
             "contacts": [self._contact_payload(item) for item in selected],
         }
 
     def contacts_search(self, query: str, *, limit: int = 50) -> dict[str, Any]:
+        if self._multiple_nextcloud_resources("contacts"):
+            return self._account_domain_list("contacts", query=query, limit=limit)
         needle = " ".join(str(query or "").split()).casefold()
         if not needle:
             raise ValueError("Kontakt-Suchbegriff fehlt")
@@ -866,6 +882,8 @@ class PersonalAssistant(
             "resource_id": resource.id,
             "count": min(len(matches), bounded),
             "total_matches": len(matches),
+            "complete": len(matches) <= bounded,
+            "results_may_be_truncated": len(matches) > bounded,
             "contacts": [self._contact_payload(item) for item in matches[:bounded]],
         }
 
@@ -895,6 +913,7 @@ class PersonalAssistant(
         note: str = "",
         allow_name_collision: bool = False,
     ) -> dict[str, Any]:
+        self.require_nextcloud_target("contacts")
         settings = self.tool_settings.nextcloud.contacts
         if not settings.enabled or not settings.allow_create:
             raise PermissionError("Direktes Kontakt-Anlegewerkzeug ist deaktiviert")
@@ -1037,6 +1056,7 @@ class PersonalAssistant(
         expected_email: str = "",
         allow_name_collision: bool = False,
     ) -> dict[str, Any]:
+        self.require_nextcloud_target("contacts")
         settings = self.tool_settings.nextcloud.contacts
         if not settings.enabled or not settings.allow_update:
             raise PermissionError("Direktes Kontakt-Aktualisierungswerkzeug ist deaktiviert")
@@ -1293,6 +1313,8 @@ class PersonalAssistant(
         )
 
     def direct_calendar_status(self) -> dict[str, Any]:
+        if self._multiple_nextcloud_resources("calendar"):
+            return self._account_domain_status("calendar")
         settings = self.tool_settings.nextcloud.calendar
         reference = next(
             item for item in configured_references(self.tool_settings) if item.domain == "calendar"
@@ -1340,6 +1362,8 @@ class PersonalAssistant(
         }
 
     def calendar_list(self, *, limit: int = 100) -> dict[str, Any]:
+        if self._multiple_nextcloud_resources("calendar"):
+            return self._account_domain_list("calendar", limit=limit)
         settings = self.tool_settings.nextcloud.calendar
         if not settings.enabled or not settings.allow_list:
             raise PermissionError("Direktes Kalender-Lesewerkzeug ist deaktiviert")
@@ -1355,9 +1379,13 @@ class PersonalAssistant(
             "calendar_resource_id": settings.resource_id,
             "count": len(selected),
             "events": [self._calendar_event_payload(event) for event in selected],
+            "complete": len(events) == len(selected),
+            "results_may_be_truncated": len(events) > len(selected),
         }
 
     def calendar_search(self, query: str, *, limit: int = 50) -> dict[str, Any]:
+        if self._multiple_nextcloud_resources("calendar"):
+            return self._account_domain_list("calendar", query=query, limit=limit)
         clean = " ".join(str(query or "").split()).casefold()
         if not clean:
             raise ValueError("Kalendersuchbegriff fehlt")
@@ -1375,13 +1403,16 @@ class PersonalAssistant(
                     str(event.get("start") or ""),
                 ]
             ).casefold()
-        ][: max(1, min(int(limit), 100))]
+        ]
+        bounded = max(1, min(int(limit), 100))
         return {
-            "ok": True,
+            "ok": listed.get("ok", True),
             "calendar_resource_id": listed["calendar_resource_id"],
             "query": query,
-            "count": len(matches),
-            "events": matches,
+            "count": min(len(matches), bounded),
+            "events": matches[:bounded],
+            "complete": listed.get("complete", False) and len(matches) <= bounded,
+            "results_may_be_truncated": not listed.get("complete", False) or len(matches) > bounded,
         }
 
     def _calendar_mail_preview(
@@ -1522,6 +1553,7 @@ class PersonalAssistant(
         description: str = "",
         uid: str = "",
     ) -> dict[str, Any]:
+        self.require_nextcloud_target("calendar")
         settings = self.tool_settings.nextcloud.calendar
         if not settings.enabled or not settings.allow_create:
             raise PermissionError("Direktes Kalenderwerkzeug ist deaktiviert")
@@ -1684,6 +1716,7 @@ class PersonalAssistant(
         expected_start: str = "",
         allow_recurring_series: bool = False,
     ) -> dict[str, Any]:
+        self.require_nextcloud_target("calendar")
         settings = self.tool_settings.nextcloud.calendar
         if not settings.enabled or not settings.allow_list or not settings.allow_update:
             raise PermissionError("Kalender-Aktualisierung ist nicht aktiviert")
@@ -1863,6 +1896,8 @@ class PersonalAssistant(
         return PersonalAssistant._parse_calendar_datetime(raw, timezone_name), False
 
     def direct_tasks_status(self, *, live: bool = True) -> dict[str, Any]:
+        if self._multiple_nextcloud_resources("tasks"):
+            return self._account_domain_status("tasks", live=live)
         settings = self.tool_settings.nextcloud.tasks
         reference = next(item for item in configured_references(self.tool_settings) if item.domain == "tasks")
         resource = None
@@ -1968,6 +2003,8 @@ class PersonalAssistant(
         )
 
     def tasks_list(self, *, include_completed: bool = False, limit: int = 100) -> dict[str, Any]:
+        if self._multiple_nextcloud_resources("tasks"):
+            return self._account_domain_list("tasks", limit=limit, include_completed=include_completed)
         settings = self.tool_settings.nextcloud.tasks
         if not settings.enabled or not settings.allow_list:
             raise PermissionError("Direktes Aufgaben-Lesewerkzeug ist deaktiviert")
@@ -1985,6 +2022,8 @@ class PersonalAssistant(
             "task_resource_id": settings.resource_id,
             "include_completed": include_completed,
             "count": len(tasks),
+            "complete": len(tasks) < max(1, min(int(limit), 500)),
+            "results_may_be_truncated": len(tasks) >= max(1, min(int(limit), 500)),
             "tasks": tasks,
         }
 
@@ -1999,6 +2038,7 @@ class PersonalAssistant(
         categories: tuple[str, ...] = (),
         uid: str = "",
     ) -> dict[str, Any]:
+        self.require_nextcloud_target("tasks")
         settings = self.tool_settings.nextcloud.tasks
         if not settings.enabled or not settings.allow_create:
             raise PermissionError("Direktes Aufgabenwerkzeug ist deaktiviert")
@@ -2158,6 +2198,7 @@ class PersonalAssistant(
         expected_due: str = "",
         allow_recurring: bool = False,
     ) -> dict[str, Any]:
+        self.require_nextcloud_target("tasks")
         settings = self.tool_settings.nextcloud.tasks
         if not settings.enabled or not settings.allow_list or not settings.allow_update:
             raise PermissionError(
@@ -2502,10 +2543,25 @@ class PersonalAssistant(
 
     def discover_nextcloud(self, *, persist: bool = True) -> dict[str, Any]:
         health = self.nextcloud_discovery.root_health()
-        collections = self.nextcloud_discovery.calendar_collections()
+        managed = bool(getattr(getattr(self, "nextcloud_client", None), "connection", None))
+        errors: list[dict[str, str]] = []
+        if managed:
+            persist = False
+            try:
+                collections = self.nextcloud_discovery.calendar_collections()
+            except Exception as exc:
+                collections = []
+                errors.append({"scope": "calendar", "code": type(exc).__name__})
+            try:
+                addressbooks = self.nextcloud_discovery.addressbooks()
+            except Exception as exc:
+                addressbooks = []
+                errors.append({"scope": "contacts", "code": type(exc).__name__})
+        else:
+            collections = self.nextcloud_discovery.calendar_collections()
+            addressbooks = self.nextcloud_discovery.addressbooks()
         calendars = [item for item in collections if not item.components or item.supports("VEVENT")]
         task_lists = [item for item in collections if item.supports("VTODO")]
-        addressbooks = self.nextcloud_discovery.addressbooks()
         resources = list(self.registry.resources.values())
         if persist:
             discovered_resources = [
@@ -2593,6 +2649,9 @@ class PersonalAssistant(
             "caldav_collections": [self._discovered_payload(item) for item in collections],
             "addressbooks": [asdict(item) for item in addressbooks],
             "persisted": persist,
+            "managed_connection": managed,
+            "complete": not errors,
+            "resource_errors": errors,
         }
 
     def sync_mail(self) -> dict[str, Any]:
@@ -2622,25 +2681,51 @@ class PersonalAssistant(
         # in that container.  Discovery is still live, but only an interactive
         # core-capable role may persist the refreshed registry.
         discovery = self.discover_nextcloud(persist=self.role != "sync-worker")
-        calendars = self.nextcloud_discovery.calendars()
-        addressbooks = self.nextcloud_discovery.addressbooks()
+        managed = bool(getattr(getattr(self, "nextcloud_client", None), "connection", None))
+        if managed:
+            from .connectors.nextcloud.discovery import DiscoveredCollection
+            def discovered(values):
+                fields = DiscoveredCollection.__dataclass_fields__
+                return [DiscoveredCollection(**{key: value for key, value in item.items() if key in fields})
+                        for item in values if item["resource_id"] in self.registry.resources]
+            calendars = discovered(discovery["calendars"])
+            addressbooks = discovered(discovery["addressbooks"])
+        else:
+            calendars = self.nextcloud_discovery.calendars()
+            addressbooks = self.nextcloud_discovery.addressbooks()
         batch_size = max(1, int(os.environ.get("OPENCLAW_SYNC_BATCH_SIZE", "100")))
-        files = self.nextcloud_files.sync_index(
+        file_resources = ([item for item in self.registry.list(kind="file-root", enabled_only=True)
+                           if item.metadata.get("managed_connection") and "read" in item.permissions]
+                          if managed else [])
+        file_resource_id = file_resources[0].id if managed and file_resources else "nextcloud-files-main"
+        files: dict[str, Any] = self.nextcloud_files.sync_index(
             self.storage,
             self.indexer,
-            resource_id="nextcloud-files-main",
-            roots=self.config.nextcloud.allowed_file_roots,
+            resource_id=file_resource_id,
+            roots=("",) if managed else self.config.nextcloud.allowed_file_roots,
             max_items=self.config.search.nextcloud_max_items,
             max_depth=self.config.search.nextcloud_max_depth,
             batch_size=batch_size,
-        )
+        ) if not managed or file_resources else {"errors": 1, "authoritative": False,
+                                                "reason": "account-file-root-unavailable"}
         contacts = self.nextcloud_contacts.sync_index(self.storage, addressbooks, batch_size=batch_size)
         events = self.nextcloud_calendar.sync_index(self.storage, calendars, batch_size=batch_size)
         sections = (files, contacts, events)
         resume_required = any(bool(section.get("resume_required")) for section in sections)
+        partial_scopes = [
+            name
+            for name, section in zip(("files", "contacts", "calendar"), sections, strict=True)
+            if int(section.get("errors") or 0) > 0 or section.get("authoritative") is False
+        ]
+        partial_scopes = sorted(set(partial_scopes) | {
+            item["scope"] for item in discovery.get("resource_errors", [])
+        })
+        ok = bool(discovery.get("health", {}).get("ok")) and not partial_scopes
         return {
-            "ok": bool(discovery.get("health", {}).get("ok"))
-            and all(int(section.get("errors") or 0) == 0 for section in sections),
+            "ok": ok,
+            "complete": ok and not resume_required,
+            "partial": bool(partial_scopes),
+            "partial_scopes": partial_scopes,
             "resume_required": resume_required,
             "batch_size": batch_size,
             "discovery": discovery,

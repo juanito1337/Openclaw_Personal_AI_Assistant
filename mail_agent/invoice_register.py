@@ -30,6 +30,26 @@ HEADERS = (
     "Originaldatei",
     "SHA256",
 )
+_UNTRUSTED_TEXT_COLUMNS = frozenset({
+    "Rechnungsnummer", "Rechnungssteller", "Kategorie", "Währung", "Erkennung",
+    "Nextcloud-Pfad", "Originaldatei", "SHA256",
+})
+
+
+def _safe_csv_text(value: str) -> str:
+    # Spreadsheet importers may ignore leading whitespace or a field-level BOM.
+    # Use a visible literal marker, not an Excel-specific apostrophe/tab escape
+    # which an editor can discard when saving and reopening the CSV (OWASP CSV
+    # Injection). Only the export view changes; source/provenance stays intact.
+    offset = 0
+    while offset < len(value) and (value[offset].isspace() or value[offset] == "\ufeff"):
+        offset += 1
+    significant = value[offset:]
+    if significant.startswith(("=", "+", "-", "@", "＝", "＋", "－", "＠")) or any(
+        character in value[:offset] for character in "\t\r\n"
+    ):
+        return "Text: " + value
+    return value
 
 
 def _german_date(value: str) -> str:
@@ -58,7 +78,7 @@ def _status_label(value: Any) -> str:
 
 
 def _row(item: Any) -> dict[str, str]:
-    return {
+    row = {
         "Status": _status_label(item["extraction_status"]),
         "Rechnungsdatum": _german_date(str(item["invoice_date"] or "")),
         "Eingangsdatum": _german_date(str(item["received_date"] or "")),
@@ -75,6 +95,10 @@ def _row(item: Any) -> dict[str, str]:
         "Nextcloud-Pfad": str(item["nextcloud_path"] or ""),
         "Originaldatei": str(item["original_filename"] or ""),
         "SHA256": str(item["attachment_hash"] or ""),
+    }
+    return {
+        key: _safe_csv_text(value) if key in _UNTRUSTED_TEXT_COLUMNS else value
+        for key, value in row.items()
     }
 
 

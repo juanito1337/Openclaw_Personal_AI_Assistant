@@ -7,6 +7,21 @@ from typing import Any
 
 def handle(args: argparse.Namespace, assistant: Any, emit: Callable[[Any], None]) -> int:
     command = args.tasks_command
+    if command in {"configure", "discover"}:
+        return _handle(args, assistant, emit)
+    resource_id = getattr(args, "resource", "")
+    if resource_id:
+        with assistant.select_nextcloud_resource("tasks", resource_id):
+            return _handle(args, assistant, emit)
+    if command in {"create", "update", "from-mail"}:
+        require = getattr(assistant, "require_nextcloud_target", None)
+        if require:
+            require("tasks")
+    return _handle(args, assistant, emit)
+
+
+def _handle(args: argparse.Namespace, assistant: Any, emit: Callable[[Any], None]) -> int:
+    command = args.tasks_command
     if command == "discover":
         result = assistant.tasks_discover()
     elif command == "configure":

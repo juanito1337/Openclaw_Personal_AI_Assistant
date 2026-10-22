@@ -13,12 +13,17 @@
     "gateway": [
       {"mode": "ingress", "host_ip": "127.0.0.1", "published": "18789", "target": 18789, "protocol": "tcp"},
       {"mode": "ingress", "host_ip": "127.0.0.1", "published": "8788", "target": 8788, "protocol": "tcp"}
+    ],
+    "talk-proxy": [
+      {"mode": "ingress", "host_ip": "127.0.0.1", "published": "443", "target": 8443, "protocol": "tcp"}
     ]
   },
   "roles": {
+    "setup-service": {"user": "1000:1000", "networks": ["setup-egress"], "pids": 128, "memory": 134217728, "cpus": 0.5, "env_files": [], "secret_files": []},
     "layout-init": {"user": "1000:1000", "networks": [], "pids": 128, "memory": 1073741824, "cpus": 1.0, "env_files": [], "secret_files": []},
     "ollama-proxy": {"user": "1000:1000", "networks": ["backend", "egress"], "pids": 256, "memory": 1073741824, "cpus": 2.0, "env_files": ["/etc/openclaw-env/ollama-priority.env"], "secret_files": []},
-    "gateway": {"user": "1000:1000", "networks": ["backend", "egress"], "pids": 512, "memory": 2147483648, "cpus": 2.0, "env_files": [], "secret_files": ["gateway.env", "mail-agent.env", "personal-assistant.env", "himalaya-imap-password", "himalaya-smtp-password", "nextcloud-talk-bot-secret"]},
+    "talk-proxy": {"user": "1000:1000", "networks": ["talk-ingress", "talk-link"], "pids": 128, "memory": 134217728, "cpus": 0.5, "env_files": [], "secret_files": []},
+    "gateway": {"user": "1000:1000", "networks": ["backend", "egress", "talk-link"], "pids": 512, "memory": 2147483648, "cpus": 2.0, "env_files": [], "secret_files": ["gateway.env", "mail-agent.env", "personal-assistant.env", "himalaya-imap-password", "himalaya-smtp-password", "nextcloud-talk-bot-secret"]},
     "mail-worker": {"user": "1000:1000", "networks": ["backend", "egress"], "pids": 256, "memory": 2147483648, "cpus": 2.0, "env_files": ["/etc/openclaw-env/mail-agent.env"], "secret_files": ["mail-agent.env", "personal-assistant.env", "himalaya-imap-password", "himalaya-smtp-password"]},
     "sync-worker": {"user": "1000:1000", "networks": ["backend", "egress"], "pids": 192, "memory": 1073741824, "cpus": 1.0, "env_files": ["/etc/openclaw-env/mail-agent.env", "/etc/openclaw-env/personal-assistant.env"], "secret_files": ["mail-agent.env", "personal-assistant.env"]},
     "supervisor-worker": {"user": "1000:1000", "networks": ["backend"], "pids": 128, "memory": 1073741824, "cpus": 0.5, "env_files": [], "secret_files": []},

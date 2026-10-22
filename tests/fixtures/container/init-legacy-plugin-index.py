@@ -9,6 +9,11 @@ from pathlib import Path
 
 database = Path("/home/node/.openclaw/state/openclaw.sqlite")
 database.parent.mkdir(parents=True, exist_ok=True)
+# The input is a public, read-only fixture. The gateway owns its effective
+# configuration in this isolated volume, matching the production mount layout.
+gateway_config = database.parent.parent / "openclaw.json"
+gateway_config.write_bytes(Path("/fixture/openclaw.json").read_bytes())
+gateway_config.chmod(0o600)
 connection = sqlite3.connect(database)
 connection.execute(
     "CREATE TABLE installed_plugin_index ("

@@ -20,33 +20,47 @@ class WorkspaceServiceMixin:
 
     def list_nextcloud_files(
         self,
-        path: str = "Assistent",
+        path: str | None = None,
         *,
         max_depth: int = 3,
-        resource_id: str = "nextcloud-files-main",
+        resource_id: str = "",
     ) -> dict[str, Any]:
-        requested = self.nextcloud_files.clean_path(path or "")
-        if not requested:
-            raise ValueError("Nextcloud-Pfad darf nicht leer sein")
+        settings = getattr(self, "tool_settings", None)
+        workspace = settings.nextcloud.workspace if settings else None
+        resource_id = resource_id or (workspace.resource_id if workspace else "nextcloud-files-main")
+        default_root = workspace.root if workspace else "Assistent"
+        requested = self.nextcloud_files.clean_path(default_root if path is None else path)
         if max_depth < 0 or max_depth > 10:
             raise ValueError("max_depth muss zwischen 0 und 10 liegen")
         resource = self.registry.get(resource_id)
+        account_root = resource.metadata.get("account_root") is True
+        if not requested and not account_root:
+            raise ValueError("Nextcloud-Pfad darf nicht leer sein")
+        if "read" not in resource.permissions:
+            raise PermissionError("Nextcloud-Ressource besitzt kein Leserecht")
         roots = tuple(str(v).strip("/") for v in resource.metadata.get("allowed_roots", []))
         if not roots:
             roots = tuple(str(v).strip("/") for v in self.config.nextcloud.allowed_file_roots)
-        if not any(requested == root or requested.startswith(root + "/") for root in roots):
+        if not account_root and not any(
+            requested == root or requested.startswith(root + "/") for root in roots
+        ):
             raise PermissionError("Pfad liegt ausserhalb der erlaubten Nextcloud-Wurzeln")
 
         queue: list[tuple[str, int]] = [(requested, 0)]
         seen: set[str] = set()
         items: list[dict[str, Any]] = []
         unexpanded_folders = 0
+        item_limit = max(1, getattr(getattr(self.config, "search", None), "nextcloud_max_items", 2000))
+        item_limit_reached = False
         while queue:
             folder, depth = queue.pop(0)
             if folder in seen:
                 continue
             seen.add(folder)
             for entry in self.nextcloud_files.list_folder(folder):
+                if len(items) >= item_limit:
+                    item_limit_reached = True
+                    break
                 item = {
                     "path": entry.path,
                     "name": entry.name,
@@ -62,6 +76,8 @@ class WorkspaceServiceMixin:
                         queue.append((entry.path, depth + 1))
                     else:
                         unexpanded_folders += 1
+            if item_limit_reached:
+                break
         return {
             "ok": True,
             "connector": "native-nextcloud-webdav",
@@ -69,8 +85,9 @@ class WorkspaceServiceMixin:
             "root": requested,
             "max_depth": max_depth,
             "count": len(items),
-            "complete": unexpanded_folders == 0,
-            "results_may_be_truncated": unexpanded_folders > 0,
+            "complete": unexpanded_folders == 0 and not item_limit_reached,
+            "results_may_be_truncated": unexpanded_folders > 0 or item_limit_reached,
+            "item_limit_reached": item_limit_reached,
             "unexpanded_folder_count": unexpanded_folders,
             "items": items,
         }
@@ -114,6 +131,10 @@ class WorkspaceServiceMixin:
         workspace = self._workspace()
         path = self.nextcloud_files.clean_path(value)
         root = self.nextcloud_files.clean_path(workspace.root)
+        if not root and path:
+            account_root = self.registry.get(workspace.resource_id).metadata.get("account_root") is True
+            if account_root:
+                return path
         if not path or not (path == root or path.startswith(root + "/")):
             raise PermissionError(f"Pfad liegt ausserhalb des Nextcloud-Arbeitsbereichs {root}/")
         return path

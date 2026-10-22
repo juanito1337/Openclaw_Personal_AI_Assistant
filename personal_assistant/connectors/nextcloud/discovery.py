@@ -5,7 +5,8 @@ import urllib.parse
 from dataclasses import dataclass
 from xml.etree import ElementTree
 
-from .client import NextcloudClient
+from ...nextcloud_connection import collection_resource_id
+from .client import NextcloudClient, NextcloudError
 from .xmlutil import CALDAV, CARDDAV, DAV, parse_multistatus, q
 
 
@@ -29,6 +30,31 @@ class DiscoveredCollection:
 class NextcloudDiscovery:
     def __init__(self, client: NextcloudClient) -> None:
         self.client = client
+
+    def _home_paths(self, key: str, legacy: str) -> list[str]:
+        connection = getattr(self.client, "connection", None)
+        if not connection:
+            return [legacy]
+        paths = connection["discovery_snapshot"].get(key)
+        if not isinstance(paths, list) or not paths or not all(isinstance(item, str) for item in paths):
+            raise NextcloudError("nextcloud-discovery-homes-missing: OpenClaw-Einrichtung aktualisieren")
+        return list(dict.fromkeys(paths))
+
+    def _collection_items(self, paths: list[str], body: bytes):
+        items = []
+        for path in paths:
+            response = self.client.request(
+                "PROPFIND", path, data=body,
+                headers={"Depth": "1", "Content-Type": "application/xml; charset=utf-8"}, expected={207},
+            )
+            items.extend(parse_multistatus(response.data))
+        return items
+
+    def _resource_id(self, kind: str, href: str) -> str:
+        connection = getattr(self.client, "connection", None)
+        if connection:
+            return collection_resource_id(connection, href)
+        return "nextcloud-" + kind + "-" + self._slug(href)
 
     def root_health(self) -> dict[str, object]:
         status = self.client.status()
@@ -54,7 +80,7 @@ class NextcloudDiscovery:
         reachable.
         """
         cleaned = str(path or "").strip().strip("/")
-        if not cleaned:
+        if not cleaned and not getattr(self.client, "connection", None):
             raise ValueError("Nextcloud-Dateipfad darf nicht leer sein")
         username = urllib.parse.quote(self.client.username, safe="")
         encoded_path = "/".join(
@@ -119,15 +145,8 @@ class NextcloudDiscovery:
   <d:description/>
  </d:prop>
 </d:propfind>"""
-        response = self.client.request(
-            "PROPFIND",
-            path,
-            data=body,
-            headers={"Depth": "1", "Content-Type": "application/xml; charset=utf-8"},
-            expected={207},
-        )
         result: list[DiscoveredCollection] = []
-        for item in parse_multistatus(response.data):
+        for item in self._collection_items(self._home_paths("calendar_homes", path), body):
             resource_type = item.raw_properties.get(q(DAV, "resourcetype"))
             if resource_type is None or resource_type.find(q(CALDAV, "calendar")) is None:
                 continue
@@ -145,7 +164,7 @@ class NextcloudDiscovery:
                     kind="calendar",
                     href=item.href,
                     name=name,
-                    resource_id="nextcloud-calendar-" + self._slug(item.href),
+                    resource_id=self._resource_id("calendar", item.href),
                     description=item.properties.get(q(DAV, "description"), ""),
                     components=components,
                     privileges=privileges,
@@ -170,15 +189,8 @@ class NextcloudDiscovery:
 <d:propfind xmlns:d='DAV:' xmlns:card='urn:ietf:params:xml:ns:carddav'>
  <d:prop><d:displayname/><d:resourcetype/><d:current-user-privilege-set/><d:description/></d:prop>
 </d:propfind>"""
-        response = self.client.request(
-            "PROPFIND",
-            path,
-            data=body,
-            headers={"Depth": "1", "Content-Type": "application/xml; charset=utf-8"},
-            expected={207},
-        )
         result: list[DiscoveredCollection] = []
-        for item in parse_multistatus(response.data):
+        for item in self._collection_items(self._home_paths("addressbook_homes", path), body):
             raw = item.raw_properties.get(q(DAV, "resourcetype"))
             if raw is None or raw.find(q(CARDDAV, "addressbook")) is None:
                 continue
@@ -193,7 +205,7 @@ class NextcloudDiscovery:
                     kind="addressbook",
                     href=item.href,
                     name=name,
-                    resource_id="nextcloud-addressbook-" + self._slug(item.href),
+                    resource_id=self._resource_id("addressbook", item.href),
                     description=item.properties.get(q(DAV, "description"), ""),
                     privileges=privileges,
                     can_read=self._can_read(privileges),

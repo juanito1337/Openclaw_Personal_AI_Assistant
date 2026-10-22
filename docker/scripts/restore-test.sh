@@ -17,4 +17,5 @@ while IFS= read -r -d '' db; do
   result=$(sqlite3 "$db" 'PRAGMA quick_check;' 2>&1) || { echo "$db: $result" >&2; exit 1; }
   [[ "$result" == "ok" ]] || { echo "$db: $result" >&2; exit 1; }
 done < <(find "$work/state" -type f \( -name '*.sqlite' -o -name '*.sqlite3' -o -name '*.db' \) -print0)
+check_nextcloud_nonce_integrity "$work/secrets/nextcloud-connection"
 echo "Restore-Test erfolgreich: $backup"

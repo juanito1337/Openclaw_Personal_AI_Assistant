@@ -349,6 +349,7 @@ class ProxyStats:
     failed_requests: int = 0
     queue_timeouts: int = 0
     queue_full: int = 0
+    queue_failures: int = 0
     upstream_timeouts: int = 0
     client_disconnects: int = 0
     queue_wait_total_ms: float = 0.0
@@ -409,6 +410,11 @@ class ProxyStats:
             self.queue_full += 1
             self.failed_requests += 1
 
+    def record_queue_failure(self) -> None:
+        with self._lock:
+            self.queue_failures += 1
+            self.failed_requests += 1
+
     def record_upstream_timeout(self) -> None:
         with self._lock:
             self.upstream_timeouts += 1
@@ -428,6 +434,7 @@ class ProxyStats:
                 "failed_requests": self.failed_requests,
                 "queue_timeouts": self.queue_timeouts,
                 "queue_full": self.queue_full,
+                "queue_failures": self.queue_failures,
                 "upstream_timeouts": self.upstream_timeouts,
                 "client_disconnects": self.client_disconnects,
                 "queue_wait_average_ms": round(average, 3),
@@ -589,6 +596,7 @@ class PriorityProxyHandler(BaseHTTPRequestHandler):
         )
         if scheduled:
             queued_at = time.monotonic()
+            admission_complete = False
             try:
                 ticket = self.priority_server.gate.acquire(
                     priority_name,
@@ -603,6 +611,7 @@ class PriorityProxyHandler(BaseHTTPRequestHandler):
                     active_count=int(gate_snapshot.get("active_count") or 0),
                     background_active=int(gate_snapshot.get("background_active") or 0),
                 )
+                admission_complete = True
             except QueueFullError as exc:
                 self.priority_server.stats.record_queue_full()
                 self._json_response(
@@ -621,9 +630,26 @@ class PriorityProxyHandler(BaseHTTPRequestHandler):
                     X_Ollama_Queue_Wait_Ms=f"{queue_wait_ms:.3f}",
                 )
                 return
-            except Exception as exc:  # Defensive fail-open: preserve existing inference path.
-                LOG.exception("Prioritaetssteuerung ausgefallen; Anfrage wird direkt weitergeleitet: %s", exc)
-                ticket = None
+            except Exception as exc:
+                # A failed coordinator cannot authorize an unbounded model
+                # request. Keep diagnostics content-free and fail closed.
+                LOG.error("Ollama-Koordination nicht verfuegbar (%s)", type(exc).__name__)
+                self.priority_server.stats.record_queue_failure()
+                self._json_response(
+                    503,
+                    {
+                        "error": "Ollama-Koordination ist voruebergehend nicht verfuegbar",
+                        "error_type": "queue_unavailable",
+                        "retry_after": 30,
+                    },
+                    Retry_After="30",
+                )
+                return
+            finally:
+                # Snapshot/telemetry can fail after acquire returned a ticket.
+                # Release it even if writing the error response also fails.
+                if ticket is not None and not admission_complete:
+                    self.priority_server.gate.release(ticket)
 
         ok = False
         upstream_started = time.monotonic()
@@ -666,14 +692,18 @@ class PriorityProxyHandler(BaseHTTPRequestHandler):
                         X_Ollama_Queue_Wait_Ms=f"{queue_wait_ms:.3f}",
                     )
         finally:
-            self.priority_server.stats.record_upstream(
-                (time.monotonic() - upstream_started) * 1000.0,
-                request_bytes=len(body),
-                response_bytes=response_bytes,
-            )
-            if ticket is not None:
-                self.priority_server.gate.release(ticket)
-            self.priority_server.stats.record_finish(ok=ok)
+            try:
+                self.priority_server.stats.record_upstream(
+                    (time.monotonic() - upstream_started) * 1000.0,
+                    request_bytes=len(body),
+                    response_bytes=response_bytes,
+                )
+            finally:
+                try:
+                    if ticket is not None:
+                        self.priority_server.gate.release(ticket)
+                finally:
+                    self.priority_server.stats.record_finish(ok=ok)
 
     def _forward(
         self,

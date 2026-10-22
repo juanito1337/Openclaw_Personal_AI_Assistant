@@ -15,6 +15,13 @@ backup=${1:?Backup-Verzeichnis oder ID angeben}
 require_command rsync
 require_command sqlite3
 require_command tar
+if [[ -e "$OPENCLAW_SECRETS_DIR/nextcloud-connection" || -L "$OPENCLAW_SECRETS_DIR/nextcloud-connection" ]]; then
+  require_command docker
+  setup_service_is_offline || {
+    echo "Restore abgebrochen: Setup-Service ist nicht nachweislich gestoppt." >&2
+    exit 2
+  }
+fi
 "$SCRIPT_DIR/verify-backup.sh" "$backup" >/dev/null
 [[ -d "$backup" ]] || backup="$OPENCLAW_BACKUP_DIR/$backup"
 
@@ -46,8 +53,11 @@ while IFS= read -r -d '' database; do
   }
   [[ "$result" == "ok" ]] || { echo "$database: $result" >&2; exit 1; }
 done < <(find "$restore_root/state" -type f \( -name '*.sqlite' -o -name '*.sqlite3' -o -name '*.db' \) -print0)
+check_nextcloud_nonce_integrity "$restore_root/secrets/nextcloud-connection"
 
-rsync -a --delete "$restore_root/state/" "$OPENCLAW_STATE_DIR/"
-rsync -a --delete "$restore_root/config/" "$OPENCLAW_CONFIG_DIR/"
-rsync -a --delete "$restore_root/secrets/" "$OPENCLAW_SECRETS_DIR/"
+# A database or credential can change without changing length and within the
+# same filesystem timestamp tick. Restore compares content, never just metadata.
+rsync -a --checksum --delete "$restore_root/state/" "$OPENCLAW_STATE_DIR/"
+rsync -a --checksum --delete "$restore_root/config/" "$OPENCLAW_CONFIG_DIR/"
+rsync -a --checksum --delete "$restore_root/secrets/" "$OPENCLAW_SECRETS_DIR/"
 echo "Lokaler Zustand verifiziert wiederhergestellt: $(basename "$backup")"

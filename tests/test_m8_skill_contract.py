@@ -144,11 +144,12 @@ def test_nextcloud_file_request_never_claims_connector_missing_before_registered
     assert "A request mentioning a Nextcloud file, document, WebDAV path" in groupware
     assert "before asking Jan for a local mount, host path, API" in groupware
     assert '`nextcloud list --path "Assistent"`' in groupware
+    assert '`nextcloud list` lists the account root' in groupware
     assert '`invoices files --limit 100`' in groupware
     assert '`search "<Suchbegriff>"`' in groupware
     assert "never claim that Nextcloud access or its native connector is missing" in groupware
     assert catalog["nextcloud.list"].command == (
-        './scripts/assistant.sh nextcloud list --path "Assistent"'
+        './scripts/assistant.sh nextcloud list --path "<path-optional>"'
     )
     assert "nativen Nextcloud-WebDAV-Connector" in catalog["nextcloud.list"].description
     assert "kein lokaler Mount" in catalog["nextcloud.list"].description
