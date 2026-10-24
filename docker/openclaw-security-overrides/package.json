@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
+    "dompurify": "3.4.17",
     "proxy-addr": "2.0.8"
   }
 }

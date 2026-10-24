@@ -13,8 +13,14 @@
     "python3": "3.12.15-r0"
   },
   "runtime_security_overrides": {
-    "package_lock_sha256": "7505ff87b2611c0b6b7d4dff7ca88409494837b68aed9a1c46186d5491341290",
+    "package_lock_sha256": "990ac4b5013b2363726b4af963868bee6f0952f81cbb99b06928c96a1313f92b",
     "packages": {
+      "dompurify": {
+        "version": "3.4.17",
+        "integrity": "sha512-B/pSlYVHQ58kqISD/yDjuJ1yfzI34m1gF4lAod2bwSRhiN4K5Cl3H8Af7hqB2PmTL911tdEudnnXn5FnhRoz0w==",
+        "shasum": "074bbb24eaa419535ac19ffe7f663104b0e1543d",
+        "reason": "GHSA-cg2g-xh64-v4q7"
+      },
       "proxy-addr": {
         "version": "2.0.8",
         "integrity": "sha512-5nnx0yGyVUcY6t9RnWcARWtwT9F1D8O9rt08htPvnd49W1IgZtmLkhu9WfMzQj1cFxjHIO6connUNVW5k7AVyQ==",
@@ -24,7 +30,7 @@
     }
   },
   "control_ui_setup_patch": {
-    "description": "Pinned first-party setup link in the host UI; unchanged iframe sandbox and authentication. Renderer uses network-first SW caching.",
+    "description": "Pinned first-party setup link and DOMPurify 3.4.17 browser sanitizer; unchanged iframe sandbox and authentication. Updated assets use scoped network-first caching, with no prior-cache fallback for the sanitizer bundle.",
     "files": {
       "assets/plugin-page-okkFqbN_.js": {
         "upstream_sha256": "cbe0ee964b24ab50d5a43221635c96b429b73b3279e826e23840c5a02e6b9675",
@@ -32,8 +38,16 @@
       },
       "sw.js": {
         "upstream_sha256": "4558305c64f7b72c127a10caf3aeeebec57f825dbe8d65de7fa920982abe3174",
-        "patched_sha256": "b3eb91ac8dbdb5a043d6b5a667f2a4d9328030e53c8427352ca7a4ee7fd6a378"
+        "patched_sha256": "6dad855144fe2e21a436df0357f92259acfcb806d4861c2b09f67f44ace3df42"
+      },
+      "assets/markdown-runtime-Y4RdJ3Nc.js": {
+        "upstream_sha256": "2c602bd082495b04ef541b73bbe57c4481ba5ab47fea86ca9e861fb2a71855b2",
+        "patched_sha256": "ce831f0451b26def3fb0bf9fed36bcb6dc5f971f589da9a018e16a862519816e"
       }
+    },
+    "vendor_module": {
+      "path": "assets/dompurify-3.4.17.js",
+      "sha256": "60c5d5ccbb466de3de3ba863461a92bf134f8c156cef7992da43e0f659bc5cbd"
     }
   },
   "himalaya": {
@@ -78,7 +92,9 @@
     "sigstore/cosign-installer": "398d4b0eeef1380460a10c8013a76f728fb906ac"
   },
   "vulnerability_policy": {
-    "fail_severities": ["CRITICAL"],
+    "fail_severities": [
+      "CRITICAL"
+    ],
     "ignore_unfixed": false,
     "exceptions": []
   },
@@ -88,15 +104,32 @@
   },
   "targets": {
     "runtime": {
-      "services": ["setup-service", "layout-init", "gateway", "mail-worker", "sync-worker", "supervisor-worker", "portfolio-worker", "monitor-worker", "agent-cli"],
+      "services": [
+        "setup-service",
+        "layout-init",
+        "gateway",
+        "mail-worker",
+        "sync-worker",
+        "supervisor-worker",
+        "portfolio-worker",
+        "monitor-worker",
+        "agent-cli"
+      ],
       "reason": "These roles use the OpenClaw CLI directly or expose the complete assistant tool surface; gateway mail tools also require Himalaya, OCR and ClamAV."
     },
     "proxy-runtime": {
-      "services": ["ollama-proxy", "talk-proxy"],
+      "services": [
+        "ollama-proxy",
+        "talk-proxy"
+      ],
       "reason": "Standard-library Python proxies with CA certificates, curl and tini; the opt-in Talk edge additionally uses the digest-pinned static Caddy binary and its isolated private PKI."
     },
     "maintenance-runtime": {
-      "services": ["clamav-socket-init", "clamd", "clamav-update"],
+      "services": [
+        "clamav-socket-init",
+        "clamd",
+        "clamav-update"
+      ],
       "reason": "The isolated ClamAV roles share one minimal image containing freshclam, clamd, clamscan, private socket health modules and tini; only the updater receives egress and signature write access."
     }
   }

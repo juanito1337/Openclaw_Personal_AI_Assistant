@@ -271,7 +271,7 @@ def verify_lock(root: Path = ROOT) -> dict[str, Any]:
     if "COPY docker/openclaw-plugins/contract.json" not in dockerfile:
         errors.append("runtime image does not contain the immutable plugin contract")
     ui_patch = lock.get("control_ui_setup_patch", {}).get("files", {})
-    if set(ui_patch) != {"assets/plugin-page-okkFqbN_.js", "sw.js"}:
+    if set(ui_patch) != {"assets/plugin-page-okkFqbN_.js", "assets/markdown-runtime-Y4RdJ3Nc.js", "sw.js"}:
         errors.append("Control UI setup patch file set is not pinned")
     for name, hashes in ui_patch.items():
         for key in ("upstream_sha256", "patched_sha256"):
@@ -281,6 +281,12 @@ def verify_lock(root: Path = ROOT) -> dict[str, Any]:
             errors.append(f"Control UI setup patch must change the pinned asset: {name}")
     if "python3 -P docker/patch-control-ui-setup.py /app/dist/control-ui" not in dockerfile:
         errors.append("runtime image does not apply the integrity-locked Control UI setup patch")
+    ui_vendor = lock.get("control_ui_setup_patch", {}).get("vendor_module", {})
+    if (ui_vendor.get("path") != "assets/dompurify-3.4.17.js"
+            or not re.fullmatch(r"[0-9a-f]{64}", str(ui_vendor.get("sha256", "")))):
+        errors.append("Control UI sanitizer module is not integrity-pinned")
+    if "--dompurify-module /app/node_modules/dompurify/dist/purify.es.mjs" not in dockerfile:
+        errors.append("runtime image does not apply the locked browser sanitizer")
     dockerignore = (root / ".dockerignore").read_text(encoding="utf-8").splitlines()
     if "!docker/openclaw-plugins/package-lock.json" not in dockerignore:
         errors.append("immutable OpenClaw plugin lock is excluded from the Docker context")

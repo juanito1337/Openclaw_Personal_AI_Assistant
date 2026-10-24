@@ -5,9 +5,9 @@
 35e7c1a83ee8f31a3dd54503d0132a15e998b573479ddad9fe7ca676b76aac24  ./.gitignore
 1b6baf17377ad89b09ac3596ef0092ea0171e85ca6109206f135b84744561150  ./.hadolint.yaml
 29e0a4e60c770a2a3922ebcb69741bfe43110a4a6504a20fe5e3c7931b3c59a7  ./AGENTS.md
-beebd13becc57df26567d57a2a3ef59db5ad70309dc759ed3cf21af55b38d907  ./CHANGELOG.md
+f53e7230e2823c1d9c3b4a0b9a88bd593319c7cf1486ce658f7fe027b0f0cf62  ./CHANGELOG.md
 f38e641eaf48ada58510f6c6c1db64ee57390be2838493350b591f87f7e3908f  ./CONTRIBUTING.md
-33481385385ea0b67e53933d21fe3847bec7f0a1eaec0ddac2a89f4ea4acd88b  ./Dockerfile
+0011a40f3becd76d4d08763bf0f967f43aca6d4ef8a2745d5456cc8b783dc9b5  ./Dockerfile
 dd2bd2aa9bed882e4a7942981299d0e87c70ac8ddd50ca67126eca0af0055e94  ./HEARTBEAT.md
 0735d0329b8666594f6504ed1980b5563b5ab7a4a2595b4500410745587f0f4b  ./README.md
 fe5bba65071f44f5f7148671dbe8f29551bc17a453665112c38eae5fd1bc0877  ./RELEASE.json
@@ -48,9 +48,9 @@ e69b313bd09cf39827270c689492890dc8b378b4aae44f1ca665b0777d076bd7  ./docker/openc
 91911765c39e2939b482680f656ee717bb728489465a5fdce01da6bf4e4abd0a  ./docker/openclaw-plugins/contract.json
 f862574edfa93a0d4c20a6e91d21f8ede3057fb872d680195ca0fff067705ee6  ./docker/openclaw-plugins/package-lock.json
 d725ed7444d98cfd0868c0d0fe741543cd9ab128b8918905ad1e1c69a62bd479  ./docker/openclaw-plugins/package.json
-7505ff87b2611c0b6b7d4dff7ca88409494837b68aed9a1c46186d5491341290  ./docker/openclaw-security-overrides/package-lock.json
-f5f32f18517ed789474dc1fdf38448a7081fdbe2d15a1bf508c7845bf00b4bce  ./docker/openclaw-security-overrides/package.json
-fd90ef7aa112fe71576d27699f1d0b50e0d9badc38a28d8af807dbe1156b042d  ./docker/patch-control-ui-setup.py
+990ac4b5013b2363726b4af963868bee6f0952f81cbb99b06928c96a1313f92b  ./docker/openclaw-security-overrides/package-lock.json
+714ee26c2a17fd585b1c619ae8b48288a30cc25b701e9693f97e0e609c9a927a  ./docker/openclaw-security-overrides/package.json
+f664e413369fc1076b77ff98fa859ced0dc6aa84680f1c05c497ad90aa147e5f  ./docker/patch-control-ui-setup.py
 7517fc171eb46d2b6bc28bd89d34730f89f1563a6719e923b88f2dec0d81745d  ./docker/scripts/backup.sh
 0fe474f5baa1102770915f39b07fa06af2e67d86f654629c02c5ff3095b039a0  ./docker/scripts/build-local.sh
 20f86ad41cbd7ec14fa9bfa6ff1321a1976170cb01fc130437e71c87fba11e6a  ./docker/scripts/check-layout-compatibility.py
@@ -69,7 +69,7 @@ fe09906528c064f055ef1a2a4675d772c73af67055c5da1c701a6c7a9abf81cd  ./docker/scrip
 30db71b5742ffbe5e127a5f2375bd4facb5677bce3f5ceb1e33b8119f8cca51f  ./docker/scripts/smoke-test.sh
 00fa610ba4394c9cb6fceb8acc1403071ea4a21c917db2c2616661ac5f69ac25  ./docker/scripts/verify-backup.sh
 566be2e461edba2f5d287341f34b36065d23a062c28c70b9b289473fa0ff42a5  ./docker/scripts/verify-image-supply-chain.sh
-982f9b22afb476457dbc1f546db155a85c7268d6f05f06d89b3b8f618c646858  ./docker/supply-chain.lock.json
+863c8b944a781484844c2f3c7d49e8a4487158a4498515269cec86640c4ad3ef  ./docker/supply-chain.lock.json
 ed593b0d07260aad2afec058a8da2464860c1e7e1ed7e34f82a4653e894b294d  ./docs/ADAPTIVE_BATCHING.md
 a2b743fcefcc6b467d82e2a6224eabdc02a0feb01f801085535a750cf1603d15  ./docs/ADAPTIVE_SCHEDULER.md
 105b5c63b77887f1a93350ba6cecdbb18512401efa850834ee1036d5703c6c4f  ./docs/AGENT_ACTION_COMPLETION_BASELINE_M150.md
@@ -148,7 +148,7 @@ e6d19918d188511ff82309b58509ff40aa0b231fa9162cd2f9913aad49b8cf5b  ./docs/TESTING
 b6f34a8c01619a9ddecbde9ce72b714d679a6e3e08dc52e9ff81c5af2fa7f848  ./docs/architecture/CONTAINER_ROLES.md
 59d663d5aa7dcfb61cf02d4c13d677b7fac44944fb4c329f1e11a1a046c75c1e  ./docs/architecture/DATA_CATALOG.md
 d43ef8d9ebe22c01489f1fbddb58b2bbdd59cc72d69b815c2a02ca05067ccaa6  ./docs/architecture/EXTENDING.md
-bc64fe86607bffa1bf4ebb3289e8408de402a0d8c90d5ea05bf226c81dd4e150  ./docs/architecture/IMAGE_SUPPLY_CHAIN.md
+badf2e8af1eeadcd781c79e45244fbc85d8a44276f7e0425c2c141a9a5b34e89  ./docs/architecture/IMAGE_SUPPLY_CHAIN.md
 aa99e2075935d7c4c63c7a12e917bc79ac154d1cba3c69fde645498ad79d9294  ./docs/architecture/README.md
 41dca70c71d5a208af36c306c7edcca125830eb1b5a311c59dcf6220c3606e28  ./docs/architecture/RECOVERY_AND_RELEASE.md
 6beb2684350bd1d208f597f319826af56167db4eab7ac51e57de91163ed97b84  ./docs/architecture/TRUST_BOUNDARIES.md
@@ -203,11 +203,11 @@ d1e0e1e4a95062ba4723f028506ef87748f4b2eeedd1fbf9ca3b45168fec45ee  ./docs/archite
 d0c9ac3229078d7fce345b35d7aca528aad926cfab2cc77e410802dd60a4ea53  ./docs/architecture/adr/0048-semantic-search-bleibt-messungsgebunden-deaktiviert.md
 465394d0467a0ee71a03bd1bcc795152854ca643653b608d6aa0cae309b9f50c  ./docs/architecture/adr/0049-privilegiengetrennter-tool-executor-prototyp.md
 d0e64ba4dc077bfa1cce4bd1538fa80fc1d6a305725e1a6981158e9557964197  ./docs/architecture/adr/0050-nextcloud-talk-als-privater-mobilkanal.md
-07aebb8dc20afbac8b73c1ff475a0009a657abbf560c0931ecf2ca8c6873a83d  ./docs/architecture/adr/0051-openclaw-einrichtung-und-nextcloud-konto.md
+25ecf5e4b4b0bd9e9b92b49846389a424b797b02b6caa367e3664418d0d5613a  ./docs/architecture/adr/0051-openclaw-einrichtung-und-nextcloud-konto.md
 859e92ef2533fc0bc60ad9736eb068ae807b623356e5a823f5286f874ea2f20a  ./docs/architecture/adr/README.md
 b99c97a76723cd2ece9e00dc9ece17aac47daaa672657252d63cdb234645fcd9  ./docs/architecture/clamd-operating-budget-m14.json
 d27b02d1ed286794ce453b80b4911bcbf476dfb08d005437510e5419f237203c  ./docs/architecture/compatibility-policy.json
-ae3070d1f1e8b59e36c9c27fb1d3cc5648700a8dd0929fa8502fc8eaf670bb52  ./docs/architecture/component-inventory.json
+df4d45f17ac3f3363ed03bc71d1992519adf25e135c64de415bec0710f81dbc7  ./docs/architecture/component-inventory.json
 1f707ea0d3c63cf76a35d64fd62988a6f59c1c5e73fe7a09fe62fdb7901a919c  ./docs/architecture/image-baseline-m7.json
 b397cdaa70d5dbcd4bfd22ed503433570b67bb978059bd5916e8793d173807c3  ./docs/architecture/legacy-decisions.json
 08e9adaf4971a11f91b043fb89f899bb730ca702dc3c5e7bdaf6f1710045755c  ./docs/architecture/m16-baseline.json
@@ -478,7 +478,7 @@ c3a128ab2a54a8d185fce1fee341100642bfaaf13b59241daea62c9811fffeb7  ./scripts/benc
 ee2ef8fb77a7eb309d815ac6b845c296f83bfb75af5faca53faaf68846cc7a7d  ./scripts/check-container-hardening.sh
 0ab486f412e163c442bdd8b82bd52215a13cb2246ab1c13c407df92dba780317  ./scripts/check-container-runtime.sh
 b0d5819f4c140debd5d118f039edabac5b5df9ef9d094299ecf2481a83286296  ./scripts/check-docs.py
-d0b6febd3421769e03a9207eda1cc6ac6d346a8470adb8006a64de859ec3e3b3  ./scripts/check-image-supply-chain.sh
+ff785228cfd3bbbcb79cbf08f16daced3e119352457bc81f01f1e1ccef7d9d6a  ./scripts/check-image-supply-chain.sh
 cbb83b2f1dc6001ed743b775dad292038d5f1b62a81bbd5530daef40125855a1  ./scripts/check-local-signature.sh
 0ab08629b852387ef6f1610a69f0f2b2beadd9e978162217a59eb83a0c4da646  ./scripts/check-m11-integration.sh
 401d9ad81f723fd42d7f19b0bfac6f5629676dc6d8a8bd1c6566bfcf89fa0742  ./scripts/check-m12-integration.sh
@@ -487,7 +487,7 @@ b9bf21cb78c40d5919a11e9a1db5de822e5da7116d46a12edc6a4b3c40756496  ./scripts/chec
 7970ff3469008b941098814ab354b77a65d85b569cf830910872b307f3906c45  ./scripts/check-m15-integration.sh
 715ff950464d323cf05f4a0b7cac9d5fd4e116966eed818e14f56f75cadf3631  ./scripts/check-m8-integration.sh
 123e6644ccdc32dad0bcf72dc74fb5c9b70780366791445267115ce18b1ca3b0  ./scripts/check-mypy.py
-71a308cefd1ee550c6a74f3a2a61740315ba34630eee6a5add7d42e0e484de6f  ./scripts/check-nextcloud-setup-browser.py
+400b6f21a3959162cd3f6388d2b9f7e3409692abbb43b0e35ef8c8548699b487  ./scripts/check-nextcloud-setup-browser.py
 b4236e04d8eb02e277e353e6f261c89b0811ac3f41c8879f856240d3a5ce38c3  ./scripts/check-repo.sh
 1cdce82d23edb4ea231a713ac7cee6bdee8fafb5a5631af8102b50383bc3bf73  ./scripts/check-reproducible-images.sh
 fc3f18b6fedfda9b23f9fc2a500dbfa4c07c5ff758c53b774e98ad0c7c3cd5be  ./scripts/check-risk-coverage.py
@@ -503,7 +503,7 @@ c4a1ea42a1e27a49d7ea984cc24de3f37978265b64617ad6ca560f4a19032059  ./scripts/gene
 aa7339fdbb3bf4faaba4924e51d3095046801c57129c23818376e26939cf7b5f  ./scripts/generate-component-inventory.py
 9561218583119df789bfe919f8d64228c02ef624d70e3ea0eadaad8aeae15843  ./scripts/generate-skill-tool-contract.py
 5f44e2e44447121d8cc191bbc9d68433279a039b3af7d71e222fc2b60088b576  ./scripts/invoice_ocr_fixture.py
-15302c7bcd2d4201299195551d6fb2deaa0ce1f1752e074d57a4a47ad1996686  ./scripts/m7_supply_chain.py
+fb742f4b949a0a7de884a79328d43a7efc6ddb0809295a47fb0a01f164a4122c  ./scripts/m7_supply_chain.py
 44fc0ebc95e94416de0b517e1ffb0393299a523d7f07204bd09a66d2786d89c5  ./scripts/m8-recovery-drill.py
 a818267b414d12dc453f568e5c1827b43815c9a53980a794020cc7d222dde3ea  ./scripts/mail-agent.sh
 2633d6cc8e606c8cd82ab78c96fe3211c38b48021933f71cd94dfc9079b68b7f  ./scripts/ollama-priority-proxy.sh
@@ -593,7 +593,7 @@ e78de295f424b34dffa0dc20332c105d1b7de323319b622f9af43c5c6ace2be8  ./tests/test_c
 692551ac0c8905beceb8fe83ff5c635e671f163c47ab455c9787897da25af302  ./tests/test_container_hardening_m4.py
 34691449ef3d1f296f6684529a5c8f54952984fde2c486d4b29810065836e2fe  ./tests/test_container_migration.py
 1cfe4b6f960e8136ac9433998eeec747f9e795ca425057e339b033743bb3fecd  ./tests/test_container_runtime.py
-062bb4895678f77b7a6fe2755ac3cf80bdd2720002c2f1e7fb49e7c1c91710ff  ./tests/test_control_ui_setup_patch.py
+c4916dd095c6fc7547a1e061db982fd8863609b5eb7146ea01a6149b729df5d9  ./tests/test_control_ui_setup_patch.py
 c294ae9af6573b7b2d9e005e6bde3ae65136d637f8848473b61ef394eeff5ac7  ./tests/test_direct_calendar_tool.py
 7c3487e9fa94909bdf6cbb71b8bc2e7e2d3c3d60fee2e4ac2453e1953ef248a4  ./tests/test_direct_tasks_tool.py
 e18a72ada9f1e32794ebca93de73616df79885a2cff50e79f6678a4da018af16  ./tests/test_domain_quality_m168.py
@@ -623,7 +623,7 @@ f1e1ca38951f790d6c339db964348ad5816a022319e704a7a718556ddaa222cf  ./tests/test_l
 68cda358cfd2437099811730c37ce939992f5c5b93bddd61d1111d7735e36516  ./tests/test_m16_baseline.py
 65a21c82cd00081ddf34b98792ad683e674bbe64887dfaeaace0149c7a4cdf08  ./tests/test_m5_tool_contract.py
 2b05ff33be23e046a5ba83d4c6cfe438c90206895681df36c9e6e034981def01  ./tests/test_m6_legacy_cleanup.py
-0fc977e30eeb0dca895bda916f669dbb3bc7376b09c5d47a871e4649b82beaf5  ./tests/test_m7_supply_chain.py
+02672d0f4c94cd0fa25248ffff9ea91f833209438a248a3f886fcbb03b614eb9  ./tests/test_m7_supply_chain.py
 7c2a3f738302b1afc37a8bb1a28ba88fb94073ebb928b6a4b0b0491e7dba25ff  ./tests/test_m8_recovery.py
 537489103ebca13822213ebbda3e091f632006de52678283075d8bc84fdf1f63  ./tests/test_m8_skill_contract.py
 52106427194dfd1a663f65795df7a9df59e6c0851fc7b7ce1b95331e514687bb  ./tests/test_mail_agent.py

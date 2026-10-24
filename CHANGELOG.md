@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Die Imagefreigabe aktualisiert DOMPurify auf die integritaetsgebundene Version
+  3.4.17 fuer `GHSA-cg2g-xh64-v4q7`: sowohl das Runtimepaket als auch die bisher
+  eingebettete Browserkopie. Der Browser verwendet beim aktualisierten
+  Markdownmodul keine Offlinekopie aus einem aelteren Build. Das bestehende
+  Vulnerability-Gate bleibt unveraendert; fehlgeschlagene Scans zeigen ihren
+  konkreten Befund jetzt auch im CI-Log.
+
 - Die Nextcloud-Einrichtung oeffnet ueber einen nativen Link in der
   OpenClaw-Oberflaeche. Der bisherige Link im Plugin-Iframe wurde durch dessen
   Sandbox blockiert. Ein auf exakte Ein- und Ausgabehashes gebundener Buildpatch

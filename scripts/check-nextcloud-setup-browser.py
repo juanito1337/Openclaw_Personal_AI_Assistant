@@ -31,6 +31,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 BASE = "/plugins/personal-assistant-tools/nextcloud"
 ELEMENT = "element-6066-11e4-a52e-4f735466cecf"
+MARKDOWN_RUNTIME = "markdown-runtime-Y4RdJ3Nc.js"
 
 
 def single_renderer(control_ui: Path) -> Path:
@@ -245,7 +246,9 @@ def fixture_handler(assets: Path, current: dict[str, Path], mode: str, launcher:
     return Handler
 
 
-def check_cache_upgrade(driver: WebDriver, origin: str, current: dict[str, Path], patched: Path):
+def check_cache_upgrade(
+    driver: WebDriver, origin: str, current: dict[str, Path], patched: Path, *, dompurify: bool = False
+):
     original = current["control_ui"]
     before = single_renderer(original)
     after = single_renderer(patched)
@@ -285,9 +288,38 @@ def check_cache_upgrade(driver: WebDriver, origin: str, current: dict[str, Path]
     """.replace("URL", js_url)
     )
     assert initial == {"fetched": old_sha, "cached": old_sha}, initial
+    markdown_url = "/assets/" + MARKDOWN_RUNTIME
+    markdown_old_sha = None
+    markdown_new_sha = None
+    if dompurify:
+        markdown_old_sha = hashlib.sha256((original / "assets" / MARKDOWN_RUNTIME).read_bytes()).hexdigest()
+        markdown_new_sha = hashlib.sha256((patched / "assets" / MARKDOWN_RUNTIME).read_bytes()).hexdigest()
+        assert markdown_old_sha != markdown_new_sha, "DOMPurify runtime fixture bytes must differ"
+        markdown_initial = driver.evaluate_async(
+            hash_function
+            + "const url = "
+            + json.dumps(markdown_url)
+            + ";"
+            + """
+            const fetched = await sha(await fetch(url));
+            const deadline = performance.now() + 5000;
+            let cached;
+            while (!(cached = await caches.match(url))) {
+              if (performance.now() > deadline) throw Error('Original markdown runtime was not cached');
+              await delay();
+            }
+            return {fetched, cached: await sha(cached)};
+            """
+        )
+        assert markdown_initial == {"fetched": markdown_old_sha, "cached": markdown_old_sha}, markdown_initial
     current.update(control_ui=patched, plugin_page=after)
     stale = driver.evaluate_async(hash_function + f"return await sha(await fetch({js_url}));")
     assert stale == old_sha, "Negative control: old active SW must still return its old cached renderer"
+    if dompurify:
+        markdown_stale = driver.evaluate_async(
+            hash_function + f"return await sha(await fetch({json.dumps(markdown_url)}));"
+        )
+        assert markdown_stale == markdown_old_sha, "Old SW must reproduce the stale vulnerable markdown chunk"
     updated = driver.evaluate_async(
         hash_function
         + """
@@ -304,12 +336,125 @@ def check_cache_upgrade(driver: WebDriver, origin: str, current: dict[str, Path]
     """.replace("URL", js_url)
     )
     assert updated == {"fetched": new_sha, "state": "activated"}, updated
-    return {
+    result = {
         "original_cached_sha256": old_sha,
         "pre_update_stale_sha256": stale,
         "after_update_fetched_sha256": updated["fetched"],
         "patched_sw_activated": True,
     }
+    if dompurify:
+        markdown_updated = driver.evaluate_async(
+            hash_function + f"return await sha(await fetch({json.dumps(markdown_url)}));"
+        )
+        assert markdown_updated == markdown_new_sha, "Patched SW still serves the vulnerable markdown chunk"
+        result["markdown_runtime"] = {
+            "original_cached_sha256": markdown_old_sha,
+            "pre_update_stale_sha256": markdown_stale,
+            "after_update_fetched_sha256": markdown_updated,
+        }
+    return result
+
+
+def check_dompurify(driver: WebDriver):
+    """Exercise the actual browser sanitizer and consumers, never evaluate a payload.
+
+    Shadow DOM case: https://github.com/cure53/DOMPurify/security/advisories/GHSA-cg2g-xh64-v4q7
+    Inert template fragments are separated by a forbidden object element, which
+    sanitization removes. SAFE_FOR_TEMPLATES must scrub their merged expression.
+    """
+    driver.call("POST", "/timeouts", {"script": 20000})
+    return driver.evaluate_async(r"""
+        const require = (condition, label) => { if (!condition) throw Error(label); };
+        const runtime = await import('/assets/markdown-runtime-Y4RdJ3Nc.js');
+        const purify = runtime.v;
+        require(purify?.version === '3.4.17', `Unexpected DOMPurify version: ${purify?.version}`);
+        require(purify.isSupported === true && typeof purify.sanitize === 'function',
+                'Real browser DOMPurify instance is unavailable');
+
+        function fragment(value) {
+          const template = document.createElement('template');
+          template.innerHTML = value;
+          return template.content;
+        }
+        function safeTree(root) {
+          require(!root.querySelector('script,object,iframe'), 'Forbidden executable element survived');
+          for (const element of root.querySelectorAll('*')) {
+            for (const attribute of element.attributes) {
+              require(!/^on/i.test(attribute.name), 'Executable event attribute survived');
+              if (['href', 'src', 'xlink:href'].includes(attribute.name)) {
+                require(!/^\s*javascript:/i.test(attribute.value), 'Executable URL survived');
+              }
+            }
+          }
+        }
+        const dirty = '<p title="fixture">Hello <strong>safe</strong>' +
+          '<img src="fixture-image" onerror="void 0">' +
+          '<a href="javascript:void 0" onclick="void 0">link</a>' +
+          '<script>void 0</script></p>';
+        const clean = fragment(purify.sanitize(dirty));
+        safeTree(clean);
+        require(clean.querySelector('strong')?.textContent === 'safe', 'Safe HTML formatting was lost');
+        require(clean.querySelector('p')?.getAttribute('title') === 'fixture',
+                'Safe HTML attribute was lost');
+
+        const markdown = await import('/assets/markdown-DnCs7f3J.js');
+        require(typeof markdown.a === 'function', 'Actual markdown renderer export is unavailable');
+        const rendered = fragment(markdown.a('**bold**\n\n[safe](https://example.invalid/path)\n\n' +
+          '<img src="fixture-image" onerror="void 0">'));
+        safeTree(rendered);
+        require(rendered.querySelector('strong')?.textContent === 'bold',
+                'Safe Markdown formatting was lost');
+        require(rendered.querySelector('a')?.getAttribute('href') === 'https://example.invalid/path',
+                'Safe Markdown link was lost');
+
+        const dialects = [
+          ['template-literal', ['$', '{fixture}']],
+          ['mustache', ['{', '{fixture}', '}']],
+          ['erb', ['<', '%fixture%', '>']],
+        ];
+        const shadowChecks = [];
+        for (const [dialect, parts] of dialects) {
+          for (const nested of [false, true]) {
+            for (const safe of [false, true]) {
+              const host = document.createElement('div');
+              let shadow = host.attachShadow({mode: 'open'});
+              if (nested) {
+                const nestedHost = document.createElement('div');
+                shadow.append(nestedHost);
+                shadow = nestedHost.attachShadow({mode: 'open'});
+              }
+              const retained = document.createElement('span');
+              retained.textContent = 'retained shadow fixture';
+              shadow.append(retained);
+              parts.forEach((part, index) => {
+                if (index) shadow.append(document.createElement('object'));
+                shadow.append(document.createTextNode(part));
+              });
+              const expression = parts.join('');
+              require(shadow.querySelector('object') && shadow.textContent.includes(expression),
+                      'Split-shadow regression fixture did not exercise the advisory');
+              const sanitized = purify.sanitize(host, {IN_PLACE: true, SAFE_FOR_TEMPLATES: safe});
+              require(sanitized === host && host.shadowRoot, 'In-place shadow DOM mode was not preserved');
+              require(!shadow.querySelector('object'), 'Forbidden shadow separator survived sanitization');
+              require(shadow.querySelector('span')?.textContent === 'retained shadow fixture',
+                      'Benign shadow DOM content was discarded');
+              shadow.normalize();
+              require(shadow.textContent.includes(expression) === !safe,
+                      `Shadow template ${dialect} nested=${nested} safe=${safe} failed`);
+            }
+            shadowChecks.push({dialect, nested, safe_for_templates_scrubbed: true,
+                               unsafe_mode_negative_control_preserved: true});
+          }
+        }
+        await import('/assets/chat-page-k-xExnnV.js');
+        await import('/assets/agents-page-CIVPaqZe.js');
+        require(customElements.get('openclaw-chat-page'), 'Chat consumer did not register');
+        require(customElements.get('openclaw-agents-page'), 'Agents consumer did not register');
+        return {version: purify.version, html_sanitization: true, markdown_sanitization: true,
+                shadow_checks: shadowChecks,
+                consumer_imports: ['markdown-DnCs7f3J.js', 'chat-page-k-xExnnV.js',
+                                   'agents-page-CIVPaqZe.js']};
+    """)
 
 
 def check(driver: WebDriver, origin: str, selector: str, expected: str, timeout: float, sandbox: str):
@@ -416,6 +561,11 @@ def main() -> int:
         help="Warm the original SW cache, update to --control-ui, verify new renderer bytes",
     )
     parser.add_argument("--sandbox-mode", choices=("scripts", "strict", "trusted"), default="scripts")
+    parser.add_argument(
+        "--check-dompurify",
+        action="store_true",
+        help="Test actual DOMPurify 3.4.17, Markdown consumers and ShadowRoot template defense",
+    )
     parser.add_argument("--expect", choices=("opened", "blocked"), default="opened")
     parser.add_argument("--selector", default=f'a[href="{BASE}/setup"][target="_blank"]')
     parser.add_argument("--timeout", type=float, default=3.0)
@@ -495,8 +645,12 @@ def main() -> int:
                 driver.session = created["sessionId"]
                 origin = f"http://127.0.0.1:{server.server_port}"
                 if args.check_cache_upgrade:
-                    cache_result = check_cache_upgrade(driver, origin, current, args.control_ui)
+                    cache_result = check_cache_upgrade(
+                        driver, origin, current, args.control_ui, dompurify=args.check_dompurify
+                    )
                 result = check(driver, origin, args.selector, args.expect, args.timeout, sandbox)
+                if args.check_dompurify:
+                    result["dompurify"] = check_dompurify(driver)
                 if cache_result:
                     result["cache_upgrade"] = cache_result
                 result.update(

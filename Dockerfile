@@ -55,6 +55,7 @@ WORKDIR /overrides
 COPY docker/openclaw-security-overrides/package.json \
      docker/openclaw-security-overrides/package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund \
+    && test "$(node -p 'require("./node_modules/dompurify/package.json").version')" = "3.4.17" \
     && test "$(node -p 'require("./node_modules/proxy-addr/package.json").version')" = "2.0.8" \
     && test "$(node -p 'require("./node_modules/forwarded/package.json").version')" = "0.2.0" \
     && test "$(node -p 'require("./node_modules/ipaddr.js/package.json").version')" = "1.9.1"
@@ -128,7 +129,9 @@ RUN apk add --no-cache \
        freshclam=1.4.3-r0
 
 COPY --from=openclaw-source /app /app
-RUN rm -rf /app/node_modules/proxy-addr /app/node_modules/forwarded
+RUN rm -rf /app/node_modules/proxy-addr /app/node_modules/forwarded /app/node_modules/dompurify
+COPY --from=openclaw-security-override-builder /overrides/node_modules/dompurify \
+     /app/node_modules/dompurify
 COPY --from=openclaw-security-override-builder /overrides/node_modules/proxy-addr \
      /app/node_modules/proxy-addr
 COPY --from=openclaw-security-override-builder /overrides/node_modules/forwarded \
@@ -152,6 +155,7 @@ RUN rm -rf /app/node_modules/@vitest/browser \
     && test "$(node -p 'require("/opt/openclaw-plugins/node_modules/@openclaw/nextcloud-talk/package.json").version')" = "2026.7.1" \
     && test "$(node -p 'require("/opt/openclaw-plugins/node_modules/@openclaw/signal/package.json").version')" = "2026.7.1" \
     && test "$(node -p 'require("/app/node_modules/proxy-addr/package.json").version')" = "2.0.8" \
+    && test "$(node -p 'require("/app/node_modules/dompurify/package.json").version')" = "3.4.17" \
     && test "$(node -p 'require("/app/node_modules/proxy-addr/node_modules/ipaddr.js/package.json").version')" = "1.9.1" \
     && test "$(node -p 'require("/usr/local/lib/node_modules/npm/node_modules/tar/package.json").version')" = "7.5.19" \
     && test "$(openclaw --version)" = "OpenClaw 2026.7.1"
@@ -165,6 +169,7 @@ COPY docker/openclaw-plugins/contract.json /usr/share/openclaw/immutable-plugins
 WORKDIR /opt/openclaw-agent
 RUN python3 -P docker/patch-control-ui-setup.py /app/dist/control-ui \
       --lock /usr/share/openclaw/supply-chain.lock.json \
+      --dompurify-module /app/node_modules/dompurify/dist/purify.es.mjs \
     && printf '%s\n' "${OPENCLAW_SOURCE_REVISION}" > /opt/openclaw-agent/SOURCE_REVISION \
     && chmod 0444 /opt/openclaw-agent/SOURCE_REVISION \
     && chmod 0555 /opt/openclaw-agent/scripts/*.sh /opt/openclaw-agent/docker/*.sh \

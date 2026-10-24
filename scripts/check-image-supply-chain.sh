@@ -41,10 +41,13 @@ docker run --rm \
   --volume "$ROOT/build/trivy-cache:/root/.cache/trivy" \
   "$trivy" image --scanners vuln --format json \
   --skip-version-check --no-progress "$image" > "$output/vulnerabilities.json"
-vulnerability_result=$(
+if ! vulnerability_result=$(
   "$python" scripts/m7_supply_chain.py verify-vulnerabilities \
     --report "$output/vulnerabilities.json"
-)
+); then
+  printf '%s\n' "$vulnerability_result" >&2
+  exit 1
+fi
 critical_count=$(jq -r '.severity_counts.CRITICAL // 0' <<< "$vulnerability_result")
 docker run --rm \
   --volume /var/run/docker.sock:/var/run/docker.sock \

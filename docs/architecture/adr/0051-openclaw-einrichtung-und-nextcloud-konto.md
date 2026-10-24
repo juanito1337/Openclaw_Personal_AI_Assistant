@@ -72,10 +72,11 @@ Renderstelle werden vor der Ersetzung geprueft; ein abweichendes Asset bricht de
 Build ab. Auch die benoetigte Service-Worker-Anpassung ist auf einen festen Pfad
 begrenzt: Nur der geaenderte Pluginrenderer wird zuerst aus dem Netz geladen,
 statt eine vorhandene Cachekopie vorzuziehen. Der bisherige Offlinefallback und
-die Cachebehandlung aller anderen Assets bleiben erhalten. Die Ausnahme wird
+die Cachebehandlung der uebrigen Assets bleiben abgesehen vom separaten
+DOMPurify-Sicherheitsupdate erhalten. Die Ausnahme wird
 relativ zum Service-Worker-Scope bestimmt und funktioniert auch bei einem
 Control-UI-Unterpfad. Der Service Worker erhaelt die eigene Asset-Cache-ID
-`2026.7.1-pa-setup-launch-v1`. Seine vorhandene Aktivierungsnachricht loest nach
+`2026.7.1-pa-setup-launch-v2`. Seine vorhandene Aktivierungsnachricht loest nach
 Uebernahme der Browserclients den vorhandenen Reloadpfad des Cores aus. Eine
 erneute Registrierung identischer Workerbytes aktiviert ihn nicht erneut;
 dadurch entsteht kein Reload bei jedem Seitenaufruf. Diese Cache-ID aendert
@@ -85,6 +86,12 @@ Eingangs- und Ergebnis-Hashes beider Assets gehoeren zum versionierten Image-
 und Supply-Chain-Vertrag. Bei einem kuenftigen Corewechsel wird der Patch erneut
 geprueft und nach Moeglichkeit durch eine unterstuetzte Upstream-Schnittstelle
 ersetzt.
+
+Die Imagefreigabe umfasst ausserdem den unabhaengig entdeckten kritischen
+DOMPurify-Befund. Das integritaetsgebundene Runtimepaket und die eingebettete
+Browserfactory werden auf 3.4.17 gebracht. Die Markdown-Cacheausnahme darf
+offline keine Kopie aus einem vorherigen Build liefern. Einzelheiten und
+Pruefpflichten stehen im [Image-Lieferkettenvertrag](../IMAGE_SUPPLY_CHAIN.md).
 
 Nextcloud Login Flow v2 verbindet die vom Operator eingegebene HTTPS-Basisadresse
 mit einer ausdruecklichen Anmeldung und Freigabe im Nextcloud-Browserfenster.

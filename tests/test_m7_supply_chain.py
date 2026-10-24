@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts/m7_supply_chain.py"
@@ -33,7 +34,7 @@ class M7SupplyChainTests(unittest.TestCase):
         self.assertTrue(report["ok"])
         self.assertGreaterEqual(report["base_images"], 2)
         self.assertGreaterEqual(report["runtime_package_pins"], 1)
-        self.assertEqual(report["runtime_security_overrides"], 1)
+        self.assertEqual(report["runtime_security_overrides"], 2)
         self.assertEqual(report["immutable_openclaw_plugins"], 3)
         self.assertGreaterEqual(report["github_actions"], 8)
 
@@ -53,7 +54,7 @@ class M7SupplyChainTests(unittest.TestCase):
         compose = (ROOT / "compose.yaml").read_text(encoding="utf-8")
         self.assertIn('OPENCLAW_NIX_MODE: "1"', compose)
 
-    def test_runtime_security_override_is_exactly_locked(self) -> None:
+    def test_runtime_security_overrides_are_exactly_locked(self) -> None:
         lock = self.module.load_lock()["runtime_security_overrides"]
         package_lock_path = ROOT / "docker/openclaw-security-overrides/package-lock.json"
         self.assertEqual(self.module.sha256_file(package_lock_path), lock["package_lock_sha256"])
@@ -62,10 +63,67 @@ class M7SupplyChainTests(unittest.TestCase):
         self.assertEqual(proxy_addr["version"], "2.0.8")
         self.assertEqual(proxy_addr["integrity"], lock["packages"]["proxy-addr"]["integrity"])
         self.assertEqual(lock["packages"]["proxy-addr"]["reason"], "CVE-2026-90711")
+        dompurify = package_lock["packages"]["node_modules/dompurify"]
+        self.assertEqual(dompurify["version"], "3.4.17")
+        self.assertEqual(dompurify["integrity"], lock["packages"]["dompurify"]["integrity"])
+        self.assertEqual(lock["packages"]["dompurify"]["reason"], "GHSA-cg2g-xh64-v4q7")
+        self.assertEqual(
+            lock["packages"]["dompurify"]["shasum"], "074bbb24eaa419535ac19ffe7f663104b0e1543d"
+        )
+        self.assertEqual(
+            dompurify["integrity"],
+            "sha512-B/pSlYVHQ58kqISD/yDjuJ1yfzI34m1gF4lAod2bwSRhiN4K5Cl3H8Af7hqB2PmTL911tdEudnnXn5FnhRoz0w==",
+        )
+        self.assertEqual(
+            package_lock["packages"][""]["dependencies"],
+            {"dompurify": "3.4.17", "proxy-addr": "2.0.8"},
+        )
 
         dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
         self.assertIn("FROM ${NODE_BASE_IMAGE} AS openclaw-security-override-builder", dockerfile)
         self.assertIn("/app/node_modules/proxy-addr/package.json", dockerfile)
+        self.assertIn("/app/node_modules/dompurify/package.json", dockerfile)
+        self.assertIn(
+            "COPY --from=openclaw-security-override-builder /overrides/node_modules/dompurify",
+            dockerfile,
+        )
+
+    def test_runtime_security_override_version_and_integrity_drift_fail_closed(self) -> None:
+        package_lock_path = ROOT / "docker/openclaw-security-overrides/package-lock.json"
+        original_load = self.module.load_json
+        for name in ("proxy-addr", "dompurify"):
+            for field in ("version", "integrity"):
+                with self.subTest(package=name, field=field):
+                    def changed_metadata(path: Path, package: str = name, key: str = field) -> dict:
+                        payload = original_load(path)
+                        if path == package_lock_path:
+                            payload["packages"][f"node_modules/{package}"][key] = "untrusted"
+                        return payload
+
+                    with (
+                        mock.patch.object(self.module, "load_json", side_effect=changed_metadata),
+                        self.assertRaisesRegex(
+                            self.module.ContractError,
+                            f"runtime security override {field} mismatch: {name}",
+                        ),
+                    ):
+                        self.module.verify_lock(ROOT)
+
+    def test_runtime_security_override_lock_digest_drift_fails_closed(self) -> None:
+        package_lock_path = ROOT / "docker/openclaw-security-overrides/package-lock.json"
+        original_digest = self.module.sha256_file
+        with (
+            mock.patch.object(
+                self.module,
+                "sha256_file",
+                side_effect=lambda path: "0" * 64 if path == package_lock_path else original_digest(path),
+            ),
+            self.assertRaisesRegex(
+                self.module.ContractError,
+                "runtime security override package-lock does not match the supply-chain lock",
+            ),
+        ):
+            self.module.verify_lock(ROOT)
 
     def test_private_repository_uses_registry_native_attestations(self) -> None:
         workflow = (ROOT / ".github/workflows/container.yml").read_text(encoding="utf-8")

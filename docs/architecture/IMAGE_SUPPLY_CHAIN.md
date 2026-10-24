@@ -80,8 +80,10 @@ nicht betroffen. Der Patch ist Bestandteil des versionierten Quellstands und
 des daraus signierten Images; er wird nicht im laufenden Container angewendet.
 Die Implementierung liegt in
 [`docker/patch-control-ui-setup.py`](../../docker/patch-control-ui-setup.py).
-Ihre einzigen Zieldateien sind `assets/plugin-page-okkFqbN_.js` und `sw.js`
-unter dem unveraenderlichen Control-UI-Verzeichnis des Images.
+Ihre Zieldateien sind `assets/plugin-page-okkFqbN_.js`, `sw.js` und
+`assets/markdown-runtime-Y4RdJ3Nc.js` unter dem unveraenderlichen
+Control-UI-Verzeichnis des Images. Dazu kommt das neue Vendorasset
+`assets/dompurify-3.4.17.js`.
 
 Die Anpassung rendert nur fuer die exakte Kombination aus
 `personal-assistant-tools`, `personal-assistant-nextcloud` und
@@ -91,7 +93,7 @@ ist ausschliesslich `/plugins/personal-assistant-tools/nextcloud/setup` mit
 behalten den bisherigen Sandbox-Iframe. Die Anmeldung, Gateway-RPC-Scopes,
 Browsergeraetesignaturen und CSP werden nicht veraendert.
 
-Der Lockfile-Abschnitt `control_ui_setup_patch` erfasst fuer beide angepassten
+Der Lockfile-Abschnitt `control_ui_setup_patch` erfasst fuer alle angepassten
 oeffentlichen Assets den exakten Eingangs- und Ergebnis-SHA-256. Vor irgendeiner
 Ersetzung werden alle Eingangshashes und die erwarteten einmaligen
 Ersetzungsstellen geprueft. Eine
@@ -105,17 +107,36 @@ ein HTTP-Header `Cache-Control: no-cache` allein aktualisiert daher keinen berei
 gecachten Renderer. Der zweite eng gebundene Patch nimmt nur den festen
 Rendererpfad, relativ zum Service-Worker-Scope, von diesem Zweig aus. Fuer ihn
 gilt der vorhandene Netzwerk-zuerst-Zweig mit Cacheaktualisierung und
-Offlinefallback. Alle anderen Assets behalten ihre bisherige Cachebehandlung.
+Offlinefallback. Die gesonderte Ausnahme fuer das Markdownmodul steht unten;
+alle weiteren Assets behalten ihre bisherige Cachebehandlung.
 Ein Offlinefallback kann weiterhin den alten Renderer enthalten und beweist
 keine erfolgreiche Aktualisierung.
 
 Die ebenfalls hashgebundene Service-Worker-Aenderung setzt die Asset-Cache-ID
-auf `2026.7.1-pa-setup-launch-v1`. Dadurch aktiviert die vorhandene
+auf `2026.7.1-pa-setup-launch-v2`. Dadurch aktiviert die vorhandene
 `sw-updated`-Nachricht den bestehenden Reloadpfad des Cores, sobald der neue
 Worker die Browserclients uebernommen hat. Identische Workerbytes loesen bei der
 anschliessenden Registrierung keine weitere Aktivierung aus. Der Marker ist
 keine Aenderung des Produktreleases oder der Upstream-Coreversion; er braucht
 bei einer spaeteren inhaltlichen Aenderung des Patches eine neue Identitaet.
+
+Der kritische Scanbefund
+[`GHSA-cg2g-xh64-v4q7`](https://github.com/advisories/GHSA-cg2g-xh64-v4q7)
+erfordert zusaetzlich DOMPurify 3.4.17. Das bestehende Security-Override-Lock
+sperrt dessen npm-Tarball und installiert ihn beim Imagebau. Ein Update nur
+unter `node_modules` genuegt nicht: Die alte Factory ist auch im Markdownbundle
+eingebettet. Der hashgebundene Patch entfernt diese Factory vollstaendig und
+bindet ihren bisherigen Export an das offizielle ES-Modul aus dem verifizierten
+Paket. Prefixhelper, uebrige Bibliotheken und Exports bleiben erhalten. Auch die
+kopierten Vendorbytes haben einen eigenen SHA-256 im Lock; fehlende oder
+abweichende Bytes stoppen den Build vor der ersten Ersetzung.
+
+Das Markdownbundle behaelt seinen Upstreamdateinamen. Es erhaelt deshalb einen
+eigenen Netzwerk-zuerst-Zweig, dessen Offlinefallback ausschliesslich den
+aktuellen Buildcache liest. Eine verletzliche Kopie aus einem vorherigen Cache
+wird auch offline nicht wiederverwendet. Die Browserabnahme umfasst die drei
+Konsumenten, normale HTML-/Markdownbereinigung und den harmlosen
+Shadow-Root-Regressionsfall des Advisories.
 
 Zur Freigabe gehoeren Hash-/Syntaxpruefungen, die Ablehnung abweichender Inputs,
 eine echte Browserabnahme des Hostlinks und unveraenderte Sandboxfaelle fuer
