@@ -270,6 +270,17 @@ def verify_lock(root: Path = ROOT) -> dict[str, Any]:
         errors.append("runtime image does not install integrity-locked security overrides")
     if "COPY docker/openclaw-plugins/contract.json" not in dockerfile:
         errors.append("runtime image does not contain the immutable plugin contract")
+    ui_patch = lock.get("control_ui_setup_patch", {}).get("files", {})
+    if set(ui_patch) != {"assets/plugin-page-okkFqbN_.js", "sw.js"}:
+        errors.append("Control UI setup patch file set is not pinned")
+    for name, hashes in ui_patch.items():
+        for key in ("upstream_sha256", "patched_sha256"):
+            if not re.fullmatch(r"[0-9a-f]{64}", str(hashes.get(key, ""))):
+                errors.append(f"Control UI setup patch hash missing: {name}.{key}")
+        if hashes.get("upstream_sha256") == hashes.get("patched_sha256"):
+            errors.append(f"Control UI setup patch must change the pinned asset: {name}")
+    if "python3 -P docker/patch-control-ui-setup.py /app/dist/control-ui" not in dockerfile:
+        errors.append("runtime image does not apply the integrity-locked Control UI setup patch")
     dockerignore = (root / ".dockerignore").read_text(encoding="utf-8").splitlines()
     if "!docker/openclaw-plugins/package-lock.json" not in dockerignore:
         errors.append("immutable OpenClaw plugin lock is excluded from the Docker context")
@@ -287,6 +298,7 @@ def verify_lock(root: Path = ROOT) -> dict[str, Any]:
         "base_images": len(lock["base_images"]),
         "runtime_package_pins": len(runtime_package_pins),
         "runtime_security_overrides": len(security_overrides.get("packages", {})),
+        "control_ui_setup_patch_files": len(ui_patch),
         "scanner_images": len(lock["scanner_images"]),
         "immutable_openclaw_plugins": len(plugin_lock.get("packages", {})),
         "github_actions": len(actions),

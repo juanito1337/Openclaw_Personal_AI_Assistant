@@ -14,17 +14,26 @@ gesonderter Betriebsauftrag; siehe [Docker-Deployment](DOCKER_DEPLOYMENT.md).
 ## Einrichtungsseite oeffnen
 
 1. OpenClaw wie gewohnt im Browser oeffnen und als Administrator anmelden.
-2. In der Erweiterungsoberflaeche **Nextcloud einrichten** oeffnen und dem Link
-   **Einrichtung in OpenClaw oeffnen** folgen.
+2. In der Erweiterungsoberflaeche **Nextcloud einrichten** oeffnen und auf der
+   angezeigten Karte **Einrichtung in OpenClaw oeffnen** anklicken.
 3. Im neuen Tab **Mit OpenClaw verbinden** waehlen. Die Seite verwendet dieselbe
    OpenClaw-Adresse und die vorhandene Browseranmeldung.
 
 Der direkte Pfad auf derselben OpenClaw-Origin ist
 `/plugins/personal-assistant-tools/nextcloud/setup`. Die Erweiterungsseite unter
 `/plugins/personal-assistant-tools/nextcloud` enthaelt den Einstieg.
-Beim gepinnten Core laeuft die angemeldete Einrichtung bewusst in einem eigenen
-Tab: Sein Sandbox-Iframe stellt die benoetigte Browserauthentisierung nicht
-zuverlaessig bereit. Sicherheitsheader werden dafuer nicht abgeschwaecht.
+Die Karte liegt direkt in der OpenClaw-Oberflaeche. Ein Klick oeffnet die
+Einrichtung in einem eigenen Tab unter derselben Adresse. Nach dem Update laedt
+OpenClaw eine bereits geoeffnete Oberflaeche neu, sobald die aktualisierten
+Browserassets aktiviert sind. Wird noch die alte Karte angezeigt, OpenClaw
+online neu laden. Der direkte Pfad bleibt als Alternative verfuegbar.
+
+Der gepinnte Core sperrt neue Tabs aus eingebetteten Pluginseiten. Deshalb
+enthaelt das Runtime-Image eine eng begrenzte Buildanpassung fuer genau diese
+Einstiegskarte; siehe [ADR-0051](architecture/adr/0051-openclaw-einrichtung-und-nextcloud-konto.md).
+Andere Pluginseiten behalten ihre Sandbox. Die Einrichtung selbst verwendet
+die bestehende OpenClaw-Geraeteanmeldung im neuen Tab. Sandbox und
+Sicherheitsheader werden dafuer nicht abgeschwaecht.
 
 Eine oeffentlich ladbare HTML-Seite gewaehrt keinen administrativen Zugriff.
 Kontodaten und Aenderungen gehen ausschliesslich ueber den authentisierten,
@@ -146,6 +155,12 @@ gesperrt, damit er den administrativen Kontrollpfad nicht aufrufen kann.
 Die Entwicklung prueft Anmeldung, Autorisierung, Ressourcenrechte, Unterpfade,
 Kontowechsel, Geheimnisredaktion und Talk-Neustartverhalten hermetisch. Eine
 erfolgreiche Testinstanz belegt keine Anmeldung an deiner produktiven Nextcloud.
+Zur Abnahme des Einstiegs gehoert ein echter Browserklick auf die Hostkarte:
+Er muss den eigenen Tab mit dem festen Einrichtungsziel oeffnen. Eine erfolgreiche
+HTTP-Abfrage der HTML-Seite allein belegt diesen Ablauf nicht. Zusaetzlich muss
+eine unveraenderte fremde Pluginseite weiterhin im bisherigen Sandbox-Iframe
+laufen und ein Browser mit bereits gecachten Core-Assets die korrigierte Karte
+nach dem Update laden koennen.
 Architektur und Speichergrenzen stehen in [ADR-0051](architecture/adr/0051-openclaw-einrichtung-und-nextcloud-konto.md),
 im [Datenkatalog](architecture/DATA_CATALOG.md) und in den
 [Vertrauensgrenzen](architecture/TRUST_BOUNDARIES.md).

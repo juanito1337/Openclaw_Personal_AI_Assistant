@@ -28,6 +28,7 @@ COPY docker/entrypoint.sh docker/healthcheck.sh docker/job_loop.py docker/clamav
      docker/clamd.sh docker/clamav-socket-init.sh \
      docker/himalaya-agent-guard.sh /docker/
 COPY docker/scripts/nextcloud-talk-config.py /docker/
+COPY docker/patch-control-ui-setup.py /docker/
 
 FROM ${OPENCLAW_BASE_IMAGE} AS openclaw-source
 
@@ -162,7 +163,9 @@ COPY --from=agent-source /docker/himalaya-agent-guard.sh /usr/local/bin/himalaya
 COPY docker/supply-chain.lock.json /usr/share/openclaw/supply-chain.lock.json
 COPY docker/openclaw-plugins/contract.json /usr/share/openclaw/immutable-plugins.json
 WORKDIR /opt/openclaw-agent
-RUN printf '%s\n' "${OPENCLAW_SOURCE_REVISION}" > /opt/openclaw-agent/SOURCE_REVISION \
+RUN python3 -P docker/patch-control-ui-setup.py /app/dist/control-ui \
+      --lock /usr/share/openclaw/supply-chain.lock.json \
+    && printf '%s\n' "${OPENCLAW_SOURCE_REVISION}" > /opt/openclaw-agent/SOURCE_REVISION \
     && chmod 0444 /opt/openclaw-agent/SOURCE_REVISION \
     && chmod 0555 /opt/openclaw-agent/scripts/*.sh /opt/openclaw-agent/docker/*.sh \
        /opt/openclaw-agent/docker/nextcloud-talk-config.py \

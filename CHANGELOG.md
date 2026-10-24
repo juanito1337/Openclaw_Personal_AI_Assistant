@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Die Nextcloud-Einrichtung oeffnet ueber einen nativen Link in der
+  OpenClaw-Oberflaeche. Der bisherige Link im Plugin-Iframe wurde durch dessen
+  Sandbox blockiert. Ein auf exakte Ein- und Ausgabehashes gebundener Buildpatch
+  ergaenzt nur diesen Einstieg und seine Browser-Cacheaktualisierung; Sandbox,
+  Anmeldung und administrative Freigaben bleiben unveraendert.
+
 - Entwicklung: OpenClaw erhaelt eine administrative Nextcloud-Einrichtung mit
   URL-first Login Flow v2, kontoweiter Ressourcenerkennung und einem gepairten
   Talk-Kontokanal ohne Botinstallation oder eingehenden Webhook. Mehrere

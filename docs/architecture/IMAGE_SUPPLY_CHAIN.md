@@ -70,6 +70,61 @@ Basisimage-Digests blieben dabei erhalten.
 Es gibt keine pauschale Vulnerability-Ausnahme: jede bekannte kritische
 Schwachstelle, auch ohne Fix, stoppt die Freigabe.
 
+## Begrenzter Control-UI-Buildpatch
+
+[ADR-0051](adr/0051-openclaw-einrichtung-und-nextcloud-konto.md) dokumentiert die
+lokale Anpassung des gepinnten OpenClaw-Control-UI-Renderers fuer den
+Nextcloud-Einstieg. Sie erfolgt ausschliesslich beim Bau des Runtime-Images aus
+dem unveraendert digest-gepinnten Quellimage. Proxy- und Maintenance-Image sind
+nicht betroffen. Der Patch ist Bestandteil des versionierten Quellstands und
+des daraus signierten Images; er wird nicht im laufenden Container angewendet.
+Die Implementierung liegt in
+[`docker/patch-control-ui-setup.py`](../../docker/patch-control-ui-setup.py).
+Ihre einzigen Zieldateien sind `assets/plugin-page-okkFqbN_.js` und `sw.js`
+unter dem unveraenderlichen Control-UI-Verzeichnis des Images.
+
+Die Anpassung rendert nur fuer die exakte Kombination aus
+`personal-assistant-tools`, `personal-assistant-nextcloud` und
+`/plugins/personal-assistant-tools/nextcloud` eine native Host-Linkkarte. Ihr Ziel
+ist ausschliesslich `/plugins/personal-assistant-tools/nextcloud/setup` mit
+`target="_blank"` und `rel="noopener noreferrer"`. Alle anderen Pluginseiten
+behalten den bisherigen Sandbox-Iframe. Die Anmeldung, Gateway-RPC-Scopes,
+Browsergeraetesignaturen und CSP werden nicht veraendert.
+
+Der Lockfile-Abschnitt `control_ui_setup_patch` erfasst fuer beide angepassten
+oeffentlichen Assets den exakten Eingangs- und Ergebnis-SHA-256. Vor irgendeiner
+Ersetzung werden alle Eingangshashes und die erwarteten einmaligen
+Ersetzungsstellen geprueft. Eine
+abweichende Upstreamdatei, fehlende oder mehrfache Stelle sowie ein unerwartetes
+Ergebnis stoppt den Build. Ein kuenftiges Coreupdate braucht deshalb eine
+erneute Pruefung dieses lokalen Patches; ein aehnlich benanntes Asset oder eine
+breitere Textersetzung ist kein zulaessiger Ersatz.
+
+Der Upstream-Service-Worker liefert gehashte Assets zuerst aus seinem Cache;
+ein HTTP-Header `Cache-Control: no-cache` allein aktualisiert daher keinen bereits
+gecachten Renderer. Der zweite eng gebundene Patch nimmt nur den festen
+Rendererpfad, relativ zum Service-Worker-Scope, von diesem Zweig aus. Fuer ihn
+gilt der vorhandene Netzwerk-zuerst-Zweig mit Cacheaktualisierung und
+Offlinefallback. Alle anderen Assets behalten ihre bisherige Cachebehandlung.
+Ein Offlinefallback kann weiterhin den alten Renderer enthalten und beweist
+keine erfolgreiche Aktualisierung.
+
+Die ebenfalls hashgebundene Service-Worker-Aenderung setzt die Asset-Cache-ID
+auf `2026.7.1-pa-setup-launch-v1`. Dadurch aktiviert die vorhandene
+`sw-updated`-Nachricht den bestehenden Reloadpfad des Cores, sobald der neue
+Worker die Browserclients uebernommen hat. Identische Workerbytes loesen bei der
+anschliessenden Registrierung keine weitere Aktivierung aus. Der Marker ist
+keine Aenderung des Produktreleases oder der Upstream-Coreversion; er braucht
+bei einer spaeteren inhaltlichen Aenderung des Patches eine neue Identitaet.
+
+Zur Freigabe gehoeren Hash-/Syntaxpruefungen, die Ablehnung abweichender Inputs,
+eine echte Browserabnahme des Hostlinks und unveraenderte Sandboxfaelle fuer
+andere Descriptors. Die Browserabnahme prueft den neuen Tab ohne Opener, den
+gleichurspruenglichen Browserspeicher sowie die Aktualisierung bei vorhandenem
+altem Assetcache ohne anschliessende Reloadschleife. Diese Anforderungen ersetzen
+weder die normale Rollenimage-Abnahme noch Signatur-, Provenance-, SBOM- oder
+Secretpruefung.
+
 ## Freigabeevidenz
 
 Der normale CI-Containerjob baut und prueft alle drei Rollen lokal. Der

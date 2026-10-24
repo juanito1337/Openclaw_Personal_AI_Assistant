@@ -60,6 +60,8 @@ docker run --rm --network none --entrypoint /bin/sh "$runtime" -c '
   test ! -w /opt/openclaw-plugins/personal-assistant-tools
   node --check /opt/openclaw-plugins/personal-assistant-tools/runtime.js
   node --check /opt/openclaw-plugins/personal-assistant-tools/index.js
+  python3 -P /opt/openclaw-agent/docker/patch-control-ui-setup.py /app/dist/control-ui \
+    --lock /usr/share/openclaw/supply-chain.lock.json --check
   python3 -P -c "from mail_agent.nextcloud import NextcloudSkillClient; assert NextcloudSkillClient"
   test -s /opt/openclaw-agent/personal_assistant/connectors/nextcloud/client.py
   test -s /opt/openclaw-agent/personal_assistant/connectors/nextcloud/calendar.py

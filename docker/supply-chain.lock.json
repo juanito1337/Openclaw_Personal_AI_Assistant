@@ -23,6 +23,19 @@
       }
     }
   },
+  "control_ui_setup_patch": {
+    "description": "Pinned first-party setup link in the host UI; unchanged iframe sandbox and authentication. Renderer uses network-first SW caching.",
+    "files": {
+      "assets/plugin-page-okkFqbN_.js": {
+        "upstream_sha256": "cbe0ee964b24ab50d5a43221635c96b429b73b3279e826e23840c5a02e6b9675",
+        "patched_sha256": "ad1cbd34bd5fa12e47b17df2fd91b1e58fbff270181eca3848b0843d2b86f919"
+      },
+      "sw.js": {
+        "upstream_sha256": "4558305c64f7b72c127a10caf3aeeebec57f825dbe8d65de7fa920982abe3174",
+        "patched_sha256": "b3eb91ac8dbdb5a043d6b5a667f2a4d9328030e53c8427352ca7a4ee7fd6a378"
+      }
+    }
+  },
   "himalaya": {
     "version": "1.2.0",
     "archive_url": "https://github.com/pimalaya/himalaya/releases/download/v1.2.0/himalaya.x86_64-linux.tgz",
