@@ -70,6 +70,46 @@ test("unknown operations, additional fields and unbound parameters never reach t
   } }));
 });
 
+test("app-password RPC is admin-only, closed, bounded and bound to the exact credential proof", async () => {
+  const parameters = { server_url: "https://cloud.example.test/nc", login_name: "assistant@example.test",
+    app_password: "synthetic-app-password-never-in-output" };
+  const calls = [];
+  const api = registration(async value => { calls.push(value); return { state: "ready", flow_id: "c".repeat(32) }; });
+  const request = { operation: "login.credentials", parameters, proof: proof("login.credentials", parameters) };
+  assert.deepEqual((await dispatch(api, client(), request)).slice(0, 2), [true, { state: "ready", flow_id: "c".repeat(32) }]);
+  assert.deepEqual(calls[0].parameters, parameters);
+  assert.equal(calls[0].actor, `device:${DEVICE}`);
+  for (const invalid of [
+    { ...parameters, app_password: "" }, { ...parameters, app_password: "x".repeat(4097) },
+    { ...parameters, app_password: "bad\npassword" }, { ...parameters, app_password: "bad\x7fpassword" },
+    { ...parameters, login_name: "x".repeat(513) }, { ...parameters, login_name: "bad:user" },
+    { ...parameters, login_name: "" }, { ...parameters, server_url: "http://cloud.example.test" },
+    { ...parameters, authorization: "allow" }, { server_url: parameters.server_url, login_name: parameters.login_name },
+  ]) {
+    const response = await dispatch(api, client(), { operation: "login.credentials", parameters: invalid,
+      proof: proof("login.credentials", invalid) });
+    assert.equal(response[0], false);
+    assert.equal(response[2].code, "INVALID_REQUEST");
+    assert.ok(!JSON.stringify(response).includes(parameters.app_password));
+  }
+  assert.equal((await dispatch(api, { connect: { ...client().connect, scopes: ["operator.read"] } }, request))[2].code, "FORBIDDEN");
+  assert.equal((await dispatch(api, client(), { ...request, parameters: { ...parameters, app_password: "changed" } }))[2].code, "FORBIDDEN");
+  assert.equal(calls.length, 1);
+  const broken = registration(async () => { throw new Error(parameters.app_password); });
+  const failure = await dispatch(broken, client(), request);
+  assert.equal(failure[2].code, "UNAVAILABLE");
+  assert.ok(!JSON.stringify(failure).includes(parameters.app_password));
+});
+
+test("structured identity failure passes as sanitized data without adding gateway error metadata", async () => {
+  const result = { state: "failed", code: "authentication-failed", diagnostics: {
+    schema_version: 1, user: { status: "failed", loaded: false, code: "authentication-failed" },
+    calendars: { status: "skipped" }, task_lists: { status: "skipped" }, files: { status: "skipped" },
+  } };
+  const api = registration(async () => result);
+  assert.deepEqual(await dispatch(api), [true, result]);
+});
+
 test("static routes serve no state, reject writes and frame only the credential-free launcher", () => {
   const api = registration(() => { throw new Error("must not run"); });
   for (const route of api.routes) {
@@ -160,6 +200,11 @@ test("browser signatures match pinned v2 gateway auth and per-operation proof bi
   assert.throws(() => validateSetupProof(signed, { operation: parsed.operation, parameters: parsed.parameters }, parsed.actor, 100_000));
   const publicKey = createPublicKey({ key: Buffer.concat([Buffer.from("302a300506032b6570032100", "hex"), Buffer.from(identity.publicKey, "base64url")]), format: "der", type: "spki" });
   assert.ok(verify(null, Buffer.from(signed.payload), publicKey, Buffer.from(signed.signature, "base64url")));
+  const parameters = { server_url: "https://cloud.example.test", login_name: "assistant", app_password: "synthetic-app-password" };
+  const credentialProof = await signSetupOperation(identity, "login.credentials", parameters, webcrypto, 1234);
+  assert.ok(verify(null, Buffer.from(credentialProof.payload), publicKey, Buffer.from(credentialProof.signature, "base64url")));
+  assert.doesNotThrow(() => validateSetupProof(credentialProof, { operation: "login.credentials", parameters }, parsed.actor, 1234));
+  assert.throws(() => validateSetupProof(credentialProof, { operation: "login.credentials", parameters: { ...parameters, app_password: "changed" } }, parsed.actor, 1234));
 });
 
 test("browser authenticates before setup RPC, signs every operation and never auto-retries a rejected write", async () => {

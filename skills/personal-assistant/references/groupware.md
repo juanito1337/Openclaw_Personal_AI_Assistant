@@ -9,7 +9,11 @@ resources; every write still selects one exact stable `resource_id`. Never selec
 the first discovered collection or assume a resource from its display name.
 
 Account onboarding, credential changes and Talk pairing belong to that
-administrator-only page, not to agent tools. Never invoke its control socket or
+administrator-only page, not to agent tools. For an agent account the operator
+may enter its login name and app password there; never request these secrets in
+agent chat. Setup diagnostics distinguish verified identity, collection inventory,
+metadata read checks and the one folder level actually opened. A saved check
+with a timestamp is not a new live access test. Never invoke its control socket or
 RPC through a generic tool. The GUI-capable production profile disables generic
 shell/file tools; native domain tools retain their existing approval contracts.
 Legacy `calendar configure`, `tasks configure` and `contacts configure` are

@@ -53,7 +53,7 @@ ROOM_TOKEN = re.compile(r"[A-Za-z0-9_-]{1,128}\Z")
 @dataclass(slots=True)
 class SetupFlow:
     owner: str
-    flow: LoginFlow = field(repr=False)
+    flow: LoginFlow | None = field(repr=False)
     transport: SafeNextcloudTransport = field(repr=False)
     expires_at: float
     credentials: NextcloudCredentials | None = field(default=None, repr=False)
@@ -65,7 +65,52 @@ class SetupFlow:
         self.credentials = None
         self.snapshot = None
         self.preview_digest = ""
-        return self.flow.cancel()
+        return self.flow.cancel() if self.flow else {"state": "cancelled"}
+
+
+def _redact_secret(value: Any, secret: str, *, field_name: str = "") -> Any:
+    """Untrusted display metadata must not reflect an entered app password."""
+    # DAV/account identifiers are locally hashed. Talk IDs instead embed the
+    # upstream room token and must undergo the same redaction as display text.
+    if (
+        field_name == "resource_id"
+        and isinstance(value, str)
+        and re.fullmatch(
+            r"nextcloud-(?:(?:calendar|addressbook|file-root|folder)-[a-f0-9]{12}"
+            r"|account-[a-f0-9]{16}-(?:[a-f0-9]{16}|files))",
+            value,
+        )
+    ):
+        return value
+    # These are locally generated protocol fields, never upstream display text.
+    # Redacting a short password out of a revision or status would break the
+    # confirmation contract or turn a failed check into an unknown state.
+    if field_name in {
+        "state",
+        "status",
+        "code",
+        "revision",
+        "expected_revision",
+        "preview_digest",
+        "flow_id",
+        "checked_at",
+        "last_verified_at",
+        "status_source",
+        "scope",
+        "domain",
+        "permissions",
+        "kind",
+        "account_id",
+        "limitations",
+    }:
+        return value
+    if isinstance(value, str):
+        return value.replace(secret, "[redacted]") if secret else value
+    if isinstance(value, list):
+        return [_redact_secret(item, secret) for item in value]
+    if isinstance(value, dict):
+        return {key: _redact_secret(item, secret, field_name=key) for key, item in value.items()}
+    return value
 
 
 def safe_preview(snapshot: dict[str, Any]) -> dict[str, Any]:
@@ -86,6 +131,9 @@ def safe_preview(snapshot: dict[str, Any]) -> dict[str, Any]:
         "errors",
         "limitations",
         "files_depth",
+        "diagnostics",
+        "checked_at",
+        "results_may_be_truncated",
     )
     return {key: snapshot[key] for key in fields if key in snapshot}
 
@@ -155,7 +203,96 @@ class NextcloudSetupService:
             result["preview"] = safe_preview(connection["discovery_snapshot"])
             result["last_verified_at"] = connection.get("last_verified_at", "")
             result["status_source"] = "last-verified-setup"
+            result = _redact_secret(result, connection["app_password"])
         return result
+
+    def _begin_login(self, actor: str) -> str:
+        # Replacing either entry method invalidates this operator's old token,
+        # credentials and approval digest before any new network operation.
+        for identifier, previous in list(self.flows.items()):
+            if previous.owner == actor:
+                previous.cancel()
+                del self.flows[identifier]
+        if len(self.flows) >= MAX_FLOWS:
+            raise OnboardingError("too-many-login-sessions", "Zu viele laufende Anmeldungen")
+        return str((self.store.read() or {}).get("revision", ""))
+
+    @staticmethod
+    def _failed_login(exc: OnboardingError, secret: str = "") -> dict[str, Any]:
+        # No exception message, upstream body, login name or URL enters this DTO.
+        code = exc.code if re.fullmatch(r"[a-z][a-z0-9-]{0,127}", exc.code) else "setup-unavailable"
+        result: dict[str, Any] = {"state": "failed", "code": code}
+        diagnostics = getattr(exc, "diagnostics", None)
+        if isinstance(diagnostics, dict):
+            result["diagnostics"] = {
+                key: diagnostics[key]
+                for key in ("schema_version", "user", "calendars", "task_lists", "files")
+                if key in diagnostics
+            }
+        return _redact_secret(result, secret)
+
+    def _ready(self, identifier: str, pending: SetupFlow) -> dict[str, Any]:
+        if pending.expires_at <= self.clock():
+            pending.cancel()
+            self.flows.pop(identifier, None)
+            raise OnboardingError("login-session-unavailable", "Anmeldevorgang ist abgelaufen")
+        if pending.snapshot is None or pending.credentials is None:
+            raise OnboardingError("preview-required")
+        uid = pending.snapshot.get("user_id")
+        if not isinstance(uid, str) or not 1 <= len(uid) <= 512 or re.search(r"[\x00-\x1f/\\]", uid):
+            raise OnboardingError("invalid-user-id", "Nextcloud meldet keine eindeutige Benutzer-ID")
+        if pending.snapshot.get("server_url") != pending.credentials.server_url:
+            raise OnboardingError("server-changed", "Nextcloud meldet eine andere Basisadresse")
+        preview = _redact_secret(safe_preview(pending.snapshot), pending.credentials.app_password)
+        pending.preview_digest = hashlib.sha256(json.dumps(preview, sort_keys=True).encode()).hexdigest()
+        return {
+            "state": "ready",
+            "flow_id": identifier,
+            "preview_digest": pending.preview_digest,
+            "expected_revision": pending.expected_revision,
+            "preview": preview,
+        }
+
+    def _credential_login(self, actor: str, parameters: dict[str, Any]) -> dict[str, Any]:
+        revision = self._begin_login(actor)
+        limits = {"server_url": 2048, "login_name": 512, "app_password": 4096}
+        if set(parameters) != set(limits) or any(
+            not isinstance(parameters[key], str)
+            or not 1 <= len(parameters[key]) <= maximum
+            or re.search(r"[\x00-\x1f\x7f]", parameters[key])
+            for key, maximum in limits.items()
+        ):
+            raise OnboardingError("invalid-credentials", "Ungueltige Nextcloud-Anmeldedaten")
+        pending = None
+        try:
+            transport = self.transport_factory(parameters["server_url"], allow_private=True)
+            credentials = NextcloudCredentials(
+                transport.base_url, parameters["login_name"], parameters["app_password"]
+            )
+            credential_headers(credentials)
+            pending = SetupFlow(
+                actor,
+                None,
+                transport,
+                self.clock() + FLOW_LIFETIME,
+                credentials=credentials,
+                expected_revision=revision,
+            )
+            pending.snapshot = self.discovery(transport, credentials)
+            identifier = uuid.uuid4().hex
+            result = self._ready(identifier, pending)
+            self.flows[identifier] = pending
+            return result
+        except OnboardingError as exc:
+            if pending:
+                pending.cancel()
+            return self._failed_login(exc, parameters["app_password"])
+        except Exception:
+            if pending:
+                pending.cancel()
+            raise OnboardingError(
+                "setup-unavailable", "Kontopruefung konnte nicht abgeschlossen werden"
+            ) from None
 
     def dispatch(self, operation: str, parameters: dict[str, Any], *, actor: str) -> dict[str, Any]:
         if not isinstance(actor, str) or not 1 <= len(actor) <= 256 or re.search(r"[\x00-\x1f]", actor):
@@ -169,25 +306,25 @@ class NextcloudSetupService:
             if operation == "status":
                 return self.status()
             if operation == "login.start":
-                for identifier, previous in list(self.flows.items()):
-                    if previous.owner == actor:
-                        previous.cancel()
-                        del self.flows[identifier]
-                if len(self.flows) >= MAX_FLOWS:
-                    raise OnboardingError("too-many-login-sessions", "Zu viele laufende Anmeldungen")
+                revision = self._begin_login(actor)
                 transport = self.transport_factory(parameters.get("server_url", ""), allow_private=True)
                 flow = self.login_factory(transport, clock=self.clock)
-                view = flow.start()
+                try:
+                    view = flow.start()
+                except Exception:
+                    flow.cancel()
+                    raise
                 identifier = uuid.uuid4().hex
-                current = self.store.read()
                 self.flows[identifier] = SetupFlow(
                     actor,
                     flow,
                     transport,
                     self.clock() + FLOW_LIFETIME,
-                    expected_revision=str((current or {}).get("revision", "")),
+                    expected_revision=revision,
                 )
                 return {**view, "flow_id": identifier}
+            if operation == "login.credentials":
+                return self._credential_login(actor, parameters)
             if operation in {"login.poll", "login.cancel", "connection.apply"}:
                 identifier, pending = self._pending(actor, parameters)
                 if operation == "login.cancel":
@@ -197,29 +334,47 @@ class NextcloudSetupService:
                 if operation == "connection.apply":
                     return self._apply(identifier, pending, parameters)
                 if pending.snapshot is None:
-                    view = pending.flow.poll()
-                    if view.get("state") != "connected":
-                        return {**view, "flow_id": identifier}
-                    if pending.credentials is None:
+                    try:
+                        if pending.flow is None:
+                            raise OnboardingError("login-session-unavailable")
+                        view = pending.flow.poll()
+                        if view.get("state") != "connected":
+                            if view.get("state") != "pending":
+                                pending.cancel()
+                                del self.flows[identifier]
+                                return view
+                            return {**view, "flow_id": identifier}
                         pending.credentials = pending.flow.take_credentials()
-                    # A failed discovery may be retried without polling the
-                    # already consumed server token or losing the app password.
-                    pending.snapshot = self.discovery(pending.transport, pending.credentials)
-                    preview = safe_preview(pending.snapshot)
-                    pending.preview_digest = hashlib.sha256(
-                        json.dumps(preview, sort_keys=True).encode()
-                    ).hexdigest()
-                return {
-                    "state": "ready",
-                    "flow_id": identifier,
-                    "preview_digest": pending.preview_digest,
-                    "expected_revision": pending.expected_revision,
-                    "preview": safe_preview(pending.snapshot),
-                }
+                        pending.snapshot = self.discovery(pending.transport, pending.credentials)
+                    except OnboardingError as exc:
+                        result = self._failed_login(
+                            exc, pending.credentials.app_password if pending.credentials else ""
+                        )
+                        pending.cancel()
+                        del self.flows[identifier]
+                        return result
+                    except Exception:
+                        pending.cancel()
+                        del self.flows[identifier]
+                        raise OnboardingError(
+                            "setup-unavailable", "Kontopruefung konnte nicht abgeschlossen werden"
+                        ) from None
+                try:
+                    return self._ready(identifier, pending)
+                except OnboardingError as exc:
+                    result = self._failed_login(
+                        exc, pending.credentials.app_password if pending.credentials else ""
+                    )
+                    pending.cancel()
+                    self.flows.pop(identifier, None)
+                    return result
             if operation == "connection.refresh":
                 current = self._connection()
                 revision = self._revision(parameters, current)
-                snapshot = self.discovery(self._transport(current), self._credentials(current))
+                try:
+                    snapshot = self.discovery(self._transport(current), self._credentials(current))
+                except OnboardingError as exc:
+                    return self._failed_login(exc, current["app_password"])
                 updated = {
                     **current,
                     "discovery_snapshot": snapshot,
@@ -229,12 +384,15 @@ class NextcloudSetupService:
                 return self.status()
             if operation == "folders.list":
                 current = self._connection()
-                return discover_folders(
+                folders = discover_folders(
                     self._transport(current), self._credentials(current), parameters.get("path", "")
                 )
+                return _redact_secret(folders, current["app_password"])
             if operation == "talk.participants":
                 current = self._connection()
-                return self._participants(current, parameters.get("room_token", ""))
+                return _redact_secret(
+                    self._participants(current, parameters.get("room_token", "")), current["app_password"]
+                )
             if operation == "talk.configure":
                 return self._configure_talk(parameters)
             raise OnboardingError("unknown-operation", "Unbekannte Einrichtungsoperation")
@@ -262,9 +420,13 @@ class NextcloudSetupService:
             "last_verified_at": datetime.now(UTC).isoformat(),
             "talk": {"enabled": False, "room_tokens": [], "allowed_user_ids": []},
         }
-        self.store.save(value, expected_revision=pending.expected_revision)
-        pending.cancel()
-        del self.flows[identifier]
+        try:
+            self.store.save(value, expected_revision=pending.expected_revision)
+        finally:
+            # An uncertain/conflicted publication is terminal. Status/read-back
+            # must establish the result before another explicit setup attempt.
+            pending.cancel()
+            del self.flows[identifier]
         return self.status()
 
     def _participants(self, current: dict[str, Any], room_token: str) -> dict[str, Any]:
@@ -385,6 +547,15 @@ class SetupServer(socketserver.ThreadingMixIn, socketserver.UnixStreamServer):
             super().process_request_thread(request, client_address)
         finally:
             self.slots.release()
+
+    def service_actions(self) -> None:
+        # Expired app passwords must also clear when the browser closes and no
+        # later RPC arrives. Do not block the accept loop during discovery.
+        if self.service.lock.acquire(blocking=False):
+            try:
+                self.service._prune()
+            finally:
+                self.service.lock.release()
 
 
 class SetupHandler(BaseHTTPRequestHandler):

@@ -31,7 +31,7 @@ bounded result path.
 ## Nextcloud setup and account channel
 
 The [Nextcloud setup page](../../../docs/NEXTCLOUD_SETUP_UI.md) is an OpenClaw
-operator interface. Login Flow v2, account confirmation, resource refresh and
+operator interface. Login Flow v2, direct app-password entry, account confirmation, resource refresh and
 Talk room/sender pairing are administrative operations, never agent tools. The
 setup service alone writes its fixed connection store; gateway and workers mount
 the store read-only. Do not probe that store, recover credentials from a parent

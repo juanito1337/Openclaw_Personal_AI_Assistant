@@ -71,7 +71,12 @@ setzt keine bereits erfolgten IMAP-/Nextcloud-/CalDAV-/CardDAV-Aenderungen zurue
 Der neue Store `/srv/openclaw/secrets/nextcloud-connection` gehoert ausschliesslich
 dem `setup-service` (UID 1000, Verzeichnis 0700, Credentialdatei 0600). Sein
 atomarer Schema-1-Snapshot enthaelt die bestaetigte Kontobindung, DNS-Adressen,
-Discovery und Talkauswahl. Die ownerverwaltete `operator-nonces.sqlite3` speichert
+Discovery und Talkauswahl. Die Discovery enthaelt zusaetzlich den Pruefzeitpunkt
+und inhaltsfreie Diagnosen fuer Benutzer, Sammlungsvollstaendigkeit und
+Metadaten-Lesezugriff. Diese gespeicherten Ergebnisse sind keine fortlaufenden
+Livebelege. App-Passwort-Eingaben bleiben bis zur ausdruecklichen Bestaetigung
+nur in der befristeten Operatorsitzung im Setupservice und werden weder in
+Browserstorage noch in Diagnoseergebnisse uebernommen. Die ownerverwaltete `operator-nonces.sqlite3` speichert
 Hashes von Geraete-ID/Nonce mit Zeitpunkten zur Replayabwehr ueber Neustarts und
 wird bei Backup und vor Restore gezielt mit SQLite-Quick-Check geprueft.
 Runtimeprozesse lesen den Store nur. Ein leeres

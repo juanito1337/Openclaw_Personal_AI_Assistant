@@ -54,9 +54,30 @@ Administratorrechte blockieren die Bedienung.
 4. Konto, Ressourcen und ermittelte Serverrechte in der Vorschau pruefen.
    Die Kontofreigabe bestaetigen und **Verbindung bestaetigen** waehlen.
 
-Login Flow v2 liefert dem Backend ein App-Passwort. Das normale Nextcloud-Passwort
-wird ausschliesslich auf Nextcloud eingegeben. Polltoken und App-Passwort bleiben
-im Backend und erscheinen weder im Agentenchat noch in der Einstellungsseite.
+Alternativ **Agentenkonto mit App-Passwort anmelden** aufklappen. Dieselbe
+Serveradresse oben wird mit dem Nextcloud-Anmeldenamen und einem eigens fuer
+diesen Assistant erstellten App-Passwort verwendet. Ein eigenes Agentenkonto
+kann so ohne Browserwechsel verbunden werden. Das App-Passwort wird in Nextcloud
+unter **Persoenliche Einstellungen > Sicherheit** erstellt; siehe die
+[Nextcloud-Anmeldedokumentation](https://docs.nextcloud.com/server/stable/developer_manual/client_apis/LoginFlow/index.html).
+Das normale Kontopasswort bleibt auf Nextcloud. Zugangsdaten nicht im Agentenchat
+eingeben: Die Anmeldung ist ausschliesslich in der Administratoroberflaeche
+verfuegbar.
+
+**Anmeldedaten pruefen** leert das Passwortfeld sofort und prueft Benutzer und
+Ressourcen ueber dieselbe abgesicherte HTTPS-Verbindung. Die Eingabe wird weder
+im Browserstorage noch in Antworten oder Diagnosen gespeichert. Bis zur
+bestaetigten Vorschau haelt nur der Einrichtungsdienst die Zugangsdaten
+voruebergehend. Ein Abbruch, eine abgelaufene Vorschau oder eine fehlgeschlagene
+Benutzerpruefung verwirft sie. Eine fehlgeschlagene Anmeldung ersetzt keine
+vorhandene Verbindung; nach der Korrektur ist eine neue Anmeldung erforderlich.
+Ressourcenfehler nach bestaetigter Benutzeridentitaet erscheinen dagegen einzeln
+in der Vorschau.
+
+Login Flow v2 liefert dem Backend ebenfalls ein App-Passwort. Das normale
+Nextcloud-Passwort wird ausschliesslich auf Nextcloud eingegeben. Polltoken und
+zurueckgeliefertes App-Passwort erscheinen weder im Agentenchat noch in den
+Antworten der Einstellungsseite.
 Die Verbindung wird mit Versionswache atomar gespeichert und erneut gelesen.
 Parallele Kontoaenderungen erfordern eine aktuelle Vorschau; sie werden nicht
 ueberschrieben.
@@ -65,6 +86,34 @@ TLS, die freigegebene Origin und ihre DNS-Adressen werden geprueft. Erreichbare
 private LAN-Adressen sind moeglich. Loopback, Link-local, fremde Weiterleitungen
 und ein Wechsel auf ungepruefte DNS-Ziele sind gesperrt. Eine Zertifikatswarnung
 ist kein Anlass, TLS zu deaktivieren.
+
+## Anmeldung und Zugriff pruefen
+
+Die Einrichtung zeigt getrennte Ergebnisse fuer **Benutzer**, **Kalender**,
+**Aufgabenlisten** und **Ordner**, einschliesslich Pruefzeitpunkt. Ein gespeicherter
+Stand ist ausdruecklich als gespeichertes Pruefergebnis gekennzeichnet.
+**Status neu laden** liest diesen Stand; **Ressourcen neu erkennen** fuehrt neue
+Serverabfragen aus.
+
+- **Benutzer:** Nur die erfolgreiche authentisierte Benutzerabfrage bestaetigt
+  Identitaet und Anzeigenamen. Schlaegt sie fehl, bleiben nachfolgende Bereiche
+  ungeprueft und die Verbindung kann nicht gespeichert werden.
+- **Kalender und Aufgabenlisten:** Die Vollstaendigkeit der Sammlungsliste und
+  der einzelne Lesezugriff sind getrennte Ergebnisse. Die Vorschau zeigt die
+  Anzahl gefundener, lesbarer, fehlgeschlagener und noch ungepruefter Sammlungen.
+  Eine eigene DAV-Abfrage prueft die Metadaten jeder geprueften Sammlung.
+  Termin- und Aufgabeninhalte werden dabei nicht geladen. Fehlende oder unklare
+  Rechte werden nicht als Leseerfolg gewertet. Prueflimits bleiben sichtbar;
+  ein abgebrochener oder begrenzter Lauf belegt keine vollstaendige Erreichbarkeit.
+- **Ordner:** Die erste Auflistung prueft den Kontohauptordner und erfasst seine
+  unmittelbaren Unterordner. Sie belegt keinen rekursiven Zugriff auf alle
+  Unterordner. **Ordner durchsuchen** prueft den konkret geoeffneten Pfad und
+  zeigt dessen Serverrechte. Dateiinhalte werden nicht heruntergeladen.
+
+Serverrechte fuer Lesen, Erstellen und Aendern werden pro Ressource getrennt
+von der Lesepruefung angezeigt. Die Diagnose erzeugt keine Probeobjekte und
+veraendert keine Serverrechte. Eine leere, vollstaendig gelesene Sammlungsliste
+ist von einer fehlgeschlagenen oder unvollstaendigen Erkennung unterscheidbar.
 
 ## Ressourcen verwenden
 

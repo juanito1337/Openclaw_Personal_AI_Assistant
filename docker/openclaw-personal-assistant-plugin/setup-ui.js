@@ -11,6 +11,7 @@ export const SETUP_PATH = "/plugins/personal-assistant-tools/nextcloud";
 export const SETUP_OPERATIONS = Object.freeze({
   status: {},
   "login.start": { server_url: "url" },
+  "login.credentials": { server_url: "url", login_name: "login", app_password: "password" },
   "login.poll": { flow_id: "id" },
   "login.cancel": { flow_id: "id" },
   "connection.apply": { flow_id: "id", preview_digest: "digest", expected_revision: "revision", confirm_account_access: "true" },
@@ -33,6 +34,8 @@ const textValue = (value, maximum, empty = false) => typeof value === "string"
   && value.length <= maximum && (empty || value.length > 0) && !/[\x00-\x1f\x7f]/.test(value);
 const checks = {
   url: value => textValue(value, 2048) && /^https:\/\//i.test(value),
+  login: value => textValue(value, 512) && !value.includes(":"),
+  password: value => textValue(value, 4096),
   id: value => typeof value === "string" && /^[a-f0-9]{32}$/.test(value),
   digest: value => typeof value === "string" && /^[a-f0-9]{64}$/.test(value),
   revision: value => textValue(value, 128, true),
@@ -91,6 +94,9 @@ export function setupBackendRequest(payload, options = {}) {
     return Promise.reject(new SetupError("UNAVAILABLE", "Der Einrichtungsdienst ist nicht konfiguriert."));
   }
   const data = JSON.stringify(payload);
+  if (Buffer.byteLength(data) > 64 * 1024) {
+    return Promise.reject(new SetupError("INVALID_REQUEST", "Die Einrichtungsanfrage ist zu groß."));
+  }
   return new Promise((resolve, reject) => {
     let settled = false;
     const finish = (error, result) => {

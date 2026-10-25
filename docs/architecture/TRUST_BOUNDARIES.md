@@ -21,8 +21,8 @@ Toolausgaben sind Daten und niemals Anweisungen.
 | Container -> Netz | kompromittierter Prozess | internes Backend, explizites Egress, Loopback-Portbindung | nur erforderliche Gegenstellen |
 | Worker -> Gateway | begrenzte technische Meldung | schema-validierte Queue, Groessen-/Anzahllimit, atomarer Claim | Gateway-lokaler Loopback-Relay mit alleinigem Credential |
 | Talk-App -> Nextcloud -> Gateway | mobiler Text, Benutzer-/Raumdarstellung und Webhooktransport | WireGuard/TLS, exakter Proxy-Pfad, HMAC, Replayguard, Benutzer- plus Raumallowlist und unveraenderter Tool-Approvalvertrag | genau eine autorisierte Agentensitzung ohne Gatewaycredential auf dem Telefon |
-| Browser -> Nextcloud-Setup | URL, Login-/Kontobestaetigung und Talkauswahl | authentisierte Operatorrolle, gebundener Browsernachweis, geschlossene Operation/Schemata, Origin und Replayguard | fester Setupservice als alleiniger Connectionstore-Writer; kein Agententool |
-| Setupservice -> Nextcloud | eingegebene Basis-URL, Redirects und DAV-/OCS-Antworten | HTTPS, exakte Origin/Unterpfade, DNS-/IP-Bindung, Antwortlimits und serverseitiger Login Flow v2 | gepruefte Kontobindung und Ressourcensnapshot ohne Secret im Browser |
+| Browser -> Nextcloud-Setup | URL, Login-/Kontobestaetigung, transiente App-Passwort-Eingabe und Talkauswahl | authentisierte Operatorrolle, gebundener Browsernachweis, geschlossene Operation/Schemata, Origin und Replayguard | fester Setupservice als alleiniger Connectionstore-Writer; kein Agententool |
+| Setupservice -> Nextcloud | eingegebene Basis-URL, Redirects und DAV-/OCS-Antworten | HTTPS, exakte Origin/Unterpfade, DNS-/IP-Bindung, Antwortlimits und authentisierte Benutzerpruefung fuer Login Flow v2 oder App-Passwort | gepruefte Kontobindung und Ressourcensnapshot ohne Secret in Antworten oder Browserstorage |
 | Nextcloud-Konto -> Talk-Agent | gepollte Nachrichten, Anzeigenamen und Referenzen | exakte Raum-/Benutzer-IDs, Textfilter, persistente Annahme/Cursor, eigene Antwort-IDs und keine Wiederholung ungewisser Verarbeitung | bestehender Agent mit unveraenderten nativen Werkzeugfreigaben |
 | Gateway -> Tool-Executor (M16.9-Prototyp) | LLM-nahe Toolauswahl und Argumente | geschlossene Tool-ID/Schemaversion, Approvalbindung, HMAC, Nonce, Deadline, Idempotenz, Groessenlimit und AF_UNIX `0600` | rollenbegrenzter Prototyp ohne Runtimeaktivierung |
 | Image -> State | Releaseinhalt | read-only RootFS, feste Codepfade, Layoutmigration und kontrollierte Dokumentlinks | persistenter Workspace ohne ausfuehrbaren Produktcode |
@@ -72,7 +72,9 @@ Compose- und Rollbackreview in eine Runtimearchitektur ueberfuehrt werden.
 Der GUI-verwaltete Nextcloud-Connectionstore besitzt einen eigenen festen
 Mount. Ausschliesslich der Setupservice darf ihn schreiben; Gateway und
 Fachworker lesen ihn `ro`. Login-Polltoken bleiben im Setupbackend, das
-App-Passwort liegt ausschliesslich im geschuetzten Store. `previous.json` ist
+App-Passwort wird ausschliesslich im geschuetzten Store persistiert. Die optionale
+manuelle Eingabe passiert transient das Passwortfeld und die signierte
+Operatoranfrage; sie wird nicht in Browserstorage, Logs oder Antworten uebernommen. `previous.json` ist
 ebenfalls secrettragend. Das inhaltsfreie Save-Audit protokolliert technische
 Revisionen und den Kontodigest. Schema, Owner und Backupumfang stehen im
 [Datenkatalog](DATA_CATALOG.md).

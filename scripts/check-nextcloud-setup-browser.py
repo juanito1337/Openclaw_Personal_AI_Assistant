@@ -4,8 +4,10 @@
 Root runs this with an available Firefox/geckodriver. The normal assertion is
 that an actual click opens the real setup document outside the iframe sandbox.
 Use --expect blocked to record the known failure of the original launcher.
-No synthetic click, popup preference override, copied browser profile or auth
-token is used. The sandbox values are read from the extracted pinned core.
+No synthetic click, popup preference override or copied browser profile is used.
+--check-setup-diagnostics adds fresh synthetic operator keys and local mock RPC;
+It never uses a real operator token or a live Nextcloud server. The sandbox values
+are read from the extracted pinned core.
 """
 
 from __future__ import annotations
@@ -543,6 +545,251 @@ def check(driver: WebDriver, origin: str, selector: str, expected: str, timeout:
     return result
 
 
+def check_setup_diagnostics(driver: WebDriver):
+    """Exercise the shipped setup UI against synthetic signed operator RPC only.
+
+    The browser gets fresh test keys and an in-memory WebSocket fixture. No real
+    OpenClaw/Nextcloud endpoint, browser profile or credential store is used.
+    Only redacted assertions/counters leave the browser fixture.
+    """
+    driver.call("POST", "/timeouts", {"implicit": 5000, "pageLoad": 15000, "script": 10000})
+    installed = driver.evaluate_async(r"""
+        const require = (value, message) => { if (!value) throw Error(message); };
+        require(top === self, 'Setup fixture must run outside the iframe');
+        require(document.getElementById('credentials-form'), 'Direct login form is missing');
+        const encode = bytes => btoa(String.fromCharCode(...new Uint8Array(bytes)))
+          .replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
+        const decode = value => Uint8Array.from(atob(value.replaceAll('-', '+').replaceAll('_', '/')),
+          character => character.charCodeAt(0));
+        const keys = await crypto.subtle.generateKey({name: 'Ed25519'}, true, ['sign', 'verify']);
+        const publicKey = await crypto.subtle.exportKey('raw', keys.publicKey);
+        const privateKey = new Uint8Array(await crypto.subtle.exportKey('pkcs8', keys.privateKey));
+        const deviceId = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', publicKey)),
+          byte => byte.toString(16).padStart(2, '0')).join('');
+        localStorage.setItem('openclaw-device-identity-v1', JSON.stringify({version: 1, deviceId,
+          publicKey: encode(publicKey), privateKey: encode(privateKey.slice(-32))}));
+        privateKey.fill(0);
+        const endpoint = new URL(location.origin); endpoint.protocol = 'ws:';
+        localStorage.setItem('openclaw.device.auth.v1:' + endpoint.origin,
+          JSON.stringify({version: 1, deviceId, tokens: {operator: {role: 'operator',
+            token: 'synthetic-browser-operator-token', scopes: ['operator.admin']}}}));
+        const secret = 'synthetic-browser-app-password-only';
+        const collection = (overrides = {}) => ({status: 'ok', inventory_complete: true,
+          discovered: 1, checked: 1, readable: 1, failed: 0, skipped: 0, checks_complete: true,
+          content_checked: false, scope: 'collection-metadata', errors: [], limitations: [], ...overrides});
+        const preview = {user_id: 'agent', display_name: 'Browser Fixture Account',
+          server_url: 'https://cloud.example.test/nextcloud', checked_at: '2026-10-25T12:00:00Z',
+          complete: false, errors: [], limitations: [],
+          diagnostics: {schema_version: 1, user: {status: 'ok', loaded: true, code: ''},
+            calendars: collection({status: 'partial', discovered: 4, checked: 2, readable: 1,
+              failed: 1, skipped: 2, checks_complete: false,
+              errors: [{resource_id: 'calendar-b', code: 'permission-denied'}],
+              limitations: ['read-check-budget-exhausted']}),
+            task_lists: collection({status: 'skipped', discovered: 2, checked: 0, readable: 0,
+              skipped: 2, checks_complete: false}),
+            files: {status: 'ok', inventory_complete: true, scope: 'first-level', depth: 1,
+              root_readable: true, discovered: 2, content_checked: false, recursive: false,
+              errors: [], limitations: []}},
+          calendars: [{name: '<img src=x onerror=alert(1)>', can_read: true,
+            read_check: {status: 'failed', code: 'permission-denied',
+              scope: 'collection-metadata', content_checked: false}}],
+          task_lists: [], addressbooks: [], file_roots: [], folders: [], talk_rooms: []};
+        const oldPreview = {...preview, checked_at: '2026-10-20T09:00:00Z'};
+        let current = {connected: true, revision: 'previous-revision', user_id: 'agent',
+          server_url: preview.server_url, last_verified_at: oldPreview.checked_at,
+          preview: oldPreview, talk: {enabled: false, room_tokens: [], allowed_user_ids: []}};
+        let pendingCredentials = null;
+        const operations = [], sockets = [], failures = [];
+        const storageBefore = JSON.stringify(Object.entries(localStorage).sort());
+        const sessionBefore = JSON.stringify(Object.entries(sessionStorage).sort());
+        class FixtureSocket extends EventTarget {
+          readyState = 1;
+          constructor(url) {
+            super(); require(url === endpoint.href, 'Unexpected synthetic gateway endpoint');
+            sockets.push(this);
+            queueMicrotask(() => this.frame({type: 'event', event: 'connect.challenge',
+              payload: {nonce: 'synthetic-browser-challenge'}}));
+          }
+          frame(value) { this.dispatchEvent(new MessageEvent('message', {data: JSON.stringify(value)})); }
+          reply(request, payload) { this.frame({type: 'res', id: request.id, ok: true, payload}); }
+          send(raw) {
+            this.process(raw).catch(() => {
+              failures.push('synthetic-rpc-contract-failed'); this.close();
+            });
+          }
+          async process(raw) {
+            const request = JSON.parse(raw);
+            if (request.method === 'connect') {
+              require(request.params.auth?.token === 'synthetic-browser-operator-token',
+                'Synthetic operator authentication missing');
+              require(request.params.device?.id === deviceId, 'Synthetic device identity mismatch');
+              this.reply(request, {auth: {scopes: ['operator.admin']}}); return;
+            }
+            require(request.method === 'personal_assistant.setup', 'Non-setup RPC attempted');
+            const {operation, parameters, proof} = request.params;
+            const signed = JSON.parse(proof.payload);
+            require(await crypto.subtle.verify('Ed25519', keys.publicKey, decode(proof.signature),
+              new TextEncoder().encode(proof.payload)), 'Operator signature mismatch');
+            require(signed.operation === operation && signed.actor === 'device:' + deviceId &&
+              JSON.stringify(signed.parameters) === JSON.stringify(parameters), 'Proof binding mismatch');
+            operations.push(operation); // Never retain parameters or proof containing the app password.
+            if (operation === 'status') this.reply(request, current);
+            else if (operation === 'login.credentials') {
+              require(parameters.server_url === preview.server_url &&
+                parameters.login_name === 'agent-login' && parameters.app_password === secret &&
+                Object.keys(parameters).sort().join() === 'app_password,login_name,server_url',
+                'Direct-login parameter contract mismatch');
+              const id = request.id; // Retain only the request ID while the reply is delayed.
+              pendingCredentials = result => this.reply({id}, result);
+            } else if (operation === 'connection.apply') {
+              require(parameters.flow_id === 'a'.repeat(32) &&
+                parameters.preview_digest === 'b'.repeat(64) &&
+                parameters.expected_revision === current.revision &&
+                parameters.confirm_account_access === true, 'Confirmation binding mismatch');
+              current = {...current, revision: 'applied-revision', preview,
+                last_verified_at: preview.checked_at};
+              this.reply(request, current);
+            } else if (operation === 'login.cancel') this.reply(request, {state: 'cancelled'});
+            else throw Error('Unexpected synthetic setup operation');
+          }
+          close() { this.readyState = 3; this.dispatchEvent(new Event('close')); }
+        }
+        window.WebSocket = FixtureSocket;
+        window.setupAcceptance = {
+          summary: () => ({operations: [...operations], failures: [...failures],
+            pending: pendingCredentials !== null,
+            passwordEmpty: document.getElementById('app-password').value === '',
+            secretAbsent: !document.body.textContent.includes(secret) &&
+              !document.documentElement.outerHTML.includes(secret) &&
+              !JSON.stringify(Object.entries(localStorage)).includes(secret) &&
+              !JSON.stringify(Object.entries(sessionStorage)).includes(secret),
+            storageUnchanged: storageBefore === JSON.stringify(Object.entries(localStorage).sort()) &&
+              sessionBefore === JSON.stringify(Object.entries(sessionStorage).sort())}),
+          release: failed => {
+            require(pendingCredentials, 'No synthetic credentials request is pending');
+            const reply = pendingCredentials; pendingCredentials = null;
+            const skipped = collection({status: 'skipped', discovered: 0, checked: 0,
+              readable: 0, inventory_complete: false, checks_complete: false});
+            reply(failed ? {state: 'failed', code: 'authentication-failed', diagnostics: {
+              schema_version: 1, user: {status: 'failed', loaded: false, code: 'authentication-failed'},
+              calendars: skipped, task_lists: skipped,
+              files: {status: 'skipped', root_readable: false, discovered: 0,
+                inventory_complete: false, scope: 'first-level', depth: 1, recursive: false,
+                content_checked: false, errors: [], limitations: []}}} :
+              {state: 'ready', flow_id: 'a'.repeat(32), preview_digest: 'b'.repeat(64),
+                expected_revision: current.revision, preview});
+          },
+          disconnect: () => sockets.at(-1).close(),
+        };
+        return {installed: true, syntheticOnly: true};
+    """)
+    assert installed == {"installed": True, "syntheticOnly": True}
+
+    def wait(script: str, message: str):
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            if driver.evaluate(script):
+                return
+            time.sleep(0.05)
+        raise AssertionError(message)
+
+    def click(selector: str):
+        element = driver.element(selector)
+        driver.call("POST", f"/element/{element[ELEMENT]}/click", {})
+
+    def fill(selector: str, value: str):
+        element = driver.element(selector)
+        driver.call("POST", f"/element/{element[ELEMENT]}/clear", {})
+        driver.call("POST", f"/element/{element[ELEMENT]}/value", {"text": value})
+
+    def summary():
+        value = driver.evaluate("return window.setupAcceptance.summary()")
+        assert not value["failures"], "Synthetic signed operator RPC contract failed"
+        assert value["passwordEmpty"], "App password input was not cleared"
+        assert value["secretAbsent"], "Synthetic app password appeared outside the input"
+        assert value["storageUnchanged"], "Setup changed browser storage"
+        return value
+
+    click("#connect")
+    wait("return !document.getElementById('actions').disabled", "Operator did not connect")
+    historical = driver.evaluate("return document.getElementById('diagnostics').textContent")
+    assert "Gespeichertes Prüfergebnis" in historical and "2026-10-20T09:00:00Z" in historical
+    assert summary()["operations"] == ["status"]
+    click("#credentials-option summary")
+    attributes = driver.evaluate("""
+        const input = document.getElementById('app-password');
+        return {type: input.type, autocomplete: input.autocomplete};
+    """)
+    assert attributes == {"type": "password", "autocomplete": "off"}
+    fill("#server-url", "https://cloud.example.test/nextcloud")
+    fill("#login-name", "agent-login")
+
+    def submit():
+        fill("#app-password", "synthetic-browser-app-password-only")
+        click("#credentials-submit")
+        wait("return window.setupAcceptance.summary().pending", "Direct login RPC was not sent")
+        value = summary()
+        assert driver.evaluate("return document.getElementById('actions').disabled")
+        return value
+
+    before = submit()
+    assert before["operations"] == ["status", "login.credentials"]
+    driver.evaluate("window.setupAcceptance.release(false)")
+    wait("return !document.getElementById('actions').disabled && "
+         "!document.getElementById('apply-panel').hidden", "Direct-login preview did not appear")
+    report = driver.evaluate("return document.getElementById('diagnostics').textContent")
+    for expected in (
+        "Browser Fixture Account (agent) · Benutzer geladen",
+        "4 gefunden · 1 lesbar · 1 fehlgeschlagen · 2 ungeprüft",
+        "2 gefunden · 0 lesbar · 0 fehlgeschlagen · 2 ungeprüft",
+        "read-check-budget-exhausted", "Termin- und Aufgabeninhalte werden dabei nicht geladen",
+        "Auflistung der obersten Ebene vollständig", "Unterordner einzeln",
+        "Dateiinhalte wurden nicht geladen", "2026-10-25T12:00:00Z",
+    ):
+        assert expected in report, f"Missing diagnostic evidence: {expected}"
+    assert driver.evaluate("return document.getElementById('apply').disabled")
+    assert driver.evaluate("return !document.querySelector('#preview img') && "
+                           "document.getElementById('preview').textContent.includes('<img src=x')")
+    assert summary()["operations"] == ["status", "login.credentials"]
+    click("#confirm-access")
+    click("#apply")
+    wait("return !document.getElementById('actions').disabled && "
+         "document.getElementById('diagnostics').textContent.includes('Gespeichertes Prüfergebnis')",
+         "Confirmed connection was not rendered as a saved snapshot")
+    assert summary()["operations"].count("connection.apply") == 1
+
+    submit()
+    driver.evaluate("window.setupAcceptance.release(true)")
+    wait("return !document.getElementById('actions').disabled && "
+         "!document.getElementById('error').hidden", "Failed identity was not reported")
+    failed = driver.evaluate("return document.getElementById('diagnostics').textContent")
+    for label in ("Kalender", "Aufgabenlisten", "Ordner"):
+        assert label + "Noch nicht geprüft" in failed
+    assert "BenutzerPrüfung fehlgeschlagen" in failed and "Benutzer geladen" not in failed
+    assert driver.evaluate("return document.getElementById('apply-panel').hidden")
+    assert summary()["operations"].count("connection.apply") == 1
+
+    submit()
+    driver.evaluate("window.setupAcceptance.release(false)")
+    wait("return !document.getElementById('actions').disabled && "
+         "!document.getElementById('flow-actions').hidden", "Cancel preview did not appear")
+    fill("#app-password", "synthetic-browser-app-password-only")
+    click("#cancel")
+    wait("return !document.getElementById('actions').disabled && "
+         "document.getElementById('apply-panel').hidden", "Cancel did not close preview")
+    assert summary()["operations"].count("login.cancel") == 1
+    fill("#app-password", "synthetic-browser-app-password-only")
+    driver.evaluate("window.setupAcceptance.disconnect()")
+    assert driver.evaluate("return document.getElementById('actions').disabled")
+    final = summary()
+    return {"synthetic_operator_only": True, "signed_setup_calls": len(final["operations"]),
+            "direct_login_attempts": final["operations"].count("login.credentials"),
+            "confirmed_saves": final["operations"].count("connection.apply"),
+            "password_cleared_before_reply": True, "browser_storage_unchanged": True,
+            "identity_failure_skips_domains": True, "partial_read_probes_rendered": True,
+            "saved_snapshot_labelled": True, "cancel_and_disconnect_clear_password": True}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--assets", type=Path, default=ROOT / "docker/openclaw-personal-assistant-plugin")
@@ -566,6 +813,11 @@ def main() -> int:
         action="store_true",
         help="Test actual DOMPurify 3.4.17, Markdown consumers and ShadowRoot template defense",
     )
+    parser.add_argument(
+        "--check-setup-diagnostics",
+        action="store_true",
+        help="Exercise direct login, signed synthetic operator RPC and access diagnostics in the real UI",
+    )
     parser.add_argument("--expect", choices=("opened", "blocked"), default="opened")
     parser.add_argument("--selector", default=f'a[href="{BASE}/setup"][target="_blank"]')
     parser.add_argument("--timeout", type=float, default=3.0)
@@ -577,6 +829,8 @@ def main() -> int:
     plugin_page = args.plugin_page or single_renderer(args.control_ui)
     if args.check_cache_upgrade and (args.plugin_page or args.expect != "opened"):
         parser.error("--check-cache-upgrade requires --expect opened and an unmodified renderer filename")
+    if args.check_setup_diagnostics and args.expect != "opened":
+        parser.error("--check-setup-diagnostics requires --expect opened")
     initial_ui = args.check_cache_upgrade or args.control_ui
     current = {
         "control_ui": initial_ui,
@@ -651,6 +905,8 @@ def main() -> int:
                 result = check(driver, origin, args.selector, args.expect, args.timeout, sandbox)
                 if args.check_dompurify:
                     result["dompurify"] = check_dompurify(driver)
+                if args.check_setup_diagnostics:
+                    result["setup_diagnostics"] = check_setup_diagnostics(driver)
                 if cache_result:
                     result["cache_upgrade"] = cache_result
                 result.update(

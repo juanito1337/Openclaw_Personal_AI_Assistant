@@ -8881,6 +8881,7 @@
         "Dockerfile",
         "docker/openclaw-personal-assistant-plugin/setup-ui-auth.js",
         "docker/openclaw-personal-assistant-plugin/setup-ui.js",
+        "scripts/check-nextcloud-setup-browser.py",
         "scripts/check-role-images.sh",
         "scripts/m7_supply_chain.py"
       ],

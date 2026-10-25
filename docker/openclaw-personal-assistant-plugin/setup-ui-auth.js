@@ -4,7 +4,7 @@
  * Sources: ui/src/lib/nodes/index.ts, ui/src/app/gateway-scope.ts,
  * ui/src/api/gateway.ts and packages/gateway-client/src/device-auth.ts at the pin.
  */
-const OPERATIONS = new Set(["status", "login.start", "login.poll", "login.cancel",
+const OPERATIONS = new Set(["status", "login.start", "login.credentials", "login.poll", "login.cancel",
   "connection.apply", "connection.refresh", "folders.list", "talk.participants", "talk.configure"]);
 
 export function gatewayEndpoint(origin, basePath = "") {

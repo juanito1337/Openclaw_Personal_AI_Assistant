@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Die Nextcloud-Einrichtung zeigt getrennte Pruefergebnisse fuer Benutzer,
+  Kalender, Aufgabenlisten und Ordner: Inventurvollstaendigkeit, tatsaechlicher
+  Metadaten-Lesezugriff, Fehler, Pruefgrenzen und Zeitpunkt bleiben sichtbar.
+  Ein Agentenkonto kann alternativ mit Anmeldename und App-Passwort ueber die
+  geschuetzte Einrichtung verbunden werden. Die explizite Kontobestaetigung,
+  TLS-/Origingrenzen und ausschliessliche Speicherung im Setupowner bleiben
+  erhalten; Zugangsdaten werden nicht dem Agentenchat uebergeben.
+
 - Die Imagefreigabe aktualisiert DOMPurify auf die integritaetsgebundene Version
   3.4.17 fuer `GHSA-cg2g-xh64-v4q7`: sowohl das Runtimepaket als auch die bisher
   eingebettete Browserkopie. Der Browser verwendet beim aktualisierten

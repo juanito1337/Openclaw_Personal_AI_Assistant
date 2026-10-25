@@ -225,25 +225,286 @@ def test_flow_expiry_cancel_and_replacement_clear_pending_credentials(setup_serv
     assert setup_service.store.read() is None
 
 
-def test_failed_discovery_can_retry_without_consuming_credentials_twice(setup_service):
-    calls = []
+def test_failed_discovery_discards_consumed_credentials_and_requires_new_login(setup_service):
+    def failed(transport, credentials):
+        raise OnboardingError("authentication-failed", PASSWORD)
 
-    def flaky(transport, credentials):
-        calls.append(True)
-        if len(calls) == 1:
-            raise OnboardingError("temporary-failure")
-        return discovery(transport, credentials)
-
-    setup_service.discovery = flaky
+    setup_service.discovery = failed
     start = setup_service.dispatch(
         "login.start", {"server_url": "https://cloud.example/nc"}, actor="device-one"
     )
+    pending = setup_service.flows[start["flow_id"]]
+    result = setup_service.dispatch("login.poll", {"flow_id": start["flow_id"]}, actor="device-one")
+    assert result == {"state": "failed", "code": "authentication-failed"}
+    assert pending.credentials is None and pending.snapshot is None
+    assert pending.flow.poll()["state"] == "cancelled"
+    assert not setup_service.flows
     with pytest.raises(OnboardingError):
         setup_service.dispatch("login.poll", {"flow_id": start["flow_id"]}, actor="device-one")
-    result = setup_service.dispatch("login.poll", {"flow_id": start["flow_id"]}, actor="device-one")
-    assert result["state"] == "ready"
-    pending = setup_service.flows[start["flow_id"]]
     assert sum(path.endswith("/login/poll") for _, path in pending.transport.calls) == 1
+
+
+def credential_preview(service, actor="device-one", **changes):
+    return service.dispatch(
+        "login.credentials",
+        {
+            "server_url": "https://cloud.example/nc",
+            "login_name": "assistant@example.invalid",
+            "app_password": PASSWORD,
+            **changes,
+        },
+        actor=actor,
+    )
+
+
+def test_app_password_uses_pinned_transport_and_requires_actor_bound_confirmation(setup_service):
+    seen = []
+
+    def checked(transport, credentials):
+        seen.append((transport, credentials))
+        return discovery(transport, credentials)
+
+    setup_service.discovery = checked
+    preview = credential_preview(setup_service)
+    assert preview["state"] == "ready"
+    assert PASSWORD not in json.dumps(preview)
+    assert setup_service.store.read() is None
+    transport, credentials = seen[0]
+    assert transport.base_url == "https://cloud.example/nc"
+    assert credentials.login_name == "assistant@example.invalid" and credentials.user_id == ""
+    assert transport.calls == []  # Direct credentials never request a login-v2 token.
+    assert setup_service.flows[preview["flow_id"]].flow is None
+    with pytest.raises(OnboardingError):
+        apply(setup_service, preview, actor="another-device")
+    with pytest.raises(OnboardingError):
+        apply(setup_service, {**preview, "preview_digest": "f" * 64})
+    with pytest.raises(ConnectionError):
+        apply(setup_service, {**preview, "expected_revision": "stale"})
+    assert setup_service.store.read() is None
+    status = apply(setup_service, preview)
+    assert status["connected"] and PASSWORD not in json.dumps(status)
+    stored = setup_service.store.read()
+    assert stored["expected_ips"] == ["192.168.2.3"] and stored["app_password"] == PASSWORD
+    assert not setup_service.flows
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"app_password": ""},
+        {"app_password": "x" * 4097},
+        {"app_password": "bad\nvalue"},
+        {"app_password": "bad\x7fvalue"},
+        {"app_password": 17},
+        {"login_name": ""},
+        {"login_name": "x" * 513},
+        {"login_name": "bad:name"},
+        {"login_name": "bad\rname"},
+        {"server_url": "http://cloud.example/nc"},
+        {"unknown": "ignored"},
+    ],
+)
+def test_credential_fields_are_bounded_before_discovery(setup_service, change):
+    def forbidden(*args):
+        pytest.fail("invalid credentials reached discovery")
+
+    setup_service.discovery = forbidden
+    try:
+        result = credential_preview(setup_service, **change)
+        assert result["state"] == "failed"
+    except OnboardingError as exc:
+        assert exc.code == "invalid-credentials"
+    assert not setup_service.flows and setup_service.store.read() is None
+
+
+@pytest.mark.parametrize("method", ["login-v2", "credentials"])
+def test_failed_replacement_clears_previous_preview_and_preserves_current_connection(setup_service, method):
+    apply(setup_service, ready(setup_service))
+    original = setup_service.store.read()
+    old_preview = credential_preview(setup_service)
+    pending = setup_service.flows[old_preview["flow_id"]]
+
+    def rejected(*args):
+        error = OnboardingError("authentication-failed", "upstream reflected " + PASSWORD)
+        error.diagnostics = {
+            "schema_version": 1,
+            "user": {"status": "failed", "loaded": False, "code": "authentication-failed"},
+            "calendars": {"status": "skipped"},
+            "task_lists": {"status": "skipped"},
+            "files": {"status": "skipped"},
+            "upstream_body": PASSWORD,
+        }
+        raise error
+
+    setup_service.discovery = rejected
+    if method == "credentials":
+        result = credential_preview(setup_service)
+    else:
+        start = setup_service.dispatch(
+            "login.start", {"server_url": "https://cloud.example/nc"}, actor="device-one"
+        )
+        result = setup_service.dispatch("login.poll", {"flow_id": start["flow_id"]}, actor="device-one")
+    assert result["state"] == "failed" and result["diagnostics"]["user"]["loaded"] is False
+    assert "upstream_body" not in result["diagnostics"]
+    assert PASSWORD not in json.dumps(result)
+    assert pending.credentials is None and pending.snapshot is None and pending.preview_digest == ""
+    assert not setup_service.flows and setup_service.store.read() == original
+
+
+def test_partial_resource_errors_are_ready_and_reflected_password_is_redacted(setup_service):
+    def partial(transport, credentials):
+        return {
+            **discovery(transport, credentials),
+            "complete": False,
+            "display_name": "upstream " + PASSWORD,
+            "errors": [{"domain": "files", "code": "permission-denied"}],
+            "calendars": [{"name": PASSWORD, "nested": [PASSWORD]}],
+            "capabilities": {"spreed": {"features": [PASSWORD, "chat-reference-id"]}},
+            "diagnostics": {"schema_version": 1, "user": {"status": "ok", "loaded": True}},
+            "checked_at": "2026-10-25T10:00:00+00:00",
+            "results_may_be_truncated": True,
+        }
+
+    setup_service.discovery = partial
+    preview = credential_preview(setup_service)
+    assert preview["state"] == "ready" and not preview["preview"]["complete"]
+    assert preview["preview"]["diagnostics"]["user"]["loaded"] is True
+    assert preview["preview"]["results_may_be_truncated"] is True
+    assert preview["preview"]["checked_at"] == "2026-10-25T10:00:00+00:00"
+    assert PASSWORD not in json.dumps(preview)
+    assert PASSWORD not in json.dumps(apply(setup_service, preview))
+    assert PASSWORD not in json.dumps(setup_service.status())
+
+
+@pytest.mark.parametrize("method", ["login-v2", "credentials"])
+def test_talk_room_id_cannot_reflect_password_in_preview_or_stored_status(setup_service, method):
+    def reflected(transport, credentials):
+        snapshot = discovery(transport, credentials)
+        snapshot["talk_rooms"] = [
+            {
+                "token": PASSWORD,
+                "resource_id": "nextcloud-talk-" + PASSWORD,
+                "name": PASSWORD,
+                "can_read": True,
+                "can_send": True,
+            }
+        ]
+        return snapshot
+
+    setup_service.discovery = reflected
+    preview = ready(setup_service) if method == "login-v2" else credential_preview(setup_service)
+    room = preview["preview"]["talk_rooms"][0]
+    assert room["resource_id"] == "nextcloud-talk-[redacted]"
+    assert room["token"] == "[redacted]" and room["name"] == "[redacted]"
+    assert PASSWORD not in json.dumps(preview)
+    status = apply(setup_service, preview)
+    assert PASSWORD not in json.dumps(status)
+    assert PASSWORD not in json.dumps(setup_service.status())
+
+
+def test_credential_cancel_expiry_and_publication_conflict_destroy_staged_secrets(setup_service):
+    first = credential_preview(setup_service)
+    pending = setup_service.flows[first["flow_id"]]
+    assert setup_service.dispatch("login.cancel", {"flow_id": first["flow_id"]}, actor="device-one") == {
+        "state": "cancelled"
+    }
+    assert pending.credentials is None and not setup_service.flows
+    second = credential_preview(setup_service)
+    pending = setup_service.flows[second["flow_id"]]
+    setup_service.clock = lambda: 2000
+    setup_service._prune()
+    assert pending.credentials is None and not setup_service.flows
+    setup_service.clock = lambda: 100
+    third = credential_preview(setup_service)
+    other = credential_preview(setup_service, actor="device-two")
+    apply(setup_service, other, actor="device-two")
+    original = setup_service.store.read()
+    pending = setup_service.flows[third["flow_id"]]
+    with pytest.raises(ConnectionError):
+        apply(setup_service, third)
+    assert pending.credentials is None and not setup_service.flows
+    assert setup_service.store.read() == original
+
+
+def test_unexpected_discovery_exception_clears_flow_and_hides_secret(setup_service):
+    def failed(*args):
+        raise RuntimeError(PASSWORD)
+
+    setup_service.discovery = failed
+    with pytest.raises(OnboardingError) as error:
+        credential_preview(setup_service)
+    assert PASSWORD not in str(error.value) and error.value.code == "setup-unavailable"
+    assert not setup_service.flows
+
+
+@pytest.mark.parametrize("password", ["a", "state", "status", "revision", "failed"])
+def test_short_password_redaction_preserves_protocol_fields_and_confirmation(setup_service, password):
+    def reflected(transport, credentials):
+        value = discovery(
+            transport, type(credentials)(credentials.server_url, credentials.login_name, PASSWORD)
+        )
+        value["display_name"] = password
+        value["calendars"] = [{"resource_id": "nextcloud-calendar-" + "a" * 12}]
+        value["diagnostics"] = {"schema_version": 1, "user": {"loaded": True, "status": "ok", "code": ""}}
+        return value
+
+    setup_service.discovery = reflected
+    preview = credential_preview(setup_service, app_password=password)
+    assert preview["state"] == "ready"
+    assert preview["preview"]["display_name"] == "[redacted]"
+    assert preview["preview"]["diagnostics"]["user"]["status"] == "ok"
+    assert preview["preview"]["calendars"][0]["resource_id"] == "nextcloud-calendar-" + "a" * 12
+    status = apply(setup_service, preview)
+    assert status["revision"] == setup_service.store.read()["revision"]
+    assert status["status_source"] == "last-verified-setup"
+
+
+def test_refresh_failed_identity_shows_new_diagnostics_without_replacing_connection(setup_service):
+    status = apply(setup_service, ready(setup_service))
+    original = setup_service.store.read()
+
+    def revoked(*args):
+        error = OnboardingError("authentication-failed", PASSWORD)
+        error.diagnostics = {
+            "schema_version": 1,
+            "user": {"loaded": False, "status": "failed", "code": "authentication-failed"},
+        }
+        raise error
+
+    setup_service.discovery = revoked
+    result = setup_service.dispatch(
+        "connection.refresh", {"expected_revision": status["revision"]}, actor="device-one"
+    )
+    assert result["state"] == "failed" and result["diagnostics"]["user"]["loaded"] is False
+    assert PASSWORD not in json.dumps(result)
+    assert setup_service.store.read() == original
+
+
+@pytest.mark.parametrize("method", ["login-v2", "credentials"])
+def test_missing_identity_cannot_become_a_ready_or_retained_flow(setup_service, method):
+    setup_service.discovery = lambda transport, credentials: {"server_url": transport.base_url, "user_id": ""}
+    if method == "credentials":
+        result = credential_preview(setup_service)
+    else:
+        start = setup_service.dispatch(
+            "login.start", {"server_url": "https://cloud.example/nc"}, actor="device-one"
+        )
+        result = setup_service.dispatch("login.poll", {"flow_id": start["flow_id"]}, actor="device-one")
+    assert result == {"state": "failed", "code": "invalid-user-id"}
+    assert not setup_service.flows and setup_service.store.read() is None
+
+
+def test_server_idle_cycle_expires_credentials_without_another_rpc(tmp_path, setup_service, operator_proof):
+    preview = credential_preview(setup_service)
+    pending = setup_service.flows[preview["flow_id"]]
+    server = SetupServer(tmp_path / "idle.sock", setup_service, proof_verifier=operator_proof[0])
+    try:
+        setup_service.clock = lambda: 2000
+        server.service_actions()
+        assert not setup_service.flows and pending.credentials is None
+        assert pending.snapshot is None and pending.preview_digest == ""
+    finally:
+        server.server_close()
 
 
 def test_talk_pairing_uses_live_room_and_user_membership(setup_service):
@@ -296,7 +557,7 @@ def test_talk_capability_missing_or_read_only_never_enables_channel(setup_servic
 
 
 def test_socket_transport_health_dispatch_and_malformed_request(
-    tmp_path: Path, setup_service, operator_proof
+    tmp_path: Path, setup_service, operator_proof, capfd
 ):
     path = tmp_path / "control.sock"
     verifier, signed_request, _ = operator_proof
@@ -322,6 +583,39 @@ def test_socket_transport_health_dispatch_and_malformed_request(
         assert status == 200 and value["error"]["code"] == "operator-proof-invalid"
         status, value = request("{")
         assert status == 400 and value["error"]["code"] == "invalid-request"
+        credentials = {
+            "server_url": "https://cloud.example/nc",
+            "login_name": "assistant@example.invalid",
+            "app_password": PASSWORD,
+        }
+        signed = signed_request("login.credentials", credentials)
+        tampered = {**signed, "parameters": {**credentials, "app_password": "changed"}}
+        status, value = request(json.dumps(tampered))
+        assert status == 200 and value["error"]["code"] == "operator-proof-invalid"
+        assert setup_service.store.read() is None and not setup_service.flows
+        status, value = request(json.dumps(signed))
+        assert status == 200 and value["ok"] is True and value["result"]["state"] == "ready"
+        assert PASSWORD not in json.dumps(value)
+        assert setup_service.store.read() is None
+        preview = value["result"]
+        status, value = request(
+            json.dumps(
+                signed_request(
+                    "connection.apply",
+                    {
+                        "flow_id": preview["flow_id"],
+                        "preview_digest": preview["preview_digest"],
+                        "expected_revision": preview["expected_revision"],
+                        "confirm_account_access": True,
+                    },
+                )
+            )
+        )
+        assert status == 200 and value["ok"] is True and value["result"]["connected"] is True
+        assert PASSWORD not in json.dumps(value)
+        assert setup_service.store.read()["app_password"] == PASSWORD
+        output = capfd.readouterr()
+        assert PASSWORD not in output.out + output.err
     finally:
         server.shutdown()
         server.server_close()

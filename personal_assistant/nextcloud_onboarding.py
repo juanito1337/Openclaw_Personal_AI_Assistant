@@ -20,7 +20,9 @@ import threading
 import time
 import urllib.parse
 from collections.abc import Callable, Mapping, Sequence
+from contextlib import suppress
 from dataclasses import dataclass, field, replace
+from datetime import UTC, datetime
 from typing import Any
 from xml.etree import ElementTree as ET
 
@@ -30,6 +32,9 @@ CARDDAV = "urn:ietf:params:xml:ns:carddav"
 OC = "http://owncloud.org/ns"
 MAX_RESPONSE_BYTES = 4 * 1024 * 1024
 LOGIN_LIFETIME_SECONDS = 20 * 60
+MAX_COLLECTION_READ_CHECKS = 32
+COLLECTION_READ_BUDGET_SECONDS = 15.0
+COLLECTION_READ_TIMEOUT_SECONDS = 3.0
 _PRIVATE_NETWORKS = tuple(
     ipaddress.ip_network(value) for value in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7")
 )
@@ -41,6 +46,7 @@ class OnboardingError(RuntimeError):
     def __init__(self, code: str, message: str = "Nextcloud-Anbindung konnte nicht abgeschlossen werden"):
         super().__init__(message)
         self.code = code
+        self.diagnostics: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -152,6 +158,15 @@ class _PinnedHTTPSConnection(http.client.HTTPSConnection):
             raise
 
 
+def _expire_request(connection: Any, expired: threading.Event) -> None:
+    """Interrupt slow header/body streams, rather than resetting a recv timeout."""
+    expired.set()
+    sock = getattr(connection, "sock", None)
+    if sock is not None:
+        with suppress(OSError):
+            sock.shutdown(socket.SHUT_RDWR)
+
+
 class SafeNextcloudTransport:
     """HTTPS bound to one operator-selected origin, installation path and IP set.
 
@@ -231,6 +246,7 @@ class SafeNextcloudTransport:
         *,
         headers: Mapping[str, str] | None = None,
         data: bytes | None = None,
+        timeout_seconds: float | None = None,
     ) -> HttpResponse:
         if method not in {"GET", "HEAD", "POST", "PROPFIND", "REPORT", "PUT", "MKCOL", "MOVE"}:
             raise OnboardingError("method-not-allowed", "Requestmethode ist nicht erlaubt")
@@ -249,31 +265,58 @@ class SafeNextcloudTransport:
                 raise OnboardingError("invalid-header", "Requestheader ist nicht erlaubt")
         if data is not None and len(data) > self._maximum:
             raise OnboardingError("request-limit", "Nextcloud-Anfrage ist zu gross")
+        if timeout_seconds is not None and (
+            not math.isfinite(timeout_seconds) or timeout_seconds <= 0
+        ):
+            raise OnboardingError("invalid-limits", "Ungueltiges Request-Zeitlimit")
+        deadline = time.monotonic() + timeout_seconds if timeout_seconds is not None else None
         for redirect in range(4):
             if self._resolve() != list(self._ips):
                 raise OnboardingError("dns-changed", "Nextcloud-Zieladressen haben sich geaendert")
             parsed = urllib.parse.urlsplit(url)
             target = parsed.path + ("?" + parsed.query if parsed.query else "")
             connection = None
+            timer = None
+            expired = threading.Event()
             try:
-                connection = self._factory(self._host, self._port, self._ips[0], self._timeout, self._context)
+                timeout = self._timeout
+                if deadline is not None:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        raise OnboardingError("request-timeout", "Nextcloud-Pruefzeitlimit erreicht")
+                    timeout = min(timeout, remaining)
+                connection = self._factory(self._host, self._port, self._ips[0], timeout, self._context)
+                if deadline is not None:
+                    timer = threading.Timer(timeout, _expire_request, args=(connection, expired))
+                    timer.daemon = True
+                    timer.start()
                 connection.request(method, target, body=data, headers=request_headers)
+                if expired.is_set():
+                    raise OnboardingError("request-timeout", "Nextcloud-Pruefzeitlimit erreicht")
                 incoming = connection.getresponse()
                 response_headers = {key.lower(): value for key, value in incoming.getheaders()}
                 length = response_headers.get("content-length")
                 if length is not None and (not length.isdecimal() or int(length) > self._maximum):
                     raise OnboardingError("response-limit", "Nextcloud-Antwort ist zu gross oder ungueltig")
                 body = incoming.read(self._maximum + 1)
+                if expired.is_set():
+                    raise OnboardingError("request-timeout", "Nextcloud-Pruefzeitlimit erreicht")
                 if len(body) > self._maximum:
                     raise OnboardingError("response-limit", "Nextcloud-Antwort ist zu gross")
                 if response_headers.get("content-encoding", "identity").lower() != "identity":
                     raise OnboardingError("unsupported-encoding", "Unerwartete Antwortkompression")
                 response = HttpResponse(int(incoming.status), response_headers, body)
             except ssl.SSLError:
+                if expired.is_set():
+                    raise OnboardingError("request-timeout", "Nextcloud-Pruefzeitlimit erreicht") from None
                 raise OnboardingError("tls-error", "Nextcloud-TLS-Pruefung fehlgeschlagen") from None
             except (OSError, http.client.HTTPException):
+                if expired.is_set():
+                    raise OnboardingError("request-timeout", "Nextcloud-Pruefzeitlimit erreicht") from None
                 raise OnboardingError("transport-error", "Nextcloud ist momentan nicht erreichbar") from None
             finally:
+                if timer is not None:
+                    timer.cancel()
                 if connection is not None:
                     connection.close()
             if response.status not in {301, 302, 303, 307, 308}:
@@ -432,12 +475,15 @@ def _auth_request(
     *,
     headers: Mapping[str, str] | None = None,
     data: bytes | None = None,
+    timeout_seconds: float | None = None,
 ) -> HttpResponse:
     if normalize_server_url(credentials.server_url) != transport.base_url:
         raise OnboardingError("account-mismatch", "Zugangsdaten gehoeren zu einer anderen Nextcloud")
-    return transport.request(
-        method, path, headers={**credential_headers(credentials), **dict(headers or {})}, data=data
-    )
+    options: dict[str, Any] = {}
+    if timeout_seconds is not None:
+        options["timeout_seconds"] = timeout_seconds
+    return transport.request(method, path, headers={**credential_headers(credentials), **dict(headers or {})},
+                             data=data, **options)
 
 
 def _ocs(transport: SafeNextcloudTransport, credentials: NextcloudCredentials, path: str) -> Any:
@@ -472,6 +518,7 @@ def _propfind(
     properties: Sequence[str],
     *,
     depth: int,
+    timeout_seconds: float | None = None,
 ) -> list[_DavItem]:
     root = ET.Element(_q(DAV, "propfind"))
     prop = ET.SubElement(root, _q(DAV, "prop"))
@@ -484,6 +531,7 @@ def _propfind(
         path,
         headers={"Depth": str(depth), "Content-Type": "application/xml; charset=utf-8"},
         data=ET.tostring(root, encoding="utf-8", xml_declaration=True),
+        timeout_seconds=timeout_seconds,
     )
     _http_ok(response, 207)
     if b"<!DOCTYPE" in response.body.upper() or b"<!ENTITY" in response.body.upper():
@@ -576,6 +624,84 @@ def _resource_limit(value: int) -> int:
     return value
 
 
+def _read_check(status: str, code: str = "", *, scope: str = "collection-metadata") -> dict[str, Any]:
+    return {"status": status, "code": code, "scope": scope, "content_checked": False}
+
+
+def _check_item_status(item: _DavItem) -> None:
+    if item.status and not re.fullmatch(r"HTTP/\d(?:\.\d)? 200(?: .*)?", item.status):
+        raise OnboardingError("resource-unavailable", "DAV-Ressource konnte nicht gelesen werden")
+
+
+def _check_collection_read(
+    transport: SafeNextcloudTransport, credentials: NextcloudCredentials,
+    resource: dict[str, Any], *, timeout_seconds: float,
+) -> dict[str, Any]:
+    """Read this collection's metadata, without enumerating or downloading objects."""
+    try:
+        items = _propfind(
+            transport, credentials, resource["href"],
+            [_q(DAV, "resourcetype"), _q(DAV, "current-user-privilege-set"),
+             _q(CALDAV, "supported-calendar-component-set")],
+            depth=0, timeout_seconds=timeout_seconds,
+        )
+        item = _one_item(items, transport, resource["href"])
+        if len(items) != 1:
+            raise OnboardingError("invalid-dav")
+        _check_item_status(item)
+        resource_type = item.properties.get(_q(DAV, "resourcetype"))
+        if resource_type is None or resource_type.find(_q(CALDAV, "calendar")) is None:
+            raise OnboardingError("resource-type-unavailable")
+        components = item.properties.get(_q(CALDAV, "supported-calendar-component-set"))
+        names = {node.get("name", "").upper() for node in components
+                 if node.tag == _q(CALDAV, "comp")} if components is not None else set()
+        if not names or not set(resource["components"]) <= names:
+            raise OnboardingError("components-unavailable")
+        rights = _privileges(item)
+        if not resource["privileges_verified"] or not rights["privileges_verified"]:
+            raise OnboardingError("privileges-unavailable")
+        if not resource["can_read"] or not rights["can_read"]:
+            raise OnboardingError("read-permission-missing")
+    except OnboardingError as exc:
+        return _read_check("failed", exc.code)
+    return _read_check("ok")
+
+
+def _collection_diagnostic(
+    resources: list[dict[str, Any]], *, inventory_complete: bool, discovered: int,
+    errors: list[dict[str, Any]], limitations: list[str],
+) -> dict[str, Any]:
+    checked = sum(item["read_check"]["status"] != "skipped" for item in resources)
+    readable = sum(item["read_check"]["status"] == "ok" for item in resources)
+    failed = checked - readable
+    skipped = discovered - checked
+    if not inventory_complete or skipped or failed:
+        status = "partial" if readable or skipped else "failed"
+    else:
+        status = "ok" if discovered else "empty"
+    return {
+        "status": status, "inventory_complete": inventory_complete, "discovered": discovered,
+        "checked": checked, "readable": readable, "failed": failed, "skipped": skipped,
+        "checks_complete": inventory_complete and skipped == 0,
+        "content_checked": False, "scope": "collection-metadata", "errors": errors,
+        "limitations": sorted(set(limitations)),
+    }
+
+
+def _user_failure_diagnostics(code: str) -> dict[str, Any]:
+    downstream = _collection_diagnostic(
+        [], inventory_complete=False, discovered=0, errors=[], limitations=["user-unavailable"]
+    )
+    downstream["status"] = "skipped"
+    return {
+        "schema_version": 1, "user": {"status": "failed", "loaded": False, "code": code},
+        "calendars": dict(downstream), "task_lists": dict(downstream),
+        "files": {"status": "skipped", "inventory_complete": False, "scope": "first-level",
+                  "depth": 1, "root_readable": False, "discovered": 0, "content_checked": False,
+                  "recursive": False, "errors": [], "limitations": ["user-unavailable"]},
+    }
+
+
 def discover_folders(
     transport: SafeNextcloudTransport,
     credentials: NextcloudCredentials,
@@ -606,6 +732,7 @@ def discover_folders(
         depth=1,
     )
     own = _one_item(items, transport, target)
+    _check_item_status(own)
     root_path = urllib.parse.urlsplit(
         transport.resolve_url("remote.php/dav/files/" + urllib.parse.quote(uid, safe="") + "/")
     ).path
@@ -618,6 +745,13 @@ def discover_folders(
             item.href.rstrip("/") == own_path or item.href.startswith(own_path + "/")
         ):
             raise OnboardingError("foreign-path", "Dateiressource liegt ausserhalb des ausgewaehlten Ordners")
+        if item is not own and "/" in item.href[len(own_path) + 1:].strip("/"):
+            raise OnboardingError("invalid-dav", "Nextcloud lieferte mehr als eine Ordnerebene")
+        try:
+            _check_item_status(item)
+        except OnboardingError as exc:
+            errors.append({"domain": "files", "code": exc.code})
+            continue
         if resource_type is None:
             errors.append({"domain": "files", "code": "properties-unavailable"})
             continue
@@ -649,15 +783,25 @@ def discover_folders(
             )
         folder["file_id"] = _text(item, OC, "fileid")
         folder["path"] = urllib.parse.unquote(item.href[len(root_path) :].strip("/"))
+        folder["read_check"] = _read_check("skipped", "folder-not-opened", scope="first-level")
         folders.append(folder)
     if not any(folder["href"] == own.href for folder in folders):
         raise OnboardingError("not-a-folder", "Ausgewaehlte DAV-Ressource ist kein Ordner")
     folders.sort(key=lambda item: (item["href"] != own.href, item["name"].casefold(), item["href"]))
     truncated = len(folders) > max_resources
+    inventory_complete = not truncated and not errors
+    selected = folders[0]
+    code = ("privileges-unavailable" if not selected["privileges_verified"] else
+            "read-permission-missing" if not selected["can_read"] else "")
+    selected["read_check"] = _read_check("failed" if code else "ok", code, scope="first-level")
+    if code:
+        errors.append({"domain": "files", "code": code, "resource_id": selected["resource_id"]})
     return {
         "path": clean,
         "folders": folders[:max_resources],
         "depth": 1,
+        "inventory_complete": inventory_complete,
+        "discovered": len(folders),
         "complete": not truncated and not errors,
         "errors": errors,
         "limitations": ["resource-limit"] if truncated else [],
@@ -677,12 +821,16 @@ def discover_account(
     never become writable/readable rights merely because PROPFIND succeeded.
     """
     _resource_limit(max_resources)
-    user = _ocs(transport, credentials, "ocs/v1.php/cloud/user")
-    uid = user.get("id") if isinstance(user, dict) else None
-    if not isinstance(uid, str) or not uid or len(uid) > 512 or re.search(r"[\x00-\x1f/\\]", uid):
-        raise OnboardingError("invalid-user-id", "Nextcloud meldet keine eindeutige Benutzer-ID")
-    if credentials.user_id and credentials.user_id != uid:
-        raise OnboardingError("account-changed", "Nextcloud-Konto hat sich geaendert")
+    try:
+        user = _ocs(transport, credentials, "ocs/v1.php/cloud/user")
+        uid = user.get("id") if isinstance(user, dict) else None
+        if not isinstance(uid, str) or not uid or len(uid) > 512 or re.search(r"[\x00-\x1f/\\]", uid):
+            raise OnboardingError("invalid-user-id", "Nextcloud meldet keine eindeutige Benutzer-ID")
+        if credentials.user_id and credentials.user_id != uid:
+            raise OnboardingError("account-changed", "Nextcloud-Konto hat sich geaendert")
+    except OnboardingError as exc:
+        exc.diagnostics = _user_failure_diagnostics(exc.code)
+        raise
     credentials = replace(credentials, user_id=uid)
     snapshot: dict[str, Any] = {
         "schema_version": 1,
@@ -704,6 +852,7 @@ def discover_account(
         "complete": True,
         "errors": [],
         "limitations": [],
+        "diagnostics": {"schema_version": 1, "user": {"status": "ok", "loaded": True, "code": ""}},
     }
 
     def failed(domain: str, exc: OnboardingError) -> None:
@@ -775,6 +924,11 @@ def discover_account(
                         [_q(CALDAV, "supported-calendar-component-set")] if kind == "calendar" else []
                     )
                     items = _propfind(transport, credentials, home, properties, depth=1)
+                    home_item = _one_item(items, transport, home)
+                    _check_item_status(home_item)
+                    home_type = home_item.properties.get(_q(DAV, "resourcetype"))
+                    if home_type is None or home_type.find(_q(DAV, "collection")) is None:
+                        raise OnboardingError("properties-unavailable")
                     for item in items:
                         home_path = urllib.parse.urlsplit(home).path.rstrip("/")
                         if item.href.rstrip("/") != home_path and not item.href.startswith(home_path + "/"):
@@ -784,6 +938,11 @@ def discover_account(
                         if item.href in seen:
                             continue
                         seen.add(item.href)
+                        try:
+                            _check_item_status(item)
+                        except OnboardingError as exc:
+                            failed(domain, exc)
+                            continue
                         resource_type = item.properties.get(_q(DAV, "resourcetype"))
                         if resource_type is None:
                             failed(domain, OnboardingError("properties-unavailable"))
@@ -822,8 +981,22 @@ def discover_account(
         snapshot["files_depth"] = 1
         snapshot["errors"].extend(files["errors"])
         snapshot["limitations"].extend(files["limitations"])
+        root_readable = any(item["read_check"]["status"] == "ok" for item in snapshot["file_roots"])
+        snapshot["diagnostics"]["files"] = {
+            "status": ("ok" if root_readable and files["complete"] else
+                       "partial" if root_readable else "failed"),
+            "inventory_complete": files["inventory_complete"], "scope": "first-level", "depth": 1,
+            "root_readable": root_readable, "discovered": files["discovered"],
+            "content_checked": False, "recursive": False,
+            "errors": files["errors"], "limitations": files["limitations"],
+        }
     except OnboardingError as exc:
         failed("files", exc)
+        snapshot["diagnostics"]["files"] = {
+            "status": "failed", "inventory_complete": False, "scope": "first-level", "depth": 1,
+            "root_readable": False, "discovered": 0, "content_checked": False, "recursive": False,
+            "errors": [{"code": exc.code}], "limitations": [],
+        }
     if "spreed" in snapshot["capabilities"]:
         try:
             rooms = _ocs(transport, credentials, "ocs/v2.php/apps/spreed/api/v4/room?noStatusUpdate=1")
@@ -857,12 +1030,54 @@ def discover_account(
                 )
         except OnboardingError as exc:
             failed("talk", exc)
+    discovered_counts = {key: len(snapshot[key]) for key in ("calendars", "task_lists")}
     for key in ("caldav_collections", "calendars", "task_lists", "addressbooks", "folders", "talk_rooms"):
         snapshot[key].sort(key=lambda item: (item["name"].casefold(), item["resource_id"]))
         if len(snapshot[key]) > max_resources:
             snapshot[key] = snapshot[key][:max_resources]
             snapshot["limitations"].append(key + ":resource-limit")
+    inventory_limitations = list(snapshot["limitations"])
+    inventory_errors = list(snapshot["errors"])
+    checks: dict[str, dict[str, Any]] = {}
+    # A scheduling budget plus cancellable connected requests. OS DNS lookup
+    # itself is not interruptible by stdlib; its elapsed time consumes this budget.
+    deadline = time.monotonic() + COLLECTION_READ_BUDGET_SECONDS
+    attempted = 0
+    for resource in snapshot["calendars"] + snapshot["task_lists"]:
+        if resource["resource_id"] in checks:
+            resource["read_check"] = checks[resource["resource_id"]]
+            continue
+        remaining = deadline - time.monotonic()
+        if attempted >= MAX_COLLECTION_READ_CHECKS or remaining <= 0:
+            code = "read-check-limit" if attempted >= MAX_COLLECTION_READ_CHECKS else "read-check-budget"
+            check = _read_check("skipped", code)
+            snapshot["limitations"].append(code)
+        else:
+            attempted += 1
+            check = _check_collection_read(
+                transport, credentials, resource,
+                timeout_seconds=min(COLLECTION_READ_TIMEOUT_SECONDS, remaining),
+            )
+        checks[resource["resource_id"]] = check
+        resource["read_check"] = check
+    for key in ("calendars", "task_lists"):
+        domain_errors = [dict(error) for error in inventory_errors if error["domain"] in {"dav", "caldav"}]
+        domain_limits = [value for value in inventory_limitations if value.startswith(("caldav:", key + ":"))]
+        inventory_complete = not domain_errors and not domain_limits
+        for resource in snapshot[key]:
+            check = resource["read_check"]
+            if check["status"] == "failed":
+                error = {"domain": key, "resource_id": resource["resource_id"], "code": check["code"]}
+                snapshot["errors"].append(error)
+                domain_errors.append(error)
+            elif check["status"] == "skipped":
+                domain_limits.append(check["code"])
+        snapshot["diagnostics"][key] = _collection_diagnostic(
+            snapshot[key], inventory_complete=inventory_complete, discovered=discovered_counts[key],
+            errors=domain_errors, limitations=domain_limits,
+        )
     snapshot["limitations"] = sorted(set(snapshot["limitations"]))
     snapshot["complete"] = not snapshot["errors"] and not snapshot["limitations"]
-    snapshot["results_may_be_truncated"] = bool(snapshot["limitations"])
+    snapshot["results_may_be_truncated"] = bool(inventory_limitations)
+    snapshot["checked_at"] = datetime.now(UTC).isoformat()
     return snapshot

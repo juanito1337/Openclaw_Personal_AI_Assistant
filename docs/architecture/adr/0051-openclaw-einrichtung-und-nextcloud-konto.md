@@ -3,6 +3,7 @@
 - Status: Accepted (Entwicklungsentscheidung; keine produktive Aktivierung)
 - Datum: 2026-10-22
 - Ergaenzung: 2026-10-24, eng begrenzte Buildanpassung fuer den Browser-Einstieg
+- Ergaenzung: 2026-10-25, App-Passwort-Eingabe und getrennte Zugriffsdiagnosen
 - Entscheider: Architecture Maintainers, Security Maintainers, Operations Maintainers
 - Betroffene Milestones: M17, M18
 
@@ -100,6 +101,26 @@ an eine authentisierte Operatorsitzung gebunden. Das App-Passwort wird atomar in
 einem dedizierten, rollenbegrenzt eingebundenen persistenten Verbindungsstore
 gespeichert. Runtimeprozesse lesen ihn ausschliesslich. Der Store gehoert zum
 lokalen Backup-/Restoreumfang; er ist kein Git-, Log- oder Chatinhalt.
+
+Alternativ nimmt die Administratoroberflaeche einen Anmeldenamen und ein
+App-Passwort fuer das Agentenkonto entgegen. `login.credentials` ist dieselbe
+operator.admin- und geraetesignaturgebundene Setup-RPC, kein Agentenwerkzeug.
+Die Zugangsdaten passieren nur die transiente verschluesselte Gatewayanfrage
+und den privaten Kontrollsocket. Die WebSocket-Protokollierung des gepinnten
+Cores protokolliert bei gueltigen RPCs Methode und technische Ergebnisfelder,
+keine Parameter; Setupservice und Plugin protokollieren keine Requests.
+Passwortfeld und abgebrochene/fehlgeschlagene Vorschauen werden geleert.
+Browserstorage, Antworten, Chat und Diagnosen enthalten keine Zugangsdaten.
+Eine ausdrueckliche, digest- und revisionsgebundene Vorschau bleibt auch hier
+Voraussetzung fuer die persistente Kontobindung.
+
+Die Erkennung trennt bestaetigte Benutzeridentitaet, Inventurvollstaendigkeit,
+angekuendigte Serverrechte und tatsaechliche Metadaten-Lesepruefungen der
+Sammlungen. Mengen- und Zeitlimits erzeugen sichtbare ungepruefte Ergebnisse,
+keinen Erfolg. Die Ordnerdiagnose gilt fuer genau eine Verzeichnisebene;
+Unterordner werden erst beim Oeffnen geprueft. Inhalte und Probeobjekte sind
+nicht Bestandteil der Diagnose. Gespeicherte Ergebnisse behalten ihren
+Pruefzeitpunkt und werden nicht als aktuelle Liveverbindung dargestellt.
 
 Transportpruefungen binden Requests an die ausgewaehlte HTTPS-Origin und
 aufgeloeste Adressen, erhalten Installationsunterpfade, pruefen Zertifikate und
