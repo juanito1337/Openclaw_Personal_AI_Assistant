@@ -2,7 +2,7 @@
   "schema_version": 1,
   "inventory_date": "2026-08-06",
   "source_scope": "all Python modules, shell entrypoints, skills, systemd units, migrations and Markdown documents",
-  "component_count": 584,
+  "component_count": 585,
   "classification_values": [
     "active",
     "compatibility",
@@ -1611,6 +1611,27 @@
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-09-20T22:43:28+02:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "docs/INTEGRATION_DIAGNOSTICS.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Documentation Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "AGENTS.md",
+        "docs/NEXTCLOUD_SETUP_UI.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -9539,6 +9560,7 @@
         "docker/openclaw-personal-assistant-plugin/generated-tools.json",
         "docker/openclaw-personal-assistant-plugin/index.js",
         "docker/openclaw-personal-assistant-plugin/runtime.js",
+        "docker/openclaw-personal-assistant-plugin/setup-ui.js",
         "docker/scripts/deploy.sh",
         "docker/scripts/migrate-live.sh",
         "docker/scripts/rollback.sh",
@@ -9586,6 +9608,7 @@
         "tests/fixtures/m13/fake-assistant.sh",
         "tests/fixtures/m15/fake-assistant.sh",
         "tests/golden/m5-tool-contract.json",
+        "tests/nextcloud_setup_ui.test.mjs",
         "tests/test_agent_capability_exposure.py",
         "tests/test_agent_tool_orchestration_m13.py",
         "tests/test_container_runtime.py",

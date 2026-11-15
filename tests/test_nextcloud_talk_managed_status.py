@@ -68,6 +68,7 @@ def test_status_never_creates_inbox_or_starts_worker(managed, connection):
     assert list(managed.iterdir()) == []
     report = nextcloud_talk.status()
     assert report["mode"] == "managed-account"
+    assert report["connection_revision"] == "revision-one"
     assert report["enabled"] is True and report["connected"] is False
     assert report["state"] == "not-observed" and report["ok"] is False
     assert list(managed.iterdir()) == []
@@ -99,6 +100,7 @@ def test_worker_observation_distinguishes_current_stale_failed_and_uncertain(
     observation(managed, connection, **changes)
     report = nextcloud_talk.status()
     assert report["state"] == state
+    assert report["connection_revision"] == "revision-one"
     assert report["connected"] is connected
     assert report["ok"] is (state == "active")
     encoded = json.dumps(report)

@@ -5,6 +5,7 @@
 import http from "node:http";
 import { readFileSync } from "node:fs";
 import { isDeepStrictEqual } from "node:util";
+import { spawnJson } from "./runtime.js";
 
 export const SETUP_RPC = "personal_assistant.setup";
 export const SETUP_PATH = "/plugins/personal-assistant-tools/nextcloud";
@@ -137,14 +138,131 @@ export function setupBackendRequest(payload, options = {}) {
 
 const escapeHtml = value => value.replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 
+const RUNTIME_OPERATIONS = new Set(["status", "connection.apply", "connection.refresh", "talk.configure"]);
+const RUNTIME_STATES = new Set(["active", "degraded", "disabled", "not-observed", "pending", "stale", "failed", "invalid"]);
+const WORKER_CODES = new Set([
+  "talk-disabled", "talk-configured", "talk-paired-no-history-replay", "talk-poll-ok", "talk-poll-failed",
+  "talk-worker-not-observed", "talk-worker-status-path-invalid", "talk-worker-status-unreadable", "talk-worker-status-invalid",
+]);
+const RUNTIME_ISSUES = new Set([...WORKER_CODES, "talk-pairing-invalid", "talk-worker-configuration-not-observed",
+  "talk-worker-status-stale", "talk-worker-connection-not-observed", "talk-processing-or-delivery-uncertain"]);
+const WORKER_COUNTS = ["accepted", "processing", "uncertain", "completed", "delivery_uncertain"];
+const nonnegative = value => Number.isFinite(value) && value >= 0;
+const boundedCount = value => Number.isSafeInteger(value) && value >= 0;
+
+function unavailableRuntime(connection, code = "talk-runtime-unavailable") {
+  const enabled = connection.talk?.enabled === true;
+  const rooms = Array.isArray(connection.talk?.room_tokens) ? connection.talk.room_tokens.length : 0;
+  const users = Array.isArray(connection.talk?.allowed_user_ids) ? connection.talk.allowed_user_ids.length : 0;
+  return { schema_version: 1, mode: "managed-account", channel: "nextcloud-account-talk",
+    connection_revision: "", state: code === "talk-runtime-unavailable" ? "unavailable" : "pending", ok: false,
+    configured: Boolean(rooms && users), enabled, connected: false, desired_state: enabled ? "ON" : "OFF",
+    room_count: rooms, allowed_user_count: users,
+    worker: { present: false, fresh: false, healthy: false, code }, issues: [code] };
+}
+
+function projectRuntime(value, connection) {
+  if (!plain(value) || value.mode !== "managed-account" || value.channel !== "nextcloud-account-talk"
+      || !textValue(value.connection_revision, 128) || !RUNTIME_STATES.has(value.state)
+      || ["ok", "configured", "enabled", "connected"].some(key => typeof value[key] !== "boolean")
+      || value.desired_state !== (value.enabled ? "ON" : "OFF")
+      || !boundedCount(value.room_count) || value.room_count > 32
+      || !boundedCount(value.allowed_user_count) || value.allowed_user_count > 32
+      || !Array.isArray(value.issues) || value.issues.length > 16 || value.issues.some(code => !RUNTIME_ISSUES.has(code))) throw new Error();
+  const source = value.worker;
+  if (!plain(source) || !WORKER_CODES.has(source.code)
+      || ["present", "fresh", "healthy"].some(key => typeof source[key] !== "boolean")) throw new Error();
+  const worker = { present: source.present, fresh: source.fresh, healthy: source.healthy, code: source.code };
+  for (const key of ["account_matches", "revision_matches", "selection_matches", "enabled", "connected"]) {
+    if (Object.hasOwn(source, key)) {
+      if (typeof source[key] !== "boolean") throw new Error();
+      worker[key] = source[key];
+    }
+  }
+  for (const key of ["observed_at", "age_seconds", "max_age_seconds"]) {
+    if (Object.hasOwn(source, key)) {
+      if (!nonnegative(source[key])) throw new Error();
+      worker[key] = source[key];
+    }
+  }
+  if (Object.hasOwn(source, "counts")) {
+    if (!plain(source.counts)) throw new Error();
+    worker.counts = {};
+    for (const key of WORKER_COUNTS) {
+      if (Object.hasOwn(source.counts, key)) {
+        if (!boundedCount(source.counts[key])) throw new Error();
+        worker.counts[key] = source.counts[key];
+      }
+    }
+  }
+  const now = Date.now() / 1000;
+  if (worker.fresh && (!worker.present || !(worker.observed_at > 0) || worker.observed_at > now + 5
+      || worker.max_age_seconds !== 90 || !nonnegative(worker.age_seconds))) throw new Error();
+  if (worker.healthy && (!worker.fresh || !worker.enabled || !worker.connected || !worker.account_matches
+      || !worker.revision_matches || !worker.selection_matches
+      || !["talk-poll-ok", "talk-paired-no-history-replay"].includes(worker.code))) throw new Error();
+  if (value.connected !== (["active", "degraded"].includes(value.state))
+      || (value.connected && (!value.enabled || !worker.healthy))
+      || (value.state === "disabled" && value.enabled)) throw new Error();
+  if (value.connection_revision !== connection.revision) {
+    return unavailableRuntime(connection, "talk-worker-configuration-not-observed");
+  }
+  const report = { schema_version: 1, mode: value.mode, channel: value.channel, connection_revision: value.connection_revision,
+    state: value.state, ok: value.ok, configured: value.configured, enabled: value.enabled, connected: value.connected,
+    desired_state: value.desired_state, room_count: value.room_count, allowed_user_count: value.allowed_user_count,
+    worker, issues: [...new Set(value.issues)] };
+  if (worker.fresh) {
+    worker.age_seconds = Math.max(worker.age_seconds, now - worker.observed_at, 0);
+    if (worker.age_seconds > worker.max_age_seconds) {
+      worker.fresh = false; worker.healthy = false; report.connected = false;
+      if (["active", "degraded", "failed"].includes(report.state)) {
+        report.state = "stale"; report.ok = false;
+        report.issues = [...new Set([...report.issues, "talk-worker-status-stale"])];
+      }
+    }
+  }
+  return report;
+}
+
+async function readRuntime(connection, execute) {
+  let deadline;
+  try {
+    // The gateway already owns this telemetry mount. Keep the config owner's
+    // filesystem isolation and reuse the registered read-only status path.
+    // The backend can already consume 45s of the browser's 50s request limit.
+    // Bound ancillary waiting independently of the subprocess kill grace. The
+    // race also handles a later rejection after this read has timed out.
+    const result = await Promise.race([
+      execute(
+        { executable: "/opt/openclaw-agent/scripts/assistant.sh", argv: ["talk", "status"], stdin: null },
+        { tool_timeout_seconds: 5, max_capture_bytes: 32 * 1024, max_error_bytes: 1024 },
+      ),
+      new Promise((_resolve, reject) => { deadline = setTimeout(() => reject(new Error()), 2000); }),
+    ]);
+    // Exit one is a valid unhealthy diagnostic, not a transport failure.
+    if (![0, 1].includes(result.returncode) || result.stdout_truncated || typeof result.stdout !== "string"
+        || Buffer.byteLength(result.stdout) > 32 * 1024) throw new Error();
+    return projectRuntime(JSON.parse(result.stdout), connection);
+  } catch {
+    // A telemetry read never reverses a successful save, nor echoes stderr.
+    return unavailableRuntime(connection);
+  } finally {
+    clearTimeout(deadline);
+  }
+}
+
 export function registerSetupUi(api, options = {}) {
   const backend = options.backend ?? setupBackendRequest;
+  const runtimeExecute = options.runtimeExecute ?? spawnJson;
   api.registerGatewayMethod(SETUP_RPC, async ({ params, client, respond }) => {
     try {
       const actor = operatorActor(client);
       const request = validateSetupRequest(params);
       const proof = validateSetupProof(params.proof, request, actor);
-      respond(true, await backend({ ...request, actor, proof }));
+      const result = await backend({ ...request, actor, proof });
+      if (RUNTIME_OPERATIONS.has(request.operation) && result.connected === true) {
+        respond(true, { ...result, talk_runtime: await readRuntime(result, runtimeExecute) });
+      } else respond(true, result);
     } catch (error) {
       // Transport/system errors never expose socket paths or stack traces.
       respond(false, undefined, error instanceof SetupError

@@ -15,10 +15,10 @@ const client = () => ({ connect: { role: "operator", scopes: ["operator.admin"],
 const proof = (operation = "status", parameters = {}, actor = `device:${DEVICE}`, issued_at = Date.now()) => ({
   payload: JSON.stringify({ operation, parameters, actor, issued_at, nonce: "b".repeat(32) }), signature: "A".repeat(86),
 });
-function registration(backend) {
+function registration(backend, options = {}) {
   const methods = new Map(), routes = [], descriptors = [];
   registerSetupUi({ config: {}, registerGatewayMethod(name, handler, opts) { methods.set(name, { handler, opts }); },
-    registerHttpRoute(route) { routes.push(route); }, registerControlUiDescriptor(value) { descriptors.push(value); } }, { backend });
+    registerHttpRoute(route) { routes.push(route); }, registerControlUiDescriptor(value) { descriptors.push(value); } }, { backend, ...options });
   return { methods, routes, descriptors };
 }
 async function dispatch(registry, requestClient = client(), params = { operation: "status", parameters: {}, proof: proof() }) {
@@ -26,6 +26,145 @@ async function dispatch(registry, requestClient = client(), params = { operation
   await registry.methods.get(SETUP_RPC).handler({ params, client: requestClient, respond(...args) { response = args; } });
   return response;
 }
+
+const savedConnection = () => ({ connected: true, revision: "revision-one", talk: {
+  enabled: true, room_tokens: ["roomA"], allowed_user_ids: ["jan"],
+} });
+function runtimeReport(changes = {}) {
+  return { ok: true, mode: "managed-account", channel: "nextcloud-account-talk", connection_revision: "revision-one",
+    state: "active", configured: true, enabled: true, connected: true, desired_state: "ON", room_count: 1, allowed_user_count: 1,
+    issues: [], warnings: [], limitations: ["Do not forward arbitrary strings"],
+    worker: { present: true, fresh: true, healthy: true, observed_at: Date.now() / 1000 - 1, age_seconds: 1,
+      max_age_seconds: 90, account_matches: true, revision_matches: true, selection_matches: true,
+      enabled: true, connected: true, code: "talk-poll-ok", counts: { completed: 2, uncertain: 0 } }, ...changes };
+}
+function runtimeResult(report = runtimeReport(), changes = {}) {
+  return { returncode: report.ok ? 0 : 1, stdout: JSON.stringify(report), stderr: "", stdout_truncated: false, ...changes };
+}
+
+test("saved setup status includes fresh revision-bound worker evidence from a fixed bounded command", async () => {
+  const report = runtimeReport(); report.secret = "never-return-this"; report.worker.secret = "never-return-this";
+  let execution;
+  const api = registration(async () => savedConnection(), { runtimeExecute: async (invocation, limits) => {
+    execution = { invocation, limits }; return runtimeResult(report);
+  } });
+  const response = await dispatch(api);
+  assert.equal(response[0], true);
+  const runtime = response[1].talk_runtime;
+  assert.equal(runtime.state, "active"); assert.equal(runtime.connected, true); assert.equal(runtime.schema_version, 1);
+  assert.equal(runtime.connection_revision, "revision-one"); assert.equal(runtime.worker.observed_at, report.worker.observed_at);
+  assert.equal(runtime.worker.max_age_seconds, 90); assert.equal(runtime.worker.counts.completed, 2);
+  assert.ok(!JSON.stringify(response).includes("never-return-this"));
+  assert.ok(!JSON.stringify(runtime).includes("Do not forward arbitrary strings"));
+  assert.deepEqual(execution.invocation, { executable: "/opt/openclaw-agent/scripts/assistant.sh", argv: ["talk", "status"], stdin: null });
+  assert.ok(execution.limits.tool_timeout_seconds > 0 && execution.limits.tool_timeout_seconds <= 10);
+  assert.ok(execution.limits.max_capture_bytes <= 32 * 1024);
+});
+
+test("valid unsuccessful Talk status preserves worker failure despite command exit one", async () => {
+  const report = runtimeReport({ ok: false, state: "failed", connected: false, issues: ["talk-poll-failed"] });
+  report.worker = { ...report.worker, healthy: false, connected: false, code: "talk-poll-failed" };
+  const api = registration(async () => savedConnection(), { runtimeExecute: async () => runtimeResult(report) });
+  const response = await dispatch(api);
+  assert.equal(response[0], true); assert.equal(response[1].talk_runtime.state, "failed");
+  assert.equal(response[1].talk_runtime.connected, false);
+  assert.deepEqual(response[1].talk_runtime.issues, ["talk-poll-failed"]);
+});
+
+test("runtime from another saved revision cannot establish a current connection", async () => {
+  const api = registration(async () => savedConnection(), { runtimeExecute: async () => runtimeResult(runtimeReport({ connection_revision: "different-revision" })) });
+  const runtime = (await dispatch(api))[1].talk_runtime;
+  assert.equal(runtime.state, "pending"); assert.equal(runtime.connected, false); assert.equal(runtime.worker.healthy, false);
+  assert.deepEqual(runtime.issues, ["talk-worker-configuration-not-observed"]);
+});
+
+test("worker evidence expiring during collection is stale instead of connected", async () => {
+  const report = runtimeReport(); report.worker.observed_at = Date.now() / 1000 - 91;
+  const api = registration(async () => savedConnection(), { runtimeExecute: async () => runtimeResult(report) });
+  const runtime = (await dispatch(api))[1].talk_runtime;
+  assert.equal(runtime.state, "stale"); assert.equal(runtime.connected, false);
+  assert.equal(runtime.worker.fresh, false); assert.equal(runtime.worker.healthy, false);
+  assert.ok(runtime.issues.includes("talk-worker-status-stale"));
+});
+
+test("expired failed observation does not establish a current worker outage", async () => {
+  const report = runtimeReport({ ok: false, state: "failed", connected: false, issues: ["talk-poll-failed"] });
+  report.worker = { ...report.worker, observed_at: Date.now() / 1000 - 91,
+    healthy: false, connected: false, code: "talk-poll-failed" };
+  const api = registration(async () => savedConnection(), { runtimeExecute: async () => runtimeResult(report) });
+  const runtime = (await dispatch(api))[1].talk_runtime;
+  assert.equal(runtime.state, "stale"); assert.equal(runtime.connected, false); assert.equal(runtime.worker.fresh, false);
+  assert.ok(runtime.issues.includes("talk-worker-status-stale"));
+});
+
+test("ancillary runtime deadline preserves a completed write even when execution never settles", async context => {
+  context.mock.timers.enable({ apis: ["setTimeout"] });
+  let started, rejectRuntime, response;
+  const runtimeStarted = new Promise(resolve => { started = resolve; });
+  const api = registration(async () => savedConnection(), { runtimeExecute: () => {
+    started(); return new Promise((_resolve, reject) => { rejectRuntime = reject; });
+  } });
+  const parameters = { enabled: true, room_tokens: ["roomA"], allowed_user_ids: ["jan"], expected_revision: "prior" };
+  const pending = dispatch(api, client(), { operation: "talk.configure", parameters, proof: proof("talk.configure", parameters) })
+    .then(value => { response = value; });
+  await runtimeStarted;
+  context.mock.timers.tick(2100);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.ok(response, "completed write must return before the ancillary read can consume the browser deadline");
+  assert.equal(response[0], true); assert.equal(response[1].revision, "revision-one");
+  assert.equal(response[1].talk_runtime.state, "unavailable");
+  // A late process failure must stay handled after the operator has its result.
+  rejectRuntime(new Error("never-return-this"));
+  await new Promise(resolve => setImmediate(resolve));
+  await pending;
+  assert.ok(!JSON.stringify(response).includes("never-return-this"));
+});
+
+test("malformed or unavailable runtime never reverses a successful setup save or leaks raw errors", async () => {
+  const parameters = { enabled: true, room_tokens: ["roomA"], allowed_user_ids: ["jan"], expected_revision: "prior" };
+  const cases = [
+    () => { throw new Error("never-return-this"); },
+    () => runtimeResult(undefined, { returncode: 124, stderr: "never-return-this" }),
+    () => runtimeResult(undefined, { stdout: "never-return-this" }),
+    () => runtimeResult(undefined, { stdout_truncated: true }),
+    () => runtimeResult(undefined, { stdout: " ".repeat(32 * 1024 + 1) }),
+    () => runtimeResult(runtimeReport({ mode: "legacy" })),
+    () => runtimeResult(runtimeReport({ issues: ["never-return-this"] })),
+    () => runtimeResult(runtimeReport({ connected: "yes" })),
+    () => runtimeResult(runtimeReport({ worker: { ...runtimeReport().worker, code: "never-return-this" } })),
+  ];
+  for (const execute of cases) {
+    const api = registration(async () => savedConnection(), { runtimeExecute: execute });
+    const response = await dispatch(api, client(), { operation: "talk.configure", parameters, proof: proof("talk.configure", parameters) });
+    assert.equal(response[0], true); assert.equal(response[1].revision, "revision-one");
+    assert.equal(response[1].talk_runtime.state, "unavailable"); assert.equal(response[1].talk_runtime.connected, false);
+    assert.deepEqual(response[1].talk_runtime.issues, ["talk-runtime-unavailable"]);
+    assert.ok(!JSON.stringify(response).includes("never-return-this"));
+  }
+});
+
+test("runtime reads follow authorization and successful saved-account operations only", async () => {
+  let calls = 0;
+  const options = { runtimeExecute: async () => { calls++; return runtimeResult(); } };
+  const unauthorized = registration(async () => savedConnection(), options);
+  assert.equal((await dispatch(unauthorized, null))[0], false);
+  const failed = registration(async () => { throw new Error("backend-failed"); }, options);
+  assert.equal((await dispatch(failed))[0], false);
+  for (const result of [{ connected: false, revision: "" }, { state: "failed", code: "authentication-failed" }]) {
+    const response = await dispatch(registration(async () => result, options));
+    assert.equal(response[1].talk_runtime, undefined);
+  }
+  const parameters = { room_token: "roomA" };
+  await dispatch(unauthorized, client(), { operation: "talk.participants", parameters, proof: proof("talk.participants", parameters) });
+  assert.equal(calls, 0);
+  for (const [operation, parameters] of [["status", {}], ["connection.refresh", { expected_revision: "prior" }],
+    ["connection.apply", { flow_id: "a".repeat(32), preview_digest: "b".repeat(64), expected_revision: "", confirm_account_access: true }],
+    ["talk.configure", { enabled: true, room_tokens: ["roomA"], allowed_user_ids: ["jan"], expected_revision: "prior" }]]) {
+    const response = await dispatch(unauthorized, client(), { operation, parameters, proof: proof(operation, parameters) });
+    assert.equal(response[1].talk_runtime.state, "active");
+  }
+  assert.equal(calls, 4);
+});
 
 test("all setup calls require an external operator admin device and exact signed actor", async () => {
   const calls = [];

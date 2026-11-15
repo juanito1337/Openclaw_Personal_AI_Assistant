@@ -3,7 +3,8 @@ import { createSetupGateway } from "./setup-ui-auth.js";
 // All server names, resource metadata and errors are untrusted text, never HTML.
 const $ = id => document.getElementById(id);
 const state = { authenticated: false, busy: false, current: null, flow: null, ready: null, participantRooms: "" };
-let gateway;
+let gateway, talkExpiryTimer;
+let talkReceivedAt = 0;
 function node(tag, text, className) {
   const result = document.createElement(tag);
   if (text !== undefined) result.textContent = String(text);
@@ -17,6 +18,7 @@ function disconnected() {
   state.authenticated = false; $("actions").disabled = true;
   $("connect").disabled = false; $("reload").hidden = true;
   $("auth-status").textContent = "Nicht verbunden – erneut mit OpenClaw verbinden";
+  renderTalkRuntime();
 }
 async function run(action, { login = false } = {}) {
   if (state.busy) return;
@@ -63,6 +65,7 @@ function resourceText(item) {
   return `${item.name || item.path || item.resource_id || item.token || "Ressource"}${rights.length ? " · Serverrechte: " + rights.join(", ") : " · Rechte nicht bestätigt"}${access}`;
 }
 const diagnosticLabels = { ok: "Erfolgreich geprüft", partial: "Teilweise geprüft", failed: "Prüfung fehlgeschlagen", empty: "Keine Sammlungen gefunden", skipped: "Noch nicht geprüft" };
+const talkDiagnosticLabels = { ...diagnosticLabels, ok: "Metadaten erfolgreich geprüft", empty: "Keine Räume gefunden", unavailable: "Talk nicht verfügbar", unsupported: "Voraussetzung fehlt" };
 function count(value) { return Number.isSafeInteger(value) && value >= 0 ? value : "?"; }
 function pendingDiagnostics(text) {
   $("diagnostics").replaceChildren(node("p", text, "muted"));
@@ -78,13 +81,27 @@ function renderDiagnostics(preview, { saved = false, checkedAt = "" } = {}) {
     return;
   }
   const list = node("div", undefined, "diagnostic-list");
-  for (const [key, label] of [["user", "Benutzer"], ["calendars", "Kalender"], ["task_lists", "Aufgabenlisten"], ["files", "Ordner"]]) {
+  for (const [key, label] of [["user", "Benutzer"], ["calendars", "Kalender"], ["task_lists", "Aufgabenlisten"], ["files", "Ordner"], ["talk", "Nextcloud Talk"]]) {
     const check = report[key] || {};
-    const status = Object.hasOwn(diagnosticLabels, check.status) ? check.status : "skipped";
+    const labels = key === "talk" ? talkDiagnosticLabels : diagnosticLabels;
+    const status = Object.hasOwn(labels, check.status) ? check.status : "skipped";
     const card = node("div", undefined, `diagnostic ${status}`);
-    card.append(node("h3", label), node("strong", diagnosticLabels[status]));
+    card.append(node("h3", label), node("strong", labels[status]));
     if (key === "user") {
       card.append(node("p", check.loaded === true ? `${preview.display_name || preview.user_id} (${preview.user_id}) · Benutzer geladen` : "Benutzer konnte noch nicht bestätigt werden."));
+    } else if (key === "talk") {
+      card.append(node("p", `Talk-App: ${check.app_available === true ? "verfügbar" : check.app_available === false ? "nicht verfügbar" : "nicht bestätigt"}. Raumzugriff: ${check.api_reachable === true ? "erreichbar" : check.api_reachable === false ? "fehlgeschlagen" : "nicht bestätigt"}.`));
+      card.append(node("p", `Antwortzuordnung: ${check.reference_id_supported === true ? "unterstützt" : check.reference_id_supported === false ? "nicht unterstützt" : "nicht bestätigt"}.`));
+      card.append(node("p", `${count(check.discovered)} ${check.discovered === 1 ? "Raum" : "Räume"} erfasst · ${count(check.writable)} mit bestätigtem Senderecht · ${count(check.send_unconfirmed)} mit ungeklärtem Senderecht.`));
+      card.append(node("p", check.inventory_complete === true ? "Raumliste vollständig erfasst." : "Vollständigkeit der Raumliste nicht bestätigt."));
+      card.append(node("p", "Geprüft werden Raummetadaten und vom Server gemeldete Rechte. Keine Chat-Inhalte gelesen und keine Testnachricht gesendet.", "muted"));
+      const next = status === "unavailable" ? "Talk in Nextcloud bereitstellen und Ressourcen neu erkennen."
+        : status === "unsupported" ? "Die Talk-Version muss die Antwortzuordnung unterstützen (chat-reference-id)."
+        : status === "empty" ? "Das Agentenkonto in Nextcloud zu einem Talk-Raum hinzufügen und Ressourcen neu erkennen."
+        : status === "skipped" ? "Das Konto anmelden oder Ressourcen neu erkennen."
+        : status === "failed" || status === "partial" ? "Fehler und Prüfgrenzen beachten; Erreichbarkeit und Kontorechte prüfen und Ressourcen neu erkennen."
+        : "Die gewünschten Räume und Benutzer unten auswählen; dort den Chat-Dienst prüfen.";
+      card.append(node("p", `Nächster Schritt: ${next}`, "muted"));
     } else if (key === "files") {
       card.append(node("p", check.root_readable === true ? "Kontohauptordner erreichbar und lesbar." : "Lesezugriff auf den Kontohauptordner nicht bestätigt."));
       card.append(node("p", `${count(check.discovered)} Ordner erfasst. ${check.inventory_complete === true ? "Auflistung der obersten Ebene vollständig." : "Auflistung der obersten Ebene nicht vollständig bestätigt."}`));
@@ -128,13 +145,65 @@ function renderTalk(current) {
   for (const room of rooms) $("talk-rooms").append(choice(room.token, resourceText(room), selected.has(room.token) && room.can_send === true, room.can_send !== true));
   if (!rooms.length) $("talk-rooms").append(node("p", "Keine Talk-Räume erfasst. Ressourcen neu erkennen oder das Konto in Nextcloud zu einem Raum hinzufügen."));
   $("talk-enabled").checked = current.talk?.enabled === true;
-  $("talk-status").textContent = current.talk?.enabled
-    ? "Talk ist für die gespeicherten Räume und Benutzer aktiviert. Zum Ändern der Auswahl zuerst die Teilnehmer laden."
-    : "Talk ist deaktiviert. Die Aktivierung benötigt eine ausdrückliche Raum- und Benutzerauswahl.";
+  renderTalkRuntime();
   $("talk-section").hidden = false;
 }
-function renderStatus(current) {
+const runtimeLabels = {
+  active: ["Verbunden", "In einem ausgewählten Raum mit dem Agenten schreiben. Bei Problemen den Status neu laden."],
+  degraded: ["Verbindung mit Einschränkungen", "Ungewisse Verarbeitung oder Zustellung prüfen. Nachrichten nicht automatisch erneut senden."],
+  disabled: ["Deaktiviert", "Zum Aktivieren Räume und Benutzer auswählen, Teilnehmer laden und die Talk-Einstellung speichern."],
+  "not-observed": ["Noch keine Rückmeldung", "Kurz warten und „Status neu laden“ wählen. Bleibt die Rückmeldung aus, den Chat-Dienst prüfen."],
+  pending: ["Neue Einstellung noch nicht bestätigt", "Kurz warten und „Status neu laden“ wählen; die neue Auswahl ist noch nicht vom Chat-Dienst bestätigt."],
+  stale: ["Status veraltet", "„Status neu laden“ wählen. Bleibt die Rückmeldung veraltet, den Chat-Dienst und seine Verbindung prüfen."],
+  failed: ["Verbindung fehlgeschlagen", "Nextcloud-Erreichbarkeit und Kontorechte prüfen, dann Ressourcen neu erkennen und den Status neu laden."],
+  invalid: ["Auswahl unvollständig oder ungültig", "Ressourcen neu erkennen, Räume und Teilnehmer prüfen und die Talk-Einstellung erneut speichern."],
+  unavailable: ["Verbindung nicht bestätigt", "„Status neu laden“ wählen; falls weiter keine Diagnose vorliegt, den Chat-Dienst prüfen."],
+};
+function renderTalkRuntime() {
+  window.clearTimeout(talkExpiryTimer);
+  const current = state.current;
+  if (!current?.connected) return;
+  const target = $("talk-status"), runtime = current.talk_runtime, worker = runtime?.worker || {};
+  const rooms = current.talk?.room_tokens || [], users = current.talk?.allowed_user_ids || [];
+  const enabled = current.talk?.enabled === true;
+  const elapsed = Math.max(0, (performance.now() - talkReceivedAt) / 1000);
+  const age = typeof worker.age_seconds === "number" && Number.isFinite(worker.age_seconds) && worker.age_seconds >= 0 ? worker.age_seconds + elapsed : null;
+  const maxAge = typeof worker.max_age_seconds === "number" && Number.isFinite(worker.max_age_seconds) && worker.max_age_seconds > 0 ? Math.min(90, worker.max_age_seconds) : 0;
+  let status = runtime && Object.hasOwn(runtimeLabels, runtime.state) ? runtime.state : "unavailable";
+  if (!state.authenticated) status = "unavailable";
+  else if (!enabled) status = "disabled";
+  else if (!runtime || runtime.mode !== "managed-account") status = "unavailable";
+  else if (status !== "unavailable" && (runtime.connection_revision !== current.revision || runtime.room_count !== rooms.length || runtime.allowed_user_count !== users.length)) status = "pending";
+  else if (["active", "degraded", "failed"].includes(status)) {
+    if (age !== null && maxAge && age >= maxAge) status = "stale";
+    else if (status !== "failed" && (runtime.enabled !== true || runtime.connected !== true || runtime.configured !== true
+      || worker.present !== true || worker.fresh !== true || worker.healthy !== true
+      || worker.account_matches !== true || worker.revision_matches !== true || worker.selection_matches !== true
+      || !["talk-poll-ok", "talk-paired-no-history-replay"].includes(worker.code) || age === null || !maxAge)) status = "unavailable";
+    else if (age !== null && maxAge) talkExpiryTimer = window.setTimeout(renderTalkRuntime, (maxAge - age) * 1000 + 1);
+  } else if (status === "disabled") status = "pending";
+  const [label, next] = runtimeLabels[status];
+  target.dataset.state = status;
+  target.className = `diagnostic ${status === "active" ? "ok" : status === "failed" || status === "invalid" ? "failed" : "partial"}`;
+  target.replaceChildren(node("h3", "Chat-Dienst"), node("strong", label));
+  target.append(node("p", `Gespeicherte Einstellung: ${enabled ? "aktiviert" : "deaktiviert"}. Gespeicherte Auswahl: ${rooms.length} ${rooms.length === 1 ? "Raum" : "Räume"} · ${users.length} ${users.length === 1 ? "erlaubter Benutzer" : "erlaubte Benutzer"}${users.length ? " (" + users.join(", ") + ")" : ""}.`));
+  target.append(node("p", "Die Mitgliedschaft der gespeicherten Benutzer wird beim Statusabruf nicht erneut geprüft. Zum Ändern der Auswahl zuerst die Teilnehmer laden.", "muted"));
+  if (typeof worker.observed_at === "number" && Number.isFinite(worker.observed_at)) {
+    const observed = new Date(worker.observed_at * 1000);
+    if (Number.isFinite(observed.getTime())) target.append(node("p", `Letzte Rückmeldung: ${observed.toISOString()}${age === null ? "" : " · beim Anzeigen " + Math.floor(age) + " Sekunden alt"}.`, "muted"));
+  }
+  if (worker.code) target.append(node("p", `Diagnosecode: ${worker.code}`, "muted"));
+  if (Array.isArray(runtime?.issues) && runtime.issues.length) target.append(node("p", `Hinweise: ${runtime.issues.join(", ")}`, "muted"));
+  target.append(node("p", `Nächster Schritt: ${state.authenticated ? next : "OpenClaw erneut verbinden und den Status neu laden."}`));
+  target.append(node("p", "Die Rückmeldung des Chat-Dienstes ist keine Zustellbestätigung für einzelne Nachrichten. Es wird keine Testnachricht gesendet.", "muted"));
+  target.append(node("p", "Die Rückmeldung bezieht sich auf den zuletzt abgefragten Raum. Weitere ausgewählte Räume werden nacheinander abgefragt.", "muted"));
+}
+function renderStatus(current, requestedAt) {
   state.current = current;
+  // Include the entire RPC duration conservatively; transport time must never
+  // extend a server observation's lifetime. This also avoids clock-skew claims.
+  talkReceivedAt = requestedAt;
+  window.clearTimeout(talkExpiryTimer);
   $("current").textContent = current.connected
     ? `Verbindung gespeichert: ${current.server_url} als ${current.user_id}. Letzte Prüfung: ${current.last_verified_at || "unbekannt"}.`
     : "Noch keine Nextcloud-Verbindung gespeichert.";
@@ -191,10 +260,11 @@ function selectedServer() {
   return server;
 }
 async function loadStatus() {
+  const requestedAt = performance.now();
   const current = await gateway.call("status");
   const previewInvalidated = state.ready && current.revision !== state.ready.expected_revision;
   if (previewInvalidated) clearFlow();
-  renderStatus(current);
+  renderStatus(current, requestedAt);
   message(previewInvalidated
     ? "Der gespeicherte Verbindungsstand hat sich geändert. Die alte Einrichtungsvorschau wurde geschlossen; der aktuelle Status wird angezeigt."
     : "Gespeicherter Verbindungsstatus geladen.");
@@ -234,8 +304,8 @@ $("credentials-form").addEventListener("submit", event => {
       const name = $("login-name").value.trim();
       if (!name || !password) throw new Error("Anmeldename und Nextcloud-App-Passwort eingeben.");
       clearFlow(); $("preview-section").hidden = true; $("talk-section").hidden = true;
-      pendingDiagnostics("Prüfung läuft: Benutzer, Kalender, Aufgabenlisten und Ordner. Das Ergebnis erscheint nach der Serverantwort.");
-      message("Benutzer und Zugriff auf Kalender, Aufgabenlisten und Ordner werden geprüft …");
+      pendingDiagnostics("Prüfung läuft: Benutzer, Kalender, Aufgabenlisten, Ordner und Nextcloud Talk. Das Ergebnis erscheint nach der Serverantwort.");
+      message("Benutzer und Zugriff auf Kalender, Aufgabenlisten, Ordner und Talk werden geprüft …");
       const result = await gateway.call("login.credentials", { server_url: server.toString(), login_name: name, app_password: password });
       if (result.state === "ready") showReady(result);
       else if (result.state === "failed") showLoginFailure(result);
@@ -269,6 +339,7 @@ $("confirm-access").addEventListener("change", () => { $("apply").disabled = !$(
 $("apply").addEventListener("click", () => run(async () => {
   if (!state.ready || !$("confirm-access").checked) throw new Error("Die angezeigten Kontoressourcen zuerst bestätigen.");
   let result;
+  const requestedAt = performance.now();
   try {
     result = await gateway.call("connection.apply", { flow_id: state.flow, preview_digest: state.ready.preview_digest,
       expected_revision: state.ready.expected_revision, confirm_account_access: true });
@@ -277,17 +348,18 @@ $("apply").addEventListener("click", () => run(async () => {
     pendingDiagnostics("Die Speicherung konnte nicht bestätigt werden. Lade zuerst den Status neu; die bisherige Vorschau ist geschlossen.");
     throw new Error("Die Verbindung konnte nicht bestätigt werden. „Status neu laden“ wählen und den gespeicherten Stand prüfen, bevor du eine neue Anmeldung beginnst.");
   }
-  clearFlow(); renderStatus(result); message("Nextcloud-Verbindung gespeichert und geprüft. Talk kann jetzt separat eingerichtet werden.");
+  clearFlow(); renderStatus(result, requestedAt); message("Nextcloud-Verbindung gespeichert und geprüft. Talk kann jetzt separat eingerichtet werden.");
 }));
 $("refresh").addEventListener("click", () => run(async () => {
   pendingDiagnostics("Benutzer und Ressourcen werden erneut auf dem Nextcloud-Server geprüft …");
+  const requestedAt = performance.now();
   const result = await gateway.call("connection.refresh", { expected_revision: state.current.revision });
   if (result.state === "failed") {
     showLoginFailure(result);
     message("Die erneute Prüfung ist fehlgeschlagen. Die bisher gespeicherte Verbindung bleibt unverändert; ihr alter Prüfstand belegt keinen aktuellen Zugriff.");
     return;
   }
-  renderStatus(result); message("Ressourcen erneut erkannt. Angezeigte Einschränkungen bitte beachten.");
+  renderStatus(result, requestedAt); message("Ressourcen erneut erkannt. Angezeigte Einschränkungen bitte beachten.");
 }, { login: true }));
 async function browse(path) {
   $("folders").replaceChildren(node("p", "Der angegebene Ordner wird geprüft …", "muted"));
@@ -325,7 +397,9 @@ $("participants").addEventListener("click", () => run(async () => {
 $("save-talk").addEventListener("click", () => run(async () => {
   const enabled = $("talk-enabled").checked; const rooms = checked("talk-rooms").sort(); const users = checked("talk-users");
   if (enabled && (state.participantRooms !== JSON.stringify(rooms) || !users.length || users.length > 32)) throw new Error("Teilnehmer der aktuellen Raumauswahl laden und zwischen einem und 32 Benutzern auswählen.");
+  const requestedAt = performance.now();
   const result = await gateway.call("talk.configure", { enabled, room_tokens: rooms, allowed_user_ids: users, expected_revision: state.current.revision });
-  renderStatus(result); message(enabled ? "Talk-Auswahl gespeichert und aktiviert." : "Talk deaktiviert.");
+  renderStatus(result, requestedAt); message(enabled ? "Talk-Auswahl gespeichert und aktiviert. Ob der Chat-Dienst verbunden ist, zeigt der Abschnitt „Chat-Dienst“." : "Talk deaktiviert.");
 }));
+window.addEventListener("focus", renderTalkRuntime);
 window.addEventListener("pagehide", () => { $("app-password").value = ""; gateway?.close(); });

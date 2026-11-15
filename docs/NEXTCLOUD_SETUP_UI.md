@@ -90,10 +90,11 @@ ist kein Anlass, TLS zu deaktivieren.
 ## Anmeldung und Zugriff pruefen
 
 Die Einrichtung zeigt getrennte Ergebnisse fuer **Benutzer**, **Kalender**,
-**Aufgabenlisten** und **Ordner**, einschliesslich Pruefzeitpunkt. Ein gespeicherter
-Stand ist ausdruecklich als gespeichertes Pruefergebnis gekennzeichnet.
-**Status neu laden** liest diesen Stand; **Ressourcen neu erkennen** fuehrt neue
-Serverabfragen aus.
+**Aufgabenlisten**, **Ordner** und **Talk**, einschliesslich Pruefzeitpunkt.
+Ein gespeicherter Stand ist ausdruecklich als gespeichertes Pruefergebnis
+gekennzeichnet. **Status neu laden** liest diesen Stand und die vorhandene
+Talk-Workerbeobachtung; **Ressourcen neu erkennen** fuehrt neue Serverabfragen aus.
+Die Workerbeobachtung behaelt ihren eigenen Zeitpunkt.
 
 - **Benutzer:** Nur die erfolgreiche authentisierte Benutzerabfrage bestaetigt
   Identitaet und Anzeigenamen. Schlaegt sie fehl, bleiben nachfolgende Bereiche
@@ -109,11 +110,23 @@ Serverabfragen aus.
   unmittelbaren Unterordner. Sie belegt keinen rekursiven Zugriff auf alle
   Unterordner. **Ordner durchsuchen** prueft den konkret geoeffneten Pfad und
   zeigt dessen Serverrechte. Dateiinhalte werden nicht heruntergeladen.
+- **Talk:** Capability-Antwort, authentisierter Zugriff auf die Raum-API und
+  sichtbare Raeume mit ihren angekuendigten Senderechten werden getrennt
+  ausgewertet. Der Check liest Raummetadaten, keine Chatnachrichten.
+  Die fuer den Kontokanal erforderliche Capability `chat-reference-id` muss
+  ausdruecklich vorliegen. Eine fehlgeschlagene oder unvollstaendige Abfrage
+  beweist nicht, dass Talk oder weitere Raeume fehlen. Unbekannte Rechte gelten
+  nicht als bestaetigte Sendeberechtigung. Zeitpunkt, Umfang, Fehler und der
+  naechste sichere Schritt bleiben sichtbar.
 
 Serverrechte fuer Lesen, Erstellen und Aendern werden pro Ressource getrennt
 von der Lesepruefung angezeigt. Die Diagnose erzeugt keine Probeobjekte und
 veraendert keine Serverrechte. Eine leere, vollstaendig gelesene Sammlungsliste
 ist von einer fehlgeschlagenen oder unvollstaendigen Erkennung unterscheidbar.
+Ein erfolgreicher Talk-Zugriffscheck aktiviert keinen Kanal und prueft keine
+Nachrichtenzustellung. Die Entwicklungsregeln fuer diese getrennten Nachweise
+gelten auch fuer kuenftige Integrationen; siehe
+[Integrationsdiagnosen](INTEGRATION_DIAGNOSTICS.md).
 
 ## Ressourcen verwenden
 
@@ -175,6 +188,22 @@ lesbare Raeume koennen nicht fuer Antworten aktiviert werden. Der bisherige
 Bot-/Webhookkanal bleibt eine separate Variante und darf denselben Raum nicht
 gleichzeitig bearbeiten.
 
+Die Diagnose unterscheidet die gespeicherte Aktivierung, Raum- und Senderauswahl
+von der tatsaechlichen Workerbeobachtung. Eine gespeicherte Senderauswahl ist
+kein neuer Nachweis der aktuellen Raumteilnahme. Die Teilnehmer werden beim
+Laden beziehungsweise Validieren der konkreten Auswahl geprueft.
+
+Eine aktuelle Pollverbindung setzt einen wirklich erfolgreichen Nachrichtenpoll
+fuer das passende Konto und die aktuelle Konfiguration voraus. Die Beobachtung
+darf hoechstens 90 Sekunden alt sein. Auch die erfolgreiche erste Chatabfrage
+zum Setzen des Startpunkts ohne Historienwiederholung zaehlt dazu; Prozessstart,
+Rauminventur und gespeicherte Aktivierung reichen nicht. Die Beobachtung ist
+keine neue Zugriffspruefung jedes ausgewaehlten Raums. **Status neu laden**
+startet keinen Worker und sendet keine Testnachricht. Auch ein aktueller
+erfolgreicher Poll belegt weder die Zustellung einer einzelnen Antwort noch
+eine Benachrichtigung auf dem Telefon. Ein Ende-zu-Ende-Test bleibt ein
+gesonderter ausdruecklicher Auftrag.
+
 Beim ersten Pairing wird vorhandene Chathistorie nicht als neue Anweisung
 ausgefuehrt. Zugelassene neue Textnachrichten werden vor der Verarbeitung
 dauerhaft angenommen. Eigene Antworten werden anhand ihrer Nachrichten-IDs
@@ -196,8 +225,12 @@ gesperrt, damit er den administrativen Kontrollpfad nicht aufrufen kann.
 | Anmeldung ausstehend/abgelaufen | Auf Nextcloud bestaetigen oder eine neue Anmeldung starten. |
 | Verbindung gespeichert | Die letzte gepruefte Kontobindung liegt vor; Zeitpunkt und Erkennungsfehler beachten. |
 | Erkennung unvollstaendig | Angezeigte Treffer sind nutzbar; das Fehlen anderer Ressourcen ist nicht bewiesen. Betroffenen Bereich pruefen und neu erkennen. |
-| Talk aktiviert | Raum-/Senderauswahl ist gespeichert. Erst eine aktuelle Workerbeobachtung belegt die Verbindung. |
-| Talk nicht verbunden/Workerbeleg veraltet | Diagnose zeigt keine aktuelle Zustellung. Ein gespeichertes Aktivierungsflag ist kein Gesundheitsnachweis. |
+| Talk-Zugriff geprueft | Capability- und Raumabfragen belegen nur den angezeigten Umfang zum Pruefzeitpunkt. Gespeicherte Auswahl und Workerzustand getrennt pruefen. |
+| Talk ausgeschaltet | Der gespeicherte Sollzustand ist AUS; dies ist kein Verbindungsfehler. Bei gewuenschter Nutzung die konkrete Raum-/Senderauswahl pruefen und aktivieren. |
+| Talk aktiviert | Raum-/Senderauswahl ist gespeichert. Fuer die aktuelle Pollverbindung den unabhaengigen Workerbeleg pruefen. |
+| Talk-Worker noch nicht beobachtet oder Konfiguration abweichend | Fuer die aktuelle Auswahl liegt noch kein passender Pollbeleg vor. Status erneut laden; bleibt der Zustand bestehen, die registrierte Talk-Diagnose verwenden. |
+| Talk-Workerbeleg veraltet | Die Beobachtung ist aelter als 90 Sekunden und belegt weder laufendes Polling noch einen Ausfall. Status erneut laden und bei anhaltendem Zustand die Talk-Diagnose verwenden. |
+| Talk-Poll fehlgeschlagen | Der aktuelle Versuch meldet einen Fehler. Fehlercode und sicheren naechsten Schritt beachten; nicht automatisch neu starten oder Rechte aendern. |
 | Verarbeitung oder Zustellung ungewiss | Kein automatischer neuer Agentenlauf und kein automatischer Wiederholungsversand. Den belegten Zustand pruefen. |
 | Konto-/Versionskonflikt | Aktuellen Status und Auswahl erneut laden; keinen alten Write wiederholen. |
 

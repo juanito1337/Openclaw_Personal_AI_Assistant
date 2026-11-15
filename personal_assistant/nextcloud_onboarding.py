@@ -688,14 +688,27 @@ def _collection_diagnostic(
     }
 
 
+def _talk_diagnostic(status: str, code: str = "") -> dict[str, Any]:
+    """Room metadata evidence only; send permissions never prove message delivery."""
+    return {
+        "status": status, "app_available": None, "api_reachable": None,
+        "reference_id_supported": None, "inventory_complete": False,
+        "discovered": 0, "writable": 0, "send_unconfirmed": 0,
+        "code": code, "errors": [], "limitations": [],
+        "scope": "room-metadata", "content_checked": False,
+    }
+
+
 def _user_failure_diagnostics(code: str) -> dict[str, Any]:
     downstream = _collection_diagnostic(
         [], inventory_complete=False, discovered=0, errors=[], limitations=["user-unavailable"]
     )
     downstream["status"] = "skipped"
+    talk = _talk_diagnostic("skipped", "user-unavailable")
+    talk["limitations"] = ["user-unavailable"]
     return {
         "schema_version": 1, "user": {"status": "failed", "loaded": False, "code": code},
-        "calendars": dict(downstream), "task_lists": dict(downstream),
+        "calendars": dict(downstream), "task_lists": dict(downstream), "talk": talk,
         "files": {"status": "skipped", "inventory_complete": False, "scope": "first-level",
                   "depth": 1, "root_readable": False, "discovered": 0, "content_checked": False,
                   "recursive": False, "errors": [], "limitations": ["user-unavailable"]},
@@ -858,19 +871,27 @@ def discover_account(
     def failed(domain: str, exc: OnboardingError) -> None:
         snapshot["errors"].append({"domain": domain, "code": exc.code})
 
+    talk = _talk_diagnostic("failed")
+    snapshot["diagnostics"]["talk"] = talk
     try:
         raw = _ocs(transport, credentials, "ocs/v1.php/cloud/capabilities")
         capabilities = raw.get("capabilities") if isinstance(raw, dict) else None
         if not isinstance(capabilities, dict):
             raise OnboardingError("invalid-capabilities")
-        spreed = capabilities.get("spreed")
-        if isinstance(spreed, dict):
+        if "spreed" not in capabilities:
+            talk.update(status="unavailable", app_available=False, code="talk-app-unavailable")
+        else:
+            spreed = capabilities["spreed"]
+            if not isinstance(spreed, dict):
+                raise OnboardingError("invalid-capabilities")
             features = spreed.get("features", [])
             if not isinstance(features, list) or not all(isinstance(value, str) for value in features):
                 raise OnboardingError("invalid-capabilities")
             snapshot["capabilities"]["spreed"] = {"features": sorted(set(features))}
+            talk.update(app_available=True, reference_id_supported="chat-reference-id" in features)
     except OnboardingError as exc:
         failed("capabilities", exc)
+        talk.update(code=exc.code, errors=[{"domain": "capabilities", "code": exc.code}])
 
     principal_item = None
     try:
@@ -998,8 +1019,10 @@ def discover_account(
             "errors": [{"code": exc.code}], "limitations": [],
         }
     if "spreed" in snapshot["capabilities"]:
+        talk["api_reachable"] = False
         try:
             rooms = _ocs(transport, credentials, "ocs/v2.php/apps/spreed/api/v4/room?noStatusUpdate=1")
+            talk["api_reachable"] = True
             if not isinstance(rooms, list):
                 raise OnboardingError("invalid-talk-rooms")
             tokens = set()
@@ -1028,14 +1051,36 @@ def discover_account(
                         "type": room.get("type"),
                     }
                 )
+            talk["inventory_complete"] = True
         except OnboardingError as exc:
             failed("talk", exc)
+            talk.update(code=exc.code, errors=[{"domain": "talk", "code": exc.code}])
+        # Count all valid observed rooms before the bounded snapshot is sliced.
+        talk["discovered"] = len(snapshot["talk_rooms"])
+        talk["writable"] = sum(room["can_send"] for room in snapshot["talk_rooms"])
+        talk["send_unconfirmed"] = sum(
+            not room["can_send"]
+            and not (type(room["permissions"]) is int and not room["permissions"] & 128)
+            and room["read_only"] != 1
+            for room in snapshot["talk_rooms"]
+        )
+        if talk["errors"]:
+            talk["status"] = "partial" if talk["discovered"] else "failed"
+        elif not talk["reference_id_supported"]:
+            talk.update(status="unsupported", code="talk-reference-id-required")
+        else:
+            talk["status"] = "ok" if talk["discovered"] else "empty"
     discovered_counts = {key: len(snapshot[key]) for key in ("calendars", "task_lists")}
     for key in ("caldav_collections", "calendars", "task_lists", "addressbooks", "folders", "talk_rooms"):
         snapshot[key].sort(key=lambda item: (item["name"].casefold(), item["resource_id"]))
         if len(snapshot[key]) > max_resources:
             snapshot[key] = snapshot[key][:max_resources]
             snapshot["limitations"].append(key + ":resource-limit")
+            if key == "talk_rooms":
+                talk.update(status="partial", inventory_complete=False)
+                talk["limitations"].append("talk_rooms:resource-limit")
+                if not talk["errors"]:
+                    talk["code"] = "talk_rooms:resource-limit"
     inventory_limitations = list(snapshot["limitations"])
     inventory_errors = list(snapshot["errors"])
     checks: dict[str, dict[str, Any]] = {}

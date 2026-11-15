@@ -963,3 +963,186 @@ def test_probe_deadline_interrupts_slow_stream_even_when_each_recv_is_timely(pha
         worker.join(timeout=1)
         server.close()
     assert not worker.is_alive()
+
+
+
+def test_talk_diagnostics_count_confirmed_and_unknown_send_rights_without_content_requests():
+    network = discovery_network(unknown_rights=["read"])
+    rooms = [
+        {"token": "writable", "permissions": 255, "readOnly": 0},
+        {"token": "readonly", "permissions": 255, "readOnly": 1},
+        {"token": "denied", "permissions": 127, "readOnly": 0},
+        {"token": "unknown"},
+        {"token": "unknownPermissions", "permissions": "255", "readOnly": 0},
+        {"token": "unknownReadOnly", "permissions": 255},
+    ]
+    path = "/nc/ocs/v2.php/apps/spreed/api/v4/room?noStatusUpdate=1"
+    network.responses[("GET", path)] = [HttpResponse(200, {}, json.dumps(ocs(rooms)).encode())]
+    snapshot = discover_account(network.transport(), credentials())
+    diagnostic = snapshot["diagnostics"].get("talk")
+    assert diagnostic == {
+        "status": "ok", "app_available": True, "api_reachable": True,
+        "reference_id_supported": True, "inventory_complete": True,
+        "discovered": 6, "writable": 1, "send_unconfirmed": 3,
+        "code": "", "errors": [], "limitations": [],
+        "scope": "room-metadata", "content_checked": False,
+    }
+    assert snapshot["complete"]
+    assert [(method, target) for method, target, _, _ in network.calls if "spreed" in target] == [
+        ("GET", path),
+    ]
+    assert all(method in {"GET", "PROPFIND"} for method, _, _, _ in network.calls)
+    assert PASSWORD not in json.dumps(diagnostic)
+
+
+def test_talk_diagnostics_confirm_app_unavailable_only_after_successful_capabilities():
+    network = discovery_network(unknown_rights=["read"])
+    network.responses[("GET", "/nc/ocs/v1.php/cloud/capabilities")] = [
+        HttpResponse(200, {}, json.dumps(ocs({"capabilities": {}})).encode()),
+    ]
+    snapshot = discover_account(network.transport(), credentials())
+    assert snapshot["diagnostics"].get("talk") == {
+        "status": "unavailable", "app_available": False, "api_reachable": None,
+        "reference_id_supported": None, "inventory_complete": False,
+        "discovered": 0, "writable": 0, "send_unconfirmed": 0,
+        "code": "talk-app-unavailable", "errors": [], "limitations": [],
+        "scope": "room-metadata", "content_checked": False,
+    }
+    assert snapshot["complete"] and not snapshot["talk_rooms"]
+    assert not any("spreed" in path for _, path, _, _ in network.calls)
+
+
+@pytest.mark.parametrize("response,code", [
+    (HttpResponse(403, {}, PASSWORD.encode()), "permission-denied"),
+    (HttpResponse(200, {}, b"not JSON " + PASSWORD.encode()), "invalid-json"),
+    (HttpResponse(200, {}, json.dumps(ocs({"capabilities": []})).encode()), "invalid-capabilities"),
+    (HttpResponse(200, {}, json.dumps(ocs({"capabilities": {"spreed": False}})).encode()),
+     "invalid-capabilities"),
+    (HttpResponse(200, {}, json.dumps(ocs({"capabilities": {"spreed": {"features": "bad"}}})).encode()),
+     "invalid-capabilities"),
+])
+def test_talk_diagnostics_do_not_treat_failed_capabilities_as_absent(response, code):
+    network = discovery_network(unknown_rights=["read"])
+    network.responses[("GET", "/nc/ocs/v1.php/cloud/capabilities")] = [response]
+    snapshot = discover_account(network.transport(), credentials())
+    diagnostic = snapshot["diagnostics"].get("talk")
+    assert diagnostic is not None
+    assert diagnostic["status"] == "failed"
+    assert diagnostic["app_available"] is None and diagnostic["api_reachable"] is None
+    assert diagnostic["reference_id_supported"] is None and not diagnostic["inventory_complete"]
+    assert (diagnostic["discovered"], diagnostic["writable"], diagnostic["send_unconfirmed"]) == (0, 0, 0)
+    assert diagnostic["code"] == code
+    assert diagnostic["errors"] == [{"domain": "capabilities", "code": code}]
+    assert not snapshot["complete"] and snapshot["diagnostics"]["files"]["status"] == "ok"
+    assert not any("spreed" in path for _, path, _, _ in network.calls)
+    assert PASSWORD not in json.dumps(diagnostic)
+
+
+def test_talk_diagnostics_missing_reference_id_does_not_hide_successful_api_access():
+    network = discovery_network(unknown_rights=["read"])
+    network.responses[("GET", "/nc/ocs/v1.php/cloud/capabilities")] = [
+        HttpResponse(200, {}, json.dumps(ocs({"capabilities": {"spreed": {"features": []}}})).encode()),
+    ]
+    snapshot = discover_account(network.transport(), credentials())
+    diagnostic = snapshot["diagnostics"].get("talk")
+    assert diagnostic is not None
+    assert diagnostic["status"] == "unsupported"
+    assert diagnostic["app_available"] is True and diagnostic["api_reachable"] is True
+    assert diagnostic["reference_id_supported"] is False and diagnostic["inventory_complete"]
+    assert (diagnostic["discovered"], diagnostic["writable"], diagnostic["send_unconfirmed"]) == (2, 1, 0)
+    assert diagnostic["code"] == "talk-reference-id-required"
+    assert diagnostic["errors"] == []
+    assert len(snapshot["talk_rooms"]) == 2
+
+
+@pytest.mark.parametrize("response,code,reachable", [
+    (HttpResponse(403, {}, PASSWORD.encode()), "permission-denied", False),
+    (HttpResponse(503, {}, PASSWORD.encode()), "upstream-error", False),
+    (HttpResponse(200, {}, b"not JSON " + PASSWORD.encode()), "invalid-json", False),
+    (HttpResponse(200, {}, json.dumps(ocs([], status="failure", statuscode=997)).encode()),
+     "ocs-error", False),
+    (HttpResponse(200, {}, json.dumps(ocs({"private": PASSWORD})).encode()), "invalid-talk-rooms", True),
+    (HttpResponse(200, {}, json.dumps(ocs([{}])).encode()), "invalid-talk-rooms", True),
+])
+def test_talk_diagnostics_failed_room_inventory_is_not_empty_success(response, code, reachable):
+    network = discovery_network(unknown_rights=["read"])
+    network.responses[("GET", "/nc/ocs/v2.php/apps/spreed/api/v4/room?noStatusUpdate=1")] = [response]
+    snapshot = discover_account(network.transport(), credentials())
+    diagnostic = snapshot["diagnostics"].get("talk")
+    assert diagnostic is not None
+    assert diagnostic["status"] == "failed" and diagnostic["app_available"] is True
+    assert diagnostic["api_reachable"] is reachable and diagnostic["reference_id_supported"] is True
+    assert not diagnostic["inventory_complete"]
+    assert (diagnostic["discovered"], diagnostic["writable"], diagnostic["send_unconfirmed"]) == (0, 0, 0)
+    assert diagnostic["code"] == code and diagnostic["errors"] == [{"domain": "talk", "code": code}]
+    assert not snapshot["complete"] and snapshot["diagnostics"]["files"]["status"] == "ok"
+    assert PASSWORD not in json.dumps(snapshot)
+
+
+def test_talk_diagnostics_preserve_partial_room_inventory_on_invalid_room():
+    network = discovery_network(unknown_rights=["read"])
+    rooms = [{"token": "valid", "permissions": 255, "readOnly": 0}, {"token": "bad/token"}]
+    network.responses[("GET", "/nc/ocs/v2.php/apps/spreed/api/v4/room?noStatusUpdate=1")] = [
+        HttpResponse(200, {}, json.dumps(ocs(rooms)).encode()),
+    ]
+    snapshot = discover_account(network.transport(), credentials())
+    diagnostic = snapshot["diagnostics"].get("talk")
+    assert diagnostic is not None
+    assert diagnostic["status"] == "partial" and diagnostic["api_reachable"] is True
+    assert not diagnostic["inventory_complete"]
+    assert (diagnostic["discovered"], diagnostic["writable"], diagnostic["send_unconfirmed"]) == (1, 1, 0)
+    assert diagnostic["code"] == "invalid-talk-rooms"
+    assert diagnostic["errors"] == [{"domain": "talk", "code": "invalid-talk-rooms"}]
+    assert [room["token"] for room in snapshot["talk_rooms"]] == ["valid"]
+
+
+def test_talk_diagnostics_empty_inventory_requires_successful_room_api():
+    network = discovery_network(unknown_rights=["read"])
+    network.responses[("GET", "/nc/ocs/v2.php/apps/spreed/api/v4/room?noStatusUpdate=1")] = [
+        HttpResponse(200, {}, json.dumps(ocs([])).encode()),
+    ]
+    snapshot = discover_account(network.transport(), credentials())
+    diagnostic = snapshot["diagnostics"].get("talk")
+    assert diagnostic is not None
+    assert diagnostic["status"] == "empty" and diagnostic["inventory_complete"]
+    assert diagnostic["app_available"] is True and diagnostic["api_reachable"] is True
+    assert (diagnostic["discovered"], diagnostic["writable"], diagnostic["send_unconfirmed"]) == (0, 0, 0)
+    assert diagnostic["code"] == "" and diagnostic["errors"] == []
+    assert snapshot["complete"]
+
+
+def test_talk_diagnostics_counts_cover_valid_inventory_before_room_limit():
+    network = discovery_network(unknown_rights=["read"])
+    rooms = [
+        {"token": "alpha", "permissions": 255, "readOnly": 1},
+        {"token": "bravo", "permissions": 255, "readOnly": 0},
+        {"token": "charlie"},
+    ]
+    network.responses[("GET", "/nc/ocs/v2.php/apps/spreed/api/v4/room?noStatusUpdate=1")] = [
+        HttpResponse(200, {}, json.dumps(ocs(rooms)).encode()),
+    ]
+    snapshot = discover_account(network.transport(), credentials(), max_resources=1)
+    diagnostic = snapshot["diagnostics"].get("talk")
+    assert diagnostic is not None
+    assert diagnostic["status"] == "partial" and not diagnostic["inventory_complete"]
+    assert diagnostic["api_reachable"] is True and diagnostic["reference_id_supported"] is True
+    assert (diagnostic["discovered"], diagnostic["writable"], diagnostic["send_unconfirmed"]) == (3, 1, 1)
+    assert diagnostic["code"] == "talk_rooms:resource-limit"
+    assert diagnostic["errors"] == [] and diagnostic["limitations"] == ["talk_rooms:resource-limit"]
+    assert [room["token"] for room in snapshot["talk_rooms"]] == ["alpha"]
+    assert not snapshot["complete"] and snapshot["results_may_be_truncated"]
+
+
+def test_talk_diagnostics_skip_after_failed_identity_without_claiming_app_absent():
+    network = FakeNetwork()
+    network.add("GET", "/nc/ocs/v1.php/cloud/user", PASSWORD.encode(), status=401)
+    with error_code("authentication-failed") as error:
+        discover_account(network.transport(), credentials())
+    assert error.value.diagnostics.get("talk") == {
+        "status": "skipped", "app_available": None, "api_reachable": None,
+        "reference_id_supported": None, "inventory_complete": False,
+        "discovered": 0, "writable": 0, "send_unconfirmed": 0,
+        "code": "user-unavailable", "errors": [], "limitations": ["user-unavailable"],
+        "scope": "room-metadata", "content_checked": False,
+    }
+    assert len(network.calls) == 1

@@ -38,6 +38,20 @@ function previewFixture() {
     calendars: [{ name: "<img src=x onerror=alert(1)>", can_read: true, read_check: { status: "ok", code: "", scope: "collection-metadata", content_checked: false } }],
     task_lists: [], addressbooks: [], file_roots: [], folders: [], talk_rooms: [{ token: "roomA", name: "Privater Raum", can_read: true, can_send: true }] };
 }
+function talkDiscovery(overrides = {}) {
+  return { status: "ok", app_available: true, api_reachable: true, reference_id_supported: true,
+    inventory_complete: true, discovered: 2, writable: 1, send_unconfirmed: 0, code: "", errors: [], limitations: [],
+    scope: "room-metadata", content_checked: false, ...overrides };
+}
+function talkCurrent(runtime = {}) {
+  const preview = previewFixture(); preview.diagnostics.talk = talkDiscovery();
+  return { connected: true, revision: "saved", server_url: preview.server_url, user_id: "agent", preview,
+    talk: { enabled: true, room_tokens: ["roomA"], allowed_user_ids: ["jan"] },
+    talk_runtime: { schema_version: 1, mode: "managed-account", channel: "nextcloud-account-talk", connection_revision: "saved",
+      state: "active", configured: true, enabled: true, connected: true, room_count: 1, allowed_user_count: 1,
+      worker: { present: true, fresh: true, healthy: true, account_matches: true, revision_matches: true, selection_matches: true,
+        observed_at: 1794744000, age_seconds: 10, max_age_seconds: 90, code: "talk-poll-ok" }, issues: [], ...runtime } };
+}
 function failedDiagnostics() {
   return { schema_version: 1, user: { status: "failed", loaded: false, code: "authentication-failed" },
     calendars: collection({ status: "skipped", discovered: 0, checked: 0, readable: 0, inventory_complete: false, checks_complete: false }),
@@ -96,6 +110,7 @@ async function withUi(options, exercise) {
           default: throw new Error(`Unexpected UI operation ${operation}`);
         }
       }
+      if (request.method === "personal_assistant.setup") now += options.replyDelayMs || 0;
       if (payload instanceof Error) this.frame({ type: "res", id: request.id, ok: false, error: { code: "fixture-rejected", message: payload.message } });
       else this.frame({ type: "res", id: request.id, ok: true, payload });
     }
@@ -104,12 +119,19 @@ async function withUi(options, exercise) {
   const html = readFileSync(new URL("../docker/openclaw-personal-assistant-plugin/setup-ui.html", import.meta.url), "utf8");
   const elements = new Map(Array.from(html.matchAll(/id="([^"]+)"/g), match => [match[1], new Element()]));
   const windowEvents = new Map();
+  const timers = new Map(); let nextTimer = 0, now = 1000;
   const storage = { getItem: key => storageData.get(key) || null, setItem: () => assert.fail("Setup must not persist credentials in browser storage") };
-  const fakeWindow = { localStorage: storage, sessionStorage: storage, addEventListener: (event, handler) => windowEvents.set(event, handler) };
+  const fakeWindow = { localStorage: storage, sessionStorage: storage, addEventListener: (event, handler) => windowEvents.set(event, handler),
+    setTimeout: (handler, delay) => { const id = ++nextTimer; timers.set(id, { handler, at: now + delay }); return id; },
+    clearTimeout: id => timers.delete(id) };
+  const advanceTime = milliseconds => {
+    now += milliseconds;
+    for (const [id, timer] of [...timers]) if (timer.at <= now) { timers.delete(id); timer.handler(); }
+  };
   fakeWindow.top = fakeWindow; fakeWindow.self = fakeWindow;
   const replacement = { window: fakeWindow, location: { origin: "https://openclaw.example.test" },
     document: { getElementById: id => elements.get(id), createElement: tag => new Element(tag), body: new Element("body") },
-    WebSocket: Socket, crypto: webcrypto };
+    WebSocket: Socket, crypto: webcrypto, performance: { now: () => now } };
   const previous = Object.fromEntries(Object.keys(replacement).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
   const $ = id => elements.get(id);
   const enterCredentials = (server = "https://cloud.example.test") => { $("server-url").value = server; $("login-name").value = " agent-login "; $("app-password").value = password; };
@@ -122,7 +144,7 @@ async function withUi(options, exercise) {
     for (const [key, value] of Object.entries(replacement)) Object.defineProperty(globalThis, key, { configurable: true, value });
     await import(`../docker/openclaw-personal-assistant-plugin/setup-ui-browser.js?fixture=${++moduleSequence}`);
     await $("connect").trigger("click"); assert.equal($("actions").disabled, false);
-    await exercise({ $, html, preview, operations, sockets, windowEvents, enterCredentials, assertNoSecret });
+    await exercise({ $, html, preview, operations, sockets, windowEvents, enterCredentials, assertNoSecret, advanceTime });
   } finally {
     for (const socket of sockets) socket.close();
     for (const [key, descriptor] of Object.entries(previous)) {
@@ -249,6 +271,126 @@ test("stored diagnostics and legacy snapshots never claim a current access check
       assert.deepEqual(operations.map(item => item.operation), ["status"]);
     });
   }
+});
+
+test("Talk discovery distinguishes absent, unsupported, incomplete and unknown instead of claiming connection", async () => {
+  for (const [check, label, detail] of [
+    [talkDiscovery(), "Metadaten erfolgreich geprüft", "2 Räume erfasst · 1 mit bestätigtem Senderecht"],
+    [talkDiscovery({ status: "unavailable", app_available: false, api_reachable: null, reference_id_supported: null }), "Talk nicht verfügbar", "Talk-App: nicht verfügbar"],
+    [talkDiscovery({ status: "unsupported", reference_id_supported: false }), "Voraussetzung fehlt", "Antwortzuordnung: nicht unterstützt"],
+    [talkDiscovery({ status: "failed", app_available: null, api_reachable: null, reference_id_supported: null, code: "transport-error" }), "Prüfung fehlgeschlagen", "Talk-App: nicht bestätigt"],
+    [talkDiscovery({ status: "empty", discovered: 0, writable: 0 }), "Keine Räume gefunden", "Raumliste vollständig erfasst"],
+    [talkDiscovery({ status: "partial", inventory_complete: false, send_unconfirmed: 1, limitations: ["talk_rooms:resource-limit"] }), "Teilweise geprüft", "1 mit ungeklärtem Senderecht"],
+  ]) {
+    const preview = previewFixture(); preview.diagnostics.talk = check;
+    await withUi({ preview }, async ({ $, enterCredentials, operations }) => {
+      enterCredentials(); await $("credentials-form").trigger("submit");
+      assert.match($("diagnostics").textContent, new RegExp(`Nextcloud Talk${label}`));
+      assert.ok($("diagnostics").textContent.includes(detail));
+      assert.match($("diagnostics").textContent, /Keine Chat-Inhalte gelesen und keine Testnachricht gesendet/);
+      assert.equal($("talk-section").hidden, true);
+      assert.equal(operations.some(item => item.operation === "talk.configure"), false);
+    });
+  }
+});
+
+test("saved Talk activation without worker evidence remains unconfirmed", async () => {
+  const current = talkCurrent(); delete current.talk_runtime;
+  await withUi({ current }, async ({ $ }) => {
+    assert.equal($("talk-status").dataset.state, "unavailable");
+    assert.match($("talk-status").textContent, /Verbindung nicht bestätigt/);
+    assert.match($("talk-status").textContent, /Gespeicherte Auswahl: 1 Raum/);
+    assert.match($("talk-status").textContent, /jan/);
+    assert.match($("talk-status").textContent, /Mitgliedschaft.*nicht erneut geprüft/);
+  });
+});
+
+test("an unavailable runtime report with no trusted revision remains unavailable", async () => {
+  await withUi({ current: talkCurrent({ state: "unavailable", connection_revision: "", connected: false,
+    worker: { present: false, fresh: false, healthy: false, code: "talk-runtime-unavailable" }, issues: ["talk-runtime-unavailable"] }) }, async ({ $ }) => {
+    assert.equal($("talk-status").dataset.state, "unavailable");
+    assert.match($("talk-status").textContent, /Verbindung nicht bestätigt/);
+  });
+});
+
+test("Talk runtime states stay distinct and provide a next step", async () => {
+  for (const [status, label] of [
+    ["active", "Verbunden"], ["degraded", "Verbindung mit Einschränkungen"], ["disabled", "Deaktiviert"],
+    ["not-observed", "Noch keine Rückmeldung"], ["pending", "Neue Einstellung noch nicht bestätigt"],
+    ["stale", "Status veraltet"], ["failed", "Verbindung fehlgeschlagen"], ["invalid", "Auswahl unvollständig oder ungültig"],
+    ["unavailable", "Verbindung nicht bestätigt"],
+  ]) {
+    const current = talkCurrent({ state: status });
+    if (status === "disabled") { current.talk.enabled = false; current.talk_runtime.enabled = false; }
+    await withUi({ current }, async ({ $ }) => {
+      assert.equal($("talk-status").dataset.state, status);
+      assert.ok($("talk-status").textContent.includes(label));
+      assert.match($("talk-status").textContent, /Nächster Schritt:/);
+      assert.match($("talk-status").textContent, /keine Zustellbestätigung/);
+    });
+  }
+});
+
+test("healthy Talk status requires matching saved configuration and fresh worker evidence", async () => {
+  for (const mutation of [
+    current => { current.talk_runtime.connection_revision = "other-revision"; },
+    current => { current.talk_runtime.worker.fresh = false; },
+    current => { current.talk_runtime.worker.healthy = false; },
+    current => { current.talk_runtime.worker.account_matches = false; },
+    current => { current.talk_runtime.worker.revision_matches = false; },
+    current => { current.talk_runtime.worker.selection_matches = false; },
+    current => { current.talk_runtime.worker.age_seconds = 91; },
+    current => { current.talk_runtime.worker.age_seconds = null; },
+    current => { current.talk_runtime.room_count = 2; },
+    current => { current.talk_runtime.enabled = false; },
+    current => { current.talk_runtime.worker.code = "talk-poll-failed"; },
+  ]) {
+    const current = talkCurrent(); mutation(current);
+    await withUi({ current }, async ({ $ }) => {
+      assert.notEqual($("talk-status").dataset.state, "active");
+      assert.doesNotMatch($("talk-status").textContent, /Chat-DienstVerbunden/);
+    });
+  }
+});
+
+test("Talk evidence expires in an open page and status reload obtains a new observation", async () => {
+  await withUi({ current: talkCurrent() }, async ({ $, advanceTime, operations }) => {
+    assert.equal($("talk-status").dataset.state, "active");
+    assert.match($("talk-status").textContent, /Letzte Rückmeldung:/);
+    advanceTime(81_000);
+    assert.equal($("talk-status").dataset.state, "stale");
+    assert.match($("talk-status").textContent, /Status neu laden/);
+    assert.deepEqual(operations.map(item => item.operation), ["status"]);
+    await $("reload").trigger("click");
+    assert.equal($("talk-status").dataset.state, "active");
+  });
+});
+
+test("network time cannot extend the lifetime of a healthy Talk observation", async () => {
+  const current = talkCurrent(); current.talk_runtime.worker.age_seconds = 89;
+  await withUi({ current, replyDelayMs: 2000 }, async ({ $ }) => {
+    assert.equal($("talk-status").dataset.state, "stale");
+  });
+});
+
+test("a failed poll becomes historical instead of proving an indefinite outage", async () => {
+  const current = talkCurrent({ state: "failed", connected: false });
+  Object.assign(current.talk_runtime.worker, { healthy: false, code: "talk-poll-failed" });
+  await withUi({ current }, async ({ $, advanceTime }) => {
+    assert.equal($("talk-status").dataset.state, "failed");
+    advanceTime(81_000);
+    assert.equal($("talk-status").dataset.state, "stale");
+    assert.match($("talk-status").textContent, /talk-poll-failed/);
+  });
+});
+
+test("gateway disconnect removes the healthy Talk claim without altering saved selection", async () => {
+  await withUi({ current: talkCurrent() }, async ({ $, sockets, advanceTime }) => {
+    sockets[0].close(); advanceTime(81_000);
+    assert.equal($("talk-status").dataset.state, "unavailable");
+    assert.match($("talk-status").textContent, /OpenClaw erneut verbinden/);
+    assert.match($("talk-status").textContent, /jan/);
+  });
 });
 
 test("failed refresh reports the identity failure and keeps the saved account unchanged", async () => {

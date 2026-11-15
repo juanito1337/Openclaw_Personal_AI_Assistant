@@ -169,6 +169,24 @@ EXPUNGE/APPEND/folder commands through shell. `mail-index` is a persistent but
 default-OFF job in the existing Mail-Owner; enabling or restarting it still
 requires the typed jobs approval and a separately accepted initial index.
 
+## Integration diagnostics development contract
+
+Every new or changed integration must make availability, authenticated identity,
+required capabilities, resource access and rights, saved selection, and current
+runtime activity independently inspectable through its supported status/setup
+path. A successful login, saved enable flag or resource discovery never proves
+that a worker is connected or an operation was delivered. Report non-applicable
+checks explicitly instead of treating them as successful.
+
+Evidence must be bounded, scoped to the exact account/resources and timestamped;
+show completeness, limits, freshness and a safe next step. Distinguish unknown,
+partial, disabled, stale and failed states. Preserve useful partial results
+without a false overall success. Diagnostics disclose no secrets or content and
+perform no external test writes by default. Add behavioral regressions for
+missing, partial, stale and failed evidence as well as success. Follow
+[Integration diagnostics](docs/INTEGRATION_DIAGNOSTICS.md); extend each affected
+integration's existing implementation, not an unrelated framework.
+
 ## Authority and change boundaries
 
 Read-only diagnostics, resource discovery, bounded indexing/cache refresh and

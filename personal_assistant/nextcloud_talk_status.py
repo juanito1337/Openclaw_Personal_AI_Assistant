@@ -183,6 +183,7 @@ def managed_status(connection: dict[str, Any]) -> dict[str, Any]:
         "mode": "managed-account",
         "channel": "nextcloud-account-talk",
         "state": state,
+        "connection_revision": connection["revision"],
         "desired_state": "ON" if enabled else "OFF",
         "configured": bool(rooms and users),
         "account_configured": True,
