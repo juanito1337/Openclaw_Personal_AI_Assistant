@@ -10,7 +10,7 @@
   "runtime_package_pins": {
     "ca-certificates": "20261020-r0",
     "curl": "8.14.1-r4",
-    "python3": "3.12.15-r0"
+    "python3": "3.12.16-r0"
   },
   "runtime_security_overrides": {
     "package_lock_sha256": "990ac4b5013b2363726b4af963868bee6f0952f81cbb99b06928c96a1313f92b",

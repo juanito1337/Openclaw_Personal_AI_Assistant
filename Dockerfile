@@ -114,17 +114,17 @@ RUN apk add --no-cache \
        ca-certificates=20261020-r0 \
        curl=8.14.1-r4 \
        jq=1.8.2-r0 \
-       rsync=3.5.0-r0 \
+       rsync=3.5.2-r1 \
        sqlite=3.49.2-r1 \
        zstd=1.5.7-r0 \
        procps-ng=4.0.4-r3 \
        tini=0.19.0-r3 \
-       python3=3.12.15-r0 \
+       python3=3.12.16-r0 \
        poppler-utils=25.04.0-r0 \
        tesseract-ocr=5.5.0-r2 \
        tesseract-ocr-data-deu=5.5.0-r2 \
        tesseract-ocr-data-eng=5.5.0-r2 \
-       tzdata=2026e-r0 \
+       tzdata=2026f-r0 \
        clamav=1.4.3-r0 \
        freshclam=1.4.3-r0
 
