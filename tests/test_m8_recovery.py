@@ -554,6 +554,23 @@ def test_failed_product_smoke_runs_automatic_rollback_and_surfaces_rollback_fail
         "exit 0\n",
     )
     _stub(fake_bin / "systemctl", "exit 1\n")
+    # Exercise CI's non-1000 owner path without changing fixture ownership or
+    # invoking the host's passwordless sudo across repeated deployment attempts.
+    _stub(
+        fake_bin / "stat",
+        'test "$#" -eq 3\n'
+        'test "$1" = "-c"\n'
+        'test "$2" = "%u:%g"\n'
+        'test "$3" = "$OPENCLAW_SECRETS_DIR/nextcloud-connection"\n'
+        'printf "1001:1001\\n"\n',
+    )
+    _stub(
+        fake_bin / "chown",
+        'test "$#" -eq 2\n'
+        'test "$1" = "1000:1000"\n'
+        'test "$2" = "$OPENCLAW_SECRETS_DIR/nextcloud-connection"\n',
+    )
+    _stub(fake_bin / "sudo", 'echo "Unexpected host sudo in recovery fixture" >&2\nexit 99\n')
     env_file = tmp_path / "deployment/.env"
     env_file.write_text(
         "OPENCLAW_IMAGE=fixture.invalid/old:runtime\n"
@@ -593,7 +610,7 @@ def test_failed_product_smoke_runs_automatic_rollback_and_surfaces_rollback_fail
     failed_smoke = subprocess.run(
         command, cwd=tmp_path, env=environment, text=True, capture_output=True, check=False
     )
-    assert failed_smoke.returncode == 23
+    assert failed_smoke.returncode == 23, failed_smoke.stdout + failed_smoke.stderr
     assert "injected smoke failure" in failed_smoke.stderr
     assert rollback_log.read_text(encoding="utf-8").strip() == "m8-backup --automatic"
 
@@ -603,7 +620,7 @@ def test_failed_product_smoke_runs_automatic_rollback_and_surfaces_rollback_fail
     failed_compose = subprocess.run(
         command, cwd=tmp_path, env=environment, text=True, capture_output=True, check=False
     )
-    assert failed_compose.returncode == 31
+    assert failed_compose.returncode == 31, failed_compose.stdout + failed_compose.stderr
     assert "Deployment fehlgeschlagen (Code 31)" in failed_compose.stderr
     assert rollback_log.read_text(encoding="utf-8").strip() == "m8-backup --automatic"
     environment.pop("M8_FAIL_CANDIDATE_UP")
@@ -613,7 +630,7 @@ def test_failed_product_smoke_runs_automatic_rollback_and_surfaces_rollback_fail
     failed_rollback = subprocess.run(
         command, cwd=tmp_path, env=environment, text=True, capture_output=True, check=False
     )
-    assert failed_rollback.returncode == 70
+    assert failed_rollback.returncode == 70, failed_rollback.stdout + failed_rollback.stderr
     assert "Rollback meldet einen Fehler" in failed_rollback.stderr
 
 
