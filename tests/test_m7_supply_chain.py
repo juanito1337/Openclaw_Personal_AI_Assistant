@@ -577,5 +577,114 @@ class M7SupplyChainTests(unittest.TestCase):
             self.module.verify_labels(labels, role="runtime", revision="b" * 40, version="3.4.0-r28")
 
 
+class LocalTufDeploymentTests(unittest.TestCase):
+    def run_verifier(self, mode="ok", *, invalid_source=False, revision=None):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        base = Path(temporary.name)
+        repository = base / "repository"
+        repository.mkdir(mode=0o700)
+        for name in ("timestamp.json", "1.root.json", "1.snapshot.json", "1.targets.json"):
+            (repository / name).write_text("{}")
+        binary = base / "bin"
+        binary.mkdir()
+        docker = binary / "docker"
+        docker.write_text(
+            "#!/usr/bin/env python3\n"
+            "import json, os, pathlib, sys\n"
+            "args = sys.argv[1:]\n"
+            "with open(os.environ['CALLS'], 'a') as stream: stream.write(json.dumps(args)+'\\n')\n"
+            "mode = os.environ['MODE']\n"
+            "if args[0] == 'run':\n"
+            "    if 'initialize' in args:\n"
+            "        if mode == 'init-failure': sys.exit(17)\n"
+            "        mounts = [args[i+1] for i, arg in enumerate(args) if arg == '--volume']\n"
+            "        cache = pathlib.Path(next(m.split(':')[0] for m in mounts if ':/cache:' in m))\n"
+            "        if 'TUF_ROOT=/cache/tuf' not in args: sys.exit(21)\n"
+            "        cache = cache/'tuf'\n"
+            "        cache.mkdir()\n"
+            "        if mode != 'missing-target':\n"
+            "            (cache/'targets').mkdir()\n"
+            "            (cache/'targets/trusted_root.json').write_text('{}')\n"
+            "        expiry = '01 Jan 20 00:00 UTC' if mode == 'expired' else '01 Jan 36 00:00 UTC'\n"
+            "        metadata = {role+'.json': {'version': 1, 'len': 2, 'expiration': expiry}\n"
+            "                    for role in ('root', 'timestamp', 'snapshot', 'targets')}\n"
+            "        if mode == 'partial-status': del metadata['timestamp.json']\n"
+            "        print('Root status: \\n'+json.dumps({'local': str(cache), 'remote': 'file:///repository',\n"
+            "              'metadata': metadata, 'targets': ['trusted_root.json']}))\n"
+            "    elif mode == 'signature-failure' and 'verify' in args: sys.exit(18)\n"
+            "    elif mode == 'provenance-failure' and 'slsaprovenance1' in args: sys.exit(19)\n"
+            "    elif mode == 'sbom-failure' and 'spdxjson' in args: sys.exit(20)\n"
+            "elif args[:2] == ['image', 'inspect']:\n"
+            "    label = args[3]\n"
+            "    print(os.environ['REVISION'] if 'revision' in label else\n"
+            "          'runtime' if 'openclaw.role' in label else '3.4.0-r28')\n"
+        )
+        docker.chmod(0o700)
+        environment = dict(os.environ, PATH=str(binary) + os.pathsep + os.environ["PATH"],
+                           CALLS=str(base / "calls"), MODE=mode, REVISION=revision or "b" * 40,
+                           OPENCLAW_EXPECTED_RELEASE="3.4.0-r28",
+                           OPENCLAW_SIGSTORE_TUF_REPOSITORY="relative" if invalid_source else str(repository))
+        result = subprocess.run(
+            ["bash", str(DEPLOY_VERIFY), "registry.example/openclaw@sha256:" + "a" * 64,
+             "b" * 40, "runtime"], env=environment, capture_output=True, text=True, check=False,
+        )
+        calls = base / "calls"
+        self.calls = [json.loads(line) for line in calls.read_text().splitlines()] if calls.exists() else []
+        return result
+
+    def test_local_transport_initializes_from_embedded_root_and_keeps_all_checks(self):
+        result = self.run_verifier()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        runs = [call for call in self.calls if call[0] == "run"]
+        self.assertEqual(len(runs), 4)
+        initialize = runs[0]
+        self.assertIn("initialize", initialize)
+        self.assertIn("file:///repository", initialize)
+        self.assertEqual(initialize[initialize.index("--network") + 1], "none")
+        self.assertNotIn("--root", initialize)
+        for call in runs:
+            self.assertIn("--read-only", call)
+            self.assertIn("no-new-privileges:true", call)
+            self.assertIn("ALL", call)
+            self.assertTrue(any(
+                item.startswith("ghcr.io/sigstore/cosign/cosign:v3.1.3@sha256:") for item in call
+            ))
+        for call in runs[1:]:
+            self.assertIn("--trusted-root", call)
+            self.assertIn("--certificate-identity-regexp", call)
+            self.assertIn("https://token.actions.githubusercontent.com", call)
+            mount = next(item for item in call if item.endswith(":/verified/trusted_root.json:ro"))
+            self.assertFalse(Path(mount.split(":")[0]).exists(), "private cache must be removed")
+        self.assertIn("slsaprovenance1", runs[2])
+        self.assertIn("spdxjson", runs[3])
+        self.assertTrue(any(call[0] == "pull" for call in self.calls))
+
+    def test_invalid_local_source_fails_before_docker(self):
+        result = self.run_verifier(invalid_source=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(self.calls, [])
+
+    def test_failed_initialization_or_incomplete_evidence_never_verifies_or_pulls(self):
+        for mode in ("init-failure", "missing-target", "expired", "partial-status"):
+            with self.subTest(mode=mode):
+                result = self.run_verifier(mode)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(len(self.calls), 1)
+                self.assertIn("initialize", self.calls[0])
+
+    def test_each_failed_signature_check_stops_before_pull(self):
+        for mode in ("signature-failure", "provenance-failure", "sbom-failure"):
+            with self.subTest(mode=mode):
+                result = self.run_verifier(mode)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse(any(call[0] == "pull" for call in self.calls))
+
+    def test_local_transport_preserves_revision_guard(self):
+        result = self.run_verifier(revision="d" * 40)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Revision stimmt nicht", result.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

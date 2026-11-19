@@ -544,6 +544,26 @@ The deployment verifier runs the digest-pinned Cosign image from the supply-chai
 lock with a read-only root filesystem. It mounts only the existing Docker registry
 configuration read-only, so no separately installed host Cosign binary is needed.
 
+If the public Sigstore TUF endpoint is unreachable, the operator may explicitly
+set `OPENCLAW_SIGSTORE_TUF_REPOSITORY` to an absolute local directory containing
+the signed **production** TUF repository (metadata plus hash-named targets).
+Obtain these public bytes from a successful official production publication;
+GitHub Pages preproduction data and arbitrary trust-root files are not substitutes.
+This option changes transport only. The installer copies bounded regular files
+into private staging, then initializes a fresh cache with the pinned Cosign
+image's embedded root and networking disabled. TUF verifies metadata signatures,
+expiry and target hashes before its generated trust target is used internally
+for the normal signature, provenance and SBOM checks. The earliest validated
+metadata expiry is checked throughout verification; expired or incomplete input
+fails before deployment. Symlinks, special files, reused caches and caller-supplied
+trust anchors are rejected. Staging is removed on exit. Without this option the
+online path is unchanged; a failed local check never falls back silently.
+
+This is a host deployment-bundle option, independent of the exact runtime source
+revision passed to `deploy.sh`. Back up and refresh the versioned deployment
+bundle before using a newly supported option; keep the host-bundle revision and
+the signed runtime-image revision separately recorded.
+
 Deployment receives three `name@sha256:...` references and the exact 40-character
 commit in `OPENCLAW_EXPECTED_SOURCE_REVISION`. `deploy.sh` verifies signature,
 SLSA-Provenance, SPDX-SBOM, release, revision and role for every image before it

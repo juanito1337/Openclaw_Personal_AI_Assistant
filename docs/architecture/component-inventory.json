@@ -2,7 +2,7 @@
   "schema_version": 1,
   "inventory_date": "2026-08-06",
   "source_scope": "all Python modules, shell entrypoints, skills, systemd units, migrations and Markdown documents",
-  "component_count": 585,
+  "component_count": 589,
   "classification_values": [
     "active",
     "compatibility",
@@ -63,7 +63,7 @@
         "docs/archive/AUDIT_INITIAL_IMPORT.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-08T08:29:52+02:00",
+      "last_git_change": "2026-11-15T19:08:38+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -97,7 +97,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-24T17:00:21+02:00",
+      "last_git_change": "2026-10-25T23:26:42+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -478,8 +478,8 @@
       "documentation_evidence": [
         "docs/architecture/IMAGE_SUPPLY_CHAIN.md"
       ],
-      "line_coverage_percent": 69.12,
-      "last_git_change": "2026-10-24T17:00:21+02:00",
+      "line_coverage_percent": 76.92,
+      "last_git_change": "2026-10-24T17:20:39+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -783,6 +783,28 @@
       "rollback_relevance": "none"
     },
     {
+      "path": "docker/scripts/prepare-sigstore-tuf.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Operations Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "docker/scripts/verify-image-supply-chain.sh"
+      ],
+      "test_evidence": [
+        "tests/test_sigstore_tuf_repository.py"
+      ],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
       "path": "docker/scripts/refresh-deployment.sh",
       "types": [
         "shell-entrypoint"
@@ -916,6 +938,28 @@
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-10-22T12:48:43+02:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "docker/scripts/sigstore-tuf-deadline.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Operations Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "docker/scripts/verify-image-supply-chain.sh"
+      ],
+      "test_evidence": [
+        "tests/test_sigstore_tuf_deadline.py"
+      ],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1631,7 +1675,7 @@
         "docs/NEXTCLOUD_SETUP_UI.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-11-15T19:08:38+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -2230,7 +2274,7 @@
         "skills/personal-assistant/references/runtime-security.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-24T17:00:21+02:00",
+      "last_git_change": "2026-11-15T19:08:38+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -2732,7 +2776,7 @@
         "docs/architecture/owners.json"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-10-25T23:26:42+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -2786,7 +2830,7 @@
         "docs/architecture/owners.json"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-24T17:00:21+02:00",
+      "last_git_change": "2026-10-24T17:20:39+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -2880,7 +2924,7 @@
         "docs/archive/SECURITY_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-10-25T23:26:42+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -4012,7 +4056,7 @@
         "docs/architecture/owners.json"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-24T17:00:21+02:00",
+      "last_git_change": "2026-10-25T23:26:42+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -4910,7 +4954,7 @@
       "documentation_evidence": [
         "docs/archive/AUDIT_INITIAL_IMPORT.md"
       ],
-      "line_coverage_percent": 58.26,
+      "line_coverage_percent": 57.83,
       "last_git_change": "2026-09-24T21:21:04+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -8054,7 +8098,7 @@
         "tests/test_nextcloud_talk_managed_status.py"
       ],
       "documentation_evidence": [],
-      "line_coverage_percent": 84.19,
+      "line_coverage_percent": 84.93,
       "last_git_change": "2026-10-22T12:48:43+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -8079,8 +8123,8 @@
         "tests/test_nextcloud_talk_managed_status.py"
       ],
       "documentation_evidence": [],
-      "line_coverage_percent": 84.31,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "line_coverage_percent": 88.35,
+      "last_git_change": "2026-11-15T19:08:38+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -8105,8 +8149,8 @@
         "tests/test_nextcloud_setup_image.py"
       ],
       "documentation_evidence": [],
-      "line_coverage_percent": 74.25,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "line_coverage_percent": 77.3,
+      "last_git_change": "2026-10-25T23:26:42+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -8172,7 +8216,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": 92.17,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-11-15T19:08:38+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -10241,7 +10285,7 @@
         "docs/architecture/image-baseline-m7.json"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-06T15:45:31+02:00",
+      "last_git_change": "2026-10-24T17:20:39+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -10472,7 +10516,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-24T17:00:21+02:00",
+      "last_git_change": "2026-10-25T23:26:42+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -10929,7 +10973,7 @@
         "docs/architecture/IMAGE_SUPPLY_CHAIN.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-24T17:00:21+02:00",
+      "last_git_change": "2026-10-24T17:20:39+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -11350,7 +11394,7 @@
         "skills/personal-assistant/references/commands.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-10-25T23:26:42+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -11464,7 +11508,7 @@
         "skills/personal-assistant/references/commands.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-10-25T23:26:42+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -12239,7 +12283,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-24T17:00:21+02:00",
+      "last_git_change": "2026-10-24T17:20:39+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -12899,7 +12943,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-22T13:42:40+02:00",
+      "last_git_change": "2026-10-24T17:20:39+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -12919,7 +12963,7 @@
         "docs/TESTING.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-22T12:59:09+02:00",
+      "last_git_change": "2026-11-15T22:20:32+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -13553,7 +13597,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-11-15T19:08:38+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -13589,7 +13633,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-10-25T23:26:42+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -13704,7 +13748,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-11-15T19:08:38+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -14207,6 +14251,42 @@
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-09-20T22:15:29+02:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "tests/test_sigstore_tuf_deadline.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "tests/test_sigstore_tuf_repository.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
