@@ -547,6 +547,87 @@ console.log(JSON.stringify({results,calls:operationCalls(),state:obligationByRun
     assert sum(row["details"]["personalAssistantEvidence"]["ok"] for row in data["results"]) == 1
 
 
+@pytest.mark.parametrize(
+    ("catalog_result", "error"),
+    [
+        ({"returncode": 0, "stdout": "[]"}, "operation-disabled-in-live-capabilities"),
+        ({"returncode": 1, "stdout": "", "stderr": "private fixture detail"},
+         "live-tool-catalog-unavailable"),
+        ({"returncode": 0, "stdout": "private fixture detail"}, "live-tool-catalog-invalid"),
+        ({"returncode": 0, "stdout": "null"}, "live-tool-catalog-invalid"),
+        ({"returncode": 0, "stdout": "[null]"}, "live-tool-catalog-invalid"),
+    ],
+)
+def test_live_catalog_failure_returns_bound_evidence_without_running_domain_command(
+    catalog_result: dict, error: str,
+) -> None:
+    harness = HOOK_HARNESS.replace(
+        "invocations.push(invocation);",
+        "invocations.push(invocation); if (invocation.argv.join(' ')==='tools list') "
+        f"return {json.dumps(catalog_result)};",
+    )
+    data = _node(harness + r"""
+await begin('run','Was waren die letzten Rechnungen die du abgelegt hast ?');
+const operation='assistant.invoices.files';
+const prepared=await gate('run',operation);
+const response=await execute(operation,prepared.params);
+const answer=await reply('run','Die Rechnungsabfrage ist blockiert.');
+const accessErrors=[];
+for (const text of [
+  'Ich habe keinen Zugriff auf die Rechnungen: operation-disabled-in-live-capabilities.',
+  'Ich kann keine Rechnungen abrufen, weil das Werkzeug deaktiviert ist.',
+]) accessErrors.push((await reply('run',text))??null);
+const falseAbsence=[];
+for (const text of [
+  'Es gibt keine Rechnungen.','Es gibt keine Rechnung.','Keine Rechnung gefunden.',
+  'No invoices found.','No hay factura.',
+]) {
+  falseAbsence.push(await reply('run',text));
+}
+console.log(JSON.stringify({response,answer:answer??null,accessErrors,falseAbsence,calls:operationCalls()}));
+""")
+    response = json.loads(data["response"]["content"][0]["text"])
+    evidence = response["evidence"]
+    assert evidence["error"] == response["diagnostic"]["category"] == error
+    assert evidence["tool_id"] == "assistant.invoices.files"
+    assert evidence["turn_id"] == "run"
+    assert evidence["ok"] is False and evidence["complete"] is False
+    assert evidence["postcondition_verified"] is False
+    assert evidence["allowed_claims"] == ["tool-status", "tool-error"]
+    assert response["result"]["executed"] is False
+    assert response["result"]["external_write_attempted"] is False
+    assert response["diagnostic"]["retry_allowed"] is False
+    assert "private fixture detail" not in json.dumps(data)
+    assert data["answer"] is None  # The actual failure can be reported, without a missing-evidence mask.
+    assert data["accessErrors"] == [None, None]
+    assert all(row["reason"] == "personal-assistant-evidence-guard" for row in data["falseAbsence"])
+    assert data["calls"] == 0
+
+
+def test_live_catalog_failure_finishes_authorized_action_as_blocked_without_a_write() -> None:
+    harness = HOOK_HARNESS.replace(
+        "invocations.push(invocation);",
+        "invocations.push(invocation); if (invocation.argv.join(' ')==='tools list') "
+        "return {returncode:0,stdout:'[]',stderr:''};",
+    )
+    data = _node(harness + r"""
+await begin('run','Bitte Aufgabe Test abschließen');
+const approved=await gate('run','nextcloud.tasks.update',{uid:'x',expected_title:'Test'});
+approved.requireApproval.onResolution('allow-once');
+const response=await execute('nextcloud.tasks.update',approved.params);
+const state=obligationByRun.get('run');
+const answer=await reply('run','Die angeforderte Aktion ist blockiert.');
+const falseSuccess=await reply('run','Die Aufgabe wurde abgeschlossen.');
+console.log(JSON.stringify({response,state,answer:answer??null,falseSuccess,calls:operationCalls()}));
+""")
+    assert data["state"]["terminal_state"] == "blocked"
+    assert data["state"]["last_error"] == "operation-disabled-in-live-capabilities"
+    assert data["state"]["completed_targets"] == 0
+    assert "operation-disabled-in-live-capabilities" in data["answer"]["payload"]["text"]
+    assert data["falseSuccess"]["reason"] == "personal-assistant-action-completion-guard"
+    assert data["calls"] == 0
+
+
 @pytest.mark.parametrize("operation", ["portfolio.import.csv", "portfolio.import.csv.nextcloud",
                                       "portfolio.import.pp"])
 def test_local_import_preview_is_preparation_never_import_completion(operation: str) -> None:

@@ -4,7 +4,7 @@
   "plugin_id": "personal-assistant-tools",
   "plugin_path": "/opt/openclaw-plugins/personal-assistant-tools",
   "product_version": "3.4.0-r29.0.6",
-  "catalog_sha256": "a15544f37e56c97decb378510f7918f5cd1fb5787bd9e5f95264bfdc5cf9aa7a",
+  "catalog_sha256": "674cad547a64339cf60fd7b40fa85df2c70615a109e86be49e0b693d1bbeb241",
   "catalog_tool_count": 174,
   "supported_operation_count": 173,
   "excluded_operation_count": 1,
@@ -8007,7 +8007,7 @@
         "simple_confirmation_satisfies": false,
         "native_dialog_required": false
       },
-      "availability": "invoices",
+      "availability": "always",
       "command": "./scripts/assistant.sh invoices status",
       "argument_schema": {
         "type": "object",
@@ -8081,7 +8081,7 @@
         "simple_confirmation_satisfies": false,
         "native_dialog_required": false
       },
-      "availability": "invoices",
+      "availability": "always",
       "command": "./scripts/assistant.sh invoices audit",
       "argument_schema": {
         "type": "object",
@@ -8118,7 +8118,7 @@
         "simple_confirmation_satisfies": false,
         "native_dialog_required": false
       },
-      "availability": "invoices",
+      "availability": "always",
       "command": "./scripts/assistant.sh invoices list --year <YYYY> --limit 100",
       "argument_schema": {
         "type": "object",
@@ -8169,7 +8169,7 @@
         "simple_confirmation_satisfies": false,
         "native_dialog_required": false
       },
-      "availability": "invoices",
+      "availability": "always",
       "command": "./scripts/assistant.sh invoices review --limit 100",
       "argument_schema": {
         "type": "object",
@@ -10262,7 +10262,8 @@
         "assistant.invoices.status",
         "assistant.invoices.audit",
         "assistant.invoices.files",
-        "assistant.invoices.list"
+        "assistant.invoices.list",
+        "assistant.invoices.review"
       ],
       "claim_classes": [
         "record-state",
@@ -10423,10 +10424,13 @@
   "claim_patterns": {
     "negative": [
       "\\bkeine(?:n|r|s)?\\b.*\\b(?:mail|nachricht|datei|termin|aufgabe|kontakt|treffer)",
+      "\\b(?:keine rechnung(?:en)? (?:gefunden|vorhanden|abgelegt|gespeichert)|(?:es gibt|es sind) keine rechnung(?:en)?)\\b",
       "\\bnichts gefunden\\b",
       "\\bnicht vorhanden\\b",
       "\\bno (?:mail|message|file|event|task|contact).*(?:found|exists)\\b",
-      "\\bno (?:hay|existe).*(?:correo|archivo|tarea|contacto)\\b"
+      "\\bno invoices? (?:found|exists?|archived|stored)\\b",
+      "\\bno (?:hay|existe).*(?:correo|archivo|tarea|contacto)\\b",
+      "\\bno (?:hay|existen?) (?:ningunas? )?facturas?\\b"
     ],
     "write-success": [
       "\\b(?:erfolgreich|erledigt|abgeschlossen|gesendet|verschoben|aktualisiert|angelegt)\\b",

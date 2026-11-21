@@ -318,6 +318,8 @@ function parseJsonOutput(output) {
 }
 
 function classifyError(result, payload) {
+  if (["operation-disabled-in-live-capabilities", "live-tool-catalog-unavailable", "live-tool-catalog-invalid"]
+    .includes(result.error)) return result.error;
   const detail = `${result.error ?? ""}\n${result.stderr ?? ""}`.toLowerCase();
   if (detail.includes("invalid-arguments")) return "invalid-arguments";
   if (detail.includes("missing-or-stale-bound-approval")) return "approval-required";

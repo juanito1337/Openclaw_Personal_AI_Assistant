@@ -12,6 +12,24 @@ comes from the PDF, never only from mail date, filename,
 service/delivery/due date. A safe date controls `YYYY/MM` even when optional fields
 are absent; only an unsafe date routes the PDF to review.
 
+`invoices status`, `list`, `review` and `audit` remain available when automatic
+archiving is disabled, including after managed Nextcloud account onboarding.
+They read stored local metadata, not the current contents of a Nextcloud account.
+Status preserves local register years, bounded counts and OCR diagnostics while
+reporting the separate archive selection. `managed-account-archive-selection-required`
+means the old archive target has not been adopted by the connected account;
+use `resources status` for the configured resource inventory. Never substitute
+the account file root or enable the archive workflow automatically.
+The status is partial: generated register paths, historical uploads and a saved
+enable flag prove neither live access nor a running archive worker. Missing or
+incompatible SQLite state is an operational failure, never an empty register;
+these reads do not create or migrate a database. List/review order by the last
+metadata update, which is not necessarily the original archive time.
+Status `ok` is limited to its `local-invoice-diagnostics` scope; remote access
+and worker activity remain unknown until separately checked. Always preserve
+`status=partial`, `complete=false` and `remote_state_verified=false` in the
+interpretation, even when local diagnostics succeed.
+
 OCR may inspect at most the configured page budget. For a document longer than
 that budget it uses the leading pages plus the final page rather than increasing
 the limit. PDF bytes, rendered bytes, output characters, DPI and one total OCR

@@ -24,6 +24,8 @@ class InvoiceToolSettings:
     resource_id: str = "nextcloud-files-main"
     folder: str = "Assistent/Rechnungen"
     organize_by_year_month: bool = True
+    # Runtime-only explanation; never grants or persists an archive selection.
+    disabled_reason: str = ""
 
 
 @dataclass(slots=True)

@@ -38,15 +38,36 @@ FINAL_STATUSES = {
 
 
 class Storage:
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path, *, read_only: bool = False) -> None:
         self.path = path
+        self._pattern_gate_cache: tuple[tuple[int, int], dict[str, Any]] | None = None
+        if read_only:
+            # Never mark this database immutable: the mail owner may start a
+            # writer after this reader opens it. Missing databases stay missing.
+            uri = path.resolve().as_uri() + "?mode=ro"
+            self.connection = sqlite3.connect(uri, uri=True)
+            self.connection.row_factory = sqlite3.Row
+            try:
+                self.connection.execute("PRAGMA query_only=ON")
+                self.connection.execute("PRAGMA busy_timeout=5000")
+                version = int(self.connection.execute("PRAGMA user_version").fetchone()[0])
+                if version != SCHEMA_VERSION:
+                    raise RuntimeError(
+                        f"read-only-storage-schema-mismatch: {version}; required={SCHEMA_VERSION}; "
+                        "verified migration required"
+                    )
+                if self.connection.execute("PRAGMA quick_check(1)").fetchone()[0] != "ok":
+                    raise RuntimeError("read-only-storage-integrity-failed")
+            except Exception:
+                self.connection.close()
+                raise
+            return
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.connection = sqlite3.connect(path)
         self.connection.row_factory = sqlite3.Row
         self.connection.execute("PRAGMA journal_mode=WAL")
         self.connection.execute("PRAGMA foreign_keys=ON")
         self.connection.execute("PRAGMA busy_timeout=5000")
-        self._pattern_gate_cache: tuple[tuple[int, int], dict[str, Any]] | None = None
         try:
             self._migrate()
         except Exception:
@@ -1505,6 +1526,21 @@ class Storage:
             (int(year),),
         ).fetchone()
         return int(row[0] if row else 0)
+
+    def validate_invoice_read_schema(self) -> None:
+        # Historical additive migrations shared user_version. Validate the read
+        # contract without fetching content or repairing a partially migrated DB.
+        self.connection.execute(
+            """
+            SELECT id, stable_key, attachment_hash, original_filename, nextcloud_path,
+                   size_bytes, status, error, invoice_date, received_date, invoice_number,
+                   supplier, category, gross_amount_cents, net_amount_cents, tax_amount_cents,
+                   currency, due_date, extraction_status, extraction_confidence,
+                   extraction_method, extraction_json, register_year, register_updated_at,
+                   created_at, updated_at
+            FROM invoices LIMIT 0
+            """
+        )
 
     def list_invoices(self, *, year: int | None = None, extraction_status: str = '', limit: int = 100) -> list[sqlite3.Row]:
         clauses = ["1=1"]

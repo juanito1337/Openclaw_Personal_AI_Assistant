@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Rechnungsstatus, Metadatenliste, Review und Audit bleiben nach der Anmeldung
+  eines verwalteten Nextcloud-Kontos als reine Lesewege erreichbar. Eine fehlende
+  Archivzuordnung wird getrennt ausgewiesen; automatische Ablage und externe
+  Aenderungen bleiben an ihre bisherige Freigabe gebunden. Fehlende oder
+  inkompatible Datenbanken werden bei diesen Abfragen nicht neu angelegt oder
+  migriert. Fehler im nativen Live-Werkzeugkatalog liefern einen gebundenen,
+  inhaltsfreien Fehlernachweis statt einer nachfolgenden allgemeinen
+  `missing-current-evidence`-Meldung.
+
 - Die Nextcloud-Einrichtung zeigt getrennte Pruefergebnisse fuer Benutzer,
   Kalender, Aufgabenlisten und Ordner: Inventurvollstaendigkeit, tatsaechlicher
   Metadaten-Lesezugriff, Fehler, Pruefgrenzen und Zeitpunkt bleiben sichtbar.

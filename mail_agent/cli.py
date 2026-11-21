@@ -54,7 +54,7 @@ from .setup_assistant import (
 from .storage import Storage
 from .telemetry import read_recent_performance, summarize_performance
 from .training import TrainingManager
-from .utils import normalize_address
+from .utils import normalize_address, now_utc_iso
 
 
 def _configure_logging(log_file: Path, verbose: bool) -> None:
@@ -1114,6 +1114,35 @@ def _handle_invoice_reprocess_apply(args: argparse.Namespace, config: Config) ->
     return 0 if payload.get("ok") else 1
 
 
+def _invoice_archive_diagnostics(invoice_tool: Any) -> dict[str, object]:
+    enabled = bool(invoice_tool.enabled)
+    return {
+        "source": "effective-tool-settings",
+        "selection": {
+            "status": "configured" if enabled else "disabled",
+            "code": "invoice-archive-configured" if enabled else (
+                getattr(invoice_tool, "disabled_reason", "") or "invoice-archive-disabled"
+            ),
+            "enabled": enabled,
+            "configured_resource_id": invoice_tool.resource_id,
+            "active_resource_id": invoice_tool.resource_id if enabled else None,
+            "configuration_is_live_evidence": False,
+        },
+        **{
+            check: {"status": "unknown", "code": "not-checked", "observed_at": None}
+            for check in (
+                "availability", "authentication", "capabilities", "resource_access", "runtime_activity",
+            )
+        },
+        "next_action": "./scripts/assistant.sh resources status",
+        "instruction": (
+            "Aktive Archivzuordnung und Rechte ueber den registrierten Ressourcenstatus pruefen. "
+            "Ein neues Archivziel benoetigt eine separate ausdrueckliche Einrichtung; "
+            "lokale Rechnungsdaten belegen weder Remote-Dateien noch einen laufenden Archivjob."
+        ),
+    }
+
+
 def _handle_invoices(args: argparse.Namespace, config: Config) -> int:
     if args.invoices_command == "reprocess":
         return _handle_invoice_reprocess(args, config)
@@ -1124,8 +1153,6 @@ def _handle_invoices(args: argparse.Namespace, config: Config) -> int:
 
         tools = load_tool_settings()
         invoice_tool = tools.mail.invoices
-        if not invoice_tool.enabled:
-            raise PermissionError("Zentrales Rechnungswerkzeug ist in tools.toml deaktiviert")
         payload = run_invoice_backlog_audit(
             config.runtime.database,
             invoice_folder=invoice_tool.folder,
@@ -1133,8 +1160,12 @@ def _handle_invoices(args: argparse.Namespace, config: Config) -> int:
         )
         print(json.dumps(payload, indent=2, ensure_ascii=False))
         return 0
-    storage = Storage(config.runtime.database)
+    storage = Storage(
+        config.runtime.database, read_only=args.invoices_command in {"status", "list", "review"},
+    )
     try:
+        if args.invoices_command in {"status", "list", "review"}:
+            storage.validate_invoice_read_schema()
         register = InvoiceRegister(storage, config.invoices)
         extractor = InvoiceExtractor(config.invoices)
         command = args.invoices_command
@@ -1143,24 +1174,58 @@ def _handle_invoices(args: argparse.Namespace, config: Config) -> int:
             invoice_tool = tools.mail.invoices
             years = register.status(invoice_folder=invoice_tool.folder)
             ocr = extractor.doctor()
+            checked_at = now_utc_iso()
+            counts = {
+                "all": len(storage.list_invoices(limit=5000)),
+                "review": len(storage.list_invoices(extraction_status="review", limit=5000)),
+                "confirmed": len(storage.list_invoices(extraction_status="confirmed", limit=5000))
+                + len(storage.list_invoices(extraction_status="confirmed-manual", limit=5000)),
+            }
             payload = {
-                "ok": bool(ocr.get("ok")),
+                # This result assesses local diagnostics, never integration health.
+                "scope": "local-invoice-diagnostics",
+                "ok": bool(ocr.get("ok")) and invoice_tool.enabled,
+                "status": "partial",
+                "checked_at": checked_at,
+                "complete": False,
+                "remote_state_verified": False,
+                "local_evidence": {
+                    "source": "invoice-sqlite",
+                    "scope": "stored-invoice-metadata-all-recorded-accounts",
+                    "observed_at": checked_at,
+                    "freshness": "current-local-read",
+                    "complete": counts["all"] < 5000,
+                    "count_limit": 5000,
+                    "results_may_be_truncated": counts["all"] >= 5000,
+                    "register_paths": "configured-path-projection-not-remote-read",
+                },
+                "archive": _invoice_archive_diagnostics(invoice_tool),
                 "ocr": ocr,
                 "register": years,
-                "counts": {
-                    "all": len(storage.list_invoices(limit=5000)),
-                    "review": len(storage.list_invoices(extraction_status="review", limit=5000)),
-                    "confirmed": len(storage.list_invoices(extraction_status="confirmed", limit=5000))
-                    + len(storage.list_invoices(extraction_status="confirmed-manual", limit=5000)),
-                },
+                "counts": counts,
             }
             print(json.dumps(payload, indent=2, ensure_ascii=False))
             return 0 if payload["ok"] else 1
         if command in {"list", "review"}:
             year = int(getattr(args, "year", 0) or 0) or None
             status = "review" if command == "review" else str(getattr(args, "status", "") or "")
-            rows = storage.list_invoices(year=year, extraction_status=status, limit=max(1, args.limit))
-            print(json.dumps({"ok": True, "count": len(rows), "records": [_invoice_row(row) for row in rows]}, indent=2, ensure_ascii=False, default=str))
+            limit = max(1, min(int(args.limit), 5000))
+            rows = storage.list_invoices(year=year, extraction_status=status, limit=limit)
+            payload = {
+                "ok": True,
+                "source": "invoice-sqlite",
+                "scope": "stored-invoice-metadata-all-recorded-accounts",
+                "checked_at": now_utc_iso(),
+                "remote_state_verified": False,
+                "complete": len(rows) < limit,
+                "results_may_be_truncated": len(rows) >= limit,
+                "limit": limit,
+                "filters": {"register_year": year, "extraction_status": status},
+                "ordering": "last-metadata-update-desc",
+                "count": len(rows),
+                "records": [_invoice_row(row) for row in rows],
+            }
+            print(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
             return 0
         if command == "export":
             if not 2000 <= int(args.year) <= 2100:

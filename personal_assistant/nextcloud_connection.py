@@ -353,7 +353,10 @@ def apply_tool_connection(settings: Any, connection: dict[str, Any]) -> Any:
         nextcloud=replace(settings.nextcloud, **replacements),
         mail=replace(
             settings.mail,
-            invoices=replace(settings.mail.invoices, enabled=False),
+            invoices=replace(
+                settings.mail.invoices, enabled=False,
+                disabled_reason="managed-account-archive-selection-required",
+            ),
             calendar_mail=replace(settings.mail.calendar_mail, enabled=False),
         ),
     )

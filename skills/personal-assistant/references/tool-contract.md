@@ -221,11 +221,11 @@ den fuehrenden Launcher durch `/opt/openclaw-agent/scripts/assistant.sh` ersetze
 | Tool-ID | Modus | externe Wirkung | Approval | Verfuegbarkeit | Kommando | Test |
 |---|---|---:|---|---|---|---|
 | `mail.invoice-archive` | `write` | ja | `configured-invoice-archive-and-managed-register-sync` | `invoices` | `./scripts/assistant.sh mail run --limit 20` | `tests/test_invoice_effect_contract_m101.py` |
-| `assistant.invoices.status` | `read` | nein | `none` | `invoices` | `./scripts/assistant.sh invoices status` | `tests/test_invoice_ocr_register.py` |
+| `assistant.invoices.status` | `read` | nein | `none` | `always` | `./scripts/assistant.sh invoices status` | `tests/test_invoice_ocr_register.py` |
 | `assistant.invoices.files` | `read` | nein | `none` | `invoices` | `./scripts/assistant.sh invoices files --limit 100` | `tests/test_nextcloud_workspace_tools.py` |
-| `assistant.invoices.audit` | `read` | nein | `none` | `invoices` | `./scripts/assistant.sh invoices audit` | `tests/test_invoice_backlog_audit_m107.py` |
-| `assistant.invoices.list` | `read` | nein | `none` | `invoices` | `./scripts/assistant.sh invoices list --year <YYYY> --limit 100` | `tests/test_invoice_ocr_register.py` |
-| `assistant.invoices.review` | `read` | nein | `none` | `invoices` | `./scripts/assistant.sh invoices review --limit 100` | `tests/test_invoice_ocr_register.py` |
+| `assistant.invoices.audit` | `read` | nein | `none` | `always` | `./scripts/assistant.sh invoices audit` | `tests/test_invoice_backlog_audit_m107.py` |
+| `assistant.invoices.list` | `read` | nein | `none` | `always` | `./scripts/assistant.sh invoices list --year <YYYY> --limit 100` | `tests/test_invoice_ocr_register.py` |
+| `assistant.invoices.review` | `read` | nein | `none` | `always` | `./scripts/assistant.sh invoices review --limit 100` | `tests/test_invoice_ocr_register.py` |
 | `assistant.invoices.export` | `read` | nein | `none` | `invoices` | `./scripts/assistant.sh invoices export --year <YYYY> --dry-run` | `tests/test_invoice_effect_contract_m101.py` |
 | `assistant.invoices.export-nextcloud` | `write` | ja | `explicit-user-managed-register-replace` | `invoices` | `./scripts/assistant.sh invoices export --year <YYYY> --yes` | `tests/test_invoice_effect_contract_m101.py` |
 | `assistant.invoices.backfill-preview` | `read` | nein | `none` | `invoices` | `./scripts/assistant.sh invoices backfill --year <YYYY> --limit 500 --dry-run` | `tests/test_invoice_effect_contract_m101.py` |

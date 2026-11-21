@@ -137,9 +137,17 @@ async function readLiveTools() {
     { ...contract.limits, tool_timeout_seconds: 60 },
   );
   if (result.returncode !== 0) throw new Error("live-tool-catalog-unavailable");
-  const payload = JSON.parse(result.stdout);
-  const tools = Array.isArray(payload) ? payload : payload.tools;
-  if (!Array.isArray(tools)) throw new Error("live-tool-catalog-invalid");
+  let payload;
+  try {
+    payload = JSON.parse(result.stdout);
+  } catch {
+    throw new Error("live-tool-catalog-invalid");
+  }
+  const tools = Array.isArray(payload) ? payload : payload?.tools;
+  if (!Array.isArray(tools) || tools.some((item) =>
+    !item || typeof item.id !== "string" || !item.id ||
+    typeof item.command !== "string" || !item.command
+  )) throw new Error("live-tool-catalog-invalid");
   liveToolsCache.value = tools;
   liveToolsCache.expiresAt = Date.now() + 30_000;
   return tools;
@@ -330,10 +338,22 @@ async function executeOperation(toolName, toolContext, toolCallId, rawParams) {
   }
   let liveCommand = operation.command;
   if (operation.availability !== "always") {
-    const liveTools = await readLiveTools();
-    const live = liveTools.find((item) => item.id === operation.tool_id);
-    if (!live) throw new Error("operation-disabled-in-live-capabilities");
-    liveCommand = live.command;
+    try {
+      const liveTools = await readLiveTools();
+      const live = liveTools.find((item) => item.id === operation.tool_id);
+      if (!live) throw new Error("operation-disabled-in-live-capabilities");
+      liveCommand = live.command;
+    } catch (error) {
+      // Discovery failures are current-turn evidence too. Never expose raw
+      // catalog output or start the domain command after a failed check.
+      const code = ["operation-disabled-in-live-capabilities", "live-tool-catalog-invalid"]
+        .includes(error?.message) ? error.message : "live-tool-catalog-unavailable";
+      const response = stoppedOperation(operation, currentRun, toolCallId, code);
+      metrics.native_calls += 1;
+      metrics.native_failures += 1;
+      recordActionEvidence(currentRun, operation, response.details.personalAssistantEvidence, null, args);
+      return response;
+    }
   }
   const invocation = compileInvocation(operation, args, liveCommand);
   // Capability discovery may have yielded to other runs. Never resurrect an

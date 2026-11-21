@@ -381,6 +381,7 @@ def _route_definitions() -> list[dict[str, Any]]:
                 "assistant.invoices.audit",
                 "assistant.invoices.files",
                 "assistant.invoices.list",
+                "assistant.invoices.review",
             ],
             "claim_classes": ["record-state", "remote-state", "negative"],
         },
@@ -503,10 +504,14 @@ def _claim_patterns() -> dict[str, tuple[str, ...]]:
     return {
         "negative": (
             r"\bkeine(?:n|r|s)?\b.*\b(?:mail|nachricht|datei|termin|aufgabe|kontakt|treffer)",
+            r"\b(?:keine rechnung(?:en)? (?:gefunden|vorhanden|abgelegt|gespeichert)|"
+            r"(?:es gibt|es sind) keine rechnung(?:en)?)\b",
             r"\bnichts gefunden\b",
             r"\bnicht vorhanden\b",
             r"\bno (?:mail|message|file|event|task|contact).*(?:found|exists)\b",
+            r"\bno invoices? (?:found|exists?|archived|stored)\b",
             r"\bno (?:hay|existe).*(?:correo|archivo|tarea|contacto)\b",
+            r"\bno (?:hay|existen?) (?:ningunas? )?facturas?\b",
         ),
         "write-success": (
             r"\b(?:erfolgreich|erledigt|abgeschlossen|gesendet|verschoben|aktualisiert|angelegt)\b",
