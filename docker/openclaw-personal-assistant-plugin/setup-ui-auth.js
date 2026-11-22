@@ -5,7 +5,7 @@
  * ui/src/api/gateway.ts and packages/gateway-client/src/device-auth.ts at the pin.
  */
 const OPERATIONS = new Set(["status", "login.start", "login.credentials", "login.poll", "login.cancel",
-  "connection.apply", "connection.refresh", "folders.list", "talk.participants", "talk.configure"]);
+  "connection.apply", "connection.refresh", "folders.list", "talk.participants", "talk.configure", "access.preview", "access.apply"]);
 
 export function gatewayEndpoint(origin, basePath = "") {
   const url = new URL(origin);
@@ -82,7 +82,9 @@ export async function signSetupOperation(identity, operation, parameters, crypto
   if (!OPERATIONS.has(operation)) throw new Error("Unbekannte Einrichtungsoperation.");
   const nonce = Array.from(cryptoApi.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, "0")).join("");
   const payload = JSON.stringify({ operation, parameters, actor: `device:${identity.id}`, issued_at: now, nonce });
-  const signature = await cryptoApi.subtle.sign("Ed25519", identity.signingKey, new TextEncoder().encode(payload));
+  const encoded = new TextEncoder().encode(payload);
+  if (encoded.length > 24 * 1024) throw new Error("Die signierte Einrichtungsanfrage ist zu groß.");
+  const signature = await cryptoApi.subtle.sign("Ed25519", identity.signingKey, encoded);
   return { payload, signature: encode(new Uint8Array(signature)) };
 }
 
@@ -138,7 +140,12 @@ export function createSetupGateway({ origin, basePath = "", storage, cryptoApi =
               } else if (value.type === "res" && pending.has(value.id)) {
                 const item = pending.get(value.id); pending.delete(value.id); clearTimeout(item.timer);
                 if (value.ok === true) item.resolve(value.payload);
-                else item.reject(new Error(typeof value.error?.message === "string" ? value.error.message.slice(0, 1024) : "OpenClaw hat die Anfrage abgelehnt."));
+                else {
+                  const error = new Error(typeof value.error?.message === "string"
+                    ? value.error.message.slice(0, 1024) : "OpenClaw hat die Anfrage abgelehnt.");
+                  if (typeof value.error?.code === "string" && /^[a-z0-9_-]{1,128}$/i.test(value.error.code)) error.code = value.error.code;
+                  item.reject(error);
+                }
               }
             } catch (error) { if (!connected) finish(error); }
           });

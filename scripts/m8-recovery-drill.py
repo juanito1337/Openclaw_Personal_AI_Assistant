@@ -26,7 +26,9 @@ COMPATIBILITY = ROOT / "docker/scripts/check-layout-compatibility.py"
 
 
 def _version(command: list[str]) -> str:
-    result = subprocess.run(command, text=True, capture_output=True, check=True)
+    result = subprocess.run(
+        command, env={"PATH": os.defpath, "LC_ALL": "C"}, text=True, capture_output=True, check=True
+    )
     return (result.stdout or result.stderr).splitlines()[0].strip()
 
 
@@ -65,34 +67,85 @@ def _fixture(openclaw: Path, version: str) -> None:
     connection.close()
 
 
-def _environment(openclaw: Path) -> dict[str, str]:
-    environment = os.environ.copy()
-    environment.update(
-        {
-            "OPENCLAW_ROOT": str(openclaw),
-            "OPENCLAW_STATE_DIR": str(openclaw / "state"),
-            "OPENCLAW_CONFIG_DIR": str(openclaw / "config"),
-            "OPENCLAW_SECRETS_DIR": str(openclaw / "secrets"),
-            "OPENCLAW_BACKUP_DIR": str(openclaw / "backups/releases"),
-            "HIMALAYA_CONFIG_DIR": str(openclaw / "config/himalaya"),
-            "OPENCLAW_RESTORE_OFFLINE": "YES",
-            "PREVIOUS_IMAGE": "fixture.invalid/openclaw:previous",
-            "TARGET_IMAGE": "fixture.invalid/openclaw:target",
-            "PREVIOUS_RUNTIME": "docker",
-            "BACKUP_RETENTION_RELEASES": "10",
-        }
+def _legacy_fixture(workspace: Path, version: str) -> None:
+    """Verify a small synthetic installation with the real release and source verifiers."""
+    modules = workspace / "personal_assistant"
+    modules.mkdir(parents=True)
+    (modules / "__init__.py").touch()
+    for name in ("release.py", "source_manifest.py"):
+        shutil.copyfile(ROOT / "personal_assistant" / name, modules / name)
+    for name in ("AGENTS.md", "README.md", "CHANGELOG.md", "skills/personal-assistant/SKILL.md", "VERSION"):
+        (workspace / name).parent.mkdir(parents=True, exist_ok=True)
+        (workspace / name).write_text(version + "\n", encoding="utf-8")
+    release = {
+        "schema_version": 1,
+        "product": "OpenClaw Local Personal Assistant",
+        "version": version,
+        "history": [{"version": version}],
+    }
+    (workspace / "RELEASE.json").write_text(json.dumps(release), encoding="utf-8")
+    command = workspace / "scripts/assistant.sh"
+    command.parent.mkdir()
+    command.write_text(
+        "#!/usr/bin/python3 -IB\n"
+        "import json, sys\nfrom pathlib import Path\n"
+        "if sys.argv[1:] != ['version', '--verify']: sys.exit(2)\n"
+        "sys.path.insert(0, str(Path(__file__).resolve().parents[1]))\n"
+        "from personal_assistant.release import release_report\n"
+        "report = release_report(verify=True)\n"
+        "print(json.dumps(report))\nsys.exit(0 if report['ok'] else 1)\n",
+        encoding="utf-8",
     )
-    return environment
+    command.chmod(0o700)
+    entries = [
+        f"{hashlib.sha256(path.read_bytes()).hexdigest()}  ./{path.relative_to(workspace)}\n"
+        for path in sorted(workspace.rglob("*")) if path.is_file()
+    ]
+    (workspace / "SOURCE_MANIFEST.sha256").write_text("".join(entries), encoding="utf-8")
+
+
+def _environment(openclaw: Path, version: str) -> dict[str, str]:
+    legacy = openclaw.parent / "legacy"
+    _legacy_fixture(legacy / "workspace", version)
+    binary = openclaw.parent / "bin"
+    binary.mkdir()
+    docker = binary / "docker"
+    # The simulated legacy host has no installed Docker gateway. Reject every
+    # other operation so a future drill cannot connect to or modify a daemon.
+    docker.write_text(
+        "#!/bin/sh\n"
+        "test \"$#\" -eq 7 && test \"$1 $2 $3 $4\" = 'container ls --all --filter' && "
+        "test \"$5\" = 'name=^/openclaw-gateway$' && test \"$6 $7\" = '--format {{.ID}}'\n",
+        encoding="utf-8",
+    )
+    docker.chmod(0o700)
+    return {
+        "HOME": str(openclaw.parent),
+        "TMPDIR": str(openclaw.parent),
+        "PATH": f"{binary}:{os.defpath}",
+        "DOCKER_HOST": f"unix://{openclaw.parent}/absent-docker.sock",
+        "OPENCLAW_DEPLOY_ENV": str(openclaw.parent / "unused-deployment-config"),
+        "OPENCLAW_ROOT": str(openclaw),
+        "OPENCLAW_STATE_DIR": str(openclaw / "state"),
+        "OPENCLAW_CONFIG_DIR": str(openclaw / "config"),
+        "OPENCLAW_SECRETS_DIR": str(openclaw / "secrets"),
+        "OPENCLAW_BACKUP_DIR": str(openclaw / "backups/releases"),
+        "HIMALAYA_CONFIG_DIR": str(openclaw / "config/himalaya"),
+        "OPENCLAW_RESTORE_OFFLINE": "YES",
+        "OPENCLAW_LEGACY_HOME": str(legacy),
+        "PREVIOUS_IMAGE": "legacy-systemd",
+        "TARGET_IMAGE": "fixture.invalid/openclaw:target",
+        "PREVIOUS_RUNTIME": "legacy-systemd",
+        "BACKUP_RETENTION_RELEASES": "10",
+    }
 
 
 def _run_drill(label: str, version: str, *, failed_upgrade: bool = False) -> dict[str, Any]:
     with tempfile.TemporaryDirectory(prefix="openclaw-m8-recovery-") as folder:
         openclaw = Path(folder) / "openclaw"
         _fixture(openclaw, version)
-        environment = _environment(openclaw)
-        expected = {
-            name: _tree_digest(openclaw / name) for name in ("state", "config", "secrets")
-        }
+        environment = _environment(openclaw, version)
+        expected = {name: _tree_digest(openclaw / name) for name in ("state", "config", "secrets")}
 
         started = time.perf_counter()
         backup_result = subprocess.run(
@@ -136,6 +189,7 @@ def _run_drill(label: str, version: str, *, failed_upgrade: bool = False) -> dic
                     "3",
                 ],
                 cwd=ROOT,
+                env=environment,
                 text=True,
                 capture_output=True,
                 check=False,
@@ -167,15 +221,19 @@ def _run_drill(label: str, version: str, *, failed_upgrade: bool = False) -> dic
         verified = actual == expected
         if not verified:
             raise RuntimeError(f"Restore-Inhalt stimmt nicht mit Snapshot ueberein: {label}")
+        marker = openclaw / "state/.container-layout.json"
+        restored_layout = json.loads(marker.read_text(encoding="utf-8"))["layout"] if marker.exists() else 1
         with tarfile.open(backup_path / "payload.tar.gz", "r:gz") as archive:
             members = sorted(member.name for member in archive.getmembers())
         return {
             "scenario": label,
             "source_version": version,
+            "identity_evidence": "synthetic legacy installation with verified source manifest",
             "backup_seconds": round(backup_seconds, 6),
             "restore_seconds": round(restore_seconds, 6),
             "backup_bytes": (backup_path / "payload.tar.gz").stat().st_size,
             "verified_exact_tree": verified,
+            "restored_layout": restored_layout,
             "archive_roots": sorted({name.split("/", 1)[0] for name in members}),
             "invalid_migration_gate": failure_gate,
             "accepted_operations_lost": 0,

@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any
 
 from personal_assistant.models import Resource
+from personal_assistant.nextcloud_connection import admit_projection, load_access_snapshot
+from personal_assistant.nextcloud_native_binding import verify_native_access
 from personal_assistant.resource_identity import CalendarIdentityMigration
 
 
@@ -78,16 +80,26 @@ def handle(args: argparse.Namespace, assistant: Any, emit: Callable[[Any], None]
         return 0 if result.get("ok", True) else 1
     if args.command == "search":
         limit = args.limit or assistant.config.search.default_limit
+        initial = load_access_snapshot()
         results = assistant.storage.search(
             args.query,
             limit=limit,
             source_type=args.source_type,
             resource_id=args.resource,
+            visibility=initial,
         )
-        emit([asdict(item) for item in results])
+        with admit_projection(initial) as current:
+            verify_native_access(current)
+            emit([asdict(item) for item in results])
         return 0
     if args.command == "actions":
-        return _actions(args, assistant, emit)
+        initial = load_access_snapshot()
+
+        def emit_action(value):
+            with admit_projection(initial):
+                emit(value)
+
+        return _actions(args, assistant, emit_action)
     if args.command == "settings":
         if args.settings_command == "list":
             emit(assistant.settings.list_safe())
@@ -117,6 +129,7 @@ def _actions(args: argparse.Namespace, assistant: Any, emit: Callable[[Any], Non
             args.resource,
             {
                 "local_path": str(local_path),
+                "sha256": scan.sha256,
                 "path": args.remote_path,
                 "content_type": args.content_type,
                 "overwrite": False,

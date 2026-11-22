@@ -63,6 +63,110 @@ check_nextcloud_nonce_integrity() {
   }
 }
 
+check_nextcloud_access_state() {
+  python3 -I "$SCRIPT_DIR/nextcloud-access-state.py" "$1" "$2" "$3"
+}
+
+nextcloud_backup_check_mode() {
+  local previous=${PREVIOUS_IMAGE:-${OPENCLAW_IMAGE:-}} runtime=${PREVIOUS_RUNTIME:-${OPENCLAW_CURRENT_RUNTIME:-docker}}
+  local gateway image feature transition=""
+  if [[ -e "$OPENCLAW_STATE_DIR/.layout-migrations/nextcloud-access-v1.json" ]]; then
+    printf '%s\n' verify-installed-backup
+    return
+  fi
+  # Docker's all-container inventory distinguishes an absent gateway from an
+  # unreadable daemon. A stopped gateway still identifies the installed image.
+  gateway=$(docker container ls --all --filter 'name=^/openclaw-gateway$' --format '{{.ID}}') || return 1
+  if [[ -n "$gateway" ]]; then
+    image=$(docker container inspect --format '{{.Image}}' openclaw-gateway) || return 1
+    [[ "$image" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "policy-integrity-error" >&2; return 1; }
+    feature=$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.openclaw.nextcloud-access"}}' "$image") || return 1
+    case "$feature" in
+      1) printf '%s\n' verify-installed-backup; return ;;
+      ''|'<no value>')
+        transition=$(nextcloud_access_transition "$previous" docker normal) || return 1 ;;
+    esac
+  elif [[ ${OPENCLAW_FIRST_DEPLOY_REQUEST:-} == fresh ]]; then
+    transition=$(nextcloud_access_transition "$previous" "$runtime" fresh) || return 1
+  elif [[ "$runtime" == legacy-systemd ]]; then
+    transition=$(nextcloud_access_transition "$previous" "$runtime" normal) || return 1
+  fi
+  case "$transition" in
+    fresh|verified-pre-policy) printf '%s\n' verify-backup ;;
+    *) echo "policy-integrity-error: Installierte Gateway-Identitaet ist ungeklärt." >&2; return 1 ;;
+  esac
+}
+
+archive_nextcloud_check_mode() {
+  python3 - "$1/manifest.json" <<'PYMODE'
+import json, sys
+mode = json.load(open(sys.argv[1], encoding="utf-8")).get("nextcloud_access_check", "verify-backup")
+if mode not in {"verify-backup", "verify-installed-backup"}:
+    sys.exit("policy-integrity-error")
+print(mode)
+PYMODE
+}
+
+pre_policy_release() {
+  python3 -c '
+import re, sys
+version = re.fullmatch(r"(\d{1,3})\.(\d{1,3})\.(\d{1,3})-r(\d{1,3})(?:\.(\d{1,3}))?(?:\.(\d{1,3}))?", sys.argv[1])
+sys.exit(0 if version and tuple(int(n or 0) for n in version.groups()) <= (3, 4, 0, 29, 0, 6) else 1)
+' "$1"
+}
+
+nextcloud_access_transition() {
+  local previous=$1 runtime=$2 request=$3 receipt current feature revision release recorded installed
+  receipt="$OPENCLAW_STATE_DIR/.layout-migrations/nextcloud-access-v1.json"
+  if [[ -e "$receipt" || -L "$receipt" ]]; then
+    printf '%s\n' verify
+    return
+  fi
+  if [[ "$request" == fresh ]]; then
+    # The fresh option is single-invocation. A prior state or installed gateway
+    # cannot silently become a fresh installation after losing its receipt.
+    current=$(docker container ls --all --filter 'name=^/openclaw-gateway$' --format '{{.ID}}') || return 1
+    recorded=$(find "$OPENCLAW_STATE_DIR" -mindepth 1 -print -quit) || return 1
+    if [[ "$runtime" == docker && -z "$current" && -z "$recorded" ]]; then
+      printf '%s\n' fresh
+      return
+    fi
+  elif [[ "$runtime" == legacy-systemd ]]; then
+    if [[ -n ${OPENCLAW_LEGACY_HOME:-} ]] &&
+      installed=$(CDPATH='' cd -P -- "$OPENCLAW_LEGACY_HOME/workspace" && pwd -P) &&
+      [[ ! -e "$installed/personal_assistant/nextcloud_access.py" ]] &&
+      release=$(env -u OPENCLAW_RUNTIME -u PYTHONPATH -u PYTHONHOME OPENCLAW_WORKSPACE="$installed" \
+        OPENCLAW_RELEASE_ROOT="$installed" OPENCLAW_IMAGE_ROOT="$installed" OPENCLAW_CODE_ROOT="$installed" \
+        "$installed/scripts/assistant.sh" version --verify | python3 -c '
+import json, sys
+v = json.load(sys.stdin)
+proof = v.get("verification", {})
+if (v.get("product") != "OpenClaw Local Personal Assistant" or proof.get("ok") is not True
+        or proof.get("source_manifest", {}).get("ok") is not True):
+    sys.exit(1)
+print(v.get("version", ""))
+') && pre_policy_release "$release"; then
+      printf '%s\n' verified-pre-policy
+      return
+    fi
+  elif [[ "$previous" =~ @sha256:[0-9a-f]{64}$ ]]; then
+    current=$(docker container inspect --format '{{.Image}}' openclaw-gateway) || return 1
+    recorded=$(docker image inspect --format '{{.Id}}' "$previous") || return 1
+    feature=$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.openclaw.nextcloud-access"}}' "$previous") || return 1
+    revision=$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$previous") || return 1
+    release=$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.version"}}' "$previous") || return 1
+    if [[ "$current" =~ ^sha256:[0-9a-f]{64}$ && "$current" == "$recorded" &&
+          ( -z "$feature" || "$feature" == '<no value>' ) && "$revision" =~ ^[0-9a-f]{40}$ ]] &&
+       pre_policy_release "$release"; then
+      OPENCLAW_EXPECTED_RELEASE="$release" "$SCRIPT_DIR/verify-image-supply-chain.sh" "$previous" "$revision" runtime >&2 || return 1
+      printf '%s\n' verified-pre-policy
+      return
+    fi
+  fi
+  echo "policy-integrity-error: Kein nachgewiesener Nextcloud-Erstuebergang." >&2
+  return 1
+}
+
 ensure_nextcloud_connection_directory() {
   local directory="$OPENCLAW_SECRETS_DIR/nextcloud-connection"
   if [[ -L "$directory" || ( -e "$directory" && ! -d "$directory" ) ]]; then

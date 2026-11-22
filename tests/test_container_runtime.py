@@ -639,6 +639,14 @@ raise SystemExit(86)
                 script.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
                 script.chmod(0o700)
 
+            release_proof = {
+                "product": "OpenClaw Local Personal Assistant", "version": "3.4.0-r29.0.6",
+                "verification": {"ok": True, "source_manifest": {"ok": True}},
+            }
+            (legacy_source / "workspace/scripts/assistant.sh").write_text(
+                "#!/bin/sh\ntest \"$*\" = 'version --verify' && echo '" + json.dumps(release_proof) + "'\n"
+            )
+
             migration_archive = temporary / "legacy-migration.tar.gz"
             with tarfile.open(migration_archive, "w:gz") as archive:
                 archive.add(legacy_source, arcname=".openclaw")
@@ -654,6 +662,10 @@ raise SystemExit(86)
             fake_sqlite = fake_bin / "sqlite3"
             fake_sqlite.write_text("#!/bin/sh\nprintf 'ok\\n'\n", encoding="utf-8")
             fake_sqlite.chmod(0o700)
+
+            docker = fake_bin / "docker"
+            docker.write_text('#!/bin/sh\ntest "$1 $2" = "container ls"\n', encoding="utf-8")
+            docker.chmod(0o700)
 
             environment = os.environ.copy()
             environment.update(

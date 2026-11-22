@@ -96,6 +96,7 @@ def _handle(args: argparse.Namespace, assistant: Any, emit: Callable[[Any], None
             message_id=args.message_id,
             expected_subject=args.expected_subject,
             dry_run=bool(args.dry_run),
+            preview_digest=args.preview_digest,
             name=args.name,
             organization=args.organization,
             phones=tuple(args.phone or []),

@@ -7,7 +7,8 @@ from dataclasses import dataclass
 from typing import Any
 from xml.etree import ElementTree
 
-from ...ical_edit import component_properties, first_value, unescape_ical
+from ...ical_edit import component_properties, first_value, split_ical_text_list, unescape_ical
+from ...nextcloud_access_runtime import check_component_write, component_request, readback_after_write
 from .client import NextcloudClient, NextcloudError
 from .discovery import DiscoveredCollection
 from .xmlutil import CALDAV, DAV, parse_multistatus, q
@@ -67,7 +68,11 @@ class NextcloudTasks:
 <d:propfind xmlns:d='DAV:' xmlns:c='urn:ietf:params:xml:ns:caldav'>
  <d:prop><c:supported-calendar-component-set/></d:prop>
 </d:propfind>"""
-        response = self.client.request(
+        response = component_request(
+            self.client,
+            "VTODO",
+            "read",
+            task_list,
             "PROPFIND",
             task_list.href,
             data=body,
@@ -82,7 +87,24 @@ class NextcloudTasks:
         return False
 
     def task_exists(self, task_list: DiscoveredCollection, uid: str) -> bool:
-        response = self.client.request(
+        initial = getattr(self.client, "access_snapshot", None)
+        if initial is not None and initial.mode != "legacy":
+            response = component_request(
+                self.client,
+                "VTODO",
+                "read",
+                task_list,
+                "GET",
+                self.task_href(task_list, uid),
+                object_uid=uid,
+                expected={200, 404},
+            )
+            return response.status == 200
+        response = component_request(
+            self.client,
+            "VTODO",
+            "read",
+            task_list,
             "PROPFIND",
             self.task_href(task_list, uid),
             headers={"Depth": "0", "Content-Type": "application/xml; charset=utf-8"},
@@ -94,8 +116,13 @@ class NextcloudTasks:
     def create_task(self, task_list: DiscoveredCollection, ics: str, uid: str) -> str:
         if "BEGIN:VTODO" not in ics or "END:VTODO" not in ics:
             raise NextcloudError("Ungueltige VTODO-Daten")
+        check_component_write(self.client, task_list, "VTODO", "create", uid, ics)
         href = task_list.href.rstrip("/") + "/" + self._safe_uid(uid, ics) + ".ics"
-        response = self.client.request(
+        response = component_request(
+            self.client,
+            "VTODO",
+            "create",
+            task_list,
             "PUT",
             href,
             data=ics.encode("utf-8"),
@@ -103,6 +130,9 @@ class NextcloudTasks:
             expected={200, 201, 204, 412},
         )
         if response.status in {200, 201, 204}:
+            snapshot = getattr(self.client, "access_snapshot", None)
+            if snapshot is not None and snapshot.mode == "active":
+                readback_after_write(self.client, self.read_task, href, uid, "VTODO", ics)
             return href
         if response.status == 412:
             raise NextcloudError("Aufgabe existiert bereits")
@@ -120,8 +150,14 @@ class NextcloudTasks:
   <c:prop-filter name='UID'><c:text-match collation='i;octet'>{escaped}</c:text-match></c:prop-filter>
  </c:comp-filter></c:comp-filter></c:filter>
 </c:calendar-query>""".encode()
-        response = self.client.request(
-            "REPORT", task_list.href, data=body,
+        response = component_request(
+            self.client,
+            "VTODO",
+            "read",
+            task_list,
+            "REPORT",
+            task_list.href,
+            data=body,
             headers={"Depth": "1", "Content-Type": "application/xml; charset=utf-8"},
             expected={207},
         )
@@ -149,7 +185,11 @@ class NextcloudTasks:
  <d:prop><d:getetag/><c:calendar-data/></d:prop>
  <c:filter><c:comp-filter name='VCALENDAR'><c:comp-filter name='VTODO'/></c:comp-filter></c:filter>
 </c:calendar-query>"""
-        response = self.client.request(
+        response = component_request(
+            self.client,
+            "VTODO",
+            "list",
+            task_list,
             "REPORT",
             task_list.href,
             data=body,
@@ -197,7 +237,9 @@ class NextcloudTasks:
         ]
 
     def read_task(self, href: str, *, fallback_uid: str = "") -> TaskObject:
-        response = self.client.request("GET", href, expected={200})
+        response = component_request(
+            self.client, "VTODO", "read", None, "GET", href, object_uid=fallback_uid, expected={200}
+        )
         task = self._parse_task_object(
             response.data.decode("utf-8", errors="replace"),
             href,
@@ -231,13 +273,18 @@ class NextcloudTasks:
         ics: str,
         etag: str,
     ) -> TaskObject:
+        check_component_write(self.client, task_list, "VTODO", "update", uid, ics)
         safe_href = self._validated_task_href(task_list, href)
         current_etag = str(etag or "").strip()
         if not current_etag:
             current_etag = self.read_task(safe_href, fallback_uid=uid).etag
         if not current_etag:
             raise RuntimeError("CalDAV-Server lieferte keinen ETag; sicheres Aufgaben-Update abgebrochen")
-        response = self.client.request(
+        response = component_request(
+            self.client,
+            "VTODO",
+            "update",
+            task_list,
             "PUT",
             safe_href,
             data=ics.encode("utf-8"),
@@ -251,7 +298,7 @@ class NextcloudTasks:
             raise RuntimeError(
                 "Aufgabe wurde zwischenzeitlich geaendert; bitte erneut auflisten und die Aenderung wiederholen"
             )
-        verified = self.read_task(safe_href, fallback_uid=uid)
+        verified = readback_after_write(self.client, self.read_task, safe_href, uid, "VTODO", ics)
         if verified.uid.strip() != uid.strip():
             raise RuntimeError("Aufgabe wurde aktualisiert, UID-Verifikation ist fehlgeschlagen")
         return verified
@@ -305,7 +352,7 @@ class NextcloudTasks:
             "priority": priority,
             "percent_complete": percent,
             "completed": first_value(props, "COMPLETED"),
-            "categories": [unescape_ical(v) for v in categories.split(",") if v],
+            "categories": split_ical_text_list(categories),
         }
 
     @staticmethod

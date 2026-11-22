@@ -1,0 +1,490 @@
+{
+  "schema_version": 1,
+  "defaults": {
+    "oci-image": {
+      "owner": "Operations Maintainers",
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ]
+    },
+    "alpine-package": {
+      "owner": "Operations Maintainers",
+      "source": "https://pkgs.alpinelinux.org/packages",
+      "update_source": "https://alpinelinux.org/releases/"
+    },
+    "binary": {
+      "owner": "Build Maintainers"
+    },
+    "github-action": {
+      "owner": "Build Maintainers",
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ]
+    },
+    "build-tool": {
+      "owner": "Build Maintainers"
+    },
+    "openclaw-plugin": {
+      "owner": "Core Maintainers",
+      "update_source": "https://github.com/openclaw/openclaw/releases",
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ]
+    },
+    "npm-security-override": {
+      "owner": "Operations Maintainers",
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ]
+    },
+    "npm-transitive": {
+      "owner": "Operations Maintainers"
+    },
+    "python-package": {
+      "owner": "Build Maintainers",
+      "update_source": "https://pypi.org/"
+    },
+    "runtime-copy": {
+      "owner": "Operations Maintainers",
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ]
+    }
+  },
+  "components": {
+    "action:actions/checkout": {
+      "update_source": "https://github.com/actions/checkout/releases"
+    },
+    "action:actions/setup-python": {
+      "update_source": "https://github.com/actions/setup-python/releases"
+    },
+    "action:actions/upload-artifact": {
+      "update_source": "https://github.com/actions/upload-artifact/releases"
+    },
+    "action:docker/build-push-action": {
+      "update_source": "https://github.com/docker/build-push-action/releases"
+    },
+    "action:docker/login-action": {
+      "update_source": "https://github.com/docker/login-action/releases"
+    },
+    "action:docker/metadata-action": {
+      "update_source": "https://github.com/docker/metadata-action/releases"
+    },
+    "action:docker/setup-buildx-action": {
+      "update_source": "https://github.com/docker/setup-buildx-action/releases"
+    },
+    "action:sigstore/cosign-installer": {
+      "update_source": "https://github.com/sigstore/cosign-installer/releases"
+    },
+    "alpine:bash": {},
+    "alpine:ca-certificates": {
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ]
+    },
+    "alpine:clamav": {
+      "tests": [
+        "tests/test_clamd_compose_m14.py",
+        "tests/test_clamd_socket_m14.py"
+      ]
+    },
+    "alpine:curl": {
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ]
+    },
+    "alpine:freshclam": {
+      "tests": [
+        "tests/test_clamd_compose_m14.py"
+      ]
+    },
+    "alpine:jq": {},
+    "alpine:poppler-utils": {},
+    "alpine:procps-ng": {},
+    "alpine:python3": {
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ]
+    },
+    "alpine:rsync": {},
+    "alpine:sqlite": {},
+    "alpine:tesseract-ocr": {},
+    "alpine:tesseract-ocr-data-deu": {},
+    "alpine:tesseract-ocr-data-eng": {},
+    "alpine:tini": {},
+    "alpine:tzdata": {},
+    "alpine:zstd": {},
+    "binary:hadolint": {
+      "source": "https://github.com/hadolint/hadolint",
+      "update_source": "https://github.com/hadolint/hadolint/releases"
+    },
+    "binary:himalaya": {
+      "owner": "Operations Maintainers",
+      "update_source": "https://github.com/pimalaya/himalaya/releases",
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ],
+      "local_changes": [
+        "Installiert die geprüfte amd64-Binärdatei hinter dem lokalen Aufruf-Guard."
+      ]
+    },
+    "binary:shellcheck": {
+      "source": "https://github.com/koalaman/shellcheck",
+      "update_source": "https://github.com/koalaman/shellcheck/releases"
+    },
+    "build:dockerfile-frontend": {
+      "source": "https://hub.docker.com/r/docker/dockerfile",
+      "update_source": "https://github.com/moby/buildkit/releases"
+    },
+    "build:npm": {
+      "source": "https://github.com/npm/cli",
+      "update_source": "https://github.com/npm/cli/releases"
+    },
+    "build:workflow-python": {
+      "source": "https://www.python.org/",
+      "update_source": "https://www.python.org/downloads/"
+    },
+    "external:clamav-signatures": {
+      "kind": "signature-feed",
+      "deployment_scope": "external",
+      "owner": "Operations Maintainers",
+      "source": "https://docs.clamav.net/manual/Usage/SignatureManagement.html",
+      "update_source": "https://docs.clamav.net/manual/Usage/Configuration.html",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ],
+      "tests": [
+        "tests/test_clamd_socket_m14.py"
+      ]
+    },
+    "external:host-docker-compose": {
+      "kind": "host-component",
+      "deployment_scope": "external",
+      "owner": "Host-Betreiber",
+      "source": "https://github.com/docker/compose",
+      "update_source": "https://docs.docker.com/compose/releases/",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ]
+    },
+    "external:host-docker-engine": {
+      "kind": "host-component",
+      "deployment_scope": "external",
+      "owner": "Host-Betreiber",
+      "source": "https://github.com/moby/moby",
+      "update_source": "https://docs.docker.com/engine/release-notes/",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ]
+    },
+    "external:host-gpu-driver": {
+      "kind": "host-component",
+      "deployment_scope": "external",
+      "owner": "Host-Betreiber",
+      "source": "https://docs.ollama.com/gpu",
+      "update_source": "https://docs.ollama.com/gpu",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ]
+    },
+    "external:host-os": {
+      "kind": "host-component",
+      "deployment_scope": "external",
+      "owner": "Host-Betreiber",
+      "source": "https://docs.docker.com/engine/install/",
+      "update_source": "https://docs.docker.com/engine/install/",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ]
+    },
+    "external:nextcloud-calendar": {
+      "kind": "service-app",
+      "deployment_scope": "external",
+      "owner": "Nextcloud-Betreiber",
+      "source": "https://github.com/nextcloud/calendar",
+      "update_source": "https://apps.nextcloud.com/apps/calendar",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ]
+    },
+    "external:nextcloud-contacts": {
+      "kind": "service-app",
+      "deployment_scope": "external",
+      "owner": "Nextcloud-Betreiber",
+      "source": "https://github.com/nextcloud/contacts",
+      "update_source": "https://apps.nextcloud.com/apps/contacts",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ]
+    },
+    "external:nextcloud-dav": {
+      "kind": "service-app",
+      "deployment_scope": "external",
+      "owner": "Nextcloud-Betreiber",
+      "source": "https://github.com/nextcloud/server/tree/master/apps/dav",
+      "update_source": "https://docs.nextcloud.com/server/stable/admin_manual/maintenance/upgrade.html",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ]
+    },
+    "external:nextcloud-deck": {
+      "kind": "service-app",
+      "deployment_scope": "external",
+      "owner": "Nextcloud-Betreiber",
+      "source": "https://github.com/nextcloud/deck",
+      "update_source": "https://apps.nextcloud.com/apps/deck",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ]
+    },
+    "external:nextcloud-files": {
+      "kind": "service-app",
+      "deployment_scope": "external",
+      "owner": "Nextcloud-Betreiber",
+      "source": "https://github.com/nextcloud/server/tree/master/apps/files",
+      "update_source": "https://docs.nextcloud.com/server/stable/admin_manual/maintenance/upgrade.html",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ]
+    },
+    "external:nextcloud-notes": {
+      "kind": "service-app",
+      "deployment_scope": "external",
+      "owner": "Nextcloud-Betreiber",
+      "source": "https://github.com/nextcloud/notes",
+      "update_source": "https://apps.nextcloud.com/apps/notes",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ]
+    },
+    "external:nextcloud-server": {
+      "kind": "service",
+      "deployment_scope": "external",
+      "owner": "Nextcloud-Betreiber",
+      "source": "https://github.com/nextcloud/server",
+      "update_source": "https://docs.nextcloud.com/server/stable/admin_manual/maintenance/upgrade.html",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ]
+    },
+    "external:nextcloud-talk": {
+      "kind": "service-app",
+      "deployment_scope": "external",
+      "owner": "Nextcloud-Betreiber",
+      "source": "https://github.com/nextcloud/spreed",
+      "update_source": "https://apps.nextcloud.com/apps/spreed",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ]
+    },
+    "external:nextcloud-talk-clients": {
+      "kind": "client",
+      "deployment_scope": "external",
+      "owner": "Talk-Client-Betreiber",
+      "source": "https://nextcloud.com/talk/",
+      "update_source": "https://nextcloud.com/install/",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ]
+    },
+    "external:nextcloud-tasks": {
+      "kind": "service-app",
+      "deployment_scope": "external",
+      "owner": "Nextcloud-Betreiber",
+      "source": "https://github.com/nextcloud/tasks",
+      "update_source": "https://apps.nextcloud.com/apps/tasks",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ]
+    },
+    "external:ollama-models": {
+      "kind": "model",
+      "deployment_scope": "external",
+      "owner": "Ollama-Betreiber",
+      "source": "https://ollama.com/library",
+      "update_source": "https://docs.ollama.com/cli",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ]
+    },
+    "external:ollama-server": {
+      "kind": "service",
+      "deployment_scope": "external",
+      "owner": "Ollama-Betreiber",
+      "source": "https://github.com/ollama/ollama",
+      "update_source": "https://github.com/ollama/ollama/releases",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ]
+    },
+    "image:caddy_binary": {
+      "source": "https://hub.docker.com/_/caddy",
+      "update_source": "https://github.com/caddyserver/caddy/releases",
+      "local_changes": [
+        "Entfernt die Low-Port-Dateifähigkeit der statischen Caddy-Binärdatei für den nicht privilegierten Talk-Proxy."
+      ],
+      "tests": [
+        "tests/test_nextcloud_talk_m17.py"
+      ]
+    },
+    "image:cosign": {
+      "source": "https://github.com/sigstore/cosign/pkgs/container/cosign%2Fcosign",
+      "update_source": "https://github.com/sigstore/cosign/releases"
+    },
+    "image:node_runtime": {
+      "source": "https://hub.docker.com/_/node",
+      "update_source": "https://github.com/nodejs/docker-node",
+      "local_changes": [
+        "Entfernt Corepack und ersetzt npm-internes tar durch die im Dockerfile geprüfte Kopie aus dem OpenClaw-Baum."
+      ]
+    },
+    "image:openclaw_source": {
+      "source": "https://github.com/openclaw/openclaw/pkgs/container/openclaw",
+      "update_source": "https://github.com/openclaw/openclaw/releases",
+      "local_changes": [
+        "Kopiert den Upstream-App-Baum in das Rollenimage und wendet die separat erfassten npm-Overlays und Control-UI-Patches an.",
+        "Entfernt @vitest/browser aus dem übernommenen App-Baum."
+      ]
+    },
+    "image:python_runtime": {
+      "source": "https://hub.docker.com/_/python",
+      "update_source": "https://github.com/docker-library/python"
+    },
+    "image:syft": {
+      "source": "https://github.com/anchore/syft/pkgs/container/syft",
+      "update_source": "https://github.com/anchore/syft/releases"
+    },
+    "image:trivy": {
+      "source": "https://hub.docker.com/r/aquasec/trivy",
+      "update_source": "https://github.com/aquasecurity/trivy/releases"
+    },
+    "npm:plugins:node_modules/@openclaw/brave-plugin": {},
+    "npm:plugins:node_modules/@openclaw/nextcloud-talk": {
+      "tests": [
+        "tests/test_nextcloud_talk_m17.py"
+      ]
+    },
+    "npm:plugins:node_modules/@openclaw/nextcloud-talk/node_modules/zod": {
+      "update_source": "https://www.npmjs.com/package/zod"
+    },
+    "npm:plugins:node_modules/@openclaw/signal": {},
+    "npm:plugins:node_modules/@openclaw/signal/node_modules/ws": {
+      "update_source": "https://www.npmjs.com/package/ws"
+    },
+    "npm:runtime:tar": {
+      "source": "https://github.com/isaacs/node-tar",
+      "update_source": "https://www.npmjs.com/package/tar",
+      "local_changes": [
+        "Ersetzt npm-internes tar durch die Kopie aus dem digestgebundenen OpenClaw-App-Baum. Das Dockerfile prüft die Version im Zielpfad."
+      ]
+    },
+    "npm:security-overrides:node_modules/@types/trusted-types": {
+      "update_source": "https://www.npmjs.com/package/@types/trusted-types"
+    },
+    "npm:security-overrides:node_modules/dompurify": {
+      "update_source": "https://github.com/cure53/DOMPurify/releases",
+      "local_changes": [
+        "Überschreibt das Modul im OpenClaw-App-Baum und liefert die Browser-Vendor-Datei für den Control-UI-Patch."
+      ],
+      "tests": [
+        "tests/test_control_ui_setup_patch.py",
+        "tests/test_m7_supply_chain.py"
+      ]
+    },
+    "npm:security-overrides:node_modules/forwarded": {
+      "update_source": "https://www.npmjs.com/package/forwarded",
+      "local_changes": [
+        "Wird zusammen mit dem proxy-addr-Overlay in den App-Baum kopiert."
+      ]
+    },
+    "npm:security-overrides:node_modules/ipaddr.js": {
+      "update_source": "https://www.npmjs.com/package/ipaddr.js",
+      "local_changes": [
+        "Wird unterhalb des proxy-addr-Overlays kopiert, um die dort benötigte Version aufzulösen."
+      ]
+    },
+    "npm:security-overrides:node_modules/proxy-addr": {
+      "update_source": "https://www.npmjs.com/package/proxy-addr",
+      "local_changes": [
+        "Überschreibt das Modul im OpenClaw-App-Baum und behält seinen eigenen ipaddr.js-Pfad bei."
+      ]
+    },
+    "patch:control-ui": {
+      "source": "https://github.com/openclaw/openclaw",
+      "owner": "Core Maintainers",
+      "update_source": "https://github.com/openclaw/openclaw/releases",
+      "source_files": [
+        "docker/patch-control-ui-setup.py"
+      ],
+      "tests": [
+        "tests/test_control_ui_setup_patch.py",
+        "tests/test_m7_supply_chain.py"
+      ]
+    },
+    "pypi:ast-serialize": {},
+    "pypi:build": {},
+    "pypi:coverage": {},
+    "pypi:iniconfig": {},
+    "pypi:librt": {},
+    "pypi:mypy": {},
+    "pypi:mypy-extensions": {},
+    "pypi:packaging": {},
+    "pypi:pathspec": {},
+    "pypi:pip": {},
+    "pypi:pluggy": {},
+    "pypi:pygments": {},
+    "pypi:pyproject-hooks": {},
+    "pypi:pytest": {},
+    "pypi:pytest-cov": {},
+    "pypi:ruff": {},
+    "pypi:setuptools": {},
+    "pypi:typing-extensions": {},
+    "reference:keithvassallomt/openclaw-nextcloud": {
+      "kind": "upstream-source",
+      "deployment_scope": "reference",
+      "pin": {
+        "commit": "c6659f3e20761b6b681f3e9135103a205eb23720"
+      },
+      "source": "https://github.com/keithvassallomt/openclaw-nextcloud",
+      "owner": "Groupware Maintainers",
+      "update_source": "https://github.com/keithvassallomt/openclaw-nextcloud/commits/main",
+      "license_status": {
+        "status": "reviewed",
+        "expression": "MIT",
+        "evidence": [
+          "docs/NEXTCLOUD_REUSE_COMPARISON.md",
+          "https://github.com/keithvassallomt/openclaw-nextcloud/blob/c6659f3e20761b6b681f3e9135103a205eb23720/LICENSE"
+        ]
+      },
+      "source_files": [
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md",
+        "personal_assistant/connectors/nextcloud/tasks.py",
+        "personal_assistant/ical_edit.py"
+      ],
+      "tests": [
+        "tests/test_direct_tasks_tool.py"
+      ],
+      "local_changes": [
+        "R0 ist eine eigenständige Python-Implementierung für iCalendar-TEXT-Listen und VTODO-Kategorien. Der Upstream ist die Vergleichsreferenz. Skill, Bundle und Fixtures werden nicht installiert oder übernommen."
+      ],
+      "review": {
+        "status": "reviewed",
+        "date": "2026-11-21",
+        "evidence": [
+          "docs/NEXTCLOUD_REUSE_COMPARISON.md"
+        ],
+        "upstream_paths": [
+          "index.js#L1116 CalDAV-Abfrage und Serienexpansion",
+          "index.js#L1279 VTODO-Kategorien und Escape-Behandlung",
+          "index.js#L1472 zusätzliche VTODO-Felder",
+          "index.js#L1962 vCard-Parser",
+          "index.js#L2030 Adressänderungen",
+          "test/regressions.mjs Mock-HTTP-Regressionsszenarien",
+          "test/safety-features.mjs Mock-HTTP-Sicherheitsfälle",
+          ".github/workflows/bundle.yml Buildprüfung"
+        ],
+        "scope": "Vergleich von Quellen und Testquellen. Die Upstream-Tests wurden nicht ausgeführt. Es gab keine Live-Prüfung."
+      }
+    }
+  }
+}

@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import argparse
 import os
-import subprocess
 import sys
 from typing import Any
 
+from .mail import run_mail_child
 
-def run_external(args: argparse.Namespace) -> int:
+
+def run_external(args: argparse.Namespace, *, initial=None) -> int:
     command = [sys.executable, "-m", "mail_agent", "invoices", args.invoices_command]
     if args.invoices_command in {"status", "audit"}:
         pass
@@ -82,7 +83,10 @@ def run_external(args: argparse.Namespace) -> int:
     environment = os.environ.copy()
     environment["OPENCLAW_OLLAMA_PRIORITY"] = "interactive"
     environment["OPENCLAW_OLLAMA_SOURCE"] = "openclaw-invoice-tool"
-    return subprocess.run(command, check=False, env=environment).returncode
+    reads_nextcloud = args.invoices_command in {"backfill", "reprocess", "reprocess-apply", "correct"} or (
+        args.invoices_command == "export" and not args.dry_run
+    )
+    return run_mail_child(command, environment, initial, reads_nextcloud=reads_nextcloud)
 
 
 def handle(args: argparse.Namespace, assistant: Any, emit: Any) -> int:

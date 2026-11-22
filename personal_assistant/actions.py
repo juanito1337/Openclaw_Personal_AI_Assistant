@@ -13,6 +13,8 @@ from .connectors.nextcloud.discovery import DiscoveredCollection
 from .connectors.nextcloud.files import NextcloudFiles
 from .connectors.nextcloud.tasks import NextcloudTasks
 from .models import ActionPlan
+from .nextcloud_access_runtime import delivery_uncertain, matches_written_object
+from .nextcloud_action_access import action_admission, requires_action_scope
 from .policy import PolicyEngine
 from .registry import ResourceRegistry
 from .storage import AssistantStorage
@@ -39,7 +41,10 @@ class ActionService:
         self.tasks = nextcloud_tasks
         self.contacts = nextcloud_contacts
 
-    def plan(self, action_type: str, resource_id: str, payload: dict[str, Any], idempotency_key: str = "") -> ActionPlan:
+    def plan(
+        self, action_type: str, resource_id: str, payload: dict[str, Any], idempotency_key: str = ""
+    ) -> ActionPlan:
+        initial = getattr(self.registry, "access_snapshot", None)
         decision = self.policy.decide(resource_id, action_type, payload)
         if not decision.allowed:
             raise PermissionError(decision.reason)
@@ -50,9 +55,14 @@ class ActionService:
             resource_id=resource_id,
             payload=payload,
             requires_approval=decision.requires_approval,
+            access_snapshot=initial,
         )
-        self.storage.audit("action.planned", {"id": plan.id, "type": action_type, "status": plan.status}, resource_id=resource_id)
-        return plan
+        with action_admission(action_type, initial):
+            self.storage.audit(
+                "action.planned", {"id": plan.id, "type": action_type, "status": plan.status},
+                resource_id=resource_id,
+            )
+            return plan
 
     def approve(self, action_id: str) -> ActionPlan:
         plan = self.storage.get_action(action_id)
@@ -60,7 +70,7 @@ class ActionService:
             return plan
         updated = self.storage.update_action(action_id, "approved")
         self.storage.audit("action.approved", {"id": action_id}, resource_id=plan.resource_id, actor="user")
-        return updated
+        return self.storage.get_action(updated.id)
 
     def retry_managed_invoice_register(self, action_id: str) -> ActionPlan:
         """Retry only a failed, policy-approved managed yearly invoice register.
@@ -84,7 +94,7 @@ class ActionService:
             resource_id=plan.resource_id,
             actor="mail-agent",
         )
-        return updated
+        return self.storage.get_action(updated.id)
 
     def approve_trusted_command(self, action_id: str, *, actor: str, evidence: dict[str, Any]) -> ActionPlan:
         """Narrow approval path for an already validated owner command mail."""
@@ -100,7 +110,7 @@ class ActionService:
             resource_id=plan.resource_id,
             actor=actor,
         )
-        return updated
+        return self.storage.get_action(updated.id)
 
     def approve_configured_calendar_tool(self, action_id: str, *, evidence: dict[str, Any]) -> ActionPlan:
         """Approve only a calendar.create plan enabled by the configured direct tool.
@@ -123,7 +133,7 @@ class ActionService:
             resource_id=plan.resource_id,
             actor="agent-calendar-tool",
         )
-        return updated
+        return self.storage.get_action(updated.id)
 
     def approve_configured_calendar_update(self, action_id: str, *, evidence: dict[str, Any]) -> ActionPlan:
         """Approve one explicit, ETag-guarded CalDAV VEVENT update."""
@@ -143,7 +153,7 @@ class ActionService:
             resource_id=plan.resource_id,
             actor="agent-calendar-tool",
         )
-        return updated
+        return self.storage.get_action(updated.id)
 
     def approve_configured_tasks_tool(self, action_id: str, *, evidence: dict[str, Any]) -> ActionPlan:
         """Approve only a tasks.create plan enabled by the configured direct tool."""
@@ -161,7 +171,7 @@ class ActionService:
             resource_id=plan.resource_id,
             actor="agent-tasks-tool",
         )
-        return updated
+        return self.storage.get_action(updated.id)
 
     def approve_configured_tasks_update(self, action_id: str, *, evidence: dict[str, Any]) -> ActionPlan:
         """Approve one explicit, ETag-guarded CalDAV VTODO update."""
@@ -181,7 +191,7 @@ class ActionService:
             resource_id=plan.resource_id,
             actor="agent-tasks-tool",
         )
-        return updated
+        return self.storage.get_action(updated.id)
 
     def approve_configured_contacts_tool(self, action_id: str, *, evidence: dict[str, Any]) -> ActionPlan:
         """Approve only create-only CardDAV contacts from the configured tool."""
@@ -199,7 +209,7 @@ class ActionService:
             resource_id=plan.resource_id,
             actor="agent-contacts-tool",
         )
-        return updated
+        return self.storage.get_action(updated.id)
 
     def approve_configured_contacts_update(self, action_id: str, *, evidence: dict[str, Any]) -> ActionPlan:
         """Approve one explicit, ETag-guarded CardDAV contact update."""
@@ -219,9 +229,20 @@ class ActionService:
             resource_id=plan.resource_id,
             actor="agent-contacts-tool",
         )
-        return updated
+        return self.storage.get_action(updated.id)
 
-    def execute_contact_create(self, action_id: str) -> tuple[ActionPlan, bool]:
+    @property
+    def _active_access(self) -> bool:
+        return getattr(getattr(self.registry, "access_snapshot", None), "mode", "") == "active"
+
+    def _reopen_missing(self, plan: ActionPlan, recreate_missing: bool) -> ActionPlan:
+        if self._active_access and not recreate_missing:
+            raise PermissionError("approval-required: Fehlendes Ziel erneut mit dem Anlegewerkzeug anfordern")
+        return self.storage.update_action(plan.id, "approved", "")
+
+    def execute_contact_create(
+        self, action_id: str, *, recreate_missing: bool = False
+    ) -> tuple[ActionPlan, bool]:
         """Execute contacts.create and verify completed plans against CardDAV."""
         if self.contacts is None:
             raise RuntimeError("CardDAV-Kontaktexecutor ist nicht konfiguriert")
@@ -238,18 +259,23 @@ class ActionService:
         uid = str(plan.payload["uid"])
         if plan.status == "completed":
             if self.contacts.contact_exists(collection, uid):
+                if self._active_access:
+                    href = self.contacts.contact_href(collection, uid)
+                    current = self.contacts.read_contact(href, fallback_uid=uid)
+                    if not matches_written_object(current, uid, "VCARD", plan.payload["vcard"]):
+                        return self.storage.update_action(plan.id, "conflict", "target-mismatch"), False
                 self.storage.audit(
                     "action.duplicate_verified",
                     {"id": plan.id, "type": plan.action_type, "detail": "Kontakt vorhanden"},
                     resource_id=plan.resource_id,
                 )
-                return plan, True
+                return self.storage.get_action(plan.id), True
             self.storage.audit(
                 "action.completed_stale",
                 {"id": plan.id, "type": plan.action_type, "detail": "Kontakt fehlt extern"},
                 resource_id=plan.resource_id,
             )
-            plan = self.storage.update_action(plan.id, "approved", "")
+            plan = self._reopen_missing(plan, recreate_missing)
         result = self.execute(plan.id)
         return result, False
 
@@ -271,7 +297,7 @@ class ActionService:
                     {"id": plan.id, "type": plan.action_type, "detail": "Kontakt-Aenderung bereits vorhanden"},
                     resource_id=plan.resource_id,
                 )
-                return plan, True
+                return self.storage.get_action(plan.id), True
             failed = self.storage.update_action(
                 plan.id,
                 "failed",
@@ -317,7 +343,7 @@ class ActionService:
                     {"id": plan.id, "type": plan.action_type, "detail": "Kalender-Aenderung bereits vorhanden"},
                     resource_id=plan.resource_id,
                 )
-                return plan, True
+                return self.storage.get_action(plan.id), True
             failed = self.storage.update_action(
                 plan.id, "failed",
                 "Abgeschlossenes Kalender-Update stimmt extern nicht mehr ueberein; erneute Auswahl erforderlich",
@@ -341,7 +367,7 @@ class ActionService:
                     {"id": plan.id, "type": plan.action_type, "detail": "Aufgaben-Aenderung bereits vorhanden"},
                     resource_id=plan.resource_id,
                 )
-                return plan, True
+                return self.storage.get_action(plan.id), True
             failed = self.storage.update_action(
                 plan.id, "failed",
                 "Abgeschlossenes Aufgaben-Update stimmt extern nicht mehr ueberein; erneute Auswahl erforderlich",
@@ -349,7 +375,9 @@ class ActionService:
             return failed, False
         return self.execute(plan.id), False
 
-    def execute_task_create(self, action_id: str) -> tuple[ActionPlan, bool]:
+    def execute_task_create(
+        self, action_id: str, *, recreate_missing: bool = False
+    ) -> tuple[ActionPlan, bool]:
         """Execute tasks.create and verify completed plans against Nextcloud."""
         plan = self.storage.get_action(action_id)
         if plan.action_type != "tasks.create":
@@ -364,22 +392,29 @@ class ActionService:
         uid = str(plan.payload["uid"])
         if plan.status == "completed":
             if self.tasks.task_exists(collection, uid):
+                if self._active_access:
+                    href = self.tasks.task_href(collection, uid)
+                    current = self.tasks.read_task(href, fallback_uid=uid)
+                    if not matches_written_object(current, uid, "VTODO", plan.payload["ics"]):
+                        return self.storage.update_action(plan.id, "conflict", "target-mismatch"), False
                 self.storage.audit(
                     "action.duplicate_verified",
                     {"id": plan.id, "type": plan.action_type, "detail": "Aufgabe vorhanden"},
                     resource_id=plan.resource_id,
                 )
-                return plan, True
+                return self.storage.get_action(plan.id), True
             self.storage.audit(
                 "action.completed_stale",
                 {"id": plan.id, "type": plan.action_type, "detail": "Aufgabe fehlt extern"},
                 resource_id=plan.resource_id,
             )
-            plan = self.storage.update_action(plan.id, "approved", "")
+            plan = self._reopen_missing(plan, recreate_missing)
         result = self.execute(plan.id)
         return result, False
 
-    def execute_calendar_create(self, action_id: str) -> tuple[ActionPlan, bool]:
+    def execute_calendar_create(
+        self, action_id: str, *, recreate_missing: bool = False
+    ) -> tuple[ActionPlan, bool]:
         """Execute calendar.create and verify completed plans against Nextcloud."""
         plan = self.storage.get_action(action_id)
         if plan.action_type != "calendar.create":
@@ -417,13 +452,13 @@ class ActionService:
                     },
                     resource_id=plan.resource_id,
                 )
-                return plan, True
+                return self.storage.get_action(plan.id), True
             self.storage.audit(
                 "action.completed_stale",
                 {"id": plan.id, "type": plan.action_type, "detail": "Kalendereintrag fehlt extern"},
                 resource_id=plan.resource_id,
             )
-            plan = self.storage.update_action(plan.id, "approved", "")
+            plan = self._reopen_missing(plan, recreate_missing)
         if plan.status == "approved" and self.calendar.event_exists(collection, uid):
             completed = self.storage.update_action(plan.id, "completed", "")
             try:
@@ -449,7 +484,7 @@ class ActionService:
                 },
                 resource_id=plan.resource_id,
             )
-            return completed, True
+            return self.storage.get_action(completed.id), True
         result = self.execute(plan.id)
         return result, False
 
@@ -537,7 +572,9 @@ class ActionService:
         )
         return current
 
-    def execute_workspace(self, action_id: str) -> tuple[ActionPlan, bool]:
+    def execute_workspace(
+        self, action_id: str, *, recreate_missing: bool = False
+    ) -> tuple[ActionPlan, bool]:
         """Execute a workspace action and reconcile stale completed records.
 
         The database is not treated as the sole source of truth for external
@@ -554,7 +591,7 @@ class ActionService:
                     {"id": plan.id, "type": plan.action_type, "detail": detail},
                     resource_id=plan.resource_id,
                 )
-                return plan, True
+                return self.storage.get_action(plan.id), True
             if not retryable:
                 failed = self.storage.update_action(plan.id, "failed", detail)
                 self.storage.audit(
@@ -568,7 +605,7 @@ class ActionService:
                 {"id": plan.id, "type": plan.action_type, "detail": detail},
                 resource_id=plan.resource_id,
             )
-            plan = self.storage.update_action(plan.id, "approved", "")
+            plan = self._reopen_missing(plan, recreate_missing)
         result = self.execute(plan.id)
         return result, False
 
@@ -576,6 +613,8 @@ class ActionService:
         if plan.action_type == "files.mkdir":
             path = str(plan.payload["path"])
             if self.files.exists(path):
+                if getattr(self.files, "managed_access", False) is True and not self.files.is_folder(path):
+                    return False, False, "target-mismatch"
                 return True, False, f"Ordner vorhanden: {path}"
             return False, True, f"Abgeschlossener Ordner fehlt in Nextcloud: {path}"
 
@@ -613,6 +652,19 @@ class ActionService:
     def execute(self, action_id: str) -> ActionPlan:
         plan = self.storage.get_action(action_id)
         if plan.status == "completed":
+            if requires_action_scope(plan.action_type) and self._active_access:
+                reconciliation = {
+                    "files.create": self.execute_workspace,
+                    "files.mkdir": self.execute_workspace,
+                    "calendar.create": self.execute_calendar_create,
+                    "calendar.update": self.execute_calendar_update,
+                    "contacts.create": self.execute_contact_create,
+                    "contacts.update": self.execute_contact_update,
+                    "tasks.create": self.execute_task_create,
+                    "tasks.update": self.execute_task_update,
+                }
+                verified, _ = reconciliation[plan.action_type](plan.id)
+                return verified
             return plan
         if plan.status != "approved":
             raise PermissionError(f"ActionPlan ist nicht freigegeben: {plan.status}")
@@ -622,13 +674,30 @@ class ActionService:
         self.storage.update_action(action_id, "executing")
         try:
             result = self._execute(plan)
-            updated = self.storage.update_action(action_id, "completed")
-            self.storage.audit("action.completed", {"id": action_id, "result": result}, resource_id=plan.resource_id)
-            return updated
         except Exception as exc:
+            if str(exc).startswith("delivery-uncertain"):
+                return self._record_uncertain(plan, exc)
             updated = self.storage.update_action(action_id, "failed", str(exc))
-            self.storage.audit("action.failed", {"id": action_id, "error": str(exc)}, resource_id=plan.resource_id)
-            return updated
+            self.storage.audit(
+                "action.failed", {"id": action_id, "error": str(exc)}, resource_id=plan.resource_id
+            )
+            return self.storage.get_action(updated.id)
+        try:
+            self.storage.update_action(action_id, "completed")
+            self.storage.audit(
+                "action.completed", {"id": action_id, "result": result}, resource_id=plan.resource_id
+            )
+            return self.storage.get_action(action_id)
+        except Exception as exc:
+            return self._record_uncertain(plan, delivery_uncertain(exc))
+
+    def _record_uncertain(self, plan, error):
+        self.storage.record_uncertain_delivery(plan.id, str(error))
+        self.storage.audit("action.delivery_uncertain", {"id": plan.id}, resource_id=plan.resource_id)
+        try:
+            return self.storage.get_action(plan.id)
+        except (RuntimeError, PermissionError):
+            raise error from None
 
     def _execute(self, plan: ActionPlan) -> str:
         resource = self.registry.get(plan.resource_id)
@@ -636,10 +705,15 @@ class ActionService:
             raise ValueError(f"Noch kein Executor fuer Connector {resource.connector}")
         if plan.action_type == "files.create":
             path = str(plan.payload["path"])
+            managed_access = getattr(self.files, "managed_access", False) is True
+            if managed_access and plan.payload.get("managed_invoice_register"):
+                raise PermissionError("operation-not-allowed")
             local_path = Path(str(plan.payload["local_path"])).expanduser().resolve()
             data = local_path.read_bytes()
+            if managed_access and hashlib.sha256(data).hexdigest() != plan.payload.get("sha256"):
+                raise PermissionError("payload-changed")
             parent = str(Path(path).parent).replace("\\", "/")
-            if parent not in {"", "."}:
+            if parent not in {"", "."} and not managed_access:
                 self.files.ensure_folder(parent)
             content_type = str(plan.payload.get("content_type") or "application/octet-stream")
             if bool(plan.payload.get("managed_invoice_register")):

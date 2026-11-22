@@ -12,11 +12,13 @@ from pathlib import Path
 from personal_assistant.config import load_config as load_assistant_config
 from personal_assistant.connectors.nextcloud.client import NextcloudClient
 from personal_assistant.connectors.nextcloud.files import NextcloudFiles
+from personal_assistant.nextcloud_connection import admit_projection
 from personal_assistant.registry import ResourceRegistry
 
 from .invoice_extract import InvoiceExtractor, InvoiceMetadata
 from .invoice_migration import build_path_migration_plan, extraction_evidence
 from .models import ParsedMessage
+from .nextcloud import archive_access, archive_snapshot
 
 REPROCESS_STATUSES = frozenset({"review", "unclassified"})
 PREVIEW_SCHEMA_VERSION = 1
@@ -65,6 +67,9 @@ class ReadOnlyInvoicePdfReader:
         self._files = NextcloudFiles(config, NextcloudClient(config))
 
     def read(self, remote_path: str, *, allowed_folder: str, resource_id: str) -> bytes:
+        initial = self._registry.access_snapshot
+        with archive_access(initial):
+            pass
         resource = self._registry.get(resource_id)
         if not resource.enabled or "read" not in resource.permissions:
             raise PermissionError(f"Ressource {resource_id} besitzt kein aktives read-Recht")
@@ -85,7 +90,8 @@ class ReadOnlyInvoicePdfReader:
         data = self._files.download(clean_path)
         if not data.startswith(b"%PDF-"):
             raise ValueError("Archivdatei ist kein gueltiges PDF")
-        return data
+        with admit_projection(initial):
+            return data
 
 
 def _year_prefix(value: object) -> int | None:
@@ -588,6 +594,7 @@ def run_reprocess_preview(
     read_pdf: Callable[[str], bytes],
     scan_pdf: Callable[[bytes, str], str],
 ) -> dict[str, object]:
+    initial = archive_snapshot()
     normalized_status, normalized_year, normalized_limit = _validate_selector(
         status, source_year, limit
     )
@@ -637,26 +644,27 @@ def run_reprocess_preview(
     classifications = {name: 0 for name in ("improved", "unchanged", "regressed", "still-review")}
     for record in records:
         classifications[str(record["classification"])] += 1
-    return {
-        "ok": not errors,
-        "dry_run": True,
-        "read_only": True,
-        "schema_version": PREVIEW_SCHEMA_VERSION,
-        "selector": {
-            "status": normalized_status,
-            "source_year": normalized_year,
-            "limit": normalized_limit,
-        },
-        "candidate_count": len(rows),
-        "processed_count": len(records),
-        "error_count": len(errors),
-        "classifications": classifications,
-        "records": records,
-        "errors": errors,
-        "effects": {
-            "sqlite": "unchanged-read-only",
-            "nextcloud_register": "not-accessed",
-            "pdf": "read-only",
-            "audit": "not-accessed",
-        },
-    }
+    with archive_access(initial):
+        return {
+            "ok": not errors,
+            "dry_run": True,
+            "read_only": True,
+            "schema_version": PREVIEW_SCHEMA_VERSION,
+            "selector": {
+                "status": normalized_status,
+                "source_year": normalized_year,
+                "limit": normalized_limit,
+            },
+            "candidate_count": len(rows),
+            "processed_count": len(records),
+            "error_count": len(errors),
+            "classifications": classifications,
+            "records": records,
+            "errors": errors,
+            "effects": {
+                "sqlite": "unchanged-read-only",
+                "nextcloud_register": "not-accessed",
+                "pdf": "read-only",
+                "audit": "not-accessed",
+            },
+        }

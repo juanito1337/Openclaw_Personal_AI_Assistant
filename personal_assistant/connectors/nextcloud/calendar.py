@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -10,6 +11,8 @@ from ...config import AssistantConfig
 from ...extractors import chunks
 from ...ical_edit import component_properties, first_value, unescape_ical
 from ...incremental_sync import RemoteObject, StageTelemetry, plan_batch
+from ...nextcloud_access_runtime import check_component_write, component_request, readback_after_write
+from ...nextcloud_index_access import require_scoped_sync
 from ...storage import AssistantStorage
 from .client import NextcloudClient, NextcloudError
 from .discovery import DiscoveredCollection
@@ -36,6 +39,7 @@ class CalendarObject:
 class CalendarMetadata:
     href: str
     etag: str
+    uid: str = ""
 
 
 class NextcloudCalendar:
@@ -54,7 +58,11 @@ class NextcloudCalendar:
  <c:time-range start='{start.strftime("%Y%m%dT%H%M%SZ")}' end='{end.strftime("%Y%m%dT%H%M%SZ")}'/>
  </c:comp-filter></c:comp-filter></c:filter>
 </c:calendar-query>""".encode()
-        response = self.client.request(
+        response = component_request(
+            self.client,
+            "VEVENT",
+            "list",
+            calendar,
             "REPORT",
             calendar.href,
             data=body,
@@ -73,14 +81,25 @@ class NextcloudCalendar:
         now = datetime.now(UTC)
         start = now - timedelta(days=self.config.nextcloud.calendar_horizon_days_back)
         end = now + timedelta(days=self.config.nextcloud.calendar_horizon_days_forward)
+        snapshot = getattr(self.client, "access_snapshot", None)
+        proof = ""
+        if snapshot is not None and snapshot.mode == "active":
+            proof = (
+                "<c:calendar-data><c:comp name='VCALENDAR'><c:comp name='VEVENT'>"
+                "<c:prop name='UID'/></c:comp></c:comp></c:calendar-data>"
+            )
         body = f"""<?xml version='1.0' encoding='utf-8'?>
 <c:calendar-query xmlns:d='DAV:' xmlns:c='urn:ietf:params:xml:ns:caldav'>
- <d:prop><d:getetag/></d:prop>
+ <d:prop><d:getetag/>{proof}</d:prop>
  <c:filter><c:comp-filter name='VCALENDAR'><c:comp-filter name='VEVENT'>
  <c:time-range start='{start.strftime("%Y%m%dT%H%M%SZ")}' end='{end.strftime("%Y%m%dT%H%M%SZ")}'/>
  </c:comp-filter></c:comp-filter></c:filter>
 </c:calendar-query>""".encode()
-        response = self.client.request(
+        response = component_request(
+            self.client,
+            "VEVENT",
+            "list",
+            calendar,
             "REPORT",
             calendar.href,
             data=body,
@@ -91,6 +110,9 @@ class NextcloudCalendar:
             CalendarMetadata(
                 href=item.href,
                 etag=item.properties.get(q(DAV, "getetag"), ""),
+                uid=unescape_ical(first_value(
+                    component_properties(item.properties[q(CALDAV, "calendar-data")], "VEVENT"), "UID"
+                )) if proof else "",
             )
             for item in parse_multistatus(response.data)
             if item.href and item.href.rstrip("/") != calendar.href.rstrip("/")
@@ -108,7 +130,11 @@ class NextcloudCalendar:
   <c:prop-filter name='UID'><c:text-match collation='i;octet'>{escaped}</c:text-match></c:prop-filter>
  </c:comp-filter></c:comp-filter></c:filter>
 </c:calendar-query>""".encode()
-        response = self.client.request(
+        response = component_request(
+            self.client,
+            "VEVENT",
+            "read",
+            calendar,
             "REPORT",
             calendar.href,
             data=body,
@@ -126,7 +152,9 @@ class NextcloudCalendar:
         return result
 
     def read_event(self, href: str, *, fallback_uid: str = "") -> CalendarObject:
-        response = self.client.request("GET", href, expected={200})
+        response = component_request(
+            self.client, "VEVENT", "read", None, "GET", href, object_uid=fallback_uid, expected={200}
+        )
         return self._parse_ics(
             response.data.decode("utf-8", errors="replace"),
             href,
@@ -143,12 +171,26 @@ class NextcloudCalendar:
         return calendar.href.rstrip("/") + "/" + safe_uid + ".ics"
 
     def event_exists(self, calendar: DiscoveredCollection, uid: str) -> bool:
-        response = self.client.request("GET", self.event_href(calendar, uid), expected={200, 404})
+        response = component_request(
+            self.client,
+            "VEVENT",
+            "read",
+            calendar,
+            "GET",
+            self.event_href(calendar, uid),
+            object_uid=uid,
+            expected={200, 404},
+        )
         return response.status == 200
 
     def create_event(self, calendar: DiscoveredCollection, ics: str, uid: str) -> str:
+        check_component_write(self.client, calendar, "VEVENT", "create", uid, ics)
         href = self.event_href(calendar, uid, ics)
-        response = self.client.request(
+        response = component_request(
+            self.client,
+            "VEVENT",
+            "create",
+            calendar,
             "PUT",
             href,
             data=ics.encode("utf-8"),
@@ -156,6 +198,9 @@ class NextcloudCalendar:
             expected={200, 201, 204, 412},
         )
         if response.status in {200, 201, 204}:
+            snapshot = getattr(self.client, "access_snapshot", None)
+            if snapshot is not None and snapshot.mode == "active":
+                readback_after_write(self.client, self.read_event, href, uid, "VEVENT", ics)
             return href
         if response.status == 412:
             raise NextcloudError("Kalendereintrag existiert bereits")
@@ -170,13 +215,18 @@ class NextcloudCalendar:
         ics: str,
         etag: str,
     ) -> CalendarObject:
+        check_component_write(self.client, calendar, "VEVENT", "update", uid, ics)
         safe_href = self._validated_event_href(calendar, href)
         current_etag = str(etag or "").strip()
         if not current_etag:
             current_etag = self.read_event(safe_href, fallback_uid=uid).etag
         if not current_etag:
             raise RuntimeError("CalDAV-Server lieferte keinen ETag; sicheres Kalender-Update abgebrochen")
-        response = self.client.request(
+        response = component_request(
+            self.client,
+            "VEVENT",
+            "update",
+            calendar,
             "PUT",
             safe_href,
             data=ics.encode("utf-8"),
@@ -191,7 +241,7 @@ class NextcloudCalendar:
                 "Kalendereintrag wurde zwischenzeitlich geaendert; bitte erneut suchen "
                 "und die Aenderung wiederholen"
             )
-        verified = self.read_event(safe_href, fallback_uid=uid)
+        verified = readback_after_write(self.client, self.read_event, safe_href, uid, "VEVENT", ics)
         if verified.uid.strip() != uid.strip():
             raise RuntimeError("Kalendereintrag wurde aktualisiert, UID-Verifikation ist fehlgeschlagen")
         return verified
@@ -211,6 +261,9 @@ class NextcloudCalendar:
         *,
         batch_size: int = 100,
     ) -> dict[str, Any]:
+        source = require_scoped_sync(self.client, storage, "VEVENT")
+        if source is not None and [item.resource_id for item in calendars] != [source.scope.resource_id]:
+            raise PermissionError("scope-unbound")
         stats: dict[str, Any] = {
             "calendars": 0,
             "events": 0,
@@ -229,6 +282,8 @@ class NextcloudCalendar:
                 metadata = self.list_event_metadata(calendar)
                 stats["calendars"] = int(stats["calendars"]) + 1
             except Exception as exc:
+                if source is not None and isinstance(exc, PermissionError):
+                    raise
                 stats["errors"] = int(stats["errors"]) + 1
                 if not storage.core_read_only:
                     storage.audit(
@@ -286,8 +341,10 @@ class NextcloudCalendar:
                     telemetry.start("download")
                     event = self.read_event(
                         item.href,
-                        fallback_uid=str(inventory["source_id"] or "") if inventory else "",
+                        fallback_uid=item.uid or (str(inventory["source_id"] or "") if inventory else ""),
                     )
+                    if item.uid and (event.uid != item.uid or not item.etag or event.etag != item.etag):
+                        raise PermissionError("object-changed")
                     telemetry.stop("download")
                     telemetry.start("parse")
                     text = "\n".join(
@@ -338,6 +395,8 @@ class NextcloudCalendar:
                     stats["events"] = int(stats["events"]) + 1
                     stats["indexed"] = int(stats["indexed"]) + 1
                 except Exception as exc:
+                    if source is not None and isinstance(exc, PermissionError):
+                        raise
                     telemetry.stop_running()
                     batch_errors += 1
                     stats["errors"] = int(stats["errors"]) + 1
@@ -364,7 +423,7 @@ class NextcloudCalendar:
                 if batch_errors == 0
                 else (str(state["cursor"] or "") if state is not None else ""),
                 status="ok" if completed else ("partial" if batch_errors else "in-progress"),
-                detail=str({key: value for key, value in stats.items() if key != "telemetry"}),
+                detail=json.dumps({key: value for key, value in stats.items() if key != "telemetry"}),
                 data_changed=bool(int(stats["indexed"]) or int(stats["moved"]) or int(stats["removed"])),
             )
         stats["telemetry"] = telemetry.to_dict()

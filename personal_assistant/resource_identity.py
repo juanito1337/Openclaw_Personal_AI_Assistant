@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from .models import Resource
+from .nextcloud_connection import component_operations
 from .registry import ResourceRegistry
 from .tool_settings import ToolSettings, load_tool_settings
 
@@ -199,7 +200,9 @@ def resolve_reference(registry: ResourceRegistry, reference: ResourceReference) 
             f"Ressource {resource_id!r} unterstuetzt {reference.component} nicht",
             resource_id=resource_id,
         )
-    missing = sorted(set(reference.required_permissions) - set(resource.permissions))
+    missing = sorted(
+        set(reference.required_permissions) - set(component_operations(resource, reference.component))
+    )
     if missing:
         raise ResourceIdentityError(
             "resource-permission-missing",
@@ -248,8 +251,11 @@ def inventory_report(
         if reference.enabled and not reference.resource_id and resource_ids:
             for identifier in resource_ids:
                 resource = registry.resources.get(identifier)
-                permissions = tuple(permission for permission in reference.required_permissions
-                                    if resource is None or permission in resource.permissions)
+                permissions = tuple(
+                    permission
+                    for permission in reference.required_permissions
+                    if resource is None or permission in component_operations(resource, reference.component)
+                )
                 references.append(replace(
                     reference, resource_id=identifier, required_permissions=permissions,
                 ))
@@ -292,7 +298,7 @@ def inventory_report(
             else:
                 payload["business_name"] = str(resource.metadata.get("name") or "")
                 payload["remote_identifier"] = resource.remote_id
-                payload["resource_permissions"] = list(resource.permissions)
+                payload["resource_permissions"] = list(component_operations(resource, reference.component))
         items.append(payload)
 
     direct = next(item for item in items if item["domain"] == "calendar")

@@ -5,7 +5,23 @@ from __future__ import annotations
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import replace
+from functools import wraps
 from typing import Any
+
+
+def publish_current_account_result(method):
+    """Fence the completed result without holding the store lock across remote calls."""
+
+    @wraps(method)
+    def checked(self, *args, **kwargs):
+        from ..nextcloud_connection import admit_projection
+
+        initial = getattr(getattr(self, "registry", None), "access_snapshot", None)
+        result = method(self, *args, **kwargs)
+        with admit_projection(initial):
+            return result
+
+    return checked
 
 
 class NextcloudAccountMixin:
@@ -25,8 +41,58 @@ class NextcloudAccountMixin:
         if getattr(self.registry, "managed_connection", False):
             raise PermissionError("nextcloud-managed-configuration: OpenClaw-Einrichtung verwenden")
 
+    @staticmethod
+    def _access_status_evidence(snapshot, resource, component):
+        if snapshot is None or snapshot.mode != "active":
+            return {}
+        from ..nextcloud_access import COLLECTIONS, Scope, decide_access
+        from ..nextcloud_connection import check_projection_revision, collection_resource_id
+
+        current = check_projection_revision(snapshot.connection["revision"])
+        inventory = current.connection["discovery_snapshot"]
+        rows = inventory.get(COLLECTIONS[component], ())
+        row: dict[str, object] = next(
+            (
+                item
+                for item in rows
+                if resource and collection_resource_id(current.connection, item["href"]) == resource.id
+            ),
+            {},
+        )
+        if resource:
+            decision = decide_access(current, Scope(resource.id, component), "list")
+            if not decision.allowed:
+                raise PermissionError(decision.code)
+        return {
+            "rights_source": "saved-measurement",
+            "live_rights_measured": False,
+            "rights_checked_at": row.get("checked_at", inventory.get("checked_at")) if row else None,
+            "server_can_read": row.get("can_read"),
+            "server_can_create": row.get("can_create"),
+            "server_can_update": row.get("can_update"),
+        }
+
+    def _check_domain_access(self, domain, resource_id, operation):
+        initial = getattr(self.registry, "access_snapshot", None)
+        if initial is None or initial.mode == "legacy":
+            return
+        from ..nextcloud_access import Scope, decide_access
+        from ..nextcloud_connection import load_access_snapshot
+
+        snapshot = load_access_snapshot()
+        if snapshot.binding != initial.binding:
+            raise PermissionError("policy-changed")
+        component = {"calendar": "VEVENT", "tasks": "VTODO", "contacts": "VCARD"}[domain]
+        decision = decide_access(
+            snapshot, Scope(resource_id, component), operation, expected_binding=initial.binding
+        )
+        if not decision.allowed:
+            raise PermissionError(decision.code)
+
     @contextmanager
     def select_nextcloud_resource(self, domain: str, resource_id: str = "") -> Iterator[None]:
+        if resource_id:
+            self._check_domain_access(domain, resource_id, "list")
         if not resource_id:
             yield
             return
@@ -42,14 +108,17 @@ class NextcloudAccountMixin:
         components = resource.metadata.get("components", [])
         if resource.kind != expected_kind or (components and component not in components):
             raise PermissionError("nextcloud-resource-component-mismatch")
+        from ..nextcloud_connection import component_operations
+
+        operations = component_operations(resource, component)
         previous = self.tool_settings
         selected = replace(
             settings,
             resource_id=resource_id,
             resource_ids=(),
-            allow_list="read" in resource.permissions,
-            allow_create="create" in resource.permissions,
-            allow_update="update" in resource.permissions,
+            allow_list=("list" if "component_operations" in resource.metadata else "read") in operations,
+            allow_create="create" in operations,
+            allow_update="update" in operations,
         )
         self.tool_settings = replace(previous, nextcloud=replace(previous.nextcloud, **{domain: selected}))
         try:
@@ -65,6 +134,7 @@ class NextcloudAccountMixin:
         if self._multiple_nextcloud_resources(domain):
             raise ValueError("nextcloud-resource-selection-required: --resource aus status/list angeben")
 
+    @publish_current_account_result
     def _account_domain_status(self, domain: str, *, live: bool = True) -> dict[str, Any]:
         settings = getattr(self.tool_settings.nextcloud, domain)
         method = getattr(self, f"direct_{domain}_status")
@@ -91,6 +161,7 @@ class NextcloudAccountMixin:
             "delete_allowed": False,
         }
 
+    @publish_current_account_result
     def _account_domain_list(
         self, domain: str, *, limit: int, query: str | None = None, **kwargs: Any
     ) -> dict[str, Any]:

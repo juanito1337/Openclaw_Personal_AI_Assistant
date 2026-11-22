@@ -13,6 +13,9 @@ from typing import Any
 from ...config import AssistantConfig
 from ...incremental_sync import RemoteObject, StageTelemetry, plan_batch
 from ...knowledge import KnowledgeIndexer
+from ...nextcloud_access import path_segments
+from ...nextcloud_file_access import LISTING, METADATA, file_context, file_href
+from ...nextcloud_index_access import require_scoped_sync
 from ...storage import AssistantStorage
 from .client import NextcloudClient, NextcloudError
 from .xmlutil import DAV, parse_multistatus, q
@@ -50,20 +53,47 @@ class NextcloudFiles:
             raise ValueError("Ungueltiger Nextcloud-Pfad")
         return "/".join(parts)
 
+    @property
+    def managed_access(self) -> bool:
+        snapshot = getattr(self.client, "access_snapshot", None)
+        return snapshot is not None and snapshot.mode != "legacy"
+
+    def _path(self, value: str) -> str:
+        if self.managed_access:
+            path_segments(value)
+            return value
+        return self.clean_path(value)
+
+    def _request(self, operation: str, method: str, path: str, **kwargs):
+        if self.managed_access:
+            kwargs["access"] = file_context(self.client.access_snapshot, path, operation)
+        return self.client.request(method, self.files_root() + self._quote(path), **kwargs)
+
     def files_root(self) -> str:
+        if self.managed_access:
+            snapshot = self.client.access_snapshot
+            if snapshot.mode != "active":
+                raise PermissionError("scope-unbound")
+            return file_href(snapshot.connection, "")
         username = urllib.parse.quote(self.client.username, safe="")
         return f"/remote.php/dav/files/{username}/"
 
     def list_folder(self, path: str) -> list[RemoteFile]:
-        clean = self.clean_path(path)
-        target = self.files_root() + self._quote(clean)
+        clean = self._path(path)
         body = b"""<?xml version='1.0' encoding='utf-8'?>
 <d:propfind xmlns:d='DAV:'><d:prop><d:displayname/><d:resourcetype/>
 <d:getcontenttype/><d:getcontentlength/><d:getetag/><d:getlastmodified/>
 </d:prop></d:propfind>"""
-        response = self.client.request("PROPFIND", target, data=body, headers={"Depth": "1"}, expected={207})
+        response = self._request(
+            "list",
+            "PROPFIND",
+            clean,
+            data=LISTING if self.managed_access else body,
+            headers={"Depth": "1"},
+            expected={207},
+        )
         items: list[RemoteFile] = []
-        normalized_target = urllib.parse.urlparse(response.url).path.rstrip("/") + "/"
+        normalized_target = urllib.parse.unquote(urllib.parse.urlparse(response.url).path).rstrip("/")
         for item in parse_multistatus(response.data):
             item_path = urllib.parse.unquote(urllib.parse.urlparse(item.href).path)
             if item_path.rstrip("/") == normalized_target.rstrip("/"):
@@ -91,15 +121,16 @@ class NextcloudFiles:
         return items
 
     def download(self, path: str, *, expected_etag: str = "") -> bytes:
-        clean = self.clean_path(path)
+        clean = self._path(path)
         etag = str(expected_etag or "").strip()
         if "\r" in etag or "\n" in etag:
             raise ValueError("Ungueltiger Nextcloud-ETag")
         if etag and not (etag.startswith('"') or etag.startswith('W/"')):
             etag = f'"{etag}"'
-        response = self.client.request(
+        response = self._request(
+            "read",
             "GET",
-            self.files_root() + self._quote(clean),
+            clean,
             headers={"If-Match": etag} if etag else None,
             expected={200, 412} if etag else {200},
         )
@@ -109,7 +140,9 @@ class NextcloudFiles:
 
     def exists(self, path: str) -> bool:
         """Return whether a WebDAV resource exists without modifying it."""
-        clean = self.clean_path(path)
+        clean = self._path(path)
+        if self.managed_access:
+            return self._metadata(clean, "read") is not None
         if not clean:
             return True
         body = b"""<?xml version='1.0' encoding='utf-8'?>
@@ -123,8 +156,33 @@ class NextcloudFiles:
         )
         return response.status == 207
 
+    def _metadata(self, path, operation):
+        response = self._request(
+            operation, "PROPFIND", path, data=METADATA, headers={"Depth": "0"}, expected={207, 404}
+        )
+        return None if response.status == 404 else parse_multistatus(response.data)[0]
+
+    def verified_entry(self, path: str) -> None:
+        if self._metadata(path, "list") is None:
+            raise PermissionError("rights-unverified")
+
     def ensure_folder(self, path: str) -> None:
-        clean = self.clean_path(path)
+        clean = self._path(path)
+        if self.managed_access:
+            file_context(self.client.access_snapshot, clean, "mkdir")
+            existing = self._metadata(clean, "read")
+            if existing is not None:
+                kind = existing.raw_properties[q(DAV, "resourcetype")]
+                if kind.find(q(DAV, "collection")) is None:
+                    raise PermissionError("target-exists")
+                return
+            self._request("mkdir", "MKCOL", clean, headers={"If-None-Match": "*"}, expected={201})
+            try:
+                if not self.is_folder(clean):
+                    raise NextcloudError("target-mismatch")
+            except (PermissionError, RuntimeError) as exc:
+                raise NextcloudError(f"delivery-uncertain: {exc}") from exc
+            return
         current: list[str] = []
         for part in clean.split("/") if clean else []:
             current.append(part)
@@ -133,11 +191,21 @@ class NextcloudFiles:
             if response.status not in {201, 405}:
                 raise NextcloudError(f"Ordner konnte nicht angelegt werden: HTTP {response.status}")
 
+    def is_folder(self, path: str) -> bool:
+        entry = self._metadata(path, "read")
+        return (
+            entry is not None
+            and entry.raw_properties[q(DAV, "resourcetype")].find(q(DAV, "collection")) is not None
+        )
+
     def upload_new(self, path: str, data: bytes, content_type: str = "application/octet-stream") -> None:
-        clean = self.clean_path(path)
-        response = self.client.request(
+        clean = self._path(path)
+        if self.managed_access:
+            file_context(self.client.access_snapshot, clean, "read")
+        response = self._request(
+            "create_file",
             "PUT",
-            self.files_root() + self._quote(clean),
+            clean,
             data=data,
             headers={
                 "Content-Type": content_type,
@@ -149,8 +217,16 @@ class NextcloudFiles:
             if response.status == 412:
                 raise NextcloudError("Datei existiert bereits; Ueberschreiben ist verboten")
             raise NextcloudError(f"Datei-Upload fehlgeschlagen: HTTP {response.status} {response.reason}")
+        if self.managed_access:
+            try:
+                if response.status != 201 or self.download(clean) != data:
+                    raise NextcloudError("target-mismatch")
+            except (PermissionError, RuntimeError) as exc:
+                raise NextcloudError(f"delivery-uncertain: {exc}") from exc
 
     def _etag(self, path: str) -> str:
+        if self.managed_access:
+            raise PermissionError("operation-not-allowed")
         clean = self.clean_path(path)
         body = b"""<?xml version='1.0' encoding='utf-8'?>
 <d:propfind xmlns:d='DAV:'><d:prop><d:getetag/></d:prop></d:propfind>"""
@@ -183,6 +259,8 @@ class NextcloudFiles:
         ETag precondition so concurrent edits are never silently lost.
         """
         clean = self.clean_path(path)
+        if self.managed_access:
+            raise PermissionError("operation-not-allowed")
         if not self._MANAGED_REGISTER.search(clean):
             raise ValueError("Verwaltetes Rechnungsregister besitzt keinen erlaubten Jahrespfad")
         if len(data) > 50_000_000:
@@ -223,6 +301,8 @@ class NextcloudFiles:
             )
 
     def move_new(self, source: str, destination: str) -> None:
+        if self.managed_access:
+            raise PermissionError("operation-not-allowed")
         source_clean = self.clean_path(source)
         destination_clean = self.clean_path(destination)
         if not source_clean or not destination_clean:
@@ -254,6 +334,10 @@ class NextcloudFiles:
         max_depth: int,
         batch_size: int = 100,
     ) -> dict[str, Any]:
+        source = require_scoped_sync(self.client, storage, "FILES")
+        if source is not None and (roots != (source.scope.path,) or resource_id != source.scope.resource_id
+                                   or indexer.storage is not source):
+            raise PermissionError("scope-unbound")
         if max_items < 1 or max_depth < 0:
             raise ValueError("Nextcloud-Sync benoetigt max_items >= 1 und max_depth >= 0")
         stats: dict[str, Any] = {
@@ -289,6 +373,8 @@ class NextcloudFiles:
             try:
                 entries = self.list_folder(folder)
             except Exception as exc:
+                if source is not None and isinstance(exc, PermissionError):
+                    raise
                 stats["errors"] = int(stats["errors"]) + 1
                 if not storage.core_read_only:
                     storage.audit(
@@ -299,6 +385,8 @@ class NextcloudFiles:
                 continue
             stats["folders"] = int(stats["folders"]) + 1
             for entry in entries:
+                if source is not None and not source.owns_path(entry.path):
+                    continue
                 if entry.is_collection:
                     if depth < max_depth:
                         queue.append((entry.path, depth + 1))
@@ -387,7 +475,7 @@ class NextcloudFiles:
                         resource_id=resource_id,
                         source_id=str(moved["source_id"]),
                         new_source_id=entry.path,
-                        uri=self.client.validate_url() + entry.href,
+                        uri=self._document_uri(entry),
                         title=entry.name,
                         modified_at=entry.modified_at,
                         etag=entry.etag,
@@ -415,7 +503,7 @@ class NextcloudFiles:
                     resource_id=resource_id,
                     source_type="nextcloud-file",
                     source_id=entry.path,
-                    uri=self.client.validate_url() + entry.href,
+                    uri=self._document_uri(entry),
                     title=entry.name,
                     filename=entry.name,
                     data=data,
@@ -442,6 +530,8 @@ class NextcloudFiles:
                 key = "indexed" if changed else "unchanged"
                 stats[key] = int(stats[key]) + 1
             except Exception as exc:
+                if source is not None and isinstance(exc, PermissionError):
+                    raise
                 telemetry.stop_running()
                 batch_errors += 1
                 stats["errors"] = int(stats["errors"]) + 1
@@ -474,6 +564,14 @@ class NextcloudFiles:
             data_changed=bool(int(stats["indexed"]) or int(stats["moved"]) or int(stats["removed"])),
         )
         return stats
+
+    def _document_uri(self, entry: RemoteFile) -> str:
+        base = self.client.validate_url()
+        if self.managed_access:
+            origin = urllib.parse.urlsplit(base)
+            path = file_href(self.client.access_snapshot.connection, entry.path)
+            return urllib.parse.urlunsplit((origin.scheme, origin.netloc, path, "", ""))
+        return base + entry.href
 
     def _relative_from_href(self, href: str) -> str:
         path = urllib.parse.unquote(urllib.parse.urlparse(href).path)

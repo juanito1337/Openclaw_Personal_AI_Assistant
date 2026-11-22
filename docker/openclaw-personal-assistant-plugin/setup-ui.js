@@ -18,6 +18,8 @@ export const SETUP_OPERATIONS = Object.freeze({
   "connection.apply": { flow_id: "id", preview_digest: "digest", expected_revision: "revision", confirm_account_access: "true" },
   "connection.refresh": { expected_revision: "revision" },
   "folders.list": { path: "path" },
+  "access.preview": { account_id: "account", expected_revision: "id", expected_policy_revision: "policyRevision", edits: "edits", confirm_root: "boolean" },
+  "access.apply": { preview_id: "id", preview_digest: "digest", expected_revision: "id", expected_policy_revision: "policyRevision", confirm: "true" },
   "talk.participants": { room_token: "room" },
   "talk.configure": { enabled: "boolean", room_tokens: "rooms", allowed_user_ids: "users", expected_revision: "revision" },
 });
@@ -34,6 +36,10 @@ function plain(value) {
 const textValue = (value, maximum, empty = false) => typeof value === "string"
   && value.length <= maximum && (empty || value.length > 0) && !/[\x00-\x1f\x7f]/.test(value);
 const checks = {
+  account: value => typeof value === "string" && /^nextcloud-account-[a-f0-9]{16}$/.test(value),
+  offset: value => Number.isSafeInteger(value) && value > 0 && value < 5120,
+  policyRevision: value => value === "" || checks.id(value),
+  edits: value => Array.isArray(value) && value.length <= 64,
   url: value => textValue(value, 2048) && /^https:\/\//i.test(value),
   login: value => textValue(value, 512) && !value.includes(":"),
   password: value => textValue(value, 4096),
@@ -53,17 +59,47 @@ export function validateSetupRequest(params) {
       || !Object.hasOwn(SETUP_OPERATIONS, params.operation) || !plain(params.parameters)) {
     throw new SetupError("INVALID_REQUEST", "Unbekannte oder unvollständige Einrichtungsanfrage.");
   }
-  const schema = SETUP_OPERATIONS[params.operation];
+  const schema = params.operation === "status" && Object.keys(params.parameters).length > 0
+    ? { expected_revision: "id", access_offset: "offset" } : SETUP_OPERATIONS[params.operation];
   if (Object.keys(params.parameters).length !== Object.keys(schema).length
       || Object.entries(schema).some(([key, kind]) => !Object.hasOwn(params.parameters, key) || !checks[kind](params.parameters[key]))) {
     throw new SetupError("INVALID_REQUEST", "Die Einrichtungsparameter sind ungültig.");
+  }
+  if (params.operation === "access.preview") {
+    const keys = new Set();
+    const { account_id, edits } = params.parameters;
+    for (const edit of edits) {
+      if (plain(edit) && Object.hasOwn(edit, "revoke_handle")) {
+        if (Object.keys(edit).length !== 2 || edit.level !== "off" || !checks.digest(edit.revoke_handle)
+            || keys.has(edit.revoke_handle)) throw new SetupError("INVALID_REQUEST", "Ungültiger Widerruf.");
+        keys.add(edit.revoke_handle);
+        continue;
+      }
+      const scope = edit?.scope;
+      if (!plain(edit) || Object.keys(edit).length !== 2 || !Object.hasOwn(edit, "level")
+          || !plain(scope) || Object.keys(scope).length !== 4
+          || !["resource_id", "component", "path", "file_id"].every(key => Object.hasOwn(scope, key))
+          || !["off", "read", "create", "update"].includes(edit.level)) throw new SetupError("INVALID_REQUEST", "Ungültige Zugriffsauswahl.");
+      const files = scope.component === "FILES";
+      const valid = files
+        ? scope.resource_id === account_id + "-files" && edit.level !== "update" && typeof scope.file_id === "string"
+          && /^[1-9][0-9]{0,31}$/.test(scope.file_id) && checks.path(scope.path) && Buffer.byteLength(scope.path) <= 2048
+          && scope.path === scope.path.normalize("NFC") && !/[\\?#]|%[a-f0-9]{2}|[\p{Cc}\p{Cs}]/iu.test(scope.path)
+          && (!scope.path || scope.path.split("/").every(part => part && part !== "." && part !== ".."))
+        : ["VEVENT", "VTODO", "VCARD"].includes(scope.component) && typeof scope.resource_id === "string"
+          && scope.resource_id.startsWith(account_id + "-") && /^[a-f0-9]{16}$/.test(scope.resource_id.slice(account_id.length + 1))
+          && scope.path === null && scope.file_id === null;
+      const key = JSON.stringify([scope.resource_id, scope.component, scope.path]);
+      if (!valid || keys.has(key)) throw new SetupError("INVALID_REQUEST", "Ungültige oder doppelte Zugriffsauswahl.");
+      keys.add(key);
+    }
   }
   return { operation: params.operation, parameters: { ...params.parameters } };
 }
 
 export function validateSetupProof(proof, request, actor, now = Date.now()) {
   try {
-    if (!plain(proof) || Object.keys(proof).length !== 2 || !textValue(proof.payload, 24 * 1024)
+    if (!plain(proof) || Object.keys(proof).length !== 2 || !textValue(proof.payload, 24 * 1024) || Buffer.byteLength(proof.payload) > 24 * 1024
         || typeof proof.signature !== "string" || !/^[a-zA-Z0-9_-]{86}$/.test(proof.signature)) throw new Error();
     const signed = JSON.parse(proof.payload);
     if (!plain(signed) || Object.keys(signed).length !== 5 || signed.operation !== request.operation
@@ -138,7 +174,7 @@ export function setupBackendRequest(payload, options = {}) {
 
 const escapeHtml = value => value.replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 
-const RUNTIME_OPERATIONS = new Set(["status", "connection.apply", "connection.refresh", "talk.configure"]);
+const RUNTIME_OPERATIONS = new Set(["status", "access.apply", "connection.apply", "connection.refresh", "talk.configure"]);
 const RUNTIME_STATES = new Set(["active", "degraded", "disabled", "not-observed", "pending", "stale", "failed", "invalid"]);
 const WORKER_CODES = new Set([
   "talk-disabled", "talk-configured", "talk-paired-no-history-replay", "talk-poll-ok", "talk-poll-failed",

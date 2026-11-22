@@ -48,30 +48,40 @@ class ResourceRegistry:
                 permissions=tuple(str(v) for v in item.get("permissions", [])),
                 metadata=metadata,
             )
-        from .nextcloud_connection import apply_registry_connection, load_connection
+        from .nextcloud_connection import apply_registry_connection, load_access_snapshot
 
-        connection = load_connection()
+        snapshot = load_access_snapshot()
+        self.access_snapshot = snapshot
+        connection = snapshot.connection
         self._persistent_resources = dict(self.resources)
         self.managed_connection = connection is not None
         self.connection_revision = str((connection or {}).get("revision", ""))
-        if connection:
-            apply_registry_connection(self, connection)
+        if connection or snapshot.mode != "legacy":
+            apply_registry_connection(self, snapshot)
 
     def list(self, *, kind: str = "", enabled_only: bool = False) -> list[Resource]:
-        result = list(self.resources.values())
-        if kind:
-            result = [item for item in result if item.kind == kind]
-        if enabled_only:
-            result = [item for item in result if item.enabled]
-        return sorted(result, key=lambda item: (item.kind, item.id))
+        from .nextcloud_connection import admit_projection
+
+        with admit_projection(self.access_snapshot):
+            result = list(self.resources.values())
+            if kind:
+                result = [item for item in result if item.kind == kind]
+            if enabled_only:
+                result = [item for item in result if item.enabled]
+            return sorted(result, key=lambda item: (item.kind, item.id))
 
     def get(self, resource_id: str) -> Resource:
-        if resource_id in self.duplicate_ids:
-            raise KeyError(f"resource-id-duplicate: Ressourcen-ID {resource_id!r} ist mehrfach registriert")
-        try:
-            return self.resources[resource_id]
-        except KeyError as exc:
-            raise KeyError(f"Unbekannte Ressource: {resource_id}") from exc
+        from .nextcloud_connection import admit_projection
+
+        with admit_projection(self.access_snapshot):
+            if resource_id in self.duplicate_ids:
+                raise KeyError(
+                    f"resource-id-duplicate: Ressourcen-ID {resource_id!r} ist mehrfach registriert"
+                )
+            try:
+                return self.resources[resource_id]
+            except KeyError as exc:
+                raise KeyError(f"Unbekannte Ressource: {resource_id}") from exc
 
     def has_permission(self, resource_id: str, permission: str) -> bool:
         resource = self.get(resource_id)

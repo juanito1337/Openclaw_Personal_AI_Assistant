@@ -74,7 +74,7 @@ class FakeDirectActions:
         self.approved = True
         return plan("approved", self.planned_payload)
 
-    def execute_calendar_create(self, action_id):
+    def execute_calendar_create(self, action_id, *, recreate_missing=False):
         self.executed = True
         return plan("completed", self.planned_payload), False
 

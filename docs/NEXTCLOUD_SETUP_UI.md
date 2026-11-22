@@ -51,8 +51,9 @@ Administratorrechte blockieren die Bedienung.
 3. Zum Einrichtungstab zurueckkehren und **Anmeldung pruefen** waehlen. Die
    Anmeldung kann noch ausstehen, ablaufen oder ueber **Abbrechen** verworfen
    werden.
-4. Konto, Ressourcen und ermittelte Serverrechte in der Vorschau pruefen.
-   Die Kontofreigabe bestaetigen und **Verbindung bestaetigen** waehlen.
+4. Konto, Ressourcen und ermittelte Serverrechte in der Vorschau pruefen. Die
+   Verbindung mit dem angezeigten Konto bestaetigen. Bei einem neuen Konto
+   stehen die Freigaben fuer den Agenten anfangs auf **Aus**.
 
 Alternativ **Agentenkonto mit App-Passwort anmelden** aufklappen. Dieselbe
 Serveradresse oben wird mit dem Nextcloud-Anmeldenamen und einem eigens fuer
@@ -102,7 +103,12 @@ Die Workerbeobachtung behaelt ihren eigenen Zeitpunkt.
 - **Kalender und Aufgabenlisten:** Die Vollstaendigkeit der Sammlungsliste und
   der einzelne Lesezugriff sind getrennte Ergebnisse. Die Vorschau zeigt die
   Anzahl gefundener, lesbarer, fehlgeschlagener und noch ungepruefter Sammlungen.
-  Eine eigene DAV-Abfrage prueft die Metadaten jeder geprueften Sammlung.
+  Pro Erkennung werden hoechstens 32 unterschiedliche Kalender, Aufgabenlisten
+  und Adressbuecher einzeln geprueft. Bei einer grossen Liste prueft **Ressourcen
+  neu erkennen** vorrangig bisher ungepruefte oder geaenderte Sammlungen und
+  danach die aeltesten Einzelpruefungen. Die Anzeige unterscheidet neue Abfragen
+  von uebernommenen Pruefungen. Eine uebernommene Pruefung behaelt ihre
+  urspruengliche Zeit und gilt hoechstens 24 Stunden.
   Termin- und Aufgabeninhalte werden dabei nicht geladen. Fehlende oder unklare
   Rechte werden nicht als Leseerfolg gewertet. Prueflimits bleiben sichtbar;
   ein abgebrochener oder begrenzter Lauf belegt keine vollstaendige Erreichbarkeit.
@@ -130,16 +136,54 @@ gelten auch fuer kuenftige Integrationen; siehe
 
 ## Ressourcen verwenden
 
-Die Kontofreigabe umfasst die fuer dieses Konto verfuegbaren Ressourcen und
-deren tatsaechliche Rechte. Es wird kein erster Kalender automatisch als
-Schreibziel ausgewaehlt. Gleichnamige Sammlungen bleiben anhand ihrer stabilen,
-an Server und Konto gebundenen Ressourcen-IDs unterscheidbar.
+Unter **Zugriff fuer den Agenten** zeigt jede Ressource drei Angaben. **Nextcloud
+erlaubt** nennt die gemessenen Serverrechte mit Pruefzeitpunkt und Lesepruefung.
+**Fuer den Agenten freigegeben** nennt die gespeicherten Operationen. **Aktuell
+wirksam** zeigt den durch die aktuelle Pruefung gedeckten Zugriff. Bei fehlender
+oder veralteter Messung bleibt die gespeicherte Auswahl sichtbar. Die
+Laufzeitbeobachtung steht separat je Ressource und bei Talk im Abschnitt
+**Chat-Dienst**.
+
+1. Die gewuenschten Zugriffsstufen pro Kalender, Aufgabenliste, Adressbuch oder
+   Ordner auswaehlen. Eine gemischte CalDAV-Sammlung hat getrennte Zeilen fuer
+   Kalender und Aufgabenliste. Gleichnamige Sammlungen lassen sich anhand ihrer
+   Ressourcen-IDs unterscheiden. **Unveraendert lassen** behaelt die gespeicherte
+   Auswahl. **Aus** entzieht den Zugriff gezielt, auch fuer einen Unterordner
+   unter einer breiteren Freigabe. Der jeweils engste passende Ordner gilt.
+2. Fuer Unterordner den exakten Pfad unter **Ordner durchsuchen** oeffnen. Bei
+   Dateien steht C fuer **Dateien erstellen** und K fuer **Unterordner
+   erstellen**. Die angebotene Stufe richtet sich nach den einzeln gemessenen
+   Rechten. Eine neue Ordner-ID am selben Pfad braucht ihre eigene Freigabe. Fuer
+   positive Rechte am Kontohauptordner die gesonderte Bestaetigung markieren.
+3. **Aenderungen pruefen** waehlen und die Operationen vorher und nachher,
+   betroffene Ablaeufe sowie zurueckgehaltene Rechte pruefen. Erst nach der
+   ausdruecklichen Bestaetigung **Zugriff speichern** waehlen. Die Freigaben
+   beschraenken den Agenten. Die Nextcloud-Serverrechte und die fachlichen
+   Einzelbestaetigungen werden weiterhin separat geprueft.
+
+Die Einrichtung merkt sich eine fehlgeschlagene Kontopruefung auch nach einem
+Neustart und nach lokalen Aenderungen. Ein Widerruf bleibt moeglich. Fuer neue
+Freigaben muss die Kontopruefung wieder gelingen. Eine neue Messung an einem
+bereits ausgewaehlten Ordner ersetzt den alten Rechtebeleg. Erscheint fuer einen
+verdeckten Ordner eine **Freigabekennung**, laesst sich genau seine gespeicherte
+Regel ueber **Aus** widerrufen.
+
+Eine bestehende Verbindung mit Altzugriffen zeigt eine Vorschau zur Uebernahme.
+Ungeklaerte Zuordnungen erscheinen mit Grund und naechstem Schritt. Aenderungen
+an der Auswahl, ein Konto- oder Versionswechsel, Ablauf der Vorschau und das Ende
+der OpenClaw-Verbindung beenden die bisherige Bestaetigung. Bei einem Konflikt
+oder unklaren Speicherergebnis prueft die Seite den gespeicherten Status, sofern
+die OpenClaw-Verbindung besteht. Andernfalls erneut verbinden und den Status
+pruefen. Der Speichervorgang wird dabei nicht wiederholt.
 
 - **Ressourcen neu erkennen** aktualisiert Kalender, Aufgabenlisten,
   Adressbuecher und Talk-Raeume. Erkennungsfehler bleiben pro Bereich sichtbar.
 - **Ordner durchsuchen** laedt Unterordner bei Bedarf. Das Konto ist nicht auf
   den historischen Ordner `Assistent/` beschraenkt. Diese Ansicht laedt keine
   Dateiinhalte herunter.
+- **Weitere Ressourcen laden** ruft bei grossen Konten die naechste Seite der
+  ressourcengebundenen Auswahl ab. Unvollstaendige Servererkennung bleibt in der
+  Diagnose separat sichtbar.
 - Listen und Suchen koennen mehrere freigegebene Sammlungen umfassen. Jede Zeile
   behaelt ihre `resource_id`. `complete`, `resource_errors` und
   `results_may_be_truncated` zeigen Grenzen der Antwort.
@@ -237,6 +281,14 @@ gesperrt, damit er den administrativen Kontrollpfad nicht aufrufen kann.
 Die Entwicklung prueft Anmeldung, Autorisierung, Ressourcenrechte, Unterpfade,
 Kontowechsel, Geheimnisredaktion und Talk-Neustartverhalten hermetisch. Eine
 erfolgreiche Testinstanz belegt keine Anmeldung an deiner produktiven Nextcloud.
+Der direkte Firefox-Test laedt die ausgelieferten Einrichtungsdateien von der
+Loopback-Adresse. Ein synthetischer Gateway im Testbrowser prueft die Signaturen
+mit frischen Testschluesseln.
+
+```bash
+python3 scripts/check-nextcloud-setup-browser.py --setup-page-fixture
+```
+
 Zur Abnahme des Einstiegs gehoert ein echter Browserklick auf die Hostkarte:
 Er muss den eigenen Tab mit dem festen Einrichtungsziel oeffnen. Eine erfolgreiche
 HTTP-Abfrage der HTML-Seite allein belegt diesen Ablauf nicht. Zusaetzlich muss

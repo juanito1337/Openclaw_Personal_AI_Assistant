@@ -2,15 +2,61 @@ from __future__ import annotations
 
 import argparse
 import os
+import selectors
 import subprocess
 import sys
 from collections.abc import Callable
 from typing import Any
 
+from personal_assistant.agent_tool_orchestration import MAX_CAPTURE_BYTES, MAX_ERROR_BYTES
 from personal_assistant.mail_search import MailSearchFilters
+from personal_assistant.nextcloud_access import AccessSnapshot
+from personal_assistant.nextcloud_connection import admit_projection, load_access_snapshot
 
 
-def run_external(args: argparse.Namespace) -> int:
+def run_mail_child(
+    command: list[str], environment: dict[str, str], initial: AccessSnapshot | None, *, reads_nextcloud: bool
+) -> int:
+    if initial is None and reads_nextcloud:
+        initial = load_access_snapshot()
+    if initial is None or not initial.managed:
+        return subprocess.run(command, check=False, env=environment).returncode
+
+    # Drain both pipes while the worker runs, including excess bytes. A large
+    # diagnostic must neither deadlock the worker nor publish a partial result.
+    stdout, stderr = bytearray(), bytearray()
+    exceeded = False
+    with admit_projection(initial):
+        process = subprocess.Popen(command, env=environment, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    with process, selectors.DefaultSelector() as selector:
+        assert process.stdout is not None and process.stderr is not None
+        for pipe, buffer, limit in (
+            (process.stdout, stdout, MAX_CAPTURE_BYTES), (process.stderr, stderr, MAX_ERROR_BYTES)
+        ):
+            selector.register(pipe, selectors.EVENT_READ, (buffer, limit))
+        while selector.get_map():
+            for key, _ in selector.select():
+                chunk = os.read(key.fd, 65536)
+                if not chunk:
+                    selector.unregister(key.fd)
+                    continue
+                buffer, limit = key.data
+                remaining = limit - len(buffer)
+                buffer.extend(chunk[:remaining])
+                exceeded |= len(chunk) > remaining
+    # The parent owns publication. This is the snapshot from invocation,
+    # including the connection revision, even if a child loaded later state.
+    with admit_projection(initial):
+        if exceeded:
+            print("output-limit", file=sys.stderr, flush=True)
+            return 1
+        for stream, data in ((sys.stdout, stdout), (sys.stderr, stderr)):
+            stream.write(data.decode("utf-8", errors="replace"))
+            stream.flush()
+        return process.returncode
+
+
+def run_external(args: argparse.Namespace, *, initial=None) -> int:
     command = [sys.executable, "-m", "mail_agent"]
     if args.mail_command in {"status", "doctor", "guide"}:
         command.append(args.mail_command)
@@ -134,7 +180,10 @@ def run_external(args: argparse.Namespace) -> int:
     environment = os.environ.copy()
     environment["OPENCLAW_OLLAMA_PRIORITY"] = "interactive"
     environment["OPENCLAW_OLLAMA_SOURCE"] = "openclaw-mail-tool"
-    return subprocess.run(command, check=False, env=environment).returncode
+    reads_nextcloud = args.mail_command in {
+        "status", "doctor", "run", "dry-run", "spam-review", "orders-import"
+    } or (args.mail_command == "review" and args.review_command == "suggest")
+    return run_mail_child(command, environment, initial, reads_nextcloud=reads_nextcloud)
 
 
 def handle(args: argparse.Namespace, assistant: Any, emit: Callable[[Any], None]) -> int:

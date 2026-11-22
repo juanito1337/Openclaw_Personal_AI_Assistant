@@ -2,7 +2,7 @@
   "schema_version": 1,
   "inventory_date": "2026-08-06",
   "source_scope": "all Python modules, shell entrypoints, skills, systemd units, migrations and Markdown documents",
-  "component_count": 590,
+  "component_count": 616,
   "classification_values": [
     "active",
     "compatibility",
@@ -28,7 +28,8 @@
         "personal_assistant/tool_catalog/runtime.py",
         "personal_assistant/tool_catalog/security.py",
         "scripts/check-container-runtime.sh",
-        "scripts/check-docs.py"
+        "scripts/check-docs.py",
+        "scripts/m8-recovery-drill.py"
       ],
       "test_evidence": [
         "tests/test_agent_capability_exposure.py",
@@ -81,7 +82,8 @@
         "Dockerfile",
         "personal_assistant/release.py",
         "personal_assistant/runtime_layout.py",
-        "scripts/check-docs.py"
+        "scripts/check-docs.py",
+        "scripts/m8-recovery-drill.py"
       ],
       "test_evidence": [
         "tests/test_release_awareness.py",
@@ -97,7 +99,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-25T23:26:42+01:00",
+      "last_git_change": "2026-11-21T02:25:53+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -176,11 +178,13 @@
         "legacy/systemd/manifest.json",
         "personal_assistant/release.py",
         "personal_assistant/runtime_layout.py",
-        "scripts/check-docs.py"
+        "scripts/check-docs.py",
+        "scripts/m8-recovery-drill.py"
       ],
       "test_evidence": [
         "tests/test_architecture_docs.py",
         "tests/test_artifact_hygiene.py",
+        "tests/test_m8_recovery.py",
         "tests/test_release_awareness.py",
         "tests/test_source_manifest.py"
       ],
@@ -191,6 +195,7 @@
         "docs/ASSISTANT_ARCHITECTURE.md",
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
         "docs/DOCKER_DEPLOYMENT.md",
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md",
         "docs/RELEASE_3_4_0_R28.md",
         "docs/architecture/README.md",
         "docs/architecture/owners.json",
@@ -470,13 +475,16 @@
       "productive_callers": [
         "Dockerfile",
         "scripts/check-role-images.sh",
+        "scripts/component_registry.py",
         "scripts/m7_supply_chain.py"
       ],
       "test_evidence": [
         "tests/test_control_ui_setup_patch.py"
       ],
       "documentation_evidence": [
-        "docs/architecture/IMAGE_SUPPLY_CHAIN.md"
+        "docs/architecture/IMAGE_SUPPLY_CHAIN.md",
+        "docs/architecture/external-components.json",
+        "docs/architecture/upstream-sources.json"
       ],
       "line_coverage_percent": 76.92,
       "last_git_change": "2026-10-24T17:20:39+02:00",
@@ -625,12 +633,15 @@
         "docker/scripts/verify-backup.sh"
       ],
       "test_evidence": [
+        "tests/test_container_migration.py",
         "tests/test_m7_supply_chain.py",
         "tests/test_m8_recovery.py",
         "tests/test_nextcloud_setup_container.py",
         "tests/test_talk_proxy_lifecycle.py"
       ],
-      "documentation_evidence": [],
+      "documentation_evidence": [
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
+      ],
       "line_coverage_percent": null,
       "last_git_change": "2026-10-22T12:48:43+02:00",
       "runtime_telemetry": {
@@ -664,10 +675,12 @@
         "docs/DOCKER_DEPLOYMENT.md",
         "docs/INVOICE_M10_ROLLOUT.md",
         "docs/RELEASE_3_4_0_R28.md",
+        "docs/STACK_UPDATE_ROADMAP.md",
         "docs/architecture/IMAGE_SUPPLY_CHAIN.md",
         "docs/architecture/RECOVERY_AND_RELEASE.md",
         "docs/architecture/adr/0012-m8-recovery-und-agentenvertrag.md",
-        "docs/archive/README_PRE_M1.md"
+        "docs/archive/README_PRE_M1.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-10-22T13:42:40+02:00",
@@ -754,6 +767,28 @@
         "reason": "M6 inventory stores no user content or production telemetry"
       },
       "rollback_relevance": "container-migration"
+    },
+    {
+      "path": "docker/scripts/nextcloud-access-state.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Operations Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "docker/scripts/common.sh"
+      ],
+      "test_evidence": [
+        "tests/test_nextcloud_setup_container.py"
+      ],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
     },
     {
       "path": "docker/scripts/nextcloud-talk-config.py",
@@ -1029,10 +1064,12 @@
       "owner": "Operations Maintainers",
       "classification": "active",
       "productive_callers": [
+        "docker/scripts/common.sh",
         "docker/scripts/deploy.sh",
         "scripts/m7_supply_chain.py"
       ],
       "test_evidence": [
+        "tests/test_container_migration.py",
         "tests/test_container_runtime.py",
         "tests/test_m7_supply_chain.py",
         "tests/test_m8_recovery.py",
@@ -1454,7 +1491,7 @@
         "docs/architecture/adr/0009-typisierte-domaenen-toolvertraege.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-11-21T02:25:53+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1590,6 +1627,7 @@
         "docs/MOBILE_NEXTCLOUD_TALK_ROADMAP.md",
         "docs/NEXTCLOUD_SETUP_UI.md",
         "docs/RELEASE_3_4_0_R28.md",
+        "docs/STACK_UPDATE_ROADMAP.md",
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
@@ -1672,7 +1710,9 @@
       "test_evidence": [],
       "documentation_evidence": [
         "AGENTS.md",
-        "docs/NEXTCLOUD_SETUP_UI.md"
+        "docs/NEXTCLOUD_ACCESS_ROADMAP.md",
+        "docs/NEXTCLOUD_SETUP_UI.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-11-15T19:08:38+01:00",
@@ -2201,6 +2241,7 @@
       "test_evidence": [],
       "documentation_evidence": [
         "docs/COMMAND_REFERENCE.md",
+        "docs/NEXTCLOUD_ACCESS_ROADMAP.md",
         "docs/ROADMAP.md"
       ],
       "line_coverage_percent": null,
@@ -2253,6 +2294,77 @@
       "rollback_relevance": "none"
     },
     {
+      "path": "docs/NEXTCLOUD_ACCESS_ROADMAP.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Documentation Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/NEXTCLOUD_FOUNDATION_VALIDATION.md",
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md",
+        "docs/ROADMAP.md",
+        "docs/STACK_UPDATE_ROADMAP.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-foundation.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "docs/NEXTCLOUD_FOUNDATION_VALIDATION.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Documentation Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/NEXTCLOUD_ACCESS_ROADMAP.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "docs/NEXTCLOUD_REUSE_COMPARISON.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Documentation Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "scripts/component_registry.py"
+      ],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/NEXTCLOUD_ACCESS_ROADMAP.md",
+        "docs/ROADMAP.md",
+        "docs/architecture/EXTERNAL_COMPONENTS.md",
+        "docs/architecture/external-components.json",
+        "docs/architecture/upstream-sources.json"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
       "path": "docs/NEXTCLOUD_SETUP_UI.md",
       "types": [
         "document"
@@ -2269,7 +2381,10 @@
         "docs/DIRECT_TASKS.md",
         "docs/MOBILE_NEXTCLOUD_TALK_ROADMAP.md",
         "docs/NEXTCLOUD.md",
+        "docs/NEXTCLOUD_ACCESS_ROADMAP.md",
+        "docs/NEXTCLOUD_FOUNDATION_VALIDATION.md",
         "docs/architecture/DATA_CATALOG.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md",
         "skills/personal-assistant/references/groupware.md",
         "skills/personal-assistant/references/runtime-security.md"
       ],
@@ -2534,7 +2649,8 @@
       "owner": "Documentation Maintainers",
       "classification": "active",
       "productive_callers": [
-        "personal_assistant/tool_catalog/runtime.py"
+        "personal_assistant/tool_catalog/runtime.py",
+        "scripts/component_registry.py"
       ],
       "test_evidence": [],
       "documentation_evidence": [
@@ -2554,7 +2670,15 @@
         "docs/MAIL_QUALITY_REVIEW_ROADMAP.md",
         "docs/MAIL_SEARCH_INDEXING_ROADMAP.md",
         "docs/MOBILE_NEXTCLOUD_TALK_ROADMAP.md",
-        "docs/archive/README_PRE_M1.md"
+        "docs/NEXTCLOUD_ACCESS_ROADMAP.md",
+        "docs/NEXTCLOUD_FOUNDATION_VALIDATION.md",
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md",
+        "docs/STACK_UPDATE_ROADMAP.md",
+        "docs/architecture/external-components.json",
+        "docs/architecture/upstream-sources.json",
+        "docs/archive/README_PRE_M1.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-foundation.md"
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-10-22T12:48:43+02:00",
@@ -2671,6 +2795,34 @@
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-07-28T00:07:47+02:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "docs/STACK_UPDATE_ROADMAP.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Documentation Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "scripts/component_registry.py"
+      ],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/NEXTCLOUD_ACCESS_ROADMAP.md",
+        "docs/NEXTCLOUD_FOUNDATION_VALIDATION.md",
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md",
+        "docs/ROADMAP.md",
+        "docs/architecture/external-components.json",
+        "docs/architecture/upstream-sources.json",
+        "docs/superpowers/plans/2026-11-22-nextcloud-foundation.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -2808,6 +2960,29 @@
       "rollback_relevance": "none"
     },
     {
+      "path": "docs/architecture/EXTERNAL_COMPONENTS.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Architecture Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/NEXTCLOUD_FOUNDATION_VALIDATION.md",
+        "docs/STACK_UPDATE_ROADMAP.md",
+        "docs/architecture/owners.json",
+        "docs/superpowers/plans/2026-11-22-nextcloud-foundation.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
       "path": "docs/architecture/IMAGE_SUPPLY_CHAIN.md",
       "types": [
         "document"
@@ -2822,8 +2997,10 @@
         "docs/BUILD_AND_CI.md",
         "docs/DOCKER_DEPLOYMENT.md",
         "docs/RELEASE_3_4_0_R28.md",
+        "docs/STACK_UPDATE_ROADMAP.md",
         "docs/architecture/CONTAINER_ROLES.md",
         "docs/architecture/EXTENDING.md",
+        "docs/architecture/EXTERNAL_COMPONENTS.md",
         "docs/architecture/README.md",
         "docs/architecture/TRUST_BOUNDARIES.md",
         "docs/architecture/adr/0051-openclaw-einrichtung-und-nextcloud-konto.md",
@@ -2849,11 +3026,13 @@
         "legacy/systemd/manifest.json",
         "personal_assistant/release.py",
         "personal_assistant/runtime_layout.py",
-        "scripts/check-docs.py"
+        "scripts/check-docs.py",
+        "scripts/m8-recovery-drill.py"
       ],
       "test_evidence": [
         "tests/test_architecture_docs.py",
         "tests/test_artifact_hygiene.py",
+        "tests/test_m8_recovery.py",
         "tests/test_release_awareness.py",
         "tests/test_source_manifest.py"
       ],
@@ -2865,6 +3044,7 @@
         "docs/ASSISTANT_ARCHITECTURE.md",
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
         "docs/DOCKER_DEPLOYMENT.md",
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md",
         "docs/RELEASE_3_4_0_R28.md",
         "docs/architecture/owners.json",
         "docs/archive/README.md"
@@ -2893,7 +3073,9 @@
         "docs/DOCKER_DEPLOYMENT.md",
         "docs/INVOICE_M10_ROLLOUT.md",
         "docs/RELEASE_3_4_0_R28.md",
+        "docs/STACK_UPDATE_ROADMAP.md",
         "docs/TESTING.md",
+        "docs/architecture/EXTERNAL_COMPONENTS.md",
         "docs/architecture/README.md",
         "docs/architecture/compatibility-policy.json",
         "docs/architecture/owners.json"
@@ -4075,11 +4257,13 @@
         "legacy/systemd/manifest.json",
         "personal_assistant/release.py",
         "personal_assistant/runtime_layout.py",
-        "scripts/check-docs.py"
+        "scripts/check-docs.py",
+        "scripts/m8-recovery-drill.py"
       ],
       "test_evidence": [
         "tests/test_architecture_docs.py",
         "tests/test_artifact_hygiene.py",
+        "tests/test_m8_recovery.py",
         "tests/test_release_awareness.py",
         "tests/test_source_manifest.py"
       ],
@@ -4091,6 +4275,7 @@
         "docs/ASSISTANT_ARCHITECTURE.md",
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
         "docs/DOCKER_DEPLOYMENT.md",
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md",
         "docs/RELEASE_3_4_0_R28.md",
         "docs/architecture/README.md",
         "docs/architecture/owners.json",
@@ -4180,11 +4365,13 @@
         "legacy/systemd/manifest.json",
         "personal_assistant/release.py",
         "personal_assistant/runtime_layout.py",
-        "scripts/check-docs.py"
+        "scripts/check-docs.py",
+        "scripts/m8-recovery-drill.py"
       ],
       "test_evidence": [
         "tests/test_architecture_docs.py",
         "tests/test_artifact_hygiene.py",
+        "tests/test_m8_recovery.py",
         "tests/test_release_awareness.py",
         "tests/test_source_manifest.py"
       ],
@@ -4196,6 +4383,7 @@
         "docs/ASSISTANT_ARCHITECTURE.md",
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
         "docs/DOCKER_DEPLOYMENT.md",
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md",
         "docs/RELEASE_3_4_0_R28.md",
         "docs/architecture/README.md",
         "docs/architecture/owners.json"
@@ -4410,6 +4598,48 @@
       "rollback_relevance": "historical-evidence"
     },
     {
+      "path": "docs/superpowers/plans/2026-11-22-nextcloud-access.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Documentation Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/NEXTCLOUD_ACCESS_ROADMAP.md",
+        "docs/NEXTCLOUD_FOUNDATION_VALIDATION.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-11-22-nextcloud-foundation.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Documentation Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/NEXTCLOUD_FOUNDATION_VALIDATION.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
       "path": "legacy/systemd/README.md",
       "types": [
         "document"
@@ -4421,11 +4651,13 @@
         "legacy/systemd/manifest.json",
         "personal_assistant/release.py",
         "personal_assistant/runtime_layout.py",
-        "scripts/check-docs.py"
+        "scripts/check-docs.py",
+        "scripts/m8-recovery-drill.py"
       ],
       "test_evidence": [
         "tests/test_architecture_docs.py",
         "tests/test_artifact_hygiene.py",
+        "tests/test_m8_recovery.py",
         "tests/test_release_awareness.py",
         "tests/test_source_manifest.py"
       ],
@@ -4437,6 +4669,7 @@
         "docs/ASSISTANT_ARCHITECTURE.md",
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
         "docs/DOCKER_DEPLOYMENT.md",
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md",
         "docs/RELEASE_3_4_0_R28.md",
         "docs/architecture/README.md",
         "docs/architecture/owners.json",
@@ -4815,7 +5048,8 @@
       "owner": "Mail Domain Maintainers",
       "classification": "active",
       "productive_callers": [
-        "Dockerfile"
+        "Dockerfile",
+        "scripts/m8-recovery-drill.py"
       ],
       "test_evidence": [
         "tests/test_immutable_runtime.py"
@@ -4896,6 +5130,7 @@
       "test_evidence": [
         "tests/ruff-baseline.json",
         "tests/test_agent_tool_architecture.py",
+        "tests/test_nextcloud_adapter_access.py",
         "tests/test_risk_paths_m166.py"
       ],
       "documentation_evidence": [
@@ -4906,7 +5141,7 @@
         "docs/architecture/m16-baseline.json",
         "docs/architecture/m16.6-risk-coverage.json"
       ],
-      "line_coverage_percent": 60.0,
+      "line_coverage_percent": 66.25,
       "last_git_change": "2026-08-06T15:45:31+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -4949,12 +5184,14 @@
         "tests/ruff-baseline.json",
         "tests/test_agent_tool_architecture.py",
         "tests/test_invoices_calendar_approval.py",
-        "tests/test_mail_agent.py"
+        "tests/test_mail_agent.py",
+        "tests/test_nextcloud_adapter_access.py"
       ],
       "documentation_evidence": [
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md",
         "docs/archive/AUDIT_INITIAL_IMPORT.md"
       ],
-      "line_coverage_percent": 57.83,
+      "line_coverage_percent": 57.9,
       "last_git_change": "2026-09-24T21:21:04+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -5021,6 +5258,7 @@
         "tests/test_mail_cli_m166.py",
         "tests/test_mail_review_m9.py",
         "tests/test_mail_search_backfill_m112.py",
+        "tests/test_nextcloud_adapter_access.py",
         "tests/test_performance_telemetry.py"
       ],
       "documentation_evidence": [
@@ -5033,8 +5271,8 @@
         "docs/architecture/m16.6-risk-coverage.json",
         "docs/archive/AUDIT_INITIAL_IMPORT.md"
       ],
-      "line_coverage_percent": 41.72,
-      "last_git_change": "2026-09-08T22:51:54+02:00",
+      "line_coverage_percent": 43.04,
+      "last_git_change": "2026-11-21T02:25:53+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -5112,6 +5350,8 @@
         "tests/test_mail_agent.py",
         "tests/test_mail_quarantine_sources.py",
         "tests/test_mail_review_m9.py",
+        "tests/test_nextcloud_adapter_access.py",
+        "tests/test_nextcloud_setup.py",
         "tests/test_nextcloud_talk_m17.py",
         "tests/test_not_spam_learning.py",
         "tests/test_portfolio_mapping.py",
@@ -5299,7 +5539,7 @@
       "documentation_evidence": [
         "docs/INVOICE_QUALITY_BASELINE_M10.md"
       ],
-      "line_coverage_percent": 87.28,
+      "line_coverage_percent": 87.99,
       "last_git_change": "2026-09-21T00:38:12+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -5381,7 +5621,7 @@
         "tests/test_invoice_ocr_register.py"
       ],
       "documentation_evidence": [],
-      "line_coverage_percent": 93.9,
+      "line_coverage_percent": 96.34,
       "last_git_change": "2026-10-22T12:48:43+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -5400,12 +5640,13 @@
       "test_evidence": [
         "tests/test_domain_quality_m168.py",
         "tests/test_invoice_reprocess_apply_m106.py",
-        "tests/test_invoice_reprocess_preview_m105.py"
+        "tests/test_invoice_reprocess_preview_m105.py",
+        "tests/test_nextcloud_adapter_access.py"
       ],
       "documentation_evidence": [
         "docs/INVOICE_QUALITY_BASELINE_M10.md"
       ],
-      "line_coverage_percent": 77.16,
+      "line_coverage_percent": 77.11,
       "last_git_change": "2026-09-21T00:38:12+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -5422,12 +5663,13 @@
       "classification": "active",
       "productive_callers": [],
       "test_evidence": [
-        "tests/test_invoice_reprocess_apply_m106.py"
+        "tests/test_invoice_reprocess_apply_m106.py",
+        "tests/test_nextcloud_adapter_access.py"
       ],
       "documentation_evidence": [
         "docs/INVOICE_QUALITY_BASELINE_M10.md"
       ],
-      "line_coverage_percent": 75.58,
+      "line_coverage_percent": 76.73,
       "last_git_change": "2026-08-16T22:54:00+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -5591,6 +5833,7 @@
         "tests/test_mail_search_reconcile_m113.py",
         "tests/test_mail_search_snapshot.py",
         "tests/test_mail_server_search_fallback.py",
+        "tests/test_nextcloud_adapter_access.py",
         "tests/test_not_spam_learning.py",
         "tests/test_parser_legacy_headers.py",
         "tests/test_r261_ollama_reliability.py",
@@ -5621,12 +5864,15 @@
         "tests/mypy-baseline.json",
         "tests/ruff-baseline.json",
         "tests/test_help_nextcloud_training.py",
-        "tests/test_m6_legacy_cleanup.py"
+        "tests/test_m6_legacy_cleanup.py",
+        "tests/test_nextcloud_adapter_access.py",
+        "tests/test_nextcloud_setup.py"
       ],
       "documentation_evidence": [
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md",
         "docs/architecture/legacy-decisions.json"
       ],
-      "line_coverage_percent": 56.67,
+      "line_coverage_percent": 73.91,
       "last_git_change": "2026-09-20T23:06:00+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -5645,7 +5891,10 @@
       "test_evidence": [
         "tests/ruff-baseline.json"
       ],
-      "documentation_evidence": [],
+      "documentation_evidence": [
+        "docs/NEXTCLOUD_ACCESS_ROADMAP.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
+      ],
       "line_coverage_percent": 9.05,
       "last_git_change": "2026-08-08T11:13:16+02:00",
       "runtime_telemetry": {
@@ -5975,6 +6224,7 @@
         "tests/test_mail_review_m9.py",
         "tests/test_mail_search_lexical_m114.py",
         "tests/test_monitoring_tool.py",
+        "tests/test_nextcloud_adapter_access.py",
         "tests/test_not_spam_learning.py",
         "tests/test_r261_ollama_reliability.py",
         "tests/test_storage_migration.py",
@@ -5988,8 +6238,8 @@
         "docs/archive/AUDIT_INITIAL_IMPORT.md",
         "docs/archive/pre-container/ASSISTANT_ARCHITECTURE.md"
       ],
-      "line_coverage_percent": 73.15,
-      "last_git_change": "2026-09-21T00:23:18+02:00",
+      "line_coverage_percent": 74.47,
+      "last_git_change": "2026-11-21T02:25:53+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -6080,7 +6330,8 @@
       "owner": "Core Maintainers",
       "classification": "active",
       "productive_callers": [
-        "Dockerfile"
+        "Dockerfile",
+        "scripts/m8-recovery-drill.py"
       ],
       "test_evidence": [
         "tests/test_immutable_runtime.py"
@@ -6153,6 +6404,10 @@
         "tests/ruff-baseline.json",
         "tests/test_action_completion_m15.py",
         "tests/test_direct_calendar_tool.py",
+        "tests/test_nextcloud_action_binding.py",
+        "tests/test_nextcloud_adapter_access.py",
+        "tests/test_nextcloud_file_access.py",
+        "tests/test_nextcloud_foreground_access.py",
         "tests/test_nextcloud_workspace_tools.py",
         "tests/test_risk_paths_m166.py"
       ],
@@ -6165,7 +6420,7 @@
         "docs/architecture/m16.6-risk-coverage.json",
         "docs/archive/pre-container/ASSISTANT_ARCHITECTURE.md"
       ],
-      "line_coverage_percent": 44.05,
+      "line_coverage_percent": 55.67,
       "last_git_change": "2026-09-14T15:07:40+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -6181,7 +6436,8 @@
       "owner": "Core Maintainers",
       "classification": "active",
       "productive_callers": [
-        "Dockerfile"
+        "Dockerfile",
+        "scripts/m8-recovery-drill.py"
       ],
       "test_evidence": [
         "tests/test_immutable_runtime.py"
@@ -6232,6 +6488,7 @@
       "owner": "Core Maintainers",
       "classification": "active",
       "productive_callers": [
+        "personal_assistant/cli_handlers/mail.py",
         "scripts/benchmark-m13.py",
         "scripts/benchmark-m15.py",
         "scripts/generate-agent-tools.py"
@@ -6246,8 +6503,8 @@
         "tests/test_nextcloud_resource_tool_contract.py"
       ],
       "documentation_evidence": [],
-      "line_coverage_percent": 83.29,
-      "last_git_change": "2026-10-07T21:25:53+02:00",
+      "line_coverage_percent": 83.38,
+      "last_git_change": "2026-11-21T02:25:53+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -6329,7 +6586,7 @@
         "tests/test_action_completion_m15.py"
       ],
       "documentation_evidence": [],
-      "line_coverage_percent": 61.64,
+      "line_coverage_percent": 64.04,
       "last_git_change": "2026-09-14T15:07:40+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -6479,6 +6736,9 @@
         "tests/test_mail_search_lexical_m114.py",
         "tests/test_mail_search_reconcile_m113.py",
         "tests/test_mail_threads_m115.py",
+        "tests/test_nextcloud_action_binding.py",
+        "tests/test_nextcloud_local_visibility.py",
+        "tests/test_nextcloud_native_binding.py",
         "tests/test_nextcloud_workspace_tools.py",
         "tests/test_not_spam_learning.py",
         "tests/test_ollama_priority_proxy.py",
@@ -6501,7 +6761,7 @@
         "docs/architecture/m16.6-risk-coverage.json",
         "docs/archive/AUDIT_INITIAL_IMPORT.md"
       ],
-      "line_coverage_percent": 43.68,
+      "line_coverage_percent": 46.86,
       "last_git_change": "2026-10-11T12:41:27+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -6517,7 +6777,8 @@
       "owner": "Core Maintainers",
       "classification": "active",
       "productive_callers": [
-        "Dockerfile"
+        "Dockerfile",
+        "scripts/m8-recovery-drill.py"
       ],
       "test_evidence": [
         "tests/test_immutable_runtime.py"
@@ -6545,6 +6806,7 @@
         "tests/ruff-baseline.json"
       ],
       "documentation_evidence": [
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md",
         "docs/archive/AUDIT_INITIAL_IMPORT.md"
       ],
       "line_coverage_percent": 6.98,
@@ -6568,7 +6830,9 @@
       "test_evidence": [
         "tests/ruff-baseline.json"
       ],
-      "documentation_evidence": [],
+      "documentation_evidence": [
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md"
+      ],
       "line_coverage_percent": 6.19,
       "last_git_change": "2026-10-22T12:48:43+02:00",
       "runtime_telemetry": {
@@ -6588,10 +6852,13 @@
       "test_evidence": [
         "tests/ruff-baseline.json",
         "tests/test_incremental_sync_m163.py",
-        "tests/test_mail_projection_m96.py"
+        "tests/test_mail_projection_m96.py",
+        "tests/test_nextcloud_local_visibility.py"
       ],
-      "documentation_evidence": [],
-      "line_coverage_percent": 15.13,
+      "documentation_evidence": [
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
+      ],
+      "line_coverage_percent": 19.88,
       "last_git_change": "2026-09-20T23:06:00+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -6616,7 +6883,7 @@
         "tests/test_nextcloud_workspace_tools.py"
       ],
       "documentation_evidence": [],
-      "line_coverage_percent": 38.46,
+      "line_coverage_percent": 39.05,
       "last_git_change": "2026-08-23T01:47:44+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -6633,6 +6900,9 @@
       "classification": "active",
       "productive_callers": [],
       "test_evidence": [
+        "tests/test_invoice_backlog_audit_m107.py",
+        "tests/test_invoice_reprocess_apply_m106.py",
+        "tests/test_invoice_reprocess_preview_m105.py",
         "tests/test_mail_hybrid_search_m117.py",
         "tests/test_mail_search_backfill_m112.py",
         "tests/test_mail_search_lexical_m114.py",
@@ -6641,7 +6911,7 @@
       "documentation_evidence": [
         "docs/architecture/m16-baseline.json"
       ],
-      "line_coverage_percent": 37.5,
+      "line_coverage_percent": 49.32,
       "last_git_change": "2026-10-07T21:25:53+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -6663,6 +6933,7 @@
         "tests/test_nextcloud_workspace_tools.py"
       ],
       "documentation_evidence": [
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md",
         "docs/architecture/legacy-decisions.json"
       ],
       "line_coverage_percent": 39.22,
@@ -6683,10 +6954,13 @@
       "productive_callers": [],
       "test_evidence": [
         "tests/mypy-baseline.json",
-        "tests/ruff-baseline.json"
+        "tests/ruff-baseline.json",
+        "tests/test_nextcloud_native_binding.py"
       ],
-      "documentation_evidence": [],
-      "line_coverage_percent": 12.82,
+      "documentation_evidence": [
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md"
+      ],
+      "line_coverage_percent": 35.9,
       "last_git_change": "2026-08-06T15:45:31+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -6711,7 +6985,8 @@
         "docs/M16_ACCEPTANCE.md",
         "docs/TESTING.md",
         "docs/architecture/m16-baseline.json",
-        "docs/architecture/m16.10-acceptance.json"
+        "docs/architecture/m16.10-acceptance.json",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": 4.29,
       "last_git_change": "2026-08-13T17:14:41+02:00",
@@ -6770,11 +7045,18 @@
       ],
       "owner": "Core Maintainers",
       "classification": "active",
-      "productive_callers": [],
+      "productive_callers": [
+        "scripts/component_registry.py"
+      ],
       "test_evidence": [
         "tests/ruff-baseline.json"
       ],
-      "documentation_evidence": [],
+      "documentation_evidence": [
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md",
+        "docs/architecture/external-components.json",
+        "docs/architecture/upstream-sources.json",
+        "docs/superpowers/plans/2026-11-22-nextcloud-foundation.md"
+      ],
       "line_coverage_percent": 8.57,
       "last_git_change": "2026-10-22T12:48:43+02:00",
       "runtime_telemetry": {
@@ -6791,7 +7073,8 @@
       "owner": "Core Maintainers",
       "classification": "active",
       "productive_callers": [
-        "Dockerfile"
+        "Dockerfile",
+        "scripts/m8-recovery-drill.py"
       ],
       "test_evidence": [
         "tests/test_immutable_runtime.py"
@@ -6816,7 +7099,9 @@
       "test_evidence": [
         "tests/ruff-baseline.json"
       ],
-      "documentation_evidence": [],
+      "documentation_evidence": [
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
+      ],
       "line_coverage_percent": 100.0,
       "last_git_change": "2026-09-20T23:06:00+02:00",
       "runtime_telemetry": {
@@ -6858,6 +7143,7 @@
         "tests/ruff-baseline.json"
       ],
       "documentation_evidence": [
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md",
         "docs/architecture/legacy-decisions.json"
       ],
       "line_coverage_percent": 100.0,
@@ -6885,7 +7171,8 @@
         "docs/M16_ACCEPTANCE.md",
         "docs/TESTING.md",
         "docs/architecture/m16-baseline.json",
-        "docs/architecture/m16.10-acceptance.json"
+        "docs/architecture/m16.10-acceptance.json",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": 100.0,
       "last_git_change": "2026-08-13T17:14:41+02:00",
@@ -6929,6 +7216,7 @@
       "productive_callers": [
         "Dockerfile",
         "scripts/check-role-images.sh",
+        "scripts/component_registry.py",
         "scripts/m7_supply_chain.py"
       ],
       "test_evidence": [
@@ -6936,7 +7224,11 @@
         "tests/test_control_ui_setup_patch.py"
       ],
       "documentation_evidence": [
-        "docs/architecture/IMAGE_SUPPLY_CHAIN.md"
+        "docs/NEXTCLOUD_ACCESS_ROADMAP.md",
+        "docs/architecture/IMAGE_SUPPLY_CHAIN.md",
+        "docs/architecture/external-components.json",
+        "docs/architecture/upstream-sources.json",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": 100.0,
       "last_git_change": "2026-08-22T23:19:22+02:00",
@@ -6978,7 +7270,12 @@
         "tests/test_mail_search_contract_m111.py",
         "tests/test_mail_search_reconcile_m113.py",
         "tests/test_monitoring_tool.py",
+        "tests/test_nextcloud_action_binding.py",
         "tests/test_nextcloud_connection.py",
+        "tests/test_nextcloud_file_access.py",
+        "tests/test_nextcloud_foreground_access.py",
+        "tests/test_nextcloud_local_visibility.py",
+        "tests/test_nextcloud_setup.py",
         "tests/test_nextcloud_talk_m17.py",
         "tests/test_personal_assistant_core.py",
         "tests/test_runtime_telemetry_m162.py"
@@ -6987,7 +7284,7 @@
         "docs/AGENT_IMPROVEMENT_ACCEPTANCE_M18.md",
         "docs/DOCKER_DEPLOYMENT.md"
       ],
-      "line_coverage_percent": 74.52,
+      "line_coverage_percent": 74.07,
       "last_git_change": "2026-10-22T12:48:43+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -7003,7 +7300,8 @@
       "owner": "Core Maintainers",
       "classification": "active",
       "productive_callers": [
-        "Dockerfile"
+        "Dockerfile",
+        "scripts/m8-recovery-drill.py"
       ],
       "test_evidence": [
         "tests/test_immutable_runtime.py"
@@ -7025,7 +7323,8 @@
       "owner": "Core Maintainers",
       "classification": "active",
       "productive_callers": [
-        "Dockerfile"
+        "Dockerfile",
+        "scripts/m8-recovery-drill.py"
       ],
       "test_evidence": [
         "tests/test_immutable_runtime.py"
@@ -7056,12 +7355,14 @@
         "tests/test_caldav_update_tools.py",
         "tests/test_direct_calendar_tool.py",
         "tests/test_incremental_sync_m163.py",
+        "tests/test_nextcloud_foreground_access.py",
         "tests/test_personal_assistant_core.py"
       ],
       "documentation_evidence": [
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md",
         "docs/archive/AUDIT_INITIAL_IMPORT.md"
       ],
-      "line_coverage_percent": 59.11,
+      "line_coverage_percent": 71.17,
       "last_git_change": "2026-09-20T22:42:25+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -7088,7 +7389,12 @@
         "tests/test_help_nextcloud_training.py",
         "tests/test_incremental_sync_m163.py",
         "tests/test_invoice_effect_contract_m101.py",
+        "tests/test_nextcloud_adapter_access.py",
         "tests/test_nextcloud_connection.py",
+        "tests/test_nextcloud_file_access.py",
+        "tests/test_nextcloud_foreground_access.py",
+        "tests/test_nextcloud_local_visibility.py",
+        "tests/test_nextcloud_setup.py",
         "tests/test_personal_assistant_core.py",
         "tests/test_risk_paths_m166.py"
       ],
@@ -7096,7 +7402,7 @@
         "docs/QUALITY_CONSOLIDATION_M16.md",
         "docs/architecture/m16.6-risk-coverage.json"
       ],
-      "line_coverage_percent": 70.45,
+      "line_coverage_percent": 80.0,
       "last_git_change": "2026-10-22T12:48:43+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -7120,10 +7426,14 @@
         "tests/test_carddav_contact_tools.py",
         "tests/test_carddav_contact_update.py",
         "tests/test_incremental_sync_m163.py",
+        "tests/test_nextcloud_foreground_access.py",
+        "tests/test_nextcloud_local_visibility.py",
         "tests/test_personal_assistant_core.py"
       ],
-      "documentation_evidence": [],
-      "line_coverage_percent": 75.0,
+      "documentation_evidence": [
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md"
+      ],
+      "line_coverage_percent": 80.08,
       "last_git_change": "2026-09-20T22:42:25+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -7140,10 +7450,13 @@
       "classification": "active",
       "productive_callers": [],
       "test_evidence": [
-        "tests/ruff-baseline.json"
+        "tests/ruff-baseline.json",
+        "tests/test_nextcloud_native_binding.py"
       ],
-      "documentation_evidence": [],
-      "line_coverage_percent": 25.76,
+      "documentation_evidence": [
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md"
+      ],
+      "line_coverage_percent": 27.27,
       "last_git_change": "2026-07-28T00:07:47+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -7170,12 +7483,13 @@
         "tests/test_help_nextcloud_training.py",
         "tests/test_incremental_sync_m163.py",
         "tests/test_nextcloud_connection.py",
+        "tests/test_nextcloud_foreground_access.py",
         "tests/test_personal_assistant_core.py",
         "tests/test_resource_identity_m164.py",
         "tests/test_standard_operations_profile.py"
       ],
       "documentation_evidence": [],
-      "line_coverage_percent": 91.81,
+      "line_coverage_percent": 92.27,
       "last_git_change": "2026-10-22T12:48:43+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -7199,16 +7513,18 @@
         "tests/test_incremental_sync_m163.py",
         "tests/test_invoice_effect_contract_m101.py",
         "tests/test_nextcloud_connection.py",
+        "tests/test_nextcloud_file_access.py",
         "tests/test_nextcloud_workspace_tools.py",
         "tests/test_personal_assistant_core.py",
         "tests/test_portfolio_tool.py"
       ],
       "documentation_evidence": [
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md",
         "docs/QUALITY_CONSOLIDATION_M16.md",
         "docs/architecture/legacy-decisions.json"
       ],
-      "line_coverage_percent": 69.79,
+      "line_coverage_percent": 78.66,
       "last_git_change": "2026-10-22T12:48:43+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -7223,14 +7539,22 @@
       ],
       "owner": "Core Maintainers",
       "classification": "active",
-      "productive_callers": [],
+      "productive_callers": [
+        "scripts/component_registry.py"
+      ],
       "test_evidence": [
         "tests/ruff-baseline.json",
         "tests/test_caldav_update_tools.py",
-        "tests/test_direct_tasks_tool.py"
+        "tests/test_direct_tasks_tool.py",
+        "tests/test_nextcloud_foreground_access.py"
       ],
-      "documentation_evidence": [],
-      "line_coverage_percent": 41.79,
+      "documentation_evidence": [
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md",
+        "docs/architecture/external-components.json",
+        "docs/architecture/upstream-sources.json",
+        "docs/superpowers/plans/2026-11-22-nextcloud-foundation.md"
+      ],
+      "line_coverage_percent": 56.74,
       "last_git_change": "2026-08-06T15:45:31+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -7246,7 +7570,10 @@
       "owner": "Core Maintainers",
       "classification": "active",
       "productive_callers": [],
-      "test_evidence": [],
+      "test_evidence": [
+        "tests/test_nextcloud_file_access.py",
+        "tests/test_nextcloud_foreground_access.py"
+      ],
       "documentation_evidence": [],
       "line_coverage_percent": 91.11,
       "last_git_change": "2026-08-06T15:45:31+02:00",
@@ -7274,10 +7601,12 @@
       ],
       "documentation_evidence": [
         "docs/COMMAND_REFERENCE.md",
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md",
         "docs/TESTING.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md",
         "skills/personal-assistant/references/tool-contract.md"
       ],
-      "line_coverage_percent": 79.19,
+      "line_coverage_percent": 82.49,
       "last_git_change": "2026-08-06T15:45:31+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -7303,9 +7632,10 @@
         "tests/test_container_runtime.py"
       ],
       "documentation_evidence": [
-        "docs/TESTING.md"
+        "docs/TESTING.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
-      "line_coverage_percent": 63.84,
+      "line_coverage_percent": 63.99,
       "last_git_change": "2026-10-22T12:48:43+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -7370,7 +7700,8 @@
       "owner": "Core Maintainers",
       "classification": "active",
       "productive_callers": [
-        "Dockerfile"
+        "Dockerfile",
+        "scripts/m8-recovery-drill.py"
       ],
       "test_evidence": [
         "tests/test_immutable_runtime.py"
@@ -7555,7 +7886,9 @@
         "docs/AGENT_ACTION_COMPLETION_M15_ACCEPTANCE.md",
         "docs/AGENT_TOOL_ORCHESTRATION_M13_ACCEPTANCE.md",
         "docs/COMMAND_REFERENCE.md",
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md",
         "docs/TESTING.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md",
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": 90.8,
@@ -7599,7 +7932,7 @@
         "tests/test_personal_assistant_core.py"
       ],
       "documentation_evidence": [],
-      "line_coverage_percent": 41.22,
+      "line_coverage_percent": 47.3,
       "last_git_change": "2026-08-06T15:45:31+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -7638,13 +7971,19 @@
       ],
       "owner": "Core Maintainers",
       "classification": "active",
-      "productive_callers": [],
+      "productive_callers": [
+        "scripts/component_registry.py"
+      ],
       "test_evidence": [
         "tests/mypy-baseline.json",
         "tests/test_caldav_update_tools.py"
       ],
-      "documentation_evidence": [],
-      "line_coverage_percent": 82.98,
+      "documentation_evidence": [
+        "docs/architecture/external-components.json",
+        "docs/architecture/upstream-sources.json",
+        "docs/superpowers/plans/2026-11-22-nextcloud-foundation.md"
+      ],
+      "line_coverage_percent": 85.93,
       "last_git_change": "2026-08-06T15:45:31+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -7776,12 +8115,13 @@
         "tests/ruff-baseline.json",
         "tests/test_mail_projection_m96.py",
         "tests/test_mail_search_contract_m111.py",
-        "tests/test_mail_search_reconcile_m113.py"
+        "tests/test_mail_search_reconcile_m113.py",
+        "tests/test_nextcloud_file_access.py"
       ],
       "documentation_evidence": [
         "docs/archive/pre-container/ASSISTANT_ARCHITECTURE.md"
       ],
-      "line_coverage_percent": 65.62,
+      "line_coverage_percent": 74.22,
       "last_git_change": "2026-09-20T22:15:29+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -8072,13 +8412,84 @@
         "tests/mypy-baseline.json",
         "tests/ruff-baseline.json",
         "tests/test_monitoring_tool.py",
+        "tests/test_nextcloud_local_visibility.py",
         "tests/test_runtime_telemetry_m162.py"
       ],
       "documentation_evidence": [
         "docs/architecture/DATA_CATALOG.md"
       ],
-      "line_coverage_percent": 79.43,
+      "line_coverage_percent": 79.72,
       "last_git_change": "2026-09-20T22:15:29+02:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "personal_assistant/nextcloud_access.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Core Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "docker/scripts/common.sh",
+        "mail_agent/nextcloud.py",
+        "personal_assistant/cli_handlers/mail.py"
+      ],
+      "test_evidence": [
+        "tests/test_agent_tool_architecture.py",
+        "tests/test_nextcloud_access.py",
+        "tests/test_nextcloud_foreground_access.py",
+        "tests/test_nextcloud_local_visibility.py",
+        "tests/test_nextcloud_native_binding.py",
+        "tests/test_nextcloud_onboarding.py",
+        "tests/test_nextcloud_setup.py"
+      ],
+      "documentation_evidence": [
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
+      ],
+      "line_coverage_percent": 90.07,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "personal_assistant/nextcloud_access_runtime.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Core Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [
+        "tests/test_nextcloud_foreground_access.py"
+      ],
+      "documentation_evidence": [],
+      "line_coverage_percent": 89.72,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "personal_assistant/nextcloud_action_access.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Core Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": 83.51,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -8093,18 +8504,119 @@
       "owner": "Core Maintainers",
       "classification": "active",
       "productive_callers": [
-        "personal_assistant/nextcloud_talk_account.py"
+        "docker/scripts/nextcloud-access-state.py",
+        "mail_agent/assistant_bridge.py",
+        "mail_agent/calendar.py",
+        "mail_agent/invoice_reprocess.py",
+        "mail_agent/nextcloud.py",
+        "personal_assistant/cli_handlers/core.py",
+        "personal_assistant/cli_handlers/mail.py",
+        "personal_assistant/nextcloud_talk_account.py",
+        "personal_assistant/services/portfolio.py"
       ],
       "test_evidence": [
+        "tests/test_immutable_runtime.py",
         "tests/test_invoice_read_availability.py",
+        "tests/test_nextcloud_adapter_access.py",
         "tests/test_nextcloud_connection.py",
         "tests/test_nextcloud_setup.py",
+        "tests/test_nextcloud_setup_container.py",
         "tests/test_nextcloud_talk_account.py",
         "tests/test_nextcloud_talk_managed_status.py"
       ],
+      "documentation_evidence": [
+        "docs/NEXTCLOUD_ACCESS_ROADMAP.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
+      ],
+      "line_coverage_percent": 85.28,
+      "last_git_change": "2026-11-21T02:25:53+01:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "personal_assistant/nextcloud_file_access.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Core Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "personal_assistant/services/portfolio.py"
+      ],
+      "test_evidence": [
+        "tests/test_nextcloud_file_access.py"
+      ],
       "documentation_evidence": [],
-      "line_coverage_percent": 84.93,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "line_coverage_percent": 97.13,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "personal_assistant/nextcloud_index_access.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Core Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [
+        "tests/test_nextcloud_file_access.py",
+        "tests/test_nextcloud_local_visibility.py",
+        "tests/test_nextcloud_setup.py"
+      ],
+      "documentation_evidence": [],
+      "line_coverage_percent": 89.85,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "personal_assistant/nextcloud_native_binding.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Core Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "docker/openclaw-personal-assistant-plugin/runtime.js",
+        "personal_assistant/cli_handlers/core.py"
+      ],
+      "test_evidence": [
+        "tests/test_agent_execution_reliability.py",
+        "tests/test_nextcloud_action_binding.py",
+        "tests/test_nextcloud_native_binding.py"
+      ],
+      "documentation_evidence": [],
+      "line_coverage_percent": 36.67,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "personal_assistant/nextcloud_native_envelope.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Core Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": 80.56,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -8122,13 +8634,18 @@
         "personal_assistant/nextcloud_talk_account.py"
       ],
       "test_evidence": [
+        "tests/test_nextcloud_action_binding.py",
+        "tests/test_nextcloud_adapter_access.py",
         "tests/test_nextcloud_connection.py",
+        "tests/test_nextcloud_foreground_access.py",
         "tests/test_nextcloud_onboarding.py",
         "tests/test_nextcloud_setup.py",
         "tests/test_nextcloud_talk_managed_status.py"
       ],
-      "documentation_evidence": [],
-      "line_coverage_percent": 88.35,
+      "documentation_evidence": [
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
+      ],
+      "line_coverage_percent": 89.2,
       "last_git_change": "2026-11-15T19:08:38+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -8149,13 +8666,53 @@
       ],
       "test_evidence": [
         "tests/ruff-baseline.json",
+        "tests/test_nextcloud_onboarding.py",
         "tests/test_nextcloud_setup.py",
         "tests/test_nextcloud_setup_container.py",
         "tests/test_nextcloud_setup_image.py"
       ],
-      "documentation_evidence": [],
-      "line_coverage_percent": 77.3,
+      "documentation_evidence": [
+        "docs/NEXTCLOUD_ACCESS_ROADMAP.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
+      ],
+      "line_coverage_percent": 82.98,
       "last_git_change": "2026-10-25T23:26:42+01:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "personal_assistant/nextcloud_setup_access.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Core Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": 91.42,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "personal_assistant/nextcloud_sync.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Core Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": 94.19,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -8299,9 +8856,11 @@
       "test_evidence": [
         "tests/mypy-baseline.json",
         "tests/ruff-baseline.json",
+        "tests/test_nextcloud_native_binding.py",
         "tests/test_order_deck_tool.py"
       ],
       "documentation_evidence": [
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md",
         "docs/architecture/DATA_CATALOG.md"
       ],
       "line_coverage_percent": 74.61,
@@ -8336,6 +8895,10 @@
         "tests/test_mail_recent.py",
         "tests/test_mail_review_m9.py",
         "tests/test_mail_server_search_fallback.py",
+        "tests/test_nextcloud_action_binding.py",
+        "tests/test_nextcloud_adapter_access.py",
+        "tests/test_nextcloud_file_access.py",
+        "tests/test_nextcloud_foreground_access.py",
         "tests/test_nextcloud_workspace_tools.py",
         "tests/test_order_deck_tool.py",
         "tests/test_personal_assistant_core.py",
@@ -8345,9 +8908,10 @@
         "docs/TESTING.md",
         "docs/architecture/README.md",
         "docs/architecture/m16-baseline.json",
-        "docs/archive/pre-container/ASSISTANT_ARCHITECTURE.md"
+        "docs/archive/pre-container/ASSISTANT_ARCHITECTURE.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
-      "line_coverage_percent": 87.16,
+      "line_coverage_percent": 85.53,
       "last_git_change": "2026-08-06T15:45:31+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -8373,6 +8937,7 @@
         "tests/test_cli_startup.py",
         "tests/test_domain_quality_m168.py",
         "tests/test_job_control.py",
+        "tests/test_nextcloud_adapter_access.py",
         "tests/test_portfolio_import_safety_m18.py",
         "tests/test_portfolio_mapping.py",
         "tests/test_portfolio_research.py",
@@ -8384,9 +8949,10 @@
         "docs/TESTING.md",
         "docs/architecture/DATA_CATALOG.md",
         "docs/architecture/m16-baseline.json",
-        "docs/architecture/m16.10-acceptance.json"
+        "docs/architecture/m16.10-acceptance.json",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
-      "line_coverage_percent": 73.3,
+      "line_coverage_percent": 73.35,
       "last_git_change": "2026-10-22T12:48:43+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -8471,7 +9037,8 @@
       "owner": "Core Maintainers",
       "classification": "active",
       "productive_callers": [
-        "Dockerfile"
+        "Dockerfile",
+        "scripts/m8-recovery-drill.py"
       ],
       "test_evidence": [
         "tests/test_immutable_runtime.py"
@@ -8538,13 +9105,16 @@
       "classification": "active",
       "productive_callers": [
         "mail_agent/invoice_reprocess.py",
-        "scripts/benchmark_mail_search_m110.py"
+        "scripts/benchmark_mail_search_m110.py",
+        "scripts/check-repo.sh",
+        "scripts/component_registry.py"
       ],
       "test_evidence": [
         "tests/mypy-baseline.json",
         "tests/ruff-baseline.json",
         "tests/test_carddav_contact_tools.py",
         "tests/test_carddav_contact_update.py",
+        "tests/test_component_registry.py",
         "tests/test_m5_tool_contract.py",
         "tests/test_mail_forward_tool.py",
         "tests/test_mail_hybrid_search_m117.py",
@@ -8552,7 +9122,11 @@
         "tests/test_mail_recent.py",
         "tests/test_mail_review_m9.py",
         "tests/test_mail_server_search_fallback.py",
+        "tests/test_nextcloud_action_binding.py",
+        "tests/test_nextcloud_adapter_access.py",
         "tests/test_nextcloud_connection.py",
+        "tests/test_nextcloud_file_access.py",
+        "tests/test_nextcloud_foreground_access.py",
         "tests/test_nextcloud_workspace_tools.py",
         "tests/test_order_deck_tool.py",
         "tests/test_personal_assistant_core.py",
@@ -8563,12 +9137,15 @@
       ],
       "documentation_evidence": [
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
+        "docs/architecture/EXTERNAL_COMPONENTS.md",
         "docs/architecture/README.md",
         "docs/architecture/adr/0006-toolvertrag-source-of-truth.md",
         "docs/architecture/adr/0009-typisierte-domaenen-toolvertraege.md",
-        "docs/archive/pre-container/ASSISTANT_ARCHITECTURE.md"
+        "docs/archive/pre-container/ASSISTANT_ARCHITECTURE.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-foundation.md"
       ],
-      "line_coverage_percent": 89.19,
+      "line_coverage_percent": 89.61,
       "last_git_change": "2026-10-22T12:48:43+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -8586,6 +9163,7 @@
       "productive_callers": [
         "personal_assistant/cli_handlers/runtime.py",
         "scripts/benchmark_m16.py",
+        "scripts/m8-recovery-drill.py",
         "scripts/quality-baseline.py"
       ],
       "test_evidence": [
@@ -8617,12 +9195,13 @@
       ],
       "test_evidence": [
         "tests/test_nextcloud_connection.py",
+        "tests/test_nextcloud_foreground_access.py",
         "tests/test_resource_identity_m164.py"
       ],
       "documentation_evidence": [
         "docs/architecture/README.md"
       ],
-      "line_coverage_percent": 85.37,
+      "line_coverage_percent": 85.43,
       "last_git_change": "2026-10-22T12:48:43+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -8752,6 +9331,10 @@
         "tests/test_mail_projection_m96.py",
         "tests/test_nextcloud_connection.py",
         "tests/test_nextcloud_discovery_idempotency.py",
+        "tests/test_nextcloud_file_access.py",
+        "tests/test_nextcloud_foreground_access.py",
+        "tests/test_nextcloud_local_visibility.py",
+        "tests/test_nextcloud_native_binding.py",
         "tests/test_nextcloud_workspace_tools.py",
         "tests/test_portfolio_tool.py",
         "tests/test_standard_operations_profile.py"
@@ -8762,9 +9345,10 @@
         "docs/M16_ACCEPTANCE.md",
         "docs/TESTING.md",
         "docs/architecture/README.md",
-        "docs/architecture/m16-baseline.json"
+        "docs/architecture/m16-baseline.json",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
-      "line_coverage_percent": 56.97,
+      "line_coverage_percent": 63.36,
       "last_git_change": "2026-10-22T12:48:43+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -8780,7 +9364,8 @@
       "owner": "Core Maintainers",
       "classification": "active",
       "productive_callers": [
-        "Dockerfile"
+        "Dockerfile",
+        "scripts/m8-recovery-drill.py"
       ],
       "test_evidence": [
         "tests/test_immutable_runtime.py"
@@ -8823,8 +9408,11 @@
       "classification": "active",
       "productive_callers": [],
       "test_evidence": [],
-      "documentation_evidence": [],
-      "line_coverage_percent": 66.09,
+      "documentation_evidence": [
+        "docs/NEXTCLOUD_ACCESS_ROADMAP.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
+      ],
+      "line_coverage_percent": 86.13,
       "last_git_change": "2026-10-22T12:48:43+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -8842,10 +9430,13 @@
       "productive_callers": [],
       "test_evidence": [
         "tests/mypy-baseline.json",
-        "tests/ruff-baseline.json"
+        "tests/ruff-baseline.json",
+        "tests/test_nextcloud_native_binding.py"
       ],
-      "documentation_evidence": [],
-      "line_coverage_percent": 28.26,
+      "documentation_evidence": [
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md"
+      ],
+      "line_coverage_percent": 30.43,
       "last_git_change": "2026-08-06T15:45:31+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -8870,9 +9461,10 @@
         "docs/M16_ACCEPTANCE.md",
         "docs/TESTING.md",
         "docs/architecture/m16-baseline.json",
-        "docs/architecture/m16.10-acceptance.json"
+        "docs/architecture/m16.10-acceptance.json",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
-      "line_coverage_percent": 74.44,
+      "line_coverage_percent": 76.19,
       "last_git_change": "2026-08-06T15:45:31+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -8907,8 +9499,11 @@
       "classification": "active",
       "productive_callers": [],
       "test_evidence": [],
-      "documentation_evidence": [],
-      "line_coverage_percent": 78.24,
+      "documentation_evidence": [
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
+      ],
+      "line_coverage_percent": 81.78,
       "last_git_change": "2026-10-22T12:48:43+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -8929,8 +9524,10 @@
         "tests/test_personal_assistant_core.py"
       ],
       "documentation_evidence": [
+        "docs/NEXTCLOUD_ACCESS_ROADMAP.md",
         "docs/architecture/m16-baseline.json",
-        "docs/archive/pre-container/ASSISTANT_ARCHITECTURE.md"
+        "docs/archive/pre-container/ASSISTANT_ARCHITECTURE.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": 76.11,
       "last_git_change": "2026-08-06T15:45:31+02:00",
@@ -8953,6 +9550,7 @@
         "docker/openclaw-personal-assistant-plugin/setup-ui.js",
         "scripts/check-nextcloud-setup-browser.py",
         "scripts/check-role-images.sh",
+        "scripts/component_registry.py",
         "scripts/m7_supply_chain.py"
       ],
       "test_evidence": [
@@ -8963,7 +9561,11 @@
         "tests/test_nextcloud_setup.py"
       ],
       "documentation_evidence": [
-        "docs/architecture/IMAGE_SUPPLY_CHAIN.md"
+        "docs/NEXTCLOUD_ACCESS_ROADMAP.md",
+        "docs/architecture/IMAGE_SUPPLY_CHAIN.md",
+        "docs/architecture/external-components.json",
+        "docs/architecture/upstream-sources.json",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": 18.37,
       "last_git_change": "2026-08-06T15:45:31+02:00",
@@ -9002,6 +9604,7 @@
       "classification": "active",
       "productive_callers": [
         "scripts/benchmark_m16.py",
+        "scripts/m8-recovery-drill.py",
         "scripts/quality-baseline.py",
         "scripts/source-manifest.py"
       ],
@@ -9071,6 +9674,11 @@
         "tests/test_mail_server_search_fallback.py",
         "tests/test_mail_threads_m115.py",
         "tests/test_monitoring_tool.py",
+        "tests/test_nextcloud_action_binding.py",
+        "tests/test_nextcloud_adapter_access.py",
+        "tests/test_nextcloud_file_access.py",
+        "tests/test_nextcloud_foreground_access.py",
+        "tests/test_nextcloud_local_visibility.py",
         "tests/test_nextcloud_workspace_tools.py",
         "tests/test_order_deck_tool.py",
         "tests/test_personal_assistant_core.py",
@@ -9086,7 +9694,7 @@
         "docs/archive/AUDIT_INITIAL_IMPORT.md",
         "docs/archive/pre-container/ASSISTANT_ARCHITECTURE.md"
       ],
-      "line_coverage_percent": 87.01,
+      "line_coverage_percent": 87.52,
       "last_git_change": "2026-10-22T12:48:43+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -9148,7 +9756,8 @@
       "owner": "Core Maintainers",
       "classification": "active",
       "productive_callers": [
-        "Dockerfile"
+        "Dockerfile",
+        "scripts/m8-recovery-drill.py"
       ],
       "test_evidence": [
         "tests/test_immutable_runtime.py"
@@ -9194,6 +9803,7 @@
         "tests/ruff-baseline.json"
       ],
       "documentation_evidence": [
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md",
         "docs/archive/AUDIT_INITIAL_IMPORT.md"
       ],
       "line_coverage_percent": 100.0,
@@ -9217,7 +9827,9 @@
       "test_evidence": [
         "tests/ruff-baseline.json"
       ],
-      "documentation_evidence": [],
+      "documentation_evidence": [
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md"
+      ],
       "line_coverage_percent": 100.0,
       "last_git_change": "2026-10-22T12:48:43+02:00",
       "runtime_telemetry": {
@@ -9240,7 +9852,7 @@
       ],
       "documentation_evidence": [],
       "line_coverage_percent": 100.0,
-      "last_git_change": "2026-08-23T01:47:44+02:00",
+      "last_git_change": "2026-11-21T02:25:53+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -9280,6 +9892,7 @@
         "tests/ruff-baseline.json"
       ],
       "documentation_evidence": [
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md",
         "docs/architecture/legacy-decisions.json"
       ],
       "line_coverage_percent": 100.0,
@@ -9302,7 +9915,9 @@
         "tests/mypy-baseline.json",
         "tests/ruff-baseline.json"
       ],
-      "documentation_evidence": [],
+      "documentation_evidence": [
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md"
+      ],
       "line_coverage_percent": 100.0,
       "last_git_change": "2026-08-06T15:45:31+02:00",
       "runtime_telemetry": {
@@ -9328,7 +9943,8 @@
         "docs/M16_ACCEPTANCE.md",
         "docs/TESTING.md",
         "docs/architecture/m16-baseline.json",
-        "docs/architecture/m16.10-acceptance.json"
+        "docs/architecture/m16.10-acceptance.json",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": 100.0,
       "last_git_change": "2026-09-02T19:00:35+02:00",
@@ -9387,11 +10003,18 @@
       ],
       "owner": "Core Maintainers",
       "classification": "active",
-      "productive_callers": [],
+      "productive_callers": [
+        "scripts/component_registry.py"
+      ],
       "test_evidence": [
         "tests/ruff-baseline.json"
       ],
-      "documentation_evidence": [],
+      "documentation_evidence": [
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md",
+        "docs/architecture/external-components.json",
+        "docs/architecture/upstream-sources.json",
+        "docs/superpowers/plans/2026-11-22-nextcloud-foundation.md"
+      ],
       "line_coverage_percent": 100.0,
       "last_git_change": "2026-10-22T12:48:43+02:00",
       "runtime_telemetry": {
@@ -9441,6 +10064,8 @@
         "tests/test_mail_quarantine_sources.py",
         "tests/test_mail_review_m9.py",
         "tests/test_monitoring_tool.py",
+        "tests/test_nextcloud_file_access.py",
+        "tests/test_nextcloud_foreground_access.py",
         "tests/test_nextcloud_resource_tool_contract.py",
         "tests/test_nextcloud_workspace_tools.py",
         "tests/test_not_spam_learning.py",
@@ -9455,9 +10080,10 @@
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
         "docs/architecture/README.md",
         "docs/architecture/adr/0006-toolvertrag-source-of-truth.md",
-        "docs/architecture/adr/0009-typisierte-domaenen-toolvertraege.md"
+        "docs/architecture/adr/0009-typisierte-domaenen-toolvertraege.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
-      "line_coverage_percent": 91.3,
+      "line_coverage_percent": 95.71,
       "last_git_change": "2026-09-14T15:07:40+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -9510,7 +10136,11 @@
         "tests/test_mail_review_m9.py",
         "tests/test_mail_server_search_fallback.py",
         "tests/test_monitoring_tool.py",
+        "tests/test_nextcloud_adapter_access.py",
         "tests/test_nextcloud_connection.py",
+        "tests/test_nextcloud_file_access.py",
+        "tests/test_nextcloud_foreground_access.py",
+        "tests/test_nextcloud_native_binding.py",
         "tests/test_nextcloud_workspace_tools.py",
         "tests/test_not_spam_learning.py",
         "tests/test_order_deck_tool.py",
@@ -9525,10 +10155,12 @@
         "tests/test_work_scheduler.py"
       ],
       "documentation_evidence": [
-        "docs/architecture/m16-baseline.json"
+        "docs/NEXTCLOUD_ACCESS_ROADMAP.md",
+        "docs/architecture/m16-baseline.json",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
-      "line_coverage_percent": 84.11,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "line_coverage_percent": 84.49,
+      "last_git_change": "2026-11-21T02:25:53+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -9612,6 +10244,7 @@
         "docker/openclaw-personal-assistant-plugin/index.js",
         "docker/openclaw-personal-assistant-plugin/runtime.js",
         "docker/openclaw-personal-assistant-plugin/setup-ui.js",
+        "docker/scripts/common.sh",
         "docker/scripts/deploy.sh",
         "docker/scripts/migrate-live.sh",
         "docker/scripts/rollback.sh",
@@ -9653,7 +10286,8 @@
         "scripts/check-m15-integration.sh",
         "scripts/check-role-images.sh",
         "scripts/generate-command-reference.py",
-        "scripts/generate-skill-tool-contract.py"
+        "scripts/generate-skill-tool-contract.py",
+        "scripts/m8-recovery-drill.py"
       ],
       "test_evidence": [
         "tests/fixtures/m13/fake-assistant.sh",
@@ -9662,6 +10296,7 @@
         "tests/nextcloud_setup_ui.test.mjs",
         "tests/test_agent_capability_exposure.py",
         "tests/test_agent_tool_orchestration_m13.py",
+        "tests/test_container_migration.py",
         "tests/test_container_runtime.py",
         "tests/test_direct_tasks_tool.py",
         "tests/test_immutable_runtime.py",
@@ -10153,15 +10788,20 @@
         ".github/workflows/container.yml",
         "scripts/check-repo.sh",
         "scripts/check-wheel.sh",
+        "scripts/component_registry.py",
         "scripts/run-tests.sh"
       ],
-      "test_evidence": [],
+      "test_evidence": [
+        "tests/test_component_registry.py"
+      ],
       "documentation_evidence": [
         "README.md",
         "docs/MAIL_SEARCH_BASELINE_M110.md",
         "docs/RELEASE_3_4_0_R28.md",
         "docs/TESTING.md",
-        "docs/archive/README_PRE_M1.md"
+        "docs/architecture/external-components.json",
+        "docs/archive/README_PRE_M1.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-foundation.md"
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-08-06T15:45:31+02:00",
@@ -10521,7 +11161,10 @@
       "classification": "active",
       "productive_callers": [],
       "test_evidence": [],
-      "documentation_evidence": [],
+      "documentation_evidence": [
+        "docs/NEXTCLOUD_SETUP_UI.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
+      ],
       "line_coverage_percent": null,
       "last_git_change": "2026-10-25T23:26:42+01:00",
       "runtime_telemetry": {
@@ -10570,16 +11213,20 @@
         "docs/MAIL_SEARCH_BASELINE_M110.md",
         "docs/MAIL_SEARCH_INDEXING_ROADMAP.md",
         "docs/MAIL_SEARCH_M11_ACCEPTANCE_AND_ROLLOUT.md",
+        "docs/NEXTCLOUD_FOUNDATION_VALIDATION.md",
         "docs/QUALITY_CONSOLIDATION_M16.md",
         "docs/RELEASE_3_4_0_R28.md",
         "docs/RUNTIME_CAPACITY_M16.md",
         "docs/RUNTIME_TELEMETRY_M16.md",
+        "docs/STACK_UPDATE_ROADMAP.md",
         "docs/TESTING.md",
         "docs/architecture/EXTENDING.md",
+        "docs/architecture/EXTERNAL_COMPONENTS.md",
         "docs/architecture/RECOVERY_AND_RELEASE.md",
         "docs/architecture/m16-baseline.json",
         "docs/archive/GIT_REPOSITORY_PRE_M1.md",
-        "docs/archive/README_PRE_M1.md"
+        "docs/archive/README_PRE_M1.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-foundation.md"
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-09-20T21:48:32+02:00",
@@ -10811,6 +11458,31 @@
       "rollback_relevance": "none"
     },
     {
+      "path": "scripts/component_registry.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Build Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "scripts/check-repo.sh"
+      ],
+      "test_evidence": [
+        "tests/test_component_registry.py"
+      ],
+      "documentation_evidence": [
+        "docs/architecture/EXTERNAL_COMPONENTS.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-foundation.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
       "path": "scripts/evaluate_invoice_quality.py",
       "types": [
         "python-module"
@@ -10898,6 +11570,7 @@
       ],
       "test_evidence": [],
       "documentation_evidence": [
+        "docs/STACK_UPDATE_ROADMAP.md",
         "docs/TESTING.md",
         "docs/architecture/EXTENDING.md"
       ],
@@ -10977,7 +11650,9 @@
         "tests/test_m7_supply_chain.py"
       ],
       "documentation_evidence": [
-        "docs/architecture/IMAGE_SUPPLY_CHAIN.md"
+        "docs/architecture/IMAGE_SUPPLY_CHAIN.md",
+        "docs/architecture/external-components.json",
+        "docs/architecture/upstream-sources.json"
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-10-24T17:20:39+02:00",
@@ -10997,7 +11672,9 @@
       "productive_callers": [
         "scripts/check-repo.sh"
       ],
-      "test_evidence": [],
+      "test_evidence": [
+        "tests/test_m8_recovery.py"
+      ],
       "documentation_evidence": [
         "docs/TESTING.md",
         "docs/architecture/RECOVERY_AND_RELEASE.md"
@@ -11337,7 +12014,8 @@
         "personal_assistant/release.py",
         "personal_assistant/runtime_layout.py",
         "personal_assistant/tool_catalog/mail.py",
-        "scripts/check-docs.py"
+        "scripts/check-docs.py",
+        "scripts/m8-recovery-drill.py"
       ],
       "test_evidence": [
         "tests/test_agent_capability_exposure.py",
@@ -11349,6 +12027,7 @@
         "docs/AGENT_TOOL_ORCHESTRATION_ROADMAP.md",
         "docs/COMMAND_REFERENCE.md",
         "docs/DOCKER_DEPLOYMENT.md",
+        "docs/NEXTCLOUD_ACCESS_ROADMAP.md",
         "docs/architecture/legacy-decisions.json"
       ],
       "line_coverage_percent": null,
@@ -11397,6 +12076,8 @@
       "documentation_evidence": [
         "AGENTS.md",
         "docs/AGENT_STABILIZATION_ROADMAP.md",
+        "docs/NEXTCLOUD_ACCESS_ROADMAP.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md",
         "skills/personal-assistant/SKILL.md",
         "skills/personal-assistant/references/commands.md"
       ],
@@ -11488,7 +12169,7 @@
         "skills/personal-assistant/references/commands.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-21T00:38:12+02:00",
+      "last_git_change": "2026-11-21T02:25:53+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -11547,7 +12228,7 @@
         "skills/personal-assistant/references/runtime-security.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-11-21T02:25:53+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -11848,10 +12529,11 @@
       "productive_callers": [],
       "test_evidence": [],
       "documentation_evidence": [
-        "docs/AGENT_IMPROVEMENT_ACCEPTANCE_M18.md"
+        "docs/AGENT_IMPROVEMENT_ACCEPTANCE_M18.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-11-21T02:25:53+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -11919,6 +12601,7 @@
         "docs/COMMAND_REFERENCE.md",
         "docs/RUNTIME_CAPACITY_M16.md",
         "docs/TESTING.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md",
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
@@ -12128,7 +12811,8 @@
       "productive_callers": [],
       "test_evidence": [],
       "documentation_evidence": [
-        "docs/AGENT_IMPROVEMENT_ACCEPTANCE_M18.md"
+        "docs/AGENT_IMPROVEMENT_ACCEPTANCE_M18.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-08-06T15:45:31+02:00",
@@ -12147,7 +12831,10 @@
       "classification": "active",
       "productive_callers": [],
       "test_evidence": [],
-      "documentation_evidence": [],
+      "documentation_evidence": [
+        "docs/architecture/external-components.json",
+        "docs/architecture/upstream-sources.json"
+      ],
       "line_coverage_percent": null,
       "last_git_change": "2026-09-08T08:34:57+02:00",
       "runtime_telemetry": {
@@ -12169,6 +12856,8 @@
       "test_evidence": [],
       "documentation_evidence": [
         "docs/COMMAND_REFERENCE.md",
+        "docs/architecture/external-components.json",
+        "docs/architecture/upstream-sources.json",
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
@@ -12218,6 +12907,26 @@
       "rollback_relevance": "none"
     },
     {
+      "path": "tests/test_component_registry.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/superpowers/plans/2026-11-22-nextcloud-foundation.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
       "path": "tests/test_container_hardening_m4.py",
       "types": [
         "python-module"
@@ -12250,7 +12959,9 @@
       "test_evidence": [
         "tests/ruff-baseline.json"
       ],
-      "documentation_evidence": [],
+      "documentation_evidence": [
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
+      ],
       "line_coverage_percent": null,
       "last_git_change": "2026-10-05T22:34:05+02:00",
       "runtime_telemetry": {
@@ -12288,7 +12999,10 @@
       "classification": "active",
       "productive_callers": [],
       "test_evidence": [],
-      "documentation_evidence": [],
+      "documentation_evidence": [
+        "docs/architecture/external-components.json",
+        "docs/architecture/upstream-sources.json"
+      ],
       "line_coverage_percent": null,
       "last_git_change": "2026-10-24T17:20:39+02:00",
       "runtime_telemetry": {
@@ -12312,6 +13026,7 @@
         "docs/AGENT_IMPROVEMENT_ACCEPTANCE_M18.md",
         "docs/COMMAND_REFERENCE.md",
         "docs/TESTING.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md",
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
@@ -12339,6 +13054,10 @@
         "docs/AGENT_IMPROVEMENT_ACCEPTANCE_M18.md",
         "docs/COMMAND_REFERENCE.md",
         "docs/TESTING.md",
+        "docs/architecture/external-components.json",
+        "docs/architecture/upstream-sources.json",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-foundation.md",
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
@@ -12496,7 +13215,8 @@
       "test_evidence": [],
       "documentation_evidence": [
         "docs/AGENT_IMPROVEMENT_ACCEPTANCE_M18.md",
-        "docs/INCREMENTAL_SYNC_SCHEDULER_M16.md"
+        "docs/INCREMENTAL_SYNC_SCHEDULER_M16.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-10-22T12:48:43+02:00",
@@ -12739,7 +13459,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-11-21T02:25:53+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -12808,7 +13528,8 @@
         "tests/ruff-baseline.json"
       ],
       "documentation_evidence": [
-        "docs/architecture/legacy-decisions.json"
+        "docs/architecture/legacy-decisions.json",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-09-24T21:21:04+02:00",
@@ -12966,7 +13687,10 @@
         "Dockerfile"
       ],
       "test_evidence": [],
-      "documentation_evidence": [],
+      "documentation_evidence": [
+        "docs/architecture/external-components.json",
+        "docs/architecture/upstream-sources.json"
+      ],
       "line_coverage_percent": null,
       "last_git_change": "2026-11-19T20:08:02+01:00",
       "runtime_telemetry": {
@@ -13574,7 +14298,27 @@
       "rollback_relevance": "none"
     },
     {
-      "path": "tests/test_nextcloud_connection.py",
+      "path": "tests/test_nextcloud_access.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "tests/test_nextcloud_action_binding.py",
       "types": [
         "python-module"
       ],
@@ -13583,6 +14327,44 @@
       "productive_callers": [],
       "test_evidence": [],
       "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "tests/test_nextcloud_adapter_access.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "tests/test_nextcloud_connection.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
+      ],
       "line_coverage_percent": null,
       "last_git_change": "2026-10-22T12:48:43+02:00",
       "runtime_telemetry": {
@@ -13612,7 +14394,7 @@
       "rollback_relevance": "none"
     },
     {
-      "path": "tests/test_nextcloud_onboarding.py",
+      "path": "tests/test_nextcloud_file_access.py",
       "types": [
         "python-module"
       ],
@@ -13621,6 +14403,80 @@
       "productive_callers": [],
       "test_evidence": [],
       "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "tests/test_nextcloud_foreground_access.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "tests/test_nextcloud_local_visibility.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "tests/test_nextcloud_native_binding.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "tests/test_nextcloud_onboarding.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
+      ],
       "line_coverage_percent": null,
       "last_git_change": "2026-11-15T19:08:38+01:00",
       "runtime_telemetry": {
@@ -13638,7 +14494,9 @@
       "classification": "active",
       "productive_callers": [],
       "test_evidence": [],
-      "documentation_evidence": [],
+      "documentation_evidence": [
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
+      ],
       "line_coverage_percent": null,
       "last_git_change": "2026-10-22T13:17:15+02:00",
       "runtime_telemetry": {
@@ -13656,7 +14514,9 @@
       "classification": "active",
       "productive_callers": [],
       "test_evidence": [],
-      "documentation_evidence": [],
+      "documentation_evidence": [
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
+      ],
       "line_coverage_percent": null,
       "last_git_change": "2026-10-25T23:26:42+01:00",
       "runtime_telemetry": {
@@ -13674,7 +14534,9 @@
       "classification": "active",
       "productive_callers": [],
       "test_evidence": [],
-      "documentation_evidence": [],
+      "documentation_evidence": [
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
+      ],
       "line_coverage_percent": null,
       "last_git_change": "2026-10-22T12:59:09+02:00",
       "runtime_telemetry": {
@@ -13712,7 +14574,9 @@
       "classification": "active",
       "productive_callers": [],
       "test_evidence": [],
-      "documentation_evidence": [],
+      "documentation_evidence": [
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
+      ],
       "line_coverage_percent": null,
       "last_git_change": "2026-10-22T12:48:43+02:00",
       "runtime_telemetry": {
@@ -13752,6 +14616,8 @@
       "test_evidence": [],
       "documentation_evidence": [
         "docs/COMMAND_REFERENCE.md",
+        "docs/architecture/external-components.json",
+        "docs/architecture/upstream-sources.json",
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
@@ -13771,7 +14637,9 @@
       "classification": "active",
       "productive_callers": [],
       "test_evidence": [],
-      "documentation_evidence": [],
+      "documentation_evidence": [
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
+      ],
       "line_coverage_percent": null,
       "last_git_change": "2026-11-15T19:08:38+01:00",
       "runtime_telemetry": {
@@ -13797,6 +14665,7 @@
       "documentation_evidence": [
         "docs/COMMAND_REFERENCE.md",
         "docs/TESTING.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md",
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
@@ -14349,6 +15218,7 @@
       "test_evidence": [],
       "documentation_evidence": [
         "docs/COMMAND_REFERENCE.md",
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md",
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
@@ -14391,7 +15261,9 @@
       "classification": "migration-only",
       "productive_callers": [],
       "test_evidence": [],
-      "documentation_evidence": [],
+      "documentation_evidence": [
+        "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
+      ],
       "line_coverage_percent": null,
       "last_git_change": "2026-08-14T03:03:27+02:00",
       "runtime_telemetry": {

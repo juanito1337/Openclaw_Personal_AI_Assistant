@@ -715,3 +715,97 @@ class ContainerMigrationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_nextcloud_host_transition_requires_matching_verified_old_image(tmp_path):
+    from test_nextcloud_setup_container import SCRIPTS, _environment, _run, _stub
+
+    env, _ = _environment(tmp_path)
+    stubdir = Path(env["SETUP_TEST_BIN"])
+    image = "fixture.invalid/runtime@sha256:" + "b" * 64
+    env.update(
+        {
+            "FIXTURE_ID": "sha256:" + "a" * 64,
+            "FIXTURE_OLD_ID": "sha256:" + "a" * 64,
+            "FIXTURE_SHA": "c" * 40,
+            "FIXTURE_FEATURE": "",
+            "FIXTURE_RELEASE": "3.4.0-r29.0.3",
+            "FIXTURE_SIGNED": "true",
+        }
+    )
+    _stub(
+        stubdir / "docker",
+        """
+case "$*" in
+  *'container inspect'*) echo "$FIXTURE_ID" ;;
+  *'.Id'*) echo "$FIXTURE_OLD_ID" ;;
+  *nextcloud-access*) echo "$FIXTURE_FEATURE" ;;
+  *image.revision*) echo "$FIXTURE_SHA" ;;
+  *image.version*) echo "$FIXTURE_RELEASE" ;;
+  *) exit 1 ;;
+esac
+""",
+    )
+    _stub(
+        stubdir / "verify-image-supply-chain.sh",
+        """
+[[ "$FIXTURE_SIGNED" == true && "$OPENCLAW_EXPECTED_RELEASE" == "$FIXTURE_RELEASE" &&
+   "$2" == "$FIXTURE_SHA" && "$3" == runtime ]]
+""",
+    )
+    cmd = [
+        "bash",
+        "-c",
+        '. "$1"; SCRIPT_DIR="$SETUP_TEST_BIN"; nextcloud_access_transition "$2" docker normal',
+        "fixture",
+        str(SCRIPTS / "common.sh"),
+        image,
+    ]
+    result = _run(cmd, env)
+    assert result.returncode == 0 and result.stdout.strip() == "verified-pre-policy"
+    for change in (
+        {"FIXTURE_OLD_ID": "sha256:" + "d" * 64},
+        {"FIXTURE_FEATURE": "1"},
+        {"FIXTURE_RELEASE": "unknown"},
+        {"FIXTURE_SIGNED": "false"},
+    ):
+        assert _run(cmd, {**env, **change}).returncode != 0
+
+
+def test_legacy_verification_is_bound_to_actual_installed_workspace(tmp_path):
+    from test_nextcloud_setup_container import SCRIPTS, _environment, _run, _stub
+
+    env, _ = _environment(tmp_path)
+    workspace = tmp_path / "legacy/workspace"
+    alternate = tmp_path / "different-checkout"
+    (workspace / "scripts").mkdir(parents=True)
+    alternate.mkdir()
+    report = {
+        "product": "OpenClaw Local Personal Assistant",
+        "version": "3.4.0-r29.0.6",
+        "verification": {"ok": True, "source_manifest": {"ok": True}},
+    }
+    (alternate / "proof.json").write_text(json.dumps(report))
+    _stub(
+        workspace / "scripts/assistant.sh",
+        """
+[[ "$OPENCLAW_WORKSPACE" == "$OPENCLAW_RELEASE_ROOT" ]]
+cat "$OPENCLAW_RELEASE_ROOT/proof.json"
+""",
+    )
+    env.update(
+        OPENCLAW_LEGACY_HOME=str(workspace.parent),
+        OPENCLAW_RELEASE_ROOT=str(alternate),
+        OPENCLAW_WORKSPACE=str(alternate),
+    )
+    cmd = [
+        "bash",
+        "-c",
+        '. "$1"; nextcloud_access_transition old legacy-systemd normal',
+        "fixture",
+        str(SCRIPTS / "common.sh"),
+    ]
+    assert _run(cmd, env).returncode != 0
+    (workspace / "proof.json").write_text(json.dumps(report))
+    result = _run(cmd, env)
+    assert result.returncode == 0 and result.stdout.strip() == "verified-pre-policy"

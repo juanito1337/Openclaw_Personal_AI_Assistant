@@ -306,6 +306,8 @@ def main(argv: list[str] | None = None) -> int:
         "PYTHONSAFEPATH": "1",
         "PATH": f"{image_root}/scripts:/usr/local/bin:/usr/bin:/bin",
     }
+    if role != "standalone":
+        protected["OPENCLAW_NC_MODE_REQUIRED"] = "1"
     environment.update(protected)
     if layout_mode == "verify":
         environment.update(

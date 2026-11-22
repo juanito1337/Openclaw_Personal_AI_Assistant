@@ -19,13 +19,19 @@ from email.utils import parseaddr
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from personal_assistant.nextcloud_connection import admit_projection, load_access_snapshot
 from personal_assistant.tool_settings import CalendarMailToolSettings
 
 from .assistant_bridge import PersonalAssistantActionBridge
 from .command import CommandRunner
 from .config import Config
 from .models import CalendarEvent, Classification, OperationResult, ParsedMessage
-from .nextcloud import NextcloudSkillClient, NextcloudSkillError
+from .nextcloud import (
+    CALENDAR_MAIL_SELECTION,
+    NextcloudSkillClient,
+    NextcloudSkillError,
+    require_mail_automation,
+)
 from .storage import Storage
 from .utils import atomic_write_bytes, clean_single_line, normalize_address, safe_filename
 
@@ -150,6 +156,17 @@ class CalendarManager:
         self.assistant_bridge = assistant_bridge
         self.command_settings = command_settings or CalendarMailToolSettings()
         self.log = logging.getLogger(__name__)
+
+    def _remote_approval_blocker(self):
+        # The legacy approval token and these backends carry no managed collection binding.
+        if self.config.calendar.backend in {"auto", "nextcloud_skill", "caldav"}:
+            snapshot = load_access_snapshot()
+            if snapshot.mode != "legacy":
+                return OperationResult(
+                    False, CALENDAR_MAIL_SELECTION,
+                    "scope-unbound: Separates Kalenderziel fuer die Mail-Automation auswaehlen",
+                )
+        return None
 
     def process_command_mail(
         self,
@@ -329,6 +346,8 @@ class CalendarManager:
         normalized: NormalizedEvent,
         classification: Classification,
     ) -> OperationResult:
+        if blocker := self._remote_approval_blocker():
+            return blocker
         existing_event = self.storage.get_event(normalized.event_key)
         if existing_event and str(existing_event["status"] or "") == "created":
             return OperationResult(True, "duplicate", "Termin ist bereits im Kalender erfasst")
@@ -461,6 +480,8 @@ class CalendarManager:
                 "approval-sender-rejected",
                 "Terminfreigabe stammt nicht von der konfigurierten Bestaetigungsadresse.",
             )
+        if blocker := self._remote_approval_blocker():
+            return blocker
         approval = self.storage.get_calendar_approval(self._token_hash(token))
         if not approval:
             return OperationResult(False, "approval-token-unknown", "Unbekannter oder bereits ersetzter Freigabecode")
@@ -620,6 +641,8 @@ class CalendarManager:
         )
 
     def _create_normalized(self, normalized: NormalizedEvent, message: ParsedMessage) -> OperationResult:
+        if blocker := self._remote_approval_blocker():
+            return blocker
         existing = self.storage.get_event(normalized.event_key)
         if existing:
             if str(existing["fingerprint"] or "") != normalized.fingerprint:
@@ -757,6 +780,8 @@ class CalendarManager:
 
     def health(self, *, nextcloud_health: dict[str, object] | None = None) -> tuple[bool, str, str]:
         backend = self._select_backend()
+        if blocker := self._remote_approval_blocker():
+            return False, backend, blocker.detail
         if backend == "queue":
             return False, backend, "Kein Kalender-Importer gefunden; Termine werden nur als ICS zur Pruefung abgelegt"
         if backend == "nextcloud_skill":
@@ -848,10 +873,13 @@ class CalendarManager:
             method="PUT",
         )
         try:
-            with urllib.request.urlopen(request, timeout=30) as response:
-                if 200 <= response.status < 300:
-                    return OperationResult(True, "created", f"CalDAV HTTP {response.status}")
-                return OperationResult(False, "caldav-failed", f"CalDAV HTTP {response.status}")
+            with admit_projection(load_access_snapshot()) as current:
+                if current.mode != "legacy":
+                    require_mail_automation(current, CALENDAR_MAIL_SELECTION)
+                with urllib.request.urlopen(request, timeout=30) as response:
+                    if 200 <= response.status < 300:
+                        return OperationResult(True, "created", f"CalDAV HTTP {response.status}")
+                    return OperationResult(False, "caldav-failed", f"CalDAV HTTP {response.status}")
         except urllib.error.HTTPError as exc:
             if exc.code == 412:
                 return OperationResult(True, "duplicate", "CalDAV-Termin existiert bereits")

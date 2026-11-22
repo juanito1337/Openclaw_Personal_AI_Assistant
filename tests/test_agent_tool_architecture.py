@@ -14,6 +14,7 @@ from mail_agent.config import load_config
 from mail_agent.models import CalendarEvent, Classification, OperationResult, ParsedMessage
 from mail_agent.storage import Storage
 from personal_assistant.models import Resource
+from personal_assistant.nextcloud_access import AccessSnapshot
 from personal_assistant.service import _replace_discovered_nextcloud_resources
 from personal_assistant.tool_registry import build_tool_registry
 from personal_assistant.tool_settings import (
@@ -228,6 +229,7 @@ class AgentToolArchitectureTests(unittest.TestCase):
 
         fake = SimpleNamespace(
             config=SimpleNamespace(runtime=SimpleNamespace(database=payload_root / "assistant.sqlite3")),
+            registry=SimpleNamespace(access_snapshot=AccessSnapshot("legacy", managed=False)),
             actions=Actions(),
             close=lambda: calls.setdefault("closed", True),
         )
@@ -272,7 +274,11 @@ class AgentToolArchitectureTests(unittest.TestCase):
                 calls["execute"] = action_id
                 return SimpleNamespace(status="completed", error="")
 
-        fake = SimpleNamespace(actions=Actions(), close=lambda: None)
+        fake = SimpleNamespace(
+            registry=SimpleNamespace(access_snapshot=AccessSnapshot("legacy", managed=False)),
+            actions=Actions(),
+            close=lambda: None,
+        )
         bridge = PersonalAssistantActionBridge()
         message = ParsedMessage(
             stable_key="mid:calendar-bridge",

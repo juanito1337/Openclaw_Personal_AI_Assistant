@@ -74,6 +74,45 @@ class PolicyEngine:
         resource = self.registry.get(resource_id)
         if not resource.enabled:
             return PolicyDecision(False, False, "Ressource ist deaktiviert")
+        permissions = resource.permissions
+        active_file_access = False
+        initial = getattr(self.registry, "access_snapshot", None)
+        if initial is not None and initial.mode != "legacy" and resource.connector.startswith("nextcloud"):
+            from .nextcloud_access import Scope, decide_access
+            from .nextcloud_connection import load_access_snapshot
+
+            snapshot = load_access_snapshot()
+            domain, _, operation = action.partition(".")
+            if initial.binding is None or snapshot.binding != initial.binding:
+                return PolicyDecision(False, False, "policy-changed")
+            if domain == "files":
+                from .nextcloud_file_access import file_context
+
+                file_operation = {"create": "create_file", "mkdir": "mkdir", "read": "read"}.get(operation)
+                if (
+                    not file_operation
+                    or payload.get("overwrite")
+                    or payload.get("managed_invoice_register")
+                    or resource.kind != "file-root"
+                ):
+                    return PolicyDecision(False, False, "operation-not-allowed")
+                try:
+                    context = file_context(snapshot, payload.get("path"), file_operation)
+                    active_file_access = True
+                    if context.scope.resource_id != resource.id:
+                        return PolicyDecision(False, False, "scope-unbound")
+                except (PermissionError, ValueError) as exc:
+                    return PolicyDecision(False, False, str(exc))
+            else:
+                component = {"tasks": "VTODO", "calendar": "VEVENT", "contacts": "VCARD"}.get(domain)
+                if not component:
+                    return PolicyDecision(False, False, "operation-not-allowed")
+                permissions = resource.metadata.get("component_operations", {}).get(component, ())
+                decision = decide_access(
+                    snapshot, Scope(resource_id, component), operation, expected_binding=initial.binding
+                )
+                if not decision.allowed:
+                    return PolicyDecision(False, False, decision.code)
         denied = (
             set(str(v) for v in self.defaults.get("deny", {}).get("actions", []))
             | set(str(v) for v in self.data.get("deny", {}).get("actions", []))
@@ -82,13 +121,13 @@ class PolicyEngine:
         if action in denied:
             return PolicyDecision(False, False, f"Aktion {action} ist durch die Sicherheitsrichtlinie verboten")
         permission = self._permission_for_action(action)
-        if permission and permission not in resource.permissions:
+        if permission and permission not in permissions:
             return PolicyDecision(False, False, f"Ressource {resource_id} besitzt nicht die Berechtigung {permission}")
 
         roots = tuple(str(v).strip("/") for v in resource.metadata.get("allowed_roots", []) if str(v).strip("/"))
         if action in {"files.create", "files.mkdir"}:
             path = str(payload.get("path") or "").replace("\\", "/").strip("/")
-            if not self._path_in_roots(path, roots):
+            if not active_file_access and not self._path_in_roots(path, roots):
                 return PolicyDecision(False, False, f"Zielpfad liegt ausserhalb der erlaubten Wurzeln: {path}")
             if bool(payload.get("overwrite")):
                 managed_register = bool(payload.get("managed_invoice_register"))

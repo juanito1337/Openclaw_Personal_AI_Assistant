@@ -69,7 +69,7 @@ class FakeActions:
         assert evidence["tool_enabled"] is True
         return plan("approved", self.payload, action_id=action_id)
 
-    def execute_task_create(self, action_id: str):
+    def execute_task_create(self, action_id: str, *, recreate_missing=False):
         return plan("completed", self.payload, action_id=action_id), False
 
 
@@ -188,6 +188,48 @@ class DirectTasksTests(unittest.TestCase):
         self.assertEqual(parsed["due"], "20260730")
         self.assertEqual(parsed["priority"], 5)
         self.assertEqual(parsed["categories"], ["Arbeit", "Privat"])
+
+    def test_vtodo_categories_decode_each_text_value_once(self) -> None:
+        cases = (
+            ("escaped comma", r"Sales\, West,Other", ["Sales, West", "Other"]),
+            ("escaped backslash", r"Path\\,Other", ["Path\\", "Other"]),
+            ("backslash and comma", r"Path\\\, West,Other", ["Path\\, West", "Other"]),
+            ("escaped semicolon", r"Plan\;Draft,Other", ["Plan;Draft", "Other"]),
+            ("escaped newlines", r"Top\nMiddle\NBottom", ["Top\nMiddle\nBottom"]),
+            ("literal escape text", r"Path\\new", [r"Path\new"]),
+            ("unknown and trailing escapes", "Path\\q,Other\\", [r"Path\q", "Other\\"]),
+            ("folded Unicode text", "Küche\\\r\n , Nord,Größe", ["Küche, Nord", "Größe"]),
+            ("empty category list", "", []),
+            ("empty entries", ",Work,,Other,", ["Work", "Other"]),
+        )
+        for label, raw, expected in cases:
+            with self.subTest(label=label):
+                parsed = NextcloudTasks._parse_vtodo(
+                    "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VTODO\r\nUID:category-test\r\n"
+                    "DTSTAMP:20260722T000000Z\r\nSUMMARY:Category test\r\n"
+                    f"CATEGORIES:{raw}\r\nEND:VTODO\r\nEND:VCALENDAR\r\n"
+                )
+                self.assertEqual(parsed["categories"], expected)
+
+    def test_vtodo_categories_ignore_nested_alarm_properties(self) -> None:
+        parsed = NextcloudTasks._parse_vtodo(
+            "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VTODO\r\nUID:category-test\r\n"
+            "DTSTAMP:20260722T000000Z\r\nSUMMARY:Category test\r\n"
+            "BEGIN:VALARM\r\nACTION:DISPLAY\r\nTRIGGER:-PT10M\r\n"
+            "DESCRIPTION:Test reminder\r\nCATEGORIES:Alarm-only\r\nEND:VALARM\r\n"
+            "END:VTODO\r\nEND:VCALENDAR\r\n"
+        )
+        self.assertEqual(parsed["categories"], [])
+
+    def test_vtodo_categories_round_trip_through_task_creation(self) -> None:
+        assistant = self.assistant()
+        result = assistant.task_create(
+            title="Check categories",
+            categories=("Sales, West", r"Küche\new", "Plan;Draft"),
+        )
+        self.assertTrue(result["ok"])
+        parsed = NextcloudTasks._parse_vtodo(assistant.actions.payload["ics"])
+        self.assertEqual(parsed["categories"], ["Sales, West", r"Küche\new", "Plan;Draft"])
 
 
 if __name__ == "__main__":

@@ -102,8 +102,8 @@ TOOLS: tuple[ToolDefinition, ...] = (
     define(
         id="nextcloud.contacts.from-mail-create",
         domain="contacts",
-        description='Kontakt aus einer eindeutig ausgewaehlten Mail nach Vorschau und ausdruecklichem Nutzerauftrag create-only anlegen; bei mehreren Ressourcen ist --resource aus status/list fuer genau ein Schreibziel erforderlich',
-        command='./scripts/assistant.sh contacts from-mail --folder "<Ordner>" --message-id "<Mail-ID>" --expected-subject "<Betreff>" --yes --resource "<resource-optional>"',
+        description='Kontakt aus einer eindeutig ausgewaehlten Mail nach Vorschau und ausdruecklichem Nutzerauftrag create-only anlegen, aktiver Zugriff erfordert den unveraenderten Vorschau-Digest; bei mehreren Ressourcen ist --resource aus status/list fuer genau ein Schreibziel erforderlich',
+        command='./scripts/assistant.sh contacts from-mail --folder "<Ordner>" --message-id "<Mail-ID>" --expected-subject "<Betreff>" --preview-digest "<preview_digest-optional>" --yes --resource "<resource-optional>"',
         mode="write",
         writes_external_data=True,
         approval="explicit-user-contact-from-mail-create-only",

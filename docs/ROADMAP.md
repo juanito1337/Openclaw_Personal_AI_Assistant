@@ -1,5 +1,18 @@
 # Roadmap
 
+Die naechsten Schritte fuer die Nextcloud-Einrichtung im bestehenden
+OpenClaw-Plugin, wiederverwendbare Projekte, dauerhafte Agentenrechte pro
+Ressource, kontrollierte Serverfreigaben und spaeteren Mehrbenutzerbetrieb stehen in
+[`NEXTCLOUD_ACCESS_ROADMAP.md`](NEXTCLOUD_ACCESS_ROADMAP.md).
+Der konkrete Funktionsvergleich mit `keithvassallomt/openclaw-nextcloud` und
+die priorisierten Uebernahmepakete stehen in
+[`NEXTCLOUD_REUSE_COMPARISON.md`](NEXTCLOUD_REUSE_COMPARISON.md).
+Die dauerhafte Pflege externer Repositories, Pakete und Container sowie eine
+Updatefunktion im bestehenden OpenClaw-Plugin stehen in
+[`STACK_UPDATE_ROADMAP.md`](STACK_UPDATE_ROADMAP.md). Sie erweitert den
+vorhandenen signierten Build-, Backup- und Rollbackweg und beruecksichtigt
+die Kompatibilitaet mit extern betriebenem Nextcloud und Ollama.
+
 Die aktuelle Gesamtpruefung und schrittweise Verbesserung von Effizienz,
 Werkzeugverwendung und Zuverlaessigkeit steht in
 [`AGENT_IMPROVEMENT_ROADMAP.md`](AGENT_IMPROVEMENT_ROADMAP.md).

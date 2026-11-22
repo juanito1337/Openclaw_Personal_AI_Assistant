@@ -182,6 +182,11 @@ class ToolSettings:
     nextcloud: NextcloudToolSettings = field(default_factory=NextcloudToolSettings)
     security: SecurityToolSettings = field(default_factory=SecurityToolSettings)
     portfolio: PortfolioToolSettings = field(default_factory=PortfolioToolSettings)
+    nextcloud_access_revision: str = ""
+    nextcloud_access_mode: str = "legacy"
+    nextcloud_access_managed: bool = False
+    nextcloud_files_list_effective: bool = False
+    nextcloud_files_list_recheck: bool = False
 
 
 def _section(data: dict[str, Any], name: str) -> dict[str, Any]:
@@ -633,7 +638,9 @@ def load_tool_settings(
         security=SecurityToolSettings(antivirus=antivirus),
         portfolio=portfolio,
     )
-    from .nextcloud_connection import apply_tool_connection, load_connection
+    from .nextcloud_connection import apply_tool_connection, load_access_snapshot
 
-    connection = load_connection()
-    return apply_tool_connection(result, connection) if connection else result
+    snapshot = load_access_snapshot()
+    if snapshot.connection or snapshot.mode != "legacy":
+        return apply_tool_connection(result, snapshot)
+    return replace(result, nextcloud_access_managed=True) if snapshot.managed else result

@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
@@ -189,12 +190,29 @@ def _event_from_ics(text: str, default_timezone: str) -> _IcsEvent | None:
     )
 
 
-def _canonical_digest(value: Any) -> str:
+def canonical_preview_digest(value: Any) -> str:
     return hashlib.sha256(
         json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode(
             "utf-8"
         )
     ).hexdigest()
+
+
+@contextmanager
+def mail_preview_access(initial, resource_id, component, *operations):
+    from .nextcloud_access import Scope, decide_access
+    from .nextcloud_connection import admit_projection
+
+    with admit_projection(initial) as snapshot:
+        if snapshot is None or snapshot.mode == "legacy":
+            yield None
+            return
+        scope = Scope(resource_id, component)
+        for operation in operations:
+            decision = decide_access(snapshot, scope, operation)
+            if not decision.allowed:
+                raise PermissionError(decision.code)
+        yield {"binding": snapshot.binding.to_dict(), "scope": scope.to_dict()}
 
 
 def _mail_source_hash(message: Any) -> str:
@@ -319,14 +337,14 @@ def _candidate_from_section(
         "start": start,
         "end": end,
     }
-    candidate_id = _canonical_digest(identity)[:24]
+    candidate_id = canonical_preview_digest(identity)[:24]
     digest_payload = {
         **identity,
         "title": title,
         "location": location,
         "description": description,
     }
-    digest = _canonical_digest(digest_payload)
+    digest = canonical_preview_digest(digest_payload)
     return CalendarMailCandidate(
         candidate_id=candidate_id,
         digest=digest,
@@ -378,8 +396,8 @@ def _candidates_from_ics(message: Any, default_timezone: str) -> list[CalendarMa
             "start": event.start,
             "end": end,
         }
-        candidate_id = _canonical_digest(identity)[:24]
-        digest = _canonical_digest(
+        candidate_id = canonical_preview_digest(identity)[:24]
+        digest = canonical_preview_digest(
             {
                 **identity,
                 "title": event.title,
@@ -426,6 +444,7 @@ def build_calendar_mail_preview(
     resource_id: str,
     default_timezone: str,
     duplicate_uids: set[str] | None = None,
+    access: dict | None = None,
 ) -> dict[str, Any]:
     """Build a deterministic read-only preview from one exact, scanned mail."""
 
@@ -459,7 +478,9 @@ def build_calendar_mail_preview(
         "source": source,
         "candidates": [candidate.to_dict() for candidate in candidates],
     }
-    preview_digest = _canonical_digest(preview_core)
+    if access is not None:
+        preview_core["access"] = access
+    preview_digest = canonical_preview_digest(preview_core)
     ready = bool(candidates) and all(candidate.complete for candidate in candidates)
     return {
         "ok": True,

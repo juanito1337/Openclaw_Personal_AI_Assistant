@@ -26,6 +26,8 @@ from datetime import UTC, datetime
 from typing import Any
 from xml.etree import ElementTree as ET
 
+from .nextcloud_access import MAX_RIGHTS_AGE_SECONDS
+
 DAV = "DAV:"
 CALDAV = "urn:ietf:params:xml:ns:caldav"
 CARDDAV = "urn:ietf:params:xml:ns:carddav"
@@ -35,6 +37,7 @@ LOGIN_LIFETIME_SECONDS = 20 * 60
 MAX_COLLECTION_READ_CHECKS = 32
 COLLECTION_READ_BUDGET_SECONDS = 15.0
 COLLECTION_READ_TIMEOUT_SECONDS = 3.0
+_DAV_SUCCESS = re.compile(r"HTTP/\d(?:\.\d)? 200(?: .*)?")
 _PRIVATE_NETWORKS = tuple(
     ipaddress.ip_network(value) for value in ("10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "fc00::/7")
 )
@@ -247,6 +250,7 @@ class SafeNextcloudTransport:
         headers: Mapping[str, str] | None = None,
         data: bytes | None = None,
         timeout_seconds: float | None = None,
+        follow_redirects: bool = True,
     ) -> HttpResponse:
         if method not in {"GET", "HEAD", "POST", "PROPFIND", "REPORT", "PUT", "MKCOL", "MOVE"}:
             raise OnboardingError("method-not-allowed", "Requestmethode ist nicht erlaubt")
@@ -321,6 +325,8 @@ class SafeNextcloudTransport:
                     connection.close()
             if response.status not in {301, 302, 303, 307, 308}:
                 return response
+            if not follow_redirects:
+                raise OnboardingError("redirect-blocked", "Weiterleitung fuer Fachzugriff gesperrt")
             if redirect == 3:
                 raise OnboardingError("redirect-limit", "Zu viele Nextcloud-Weiterleitungen")
             if method != "GET" and response.status not in {307, 308}:
@@ -544,19 +550,46 @@ def _propfind(
         raise OnboardingError("invalid-dav", "Nextcloud lieferte keinen DAV-Multistatus")
     items: list[_DavItem] = []
     for child in multistatus.findall(_q(DAV, "response")):
-        raw_href = child.findtext(_q(DAV, "href")) or ""
+        hrefs = child.findall(_q(DAV, "href"))
+        if len(hrefs) != 1 or not hrefs[0].text:
+            raise OnboardingError("ambiguous-dav", "DAV-Identitaet ist nicht eindeutig")
+        raw_href = hrefs[0].text
         absolute = transport.resolve_url(raw_href)
         parsed = urllib.parse.urlsplit(absolute)
         if parsed.query:
             raise OnboardingError("invalid-dav", "DAV-Ressource enthaelt einen unerwarteten Query")
+        response_statuses = child.findall(_q(DAV, "status"))
+        if len(response_statuses) > 1:
+            raise OnboardingError("ambiguous-dav", "Nextcloud lieferte mehrere DAV-Ressourcenstatus")
+        status = ""
+        if response_statuses:
+            status_node = response_statuses[0]
+            if len(status_node) or not status_node.text:
+                raise OnboardingError(
+                    "invalid-dav", "Nextcloud lieferte einen ungueltigen DAV-Ressourcenstatus"
+                )
+            status = status_node.text
         values: dict[str, ET.Element] = {}
+        seen_properties: set[str] = set()
         for propstat in child.findall(_q(DAV, "propstat")):
-            if " 200 " not in (propstat.findtext(_q(DAV, "status")) or ""):
-                continue
-            property_node = propstat.find(_q(DAV, "prop"))
-            if property_node is not None:
-                values.update({item.tag: item for item in property_node})
-        items.append(_DavItem(parsed.path, values, child.findtext(_q(DAV, "status")) or ""))
+            statuses = propstat.findall(_q(DAV, "status"))
+            prop_nodes = propstat.findall(_q(DAV, "prop"))
+            if len(statuses) > 1 or len(prop_nodes) > 1:
+                raise OnboardingError(
+                    "ambiguous-dav", "Nextcloud lieferte einen mehrdeutigen DAV-Eigenschaftsstatus"
+                )
+            if not statuses or not prop_nodes or len(statuses[0]):
+                raise OnboardingError(
+                    "invalid-dav", "Nextcloud lieferte einen ungueltigen DAV-Eigenschaftsstatus"
+                )
+            success = _DAV_SUCCESS.fullmatch(statuses[0].text or "") is not None
+            for item in prop_nodes[0]:
+                if item.tag in seen_properties:
+                    raise OnboardingError("ambiguous-dav", "Nextcloud lieferte doppelte DAV-Eigenschaften")
+                seen_properties.add(item.tag)
+                if success:
+                    values[item.tag] = item
+        items.append(_DavItem(parsed.path, values, status))
     if len({item.href.rstrip("/") for item in items}) != len(items):
         raise OnboardingError("ambiguous-dav", "Nextcloud lieferte doppelte DAV-Ressourcen")
     return items
@@ -629,7 +662,7 @@ def _read_check(status: str, code: str = "", *, scope: str = "collection-metadat
 
 
 def _check_item_status(item: _DavItem) -> None:
-    if item.status and not re.fullmatch(r"HTTP/\d(?:\.\d)? 200(?: .*)?", item.status):
+    if item.status and not _DAV_SUCCESS.fullmatch(item.status):
         raise OnboardingError("resource-unavailable", "DAV-Ressource konnte nicht gelesen werden")
 
 
@@ -638,11 +671,15 @@ def _check_collection_read(
     resource: dict[str, Any], *, timeout_seconds: float,
 ) -> dict[str, Any]:
     """Read this collection's metadata, without enumerating or downloading objects."""
+    is_calendar = resource["kind"] == "calendar"
+    collection_type = _q(CALDAV, "calendar") if is_calendar else _q(CARDDAV, "addressbook")
+    components_property = _q(CALDAV, "supported-calendar-component-set")
+    properties = [_q(DAV, "resourcetype"), _q(DAV, "current-user-privilege-set")]
+    if is_calendar:
+        properties.append(components_property)
     try:
         items = _propfind(
-            transport, credentials, resource["href"],
-            [_q(DAV, "resourcetype"), _q(DAV, "current-user-privilege-set"),
-             _q(CALDAV, "supported-calendar-component-set")],
+            transport, credentials, resource["href"], properties,
             depth=0, timeout_seconds=timeout_seconds,
         )
         item = _one_item(items, transport, resource["href"])
@@ -650,13 +687,15 @@ def _check_collection_read(
             raise OnboardingError("invalid-dav")
         _check_item_status(item)
         resource_type = item.properties.get(_q(DAV, "resourcetype"))
-        if resource_type is None or resource_type.find(_q(CALDAV, "calendar")) is None:
+        if (resource_type is None or resource_type.find(_q(DAV, "collection")) is None
+                or resource_type.find(collection_type) is None):
             raise OnboardingError("resource-type-unavailable")
-        components = item.properties.get(_q(CALDAV, "supported-calendar-component-set"))
-        names = {node.get("name", "").upper() for node in components
-                 if node.tag == _q(CALDAV, "comp")} if components is not None else set()
-        if not names or not set(resource["components"]) <= names:
-            raise OnboardingError("components-unavailable")
+        if is_calendar:
+            components = item.properties.get(components_property)
+            names = {node.get("name", "").upper() for node in components
+                     if node.tag == _q(CALDAV, "comp")} if components is not None else set()
+            if not names or not set(resource["components"]) <= names:
+                raise OnboardingError("components-unavailable")
         rights = _privileges(item)
         if not resource["privileges_verified"] or not rights["privileges_verified"]:
             raise OnboardingError("privileges-unavailable")
@@ -664,7 +703,100 @@ def _check_collection_read(
             raise OnboardingError("read-permission-missing")
     except OnboardingError as exc:
         return _read_check("failed", exc.code)
-    return _read_check("ok")
+    return {
+        **_read_check("ok"),
+        "permissions": [
+            permission for permission in rights["permissions"] if permission in resource["permissions"]
+        ],
+    }
+
+
+def _previous_checks(snapshot, previous, domains):
+    identity = ("server_url", "user_id", "account_id", "principal_href")
+    if not previous or any(not snapshot.get(k) or snapshot[k] != previous.get(k) for k in identity):
+        return {}
+    rows: dict[tuple[str, str], dict | None] = {}
+    for domain in domains:
+        for row in previous.get(domain, ()):
+            if not isinstance(row, dict) or not all(isinstance(row.get(k), str) for k in ("kind", "href")):
+                continue
+            key = (row["kind"], row["href"])
+            # Shared calendar/task listings must describe the very same observation.
+            if key not in rows:
+                rows[key] = row
+            elif rows[key] != row:
+                rows[key] = None
+    return rows
+
+
+def _check_collections(transport, credentials, snapshot, previous, domains, started):
+    prior = _previous_checks(snapshot, previous, domains)
+    current: dict[tuple[str, str], list[dict]] = {}
+    for domain in domains:
+        for row in snapshot[domain]:
+            current.setdefault((row["kind"], row["href"]), []).append(row)
+
+    reusable = {}
+    evidence_fields = ("kind", "href", "resource_id", "remote_id", "components", "privileges_verified",
+                       "privileges", "permissions", "can_read", "can_create", "can_update")
+    for key, listings in current.items():
+        old = prior.get(key)
+        if not old or any(old.get(k) != listings[0].get(k) for k in evidence_fields):
+            continue
+        check = old.get("read_check")
+        if (
+            not isinstance(check, dict)
+            or check.get("status") not in {"ok", "failed"}
+            or check.get("scope") != "collection-metadata"
+            or check.get("content_checked") is not False
+        ):
+            continue
+        if check["status"] == "ok":
+            rights = check.get("permissions")
+            if (
+                old.get("privileges_verified") is not True or old.get("can_read") is not True
+                or not isinstance(rights, list) or "read" not in rights
+                or any(right not in old.get("permissions", ()) for right in rights)
+            ):
+                continue
+        try:
+            measured = datetime.fromisoformat(old["checked_at"])
+            age = (started - measured).total_seconds()
+        except (KeyError, ValueError, TypeError, OverflowError):
+            continue
+        if 0 <= age < MAX_RIGHTS_AGE_SECONDS:
+            reusable[key] = (measured, old["checked_at"], check)
+
+    # Unmeasured, changed and expired rows first. Each failed own probe also
+    # receives an attempt time so a failing prefix cannot monopolize the budget.
+    never_checked = datetime.min.replace(tzinfo=UTC)
+    ordered = sorted(current, key=lambda key: reusable[key][0] if key in reusable else never_checked)
+    deadline = time.monotonic() + COLLECTION_READ_BUDGET_SECONDS
+    oldest = started
+    for index, key in enumerate(ordered):
+        remaining = deadline - time.monotonic()
+        if index < MAX_COLLECTION_READ_CHECKS and remaining > 0:
+            source = "probed"
+            stamp = datetime.now(UTC).isoformat()
+            check = _check_collection_read(
+                transport, credentials, current[key][0],
+                timeout_seconds=min(COLLECTION_READ_TIMEOUT_SECONDS, remaining),
+            )
+        elif (
+            key in reusable
+            and (datetime.now(UTC) - reusable[key][0]).total_seconds() < MAX_RIGHTS_AGE_SECONDS
+        ):
+            source = "retained"
+            measured, stamp, check = reusable[key]
+            oldest = min(oldest, measured)
+        else:
+            code = "read-check-limit" if index >= MAX_COLLECTION_READ_CHECKS else "read-check-budget"
+            snapshot["limitations"].append(code)
+            source, stamp, check = "skipped", None, _read_check("skipped", code)
+        for row in current[key]:
+            row.update(checked_at=stamp, read_check=check, read_check_source=source)
+    if oldest < started:
+        snapshot["oldest_collection_check_at"] = oldest.isoformat()
 
 
 def _collection_diagnostic(
@@ -682,6 +814,8 @@ def _collection_diagnostic(
     return {
         "status": status, "inventory_complete": inventory_complete, "discovered": discovered,
         "checked": checked, "readable": readable, "failed": failed, "skipped": skipped,
+        "probed": sum(item.get("read_check_source") == "probed" for item in resources),
+        "retained": sum(item.get("read_check_source") == "retained" for item in resources),
         "checks_complete": inventory_complete and skipped == 0,
         "content_checked": False, "scope": "collection-metadata", "errors": errors,
         "limitations": sorted(set(limitations)),
@@ -699,16 +833,38 @@ def _talk_diagnostic(status: str, code: str = "") -> dict[str, Any]:
     }
 
 
-def _user_failure_diagnostics(code: str) -> dict[str, Any]:
+def user_failure_diagnostics(code: str) -> dict[str, Any]:
     downstream = _collection_diagnostic(
         [], inventory_complete=False, discovered=0, errors=[], limitations=["user-unavailable"]
     )
     downstream["status"] = "skipped"
     talk = _talk_diagnostic("skipped", "user-unavailable")
     talk["limitations"] = ["user-unavailable"]
+    if code in {
+        "authentication-failed",
+        "permission-denied",
+        "not-found",
+        "rate-limited",
+        "upstream-error",
+        "invalid-json",
+        "ocs-error",
+        "invalid-user-id",
+        "account-changed",
+        "response-limit",
+        "unsupported-encoding",
+    }:
+        availability = {"status": "ok", "code": ""}
+    elif code in {"transport-error", "request-timeout", "dns-failed", "dns-changed", "tls-error"}:
+        availability = {"status": "failed", "code": code}
+    else:
+        availability = {"status": "skipped", "code": code}
     return {
-        "schema_version": 1, "user": {"status": "failed", "loaded": False, "code": code},
-        "calendars": dict(downstream), "task_lists": dict(downstream), "talk": talk,
+        "schema_version": 1, "availability": availability,
+        "user": {"status": "failed", "loaded": False, "code": code},
+        "calendars": dict(downstream),
+        "task_lists": dict(downstream),
+        "addressbooks": dict(downstream),
+        "talk": talk,
         "files": {"status": "skipped", "inventory_complete": False, "scope": "first-level",
                   "depth": 1, "root_readable": False, "discovered": 0, "content_checked": False,
                   "recursive": False, "errors": [], "limitations": ["user-unavailable"]},
@@ -772,29 +928,26 @@ def discover_folders(
             continue
         folder = _resource(item, "file-root" if item is own and not clean else "folder")
         permission_element = item.properties.get(_q(OC, "permissions"))
-        if permission_element is not None:
-            flags = _text(item, OC, "permissions")
-            folder.update(
-                {
-                    "can_read": "G" in flags,
-                    "can_create": "C" in flags or "K" in flags,
-                    "can_create_file": "C" in flags,
-                    "can_mkdir": "K" in flags,
-                    "can_update": "W" in flags,
-                    "privileges_verified": True,
-                    "file_permissions": flags,
-                    "permissions": [
-                        permission
-                        for permission, allowed in (
-                            ("read", "G" in flags),
-                            ("create", bool(set(flags) & {"C", "K"})),
-                            ("update", "W" in flags),
-                        )
-                        if allowed
-                    ],
-                }
-            )
-        folder["file_id"] = _text(item, OC, "fileid")
+        flags = _text(item, OC, "permissions")
+        verified = (
+            permission_element is not None
+            and len(permission_element) == 0
+            and re.fullmatch(r"[A-Z]{0,64}", flags) is not None
+        )
+        rights = set(flags) if verified else set()
+        can_read, can_create_file, can_mkdir, can_update = (flag in rights for flag in "GCKW")
+        folder.update(
+            can_read=can_read, can_create=can_create_file or can_mkdir, can_update=can_update,
+            can_create_file=can_create_file if verified else None, can_mkdir=can_mkdir if verified else None,
+            privileges_verified=verified, file_permissions=flags if verified else None,
+            permissions=[permission for permission, allowed in (
+                ("read", can_read), ("create", can_create_file or can_mkdir), ("update", can_update),
+            ) if allowed],
+        )
+        fileid_element = item.properties.get(_q(OC, "fileid"))
+        file_id = _text(item, OC, "fileid")
+        folder["file_id"] = (file_id if fileid_element is not None and len(fileid_element) == 0
+                             and re.fullmatch(r"[1-9][0-9]{0,31}", file_id) else "")
         folder["path"] = urllib.parse.unquote(item.href[len(root_path) :].strip("/"))
         folder["read_check"] = _read_check("skipped", "folder-not-opened", scope="first-level")
         folders.append(folder)
@@ -805,13 +958,21 @@ def discover_folders(
     inventory_complete = not truncated and not errors
     selected = folders[0]
     code = ("privileges-unavailable" if not selected["privileges_verified"] else
-            "read-permission-missing" if not selected["can_read"] else "")
+            "read-permission-missing" if not selected["can_read"] else
+            "file-id-unavailable" if not selected["file_id"] else "")
     selected["read_check"] = _read_check("failed" if code else "ok", code, scope="first-level")
     if code:
         errors.append({"domain": "files", "code": code, "resource_id": selected["resource_id"]})
     return {
         "path": clean,
         "folders": folders[:max_resources],
+        "checked_at": datetime.now(UTC).isoformat(),
+        "selected_folder": {
+            "path": selected["path"], "file_id": selected["file_id"] or None, "href": selected["href"],
+            "can_read": selected["can_read"] if selected["privileges_verified"] else None,
+            "can_create_file": selected["can_create_file"], "can_mkdir": selected["can_mkdir"],
+            "read_check": selected["read_check"],
+        },
         "depth": 1,
         "inventory_complete": inventory_complete,
         "discovered": len(folders),
@@ -827,6 +988,7 @@ def discover_account(
     credentials: NextcloudCredentials,
     *,
     max_resources: int = 1000,
+    previous_snapshot: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Discover all account collections and a bounded first folder level.
 
@@ -834,6 +996,7 @@ def discover_account(
     never become writable/readable rights merely because PROPFIND succeeded.
     """
     _resource_limit(max_resources)
+    checked_at = datetime.now(UTC).isoformat()
     try:
         user = _ocs(transport, credentials, "ocs/v1.php/cloud/user")
         uid = user.get("id") if isinstance(user, dict) else None
@@ -842,7 +1005,7 @@ def discover_account(
         if credentials.user_id and credentials.user_id != uid:
             raise OnboardingError("account-changed", "Nextcloud-Konto hat sich geaendert")
     except OnboardingError as exc:
-        exc.diagnostics = _user_failure_diagnostics(exc.code)
+        exc.diagnostics = user_failure_diagnostics(exc.code)
         raise
     credentials = replace(credentials, user_id=uid)
     snapshot: dict[str, Any] = {
@@ -865,7 +1028,8 @@ def discover_account(
         "complete": True,
         "errors": [],
         "limitations": [],
-        "diagnostics": {"schema_version": 1, "user": {"status": "ok", "loaded": True, "code": ""}},
+        "diagnostics": {"schema_version": 1, "availability": {"status": "ok", "code": ""},
+                        "user": {"status": "ok", "loaded": True, "code": ""}},
     }
 
     def failed(domain: str, exc: OnboardingError) -> None:
@@ -1070,7 +1234,8 @@ def discover_account(
             talk.update(status="unsupported", code="talk-reference-id-required")
         else:
             talk["status"] = "ok" if talk["discovered"] else "empty"
-    discovered_counts = {key: len(snapshot[key]) for key in ("calendars", "task_lists")}
+    collection_domains = {"calendars": "caldav", "task_lists": "caldav", "addressbooks": "contacts"}
+    discovered_counts = {key: len(snapshot[key]) for key in collection_domains}
     for key in ("caldav_collections", "calendars", "task_lists", "addressbooks", "folders", "talk_rooms"):
         snapshot[key].sort(key=lambda item: (item["name"].casefold(), item["resource_id"]))
         if len(snapshot[key]) > max_resources:
@@ -1083,31 +1248,15 @@ def discover_account(
                     talk["code"] = "talk_rooms:resource-limit"
     inventory_limitations = list(snapshot["limitations"])
     inventory_errors = list(snapshot["errors"])
-    checks: dict[str, dict[str, Any]] = {}
-    # A scheduling budget plus cancellable connected requests. OS DNS lookup
-    # itself is not interruptible by stdlib; its elapsed time consumes this budget.
-    deadline = time.monotonic() + COLLECTION_READ_BUDGET_SECONDS
-    attempted = 0
-    for resource in snapshot["calendars"] + snapshot["task_lists"]:
-        if resource["resource_id"] in checks:
-            resource["read_check"] = checks[resource["resource_id"]]
-            continue
-        remaining = deadline - time.monotonic()
-        if attempted >= MAX_COLLECTION_READ_CHECKS or remaining <= 0:
-            code = "read-check-limit" if attempted >= MAX_COLLECTION_READ_CHECKS else "read-check-budget"
-            check = _read_check("skipped", code)
-            snapshot["limitations"].append(code)
-        else:
-            attempted += 1
-            check = _check_collection_read(
-                transport, credentials, resource,
-                timeout_seconds=min(COLLECTION_READ_TIMEOUT_SECONDS, remaining),
-            )
-        checks[resource["resource_id"]] = check
-        resource["read_check"] = check
-    for key in ("calendars", "task_lists"):
-        domain_errors = [dict(error) for error in inventory_errors if error["domain"] in {"dav", "caldav"}]
-        domain_limits = [value for value in inventory_limitations if value.startswith(("caldav:", key + ":"))]
+    _check_collections(
+        transport, credentials, snapshot, previous_snapshot, collection_domains,
+        datetime.fromisoformat(checked_at),
+    )
+    for key, domain in collection_domains.items():
+        domain_errors = [dict(error) for error in inventory_errors if error["domain"] in {"dav", domain}]
+        domain_limits = [
+            value for value in inventory_limitations if value.startswith((domain + ":", key + ":"))
+        ]
         inventory_complete = not domain_errors and not domain_limits
         for resource in snapshot[key]:
             check = resource["read_check"]
@@ -1124,5 +1273,6 @@ def discover_account(
     snapshot["limitations"] = sorted(set(snapshot["limitations"]))
     snapshot["complete"] = not snapshot["errors"] and not snapshot["limitations"]
     snapshot["results_may_be_truncated"] = bool(inventory_limitations)
-    snapshot["checked_at"] = datetime.now(UTC).isoformat()
+    # The window starts with the oldest check in this measurement.
+    snapshot["checked_at"] = checked_at
     return snapshot

@@ -1,0 +1,2267 @@
+{
+  "components": [
+    {
+      "deployment_scope": "build",
+      "id": "action:actions/checkout",
+      "kind": "github-action",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "commit": "fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://github.com/actions/checkout",
+      "source_files": [
+        ".github/workflows/ci.yml",
+        ".github/workflows/container.yml",
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ],
+      "update_source": "https://github.com/actions/checkout/releases"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "action:actions/setup-python",
+      "kind": "github-action",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "commit": "ece7cb06caefa5fff74198d8649806c4678c61a1"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://github.com/actions/setup-python",
+      "source_files": [
+        ".github/workflows/ci.yml",
+        ".github/workflows/container.yml",
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ],
+      "update_source": "https://github.com/actions/setup-python/releases"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "action:actions/upload-artifact",
+      "kind": "github-action",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "commit": "ea165f8d65b6e75b540449e92b4886f43607fa02"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://github.com/actions/upload-artifact",
+      "source_files": [
+        ".github/workflows/ci.yml",
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ],
+      "update_source": "https://github.com/actions/upload-artifact/releases"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "action:docker/build-push-action",
+      "kind": "github-action",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "commit": "10e90e3645eae34f1e60eeb005ba3a3d33f178e8"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://github.com/docker/build-push-action",
+      "source_files": [
+        ".github/workflows/container.yml",
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ],
+      "update_source": "https://github.com/docker/build-push-action/releases"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "action:docker/login-action",
+      "kind": "github-action",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "commit": "c94ce9fb468520275223c153574b00df6fe4bcc9"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://github.com/docker/login-action",
+      "source_files": [
+        ".github/workflows/container.yml",
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ],
+      "update_source": "https://github.com/docker/login-action/releases"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "action:docker/metadata-action",
+      "kind": "github-action",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "commit": "c299e40c65443455700f0fdfc63efafe5b349051"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://github.com/docker/metadata-action",
+      "source_files": [
+        ".github/workflows/container.yml",
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ],
+      "update_source": "https://github.com/docker/metadata-action/releases"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "action:docker/setup-buildx-action",
+      "kind": "github-action",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "commit": "8d2750c68a42422c14e847fe6c8ac0403b4cbd6f"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://github.com/docker/setup-buildx-action",
+      "source_files": [
+        ".github/workflows/ci.yml",
+        ".github/workflows/container.yml",
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ],
+      "update_source": "https://github.com/docker/setup-buildx-action/releases"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "action:sigstore/cosign-installer",
+      "kind": "github-action",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "commit": "398d4b0eeef1380460a10c8013a76f728fb906ac"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://github.com/sigstore/cosign-installer",
+      "source_files": [
+        ".github/workflows/container.yml",
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ],
+      "update_source": "https://github.com/sigstore/cosign-installer/releases"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "alpine:bash",
+      "kind": "alpine-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "stages": [
+          "maintenance-runtime",
+          "proxy-runtime",
+          "runtime"
+        ],
+        "version": "5.2.37-r0"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pkgs.alpinelinux.org/packages",
+      "source_files": [
+        "Dockerfile"
+      ],
+      "tests": [],
+      "update_source": "https://alpinelinux.org/releases/"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "alpine:ca-certificates",
+      "kind": "alpine-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "stages": [
+          "maintenance-runtime",
+          "proxy-runtime",
+          "runtime"
+        ],
+        "version": "20261020-r0"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pkgs.alpinelinux.org/packages",
+      "source_files": [
+        "Dockerfile",
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ],
+      "update_source": "https://alpinelinux.org/releases/"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "alpine:clamav",
+      "kind": "alpine-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "stages": [
+          "maintenance-runtime",
+          "runtime"
+        ],
+        "version": "1.4.3-r0"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pkgs.alpinelinux.org/packages",
+      "source_files": [
+        "Dockerfile"
+      ],
+      "tests": [
+        "tests/test_clamd_compose_m14.py",
+        "tests/test_clamd_socket_m14.py"
+      ],
+      "update_source": "https://alpinelinux.org/releases/"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "alpine:curl",
+      "kind": "alpine-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "stages": [
+          "proxy-runtime",
+          "runtime"
+        ],
+        "version": "8.14.1-r4"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pkgs.alpinelinux.org/packages",
+      "source_files": [
+        "Dockerfile",
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ],
+      "update_source": "https://alpinelinux.org/releases/"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "alpine:freshclam",
+      "kind": "alpine-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "stages": [
+          "maintenance-runtime",
+          "runtime"
+        ],
+        "version": "1.4.3-r0"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pkgs.alpinelinux.org/packages",
+      "source_files": [
+        "Dockerfile"
+      ],
+      "tests": [
+        "tests/test_clamd_compose_m14.py"
+      ],
+      "update_source": "https://alpinelinux.org/releases/"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "alpine:jq",
+      "kind": "alpine-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "stages": [
+          "runtime"
+        ],
+        "version": "1.8.2-r0"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pkgs.alpinelinux.org/packages",
+      "source_files": [
+        "Dockerfile"
+      ],
+      "tests": [],
+      "update_source": "https://alpinelinux.org/releases/"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "alpine:poppler-utils",
+      "kind": "alpine-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "stages": [
+          "runtime"
+        ],
+        "version": "25.04.0-r0"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pkgs.alpinelinux.org/packages",
+      "source_files": [
+        "Dockerfile"
+      ],
+      "tests": [],
+      "update_source": "https://alpinelinux.org/releases/"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "alpine:procps-ng",
+      "kind": "alpine-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "stages": [
+          "runtime"
+        ],
+        "version": "4.0.4-r3"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pkgs.alpinelinux.org/packages",
+      "source_files": [
+        "Dockerfile"
+      ],
+      "tests": [],
+      "update_source": "https://alpinelinux.org/releases/"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "alpine:python3",
+      "kind": "alpine-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "stages": [
+          "runtime"
+        ],
+        "version": "3.12.16-r0"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pkgs.alpinelinux.org/packages",
+      "source_files": [
+        "Dockerfile",
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ],
+      "update_source": "https://alpinelinux.org/releases/"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "alpine:rsync",
+      "kind": "alpine-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "stages": [
+          "runtime"
+        ],
+        "version": "3.5.2-r1"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pkgs.alpinelinux.org/packages",
+      "source_files": [
+        "Dockerfile"
+      ],
+      "tests": [],
+      "update_source": "https://alpinelinux.org/releases/"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "alpine:sqlite",
+      "kind": "alpine-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "stages": [
+          "runtime"
+        ],
+        "version": "3.49.2-r1"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pkgs.alpinelinux.org/packages",
+      "source_files": [
+        "Dockerfile"
+      ],
+      "tests": [],
+      "update_source": "https://alpinelinux.org/releases/"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "alpine:tesseract-ocr",
+      "kind": "alpine-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "stages": [
+          "runtime"
+        ],
+        "version": "5.5.0-r2"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pkgs.alpinelinux.org/packages",
+      "source_files": [
+        "Dockerfile"
+      ],
+      "tests": [],
+      "update_source": "https://alpinelinux.org/releases/"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "alpine:tesseract-ocr-data-deu",
+      "kind": "alpine-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "stages": [
+          "runtime"
+        ],
+        "version": "5.5.0-r2"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pkgs.alpinelinux.org/packages",
+      "source_files": [
+        "Dockerfile"
+      ],
+      "tests": [],
+      "update_source": "https://alpinelinux.org/releases/"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "alpine:tesseract-ocr-data-eng",
+      "kind": "alpine-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "stages": [
+          "runtime"
+        ],
+        "version": "5.5.0-r2"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pkgs.alpinelinux.org/packages",
+      "source_files": [
+        "Dockerfile"
+      ],
+      "tests": [],
+      "update_source": "https://alpinelinux.org/releases/"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "alpine:tini",
+      "kind": "alpine-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "stages": [
+          "maintenance-runtime",
+          "proxy-runtime",
+          "runtime"
+        ],
+        "version": "0.19.0-r3"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pkgs.alpinelinux.org/packages",
+      "source_files": [
+        "Dockerfile"
+      ],
+      "tests": [],
+      "update_source": "https://alpinelinux.org/releases/"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "alpine:tzdata",
+      "kind": "alpine-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "stages": [
+          "runtime"
+        ],
+        "version": "2026f-r0"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pkgs.alpinelinux.org/packages",
+      "source_files": [
+        "Dockerfile"
+      ],
+      "tests": [],
+      "update_source": "https://alpinelinux.org/releases/"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "alpine:zstd",
+      "kind": "alpine-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "stages": [
+          "runtime"
+        ],
+        "version": "1.5.7-r0"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pkgs.alpinelinux.org/packages",
+      "source_files": [
+        "Dockerfile"
+      ],
+      "tests": [],
+      "update_source": "https://alpinelinux.org/releases/"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "binary:hadolint",
+      "kind": "binary",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "sha256_by_arch": {
+          "arm64": "f6198ef8090f404dbb771abfee086eb8c48ac177f30da7fd3510aca35b344b5d",
+          "x86_64": "c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507"
+        },
+        "version": "2.15.1"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://github.com/hadolint/hadolint",
+      "source_files": [
+        "scripts/bootstrap-dev.sh"
+      ],
+      "tests": [],
+      "update_source": "https://github.com/hadolint/hadolint/releases"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "binary:himalaya",
+      "kind": "binary",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [
+        "Installiert die geprüfte amd64-Binärdatei hinter dem lokalen Aufruf-Guard."
+      ],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "archive_sha256": "e04e6382e3e664ef34b01afa1a2216113194a2975d2859727647b22d9b36d4e4",
+        "sha256_linux_amd64": "9529d2584add1c4343f32524e6f985e7c98d491f3b854747318020eb1ec1df7f",
+        "version": "1.2.0"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://github.com/pimalaya/himalaya/releases/download/v1.2.0/himalaya.x86_64-linux.tgz",
+      "source_files": [
+        "Dockerfile",
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ],
+      "update_source": "https://github.com/pimalaya/himalaya/releases"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "binary:shellcheck",
+      "kind": "binary",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "sha256_by_arch": {
+          "aarch64": "12b331c1d2db6b9eb13cfca64306b1b157a86eb69db83023e261eaa7e7c14588",
+          "x86_64": "8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198"
+        },
+        "version": "0.11.0"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://github.com/koalaman/shellcheck",
+      "source_files": [
+        "scripts/bootstrap-dev.sh"
+      ],
+      "tests": [],
+      "update_source": "https://github.com/koalaman/shellcheck/releases"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "build:dockerfile-frontend",
+      "kind": "build-tool",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "reference": "docker/dockerfile:1.7"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://hub.docker.com/r/docker/dockerfile",
+      "source_files": [
+        "Dockerfile"
+      ],
+      "tests": [],
+      "update_source": "https://github.com/moby/buildkit/releases"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "build:npm",
+      "kind": "build-tool",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "resolution": "manifest-declaration",
+        "version": "11.13.0"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://github.com/npm/cli",
+      "source_files": [
+        "docker/openclaw-plugins/package.json"
+      ],
+      "tests": [],
+      "update_source": "https://github.com/npm/cli/releases"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "build:workflow-python",
+      "kind": "build-tool",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "resolution": "version-selector",
+        "selectors": [
+          "3.11",
+          "3.12",
+          "3.13"
+        ]
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://www.python.org/",
+      "source_files": [
+        ".github/workflows/ci.yml",
+        ".github/workflows/container.yml"
+      ],
+      "tests": [],
+      "update_source": "https://www.python.org/downloads/"
+    },
+    {
+      "deployment_scope": "external",
+      "id": "external:clamav-signatures",
+      "kind": "signature-feed",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Operations Maintainers",
+      "pin": null,
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://docs.clamav.net/manual/Usage/SignatureManagement.html",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ],
+      "tests": [
+        "tests/test_clamd_socket_m14.py"
+      ],
+      "update_source": "https://docs.clamav.net/manual/Usage/Configuration.html"
+    },
+    {
+      "deployment_scope": "external",
+      "id": "external:host-docker-compose",
+      "kind": "host-component",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Host-Betreiber",
+      "pin": null,
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://github.com/docker/compose",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ],
+      "tests": [],
+      "update_source": "https://docs.docker.com/compose/releases/"
+    },
+    {
+      "deployment_scope": "external",
+      "id": "external:host-docker-engine",
+      "kind": "host-component",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Host-Betreiber",
+      "pin": null,
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://github.com/moby/moby",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ],
+      "tests": [],
+      "update_source": "https://docs.docker.com/engine/release-notes/"
+    },
+    {
+      "deployment_scope": "external",
+      "id": "external:host-gpu-driver",
+      "kind": "host-component",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Host-Betreiber",
+      "pin": null,
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://docs.ollama.com/gpu",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ],
+      "tests": [],
+      "update_source": "https://docs.ollama.com/gpu"
+    },
+    {
+      "deployment_scope": "external",
+      "id": "external:host-os",
+      "kind": "host-component",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Host-Betreiber",
+      "pin": null,
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://docs.docker.com/engine/install/",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ],
+      "tests": [],
+      "update_source": "https://docs.docker.com/engine/install/"
+    },
+    {
+      "deployment_scope": "external",
+      "id": "external:nextcloud-calendar",
+      "kind": "service-app",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Nextcloud-Betreiber",
+      "pin": null,
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://github.com/nextcloud/calendar",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ],
+      "tests": [],
+      "update_source": "https://apps.nextcloud.com/apps/calendar"
+    },
+    {
+      "deployment_scope": "external",
+      "id": "external:nextcloud-contacts",
+      "kind": "service-app",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Nextcloud-Betreiber",
+      "pin": null,
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://github.com/nextcloud/contacts",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ],
+      "tests": [],
+      "update_source": "https://apps.nextcloud.com/apps/contacts"
+    },
+    {
+      "deployment_scope": "external",
+      "id": "external:nextcloud-dav",
+      "kind": "service-app",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Nextcloud-Betreiber",
+      "pin": null,
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://github.com/nextcloud/server/tree/master/apps/dav",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ],
+      "tests": [],
+      "update_source": "https://docs.nextcloud.com/server/stable/admin_manual/maintenance/upgrade.html"
+    },
+    {
+      "deployment_scope": "external",
+      "id": "external:nextcloud-deck",
+      "kind": "service-app",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Nextcloud-Betreiber",
+      "pin": null,
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://github.com/nextcloud/deck",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ],
+      "tests": [],
+      "update_source": "https://apps.nextcloud.com/apps/deck"
+    },
+    {
+      "deployment_scope": "external",
+      "id": "external:nextcloud-files",
+      "kind": "service-app",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Nextcloud-Betreiber",
+      "pin": null,
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://github.com/nextcloud/server/tree/master/apps/files",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ],
+      "tests": [],
+      "update_source": "https://docs.nextcloud.com/server/stable/admin_manual/maintenance/upgrade.html"
+    },
+    {
+      "deployment_scope": "external",
+      "id": "external:nextcloud-notes",
+      "kind": "service-app",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Nextcloud-Betreiber",
+      "pin": null,
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://github.com/nextcloud/notes",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ],
+      "tests": [],
+      "update_source": "https://apps.nextcloud.com/apps/notes"
+    },
+    {
+      "deployment_scope": "external",
+      "id": "external:nextcloud-server",
+      "kind": "service",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Nextcloud-Betreiber",
+      "pin": null,
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://github.com/nextcloud/server",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ],
+      "tests": [],
+      "update_source": "https://docs.nextcloud.com/server/stable/admin_manual/maintenance/upgrade.html"
+    },
+    {
+      "deployment_scope": "external",
+      "id": "external:nextcloud-talk",
+      "kind": "service-app",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Nextcloud-Betreiber",
+      "pin": null,
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://github.com/nextcloud/spreed",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ],
+      "tests": [],
+      "update_source": "https://apps.nextcloud.com/apps/spreed"
+    },
+    {
+      "deployment_scope": "external",
+      "id": "external:nextcloud-talk-clients",
+      "kind": "client",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Talk-Client-Betreiber",
+      "pin": null,
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://nextcloud.com/talk/",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ],
+      "tests": [],
+      "update_source": "https://nextcloud.com/install/"
+    },
+    {
+      "deployment_scope": "external",
+      "id": "external:nextcloud-tasks",
+      "kind": "service-app",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Nextcloud-Betreiber",
+      "pin": null,
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://github.com/nextcloud/tasks",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ],
+      "tests": [],
+      "update_source": "https://apps.nextcloud.com/apps/tasks"
+    },
+    {
+      "deployment_scope": "external",
+      "id": "external:ollama-models",
+      "kind": "model",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Ollama-Betreiber",
+      "pin": null,
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://ollama.com/library",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ],
+      "tests": [],
+      "update_source": "https://docs.ollama.com/cli"
+    },
+    {
+      "deployment_scope": "external",
+      "id": "external:ollama-server",
+      "kind": "service",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Ollama-Betreiber",
+      "pin": null,
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://github.com/ollama/ollama",
+      "source_files": [
+        "docs/STACK_UPDATE_ROADMAP.md"
+      ],
+      "tests": [],
+      "update_source": "https://github.com/ollama/ollama/releases"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "image:caddy_binary",
+      "kind": "oci-image",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [
+        "Entfernt die Low-Port-Dateifähigkeit der statischen Caddy-Binärdatei für den nicht privilegierten Talk-Proxy."
+      ],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "digest": "sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f",
+        "from_stages": [
+          "caddy-source"
+        ],
+        "reference": "docker.io/library/caddy:2.11.7-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://hub.docker.com/_/caddy",
+      "source_files": [
+        "Dockerfile",
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [
+        "tests/test_m7_supply_chain.py",
+        "tests/test_nextcloud_talk_m17.py"
+      ],
+      "update_source": "https://github.com/caddyserver/caddy/releases"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "image:cosign",
+      "kind": "oci-image",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "digest": "sha256:9e5c2f2edc34351160407ca3416c61855bdf9403c3c5936e0f0be7fc261611b8",
+        "reference": "ghcr.io/sigstore/cosign/cosign:v3.1.3@sha256:9e5c2f2edc34351160407ca3416c61855bdf9403c3c5936e0f0be7fc261611b8"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://github.com/sigstore/cosign/pkgs/container/cosign%2Fcosign",
+      "source_files": [
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ],
+      "update_source": "https://github.com/sigstore/cosign/releases"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "image:node_runtime",
+      "kind": "oci-image",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [
+        "Entfernt Corepack und ersetzt npm-internes tar durch die im Dockerfile geprüfte Kopie aus dem OpenClaw-Baum."
+      ],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "digest": "sha256:191c9f0080fcbbc6547a85dc0ff7988072214a355aabdc1d2ec55a7dae5eea8a",
+        "from_stages": [
+          "himalaya-builder",
+          "openclaw-plugin-builder",
+          "openclaw-security-override-builder",
+          "runtime"
+        ],
+        "reference": "node:24-alpine3.22@sha256:191c9f0080fcbbc6547a85dc0ff7988072214a355aabdc1d2ec55a7dae5eea8a"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://hub.docker.com/_/node",
+      "source_files": [
+        "Dockerfile",
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ],
+      "update_source": "https://github.com/nodejs/docker-node"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "image:openclaw_source",
+      "kind": "oci-image",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [
+        "Entfernt @vitest/browser aus dem übernommenen App-Baum.",
+        "Kopiert den Upstream-App-Baum in das Rollenimage und wendet die separat erfassten npm-Overlays und Control-UI-Patches an."
+      ],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "digest": "sha256:8789721d2e9b24b780a1504b56deb4c6bd5c7dbf96a1dd117e7c45c2ed72c8ac",
+        "embedded_version": "2026.7.1",
+        "from_stages": [
+          "openclaw-source"
+        ],
+        "reference": "ghcr.io/openclaw/openclaw:2026.7.1-2@sha256:8789721d2e9b24b780a1504b56deb4c6bd5c7dbf96a1dd117e7c45c2ed72c8ac"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://github.com/openclaw/openclaw/pkgs/container/openclaw",
+      "source_files": [
+        "Dockerfile",
+        "docker/openclaw-plugins/contract.json",
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ],
+      "update_source": "https://github.com/openclaw/openclaw/releases"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "image:python_runtime",
+      "kind": "oci-image",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "digest": "sha256:a4fc589b32e824f3f02ed9d7e7be19518aa47e105b80416336af9f202275a489",
+        "from_stages": [
+          "maintenance-runtime",
+          "proxy-runtime"
+        ],
+        "reference": "python:3.11-alpine3.22@sha256:a4fc589b32e824f3f02ed9d7e7be19518aa47e105b80416336af9f202275a489"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://hub.docker.com/_/python",
+      "source_files": [
+        "Dockerfile",
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ],
+      "update_source": "https://github.com/docker-library/python"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "image:syft",
+      "kind": "oci-image",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "digest": "sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026",
+        "reference": "ghcr.io/anchore/syft:v1.50.0@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://github.com/anchore/syft/pkgs/container/syft",
+      "source_files": [
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ],
+      "update_source": "https://github.com/anchore/syft/releases"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "image:trivy",
+      "kind": "oci-image",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "digest": "sha256:7cced7cae583819fc7806d4cbc0dbbc7cad18b99f7d3e235192e6da8c091045c",
+        "reference": "aquasec/trivy:0.73.0@sha256:7cced7cae583819fc7806d4cbc0dbbc7cad18b99f7d3e235192e6da8c091045c"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://hub.docker.com/r/aquasec/trivy",
+      "source_files": [
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ],
+      "update_source": "https://github.com/aquasecurity/trivy/releases"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "npm:plugins:node_modules/@openclaw/brave-plugin",
+      "kind": "openclaw-plugin",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Core Maintainers",
+      "pin": {
+        "install_path": "node_modules/@openclaw/brave-plugin",
+        "integrity": "sha512-7Z+GZ/6K6a8LlkTsWVnAZ1hv8EarORzHQvFHD7ekcg033FGJOXYPEZSbvvE3qR9vM+vnoZplNjMZ7vFMRcvQgw==",
+        "runtime_id": "brave",
+        "runtime_path": "/opt/openclaw-plugins/node_modules/@openclaw/brave-plugin",
+        "shasum": "55470c1ca206a37dd919ceec78e7534390d8d97e",
+        "version": "2026.7.1"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://registry.npmjs.org/@openclaw/brave-plugin/-/brave-plugin-2026.7.1.tgz",
+      "source_files": [
+        "Dockerfile",
+        "docker/openclaw-plugins/contract.json",
+        "docker/openclaw-plugins/package-lock.json",
+        "docker/openclaw-plugins/package.json",
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ],
+      "update_source": "https://github.com/openclaw/openclaw/releases"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "npm:plugins:node_modules/@openclaw/nextcloud-talk",
+      "kind": "openclaw-plugin",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Core Maintainers",
+      "pin": {
+        "install_path": "node_modules/@openclaw/nextcloud-talk",
+        "integrity": "sha512-a+ret5WnmxLjEBwU26wl5YicOcDSEY3E34yoakQ8OKlDrwH5jIM2UbKUnq4kkoMJtROw/FF3j/GFA7ISlIXQIA==",
+        "runtime_id": "nextcloud-talk",
+        "runtime_path": "/opt/openclaw-plugins/node_modules/@openclaw/nextcloud-talk",
+        "shasum": "1fc4b4938ae8785d547d9a8d1c222532f2550f4c",
+        "version": "2026.7.1"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://registry.npmjs.org/@openclaw/nextcloud-talk/-/nextcloud-talk-2026.7.1.tgz",
+      "source_files": [
+        "Dockerfile",
+        "docker/openclaw-plugins/contract.json",
+        "docker/openclaw-plugins/package-lock.json",
+        "docker/openclaw-plugins/package.json",
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [
+        "tests/test_m7_supply_chain.py",
+        "tests/test_nextcloud_talk_m17.py"
+      ],
+      "update_source": "https://github.com/openclaw/openclaw/releases"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "npm:plugins:node_modules/@openclaw/nextcloud-talk/node_modules/zod",
+      "kind": "npm-transitive",
+      "license_status": {
+        "evidence": [
+          "docker/openclaw-plugins/package-lock.json"
+        ],
+        "expression": "MIT",
+        "status": "declared"
+      },
+      "local_changes": [],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "in_bundle": true,
+        "install_path": "node_modules/@openclaw/nextcloud-talk/node_modules/zod",
+        "integrity": "sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==",
+        "version": "4.4.3"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://registry.npmjs.org/zod/-/zod-4.4.3.tgz",
+      "source_files": [
+        "Dockerfile",
+        "docker/openclaw-plugins/package-lock.json",
+        "docker/openclaw-plugins/package.json",
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [],
+      "update_source": "https://www.npmjs.com/package/zod"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "npm:plugins:node_modules/@openclaw/signal",
+      "kind": "openclaw-plugin",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Core Maintainers",
+      "pin": {
+        "install_path": "node_modules/@openclaw/signal",
+        "integrity": "sha512-+sx2zNIpcVw4J4AiqtNulzKRId0tBtBclG5RncUlQ45ac4BZDrbQs4C6GkI2KU9Qzbxd+Fxt/ivalmLxcVbbIA==",
+        "runtime_id": "signal",
+        "runtime_path": "/opt/openclaw-plugins/node_modules/@openclaw/signal",
+        "shasum": "505b31f123d1517877456983542427a63b4a8391",
+        "version": "2026.7.1"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://registry.npmjs.org/@openclaw/signal/-/signal-2026.7.1.tgz",
+      "source_files": [
+        "Dockerfile",
+        "docker/openclaw-plugins/contract.json",
+        "docker/openclaw-plugins/package-lock.json",
+        "docker/openclaw-plugins/package.json",
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ],
+      "update_source": "https://github.com/openclaw/openclaw/releases"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "npm:plugins:node_modules/@openclaw/signal/node_modules/ws",
+      "kind": "npm-transitive",
+      "license_status": {
+        "evidence": [
+          "docker/openclaw-plugins/package-lock.json"
+        ],
+        "expression": "MIT",
+        "status": "declared"
+      },
+      "local_changes": [],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "in_bundle": true,
+        "install_path": "node_modules/@openclaw/signal/node_modules/ws",
+        "integrity": "sha512-Vsp28b7DRcimFQvrqu2Wek3z1iYxDCWqHYB8Qsnk/S4RfaCQzPGPyBNuVjJV3cd6UiKtUtp6sNM77gWvzcCH+g==",
+        "version": "8.21.0"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://registry.npmjs.org/ws/-/ws-8.21.0.tgz",
+      "source_files": [
+        "Dockerfile",
+        "docker/openclaw-plugins/package-lock.json",
+        "docker/openclaw-plugins/package.json",
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [],
+      "update_source": "https://www.npmjs.com/package/ws"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "npm:runtime:tar",
+      "kind": "runtime-copy",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [
+        "Ersetzt npm-internes tar durch die Kopie aus dem digestgebundenen OpenClaw-App-Baum. Das Dockerfile prüft die Version im Zielpfad."
+      ],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "version": "7.5.19"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://github.com/isaacs/node-tar",
+      "source_files": [
+        "Dockerfile",
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ],
+      "update_source": "https://www.npmjs.com/package/tar"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "npm:security-overrides:node_modules/@types/trusted-types",
+      "kind": "npm-transitive",
+      "license_status": {
+        "evidence": [
+          "docker/openclaw-security-overrides/package-lock.json"
+        ],
+        "expression": "MIT",
+        "status": "declared"
+      },
+      "local_changes": [],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "install_path": "node_modules/@types/trusted-types",
+        "integrity": "sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==",
+        "optional": true,
+        "version": "2.0.7"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://registry.npmjs.org/@types/trusted-types/-/trusted-types-2.0.7.tgz",
+      "source_files": [
+        "Dockerfile",
+        "docker/openclaw-security-overrides/package-lock.json",
+        "docker/openclaw-security-overrides/package.json",
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [],
+      "update_source": "https://www.npmjs.com/package/@types/trusted-types"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "npm:security-overrides:node_modules/dompurify",
+      "kind": "npm-security-override",
+      "license_status": {
+        "evidence": [
+          "docker/openclaw-security-overrides/package-lock.json"
+        ],
+        "expression": "(MPL-2.0 OR Apache-2.0)",
+        "status": "declared"
+      },
+      "local_changes": [
+        "Überschreibt das Modul im OpenClaw-App-Baum und liefert die Browser-Vendor-Datei für den Control-UI-Patch."
+      ],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "install_path": "node_modules/dompurify",
+        "integrity": "sha512-B/pSlYVHQ58kqISD/yDjuJ1yfzI34m1gF4lAod2bwSRhiN4K5Cl3H8Af7hqB2PmTL911tdEudnnXn5FnhRoz0w==",
+        "reason": "GHSA-cg2g-xh64-v4q7",
+        "shasum": "074bbb24eaa419535ac19ffe7f663104b0e1543d",
+        "version": "3.4.17"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://registry.npmjs.org/dompurify/-/dompurify-3.4.17.tgz",
+      "source_files": [
+        "Dockerfile",
+        "docker/openclaw-security-overrides/package-lock.json",
+        "docker/openclaw-security-overrides/package.json",
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [
+        "tests/test_control_ui_setup_patch.py",
+        "tests/test_m7_supply_chain.py"
+      ],
+      "update_source": "https://github.com/cure53/DOMPurify/releases"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "npm:security-overrides:node_modules/forwarded",
+      "kind": "npm-transitive",
+      "license_status": {
+        "evidence": [
+          "docker/openclaw-security-overrides/package-lock.json"
+        ],
+        "expression": "MIT",
+        "status": "declared"
+      },
+      "local_changes": [
+        "Wird zusammen mit dem proxy-addr-Overlay in den App-Baum kopiert."
+      ],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "install_path": "node_modules/forwarded",
+        "integrity": "sha512-buRG0fpBtRHSTCOASe6hD258tEubFoRLb4ZNA6NxMVHNw2gOcwHo9wyablzMzOA5z9xA9L1KNjk/Nt6MT9aYow==",
+        "version": "0.2.0"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://registry.npmjs.org/forwarded/-/forwarded-0.2.0.tgz",
+      "source_files": [
+        "Dockerfile",
+        "docker/openclaw-security-overrides/package-lock.json",
+        "docker/openclaw-security-overrides/package.json",
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [],
+      "update_source": "https://www.npmjs.com/package/forwarded"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "npm:security-overrides:node_modules/ipaddr.js",
+      "kind": "npm-transitive",
+      "license_status": {
+        "evidence": [
+          "docker/openclaw-security-overrides/package-lock.json"
+        ],
+        "expression": "MIT",
+        "status": "declared"
+      },
+      "local_changes": [
+        "Wird unterhalb des proxy-addr-Overlays kopiert, um die dort benötigte Version aufzulösen."
+      ],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "install_path": "node_modules/ipaddr.js",
+        "integrity": "sha512-0KI/607xoxSToH7GjN1FfSbLoU0+btTicjsQSWQlh/hZykN8KpmMf7uYwPW3R+akZ6R/w18ZlXSHBYXiYUPO3g==",
+        "version": "1.9.1"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://registry.npmjs.org/ipaddr.js/-/ipaddr.js-1.9.1.tgz",
+      "source_files": [
+        "Dockerfile",
+        "docker/openclaw-security-overrides/package-lock.json",
+        "docker/openclaw-security-overrides/package.json",
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [],
+      "update_source": "https://www.npmjs.com/package/ipaddr.js"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "npm:security-overrides:node_modules/proxy-addr",
+      "kind": "npm-security-override",
+      "license_status": {
+        "evidence": [
+          "docker/openclaw-security-overrides/package-lock.json"
+        ],
+        "expression": "MIT",
+        "status": "declared"
+      },
+      "local_changes": [
+        "Überschreibt das Modul im OpenClaw-App-Baum und behält seinen eigenen ipaddr.js-Pfad bei."
+      ],
+      "owner": "Operations Maintainers",
+      "pin": {
+        "install_path": "node_modules/proxy-addr",
+        "integrity": "sha512-5nnx0yGyVUcY6t9RnWcARWtwT9F1D8O9rt08htPvnd49W1IgZtmLkhu9WfMzQj1cFxjHIO6connUNVW5k7AVyQ==",
+        "reason": "CVE-2026-90711",
+        "shasum": "624e760fd8ab06b1b8320c2f8506d4422cf8e932",
+        "version": "2.0.8"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://registry.npmjs.org/proxy-addr/-/proxy-addr-2.0.8.tgz",
+      "source_files": [
+        "Dockerfile",
+        "docker/openclaw-security-overrides/package-lock.json",
+        "docker/openclaw-security-overrides/package.json",
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [
+        "tests/test_m7_supply_chain.py"
+      ],
+      "update_source": "https://www.npmjs.com/package/proxy-addr"
+    },
+    {
+      "deployment_scope": "product",
+      "id": "patch:control-ui",
+      "kind": "local-patch",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [
+        "Pinned first-party setup link and DOMPurify 3.4.17 browser sanitizer; unchanged iframe sandbox and authentication. Updated assets use scoped network-first caching, with no prior-cache fallback for the sanitizer bundle."
+      ],
+      "owner": "Core Maintainers",
+      "pin": {
+        "files": {
+          "assets/markdown-runtime-Y4RdJ3Nc.js": {
+            "patched_sha256": "ce831f0451b26def3fb0bf9fed36bcb6dc5f971f589da9a018e16a862519816e",
+            "upstream_sha256": "2c602bd082495b04ef541b73bbe57c4481ba5ab47fea86ca9e861fb2a71855b2"
+          },
+          "assets/plugin-page-okkFqbN_.js": {
+            "patched_sha256": "ad1cbd34bd5fa12e47b17df2fd91b1e58fbff270181eca3848b0843d2b86f919",
+            "upstream_sha256": "cbe0ee964b24ab50d5a43221635c96b429b73b3279e826e23840c5a02e6b9675"
+          },
+          "sw.js": {
+            "patched_sha256": "6dad855144fe2e21a436df0357f92259acfcb806d4861c2b09f67f44ace3df42",
+            "upstream_sha256": "4558305c64f7b72c127a10caf3aeeebec57f825dbe8d65de7fa920982abe3174"
+          }
+        },
+        "vendor_module": {
+          "path": "assets/dompurify-3.4.17.js",
+          "sha256": "60c5d5ccbb466de3de3ba863461a92bf134f8c156cef7992da43e0f659bc5cbd"
+        }
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://github.com/openclaw/openclaw",
+      "source_files": [
+        "Dockerfile",
+        "docker/patch-control-ui-setup.py",
+        "docker/supply-chain.lock.json"
+      ],
+      "tests": [
+        "tests/test_control_ui_setup_patch.py",
+        "tests/test_m7_supply_chain.py"
+      ],
+      "update_source": "https://github.com/openclaw/openclaw/releases"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "pypi:ast-serialize",
+      "kind": "python-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "roles": [
+          "development"
+        ],
+        "version": "0.6.0"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pypi.org/project/ast-serialize/",
+      "source_files": [
+        "requirements-dev.lock"
+      ],
+      "tests": [],
+      "update_source": "https://pypi.org/"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "pypi:build",
+      "kind": "python-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "roles": [
+          "development"
+        ],
+        "version": "1.5.0"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pypi.org/project/build/",
+      "source_files": [
+        "requirements-dev.lock"
+      ],
+      "tests": [],
+      "update_source": "https://pypi.org/"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "pypi:coverage",
+      "kind": "python-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "roles": [
+          "development"
+        ],
+        "version": "7.15.3"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pypi.org/project/coverage/",
+      "source_files": [
+        "requirements-dev.lock"
+      ],
+      "tests": [],
+      "update_source": "https://pypi.org/"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "pypi:iniconfig",
+      "kind": "python-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "roles": [
+          "development"
+        ],
+        "version": "2.3.0"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pypi.org/project/iniconfig/",
+      "source_files": [
+        "requirements-dev.lock"
+      ],
+      "tests": [],
+      "update_source": "https://pypi.org/"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "pypi:librt",
+      "kind": "python-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "roles": [
+          "development"
+        ],
+        "version": "0.13.0"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pypi.org/project/librt/",
+      "source_files": [
+        "requirements-dev.lock"
+      ],
+      "tests": [],
+      "update_source": "https://pypi.org/"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "pypi:mypy",
+      "kind": "python-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "roles": [
+          "development"
+        ],
+        "version": "2.3.0"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pypi.org/project/mypy/",
+      "source_files": [
+        "requirements-dev.lock"
+      ],
+      "tests": [],
+      "update_source": "https://pypi.org/"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "pypi:mypy-extensions",
+      "kind": "python-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "roles": [
+          "development"
+        ],
+        "version": "1.1.0"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pypi.org/project/mypy-extensions/",
+      "source_files": [
+        "requirements-dev.lock"
+      ],
+      "tests": [],
+      "update_source": "https://pypi.org/"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "pypi:packaging",
+      "kind": "python-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "roles": [
+          "development"
+        ],
+        "version": "26.3"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pypi.org/project/packaging/",
+      "source_files": [
+        "requirements-dev.lock"
+      ],
+      "tests": [],
+      "update_source": "https://pypi.org/"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "pypi:pathspec",
+      "kind": "python-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "roles": [
+          "development"
+        ],
+        "version": "1.1.1"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pypi.org/project/pathspec/",
+      "source_files": [
+        "requirements-dev.lock"
+      ],
+      "tests": [],
+      "update_source": "https://pypi.org/"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "pypi:pip",
+      "kind": "python-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "roles": [
+          "bootstrap"
+        ],
+        "version": "26.2.1"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pypi.org/project/pip/",
+      "source_files": [
+        "scripts/bootstrap-dev.sh"
+      ],
+      "tests": [],
+      "update_source": "https://pypi.org/"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "pypi:pluggy",
+      "kind": "python-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "roles": [
+          "development"
+        ],
+        "version": "1.6.0"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pypi.org/project/pluggy/",
+      "source_files": [
+        "requirements-dev.lock"
+      ],
+      "tests": [],
+      "update_source": "https://pypi.org/"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "pypi:pygments",
+      "kind": "python-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "roles": [
+          "development"
+        ],
+        "version": "2.20.0"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pypi.org/project/pygments/",
+      "source_files": [
+        "requirements-dev.lock"
+      ],
+      "tests": [],
+      "update_source": "https://pypi.org/"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "pypi:pyproject-hooks",
+      "kind": "python-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "roles": [
+          "development"
+        ],
+        "version": "1.2.0"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pypi.org/project/pyproject-hooks/",
+      "source_files": [
+        "requirements-dev.lock"
+      ],
+      "tests": [],
+      "update_source": "https://pypi.org/"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "pypi:pytest",
+      "kind": "python-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "roles": [
+          "development"
+        ],
+        "version": "9.1.1"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pypi.org/project/pytest/",
+      "source_files": [
+        "requirements-dev.lock"
+      ],
+      "tests": [],
+      "update_source": "https://pypi.org/"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "pypi:pytest-cov",
+      "kind": "python-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "roles": [
+          "development"
+        ],
+        "version": "7.1.0"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pypi.org/project/pytest-cov/",
+      "source_files": [
+        "requirements-dev.lock"
+      ],
+      "tests": [],
+      "update_source": "https://pypi.org/"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "pypi:ruff",
+      "kind": "python-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "roles": [
+          "development"
+        ],
+        "version": "0.15.22"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pypi.org/project/ruff/",
+      "source_files": [
+        "requirements-dev.lock"
+      ],
+      "tests": [],
+      "update_source": "https://pypi.org/"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "pypi:setuptools",
+      "kind": "python-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "roles": [
+          "development",
+          "wheel-build"
+        ],
+        "version": "83.0.0"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pypi.org/project/setuptools/",
+      "source_files": [
+        "pyproject.toml",
+        "requirements-dev.lock"
+      ],
+      "tests": [],
+      "update_source": "https://pypi.org/"
+    },
+    {
+      "deployment_scope": "build",
+      "id": "pypi:typing-extensions",
+      "kind": "python-package",
+      "license_status": {
+        "status": "unknown"
+      },
+      "local_changes": [],
+      "owner": "Build Maintainers",
+      "pin": {
+        "roles": [
+          "development"
+        ],
+        "version": "4.16.0"
+      },
+      "review": {
+        "status": "unknown"
+      },
+      "source": "https://pypi.org/project/typing-extensions/",
+      "source_files": [
+        "requirements-dev.lock"
+      ],
+      "tests": [],
+      "update_source": "https://pypi.org/"
+    },
+    {
+      "deployment_scope": "reference",
+      "id": "reference:keithvassallomt/openclaw-nextcloud",
+      "kind": "upstream-source",
+      "license_status": {
+        "evidence": [
+          "docs/NEXTCLOUD_REUSE_COMPARISON.md",
+          "https://github.com/keithvassallomt/openclaw-nextcloud/blob/c6659f3e20761b6b681f3e9135103a205eb23720/LICENSE"
+        ],
+        "expression": "MIT",
+        "status": "reviewed"
+      },
+      "local_changes": [
+        "R0 ist eine eigenständige Python-Implementierung für iCalendar-TEXT-Listen und VTODO-Kategorien. Der Upstream ist die Vergleichsreferenz. Skill, Bundle und Fixtures werden nicht installiert oder übernommen."
+      ],
+      "owner": "Groupware Maintainers",
+      "pin": {
+        "commit": "c6659f3e20761b6b681f3e9135103a205eb23720"
+      },
+      "review": {
+        "date": "2026-11-21",
+        "evidence": [
+          "docs/NEXTCLOUD_REUSE_COMPARISON.md"
+        ],
+        "scope": "Vergleich von Quellen und Testquellen. Die Upstream-Tests wurden nicht ausgeführt. Es gab keine Live-Prüfung.",
+        "status": "reviewed",
+        "upstream_paths": [
+          "index.js#L1116 CalDAV-Abfrage und Serienexpansion",
+          "index.js#L1279 VTODO-Kategorien und Escape-Behandlung",
+          "index.js#L1472 zusätzliche VTODO-Felder",
+          "index.js#L1962 vCard-Parser",
+          "index.js#L2030 Adressänderungen",
+          "test/regressions.mjs Mock-HTTP-Regressionsszenarien",
+          "test/safety-features.mjs Mock-HTTP-Sicherheitsfälle",
+          ".github/workflows/bundle.yml Buildprüfung"
+        ]
+      },
+      "source": "https://github.com/keithvassallomt/openclaw-nextcloud",
+      "source_files": [
+        "docs/NEXTCLOUD_REUSE_COMPARISON.md",
+        "personal_assistant/connectors/nextcloud/tasks.py",
+        "personal_assistant/ical_edit.py"
+      ],
+      "tests": [
+        "tests/test_direct_tasks_tool.py"
+      ],
+      "update_source": "https://github.com/keithvassallomt/openclaw-nextcloud/commits/main"
+    }
+  ],
+  "schema_version": 1
+}

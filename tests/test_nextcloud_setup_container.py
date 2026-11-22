@@ -24,6 +24,17 @@ def _stub(path: Path, body: str) -> None:
     path.chmod(0o755)
 
 
+def _initialize_policy_fixture(root: Path, scripts: Path | None = None) -> None:
+    from personal_assistant.nextcloud_connection import initialize_access_store
+    directory = root / "secrets/nextcloud-connection"
+    directory.mkdir(mode=0o700, exist_ok=True)
+    directory.chmod(0o700)
+    initialize_access_store(root / "state", directory, transition="fresh")
+    if scripts is not None:
+        # Run the release verifier against this temporary deployment's state.
+        (scripts / "nextcloud-access-state.py").symlink_to(SCRIPTS / "nextcloud-access-state.py")
+
+
 def _environment(tmp_path: Path) -> tuple[dict[str, str], Path]:
     root = tmp_path / "instance"
     for name in ("state", "config", "secrets/nextcloud-connection", "backups/releases", "deployment"):
@@ -252,6 +263,7 @@ def test_docker_api_failure_is_not_absence(tmp_path: Path) -> None:
 @pytest.mark.parametrize("state", ["", "created", "exited", "dead"])
 def test_offline_backup_contains_store_and_restore_preserves_file_mode(tmp_path: Path, state: str) -> None:
     env, root = _environment(tmp_path)
+    _initialize_policy_fixture(root)
     env["SETUP_TEST_STATE"] = state
     fixture = root / "secrets/nextcloud-connection/fixture.txt"
     fixture.write_text("fixture-original", encoding="utf-8")
@@ -326,6 +338,7 @@ def _real_sqlite(env: dict[str, str]) -> None:
 
 def test_nonce_database_survives_backup_restore_without_resetting_replay_state(tmp_path: Path) -> None:
     env, root = _environment(tmp_path)
+    _initialize_policy_fixture(root)
     _real_sqlite(env)
     database = root / "secrets/nextcloud-connection/operator-nonces.sqlite3"
     with sqlite3.connect(database) as connection:
@@ -362,6 +375,7 @@ def test_backup_rejects_invalid_nonce_database_before_archive(tmp_path: Path, sy
 
 def test_restore_rejects_invalid_nonce_database_before_replacing_local_state(tmp_path: Path) -> None:
     env, root = _environment(tmp_path)
+    _initialize_policy_fixture(root)
     _real_sqlite(env)
     # Produce a checksum-valid archive through the fixture checker, then use
     # real SQLite for restore. Content integrity remains an independent gate.
@@ -381,3 +395,139 @@ def test_restore_rejects_invalid_nonce_database_before_replacing_local_state(tmp
     assert "Replaydatenbank" in result.stderr
     assert marker.read_text() == "fixture-current"
     assert not database.exists()
+
+
+def test_installed_owner_and_indirect_reader_never_use_unmanaged_state(tmp_path, monkeypatch):
+    from personal_assistant.nextcloud_connection import ConnectionError, load_access_snapshot
+
+    monkeypatch.setenv("OPENCLAW_ROLE", "setup-service")
+    monkeypatch.delenv("OPENCLAW_NEXTCLOUD_CONNECTION_DIR", raising=False)
+    with pytest.raises(ConnectionError, match="policy-integrity-error"):
+        load_access_snapshot()
+    monkeypatch.setenv("OPENCLAW_RUNTIME", "container")
+    monkeypatch.setenv("OPENCLAW_ROLE", "portfolio-worker")
+    assert load_access_snapshot().mode == "unconfigured"
+    monkeypatch.setenv("OPENCLAW_ROLE", "sync-worker")
+    with pytest.raises(ConnectionError, match="policy-integrity-error"):
+        load_access_snapshot()
+
+
+def test_offline_restore_verifies_feature_receipt_with_connection(tmp_path):
+    from test_nextcloud_access import measured
+
+    from personal_assistant.nextcloud_connection import ConnectionStore, initialize_access_store
+
+    env, root = _environment(tmp_path)
+    directory = root / "secrets/nextcloud-connection"
+    directory.chmod(0o700)
+    initialize_access_store(root / "state", directory, transition="fresh")
+    store = ConnectionStore(directory, require_mode=True)
+    store.save(measured(), expected_revision="")
+    initial = store.snapshot().binding
+    result = _run([str(SCRIPTS / "backup.sh"), "policy"], env)
+    assert result.returncode == 0, result.stderr
+    backup = root / "backups/releases" / result.stdout.strip().splitlines()[-1]
+    (directory / "mode.json").unlink()
+    result = _run([str(SCRIPTS / "backup.sh"), "broken"], env)
+    assert result.returncode != 0
+    assert "policy-integrity-error" in result.stderr
+    env["OPENCLAW_RESTORE_OFFLINE"] = "YES"
+    result = _run([str(SCRIPTS / "restore-local-state.sh"), str(backup)], env)
+    assert result.returncode == 0, result.stderr
+    assert store.snapshot().binding == initial
+
+
+def test_offline_transition_needs_verified_old_image_or_explicit_empty_install(tmp_path):
+    env, root = _environment(tmp_path)
+    common = shlex.quote(str(SCRIPTS / "common.sh"))
+    command = ["bash", "-c", f". {common}; nextcloud_access_transition old docker normal"]
+    result = _run(command, env)
+    assert result.returncode != 0
+    assert "policy-integrity-error" in result.stderr
+    fresh = ["bash", "-c", f". {common}; nextcloud_access_transition old docker fresh"]
+    result = _run(fresh, env)
+    assert result.returncode == 0 and result.stdout.strip() == "fresh"
+    (root / "state/old-state").touch()
+    result = _run(fresh, env)
+    assert result.returncode != 0
+
+
+def test_offline_backup_detects_installed_policy_image_when_whole_pair_missing(tmp_path):
+    env, root = _environment(tmp_path)
+    env["OPENCLAW_IMAGE"] = "fixture.invalid/runtime@sha256:" + "a" * 64
+    result = _run([str(SCRIPTS / "backup.sh"), "missing-pair"], env)
+    assert result.returncode != 0
+    assert "policy-integrity-error" in result.stderr
+    assert not list((root / "backups/releases").rglob("payload.tar.gz"))
+
+
+def test_offline_backup_preserves_exact_prepared_pair_for_deploy_recovery(tmp_path):
+    import json
+
+    from personal_assistant.nextcloud_connection import initialize_access_store
+
+    env, root = _environment(tmp_path)
+    directory = root / "secrets/nextcloud-connection"
+    directory.chmod(0o700)
+    initialize_access_store(root / "state", directory, transition="fresh")
+    receipt = root / "state/.layout-migrations/nextcloud-access-v1.json"
+    prepared = {**json.loads(receipt.read_text()), "status": "preparing"}
+    receipt.write_text(json.dumps(prepared))
+    result = _run([str(SCRIPTS / "backup.sh"), "prepared-pair"], env)
+    assert result.returncode == 0, result.stderr
+    assert json.loads(receipt.read_text()) == prepared
+    initialize_access_store(root / "state", directory, transition="verify")
+    assert json.loads(receipt.read_text())["status"] == "ready"
+
+
+@pytest.mark.parametrize(
+    "runtime, previous",
+    [
+        ("legacy-systemd", "old:configured"),
+        ("docker", "old:configured"),
+        ("docker", "fixture.invalid/old@sha256:" + "a" * 64),
+    ],
+)
+def test_backup_uses_actual_gateway_contract_after_whole_mount_loss(tmp_path, runtime, previous):
+    env, root = _environment(tmp_path)
+    (root / "secrets/nextcloud-connection").rmdir()
+    env.update(PREVIOUS_IMAGE=previous, PREVIOUS_RUNTIME=runtime)
+    _stub(
+        Path(env["SETUP_TEST_BIN"]) / "docker",
+        """
+case "$*" in
+  *'container ls'*openclaw-gateway*) echo gateway-container ;;
+  *'container inspect'*'.Image'*) printf 'sha256:%064d' 1 ;;
+  *nextcloud-access*sha256:000*) echo 1 ;;
+  *nextcloud-access*) echo '<no value>' ;;
+  *'container ls'*openclaw-setup-service*) exit 0 ;;
+  *) exit 7 ;;
+esac""",
+    )
+    result = _run([str(SCRIPTS / "backup.sh"), "lost"], env)
+    assert result.returncode != 0 and "policy-integrity-error" in result.stderr
+    assert not list((root / "backups/releases").rglob("payload.tar.gz"))
+
+
+def test_policy_restore_requires_stopped_owner_even_after_mount_loss(tmp_path):
+    from personal_assistant.nextcloud_connection import initialize_access_store
+
+    env, root = _environment(tmp_path)
+    directory = root / "secrets/nextcloud-connection"
+    directory.chmod(0o700)
+    initialize_access_store(root / "state", directory, transition="fresh")
+    result = _run([str(SCRIPTS / "backup.sh"), "policy"], env)
+    assert result.returncode == 0, result.stderr
+    backup = root / "backups/releases" / result.stdout.strip().splitlines()[-1]
+    directory.rename(tmp_path / "unmounted")
+    env.update(SETUP_TEST_STATE="running", OPENCLAW_RESTORE_OFFLINE="YES")
+    result = _run([str(SCRIPTS / "restore-local-state.sh"), str(backup)], env)
+    assert result.returncode != 0 and "Setup-Service" in result.stderr
+    assert not directory.exists()
+
+
+def test_backup_without_installed_identity_or_fresh_proof_fails_closed(tmp_path):
+    env, root = _environment(tmp_path)
+    result = _run([str(SCRIPTS / "backup.sh"), "unknown"], env)
+    assert result.returncode != 0 and "policy-integrity-error" in result.stderr
+    assert not list((root / "backups/releases").rglob("payload.tar.gz"))

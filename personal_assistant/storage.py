@@ -18,6 +18,16 @@ from .mail_threads import (
     normalize_retrieval_text,
 )
 from .models import ActionPlan, SearchResult
+from .nextcloud_action_access import (
+    action_admission,
+    action_payload,
+    action_provenance,
+    idempotent_payload,
+    requires_action_scope,
+)
+from .nextcloud_connection import admit_projection, load_access_snapshot
+from .nextcloud_index_access import DOCUMENT_COMPONENTS, document_visible
+from .nextcloud_native_binding import verify_native_access
 
 CORE_SCHEMA_VERSION = 1
 KNOWLEDGE_SCHEMA_VERSION = 6
@@ -828,6 +838,7 @@ class AssistantStorage:
         resource_id: str,
         scope: str,
         remote_ids: set[str],
+        current_source=None,
     ) -> int:
         """Remove stale local projections only after an authoritative snapshot."""
 
@@ -836,17 +847,20 @@ class AssistantStorage:
             (resource_id, scope),
         ).fetchall()
         stale = [row for row in rows if str(row["remote_id"]) not in remote_ids]
+        retained = {str(row["source_id"]) for row in rows if str(row["remote_id"]) in remote_ids}
         removed = 0
         with self.knowledge_connection:
             for row in stale:
                 source_id = str(row["source_id"])
-                still_referenced = self.knowledge_connection.execute(
+                if current_source is not None:
+                    # A changed locator can retain a UID in this exact account/collection.
+                    if source_id not in retained:
+                        current_source.withdraw_document(self.knowledge_connection, source_id)
+                elif self.knowledge_connection.execute(
                     "SELECT 1 FROM sync_inventory "
-                    "WHERE resource_id=? AND source_id=? AND NOT (scope=? AND remote_id=?) "
-                    "LIMIT 1",
+                    "WHERE resource_id=? AND source_id=? AND NOT (scope=? AND remote_id=?) LIMIT 1",
                     (resource_id, source_id, scope, str(row["remote_id"])),
-                ).fetchone()
-                if still_referenced is None:
+                ).fetchone() is None:
                     document = self.get_document(resource_id, source_id)
                     if document is not None:
                         chunk_rows = self.knowledge_connection.execute(
@@ -870,7 +884,14 @@ class AssistantStorage:
                 )
         return removed
 
-    def index_document(
+    def index_document(self, *, source_type: str, index_generation: str = "", **fields: Any) -> int:
+        # Mail owns its projection generation. Only a scoped sync writer can
+        # attest the Nextcloud object from which a chunk was actually read.
+        if source_type in DOCUMENT_COMPONENTS:
+            index_generation = ""
+        return self._index_document(source_type=source_type, index_generation=index_generation, **fields)
+
+    def _index_document(
         self,
         *,
         source_type: str,
@@ -1566,9 +1587,30 @@ class AssistantStorage:
         limit: int = 20,
         source_type: str = "",
         resource_id: str = "",
+        visibility=None,
     ) -> list[SearchResult]:
+        initial = load_access_snapshot()
+        verify_native_access(initial)
+        if visibility is not None and visibility != initial:
+            raise PermissionError("policy-changed")
+
+        def visible(kind, resource, source, generation):
+            return document_visible(initial, kind, resource, source, generation)
+
+        self.knowledge_connection.create_function("document_visible", 4, visible)
+        try:
+            rows = self._search_rows(query, limit, source_type, resource_id)
+        finally:
+            self.knowledge_connection.create_function("document_visible", 4, None)
+        with admit_projection(initial) as current:
+            verify_native_access(current)
+            return self._search_results(row for row in rows if document_visible(
+                current, row["source_type"], row["resource_id"], row["source_id"], row["index_generation"]
+            ))
+
+    def _search_rows(self, query, limit, source_type, resource_id):
         params: list[Any] = []
-        filters = []
+        filters = ["document_visible(d.source_type,d.resource_id,d.source_id,d.index_generation)"]
         if source_type:
             filters.append("d.source_type=?")
             params.append(source_type)
@@ -1593,6 +1635,10 @@ class AssistantStorage:
                 rows = self._search_like(query, params, where_extra, limit)
         else:
             rows = self._search_like(query, params, where_extra, limit)
+        return rows
+
+    @staticmethod
+    def _search_results(rows):
         results: list[SearchResult] = []
         for row in rows:
             text = str(row["text"] or "")
@@ -1634,11 +1680,18 @@ class AssistantStorage:
         resource_id: str,
         payload: dict[str, Any],
         requires_approval: bool,
+        access_snapshot=None,
     ) -> ActionPlan:
+        if not isinstance(payload, dict):
+            raise ValueError("ActionPlan-Payload muss ein Objekt sein")
         action_id = str(uuid.uuid4())
         timestamp = now_utc_iso()
         status = "proposed" if requires_approval else "approved"
-        with self.connection:
+        with action_admission(action_type, access_snapshot) as current, self.connection:
+            if current is not None and current.mode == "active" and access_snapshot is None:
+                raise PermissionError("scope-unbound: Aktion nach Auswahl der Nextcloud-Ressource neu planen")
+            provenance = action_provenance(current, action_type, resource_id, payload)
+            stored = ["nextcloud-action-v1", provenance, payload] if provenance else payload
             self.connection.execute(
                 """
                 INSERT OR IGNORE INTO action_plans(
@@ -1651,7 +1704,7 @@ class AssistantStorage:
                     idempotency_key,
                     action_type,
                     resource_id,
-                    json.dumps(payload, ensure_ascii=False),
+                    json.dumps(stored, ensure_ascii=False),
                     status,
                     int(requires_approval),
                     timestamp,
@@ -1663,44 +1716,104 @@ class AssistantStorage:
                 "SELECT * FROM action_plans WHERE idempotency_key=?",
                 (idempotency_key,),
             ).fetchone()
+            if row is None:
+                raise RuntimeError("ActionPlan konnte nach idempotentem Insert nicht gelesen werden")
+            if row["action_type"] != action_type or row["resource_id"] != resource_id:
+                raise PermissionError("idempotency-conflict")
+            plan = self._row_action(row, current)
+            if (
+                provenance
+                and row["id"] != action_id
+                and (
+                    json.loads(row["payload_json"])[1] != provenance
+                    or idempotent_payload(action_type, plan.payload)
+                    != idempotent_payload(action_type, payload)
+                )
+            ):
+                raise PermissionError("idempotency-conflict")
+            return plan
+
+    def _action_row(self, action_id):
+        row = self.connection.execute("SELECT * FROM action_plans WHERE id=?", (action_id,)).fetchone()
         if row is None:
-            raise RuntimeError("ActionPlan konnte nach idempotentem Insert nicht gelesen werden")
-        return self._row_action(row)
+            raise KeyError(f"Unbekannter ActionPlan: {action_id}")
+        return row
 
     def get_action(self, action_id: str) -> ActionPlan:
-        row = self.connection.execute("SELECT * FROM action_plans WHERE id=?", (action_id,)).fetchone()
-        if not row:
-            raise KeyError(f"Unbekannter ActionPlan: {action_id}")
-        return self._row_action(row)
+        row = self._action_row(action_id)
+        with action_admission(row["action_type"]) as current:
+            return self._row_action(row, current, require_read=True)
 
-    def list_actions(self, status: str = "", limit: int = 100) -> list[ActionPlan]:
-        if status:
-            rows = self.connection.execute(
-                "SELECT * FROM action_plans WHERE status=? ORDER BY created_at DESC LIMIT ?",
-                (status, limit),
-            ).fetchall()
-        else:
-            rows = self.connection.execute(
-                "SELECT * FROM action_plans ORDER BY created_at DESC LIMIT ?", (limit,)
-            ).fetchall()
-        return [self._row_action(row) for row in rows]
+    def list_actions(
+        self, status: str = "", limit: int = 100, *, action_type: str = ""
+    ) -> list[ActionPlan]:
+        if limit == 0:
+            return []
+        filters = []
+        params = []
+        for column, value in (("status", status), ("action_type", action_type)):
+            if value:
+                filters.append(column + "=?")
+                params.append(value)
+        where = (" WHERE " + " AND ".join(filters)) if filters else ""
+        sql = "SELECT * FROM action_plans" + where + " ORDER BY created_at DESC, rowid DESC"
+        with action_admission(action_type) as current:
+            plans = []
+            for row in self.connection.execute(sql, params):
+                try:
+                    admitted = current if requires_action_scope(row["action_type"]) else None
+                    plans.append(self._row_action(row, admitted, require_read=True))
+                except PermissionError:
+                    continue
+                if len(plans) == limit:
+                    break
+            return plans
 
     def update_action(self, action_id: str, status: str, error: str = "") -> ActionPlan:
-        self.connection.execute(
-            "UPDATE action_plans SET status=?,error=?,updated_at=? WHERE id=?",
-            (status, error, now_utc_iso(), action_id),
-        )
-        self.connection.commit()
-        return self.get_action(action_id)
+        row = self._action_row(action_id)
+        with action_admission(row["action_type"]) as current, self.connection:
+            plan = self._row_action(row, current)
+            if current is not None:
+                if plan.status == "delivery-uncertain" or plan.error.startswith("delivery-uncertain"):
+                    raise PermissionError("delivery-uncertain")
+                if plan.status == "conflict":
+                    raise PermissionError("idempotency-conflict")
+                if status == "executing" and plan.status != "approved":
+                    raise PermissionError("action-state-changed")
+                if status == "approved" and plan.status == "executing":
+                    raise PermissionError("action-state-changed")
+            updated = self.connection.execute(
+                "UPDATE action_plans SET status=?,error=?,updated_at=? WHERE id=? AND status=?",
+                (status, error, now_utc_iso(), action_id, plan.status),
+            )
+            if updated.rowcount != 1:
+                raise PermissionError("action-state-changed")
+            return self._row_action(self._action_row(action_id), current)
+
+    def record_uncertain_delivery(self, action_id, error):
+        """Safety bookkeeping may finish after revocation; release no business payload."""
+        with self.connection:
+            self.connection.execute(
+                "UPDATE action_plans SET status='delivery-uncertain',error=?,updated_at=? "
+                "WHERE id=? AND status IN ('executing', 'completed')",
+                (error, now_utc_iso(), action_id),
+            )
 
     @staticmethod
-    def _row_action(row: sqlite3.Row) -> ActionPlan:
+    def _row_action(row: sqlite3.Row, snapshot, *, require_read=False) -> ActionPlan:
+        payload = action_payload(
+            snapshot,
+            row["action_type"],
+            row["resource_id"],
+            json.loads(row["payload_json"]),
+            require_read=require_read,
+        )
         return ActionPlan(
             id=str(row["id"]),
             idempotency_key=str(row["idempotency_key"]),
             action_type=str(row["action_type"]),
             resource_id=str(row["resource_id"]),
-            payload=json.loads(str(row["payload_json"])),
+            payload=payload,
             status=str(row["status"]),
             requires_approval=bool(row["requires_approval"]),
             created_at=str(row["created_at"]),

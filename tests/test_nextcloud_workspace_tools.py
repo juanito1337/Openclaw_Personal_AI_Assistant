@@ -48,7 +48,7 @@ class FakeActions:
             error="",
         )
 
-    def execute_workspace(self, action_id):
+    def execute_workspace(self, action_id, *, recreate_missing=False):
         self.executed.append(action_id)
         plan = self.plans[-1]
         return ActionPlan(

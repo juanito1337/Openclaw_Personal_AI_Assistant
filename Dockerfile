@@ -95,6 +95,7 @@ LABEL org.opencontainers.image.title="OpenClaw Personal Assistant runtime" \
       org.opencontainers.image.base.name="node:24-alpine3.22" \
       org.opencontainers.image.base.digest="sha256:191c9f0080fcbbc6547a85dc0ff7988072214a355aabdc1d2ec55a7dae5eea8a" \
       org.opencontainers.image.openclaw.role="runtime" \
+      org.opencontainers.image.openclaw.nextcloud-access="1" \
       org.opencontainers.image.openclaw.setup-owner="1" \
       org.opencontainers.image.openclaw.layout-min="1" \
       org.opencontainers.image.openclaw.layout-max="3" \

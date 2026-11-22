@@ -206,9 +206,17 @@ def load_config(path: str | Path | None = None) -> AssistantConfig:
         self_management=self_management,
         path=config_path,
     )
-    from .nextcloud_connection import load_connection
+    from .nextcloud_connection import effective_resources, load_access_snapshot
 
-    if load_connection() is not None:
+    snapshot = load_access_snapshot()
+    if snapshot.mode != "legacy":
+        resources = effective_resources(snapshot)
+        config.nextcloud.enabled = bool(resources)
+        file_resource = next((r for r in resources if r.kind == "file-root"), None)
+        config.nextcloud.allowed_file_roots = (
+            tuple(file_resource.metadata["allowed_roots"]) if file_resource else ()
+        )
+    elif snapshot.connection is not None:
         config.nextcloud.enabled = True
         config.nextcloud.allowed_file_roots = ()
     _validate(config)

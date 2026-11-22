@@ -456,6 +456,11 @@ class ImmutableRuntimeTests(unittest.TestCase):
     def test_container_workers_log_to_writable_coordination_directory(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
+            from personal_assistant.nextcloud_connection import initialize_access_store
+
+            mount = root / "connection"
+            mount.mkdir(mode=0o700)
+            initialize_access_store(root, mount, transition="fresh")
             config_file = root / "config.toml"
             config_file.write_text("[runtime]\n", encoding="utf-8")
             core = root / "read-only-core"
@@ -470,6 +475,7 @@ class ImmutableRuntimeTests(unittest.TestCase):
                     os.environ,
                     {
                         "OPENCLAW_RUNTIME": "container",
+                        "OPENCLAW_NEXTCLOUD_CONNECTION_DIR": str(mount),
                         "OPENCLAW_ROLE": role,
                         "OPENCLAW_CORE_DATA_DIR": str(core),
                         "OPENCLAW_LOG_DIR": str(logs),
@@ -489,6 +495,11 @@ class ImmutableRuntimeTests(unittest.TestCase):
     def test_container_sync_reads_authoritative_mail_index_projection(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
+            from personal_assistant.nextcloud_connection import initialize_access_store
+
+            mount = root / "connection"
+            mount.mkdir(mode=0o700)
+            initialize_access_store(root, mount, transition="fresh")
             config_file = root / "config.toml"
             config_file.write_text("[runtime]\n", encoding="utf-8")
             mail = root / "domains/mail"
@@ -497,6 +508,7 @@ class ImmutableRuntimeTests(unittest.TestCase):
                 os.environ,
                 {
                     "OPENCLAW_RUNTIME": "container",
+                    "OPENCLAW_NEXTCLOUD_CONNECTION_DIR": str(mount),
                     "OPENCLAW_ROLE": "sync-worker",
                     "OPENCLAW_MAIL_DATA_DIR": str(mail),
                 },

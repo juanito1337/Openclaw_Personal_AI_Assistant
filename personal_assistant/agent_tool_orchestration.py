@@ -19,6 +19,8 @@ CONTRACT_ID = "openclaw-personal-assistant-native-tools-v1"
 PLUGIN_ID = "personal-assistant-tools"
 PLUGIN_PATH = "/opt/openclaw-plugins/personal-assistant-tools"
 MAX_ROUTED_DOMAINS = 3
+MAX_CAPTURE_BYTES = 8_000_000
+MAX_ERROR_BYTES = 8_000
 
 _BACKGROUND_APPROVALS = frozenset(
     {
@@ -153,7 +155,7 @@ def parameter_name(raw: str) -> str:
 def _parameter_schema(raw: str, name: str) -> dict[str, Any]:
     if raw == "ISIN":
         return {"type": "string", "pattern": "^[A-Z]{2}[A-Z0-9]{9}[0-9]$"}
-    if raw in {"SHA256", "Digest", "preview_digest"}:
+    if raw in {"SHA256", "Digest", "preview_digest", "preview_digest-optional"}:
         return {"type": "string", "pattern": "^[0-9a-f]{64}$"}
     if raw == "ISO":
         return {"type": "string", "pattern": "^[A-Z]{3}$"}
@@ -755,10 +757,10 @@ def build_native_tool_contract() -> dict[str, Any]:
         ),
         "limits": {
             "max_output_bytes": 1_000_000,
-            "max_capture_bytes": 8_000_000,
+            "max_capture_bytes": MAX_CAPTURE_BYTES,
             "max_projected_bytes": 200_000,
             "max_projected_rows": 100,
-            "max_error_bytes": 8_000,
+            "max_error_bytes": MAX_ERROR_BYTES,
             "tool_timeout_seconds": 120,
             "approval_timeout_seconds": 120,
             "approval_ttl_seconds": 180,

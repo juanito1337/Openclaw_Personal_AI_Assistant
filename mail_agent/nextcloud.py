@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import os
 import time
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -18,11 +20,37 @@ from personal_assistant.connectors.nextcloud.discovery import (
     DiscoveredCollection,
     NextcloudDiscovery,
 )
+from personal_assistant.nextcloud_access import Scope, account_failure_observation, decide_access
+from personal_assistant.nextcloud_connection import ConnectionError, admit_projection, load_access_snapshot
 
 from .command import CommandRunner
 from .config import Config
 from .models import OperationResult
 from .utils import atomic_write_bytes, normalize_address
+
+ARCHIVE_SELECTION = "managed-account-archive-selection-required"
+CALENDAR_MAIL_SELECTION = "managed-account-calendar-mail-selection-required"
+
+
+def require_mail_automation(snapshot, selection):
+    """The managed setup has no account-bound target for these legacy automations."""
+    if snapshot.mode != "legacy" or snapshot.connection:
+        raise PermissionError(
+            f"scope-unbound: {selection}; Fachziel in der Nextcloud-Einrichtung separat auswaehlen"
+        )
+
+
+@contextmanager
+def archive_access(initial):
+    with admit_projection(initial) as current:
+        require_mail_automation(current, ARCHIVE_SELECTION)
+        yield
+
+
+def archive_snapshot():
+    initial = load_access_snapshot()
+    with archive_access(initial):
+        return initial
 
 
 class NextcloudSkillError(RuntimeError):
@@ -67,6 +95,8 @@ class NextcloudSkillClient:
         self.contacts = NextcloudContacts(native_config, self.client)
         self._contact_emails: set[str] | None = None
         self._contact_cache_source = "not-loaded"
+        self._contact_proof = None
+        self._contacts_refreshed_at = 0.0
         self._last_contact_error = ""
 
     @property
@@ -142,21 +172,29 @@ class NextcloudSkillClient:
 
     def list_calendars(self) -> list[dict[str, Any]]:
         try:
-            return [self._collection_dict(item, kind="calendar") for item in self.discovery.calendars()]
+            items = [self._collection_dict(item, kind="calendar") for item in self.discovery.calendars()]
+            with admit_projection(self.client.access_snapshot):
+                return items
         except (NextcloudError, OSError, ValueError) as exc:
             raise NextcloudSkillError(str(exc)) from exc
 
     def list_calendar_collections(self) -> list[dict[str, Any]]:
         try:
-            return [
+            items = [
                 self._collection_dict(item, kind="calendar") for item in self.discovery.calendar_collections()
             ]
+            with admit_projection(self.client.access_snapshot):
+                return items
         except (NextcloudError, OSError, ValueError) as exc:
             raise NextcloudSkillError(str(exc)) from exc
 
     def list_addressbooks(self) -> list[dict[str, Any]]:
         try:
-            return [self._collection_dict(item, kind="addressbook") for item in self.discovery.addressbooks()]
+            items = [
+                self._collection_dict(item, kind="addressbook") for item in self.discovery.addressbooks()
+            ]
+            with admit_projection(self.client.access_snapshot):
+                return items
         except (NextcloudError, OSError, ValueError) as exc:
             raise NextcloudSkillError(str(exc)) from exc
 
@@ -227,6 +265,9 @@ class NextcloudSkillClient:
         items: list[DiscoveredCollection],
         selected: str = "",
     ) -> tuple[DiscoveredCollection, str, bool]:
+        with admit_projection(self.client.access_snapshot) as current:
+            if current.mode != "legacy":
+                require_mail_automation(current, CALENDAR_MAIL_SELECTION)
         selectors = self._calendar_selectors(selected)
         if not selectors:
             matches = self._select_collection(
@@ -278,11 +319,37 @@ class NextcloudSkillClient:
             raise NextcloudSkillError(f"Kalender {item.name!r} meldet kein create/bind-Recht")
         return item.resource_id, recovered
 
+    @contextmanager
+    def _contact_access(self, *operations):
+        with admit_projection(self.client.access_snapshot) as snapshot:
+            if snapshot.mode == "legacy":
+                if account_failure_observation(snapshot):
+                    raise NextcloudSkillError("rights-unverified")
+                # Preserve pre-policy standalone caches; a managed v1 record has an identity.
+                yield {"legacy_revision": snapshot.connection["revision"]} if snapshot.connection else None
+                return
+            resource_id = self.config.nextcloud.addressbook
+            if snapshot.mode != "active" or not resource_id:
+                raise NextcloudSkillError(
+                    "scope-unbound: Stabile CardDAV-Ressourcen-ID fuer den Mail-Kontaktabgleich auswaehlen"
+                )
+            scope = Scope(resource_id, "VCARD")
+            for operation in operations:
+                decision = decide_access(snapshot, scope, operation)
+                if not decision.allowed:
+                    raise NextcloudSkillError(decision.code)
+            yield {"binding": snapshot.binding.to_dict(), "scope": scope.to_dict()}
+
     def _addressbook_collections(self) -> list[DiscoveredCollection]:
         try:
             books = self.discovery.addressbooks()
         except (NextcloudError, OSError, ValueError) as exc:
             raise NextcloudSkillError(str(exc)) from exc
+        if self.client.access_snapshot.mode == "active":
+            matches = [book for book in books if book.resource_id == self.config.nextcloud.addressbook]
+            if len(matches) != 1:
+                raise NextcloudSkillError("scope-unbound: Stabiles Adressbuch fuer Mail auswaehlen")
+            return matches
         return self._select_collection(
             books,
             self.config.nextcloud.addressbook,
@@ -291,6 +358,8 @@ class NextcloudSkillClient:
         )
 
     def list_contacts(self) -> list[dict[str, Any]]:
+        with self._contact_access("list", "read"):
+            pass
         result: list[dict[str, Any]] = []
         try:
             for addressbook in self._addressbook_collections():
@@ -307,19 +376,22 @@ class NextcloudSkillClient:
                     )
         except (NextcloudError, OSError, ValueError) as exc:
             raise NextcloudSkillError(str(exc)) from exc
-        return result
+        with self._contact_access("list", "read"):
+            return result
 
     def search_contacts(self, query: str) -> list[dict[str, Any]]:
         wanted = str(query or "").strip().casefold()
+        with self._contact_access("search", "read"):
+            pass
         contacts = self.list_contacts()
-        if not wanted:
-            return contacts
-        return [
-            item
-            for item in contacts
-            if wanted in str(item.get("displayName") or "").casefold()
-            or any(wanted in str(value).casefold() for value in item.get("emails", []))
-        ]
+        with self._contact_access("search", "read"):
+            if not wanted:
+                return contacts
+            return [
+                item for item in contacts
+                if wanted in str(item.get("displayName") or "").casefold()
+                or any(wanted in str(value).casefold() for value in item.get("emails", []))
+            ]
 
     def create_event(self, normalized_event: Any) -> OperationResult:
         try:
@@ -361,7 +433,7 @@ class NextcloudSkillClient:
             if "existiert bereits" in str(exc):
                 return OperationResult(True, "duplicate", str(exc))
             return OperationResult(False, "nextcloud-calendar-failed", str(exc))
-        except (NextcloudSkillError, OSError, ValueError) as exc:
+        except (NextcloudSkillError, ConnectionError, OSError, ValueError) as exc:
             return OperationResult(False, "nextcloud-calendar-failed", str(exc))
 
     @staticmethod
@@ -393,10 +465,12 @@ class NextcloudSkillClient:
                 walk(value, email_context=True)
         return found
 
-    def _read_contact_cache(self) -> tuple[set[str], float] | None:
+    def _read_contact_cache(self, proof) -> tuple[set[str], float] | None:
         path = self.config.nextcloud.contact_cache_file
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
+            if not isinstance(payload, dict) or payload.get("access") != proof:
+                return None
             refreshed_at = float(payload.get("refreshed_at", 0))
             emails = {
                 normalize_address(str(item))
@@ -407,10 +481,11 @@ class NextcloudSkillClient:
         except (FileNotFoundError, OSError, ValueError, TypeError, json.JSONDecodeError):
             return None
 
-    def _write_contact_cache(self, emails: set[str]) -> None:
+    def _write_contact_cache(self, emails: set[str], proof, refreshed_at: float) -> None:
         path = self.config.nextcloud.contact_cache_file
         payload = {
-            "refreshed_at": time.time(),
+            "access": proof,
+            "refreshed_at": refreshed_at,
             "email_count": len(emails),
             "emails": sorted(emails),
         }
@@ -426,44 +501,56 @@ class NextcloudSkillClient:
             self._contact_cache_source = "disabled"
             return False, "Nextcloud-Kontaktabgleich ist deaktiviert"
 
-        cached = self._read_contact_cache()
-        if not force and cached:
-            emails, refreshed_at = cached
-            age = max(0, time.time() - refreshed_at)
-            if age <= self.config.nextcloud.contact_cache_ttl_seconds:
-                self._contact_emails = emails
-                self._contact_cache_source = "fresh-cache"
-                return True, f"{len(emails)} Kontaktadressen aus Cache ({int(age)} Sekunden alt)"
-
         try:
+            with self._contact_access("list", "read", "search") as proof:
+                cached = self._read_contact_cache(proof)
+                if not force and cached and self._cache_fresh(cached[1]):
+                    self._contact_emails, self._contacts_refreshed_at = cached
+                    self._contact_proof = proof
+                    self._last_contact_error = ""
+                    self._contact_cache_source = "fresh-cache"
+                    return True, f"{len(cached[0])} Kontaktadressen aus aktuellem Cache"
+                if cached:
+                    self.config.nextcloud.contact_cache_file.unlink(missing_ok=True)
             contacts = self.list_contacts()
-            refreshed_emails: set[str] = set()
-            for contact in contacts:
-                refreshed_emails.update(self.contact_emails(contact))
-            self._write_contact_cache(refreshed_emails)
-            self._contact_emails = refreshed_emails
-            self._contact_cache_source = "nextcloud"
-            self._last_contact_error = ""
-            return True, (f"{len(refreshed_emails)} Kontaktadressen ueber native CardDAV-Bruecke geladen")
-        except NextcloudSkillError as exc:
+            refreshed_emails = {email for contact in contacts for email in self.contact_emails(contact)}
+            with self._contact_access("list", "read", "search") as current:
+                if current != proof:
+                    raise NextcloudSkillError("policy-changed")
+                refreshed_at = time.time()
+                self._write_contact_cache(refreshed_emails, proof, refreshed_at)
+                self._contact_emails = refreshed_emails
+                self._contacts_refreshed_at = refreshed_at
+                self._contact_proof = proof
+                self._contact_cache_source = "nextcloud"
+                self._last_contact_error = ""
+                return True, f"{len(refreshed_emails)} Kontaktadressen ueber CardDAV geladen"
+        except (NextcloudSkillError, NextcloudError, ConnectionError, OSError, ValueError) as exc:
             self._last_contact_error = str(exc)
-            if cached:
-                self._contact_emails = cached[0]
-                self._contact_cache_source = "stale-cache"
-                return True, (
-                    f"Nextcloud nicht erreichbar; verwende alten Cache mit {len(cached[0])} Adressen: {exc}"
-                )
             self._contact_emails = set()
             self._contact_cache_source = "error"
             return False, str(exc)
 
+    def _cache_fresh(self, refreshed_at: float) -> bool:
+        age = time.time() - refreshed_at
+        return math.isfinite(age) and 0 <= age <= self.config.nextcloud.contact_cache_ttl_seconds
+
     def is_known_contact(self, email: str) -> bool:
         normalized = normalize_address(email)
-        if not normalized:
+        if not normalized or not self.enabled or not self.config.nextcloud.contacts_enabled:
             return False
-        if self._contact_emails is None:
-            self.refresh_contact_cache(force=False)
-        return normalized in (self._contact_emails or set())
+        try:
+            with self._contact_access("list", "read", "search") as proof:
+                if (self._contact_emails is not None and self._contact_proof == proof
+                        and self._cache_fresh(self._contacts_refreshed_at)):
+                    return normalized in self._contact_emails
+            if not self.refresh_contact_cache(force=bool(self._last_contact_error))[0]:
+                return False
+            with self._contact_access("list", "read", "search") as proof:
+                return proof == self._contact_proof and normalized in (self._contact_emails or set())
+        except (NextcloudSkillError, ConnectionError, OSError, ValueError) as exc:
+            self._last_contact_error = str(exc)
+            return False
 
     def clear_contact_cache(self) -> OperationResult:
         self._contact_emails = None
@@ -522,6 +609,35 @@ class NextcloudSkillClient:
         return len(matches) == 1
 
     def health(self, *, live: bool = True) -> dict[str, Any]:
+        initial = self.client.access_snapshot
+        try:
+            with admit_projection(initial):
+                if initial.mode == "unconfigured":
+                    raise PermissionError("scope-unbound")
+            if initial.mode == "active":
+                result = {
+                    "ok": False,
+                    "enabled": self.enabled,
+                    "backend": "native-caldav-carddav",
+                    "complete": False,
+                    "selected_calendar_create_allowed": False,
+                    "error_code": CALENDAR_MAIL_SELECTION,
+                    "detail": "scope-unbound: Separates Kalenderziel fuer die Mail-Automation auswaehlen",
+                    "contact_check": "not-checked",
+                }
+                if live and self.enabled and self.config.nextcloud.contacts_enabled:
+                    ok, detail = self.refresh_contact_cache()
+                    result.update(contacts_ok=ok, contacts_detail=detail,
+                                  contact_check=self._contact_cache_source,
+                                  contact_checked_at=self._contacts_refreshed_at if ok else None)
+            else:
+                result = self._legacy_health(live=live)
+            with admit_projection(initial):
+                return result
+        except (ConnectionError, PermissionError) as exc:
+            return {"ok": False, "complete": False, "error_code": str(exc)}
+
+    def _legacy_health(self, *, live: bool) -> dict[str, Any]:
         base_url, username, token = self.credentials()
         calendar_selectors = self._calendar_selectors()
         calendar_selector = calendar_selectors[0] if calendar_selectors else ""

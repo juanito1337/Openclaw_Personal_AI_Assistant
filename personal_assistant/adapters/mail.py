@@ -1430,7 +1430,7 @@ class MailMoveService:
             key = self._key(source_real, destination_real, message_id, expected_subject)
             rows = [
                 p
-                for p in self.storage.list_actions(limit=200)
+                for p in self.storage.list_actions(limit=200, action_type="mail.move")
                 if p.idempotency_key == key and p.status == "completed"
             ]
             if rows:
@@ -1604,7 +1604,11 @@ class MailMoveService:
         envelope = next((item for item in envelopes if str(item.mailbox_id) == selected_id), None)
         if envelope is None:
             previous = next(
-                (item for item in self.storage.list_actions(limit=200) if item.idempotency_key == key),
+                (
+                    item
+                    for item in self.storage.list_actions(limit=200, action_type="mail.review.correct")
+                    if item.idempotency_key == key
+                ),
                 None,
             )
             if previous is not None and previous.status == "completed":

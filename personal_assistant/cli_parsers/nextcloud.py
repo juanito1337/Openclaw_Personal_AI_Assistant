@@ -226,6 +226,9 @@ def add_commands(sub: Any) -> None:
         "--message-id", required=True, help="Mail-ID aus mail list, nicht Message-ID-Header"
     )
     contacts_mail.add_argument("--expected-subject", default="")
+    contacts_mail.add_argument(
+        "--preview-digest", default="", help="Bei aktiver Zugriffsrichtlinie zur Anlage erforderlich"
+    )
     contacts_mail.add_argument("--name", default="", help="Erkannten Namen gezielt ueberschreiben")
     contacts_mail.add_argument("--organization", default="")
     contacts_mail.add_argument("--phone", action="append", default=[])

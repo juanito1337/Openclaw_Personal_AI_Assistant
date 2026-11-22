@@ -27,9 +27,11 @@ from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from typing import Any
 
+from .nextcloud_access import account_failure_observation, path_segments
 from .nextcloud_connection import (
     ConnectionError,
     ConnectionStore,
+    account_namespace,
     connection_directory,
     public_connection,
 )
@@ -41,13 +43,34 @@ from .nextcloud_onboarding import (
     credential_headers,
     discover_account,
     discover_folders,
+    user_failure_diagnostics,
+)
+from .nextcloud_setup_access import (
+    MAX_PROOF_BYTES,
+    AccessEditor,
+    bound_status,
+    integrity_status,
+    status_page_params,
+    status_view,
+    updated_connection,
 )
 from .setup_operator_proof import OperatorProofVerifier
 
 MAX_BODY = 64 * 1024
 MAX_FLOWS = 8
 FLOW_LIFETIME = 20 * 60
+DAV_EVIDENCE_MAX_AGE = 24 * 60 * 60
 ROOM_TOKEN = re.compile(r"[A-Za-z0-9_-]{1,128}\Z")
+DIAGNOSTIC_FIELDS = (
+    "schema_version",
+    "availability",
+    "user",
+    "calendars",
+    "task_lists",
+    "addressbooks",
+    "files",
+    "talk",
+)
 
 
 @dataclass(slots=True)
@@ -82,6 +105,25 @@ def _redact_secret(value: Any, secret: str, *, field_name: str = "") -> Any:
         )
     ):
         return value
+    # Fixed access DTO enums remain usable when a short password happens to
+    # occur in a protocol word. An arbitrary value from display metadata still
+    # follows the normal redaction path.
+    access_words = {"off", "read", "list", "search", "create", "update", "create_file", "mkdir"}
+    if field_name in {
+        "operations",
+        "desired_operations",
+        "effective_operations",
+        "before_operations",
+        "after_operations",
+        "supported_levels",
+    } and (isinstance(value, list) and all(isinstance(op, str) and op in access_words for op in value)):
+        return value
+    if (
+        (field_name == "mode" and value in ("active", "legacy", "unconfigured", "integrity-error"))
+        or (field_name == "component" and value in ("VEVENT", "VTODO", "VCARD", "FILES"))
+        or (field_name == "operation" and isinstance(value, str) and value in access_words)
+    ):
+        return value
     # These are locally generated protocol fields, never upstream display text.
     # Redacting a short password out of a revision or status would break the
     # confirmation contract or turn a failed check into an unknown state.
@@ -96,7 +138,11 @@ def _redact_secret(value: Any, secret: str, *, field_name: str = "") -> Any:
         "checked_at",
         "last_verified_at",
         "status_source",
-        "scope",
+        "preview_id",
+        "policy_revision",
+        "generation",
+        "expected_policy_revision",
+        "expires_at",
         "domain",
         "permissions",
         "kind",
@@ -111,6 +157,29 @@ def _redact_secret(value: Any, secret: str, *, field_name: str = "") -> Any:
     if isinstance(value, dict):
         return {key: _redact_secret(item, secret, field_name=key) for key, item in value.items()}
     return value
+
+
+def _redact_operator_view(view, secret):
+    clean = _redact_secret(view, secret)
+    # Restore only locally issued owner handles in their closed operator DTOs.
+    # Upstream display metadata can never exempt itself by choosing a field name.
+    for group in ("rows", "changes", "access_row"):
+        if group == "rows":
+            raw_rows = view.get("access", {}).get(group, ())
+            safe_rows = clean.get("access", {}).get(group, ())
+        elif group == "changes":
+            raw_rows, safe_rows = view.get(group, ()), clean.get(group, ())
+        else:
+            raw_rows = [view[group]] if group in view else []
+            safe_rows = [clean[group]] if group in clean else []
+        for raw, sanitized in zip(raw_rows, safe_rows, strict=True):
+            if "revoke_handle" in raw:
+                sanitized["revoke_handle"] = raw["revoke_handle"]
+    if "source_revision" in view:
+        clean["source_revision"] = view["source_revision"]
+    if "source_revision" in view.get("refresh_failure", {}):
+        clean["refresh_failure"]["source_revision"] = view["refresh_failure"]["source_revision"]
+    return clean
 
 
 def safe_preview(snapshot: dict[str, Any]) -> dict[str, Any]:
@@ -131,11 +200,15 @@ def safe_preview(snapshot: dict[str, Any]) -> dict[str, Any]:
         "errors",
         "limitations",
         "files_depth",
-        "diagnostics",
+        "oldest_collection_check_at",
         "checked_at",
         "results_may_be_truncated",
     )
-    return {key: snapshot[key] for key in fields if key in snapshot}
+    result = {key: snapshot[key] for key in fields if key in snapshot}
+    diagnostics = snapshot.get("diagnostics")
+    if isinstance(diagnostics, dict):
+        result["diagnostics"] = {key: diagnostics[key] for key in DIAGNOSTIC_FIELDS if key in diagnostics}
+    return result
 
 
 class NextcloudSetupService:
@@ -147,16 +220,21 @@ class NextcloudSetupService:
         login_factory: Callable[..., Any] = LoginFlow,
         discovery: Callable[..., Any] = discover_account,
         clock: Callable[[], float] = time.monotonic,
+        wall_clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self.store = store
         self.transport_factory = transport_factory
         self.login_factory = login_factory
         self.discovery = discovery
         self.clock = clock
+        self.wall_clock = wall_clock
+        self.refresh_failure: dict[str, Any] | None = None
         self.flows: dict[str, SetupFlow] = {}
         self.lock = threading.RLock()
+        self.access = AccessEditor(self)
 
     def _prune(self) -> None:
+        self.access.prune()
         for identifier, pending in list(self.flows.items()):
             if pending.expires_at <= self.clock():
                 pending.cancel()
@@ -180,6 +258,12 @@ class NextcloudSetupService:
             connection["server_url"], allow_private=True, expected_ips=tuple(connection["expected_ips"])
         )
 
+    def _rediscover(self, current):
+        transport, credentials = self._transport(current), self._credentials(current)
+        if self.discovery is discover_account and "setup_account_failure" not in current:
+            return discover_account(transport, credentials, previous_snapshot=current["discovery_snapshot"])
+        return self.discovery(transport, credentials)
+
     @staticmethod
     def _credentials(connection: dict[str, Any]) -> NextcloudCredentials:
         return NextcloudCredentials(
@@ -196,17 +280,111 @@ class NextcloudSetupService:
             raise ConnectionError("nextcloud-connection-conflict")
         return revision
 
-    def status(self) -> dict[str, Any]:
-        connection = self.store.read()
+    def status(self, parameters=None) -> dict[str, Any]:
+        expected, offset = status_page_params(parameters or {})
+        try:
+            snapshot = self.store.snapshot()
+            if expected and (snapshot.connection or {}).get("revision") != expected:
+                raise ConnectionError("nextcloud-connection-conflict")
+            return self._status(snapshot, offset=offset)
+        except ConnectionError as exc:
+            if str(exc) == "policy-integrity-error":
+                return integrity_status()
+            raise
+
+    def _status(self, snapshot, *, offset=0) -> dict[str, Any]:
+        connection = snapshot.connection
         result = public_connection(connection)
+        if snapshot.managed or connection:
+            result["access"] = status_view(snapshot)
+            if connection:
+                self.access.present_rows(snapshot, result["access"]["rows"])
         if connection:
             result["preview"] = safe_preview(connection["discovery_snapshot"])
+            result.update(self._diagnostic_freshness(result["preview"]))
+            failure = self.account_failure(snapshot)
+            if failure:
+                result["refresh_failure"] = failure
             result["last_verified_at"] = connection.get("last_verified_at", "")
             result["status_source"] = "last-verified-setup"
-            result = _redact_secret(result, connection["app_password"])
+            result = bound_status(_redact_operator_view(result, connection["app_password"]), offset)
         return result
 
+    def account_failure(self, snap):
+        conn = snap.connection
+        if not snap.managed:
+            failure = self.refresh_failure
+            return failure if failure and failure["revision"] == conn["revision"] else None
+        observed = account_failure_observation(snap)
+        if observed is None:
+            return None
+        return {
+            "state": "failed",
+            "code": observed["code"],
+            "checked_at": observed["checked_at"],
+            "diagnostics": user_failure_diagnostics(observed["code"]),
+            "account_id": observed["account_id"],
+            "source_revision": observed["source_revision"],
+            "revision": conn["revision"],
+        }
+
+    def _record_account_failure(self, snap, exc):
+        current = snap.connection
+        failure = {
+            **self._failed_login(exc, current["app_password"]),
+            "account_id": account_namespace(current),
+            "revision": current["revision"],
+        }
+        self.access.candidates.clear()
+        if not snap.managed:
+            self.refresh_failure = failure
+            return failure
+        observation = {
+            "account_id": failure["account_id"],
+            "owner_user_id": current["user_id"],
+            "generation": snap.binding.generation if snap.binding else None,
+            "evidence_at": current["discovery_snapshot"].get("checked_at"),
+            "checked_at": failure["checked_at"],
+            "source_revision": current["revision"],
+            "code": failure["code"],
+        }
+        self.store.save(
+            {**current, "setup_account_failure": observation}, expected_revision=current["revision"]
+        )
+        return self.account_failure(self.store.snapshot())
+
+    def _freshness(self, checked_at: Any) -> dict[str, Any]:
+        age = None
+        if isinstance(checked_at, str) and len(checked_at) <= 64:
+            try:
+                measured = datetime.fromisoformat(checked_at)
+                if measured.utcoffset() is not None:
+                    elapsed = (self.wall_clock() - measured).total_seconds()
+                    if elapsed >= 0:
+                        age = elapsed
+            except (ValueError, OverflowError):
+                pass  # Unparseable timestamps carry no freshness evidence.
+        state = "unknown" if age is None else "fresh" if age < DAV_EVIDENCE_MAX_AGE else "stale"
+        return {"state": state, "age_seconds": age, "max_age_seconds": DAV_EVIDENCE_MAX_AGE}
+
+    def _diagnostic_freshness(self, preview):
+        """The current account check and each retained collection domain age independently."""
+        current = self._freshness(preview.get("checked_at"))
+        by_domain = {}
+        for domain in ("calendars", "task_lists", "addressbooks"):
+            retained = [
+                {"checked_at": row.get("checked_at"), **self._freshness(row.get("checked_at"))}
+                for row in preview.get(domain, ())
+                if row.get("read_check_source") == "retained"
+            ]
+            if retained:
+                by_domain[domain] = max(
+                    retained, key=lambda age: (age["age_seconds"] is None, age["age_seconds"] or 0)
+                )
+        return {"diagnostics_freshness": current, "diagnostics_domain_freshness": by_domain}
+
     def _begin_login(self, actor: str) -> str:
+        self.access.candidates.pop(actor, None)
         # Replacing either entry method invalidates this operator's old token,
         # credentials and approval digest before any new network operation.
         for identifier, previous in list(self.flows.items()):
@@ -217,18 +395,19 @@ class NextcloudSetupService:
             raise OnboardingError("too-many-login-sessions", "Zu viele laufende Anmeldungen")
         return str((self.store.read() or {}).get("revision", ""))
 
-    @staticmethod
-    def _failed_login(exc: OnboardingError, secret: str = "") -> dict[str, Any]:
+    def _failed_login(self, exc: OnboardingError, secret: str = "") -> dict[str, Any]:
         # No exception message, upstream body, login name or URL enters this DTO.
         code = exc.code if re.fullmatch(r"[a-z][a-z0-9-]{0,127}", exc.code) else "setup-unavailable"
-        result: dict[str, Any] = {"state": "failed", "code": code}
+        result: dict[str, Any] = {
+            "state": "failed",
+            "code": code,
+            "checked_at": self.wall_clock().isoformat(),
+        }
+        report = user_failure_diagnostics(code)
         diagnostics = getattr(exc, "diagnostics", None)
         if isinstance(diagnostics, dict):
-            result["diagnostics"] = {
-                key: diagnostics[key]
-                for key in ("schema_version", "user", "calendars", "task_lists", "files")
-                if key in diagnostics
-            }
+            report.update({key: diagnostics[key] for key in DIAGNOSTIC_FIELDS if key in diagnostics})
+        result["diagnostics"] = report
         return _redact_secret(result, secret)
 
     def _ready(self, identifier: str, pending: SetupFlow) -> dict[str, Any]:
@@ -251,6 +430,7 @@ class NextcloudSetupService:
             "preview_digest": pending.preview_digest,
             "expected_revision": pending.expected_revision,
             "preview": preview,
+            **self._diagnostic_freshness(preview),
         }
 
     def _credential_login(self, actor: str, parameters: dict[str, Any]) -> dict[str, Any]:
@@ -304,7 +484,14 @@ class NextcloudSetupService:
         with self.lock:
             self._prune()
             if operation == "status":
-                return self.status()
+                return self.status(parameters)
+            if operation == "access.preview":
+                snapshot = self.store.snapshot()
+                view = self.access.preview(actor, parameters, snapshot)
+                assert snapshot.connection is not None
+                return _redact_operator_view(view, snapshot.connection["app_password"])
+            if operation == "access.apply":
+                return self.access.apply(actor, parameters)
             if operation == "login.start":
                 revision = self._begin_login(actor)
                 transport = self.transport_factory(parameters.get("server_url", ""), allow_private=True)
@@ -369,25 +556,54 @@ class NextcloudSetupService:
                     self.flows.pop(identifier, None)
                     return result
             if operation == "connection.refresh":
-                current = self._connection()
+                before = self.store.snapshot()
+                if before.connection is None:
+                    raise OnboardingError("not-connected")
+                current = before.connection
                 revision = self._revision(parameters, current)
                 try:
-                    snapshot = self.discovery(self._transport(current), self._credentials(current))
+                    snapshot = self._rediscover(current)
                 except OnboardingError as exc:
-                    return self._failed_login(exc, current["app_password"])
+                    return self._record_account_failure(before, exc)
                 updated = {
                     **current,
                     "discovery_snapshot": snapshot,
                     "last_verified_at": datetime.now(UTC).isoformat(),
                 }
-                self.store.save(updated, expected_revision=revision)
+                self.store.save(
+                    updated_connection(self.store.snapshot(), updated), expected_revision=revision
+                )
+                self.refresh_failure = None
                 return self.status()
             if operation == "folders.list":
-                current = self._connection()
-                folders = discover_folders(
-                    self._transport(current), self._credentials(current), parameters.get("path", "")
+                snapshot = self.store.snapshot()
+                if snapshot.connection is None:
+                    raise OnboardingError("not-connected")
+                current = snapshot.connection
+                path = parameters.get("path", "")
+                if not isinstance(path, str) or len(path.encode()) > 2048:
+                    raise OnboardingError("invalid-parameters")
+                path = path.strip("/")
+                try:
+                    path_segments(path)
+                except ValueError:
+                    raise OnboardingError("invalid-parameters") from None
+                self.access.opening(current, path)
+                try:
+                    folders = discover_folders(self._transport(current), self._credentials(current), path)
+                    row = self.access.opened(snapshot, path, folders)
+                finally:
+                    established = self.access.observe_folder(snapshot, path)
+                if row:
+                    self.access.present_rows(established, [row])
+                    folders["access_row"] = row
+                folders.update(
+                    account_id=account_namespace(current),
+                    source_revision=current["revision"],
+                    revision=established.connection["revision"],
+                    diagnostics_freshness=self._freshness(folders.get("checked_at")),
                 )
-                return _redact_secret(folders, current["app_password"])
+                return _redact_operator_view(folders, current["app_password"])
             if operation == "talk.participants":
                 current = self._connection()
                 return _redact_secret(
@@ -404,9 +620,7 @@ class NextcloudSetupService:
         if not isinstance(supplied, str) or not hmac.compare_digest(pending.preview_digest, supplied):
             raise OnboardingError("preview-changed", "Die Einrichtungsvorschau hat sich geaendert")
         if parameters.get("confirm_account_access") is not True:
-            raise OnboardingError(
-                "confirmation-required", "Den Zugriff auf die angezeigten Kontoressourcen bestaetigen"
-            )
+            raise OnboardingError("confirmation-required", "Die geprüfte Nextcloud-Kontoidentität bestätigen")
         if parameters.get("expected_revision") != pending.expected_revision:
             raise ConnectionError("nextcloud-connection-conflict")
         credentials = pending.credentials
@@ -421,6 +635,7 @@ class NextcloudSetupService:
             "talk": {"enabled": False, "room_tokens": [], "allowed_user_ids": []},
         }
         try:
+            value = updated_connection(self.store.snapshot(), value)
             self.store.save(value, expected_revision=pending.expected_revision)
         finally:
             # An uncertain/conflicted publication is terminal. Status/read-back
@@ -486,7 +701,7 @@ class NextcloudSetupService:
             or not all(isinstance(user, str) and 1 <= len(user) <= 512 for user in users)
         ):
             raise OnboardingError("invalid-talk-selection", "Die zugelassenen Benutzer auswaehlen")
-        snapshot = self.discovery(self._transport(current), self._credentials(current))
+        snapshot = self._rediscover(current)
         features = snapshot.get("capabilities", {}).get("spreed", {}).get("features", [])
         if "chat-reference-id" not in features:
             raise OnboardingError(
@@ -518,7 +733,7 @@ class NextcloudSetupService:
             "allowed_user_ids": sorted(set(users)),
         }
         updated["last_verified_at"] = datetime.now(UTC).isoformat()
-        self.store.save(updated, expected_revision=revision)
+        self.store.save(updated_connection(self.store.snapshot(), updated), expected_revision=revision)
         return self.status()
 
 
@@ -599,6 +814,14 @@ class SetupHandler(BaseHTTPRequestHandler):
             payload = json.loads(self.rfile.read(length))
             if not isinstance(payload, dict) or set(payload) != {"operation", "parameters", "actor", "proof"}:
                 raise ValueError
+            if payload["operation"] in ("access.preview", "access.apply"):
+                proof = payload["proof"]
+                if (
+                    isinstance(proof, dict)
+                    and isinstance(proof.get("payload"), str)
+                    and len(proof["payload"].encode()) > MAX_PROOF_BYTES
+                ):
+                    raise OnboardingError("invalid-access-parameters")
             self.server.proof_verifier.verify(payload)
             result = self.server.service.dispatch(
                 payload["operation"], payload["parameters"], actor=payload["actor"]

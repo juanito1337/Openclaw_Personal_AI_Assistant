@@ -65,6 +65,10 @@ if [[ $(stat -c '%u:%g' "$connection_directory") != 1000:1000 ]]; then
   chown 1000:1000 "$connection_directory" 2>/dev/null || sudo chown 1000:1000 "$connection_directory"
 fi
 
+install -d -m 700 "$DEPLOYMENT/scripts/personal_assistant"
+install -m 600 "$SOURCE_ROOT/personal_assistant/"{__init__,models,nextcloud_access,nextcloud_connection}.py \
+  "$DEPLOYMENT/scripts/personal_assistant/"
+
 # Only refresh examples. Active local hooks and .env are administrator state and
 # must never be overwritten by a source update.
 install -m 600 "$SOURCE_ROOT/docker/hooks/pre-deploy.example.sh" \

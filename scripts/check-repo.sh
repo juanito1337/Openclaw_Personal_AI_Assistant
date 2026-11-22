@@ -16,6 +16,7 @@ fi
 "$DEV_PYTHON" scripts/verify-legacy-package.py verify
 "$DEV_PYTHON" scripts/generate-component-inventory.py verify
 "$DEV_PYTHON" scripts/m7_supply_chain.py verify-lock
+"$DEV_PYTHON" scripts/component_registry.py verify
 
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   mapfile -t FILES < <(git ls-files --cached --others --exclude-standard)

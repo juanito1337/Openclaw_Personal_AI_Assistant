@@ -15,15 +15,26 @@ backup=${1:?Backup-Verzeichnis oder ID angeben}
 require_command rsync
 require_command sqlite3
 require_command tar
+owner_offline=false
 if [[ -e "$OPENCLAW_SECRETS_DIR/nextcloud-connection" || -L "$OPENCLAW_SECRETS_DIR/nextcloud-connection" ]]; then
   require_command docker
   setup_service_is_offline || {
     echo "Restore abgebrochen: Setup-Service ist nicht nachweislich gestoppt." >&2
     exit 2
   }
+  owner_offline=true
 fi
 "$SCRIPT_DIR/verify-backup.sh" "$backup" >/dev/null
 [[ -d "$backup" ]] || backup="$OPENCLAW_BACKUP_DIR/$backup"
+
+nextcloud_check=$(archive_nextcloud_check_mode "$backup")
+if [[ "$nextcloud_check" == verify-installed-backup && "$owner_offline" != true ]]; then
+  require_command docker
+  setup_service_is_offline || {
+    echo "Restore abgebrochen: Setup-Service ist nicht nachweislich gestoppt." >&2
+    exit 2
+  }
+fi
 
 for target in "$OPENCLAW_STATE_DIR" "$OPENCLAW_CONFIG_DIR" "$OPENCLAW_SECRETS_DIR"; do
   [[ "$(dirname "$target")" == "$OPENCLAW_ROOT" ]] || {
@@ -54,10 +65,12 @@ while IFS= read -r -d '' database; do
   [[ "$result" == "ok" ]] || { echo "$database: $result" >&2; exit 1; }
 done < <(find "$restore_root/state" -type f \( -name '*.sqlite' -o -name '*.sqlite3' -o -name '*.db' \) -print0)
 check_nextcloud_nonce_integrity "$restore_root/secrets/nextcloud-connection"
+check_nextcloud_access_state "$nextcloud_check" "$restore_root/state" "$restore_root/secrets/nextcloud-connection"
 
 # A database or credential can change without changing length and within the
 # same filesystem timestamp tick. Restore compares content, never just metadata.
 rsync -a --checksum --delete "$restore_root/state/" "$OPENCLAW_STATE_DIR/"
 rsync -a --checksum --delete "$restore_root/config/" "$OPENCLAW_CONFIG_DIR/"
 rsync -a --checksum --delete "$restore_root/secrets/" "$OPENCLAW_SECRETS_DIR/"
+check_nextcloud_access_state "$nextcloud_check" "$OPENCLAW_STATE_DIR" "$OPENCLAW_SECRETS_DIR/nextcloud-connection"
 echo "Lokaler Zustand verifiziert wiederhergestellt: $(basename "$backup")"

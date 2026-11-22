@@ -105,7 +105,7 @@ class FakeActions:
     def approve_configured_contacts_tool(self, action_id, evidence):
         return self.plans[-1]
 
-    def execute_contact_create(self, action_id):
+    def execute_contact_create(self, action_id, *, recreate_missing=False):
         plan = self.plans[-1]
         completed = ActionPlan(
             id=plan.id,

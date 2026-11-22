@@ -371,6 +371,14 @@ def multistatus(resources):
     return ET.tostring(root)
 
 
+def add_propstat(response, status, *properties):
+    propstat = ET.SubElement(response, q(DAV, "propstat"))
+    ET.SubElement(propstat, q(DAV, "status")).text = status
+    prop = ET.SubElement(propstat, q(DAV, "prop"))
+    for property_tag in properties:
+        ET.SubElement(prop, property_tag)
+
+
 def href_property(href):
     node = ET.Element(q(DAV, "href"))
     node.text = href
@@ -479,6 +487,9 @@ def discovery_network(*, unknown_rights=None):
         ]),
         status=207,
     )
+    network.add("PROPFIND", BOOKS + "contacts/", multistatus([
+        (BOOKS + "contacts/", collection("Contacts", rights=["read"])),
+    ]), status=207)
     network.add(
         "PROPFIND",
         FILES,
@@ -711,10 +722,11 @@ def test_diagnostics_check_each_unique_collection_metadata_without_loading_conte
     assert datetime.fromisoformat(snapshot["checked_at"]).utcoffset().total_seconds() == 0
     diagnostics = snapshot["diagnostics"]
     assert diagnostics["user"] == {"status": "ok", "loaded": True, "code": ""}
-    for domain, count in (("calendars", 3), ("task_lists", 2)):
+    for domain, count in (("calendars", 3), ("task_lists", 2), ("addressbooks", 1)):
         assert diagnostics[domain] == {
             "status": "ok", "inventory_complete": True, "discovered": count, "checked": count,
             "readable": count, "failed": 0, "skipped": 0, "checks_complete": True,
+            "probed": count, "retained": 0,
             "content_checked": False, "scope": "collection-metadata", "errors": [], "limitations": [],
         }
     probes = [(call, connection) for call, connection in zip(network.calls, network.connections, strict=True)
@@ -729,6 +741,12 @@ def test_diagnostics_check_each_unique_collection_metadata_without_loading_conte
             q(CALDAV, "supported-calendar-component-set"),
         }
         assert b"calendar-data" not in body and b"address-data" not in body
+    [(method, _, body, headers)] = [call for call in network.calls if call[1] == BOOKS + "contacts/"]
+    assert (method, headers["Depth"]) == ("PROPFIND", "0")
+    assert {node.tag for node in ET.fromstring(body).find(q(DAV, "prop"))} == {
+        q(DAV, "resourcetype"), q(DAV, "current-user-privilege-set"),
+    }
+    assert snapshot["addressbooks"][0]["read_check"]["permissions"] == ["read"]
     assert diagnostics["files"]["root_readable"] and diagnostics["files"]["scope"] == "first-level"
     assert diagnostics["files"]["depth"] == 1 and not diagnostics["files"]["recursive"]
     assert snapshot["file_roots"][0]["read_check"]["status"] == "ok"
@@ -749,6 +767,98 @@ def test_collection_read_denial_is_distinct_from_successful_inventory_and_other_
     assert snapshot["diagnostics"]["calendars"]["status"] == "ok"
     assert snapshot["diagnostics"]["files"]["status"] == "ok"
     assert PASSWORD not in json.dumps(snapshot)
+
+
+@pytest.mark.parametrize("properties,code", [
+    (collection("Different type", components=["VEVENT"], rights=["read"]), "resource-type-unavailable"),
+    (collection("Missing privileges"), "privileges-unavailable"),
+    (collection("Missing read right", rights=["bind"]), "read-permission-missing"),
+    ({q(CARDDAV, "address-data"): PASSWORD}, "resource-type-unavailable"),
+])
+def test_addressbook_probe_requires_own_type_and_read_privilege(properties, code):
+    network = discovery_network(unknown_rights=["read"])
+    href = BOOKS + "contacts/"
+    del network.responses[("PROPFIND", href)]
+    network.add("PROPFIND", href, multistatus([(href, properties)]), status=207)
+    snapshot = discover_account(network.transport(), credentials())
+    books = snapshot["diagnostics"]["addressbooks"]
+    assert not snapshot["complete"] and books["inventory_complete"] and books["checks_complete"]
+    assert (books["status"], books["checked"], books["readable"], books["failed"]) == ("failed", 1, 0, 1)
+    assert snapshot["addressbooks"][0]["read_check"]["code"] == code
+    assert snapshot["diagnostics"]["calendars"]["status"] == "ok"
+    assert PASSWORD not in json.dumps(snapshot)
+
+
+@pytest.mark.parametrize("change,code", [
+    ("wrong-href", "ambiguous-dav"), ("extra-row", "invalid-dav"),
+    ("malformed-propstat", "resource-type-unavailable"), ("duplicate-property", "ambiguous-dav"),
+    ("duplicate-propstat-status", "ambiguous-dav"), ("duplicate-prop-container", "ambiguous-dav"),
+    ("duplicate-response-status", "ambiguous-dav"), ("conflicting-property-status", "ambiguous-dav"),
+])
+def test_addressbook_probe_requires_unambiguous_successful_dav_metadata(change, code):
+    network = discovery_network(unknown_rights=["read"])
+    href = BOOKS + "contacts/"
+    properties = collection("Contacts", rights=["read"])
+    rows = [(BOOKS + "other/" if change == "wrong-href" else href, properties)]
+    if change == "extra-row":
+        rows.append((BOOKS + "other/", properties))
+    tree = ET.fromstring(multistatus(rows))
+    response = tree.find(q(DAV, "response"))
+    propstat = response.find(q(DAV, "propstat"))
+    if change == "malformed-propstat":
+        propstat.find(q(DAV, "status")).text = "unexpected 200 status"
+    if change == "duplicate-property":
+        prop = propstat.find(q(DAV, "prop"))
+        prop.append(ET.fromstring(ET.tostring(prop.find(q(DAV, "current-user-privilege-set")))))
+    if change == "duplicate-propstat-status":
+        ET.SubElement(propstat, q(DAV, "status")).text = "HTTP/1.1 403 Forbidden"
+    if change == "duplicate-prop-container":
+        ET.SubElement(propstat, q(DAV, "prop"))
+    if change == "duplicate-response-status":
+        ET.SubElement(response, q(DAV, "status")).text = "HTTP/1.1 200 OK"
+        ET.SubElement(response, q(DAV, "status")).text = "HTTP/1.1 403 Forbidden"
+    if change == "conflicting-property-status":
+        add_propstat(response, "HTTP/1.1 403 Forbidden", q(DAV, "current-user-privilege-set"))
+    network.responses[("PROPFIND", href)] = [HttpResponse(207, {}, ET.tostring(tree))]
+    snapshot = discover_account(network.transport(), credentials())
+    assert snapshot["addressbooks"][0]["read_check"]["code"] == code
+    assert snapshot["diagnostics"]["calendars"]["status"] == "ok"
+
+
+def test_exact_permissions_do_not_inherit_stale_inventory_grants():
+    network = discovery_network(unknown_rights=["read"])
+    href = CALENDARS + "tasks/"
+    del network.responses[("PROPFIND", href)]
+    network.add("PROPFIND", href, multistatus([
+        (href, collection("Tasks", components=["VTODO"], rights=["read"])),
+    ]), status=207)
+    tasks = next(item for item in discover_account(network.transport(), credentials())["task_lists"]
+                 if item["href"] == href)
+    assert tasks["can_create"] and tasks["can_update"]  # Inventory advertisement remains inspectable.
+    assert tasks["read_check"]["permissions"] == ["read"]
+
+
+def test_addressbooks_and_caldav_share_the_thirty_two_request_budget():
+    network = discovery_network(unknown_rights=["read"])
+    books = [(BOOKS + f"book-{number:02d}/", collection(f"Book {number:02d}", rights=["read"]))
+             for number in range(32)]
+    del network.responses[("PROPFIND", BOOKS)]
+    network.add("PROPFIND", BOOKS, multistatus([
+        (BOOKS, {q(DAV, "resourcetype"): [ET.Element(q(DAV, "collection"))]}), *books,
+    ]), status=207)
+    for href, properties in books:
+        network.add("PROPFIND", href, multistatus([(href, properties)]), status=207)
+    snapshot = discover_account(network.transport(), credentials())
+    probes = [path for _, path, _, headers in network.calls if headers.get("Depth") == "0"
+              and path.startswith((CALENDARS, BOOKS))]
+    assert len(probes) == 32 and len(set(probes)) == 32
+    assert snapshot["diagnostics"]["calendars"]["status"] == "ok"
+    result = snapshot["diagnostics"]["addressbooks"]
+    assert result["inventory_complete"] and not result["checks_complete"]
+    assert (result["status"], result["discovered"], result["readable"], result["skipped"]) == (
+        "partial", 32, 28, 4
+    )
+    assert result["limitations"] == ["read-check-limit"] and not snapshot["results_may_be_truncated"]
 
 
 @pytest.mark.parametrize("change,code", [
@@ -852,6 +962,7 @@ def test_added_read_checks_stop_at_budget_and_report_unchecked_collections(monke
     assert sum(path.startswith(CALENDARS) and path != CALENDARS for _, path, _, _ in network.calls) == 1
     assert not snapshot["results_may_be_truncated"]
     assert any(item["read_check"]["code"] == "read-check-budget" for item in snapshot["calendars"])
+    assert snapshot["addressbooks"][0]["read_check"]["code"] == "read-check-budget"
 
 
 def test_inventory_limit_reports_discovered_count_separately_from_checked_count():
@@ -875,7 +986,7 @@ def test_failed_user_lookup_has_safe_diagnostics_and_never_loads_downstream(resp
         discover_account(network.transport(), credentials())
     diagnostics = error.value.diagnostics
     assert diagnostics["user"] == {"status": "failed", "loaded": False, "code": code}
-    for domain in ("calendars", "task_lists", "files"):
+    for domain in ("calendars", "task_lists", "addressbooks", "files", "talk"):
         assert diagnostics[domain]["status"] == "skipped"
         assert diagnostics[domain]["limitations"] == ["user-unavailable"]
         assert not diagnostics[domain]["inventory_complete"]
@@ -883,11 +994,24 @@ def test_failed_user_lookup_has_safe_diagnostics_and_never_loads_downstream(resp
     assert PASSWORD not in str(error.value) and PASSWORD not in json.dumps(diagnostics)
 
 
+def test_unreachable_identity_never_claims_server_or_downstream_access():
+    network = FakeNetwork()
+    network.responses[("GET", "/nc/ocs/v1.php/cloud/user")] = [OSError(PASSWORD)]
+    with error_code("transport-error") as error:
+        discover_account(network.transport(), credentials())
+    report = error.value.diagnostics
+    assert report["availability"] == {"status": "failed", "code": "transport-error"}
+    assert report["user"]["loaded"] is False
+    assert all(report[domain]["status"] == "skipped" for domain in
+               ("calendars", "task_lists", "addressbooks", "files", "talk"))
+    assert len(network.calls) == 1 and PASSWORD not in json.dumps(report)
+
+
 def test_folder_browsing_checks_selected_level_only_and_denied_rights_stay_visible():
     network = FakeNetwork()
     href = FILES + "Shared"
     network.add("PROPFIND", href, multistatus([
-        (href + "/", collection("Shared", file_flags="G")),
+        (href + "/", collection("Shared", file_flags="G", file_id="22")),
         (href + "/Child/", collection("Child", file_flags="G")),
     ]), status=207)
     result = discover_folders(network.transport(), credentials(user_id=UID), "Shared")
@@ -895,10 +1019,80 @@ def test_folder_browsing_checks_selected_level_only_and_denied_rights_stay_visib
     assert [item["read_check"]["status"] for item in result["folders"]] == ["ok", "skipped"]
     assert len(network.calls) == 1
     network.add("PROPFIND", href,
-                multistatus([(href + "/", collection("Shared", file_flags="R"))]), status=207)
+                multistatus([(href + "/", collection("Shared", file_flags="R", file_id="22"))]), status=207)
     result = discover_folders(network.transport(), credentials(user_id=UID), "Shared")
     assert result["inventory_complete"] and not result["complete"]
     assert result["folders"][0]["read_check"]["code"] == "read-permission-missing"
+
+
+@pytest.mark.parametrize("flags,file_id,read,create_file,mkdir,code", [
+    ("GCK", "21", True, True, True, ""),
+    ("GC", "21", True, True, False, ""),
+    ("GK", "21", True, False, True, ""),
+    (None, "21", None, None, None, "privileges-unavailable"),
+    ("GCK", None, True, True, True, "file-id-unavailable"),
+])
+def test_folder_evidence_distinguishes_c_and_k(flags, file_id, read, create_file, mkdir, code):
+    network = FakeNetwork()
+    href = FILES + "Shared/"
+    own = collection("Shared", file_flags="", rights=["all"])
+    own.pop(q(OC, "permissions"))
+    own.pop(q(OC, "fileid"))
+    if flags is not None:
+        own[q(OC, "permissions")] = flags
+    if file_id is not None:
+        own[q(OC, "fileid")] = file_id
+    network.add("PROPFIND", href.rstrip("/"), multistatus([
+        (href + "Child/", collection("Child", file_flags="GCK", file_id="987")), (href, own),
+    ]), status=207)
+    result = discover_folders(network.transport(), credentials(user_id=UID), "Shared", max_resources=1)
+    assert result["results_may_be_truncated"] and not result["inventory_complete"]
+    assert result["discovered"] == 2 and len(result["folders"]) == 1
+    assert datetime.fromisoformat(result["checked_at"]).utcoffset().total_seconds() == 0
+    assert result["selected_folder"] == {
+        "path": "Shared", "file_id": file_id, "href": href,
+        "can_read": read, "can_create_file": create_file, "can_mkdir": mkdir,
+        "read_check": {"status": "failed" if code else "ok", "code": code,
+                       "scope": "first-level", "content_checked": False},
+    }
+
+
+def test_folder_evidence_rejects_child_row_instead_of_requested_folder():
+    network = FakeNetwork()
+    href = FILES + "Shared/"
+    network.add("PROPFIND", href.rstrip("/"), multistatus([
+        (href + "Child/", collection("Child", file_flags="GCK", file_id="987")),
+    ]), status=207)
+    with error_code("ambiguous-dav"):
+        discover_folders(network.transport(), credentials(user_id=UID), "Shared")
+
+
+@pytest.mark.parametrize("failed_group_first", [False, True])
+def test_folder_permissions_with_conflicting_propstats_are_ambiguous(failed_group_first):
+    network = FakeNetwork()
+    href = FILES + "Shared/"
+    body = ET.fromstring(multistatus([(href, collection("Shared", file_flags="GCK", file_id="22"))]))
+    response = body.find(q(DAV, "response"))
+    add_propstat(response, "HTTP/1.1 404 Not Found", q(OC, "permissions"))
+    if failed_group_first:
+        first = response.find(q(DAV, "propstat"))
+        response.remove(first)
+        response.append(first)
+    network.add("PROPFIND", href.rstrip("/"), ET.tostring(body), status=207)
+    with error_code("ambiguous-dav"):
+        discover_folders(network.transport(), credentials(user_id=UID), "Shared")
+
+
+def test_folder_accepts_success_and_not_found_propstats_for_different_properties():
+    network = FakeNetwork()
+    href = FILES + "Shared/"
+    body = ET.fromstring(multistatus([(href, collection("Shared", file_flags="GC", file_id="22"))]))
+    response = body.find(q(DAV, "response"))
+    add_propstat(response, "HTTP/1.1 404 Not Found", q(DAV, "current-user-privilege-set"))
+    network.add("PROPFIND", href.rstrip("/"), ET.tostring(body), status=207)
+    result = discover_folders(network.transport(), credentials(user_id=UID), "Shared")
+    assert result["complete"] and result["selected_folder"]["read_check"]["status"] == "ok"
+    assert result["selected_folder"]["can_create_file"] and not result["selected_folder"]["can_mkdir"]
 
 
 def test_folder_depth_one_response_cannot_claim_nested_descendants_as_checked():
@@ -1146,3 +1340,134 @@ def test_talk_diagnostics_skip_after_failed_identity_without_claiming_app_absent
         "scope": "room-metadata", "content_checked": False,
     }
     assert len(network.calls) == 1
+
+
+def test_owner_refresh_advances_collection_checks_without_renewing_saved_proofs(tmp_path):
+    from test_nextcloud_access import managed
+    from test_nextcloud_setup import confirmation
+
+    from personal_assistant.nextcloud_access import Scope, decide_access
+    from personal_assistant.nextcloud_setup import NextcloudSetupService
+
+    def inventory(*, insert=False):
+        network = discovery_network(unknown_rights=["read"])
+        books = [(BOOKS + f"book-{n:02d}/", collection(f"Book {n:02d}", rights=["read"])) for n in range(32)]
+        if insert:
+            books.insert(0, (BOOKS + "added/", collection("Added", rights=["read"])))
+        del network.responses[("PROPFIND", BOOKS)]
+        network.add("PROPFIND", BOOKS, multistatus([
+            (BOOKS, {q(DAV, "resourcetype"): [ET.Element(q(DAV, "collection"))]}), *books,
+        ]), status=207)
+        for href, props in books:
+            network.add("PROPFIND", href, multistatus([(href, props)]), status=207)
+        for href in (CALENDARS + "both/", BOOKS + "book-00/"):
+            network.responses[("PROPFIND", href)] = [HttpResponse(403, {}, b"")]
+        return network
+
+    first = inventory()
+    previous = discover_account(first.transport(), credentials())
+    store = managed(tmp_path)
+    store.save({
+        "server_url": BASE, "user_id": UID, "login_name": LOGIN, "app_password": PASSWORD,
+        "expected_ips": list(first.transport().expected_ips), "discovery_snapshot": previous,
+        "last_verified_at": previous["checked_at"],
+        "talk": {"enabled": False, "room_tokens": [], "allowed_user_ids": []},
+    }, expected_revision="")
+    second = inventory(insert=True)
+    owner = NextcloudSetupService(store, transport_factory=lambda *a, **k: second.transport())
+
+    def book(status, number):
+        return next(row for row in status["access"]["rows"] if row["name"] == f"Book {number:02d}")
+
+    def select(status, number):
+        row = book(status, number)
+        params = {"account_id": status["account_id"], "expected_revision": status["revision"],
+                  "expected_policy_revision": status["access"]["binding"]["policy_revision"],
+                  "edits": [{"scope": row["scope"], "level": "read"}], "confirm_root": False}
+        preview = owner.dispatch("access.preview", params, actor="operator")
+        return owner.dispatch("access.apply", confirmation(preview), actor="operator")
+
+    initial = select(owner.status(), 27)
+    assert book(initial, 31)["supported_levels"] == ["off"]
+    after = owner.dispatch("connection.refresh", {"expected_revision": initial["revision"]}, actor="operator")
+    assert "read" in book(after, 31)["supported_levels"] and not book(after, 31)["desired_operations"]
+    probes = [p for _, p, _, h in second.calls if h.get("Depth") == "0" and p.startswith((CALENDARS, BOOKS))]
+    assert len(probes) == len(set(probes)) == 32
+    assert BOOKS + "book-27/" not in probes
+    assert book(after, 27)["server"]["checked_at"] == book(initial, 27)["server"]["checked_at"]
+    assert book(after, 27)["server"]["checked_at"] != after["preview"]["checked_at"]
+    assert "read" in book(after, 27)["effective_operations"]
+    assert book(after, 27)["server"]["read_check_source"] == "retained"
+    assert book(after, 31)["server"]["read_check_source"] == "probed"
+    summary = after["preview"]["diagnostics"]["addressbooks"]
+    actual_book_calls = [p for p in probes if p.startswith(BOOKS)]
+    assert summary["probed"] == len(actual_book_calls)
+    assert summary["retained"] == summary["checked"] - len(actual_book_calls)
+    assert summary["retained"] > 0
+    assert "read" not in book(after, 0)["supported_levels"]
+    saved = select(after, 31)
+    assert decide_access(store.snapshot(), Scope(**book(saved, 31)["scope"]), "read").allowed
+
+
+@pytest.mark.parametrize(
+    "invalid", ["expired", "no-stamp", "changed-right", "changed-component", "other-principal"]
+)
+def test_skipped_collection_never_inherits_invalid_prior_evidence(monkeypatch, invalid):
+    from datetime import UTC, timedelta
+
+    from personal_assistant.nextcloud_onboarding import _check_collections
+
+    start = datetime.now(UTC)
+    account = {"server_url": BASE, "user_id": UID, "account_id": "hash", "principal_href": PRINCIPAL}
+    row = {"kind": "calendar", "href": CALENDARS + "saved/", "resource_id": "saved",
+           "components": ["VEVENT"], "permissions": ["read"], "can_read": True, "privileges_verified": True}
+    check = {
+        "status": "ok", "scope": "collection-metadata", "content_checked": False, "permissions": ["read"]
+    }
+    old = {**row, "checked_at": (start - timedelta(seconds=30)).isoformat(), "read_check": check}
+    previous = {**account, "calendars": [old]}
+    if invalid == "expired":
+        old["checked_at"] = (start - timedelta(days=1)).isoformat()
+    elif invalid == "no-stamp":
+        del old["checked_at"]
+    elif invalid == "changed-right":
+        old["permissions"] = ["read", "create"]
+    elif invalid == "changed-component":
+        old["components"] = ["VEVENT", "VTODO"]
+    else:
+        previous["principal_href"] = PRINCIPAL + "other/"
+    # All 32 real budget slots are consumed by newly discovered earlier rows.
+    prefix = [{**row, "href": CALENDARS + str(i) + "/", "resource_id": str(i)} for i in range(32)]
+    current = {**account, "calendars": [*prefix, row], "limitations": []}
+    monkeypatch.setattr(nextcloud_onboarding, "_check_collection_read", lambda *a, **kw: check)
+    _check_collections(None, None, current, previous, ["calendars"], start)
+    assert row["read_check"]["status"] == "skipped" and row["checked_at"] is None
+    assert row["read_check_source"] == "skipped"
+
+
+def test_thirty_two_failing_collection_probes_do_not_starve_the_next_unmeasured_book(monkeypatch):
+    from datetime import UTC
+
+    from personal_assistant.nextcloud_onboarding import _check_collections, _read_check
+
+    identity = {"server_url": BASE, "user_id": UID, "account_id": "hash", "principal_href": PRINCIPAL}
+    rows = [{"kind": "addressbook", "href": BOOKS + str(i), "resource_id": str(i),
+             "can_read": True, "privileges_verified": True, "permissions": ["read"]} for i in range(33)]
+    first = {**identity, "addressbooks": [dict(r) for r in rows], "limitations": []}
+    second = {**identity, "addressbooks": [dict(r) for r in rows], "limitations": []}
+    calls = []
+
+    def probe(_transport, _credentials, row, **options):
+        calls.append(row["resource_id"])
+        if row["resource_id"] == "32":
+            return {**_read_check("ok"), "permissions": ["read"]}
+        return _read_check("failed", "permission-denied")
+
+    monkeypatch.setattr(nextcloud_onboarding, "_check_collection_read", probe)
+    _check_collections(None, None, first, None, ["addressbooks"], datetime.now(UTC))
+    assert calls == [str(i) for i in range(32)]
+    calls.clear()
+    _check_collections(None, None, second, first, ["addressbooks"], datetime.now(UTC))
+    assert calls[0] == "32" and len(calls) == 32
+    assert second["addressbooks"][32]["read_check"]["status"] == "ok"
+    assert all(row["read_check"]["status"] == "failed" for row in second["addressbooks"][:32])

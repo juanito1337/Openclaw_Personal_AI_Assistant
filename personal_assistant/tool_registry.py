@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
 
 from .contracts.tools import AgentTool, ToolDefinition
@@ -16,14 +17,59 @@ def tool_definitions() -> tuple[ToolDefinition, ...]:
 
 def build_tool_registry(settings: ToolSettings) -> list[AgentTool]:
     """Project the static catalog onto the configured live tool permissions."""
-    return [
-        definition.live(_rendered_command(definition, settings))
-        for definition in TOOLS
-        if _enabled(definition, settings)
-    ]
+    if settings.nextcloud_access_managed:
+        from .nextcloud_connection import (
+            admit_projection,
+            apply_tool_connection,
+            conn_revision,
+            load_access_snapshot,
+        )
+
+        current = load_access_snapshot()
+        with admit_projection(current):
+            if (
+                not current.managed
+                or current.mode != settings.nextcloud_access_mode
+                or conn_revision(current) != settings.nextcloud_access_revision
+            ):
+                raise PermissionError("policy-changed")
+            if current.mode != "legacy" or current.connection:
+                settings = apply_tool_connection(settings, current)
+            return _live_tools(settings)
+    return _live_tools(settings)
+
+
+def _live_tools(settings):
+    tools = []
+    for definition in TOOLS:
+        if not _enabled(definition, settings):
+            continue
+        tool = definition.live(_rendered_command(definition, settings))
+        if tool.id == "nextcloud.list" and settings.nextcloud_files_list_recheck:
+            tool = replace(
+                tool,
+                description=(
+                    "Ausgewaehlte Ordner auflisten. Veraltete Rechte vor der Ausgabe erneut per DAV pruefen."
+                ),
+            )
+        tools.append(tool)
+    return tools
 
 
 def _enabled(definition: ToolDefinition, settings: ToolSettings) -> bool:
+    if settings.nextcloud_access_mode != "legacy":
+        if definition.id == "nextcloud.list":
+            return settings.nextcloud_files_list_effective or settings.nextcloud_files_list_recheck
+        if definition.id == "nextcloud.sync":
+            return settings.nextcloud_files_list_effective or any(
+                item.enabled
+                for item in (
+                    settings.nextcloud.calendar,
+                    settings.nextcloud.contacts,
+                )
+            )
+        if definition.domain in {"calendar", "tasks", "contacts"} and definition.id.endswith(".configure"):
+            return False
     checks = {
         "always": True,
         "mail-move": settings.mail.move.enabled,

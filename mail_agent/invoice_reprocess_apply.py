@@ -16,6 +16,7 @@ from .invoice_reprocess import (
     compute_record_sha256,
     message_from_record,
 )
+from .nextcloud import archive_access, archive_snapshot
 from .storage import Storage
 from .utils import now_utc_iso
 
@@ -500,6 +501,7 @@ def run_reprocess_apply(
     attachment_hash, expected_preview_sha256 = validate_apply_identifiers(
         attachment_hash, expected_preview_sha256
     )
+    initial = archive_snapshot()
     local_applied = False
     local_state_present = False
     try:
@@ -545,15 +547,16 @@ def run_reprocess_apply(
             _, values = _safe_proposal(metadata, classification=str(preview["classification"]))
             storage = Storage(Path(database))
             try:
-                audit, local_applied = _begin_local_apply(
-                    storage,
-                    item=item,
-                    attachment_hash=attachment_hash,
-                    preview_sha256=expected_preview_sha256,
-                    proposal_sha256=proposal_sha256,
-                    extractor_version=metadata.technical.extractor_version,
-                    values=values,
-                )
+                with archive_access(initial):
+                    audit, local_applied = _begin_local_apply(
+                        storage,
+                        item=item,
+                        attachment_hash=attachment_hash,
+                        preview_sha256=expected_preview_sha256,
+                        proposal_sha256=proposal_sha256,
+                        extractor_version=metadata.technical.extractor_version,
+                        values=values,
+                    )
             finally:
                 storage.close()
             local_state_present = True
@@ -588,11 +591,12 @@ def run_reprocess_apply(
             current = _joined_invoice(storage.connection, attachment_hash)
             if current is None or compute_record_sha256(current) != str(audit["new_state_sha256"]):
                 raise ApplyRejected("local-state-drift", "Lokal uebernommener Datensatz ist gedriftet")
-            claimed, token = _claim_register_sync(
-                storage,
-                operation_id=str(audit["operation_id"]),
-                expected_new_state_sha256=str(audit["new_state_sha256"]),
-            )
+            with archive_access(initial):
+                claimed, token = _claim_register_sync(
+                    storage,
+                    operation_id=str(audit["operation_id"]),
+                    expected_new_state_sha256=str(audit["new_state_sha256"]),
+                )
             if token is None:
                 return _result_payload(
                     claimed,
@@ -692,7 +696,7 @@ def run_reprocess_apply(
         if isinstance(exc, RuntimeError) and str(exc) == "antivirus-gate-blocked":
             code = "antivirus-gate-blocked"
         elif isinstance(exc, PermissionError):
-            code = "permission-denied"
+            code = "policy-changed" if str(exc) == "policy-changed" else "permission-denied"
         elif isinstance(exc, (FileNotFoundError, OSError)):
             code = "source-read-failed"
         elif isinstance(exc, ValueError):

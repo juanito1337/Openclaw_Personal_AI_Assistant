@@ -12,7 +12,12 @@ from zoneinfo import ZoneInfo
 
 from .actions import ActionService
 from .antivirus import HostAntivirus
-from .calendar_from_mail import build_calendar_mail_preview, select_unchanged_candidate
+from .calendar_from_mail import (
+    build_calendar_mail_preview,
+    canonical_preview_digest,
+    mail_preview_access,
+    select_unchanged_candidate,
+)
 from .config import AssistantConfig
 from .connectors.nextcloud.calendar import NextcloudCalendar
 from .connectors.nextcloud.client import NextcloudClient
@@ -50,7 +55,7 @@ from .resource_identity import (
 )
 from .runtime_identity import runtime_identity
 from .services.mail import MailApplicationMixin
-from .services.nextcloud_account import NextcloudAccountMixin
+from .services.nextcloud_account import NextcloudAccountMixin, publish_current_account_result
 from .services.orders import OrderApplicationMixin
 from .services.portfolio import PortfolioApplicationMixin
 from .services.security import SecurityApplicationMixin
@@ -447,6 +452,7 @@ class PersonalAssistant(
         result["resource_selection_changed"] = False
         return result
 
+    @publish_current_account_result
     def calendar_discover(self) -> dict[str, Any]:
         """List reachable VEVENT collections without changing local state."""
         settings = self.tool_settings.nextcloud.calendar
@@ -465,6 +471,7 @@ class PersonalAssistant(
             "health": health,
         }
 
+    @publish_current_account_result
     def tasks_discover(self) -> dict[str, Any]:
         """List reachable VTODO collections without changing local state."""
         settings = self.tool_settings.nextcloud.tasks
@@ -630,6 +637,7 @@ class PersonalAssistant(
             "organization": contact.organization,
         }
 
+    @publish_current_account_result
     def contacts_discover(self) -> dict[str, Any]:
         """List reachable CardDAV address books without changing local state."""
         settings = self.tool_settings.nextcloud.contacts
@@ -750,9 +758,12 @@ class PersonalAssistant(
             can_update=bool(resource.metadata.get("server_can_update", "update" in resource.permissions)),
         )
 
+    @publish_current_account_result
     def direct_contacts_status(self, *, live: bool = True) -> dict[str, Any]:
         if self._multiple_nextcloud_resources("contacts"):
             return self._account_domain_status("contacts", live=live)
+        from .nextcloud_connection import component_operations
+
         settings = self.tool_settings.nextcloud.contacts
         reference = next(
             item for item in configured_references(self.tool_settings) if item.domain == "contacts"
@@ -765,6 +776,9 @@ class PersonalAssistant(
             except ResourceIdentityError as exc:
                 identity_error = exc
         base_ok = bool(settings.enabled and resource)
+        managed_access = getattr(self.registry, "access_snapshot", None)
+        access_mode = getattr(managed_access, "mode", "legacy")
+        access_evidence = self._access_status_evidence(managed_access, resource, "VCARD")
         identity_state = (
             "resolved"
             if resource
@@ -778,13 +792,16 @@ class PersonalAssistant(
             "ok": base_ok,
             "operations_profile": self.tool_settings.operations_profile,
             "enabled": settings.enabled,
+            "access_mode": access_mode,
+            **access_evidence,
+            "access_restriction": "operator-selected" if access_mode == "active" else "",
             "allow_list": settings.allow_list,
             "allow_create": settings.allow_create,
             "allow_update": settings.allow_update,
             "resource_id": settings.resource_id,
             "resource_name": str(resource.metadata.get("name") or "") if resource else "",
             "max_results": settings.max_results,
-            "resource_permissions": list(resource.permissions) if resource else [],
+            "resource_permissions": list(component_operations(resource, "VCARD")) if resource else [],
             "update_allowed": bool(base_ok and settings.allow_update),
             "delete_allowed": False,
             "create_only": settings.allow_create and not settings.allow_update,
@@ -795,7 +812,7 @@ class PersonalAssistant(
                 "remote_identifier": resource.remote_id if resource else "",
             },
         }
-        if live and base_ok and resource:
+        if live and base_ok and resource and access_mode != "active":
             try:
                 current = next(
                     (
@@ -842,6 +859,7 @@ class PersonalAssistant(
         contacts.sort(key=lambda item: (item.name.casefold(), item.uid.casefold()))
         return resource, contacts
 
+    @publish_current_account_result
     def contacts_list(self, *, limit: int = 100) -> dict[str, Any]:
         if self._multiple_nextcloud_resources("contacts"):
             return self._account_domain_list("contacts", limit=limit)
@@ -860,9 +878,11 @@ class PersonalAssistant(
             "contacts": [self._contact_payload(item) for item in selected],
         }
 
+    @publish_current_account_result
     def contacts_search(self, query: str, *, limit: int = 50) -> dict[str, Any]:
         if self._multiple_nextcloud_resources("contacts"):
             return self._account_domain_list("contacts", query=query, limit=limit)
+        self._check_domain_access("contacts", self.tool_settings.nextcloud.contacts.resource_id, "search")
         needle = " ".join(str(query or "").split()).casefold()
         if not needle:
             raise ValueError("Kontakt-Suchbegriff fehlt")
@@ -912,6 +932,7 @@ class PersonalAssistant(
         *,
         note: str = "",
         allow_name_collision: bool = False,
+        expected_duplicates: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         self.require_nextcloud_target("contacts")
         settings = self.tool_settings.nextcloud.contacts
@@ -929,6 +950,8 @@ class PersonalAssistant(
             raise PermissionError(decision.reason)
         contacts = self.nextcloud_contacts.list_contacts(self._contact_collection(resource))
         duplicates = self._contact_duplicate_report(candidate, contacts)
+        if expected_duplicates is not None and duplicates != expected_duplicates:
+            raise PermissionError("Kontaktvorschau hat sich bei der letzten Dublettenpruefung geaendert")
         if duplicates["exact_email_matches"]:
             return {
                 "ok": True,
@@ -990,7 +1013,7 @@ class PersonalAssistant(
             )
         if plan.status not in {"approved", "completed"}:
             return {"ok": False, "created": False, "action": asdict(plan)}
-        result, duplicate = self.actions.execute_contact_create(plan.id)
+        result, duplicate = self.actions.execute_contact_create(plan.id, recreate_missing=True)
         response = {
             "ok": result.status == "completed",
             "duplicate": duplicate,
@@ -1177,6 +1200,43 @@ class PersonalAssistant(
             response["detail"] = result.error
         return response
 
+    def _scanned_preview_mail(self, folder: str, message_id: str, expected_subject: str, domain: str):
+        antivirus_settings = self.tool_settings.security.antivirus
+        if not (
+            antivirus_settings.enabled
+            and antivirus_settings.fail_closed
+            and antivirus_settings.scan_raw_mail
+            and antivirus_settings.scan_attachments
+        ):
+            raise PermissionError(f"{domain}-from-mail benoetigt fail-closed Raw- und Attachment-Scan")
+        message = self.mail_move_service.read_message(
+            folder,
+            message_id,
+            expected_subject=expected_subject,
+        )
+        scans = [
+            self.antivirus.scan_bytes(
+                message.raw,
+                name=f"selected-{domain}-mail.eml",
+                source_type=f"{domain}-from-mail-raw",
+            )
+        ]
+        for attachment in physical_mail_attachments(message):
+            scans.append(
+                self.antivirus.scan_bytes(
+                    attachment.data,
+                    name=attachment.name,
+                    source_type=f"{domain}-from-mail-attachment",
+                )
+            )
+        blocked = next((scan for scan in scans if not scan.clean), None)
+        if blocked is not None:
+            raise PermissionError(
+                f"{domain}-from-mail durch Virenscanner blockiert: "
+                + (blocked.signature or blocked.status)
+            )
+        return message, scans
+
     def contact_from_mail(
         self,
         *,
@@ -1184,31 +1244,26 @@ class PersonalAssistant(
         message_id: str,
         expected_subject: str = "",
         dry_run: bool = True,
+        preview_digest: str = "",
         name: str = "",
         organization: str = "",
         phones: tuple[str, ...] = (),
         note: str = "",
         allow_name_collision: bool = False,
     ) -> dict[str, Any]:
-        message = self.mail_move_service.read_message(
-            folder,
-            message_id,
-            expected_subject=expected_subject,
-        )
-        scan = self.antivirus.scan_bytes(
-            message.raw,
-            name="selected-mail.eml",
-            source_type="contact-from-mail",
-        )
-        if (
-            self.tool_settings.security.antivirus.enabled
-            and self.tool_settings.security.antivirus.fail_closed
-            and not scan.clean
-        ):
-            raise PermissionError(
-                "Kontaktvorschlag durch Virenscanner blockiert: "
-                + (scan.signature or scan.detail or scan.status)
-            )
+        self.require_nextcloud_target("contacts")
+        settings = self.tool_settings.nextcloud.contacts
+        initial = getattr(self.registry, "access_snapshot", None)
+
+        def admission():
+            return mail_preview_access(initial, settings.resource_id, "VCARD", "list", "read")
+
+        with admission() as proof:
+            if proof and not dry_run and not preview_digest:
+                raise PermissionError(
+                    "scope-unbound: Aktuellen Kontaktvorschlag mit --preview-digest bestaetigen"
+                )
+        message, scans = self._scanned_preview_mail(folder, message_id, expected_subject, "contact")
         extracted = candidate_from_mail(message)
         selected_name = " ".join(str(name or extracted.name).split())
         selected_org = " ".join(str(organization or extracted.organization).split())
@@ -1229,7 +1284,6 @@ class PersonalAssistant(
                 **({"phone": "explicit-user-input"} if phones else {}),
             },
         )
-        settings = self.tool_settings.nextcloud.contacts
         contacts: list[Any] = []
         duplicates = {"exact_email_matches": [], "same_name_matches": []}
         if settings.enabled and settings.allow_list and settings.resource_id:
@@ -1247,12 +1301,21 @@ class PersonalAssistant(
             },
             "candidate": candidate.to_dict(),
             "duplicates": duplicates,
-            "antivirus": scan.to_dict(),
+            "antivirus": {**scans[0].to_dict(), "raw_scanned": True, "attachment_count": len(scans) - 1},
             "requires_name": not bool(candidate.name),
             "automated_sender_blocked": candidate.automated_sender,
         }
-        if dry_run:
-            return proposal
+        proposal["preview_digest"] = canonical_preview_digest({
+            "version": 1, "resource_id": settings.resource_id, "access": proof,
+            "source": proposal["source_mail"], "raw_sha256": hashlib.sha256(message.raw).hexdigest(),
+            "candidate": proposal["candidate"], "duplicates": duplicates,
+            "note": note, "allow_name_collision": allow_name_collision,
+        })
+        with admission():
+            if preview_digest and preview_digest != proposal["preview_digest"]:
+                raise PermissionError("Kontaktvorschau hat sich geaendert")
+            if dry_run:
+                return proposal
         if candidate.automated_sender:
             proposal.update(
                 {
@@ -1264,7 +1327,8 @@ class PersonalAssistant(
                     ),
                 }
             )
-            return proposal
+            with admission():
+                return proposal
         if not candidate.name:
             proposal.update(
                 {
@@ -1273,13 +1337,16 @@ class PersonalAssistant(
                     "detail": "Kein belastbarer Kontaktname erkannt; --name ist erforderlich",
                 }
             )
-            return proposal
+            with admission():
+                return proposal
         created = self._create_contact_candidate(
             candidate,
             note=note or "Aus einer ausgewaehlten E-Mail uebernommen und vom Nutzer bestaetigt.",
             allow_name_collision=allow_name_collision,
+            expected_duplicates=duplicates if preview_digest else None,
         )
-        return {**proposal, **created, "dry_run": False}
+        with admission():
+            return {**proposal, **created, "dry_run": False}
 
     @staticmethod
     def _calendar_event_payload(event) -> dict[str, Any]:
@@ -1298,7 +1365,9 @@ class PersonalAssistant(
     @staticmethod
     def _calendar_collection(resource: Resource):
         from .connectors.nextcloud.discovery import DiscoveredCollection
+        from .nextcloud_connection import component_operations
 
+        operations = component_operations(resource, "VEVENT")
         return DiscoveredCollection(
             kind=resource.kind,
             href=str(resource.metadata.get("href") or resource.remote_id),
@@ -1307,14 +1376,17 @@ class PersonalAssistant(
             description=str(resource.metadata.get("description") or ""),
             components=tuple(str(value) for value in resource.metadata.get("components", [])),
             privileges=tuple(str(value) for value in resource.metadata.get("discovered_privileges", [])),
-            can_read=bool(resource.metadata.get("server_can_read", "read" in resource.permissions)),
-            can_create=bool(resource.metadata.get("server_can_create", "create" in resource.permissions)),
-            can_update=bool(resource.metadata.get("server_can_update", "update" in resource.permissions)),
+            can_read=bool(resource.metadata.get("server_can_read", "read" in operations)),
+            can_create=bool(resource.metadata.get("server_can_create", "create" in operations)),
+            can_update=bool(resource.metadata.get("server_can_update", "update" in operations)),
         )
 
+    @publish_current_account_result
     def direct_calendar_status(self) -> dict[str, Any]:
         if self._multiple_nextcloud_resources("calendar"):
             return self._account_domain_status("calendar")
+        from .nextcloud_connection import component_operations
+
         settings = self.tool_settings.nextcloud.calendar
         reference = next(
             item for item in configured_references(self.tool_settings) if item.domain == "calendar"
@@ -1327,6 +1399,9 @@ class PersonalAssistant(
             except ResourceIdentityError as exc:
                 identity_error = exc
         base_ok = bool(settings.enabled and resource)
+        managed_access = getattr(self.registry, "access_snapshot", None)
+        access_mode = getattr(managed_access, "mode", "legacy")
+        access_evidence = self._access_status_evidence(managed_access, resource, "VEVENT")
         identity_state = (
             "resolved"
             if resource
@@ -1340,6 +1415,9 @@ class PersonalAssistant(
             "ok": base_ok,
             "operations_profile": self.tool_settings.operations_profile,
             "enabled": settings.enabled,
+            "access_mode": access_mode,
+            **access_evidence,
+            "access_restriction": "operator-selected" if access_mode == "active" else "",
             "allow_create": settings.allow_create,
             "allow_list": settings.allow_list,
             "allow_update": settings.allow_update,
@@ -1350,7 +1428,7 @@ class PersonalAssistant(
             "default_duration_minutes": settings.default_duration_minutes,
             "max_duration_hours": settings.max_duration_hours,
             "max_future_days": settings.max_future_days,
-            "resource_permissions": list(resource.permissions) if resource else [],
+            "resource_permissions": list(component_operations(resource, "VEVENT")) if resource else [],
             "update_allowed": bool(base_ok and settings.allow_update),
             "delete_allowed": False,
             "identity": {
@@ -1361,6 +1439,7 @@ class PersonalAssistant(
             },
         }
 
+    @publish_current_account_result
     def calendar_list(self, *, limit: int = 100) -> dict[str, Any]:
         if self._multiple_nextcloud_resources("calendar"):
             return self._account_domain_list("calendar", limit=limit)
@@ -1383,9 +1462,11 @@ class PersonalAssistant(
             "results_may_be_truncated": len(events) > len(selected),
         }
 
+    @publish_current_account_result
     def calendar_search(self, query: str, *, limit: int = 50) -> dict[str, Any]:
         if self._multiple_nextcloud_resources("calendar"):
             return self._account_domain_list("calendar", query=query, limit=limit)
+        self._check_domain_access("calendar", self.tool_settings.nextcloud.calendar.resource_id, "search")
         clean = " ".join(str(query or "").split()).casefold()
         if not clean:
             raise ValueError("Kalendersuchbegriff fehlt")
@@ -1425,46 +1506,17 @@ class PersonalAssistant(
         settings = self.tool_settings.nextcloud.calendar
         if not settings.enabled or not settings.allow_list or not settings.resource_id:
             raise PermissionError("Kalender-Lesezugriff fuer die Mail-Vorschau ist deaktiviert")
-        antivirus_settings = self.tool_settings.security.antivirus
-        if not (
-            antivirus_settings.enabled
-            and antivirus_settings.fail_closed
-            and antivirus_settings.scan_raw_mail
-            and antivirus_settings.scan_attachments
-        ):
-            raise PermissionError("Mail-zu-Kalender-Vorschau benoetigt fail-closed Raw- und Attachment-Scan")
-        message = self.mail_move_service.read_message(
-            folder,
-            message_id,
-            expected_subject=expected_subject,
-        )
-        scans = [
-            self.antivirus.scan_bytes(
-                message.raw,
-                name="selected-calendar-mail.eml",
-                source_type="calendar-from-mail-raw",
-            )
-        ]
-        for attachment in physical_mail_attachments(message):
-            scans.append(
-                self.antivirus.scan_bytes(
-                    attachment.data,
-                    name=attachment.name,
-                    source_type="calendar-from-mail-attachment",
-                )
-            )
-        blocked = next((scan for scan in scans if not scan.clean), None)
-        if blocked is not None:
-            raise PermissionError(
-                "Mail-zu-Kalender-Vorschau durch Virenscanner blockiert: "
-                + (blocked.signature or blocked.status)
-            )
+        initial = getattr(self.registry, "access_snapshot", None)
+        with mail_preview_access(initial, settings.resource_id, "VEVENT", "read") as proof:
+            pass
+        message, scans = self._scanned_preview_mail(folder, message_id, expected_subject, "calendar")
         resource = self.registry.get(settings.resource_id)
         collection = self._calendar_collection(resource)
         preview = build_calendar_mail_preview(
             message,
             resource_id=settings.resource_id,
             default_timezone=settings.timezone,
+            access=proof,
         )
         duplicate_uids: set[str] = set()
         for candidate in preview["candidates"]:
@@ -1477,6 +1529,7 @@ class PersonalAssistant(
                 resource_id=settings.resource_id,
                 default_timezone=settings.timezone,
                 duplicate_uids=duplicate_uids,
+                access=proof,
             )
         preview["antivirus"] = {
             "ok": True,
@@ -1484,7 +1537,8 @@ class PersonalAssistant(
             "attachment_count": max(0, len(scans) - 1),
             "all_clean": True,
         }
-        return preview
+        with mail_preview_access(initial, settings.resource_id, "VEVENT", "read"):
+            return preview
 
     def calendar_from_mail_preview(
         self,
@@ -1515,6 +1569,8 @@ class PersonalAssistant(
 
         if not approved:
             raise PermissionError("Mail-zu-Kalender-Create benoetigt --yes nach der nativen Einzelfreigabe")
+        initial = getattr(self.registry, "access_snapshot", None)
+        resource_id = self.tool_settings.nextcloud.calendar.resource_id
         preview = self._calendar_mail_preview(
             folder=folder,
             message_id=message_id,
@@ -1525,6 +1581,8 @@ class PersonalAssistant(
             expected_preview_digest=preview_digest,
             candidate_id=candidate_id,
         )
+        with mail_preview_access(initial, resource_id, "VEVENT", "create"):
+            pass
         result = self.calendar_create(
             title=str(candidate["title"]),
             start=str(candidate["start"]),
@@ -1533,14 +1591,15 @@ class PersonalAssistant(
             description=str(candidate["description"]),
             uid=str(candidate["uid"]),
         )
-        return {
-            **result,
-            "source_bound": True,
-            "preview_digest": preview_digest,
-            "candidate_id": candidate_id,
-            "single_candidate": True,
-            "bulk_write": False,
-        }
+        with mail_preview_access(initial, resource_id, "VEVENT", "read"):
+            return {
+                **result,
+                "source_bound": True,
+                "preview_digest": preview_digest,
+                "candidate_id": candidate_id,
+                "single_candidate": True,
+                "bulk_write": False,
+            }
 
     def calendar_create(
         self,
@@ -1656,7 +1715,7 @@ class PersonalAssistant(
                 "action": asdict(plan),
                 "detail": "Kalender-ActionPlan ist nicht ausfuehrbar",
             }
-        result, duplicate = self.actions.execute_calendar_create(plan.id)
+        result, duplicate = self.actions.execute_calendar_create(plan.id, recreate_missing=True)
         verified_event = None
         verification_error = ""
         if result.status == "completed":
@@ -1664,6 +1723,13 @@ class PersonalAssistant(
                 verified_event = self.actions.verify_calendar_create(result.id)
             except Exception as exc:
                 verification_error = str(exc)
+                initial = getattr(self.registry, "access_snapshot", None)
+                if not duplicate and initial is not None and initial.mode == "active":
+                    from .nextcloud_access_runtime import delivery_uncertain
+
+                    error = delivery_uncertain(exc)
+                    self.actions.storage.record_uncertain_delivery(result.id, str(error))
+                    raise error from exc
         postcondition_verified = verified_event is not None
         response = {
             "ok": result.status == "completed" and postcondition_verified,
@@ -1895,9 +1961,12 @@ class PersonalAssistant(
             return parsed_date.replace(tzinfo=ZoneInfo(timezone_name)), True
         return PersonalAssistant._parse_calendar_datetime(raw, timezone_name), False
 
+    @publish_current_account_result
     def direct_tasks_status(self, *, live: bool = True) -> dict[str, Any]:
         if self._multiple_nextcloud_resources("tasks"):
             return self._account_domain_status("tasks", live=live)
+        from .nextcloud_connection import component_operations
+
         settings = self.tool_settings.nextcloud.tasks
         reference = next(item for item in configured_references(self.tool_settings) if item.domain == "tasks")
         resource = None
@@ -1916,6 +1985,9 @@ class PersonalAssistant(
             os.environ.get("OPENCLAW_RUNTIME", "").strip() == "container" and runtime_role != "agent-cli"
         )
         base_ok = bool(settings.enabled and resource)
+        managed_access = getattr(self.registry, "access_snapshot", None)
+        access_mode = getattr(managed_access, "mode", "legacy")
+        access_evidence = self._access_status_evidence(managed_access, resource, "VTODO")
         identity_state = (
             "resolved"
             if resource
@@ -1929,6 +2001,9 @@ class PersonalAssistant(
             "ok": base_ok,
             "operations_profile": self.tool_settings.operations_profile,
             "enabled": settings.enabled,
+            "access_mode": access_mode,
+            **access_evidence,
+            "access_restriction": "operator-selected" if access_mode == "active" else "",
             "allow_create": settings.allow_create,
             "allow_list": settings.allow_list,
             "allow_update": settings.allow_update,
@@ -1937,7 +2012,7 @@ class PersonalAssistant(
             "components": list(resource.metadata.get("components") or []) if resource else [],
             "timezone": settings.timezone,
             "max_future_days": settings.max_future_days,
-            "resource_permissions": list(resource.permissions) if resource else [],
+            "resource_permissions": list(component_operations(resource, "VTODO")) if resource else [],
             "delete_allowed": False,
             "overwrite_allowed": False,
             "update_allowed": bool(base_ok and settings.allow_update),
@@ -1956,7 +2031,12 @@ class PersonalAssistant(
                 "remote_identifier": resource.remote_id if resource else "",
             },
         }
-        if settings.enabled and settings.allow_list and not settings.allow_update:
+        if (
+            settings.enabled
+            and settings.allow_list
+            and not settings.allow_update
+            and not getattr(self.registry, "managed_connection", False)
+        ):
             result["update_setup_required"] = True
             result["update_setup"] = {
                 "approval": "explicit-user-standard-operations-profile",
@@ -1988,7 +2068,9 @@ class PersonalAssistant(
     @staticmethod
     def _task_collection(resource: Resource):
         from .connectors.nextcloud.discovery import DiscoveredCollection
+        from .nextcloud_connection import component_operations
 
+        operations = component_operations(resource, "VTODO")
         return DiscoveredCollection(
             kind=resource.kind,
             href=str(resource.metadata.get("href") or resource.remote_id),
@@ -1997,11 +2079,12 @@ class PersonalAssistant(
             description=str(resource.metadata.get("description") or ""),
             components=tuple(str(value) for value in resource.metadata.get("components", [])),
             privileges=tuple(str(value) for value in resource.metadata.get("discovered_privileges", [])),
-            can_read=bool(resource.metadata.get("server_can_read", "read" in resource.permissions)),
-            can_create=bool(resource.metadata.get("server_can_create", "create" in resource.permissions)),
-            can_update=bool(resource.metadata.get("server_can_update", "update" in resource.permissions)),
+            can_read=bool(resource.metadata.get("server_can_read", "read" in operations)),
+            can_create=bool(resource.metadata.get("server_can_create", "create" in operations)),
+            can_update=bool(resource.metadata.get("server_can_update", "update" in operations)),
         )
 
+    @publish_current_account_result
     def tasks_list(self, *, include_completed: bool = False, limit: int = 100) -> dict[str, Any]:
         if self._multiple_nextcloud_resources("tasks"):
             return self._account_domain_list("tasks", limit=limit, include_completed=include_completed)
@@ -2158,7 +2241,14 @@ class PersonalAssistant(
                 "action": asdict(plan),
                 "detail": "Aufgaben-ActionPlan ist nicht ausfuehrbar",
             }
-        result, duplicate = self.actions.execute_task_create(plan.id)
+        result, duplicate = self.actions.execute_task_create(plan.id, recreate_missing=True)
+        if result.status != "completed" and str(result.error).startswith("delivery-uncertain"):
+            return {
+                "ok": False,
+                "delivery_uncertain": True,
+                "action": {"id": result.id, "status": result.status},
+                "detail": result.error,
+            }
         response = {
             "ok": result.status == "completed",
             "duplicate": duplicate,
@@ -2428,6 +2518,7 @@ class PersonalAssistant(
             if component is not None:
                 component.close()
 
+    @publish_current_account_result
     def resource_identity_status(self) -> dict[str, Any]:
         missing_credentials = (
             self.nextcloud_client.missing_environment() if self.config.nextcloud.enabled else []
@@ -2504,6 +2595,10 @@ class PersonalAssistant(
                 "resource_id": workspace.resource_id,
                 "outbox": str(workspace.outbox),
                 "permissions": list(workspace_resource.permissions),
+                "folder_recheck_required": bool(workspace_resource.metadata.get("folder_recheck_operations")),
+                "recheck_operation": (
+                    "nextcloud.list" if workspace_resource.metadata.get("folder_recheck_operations") else None
+                ),
                 "allow_mkdir": workspace.allow_mkdir,
                 "allow_upload": workspace.allow_upload,
                 "allow_write_text": workspace.allow_write_text,
@@ -2541,6 +2636,7 @@ class PersonalAssistant(
             result["nextcloud"] = {"ok": False, "detail": "deaktiviert"}
         return result
 
+    @publish_current_account_result
     def discover_nextcloud(self, *, persist: bool = True) -> dict[str, Any]:
         health = self.nextcloud_discovery.root_health()
         managed = bool(getattr(getattr(self, "nextcloud_client", None), "connection", None))
@@ -2674,6 +2770,12 @@ class PersonalAssistant(
         }
 
     def sync_nextcloud(self) -> dict[str, Any]:
+        from .nextcloud_sync import sync_selected_sources
+
+        snapshot = getattr(getattr(self, "nextcloud_client", None), "access_snapshot", None)
+        batch_size = max(1, int(os.environ.get("OPENCLAW_SYNC_BATCH_SIZE", "100")))
+        if snapshot is not None and snapshot.mode == "active":
+            return sync_selected_sources(self, snapshot, batch_size)
         if not self.config.nextcloud.enabled:
             return {"ok": True, "skipped": "Nextcloud ist deaktiviert"}
         # The sync role owns only the knowledge database.  The resource registry
@@ -2693,7 +2795,6 @@ class PersonalAssistant(
         else:
             calendars = self.nextcloud_discovery.calendars()
             addressbooks = self.nextcloud_discovery.addressbooks()
-        batch_size = max(1, int(os.environ.get("OPENCLAW_SYNC_BATCH_SIZE", "100")))
         file_resources = ([item for item in self.registry.list(kind="file-root", enabled_only=True)
                            if item.metadata.get("managed_connection") and "read" in item.permissions]
                           if managed else [])
@@ -2762,6 +2863,7 @@ class PersonalAssistant(
         result["resume_required"] = False
         return result
 
+    @publish_current_account_result
     def capabilities(self) -> dict[str, Any]:
         operations_profile = getattr(
             getattr(self, "tool_settings", None),

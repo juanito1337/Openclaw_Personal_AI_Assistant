@@ -7,6 +7,7 @@
     {"path": "docs/architecture/TRUST_BOUNDARIES.md", "owner": "Security Maintainers"},
     {"path": "docs/architecture/EXTENDING.md", "owner": "Architecture Maintainers"},
     {"path": "docs/architecture/IMAGE_SUPPLY_CHAIN.md", "owner": "Security Maintainers"},
+    {"path": "docs/architecture/EXTERNAL_COMPONENTS.md", "owner": "Architecture Maintainers"},
     {"path": "docs/architecture/RECOVERY_AND_RELEASE.md", "owner": "Operations Maintainers"},
     {"path": "docs/architecture/adr/README.md", "owner": "Architecture Maintainers"},
     {"path": "docs/architecture/adr/0000-template.md", "owner": "Architecture Maintainers"},

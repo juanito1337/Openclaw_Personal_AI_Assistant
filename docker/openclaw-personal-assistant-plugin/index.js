@@ -17,6 +17,8 @@ import {
   isSimpleConfirmation,
   makeEvidence,
   projectPayload,
+  readNativeAccess,
+  requiresNativeAccess,
   routePrompt,
   selectPendingConfirmation,
   shouldBlockGenericTool,
@@ -43,6 +45,7 @@ const invalidArgumentsByRun = new Map();
 const turnLatencyByRun = new Map();
 const promptByRun = new Map();
 const sessionByRun = new Map();
+const requesterByRun = new Map();
 const confirmationByRun = new Map();
 const writeInFlightByRun = new Map();
 const pendingConfirmationsBySession = new Map();
@@ -50,7 +53,7 @@ const liveToolsCache = { expiresAt: 0, value: null };
 const ledger = createApprovalLedger(contract.limits.approval_ttl_seconds);
 const runRetention = createRunRetention({ onEvict(key) {
   for (const store of [routeByRun, evidenceByRun, obligationByRun, retryByRun,
-    invalidArgumentsByRun, turnLatencyByRun, promptByRun, sessionByRun, confirmationByRun,
+    invalidArgumentsByRun, turnLatencyByRun, promptByRun, sessionByRun, requesterByRun, confirmationByRun,
     writeInFlightByRun]) store.delete(key);
   ledger.revokeRun(key);
   for (const [session, records] of pendingConfirmationsBySession) {
@@ -90,6 +93,15 @@ function conversationKey(ctx, event = null) {
   return String(event?.sessionKey || ctx?.sessionKey || ctx?.sessionId || "");
 }
 
+function sdkSender(ctx) {
+  const sender = ctx?.requesterSenderId || ctx?.senderId;
+  return typeof sender === "string" && sender.length ? stableDigest(sender) : null;
+}
+
+function sharedSession(ctx, session) {
+  return ["group", "channel"].includes(ctx?.chatType) || /(?:^|:)(?:group|channel):/u.test(session);
+}
+
 function livePendingConfirmations(session) {
   const now = Date.now();
   // Sweep every session, including abandoned conversations, not just this one.
@@ -112,6 +124,21 @@ function rememberPendingConfirmation(session, record) {
   }
 }
 
+async function currentPendingConfirmation(record, ctx, session) {
+  if (!record || !requiresNativeAccess(record.operation)) return record;
+  const sender = sdkSender(ctx);
+  if (record.sender !== sender || (!sender && sharedSession(ctx, session))) return null;
+  try {
+    const current = await readNativeAccess(spawnJson);
+    if (record.accessDigest === stableDigest(current) && livePendingConfirmations(session).includes(record)) {
+      return record;
+    }
+  } catch {
+    // Store failure and revocation both suppress old arguments and confirmation.
+  }
+  return null;
+}
+
 function removePendingConfirmation(session, confirmationId) {
   if (!session) return;
   const records = livePendingConfirmations(session).filter((item) => item.id !== confirmationId);
@@ -130,8 +157,8 @@ function jsonToolResult(payload, details = {}) {
   };
 }
 
-async function readLiveTools() {
-  if (liveToolsCache.value && liveToolsCache.expiresAt > Date.now()) return liveToolsCache.value;
+async function readLiveTools({ fresh = false } = {}) {
+  if (!fresh && liveToolsCache.value && liveToolsCache.expiresAt > Date.now()) return liveToolsCache.value;
   const result = await spawnJson(
     { executable: "/opt/openclaw-agent/scripts/assistant.sh", argv: ["tools", "list"], stdin: null },
     { ...contract.limits, tool_timeout_seconds: 60 },
@@ -163,12 +190,7 @@ function operationFromCall(toolName, rawParams) {
 }
 
 function withoutApprovalBinding(params) {
-  const {
-    __approval_nonce: _nonce,
-    __approval_run_id: _approvalRunId,
-    ...copy
-  } = params ?? {};
-  return copy;
+  return { operation: params.operation, arguments: params.arguments ?? {} };
 }
 
 function recordActionEvidence(currentRun, operation, evidence, payload, args) {
@@ -325,6 +347,32 @@ async function executeOperation(toolName, toolContext, toolCallId, rawParams) {
         { personalAssistantEvidence: evidence },
       );
   };
+  const accessBound = requiresNativeAccess(operation.tool_id);
+  let nativeAccess;
+  const integrityFailure = () => {
+    ledger.revoke(approvalBinding.nonce);
+    const response = stoppedOperation(operation, currentRun, toolCallId, "policy-integrity-error");
+    recordActionEvidence(currentRun, operation, response.details.personalAssistantEvidence, null, args);
+    return response;
+  };
+  if (accessBound) {
+    const session = toolContext?.sessionKey;
+    const sender = sdkSender(toolContext);
+    const original = requesterByRun.get(currentRun)?.sender;
+    if ((session && session !== sessionByRun.get(currentRun)) || (sender && original && sender !== original)) {
+      ledger.revoke(approvalBinding.nonce);
+      return approvalFailure();
+    }
+    // A resumed factory can expose a sender that was absent at issuance.
+    // Only the sender actually sealed by the trusted hook belongs in the nonce.
+    approvalBinding.sender = original ?? null;
+    try {
+      nativeAccess = await readNativeAccess(spawnJson);
+    } catch {
+      return integrityFailure();
+    }
+    approvalBinding.nativeAccess = nativeAccess;
+  }
   if (operation.mode !== "read") {
     // Check early without spending the nonce on read-only capability discovery.
     // Consume atomically, with no await in between, only at the real write start.
@@ -339,7 +387,7 @@ async function executeOperation(toolName, toolContext, toolCallId, rawParams) {
   let liveCommand = operation.command;
   if (operation.availability !== "always") {
     try {
-      const liveTools = await readLiveTools();
+      const liveTools = await readLiveTools({ fresh: accessBound });
       const live = liveTools.find((item) => item.id === operation.tool_id);
       if (!live) throw new Error("operation-disabled-in-live-capabilities");
       liveCommand = live.command;
@@ -356,6 +404,19 @@ async function executeOperation(toolName, toolContext, toolCallId, rawParams) {
     }
   }
   const invocation = compileInvocation(operation, args, liveCommand);
+  if (accessBound && operation.availability !== "always") {
+    try {
+      const current = await readNativeAccess(spawnJson);
+      if (stableDigest(current) !== stableDigest(nativeAccess)) {
+        ledger.revoke(approvalBinding.nonce);
+        if (operation.mode !== "read") return approvalFailure();
+        return stoppedOperation(operation, currentRun, toolCallId, "policy-changed");
+      }
+      approvalBinding.nativeAccess = current;
+    } catch {
+      return integrityFailure();
+    }
+  }
   // Capability discovery may have yielded to other runs. Never resurrect an
   // evicted/expired run or act after another call made its obligation terminal.
   const executionBlock = !runRetention.has(currentRun) ? "turn-state-missing-or-expired"
@@ -369,7 +430,7 @@ async function executeOperation(toolName, toolContext, toolCallId, rawParams) {
   const toolStarted = Date.now();
   let result;
   try {
-    result = await spawnJson(invocation, contract.limits);
+    result = await spawnJson(invocation, contract.limits, { nativeAccess });
   } finally {
     if (operation.mode !== "read" && writeInFlightByRun.get(currentRun) === approvalBinding.nonce) {
       writeInFlightByRun.delete(currentRun);
@@ -496,11 +557,18 @@ export default definePluginEntry({
       const prompt = String(event.prompt ?? "");
       if (runRetention.has(key) && promptByRun.get(key) === prompt && sessionByRun.get(key) === session) {
         const retainedRoute = routeByRun.get(key);
+        const prior = confirmationByRun.get(key);
+        if (prior && !await currentPendingConfirmation(prior, ctx, session)) {
+          confirmationByRun.delete(key);
+          removePendingConfirmation(session, prior.id);
+          return { prependContext: "missing-or-stale-bound-confirmation" };
+        }
         return retainedRoute?.resolved
           ? { prependContext: buildRoutingContext(retainedRoute, obligationByRun.get(key), confirmationByRun.get(key)) }
           : undefined;
       }
       runRetention.start(key);
+      requesterByRun.set(key, { sender: sdkSender(ctx), shared: sharedSession(ctx, session) });
       // Do not truncate into an apparently explicit authorization. An oversized
       // prompt can be retried by the user with one bounded, complete instruction.
       if (prompt.length > RUN_RETENTION.maxPromptBytes || Buffer.byteLength(prompt) > RUN_RETENTION.maxPromptBytes) {
@@ -514,8 +582,9 @@ export default definePluginEntry({
       if (isSimpleConfirmation(event.prompt)) {
         const pending = livePendingConfirmations(session);
         const selected = selectPendingConfirmation(event.prompt, pending);
-        if (selected.confirmation) {
-          confirmation = selected.confirmation;
+        confirmation = await currentPendingConfirmation(selected.confirmation, ctx, session);
+        if (!runRetention.has(key)) return { prependContext: "turn-state-missing-or-expired" };
+        if (confirmation) {
           route = confirmation.route;
           confirmationByRun.set(key, confirmation);
         } else {
@@ -600,15 +669,37 @@ export default definePluginEntry({
         return { params: { ...withoutApprovalBinding(event.params), __approval_run_id: approvalRunId } };
       }
       const args = event.params?.arguments ?? {};
+      let nativeAccess;
+      let sender;
+      if (requiresNativeAccess(operation.tool_id)) {
+        const session = conversationKey(ctx, event);
+        const hookSender = sdkSender(ctx);
+        const requester = requesterByRun.get(approvalRunId);
+        const original = requester?.sender;
+        if ((session && session !== sessionByRun.get(approvalRunId)) || (hookSender && original && hookSender !== original)) {
+          return { block: true, blockReason: "missing-or-stale-bound-approval" };
+        }
+        sender = hookSender ?? original ?? null;
+        requesterByRun.set(approvalRunId, { sender, shared: requester?.shared || sharedSession(ctx, session) });
+        try {
+          nativeAccess = await readNativeAccess(spawnJson);
+        } catch {
+          return { block: true, blockReason: "policy-integrity-error" };
+        }
+        if (!runRetention.has(approvalRunId)) return { block: true, blockReason: "turn-state-missing-or-expired" };
+      }
+      const accessDigest = nativeAccess ? stableDigest(nativeAccess) : null;
       const actionBlock = promptByRun.get(approvalRunId) === null ? "prompt-retention-limit"
         : actionWriteBlock(contract, obligationByRun.get(approvalRunId), operation, args);
       if (actionBlock) return { block: true, blockReason: actionBlock };
       const session = sessionByRun.get(approvalRunId) ?? conversationKey(ctx, event);
       const confirmation = confirmationByRun.get(approvalRunId) ?? null;
+      const canConfirm = !nativeAccess || Boolean(sender) || !requesterByRun.get(approvalRunId)?.shared;
       if (isSimpleConfirmation(promptByRun.get(approvalRunId))) {
         const live = livePendingConfirmations(session);
         const valid = confirmation && confirmation.expires_at > Date.now()
           && live.some((record) => record.id === confirmation.id)
+          && canConfirm && confirmation.accessDigest === accessDigest && confirmation.sender === sender
           && confirmation.operation === operation.tool_id
           && confirmation.arguments_digest === stableDigest(args);
         if (!valid) {
@@ -632,6 +723,8 @@ export default definePluginEntry({
         args,
         toolCallId: event.toolCallId,
         runId: approvalRunId,
+        nativeAccess,
+        sender,
       });
       const boundParams = {
         ...withoutApprovalBinding(event.params),
@@ -640,6 +733,7 @@ export default definePluginEntry({
       };
       if (decision.authorized) {
         if (decision.source === "single-pending-confirmation" && confirmation) {
+          if (nativeAccess) ledger.revoke(confirmation.id);
           removePendingConfirmation(session, confirmation.id);
           confirmationByRun.delete(approvalRunId);
           metrics.approvals_satisfied_by_simple_confirmation += 1;
@@ -649,9 +743,11 @@ export default definePluginEntry({
         return { params: boundParams };
       }
       let pendingConfirmation = null;
-      if (session && operation.approval_policy?.simple_confirmation_satisfies === true) {
+      if (session && canConfirm && operation.approval_policy?.simple_confirmation_satisfies === true) {
         pendingConfirmation = {
-          id: stableDigest({ session, operation: operation.tool_id, args, approvalRunId }).slice(0, 24),
+          id: nativeAccess ? nonce : stableDigest({ session, operation: operation.tool_id, args, approvalRunId }).slice(0, 24),
+          accessDigest,
+          sender,
           operation: operation.tool_id,
           arguments: structuredClone(args),
           arguments_digest: stableDigest(args),
@@ -667,7 +763,7 @@ export default definePluginEntry({
         params: boundParams,
         requireApproval: {
           title: `Personal Assistant: ${operation.tool_id}`,
-          description: operation.approval_policy?.simple_confirmation_satisfies === true
+          description: pendingConfirmation
             ? `Einmalige Freigabe fuer exakt diese Aktion. Die Schaltflaeche genuegt; nach einem Timeout kann ein einfaches Ja nur diese eine unveraenderte Aktion bestaetigen.`
             : `Sensible Einmal-Freigabe ${operation.approval} fuer exakt diese Argumente.`,
           // OpenClaw's plugin approval protocol accepts info/warning/critical.

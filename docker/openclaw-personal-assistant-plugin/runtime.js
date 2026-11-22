@@ -248,13 +248,66 @@ function bounded(value, maximum) {
   return Buffer.byteLength(text) <= maximum ? text : `${text.slice(0, maximum)}\n[truncated]`;
 }
 
+// The managed gateway has the same existing read-only connection mount as its
+// assistant.sh children. The private reader validates that mount in Python.
+const BINDING_READER = "personal_assistant.nextcloud_native_binding";
+const BINDING_KEYS = ["account_id", "generation", "owner_user_id", "policy_revision"];
+
+export async function readNativeAccess(run = spawnJson) {
+  const result = await run(
+    { executable: "/usr/bin/python3", argv: ["-P", "-s", "-m", BINDING_READER], stdin: null },
+    { tool_timeout_seconds: 5, max_capture_bytes: 16384, max_error_bytes: 256 },
+    { env: {
+      PYTHONPATH: WORKDIR, PYTHONDONTWRITEBYTECODE: "1", OPENCLAW_NC_MODE_REQUIRED: "1",
+      OPENCLAW_NEXTCLOUD_CONNECTION_DIR: process.env.OPENCLAW_NEXTCLOUD_CONNECTION_DIR ?? "",
+    } },
+  );
+  if (result.returncode !== 0 || result.stdout_truncated || Buffer.byteLength(result.stdout) > 16384) {
+    throw new Error("policy-integrity-error");
+  }
+  const access = JSON.parse(result.stdout);
+  if (Object.keys(access ?? {}).sort().join(",") !== "binding,mode") throw new Error("policy-integrity-error");
+  if (access.mode === "active" && access.binding && typeof access.binding === "object"
+    && Object.keys(access.binding).sort().join(",") === BINDING_KEYS.join(",")
+    && BINDING_KEYS.every((k) => typeof access.binding[k] === "string" && access.binding[k].length > 0)) {
+    return access;
+  }
+  if (["legacy", "unconfigured"].includes(access.mode) && access.binding === null) return access;
+  throw new Error("policy-integrity-error");
+}
+
+const INDIRECT_ACCESS = new Set([
+  "assistant.status", "assistant.search", "assistant.setup.standard-operations",
+  "assistant.jobs.check", "assistant.jobs.on", "assistant.jobs.restart",
+  "assistant.monitor.status", "assistant.monitor.record",
+  "portfolio.import.csv.nextcloud", "portfolio.import.csv.nextcloud.confirm",
+  "mail.calendar-command", "mail.invoice-archive", "mail.dry-run", "mail.run", "mail.spam-review",
+  "mail.review.suggest", "mail.status", "mail.doctor", "mail.orders.import",
+  "assistant.invoices.files", "assistant.invoices.export-nextcloud",
+  "assistant.invoices.backfill-preview", "assistant.invoices.backfill",
+  "assistant.invoices.reprocess-preview", "assistant.invoices.reprocess-apply", "assistant.invoices.correct",
+]);
+
+export function requiresNativeAccess(id) {
+  // The Deck order list reads the independent local order ledger.
+  if (id === "nextcloud.deck.orders.list") return false;
+  return id.startsWith("nextcloud.") || id.startsWith("assistant.resources.") || INDIRECT_ACCESS.has(id);
+}
+
 export async function spawnJson(invocation, limits, options = {}) {
   const runner = options.runner ?? spawn;
+  const env = { ...(options.env ?? process.env) };
+  delete env.OPENCLAW_NC_EXPECTED_ACCESS;
+  delete env.OPENCLAW_NC_NATIVE_CALL;
+  if (options.nativeAccess) {
+    env.OPENCLAW_NC_EXPECTED_ACCESS = JSON.stringify(options.nativeAccess);
+    env.OPENCLAW_NC_NATIVE_CALL = "1";
+  }
   const timeoutMs = Math.max(1, Number(limits.tool_timeout_seconds ?? 120)) * 1000;
   return await new Promise((resolve) => {
     const child = runner(invocation.executable, invocation.argv, {
       cwd: options.cwd ?? WORKDIR,
-      env: options.env ?? process.env,
+      env,
       stdio: ["pipe", "pipe", "pipe"],
       shell: false,
     });
@@ -318,7 +371,8 @@ function parseJsonOutput(output) {
 }
 
 function classifyError(result, payload) {
-  if (["operation-disabled-in-live-capabilities", "live-tool-catalog-unavailable", "live-tool-catalog-invalid"]
+  if (["operation-disabled-in-live-capabilities", "live-tool-catalog-unavailable", "live-tool-catalog-invalid",
+    "policy-integrity-error", "scope-unbound", "policy-changed"]
     .includes(result.error)) return result.error;
   const detail = `${result.error ?? ""}\n${result.stderr ?? ""}`.toLowerCase();
   if (detail.includes("invalid-arguments")) return "invalid-arguments";
@@ -840,27 +894,28 @@ export function createApprovalLedger(ttlSeconds = 180, { maxEntries = 512, now =
   const sweep = () => {
     for (const [nonce, record] of records) if (record.expiresAt <= now()) records.delete(nonce);
   };
-  const check = ({ nonce, operation, args, toolCallId, runId }) => {
+  const check = ({ nonce, operation, args, toolCallId, runId, nativeAccess, sender }) => {
     sweep();
     const record = records.get(nonce);
-    const valid = Boolean(record && record.digest === stableDigest({ operation, args, toolCallId, runId }));
+    const valid = Boolean(record && record.digest === stableDigest({ operation, args, toolCallId, runId, nativeAccess, sender }));
     if (!valid) records.delete(nonce);
     return valid;
   };
   return {
-    issue({ operation, args, toolCallId, runId }) {
+    issue({ operation, args, toolCallId, runId, nativeAccess, sender }) {
       sweep();
       while (records.size >= maxEntries) records.delete(records.keys().next().value);
       const nonce = randomUUID();
       records.set(nonce, {
-        digest: stableDigest({ operation, args, toolCallId, runId }),
+        digest: stableDigest({ operation, args, toolCallId, runId, nativeAccess, sender }),
         runId,
         expiresAt: now() + ttlSeconds * 1000,
       });
       return nonce;
     },
-    consume({ nonce, operation, args, toolCallId, runId }) {
-      const valid = check({ nonce, operation, args, toolCallId, runId });
+    consume(approval) {
+      const { nonce } = approval;
+      const valid = check(approval);
       records.delete(nonce);
       return valid;
     },

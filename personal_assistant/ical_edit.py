@@ -46,6 +46,31 @@ def unescape_ical(value: str) -> str:
     )
 
 
+def split_ical_text_list(value: str) -> list[str]:
+    """Decode a comma-separated iCalendar TEXT list, skipping empty entries."""
+    escapes = {"n": "\n", "N": "\n", ",": ",", ";": ";", "\\": "\\"}
+    values: list[str] = []
+    current: list[str] = []
+    escaped = False
+    for char in value:
+        if escaped:
+            current.append(escapes.get(char, "\\" + char))
+            escaped = False
+        elif char == "\\":
+            escaped = True
+        elif char == ",":
+            if current:
+                values.append("".join(current))
+                current.clear()
+        else:
+            current.append(char)
+    if escaped:
+        current.append("\\")
+    if current:
+        values.append("".join(current))
+    return values
+
+
 def _component_blocks(lines: Sequence[str], component: str) -> list[tuple[int, int]]:
     target = component.upper()
     stack: list[tuple[str, int]] = []

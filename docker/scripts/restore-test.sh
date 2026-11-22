@@ -18,4 +18,6 @@ while IFS= read -r -d '' db; do
   [[ "$result" == "ok" ]] || { echo "$db: $result" >&2; exit 1; }
 done < <(find "$work/state" -type f \( -name '*.sqlite' -o -name '*.sqlite3' -o -name '*.db' \) -print0)
 check_nextcloud_nonce_integrity "$work/secrets/nextcloud-connection"
+nextcloud_check=$(archive_nextcloud_check_mode "$backup")
+check_nextcloud_access_state "$nextcloud_check" "$work/state" "$work/secrets/nextcloud-connection"
 echo "Restore-Test erfolgreich: $backup"

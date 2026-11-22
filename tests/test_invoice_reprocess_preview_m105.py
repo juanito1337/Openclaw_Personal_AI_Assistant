@@ -419,7 +419,7 @@ class InvoiceReprocessPreviewM105Tests(unittest.TestCase):
 
         stable_args = assistant_parser().parse_args(command_args)
         self.assertTrue(stable_args.dry_run)
-        with patch("personal_assistant.cli_handlers.invoices.subprocess.run") as delegated:
+        with patch("personal_assistant.cli_handlers.mail.subprocess.run") as delegated:
             delegated.return_value.returncode = 0
             self.assertEqual(run_invoice_external(stable_args), 0)
         delegated_command = delegated.call_args.args[0]

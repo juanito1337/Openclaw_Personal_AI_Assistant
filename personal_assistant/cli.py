@@ -7,6 +7,7 @@ import os
 import sqlite3
 import subprocess
 import sys
+from contextvars import ContextVar
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any
@@ -26,6 +27,9 @@ from .config import DEFAULT_CONFIG, DEFAULT_SECRETS, load_config
 from .env import load_env
 from .job_control import JobController
 from .mail_source_setup import configure_mail_sources
+from .nextcloud_access import AccessSnapshot
+from .nextcloud_connection import ConnectionError, admit_projection, load_access_snapshot
+from .nextcloud_native_binding import EXPECTED_ACCESS, NATIVE_CALL, verify_native_access
 from .nextcloud_talk import doctor as nextcloud_talk_doctor
 from .nextcloud_talk import status as nextcloud_talk_status
 from .release import release_report
@@ -41,6 +45,8 @@ from .tool_setup import (
     configure_workspace_tools,
 )
 from .work_scheduler import AdaptiveWorkScheduler
+
+_NATIVE_INITIAL: ContextVar[AccessSnapshot | None] = ContextVar("native_nextcloud_access", default=None)
 
 # Compatibility names retained for callers that characterized the pre-M5 helper.
 _run_mail_tool = run_mail_external
@@ -104,7 +110,12 @@ def _load_secrets(config_path: Path | None = None) -> None:
 
 
 def _print(value: Any) -> None:
-    print(json.dumps(value, indent=2, ensure_ascii=False, default=str))
+    encoded = json.dumps(value, indent=2, ensure_ascii=False, default=str)
+    if NATIVE_CALL in os.environ or EXPECTED_ACCESS in os.environ:
+        with admit_projection(_NATIVE_INITIAL.get() or load_access_snapshot()):
+            print(encoded)
+    else:
+        print(encoded)
 
 
 def _run_json_command(command: list[str], *, timeout: int = 60) -> tuple[int, dict[str, Any]]:
@@ -340,6 +351,22 @@ def _record_interactive_activity(args: argparse.Namespace) -> None:
 def main(argv: list[str] | None = None) -> int:
     os.umask(0o077)
     args = parser().parse_args(argv)
+    if NATIVE_CALL not in os.environ and EXPECTED_ACCESS not in os.environ:
+        return _run(args)
+    try:
+        initial = load_access_snapshot()
+        verify_native_access(initial)
+        token = _NATIVE_INITIAL.set(initial)
+        try:
+            return _run(args)
+        finally:
+            _NATIVE_INITIAL.reset(token)
+    except (ConnectionError, PermissionError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+
+
+def _run(args: argparse.Namespace) -> int:
     config_path = Path(args.config).expanduser().resolve()
 
     # Job recovery must remain available even when the assistant configuration is
@@ -417,7 +444,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Scheduler-Warnung: Aktivitaet konnte nicht gespeichert werden: {exc}", file=sys.stderr)
 
     if args.command == "invoices" and args.invoices_command != "files":
-        return run_invoice_external(args)
+        return run_invoice_external(args, initial=_NATIVE_INITIAL.get())
 
     if args.command == "setup" and args.setup_command == "tools":
         try:
@@ -563,7 +590,7 @@ def main(argv: list[str] | None = None) -> int:
         and not direct_review_correction
         and not direct_index_diagnostic
     ):
-        return run_mail_external(args)
+        return run_mail_external(args, initial=_NATIVE_INITIAL.get())
 
     if args.command == "setup" and args.setup_command == "nextcloud":
         try:

@@ -109,6 +109,14 @@ def test_worker_observation_distinguishes_current_stale_failed_and_uncertain(
     assert "roomA" not in encoded and "jan" not in encoded
 
 
+def test_fresh_dav_diagnostics_cannot_renew_expired_talk_poll(managed, connection):
+    connection["discovery_snapshot"]["checked_at"] = "2023-11-14T22:13:20+00:00"
+    connection["discovery_snapshot"]["diagnostics"] = {"talk": {"status": "ok", "api_reachable": True}}
+    observation(managed, connection, observed_at=NOW - 91)
+    report = nextcloud_talk.status()
+    assert report["state"] == "stale" and report["connected"] is False
+
+
 @pytest.mark.parametrize(
     "changes",
     [

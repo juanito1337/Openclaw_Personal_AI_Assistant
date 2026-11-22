@@ -244,6 +244,9 @@ import * as runtime from './docker/openclaw-personal-assistant-plugin/runtime.js
 let now = 1000;
 class FakeDate extends Date { static now() { return now; } }
 const invocations = [];
+let readerCalls = 0;
+let readerResult = {returncode:0,stdout:'{"mode":"legacy","binding":null}',stderr:''};
+let afterCatalog = () => {};
 const packageSource = path.resolve('docker/openclaw-personal-assistant-plugin');
 const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'personal-assistant-hooks-'));
 process.once('exit', () => fs.rmSync(fixtureRoot, {recursive:true, force:true}));
@@ -254,7 +257,12 @@ const adapter = {
   createRunRetention: (options) => runtime.createRunRetention({...options, now:()=>now}),
   createApprovalLedger: (ttl) => runtime.createApprovalLedger(ttl, {now:()=>now}),
   selectPendingConfirmation: (prompt,records) => runtime.selectPendingConfirmation(prompt,records,now),
-  spawnJson: async (invocation) => {
+  spawnJson: async (invocation, limits, options) => {
+    if (invocation.argv.includes('personal_assistant.nextcloud_native_binding')) {
+      readerCalls++;
+      return readerResult;
+    }
+    if (invocation.argv.join(' ')==='tools list') afterCatalog();
     invocations.push(invocation);
     const data = invocation.argv.join(' ') === 'tools list'
       ? {tools: contract.operations.map((op)=>({id:op.tool_id,command:op.command}))}

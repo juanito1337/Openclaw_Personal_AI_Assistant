@@ -7,6 +7,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from personal_assistant.nextcloud_connection import admit_projection, load_access_snapshot
+from personal_assistant.nextcloud_file_access import file_context
 from personal_assistant.portfolio import MAX_IMPORT_BYTES
 
 
@@ -58,6 +60,13 @@ class PortfolioApplicationMixin:
         )
         if not decision.allowed:
             raise PermissionError(decision.reason)
+        initial = getattr(getattr(self.nextcloud_files, "client", None), "access_snapshot", None)
+        if initial is None:
+            initial = load_access_snapshot()
+        with admit_projection(initial) as current:
+            access = file_context(current, remote, "read")
+            if access and workspace.resource_id != access.scope.resource_id:
+                raise PermissionError("scope-unbound")
         entries = [
             item
             for item in self.nextcloud_files.list_folder(configured_root)
@@ -76,39 +85,42 @@ class PortfolioApplicationMixin:
 
         import_root = self.tool_settings.portfolio.import_root.expanduser().resolve()
         staging_root = import_root / ".nextcloud-staging"
-        staging_root.mkdir(parents=True, exist_ok=True)
-        os.chmod(import_root, 0o700)
-        os.chmod(staging_root, 0o700)
         temporary_path: Path | None = None
         try:
-            with tempfile.NamedTemporaryFile(
-                prefix="portfolio-", suffix=".csv", dir=staging_root, delete=False
-            ) as handle:
-                handle.write(payload)
-                temporary_path = Path(handle.name)
-            os.chmod(temporary_path, 0o600)
+            with admit_projection(initial):
+                staging_root.mkdir(parents=True, exist_ok=True)
+                os.chmod(import_root, 0o700)
+                os.chmod(staging_root, 0o700)
+                with tempfile.NamedTemporaryFile(
+                    prefix="portfolio-", suffix=".csv", dir=staging_root, delete=False
+                ) as handle:
+                    temporary_path = Path(handle.name)
+                    handle.write(payload)
+                os.chmod(temporary_path, 0o600)
             result = self.portfolio.import_csv(
                 temporary_path,
                 dry_run=dry_run,
                 source_name=entry.name,
                 expected_as_of=filename_date,
+                admission=lambda: admit_projection(initial),
             )
         finally:
             if temporary_path is not None:
                 temporary_path.unlink(missing_ok=True)
-        self.storage.audit(
-            "portfolio.csv.nextcloud_import",
-            {
-                "path": remote,
-                "etag": entry.etag,
-                "sha256": result.get("sha256"),
-                "dry_run": dry_run,
-                "as_of": result.get("as_of"),
-            },
-            resource_id=workspace.resource_id,
-        )
-        return {
-            **result,
-            "nextcloud_path": remote,
-            "nextcloud_etag": entry.etag,
-        }
+        with admit_projection(initial):
+            self.storage.audit(
+                "portfolio.csv.nextcloud_import",
+                {
+                    "path": remote,
+                    "etag": entry.etag,
+                    "sha256": result.get("sha256"),
+                    "dry_run": dry_run,
+                    "as_of": result.get("as_of"),
+                },
+                resource_id=workspace.resource_id,
+            )
+            return {
+                **result,
+                "nextcloud_path": remote,
+                "nextcloud_etag": entry.etag,
+            }

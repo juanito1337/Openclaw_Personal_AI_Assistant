@@ -363,7 +363,7 @@ test("browser authenticates before setup RPC, signs every operation and never au
     cryptoApi: webcrypto, WebSocketClass: Socket, browser: {} });
   await assert.rejects(gateway.call("status"), /Zuerst/);
   await gateway.connect();
-  await assert.rejects(gateway.call("connection.refresh", { expected_revision: "revision" }), /Verbindung geändert/);
+  await assert.rejects(gateway.call("connection.refresh", { expected_revision: "revision" }), error => error.code === "conflict" && /Verbindung geändert/.test(error.message));
   assert.equal(sent.length, 2); assert.equal(sent[0].method, "connect"); assert.equal(sent[1].method, SETUP_RPC);
   const actual = sent[1].params;
   assert.ok(verify(null, Buffer.from(actual.proof.payload), value.pair.publicKey, Buffer.from(actual.proof.signature, "base64url")));
@@ -371,4 +371,61 @@ test("browser authenticates before setup RPC, signs every operation and never au
   assert.ok(!JSON.stringify(actual).includes("synthetic-browser-token"));
   await assert.rejects(gateway.call("exec", {}), /Unbekannte/); assert.equal(sent.length, 2);
   gateway.close();
+});
+
+test("access preview and confirmation require the closed signed admin requests", async () => {
+  const account_id = "nextcloud-account-" + "a".repeat(16);
+  const scope = { resource_id: account_id+"-files", component: "FILES", path: "Belege", file_id: "19" };
+  const revisions = {expected_revision: "c".repeat(32), expected_policy_revision: "d".repeat(32)};
+  const edits = [{scope, level:"create"}];
+  const parameters = { account_id, ...revisions, edits, confirm_root:false };
+  const calls = [];
+  const api = registration(async request => { calls.push(request); return savedConnection(); },
+    {runtimeExecute: async () => runtimeResult()});
+  assert.equal((await dispatch(api,client(),{operation:"access.preview",parameters,proof:proof("access.preview",parameters)}))[0],true);
+  for (const changes of [{edits:[...edits,...edits]}, {edits:[{scope:{...scope,path:"階".repeat(800)},level:"create"}]},
+    {edits:[{scope:{...scope,extra:1},level:"create"}]}, {edits:[{scope,level:"update"}]}, {unbound:true}]) {
+    const bad = {...parameters,...changes};
+    assert.equal((await dispatch(api,client(),{operation:"access.preview",parameters:bad,proof:proof("access.preview",bad)}))[0],false);
+  }
+  const confirm = {preview_id:"e".repeat(32),preview_digest:"f".repeat(64),...revisions,confirm:true};
+  const result = await dispatch(api,client(),{operation:"access.apply",parameters:confirm,proof:proof("access.apply",confirm)});
+  assert.equal(result[1].talk_runtime.state,"active");
+  assert.equal(calls.length,2);
+});
+
+test("revision-bound status continuations use the signed status method", async () => {
+  const value = fixture();
+  const identity = await readOperatorIdentity(value.storage, value.endpoint, webcrypto);
+  const parameters = {expected_revision:"9".repeat(32),access_offset:28};
+  const signed = await signSetupOperation(identity,"status",parameters,webcrypto);
+  const request = validateSetupRequest({operation:"status",parameters,proof:signed});
+  assert.doesNotThrow(() => validateSetupProof(signed,request,"device:"+identity.id));
+  for (const bad of [{...parameters,access_offset:true}, {...parameters,access_offset:0},
+                     {...parameters,access_offset:5120}, {...parameters,extra:1}]) {
+    assert.throws(() => validateSetupRequest({operation:"status",parameters:bad,proof:signed}));
+  }
+  assert.throws(() => validateSetupProof(signed,{operation:"status",parameters:{...parameters,access_offset:29}},"device:"+identity.id));
+  const account_id = "nextcloud-account-"+"e".repeat(16);
+  const scope = {resource_id:account_id+"-files",component:"FILES",path:"Belege/Grüße",file_id:"12"};
+  const pending = {account_id, expected_revision:"7".repeat(32), expected_policy_revision:"8".repeat(32),
+                  edits:[{scope,level:"create"}],confirm_root:false};
+  const preview = await signSetupOperation(identity,"access.preview",pending,webcrypto);
+  assert.ok(verify(null,Buffer.from(preview.payload),value.pair.publicKey,Buffer.from(preview.signature,"base64url")));
+  await assert.rejects(signSetupOperation(identity,"access.preview",{
+    ...pending,edits:Array.from({length:32},(_,i)=>({scope:{...scope,path:i+"壁".repeat(400)},level:"create"})),
+  },webcrypto),/zu groß/);
+});
+
+test("an opaque revocation is a signed Off-only edit with closed fields", async () => {
+  const id = fixture(); const identity = await readOperatorIdentity(id.storage,id.endpoint,webcrypto);
+  const edit = {revoke_handle:"4".repeat(64),level:"off"};
+  const parameters = {account_id:"nextcloud-account-"+"e".repeat(16),expected_revision:"7".repeat(32),
+    expected_policy_revision:"8".repeat(32),edits:[edit],confirm_root:false};
+  const signed = await signSetupOperation(identity,"access.preview",parameters,webcrypto);
+  const parsed = validateSetupRequest({operation:"access.preview",parameters,proof:signed});
+  validateSetupProof(signed,parsed,"device:"+identity.id);
+  for (const edits of [[{...edit,level:"read"}],[edit,edit],[{...edit,scope:{}}],[{...edit,revoke_handle:"short"}]]) {
+    assert.throws(() => validateSetupRequest({operation:"access.preview",parameters:{...parameters,edits}}));
+  }
 });

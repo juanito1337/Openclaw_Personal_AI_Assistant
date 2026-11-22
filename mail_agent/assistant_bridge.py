@@ -2,15 +2,37 @@ from __future__ import annotations
 
 import hashlib
 import os
+from functools import wraps
 from pathlib import Path
 from typing import Any
 
 from personal_assistant.bootstrap import create_personal_assistant
 from personal_assistant.config import load_config as load_assistant_config
+from personal_assistant.nextcloud_connection import admit_projection, load_access_snapshot
 from personal_assistant.service import PersonalAssistant
 
 from .models import OperationResult, ParsedMessage
+from .nextcloud import ARCHIVE_SELECTION, CALENDAR_MAIL_SELECTION, require_mail_automation
 from .utils import atomic_write_bytes
+
+
+def _legacy_automation(selection, *, returns_bytes=False):
+    def decorate(method):
+        @wraps(method)
+        def guarded(*args, **kwargs):
+            initial = load_access_snapshot()
+            try:
+                with admit_projection(initial) as current:
+                    require_mail_automation(current, selection)
+                result = method(*args, **kwargs)
+                with admit_projection(initial):
+                    return result
+            except PermissionError as exc:
+                if returns_bytes:
+                    raise
+                return OperationResult(False, selection, str(exc))
+        return guarded
+    return decorate
 
 
 class PersonalAssistantActionBridge:
@@ -30,9 +52,18 @@ class PersonalAssistantActionBridge:
         # otherwise falls back to the normal workspace configuration.
         return create_personal_assistant(load_assistant_config(self.config_path))
 
+    @staticmethod
+    def _check_open_automation(assistant, selection):
+        initial = getattr(assistant.registry, "access_snapshot", None)
+        if initial is not None:
+            with admit_projection(initial) as current:
+                require_mail_automation(current, selection)
+
+    @_legacy_automation(ARCHIVE_SELECTION)
     def health(self, *, resource_id: str = "nextcloud-files-main") -> OperationResult:
         assistant = self._open()
         try:
+            self._check_open_automation(assistant, ARCHIVE_SELECTION)
             resource = assistant.registry.get(resource_id)
             if not resource.enabled:
                 return OperationResult(False, "resource-disabled", f"Ressource {resource_id} ist deaktiviert")
@@ -45,6 +76,7 @@ class PersonalAssistantActionBridge:
         finally:
             assistant.close()
 
+    @_legacy_automation(ARCHIVE_SELECTION)
     def archive_invoice(
         self,
         *,
@@ -69,6 +101,7 @@ class PersonalAssistantActionBridge:
         payload_path: Path | None = None
         completed = False
         try:
+            self._check_open_automation(assistant, ARCHIVE_SELECTION)
             payload_dir = assistant.config.runtime.database.parent / "action_payloads" / "invoices"
             payload_dir.mkdir(parents=True, exist_ok=True)
             os.chmod(payload_dir, 0o700)
@@ -134,6 +167,7 @@ class PersonalAssistantActionBridge:
             assistant.close()
 
 
+    @_legacy_automation(ARCHIVE_SELECTION)
     def sync_invoice_register(
         self,
         *,
@@ -155,6 +189,7 @@ class PersonalAssistantActionBridge:
         assistant = self._open()
         payload_path: Path | None = None
         try:
+            self._check_open_automation(assistant, ARCHIVE_SELECTION)
             payload_dir = assistant.config.runtime.database.parent / "action_payloads" / "invoice-register"
             payload_dir.mkdir(parents=True, exist_ok=True)
             os.chmod(payload_dir, 0o700)
@@ -200,6 +235,7 @@ class PersonalAssistantActionBridge:
     # yearly Nextcloud register instead of creating timestamped exports.
     export_invoice_register = sync_invoice_register
 
+    @_legacy_automation(ARCHIVE_SELECTION, returns_bytes=True)
     def read_invoice_pdf(
         self,
         *,
@@ -211,6 +247,7 @@ class PersonalAssistantActionBridge:
             raise RuntimeError("PDF-Download ist im Bridge-Dry-Run nicht verfuegbar")
         assistant = self._open()
         try:
+            self._check_open_automation(assistant, ARCHIVE_SELECTION)
             resource = assistant.registry.get(resource_id)
             if not resource.enabled:
                 raise PermissionError(f"Ressource {resource_id} ist deaktiviert")
@@ -254,6 +291,7 @@ class PersonalAssistantActionBridge:
         finally:
             assistant.close()
 
+    @_legacy_automation(CALENDAR_MAIL_SELECTION)
     def create_calendar_event(
         self,
         *,
@@ -275,6 +313,7 @@ class PersonalAssistantActionBridge:
 
         assistant = self._open()
         try:
+            self._check_open_automation(assistant, CALENDAR_MAIL_SELECTION)
             plan = assistant.actions.plan(
                 "calendar.create",
                 resource_id,

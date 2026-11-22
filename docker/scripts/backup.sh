@@ -78,6 +78,8 @@ while IFS= read -r -d '' db; do
   [[ "$result" == "ok" ]] || { echo "SQLite-Pruefung fehlgeschlagen: $db" >&2; exit 1; }
 done < <(find "$OPENCLAW_STATE_DIR" -type f \( -name '*.sqlite' -o -name '*.sqlite3' -o -name '*.db' \) -print0)
 check_nextcloud_nonce_integrity "$OPENCLAW_SECRETS_DIR/nextcloud-connection"
+nextcloud_check=$(nextcloud_backup_check_mode)
+check_nextcloud_access_state "$nextcloud_check" "$OPENCLAW_STATE_DIR" "$OPENCLAW_SECRETS_DIR/nextcloud-connection"
 
 archive="$destination/payload.tar.gz"
 tar --numeric-owner -C "$OPENCLAW_ROOT" -czf "$archive" \
@@ -101,7 +103,7 @@ legacy_migration_backup=${OPENCLAW_LEGACY_MIGRATION_BACKUP:-}
 legacy_migration_member=${OPENCLAW_LEGACY_MIGRATION_MEMBER:-}
 legacy_migration_sha256=${OPENCLAW_LEGACY_MIGRATION_SHA256:-}
 
-python3 - "$destination/manifest.json" "$backup_id" "$previous" "$target" "$archive_sha" "$external" "$previous_runtime" "$legacy_home" "$legacy_migration_backup" "$legacy_migration_member" "$legacy_migration_sha256" "$previous_proxy" "$target_proxy" "$previous_maintenance" "$target_maintenance" "$previous_clamd" "$target_clamd" "$previous_talk_proxy_enabled" "$target_talk_proxy_enabled" "$previous_talk_proxy_ip" "$previous_talk_nextcloud_ip" "$target_talk_proxy_ip" "$target_talk_nextcloud_ip" <<'PY'
+python3 - "$destination/manifest.json" "$backup_id" "$previous" "$target" "$archive_sha" "$external" "$previous_runtime" "$legacy_home" "$legacy_migration_backup" "$legacy_migration_member" "$legacy_migration_sha256" "$previous_proxy" "$target_proxy" "$previous_maintenance" "$target_maintenance" "$previous_clamd" "$target_clamd" "$previous_talk_proxy_enabled" "$target_talk_proxy_enabled" "$previous_talk_proxy_ip" "$previous_talk_nextcloud_ip" "$target_talk_proxy_ip" "$target_talk_nextcloud_ip" "$nextcloud_check" <<'PY'
 from datetime import datetime, timezone
 import json, os, socket, sys
 from pathlib import Path
@@ -132,6 +134,7 @@ payload={
   "previous_talk_nextcloud_ip": sys.argv[21],
   "target_talk_proxy_ip": sys.argv[22],
   "target_talk_nextcloud_ip": sys.argv[23],
+  "nextcloud_access_check": sys.argv[24],
   "state_directory": os.environ.get("OPENCLAW_STATE_DIR", ""),
   "verified": False,
 }

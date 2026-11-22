@@ -32,7 +32,7 @@
     "clamav-update": {}
   },
   "shared_contracts": {
-    "nextcloud-connection": "nextcloud_setup exclusively owns atomic credential revisions; authorized operator confirms account resources; runtime mounts read-only; backup and restore require owner stopped",
+    "nextcloud-connection": "nextcloud_setup owns atomic connection and access-policy revisions under the stable installation lock. Runtime readers share the lock for one admitted request. Offline deployment binds mode.json to state/.layout-migrations/nextcloud-access-v1.json after verified backup. Restore verifies this pair with the owner stopped.",
     "setup-control": "ephemeral private Unix control socket: setup-service owns, gateway may connect via read-only mount; no domain worker receives the volume",
     "core": "personal_assistant.storage owns schema; sync and ActionPlan callers transact through AssistantStorage; idempotency_key is unique",
     "knowledge": "personal_assistant.storage owns documents, chunks, FTS and sync cursors in a database separate from ActionPlans and audit data",

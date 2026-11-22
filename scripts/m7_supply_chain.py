@@ -14,7 +14,10 @@ from typing import Any, cast
 ROOT = Path(__file__).resolve().parents[1]
 LOCK_PATH = ROOT / "docker/supply-chain.lock.json"
 DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
-ACTION_RE = re.compile(r"(?m)^\s*-?\s*uses:\s*([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)@([^\s#]+)")
+ACTION_RE = re.compile(r"([a-zA-Z0-9_.-]+/[a-zA-Z0-9_./-]+)@([^\s#]+)")
+WORKFLOW_KEY = re.compile(r"(?:- +)?(?P<key>['\"]?[a-zA-Z0-9_.-]+['\"]?):(?= +|$)(?P<value>.*)")
+WORKFLOW_SCALAR = r"(?:[a-zA-Z0-9_.=*/-]+|'[^']*'|\"[^\"\\]*\")"
+WORKFLOW_SCALAR_LIST = re.compile(rf"\[ *(?:{WORKFLOW_SCALAR}(?: *, *{WORKFLOW_SCALAR})*)? *\]")
 
 
 class ContractError(ValueError):
@@ -42,6 +45,46 @@ def split_reference(reference: str) -> tuple[str, str]:
     if not name or not DIGEST_RE.fullmatch(digest):
         raise ContractError(f"invalid immutable image reference: {reference}")
     return name, digest
+
+
+def workflow_files(directory: Path) -> list[Path]:
+    return sorted([*directory.glob("*.yml"), *directory.glob("*.yaml")])
+
+
+def workflow_actions(text: str) -> list[tuple[str, str]]:
+    """Read the repository's block-style action declarations and reject unsupported YAML shapes."""
+    actions = []
+    block_column = None
+    for number, raw in enumerate(text.splitlines(), start=1):
+        line = raw.lstrip()
+        if not line or line.startswith("#"):
+            continue
+        column = len(raw) - len(line)
+        if block_column is not None and column > block_column:
+            continue
+        block_column = None
+        node = WORKFLOW_KEY.fullmatch(line)
+        if not node:
+            if re.fullmatch(rf"- +{WORKFLOW_SCALAR}(?: +#.*)?", line):
+                continue
+            raise ContractError(f"unsupported workflow YAML structure for uses verification at line {number}")
+        key = node["key"].strip("'\"")
+        value = re.split(r"\s+#", node["value"].strip(), maxsplit=1)[0]
+        if key == "uses":
+            if re.fullmatch(r"(?P<quote>['\"]?)\./[a-zA-Z0-9_./-]+(?P=quote)", value):
+                continue
+            reference = ACTION_RE.fullmatch(value.strip("'\""))
+            if reference is None:
+                raise ContractError(f"unsupported uses declaration at line {number}")
+            actions.append((reference[1], reference[2]))
+        elif re.fullmatch(r"[|>](?:[+-])?", value):
+            block_column = column + node.start("key")
+        elif value.startswith(("{", "[", "*", "&", "!")):
+            if value != "{}" and not WORKFLOW_SCALAR_LIST.fullmatch(value):
+                raise ContractError(
+                    f"unsupported workflow YAML structure for uses verification at line {number}"
+                )
+    return actions
 
 
 def workflow_job_permissions(text: str) -> dict[str, dict[str, str]]:
@@ -102,7 +145,7 @@ def verify_lock(root: Path = ROOT) -> dict[str, Any]:
     for name, revision in actions.items():
         if not re.fullmatch(r"[0-9a-f]{40}", str(revision)):
             errors.append(f"GitHub Action is not commit-pinned: {name}@{revision}")
-    workflows = sorted((root / ".github/workflows").glob("*.yml"))
+    workflows = workflow_files(root / ".github/workflows")
     observed: dict[str, set[str]] = {}
     for workflow in workflows:
         workflow_text = workflow.read_text(encoding="utf-8")
@@ -111,6 +154,7 @@ def verify_lock(root: Path = ROOT) -> dict[str, Any]:
         except ContractError as exc:
             errors.append(f"{workflow.name}: {exc}")
             permissions = {}
+        # Signing and deployment verification bind the release workflow's exact filename.
         expected_permissions = {
             "ci.yml": {
                 "test": {"contents": "read"},
@@ -127,7 +171,12 @@ def verify_lock(root: Path = ROOT) -> dict[str, Any]:
         }
         if permissions != expected_permissions.get(workflow.name, {}):
             errors.append(f"{workflow.name}: job permissions exceed or miss the M7 contract")
-        for name, revision in ACTION_RE.findall(workflow_text):
+        try:
+            declarations = workflow_actions(workflow_text)
+        except ContractError as exc:
+            errors.append(f"{workflow.name}: {exc}")
+            continue
+        for name, revision in declarations:
             observed.setdefault(name, set()).add(revision)
             expected = actions.get(name)
             if expected is None:

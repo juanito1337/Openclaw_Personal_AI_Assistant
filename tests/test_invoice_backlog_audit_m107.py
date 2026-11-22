@@ -264,7 +264,7 @@ class InvoiceBacklogAuditM107Tests(unittest.TestCase):
         calls: list[list[str]] = []
 
         with patch(
-            "personal_assistant.cli_handlers.invoices.subprocess.run",
+            "personal_assistant.cli_handlers.mail.subprocess.run",
             side_effect=lambda command, **_kwargs: calls.append(command)
             or SimpleNamespace(returncode=0),
         ):

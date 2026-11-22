@@ -54,6 +54,7 @@ def _environment(tmp_path: Path) -> tuple[dict[str, str], Path, Path]:
         'elif [[ "$1 ${2:-}" == "container inspect" ]]; then\n'
         '  if [[ " $* " == *"OPENCLAW_TALK_PROXY_IP"* ]]; then printf "192.168.2.30\\n";\n'
         '  elif [[ " $* " == *"OPENCLAW_TALK_NEXTCLOUD_IP"* ]]; then printf "192.168.2.4\\n"; fi\n'
+        'elif [[ " $* " == *"org.opencontainers.image.openclaw.nextcloud-access"* ]]; then echo 1\n'
         'elif [[ " $* " == *"org.opencontainers.image.openclaw.talk-proxy"* ]]; then\n'
         '  printf "%s\\n" "${TALK_TEST_IMAGE_SUPPORT:-1}"\n'
         'elif [[ " $* " == *" stop talk-proxy "* || " $* " == *" down "* ]]; then\n'
@@ -163,7 +164,10 @@ def test_paused_proxy_is_not_silently_unpaused_by_deployment(tmp_path: Path) -> 
 
 
 def test_backup_covers_private_ca_and_records_first_activation_as_off(tmp_path: Path) -> None:
+    from test_nextcloud_setup_container import _initialize_policy_fixture
+
     env, _, root = _environment(tmp_path)
+    _initialize_policy_fixture(root)
     fixture = root / "secrets/talk-proxy-pki/test-only.txt"
     fixture.write_text("synthetic PKI state; not a private key", encoding="utf-8")
     env.update(PREVIOUS_TALK_PROXY_ENABLED="false", TARGET_TALK_PROXY_ENABLED="true")
@@ -180,9 +184,12 @@ def test_backup_covers_private_ca_and_records_first_activation_as_off(tmp_path: 
 
 
 def _deployment(tmp_path: Path) -> tuple[dict[str, str], Path, Path]:
+    from test_nextcloud_setup_container import _initialize_policy_fixture
+
     env, env_file, root = _environment(tmp_path)
     scripts = env_file.parent / "scripts"
     scripts.mkdir()
+    _initialize_policy_fixture(root, scripts)
     for name in ("deploy.sh", "common.sh"):
         shutil.copy2(SCRIPTS / name, scripts / name)
     for name in ("verify-image-supply-chain.sh", "check-maintenance-runtime.sh", "smoke-test.sh"):
@@ -360,7 +367,10 @@ def test_invalid_proxy_addresses_fail_before_disruption(tmp_path: Path, address:
 
 
 def test_manual_backup_records_stopped_container_addresses_not_candidate_env(tmp_path: Path) -> None:
+    from test_nextcloud_setup_container import _initialize_policy_fixture
+
     env, _, root = _environment(tmp_path)
+    _initialize_policy_fixture(root)
     env["OPENCLAW_TALK_PROXY_ENABLED"] = "true"
     result = _run([str(SCRIPTS / "backup.sh"), "test"], env)
     assert result.returncode == 0, result.stderr

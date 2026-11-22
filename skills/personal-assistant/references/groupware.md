@@ -3,9 +3,10 @@
 Nextcloud is a controlled remote connector, not a local directory. Never search
 for `~/.nextcloud` or another local mount, and never expose the central secrets
 file. Start with the registered status/discovery command. An account connected
-through the [OpenClaw setup page](../../../docs/NEXTCLOUD_SETUP_UI.md) exposes its
-available resources and confirmed server rights. Read tools can aggregate these
-resources; every write still selects one exact stable `resource_id`. Never select
+through the [OpenClaw setup page](../../../docs/NEXTCLOUD_SETUP_UI.md) separates
+server discovery, saved agent selection and currently effective rights. In active
+access mode, read tools aggregate only selected resources with sufficient current
+rights; every write still selects one exact stable `resource_id`. Never select
 the first discovered collection or assume a resource from its display name.
 
 Account onboarding, credential changes and Talk pairing belong to that
@@ -18,6 +19,23 @@ RPC through a generic tool. The GUI-capable production profile disables generic
 shell/file tools; native domain tools retain their existing approval contracts.
 Legacy `calendar configure`, `tasks configure` and `contacts configure` are
 rejected for a GUI-managed account and direct the operator to the setup page.
+
+The operator controls access levels on that same page: Off, Read, Read/Create,
+or supported Read/Create/Update. These levels never grant server rights, replace
+single-action approval or start jobs. New accounts and newly discovered resources
+start without grants. VEVENT and VTODO remain separate even on the same calendar.
+Files use exact folder identities and the most specific selected subtree; an
+explicit Off child stays inaccessible under an allowed parent. Whole-account
+root access requires its own operator confirmation. Existing managed legacy
+access remains separately identified until its bounded migration is confirmed.
+
+The active policy applies to CLI, native tools, cached contacts, local search,
+sync and pending actions. Account or policy changes invalidate old authority;
+stored historical rows are not current access evidence. Missing or damaged
+required access state blocks Nextcloud operations. Report `scope-off`,
+`operation-not-allowed`, `rights-stale`, `rights-unverified`, `policy-changed`
+or `policy-integrity-error` with the registered safe next step. Never repair
+these by changing configuration, expanding access or replaying an old approval.
 
 `resources status` is the central read-only identity inventory. Stable resource
 ID, business name, component, confirmed permissions and remote identifier are
@@ -50,9 +68,11 @@ remote object or configured capability is absent.
 A request mentioning a Nextcloud file, document, WebDAV path or the `Assistent/`
 tree is already enough to trigger this connector. Read `resources status` and
 list the requested path inside its reported roots before asking Jan for a local
-mount, host path, API, another skill or an upload. For a GUI-managed account,
-`nextcloud list` lists the account root; legacy configuration retains
-its explicitly selected roots, for example `nextcloud list --path "Assistent"`.
+mount, host path, API, another skill or an upload. In active access mode, use the
+exact allowed roots from status, for example `nextcloud list --path "Assistent"`.
+An account-root listing is available only when that root is authorized. Managed
+legacy accounts retain their existing mode until confirmed migration; standalone
+legacy configuration retains its explicitly selected roots.
 For a filename/content query
 without an exact path, use the registered
 broad `search "<Suchbegriff>"` path as supplementary indexed evidence and verify
@@ -64,8 +84,8 @@ or its native connector is missing.
 ## Shared existing-object contract
 
 - Calendar, task and contact status/list/search operations accept an optional
-  `--resource "<resource_id>"`. Without it, managed accounts read all accessible
-  collections of that component. Check `complete`, `resource_errors` and
+  `--resource "<resource_id>"`. Without it, active managed accounts read only
+  selected and currently authorized collections of that component. Check `complete`, `resource_errors` and
   `results_may_be_truncated` before a completeness or absence claim.
 - Preserve the resource ID on each result. With multiple collections, pass that
   exact ID to create, update and mail-derived previews/writes. A UID alone does
@@ -89,7 +109,11 @@ Creation is create-only and never modifies a matching vCard. Name/e-mail
 collisions require review; never merge automatically. Update one UID from a fresh
 list/search result. Repeated email/phone arguments replace those full lists, so
 use them only when Jan explicitly requested that replacement. Mail-derived contact
-creation begins with an exact mail selection and dry-run.
+creation begins with an exact mail selection and dry-run. On an active access
+policy, confirm the unchanged contact preview with its returned
+`--preview-digest` and the same contact fields and selected resource. Account,
+grant, source or candidate changes require a fresh preview. The digest remains
+optional for legacy connections.
 
 ## Calendar and VTODO
 
@@ -140,8 +164,10 @@ exact resource/UID/title and live `update_allowed=true`, use
 `tasks update --resource "<resource_id>" --uid "<UID>"
 --expected-title "<aktueller Titel>" --status COMPLETED --yes`, then require
 `after.status=COMPLETED` and `after.percent_complete=100` as the success evidence.
-The release-owned `standard` profile exposes update access for an already enabled
-and exactly selected task resource at every process start. Therefore use the
+The release-owned `standard` profile exposes supported update access for an
+already enabled and exactly selected task resource at every process start,
+within the active agent policy and current server rights. It never overrides a
+Read-only or Off selection. Therefore use the
 registered completion command directly when `tasks status` reports
 `update_allowed=true`; do not ask Jan for another technical unlock. If status is
 still false, treat the missing resource, credential or confirmed permission as an
@@ -155,16 +181,22 @@ internal note replaced the CalDAV update.
 
 ## Durable workspace
 
-Remote paths stay inside the roots reported by `resources status`. GUI-managed
-accounts expose the account's available file tree; legacy configuration retains
+Remote paths stay inside the roots reported by `resources status`. Active managed
+accounts expose only their authorized subtrees; legacy configuration retains
 its selected roots such as `Assistent/`. Never reinterpret an old resource ID as
 the newly connected account. Folder creation is
 idempotent; uploads and text files are create-only; moves use no-overwrite
 semantics and stay inside the root. Local uploads must originate in the controlled
 workspace outbox and pass ClamAV. Delete, overwrite, public sharing and permission
 changes remain prohibited. Every write passes ActionPlan, policy, idempotency and
-audit.
+audit. In active access mode, unsupported MOVE and remote invoice-register
+workflows remain blocked until they have their own configured contract; an
+ordinary file grant does not activate them. C permits creating files and K
+permits creating subfolders, only when separately measured and selected.
 
 For a locally completed ActionPlan, external idempotency is valid only while the
 expected remote postcondition still exists. A missing create-only target may be
-recreated; different content at the destination is a conflict.
+recreated only with current binding, checks and required fresh authorization;
+different content at the destination is a conflict. A delivery-uncertain action
+does not authorize a retry. Local invoice, order and portfolio history retains
+its independent owner and never grants access to remote archives.

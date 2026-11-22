@@ -32,7 +32,7 @@ from .learning import LearningFolderRegistry
 from .learning_quality import LearningQualityAnalyzer
 from .lock import ProcessLock, ProcessLockError, inspect_process_lock
 from .models import ParsedMessage
-from .nextcloud import NextcloudSkillClient, NextcloudSkillError
+from .nextcloud import NextcloudSkillClient, NextcloudSkillError, archive_access, archive_snapshot
 from .nextcloud_setup import interactive_nextcloud_setup
 from .search_backfill import BackfillLimits, MailSearchBackfill
 from .search_reconcile import (
@@ -961,13 +961,12 @@ def _sync_invoice_register(
     *,
     year: int,
     invoice_tool: object,
-    dry_run: bool = False,
 ) -> dict[str, object]:
     # The caller supplies one of multiple settings dataclasses behind this narrow dynamic boundary.
     folder = str(getattr(invoice_tool, "folder"))  # noqa: B009
     resource_id = str(getattr(invoice_tool, "resource_id"))  # noqa: B009
     rendered = register.render(year, invoice_folder=folder)
-    bridge = PersonalAssistantActionBridge(dry_run=dry_run)
+    bridge = PersonalAssistantActionBridge(dry_run=False)
     result = bridge.sync_invoice_register(
         data=rendered.data,
         year=year,
@@ -986,13 +985,21 @@ def _sync_invoice_register(
     return payload
 
 
+def _require_invoice_archive(invoice_tool):
+    if not invoice_tool.enabled:
+        raise PermissionError(
+            getattr(invoice_tool, "disabled_reason", "")
+            or "Zentrales Rechnungswerkzeug ist in tools.toml deaktiviert"
+        )
+    return archive_snapshot()
+
+
 def _handle_invoice_reprocess(args: argparse.Namespace, config: Config) -> int:
     if not bool(getattr(args, "dry_run", False)):
         raise PermissionError("Reprocessing-Vorschau benoetigt zwingend --dry-run")
     tools = load_tool_settings()
     invoice_tool = tools.mail.invoices
-    if not invoice_tool.enabled:
-        raise PermissionError("Zentrales Rechnungswerkzeug ist in tools.toml deaktiviert")
+    initial = _require_invoice_archive(invoice_tool)
     reader = ReadOnlyInvoicePdfReader()
     extractor = InvoiceExtractor(config.invoices)
     with tempfile.TemporaryDirectory(prefix="openclaw-invoice-preview-") as temporary:
@@ -1039,7 +1046,8 @@ def _handle_invoice_reprocess(args: argparse.Namespace, config: Config) -> int:
             )
         finally:
             antivirus.close()
-    print(json.dumps(payload, indent=2, ensure_ascii=False))
+    with archive_access(initial):
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
     return 0 if payload.get("ok") else 1
 
 
@@ -1054,8 +1062,7 @@ def _handle_invoice_reprocess_apply(args: argparse.Namespace, config: Config) ->
     )
     tools = load_tool_settings()
     invoice_tool = tools.mail.invoices
-    if not invoice_tool.enabled:
-        raise PermissionError("Zentrales Rechnungswerkzeug ist in tools.toml deaktiviert")
+    initial = _require_invoice_archive(invoice_tool)
     reader = ReadOnlyInvoicePdfReader()
     extractor = InvoiceExtractor(config.invoices)
     with tempfile.TemporaryDirectory(prefix="openclaw-invoice-apply-") as temporary:
@@ -1110,7 +1117,8 @@ def _handle_invoice_reprocess_apply(args: argparse.Namespace, config: Config) ->
             )
         finally:
             antivirus.close()
-    print(json.dumps(payload, indent=2, ensure_ascii=False))
+    with archive_access(initial):
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
     return 0 if payload.get("ok") else 1
 
 
@@ -1160,8 +1168,10 @@ def _handle_invoices(args: argparse.Namespace, config: Config) -> int:
         )
         print(json.dumps(payload, indent=2, ensure_ascii=False))
         return 0
+    local_export = args.invoices_command == "export" and args.dry_run
     storage = Storage(
-        config.runtime.database, read_only=args.invoices_command in {"status", "list", "review"},
+        config.runtime.database,
+        read_only=args.invoices_command in {"status", "list", "review"} or local_export,
     )
     try:
         if args.invoices_command in {"status", "list", "review"}:
@@ -1238,17 +1248,24 @@ def _handle_invoices(args: argparse.Namespace, config: Config) -> int:
             expected_filename = f"Rechnungen_{int(args.year):04d}.csv"
             if args.filename and str(args.filename).strip() != expected_filename:
                 raise ValueError(f"R26 erlaubt nur den festen Dateinamen {expected_filename}")
+            if local_export:
+                rendered = register.render(args.year)
+                payload = {
+                    **rendered.to_dict(), "scope": "local-annual-register-preview",
+                    "status": "rendered", "dry_run": True, "remote_state_verified": False,
+                }
+                print(json.dumps(payload, indent=2, ensure_ascii=False))
+                return 0 if rendered.ok else 1
             tools = load_tool_settings()
             invoice_tool = tools.mail.invoices
-            if not invoice_tool.enabled:
-                raise PermissionError("Zentrales Rechnungswerkzeug ist in tools.toml deaktiviert")
+            initial = _require_invoice_archive(invoice_tool)
             payload = _sync_invoice_register(
                 register,
                 year=args.year,
                 invoice_tool=invoice_tool,
-                dry_run=bool(args.dry_run),
             )
-            print(json.dumps(payload, indent=2, ensure_ascii=False))
+            with archive_access(initial):
+                print(json.dumps(payload, indent=2, ensure_ascii=False))
             return 0 if payload.get("ok") else 1
         if command == "backfill":
             year = int(args.year)
@@ -1258,8 +1275,7 @@ def _handle_invoices(args: argparse.Namespace, config: Config) -> int:
                 raise PermissionError("Produktiver Backfill benoetigt --yes nach ausdruecklichem Nutzerauftrag")
             tools = load_tool_settings()
             invoice_tool = tools.mail.invoices
-            if not invoice_tool.enabled:
-                raise PermissionError("Zentrales Rechnungswerkzeug ist in tools.toml deaktiviert")
+            initial = _require_invoice_archive(invoice_tool)
             candidates = [
                 row for row in storage.list_invoice_backfill_candidates(limit=max(1, args.limit))
                 if _backfill_year(row) == year
@@ -1323,24 +1339,25 @@ def _handle_invoices(args: argparse.Namespace, config: Config) -> int:
                                 received = parsed_received.date().isoformat() if parsed_received else ""
                             except (TypeError, ValueError, OverflowError):
                                 received = str(item.get("received_date") or "")[:10]
-                            storage.update_invoice_extraction(
-                                attachment_hash,
-                                invoice_date=metadata.invoice_date.value,
-                                received_date=received,
-                                invoice_number=metadata.invoice_number.value,
-                                supplier=metadata.supplier.value,
-                                category=metadata.category.value or "Ungeklärt",
-                                gross_amount_cents=amount_to_cents(metadata.gross_amount.value),
-                                net_amount_cents=amount_to_cents(metadata.net_amount.value),
-                                tax_amount_cents=amount_to_cents(metadata.tax_amount.value),
-                                currency=metadata.currency.value or "EUR",
-                                due_date=metadata.due_date.value,
-                                extraction_status=metadata.status,
-                                extraction_confidence=metadata.confidence,
-                                extraction_method="backfill-" + metadata.method,
-                                extraction_json=metadata.to_json(),
-                                register_year=target_year,
-                            )
+                            with archive_access(initial):
+                                storage.update_invoice_extraction(
+                                    attachment_hash,
+                                    invoice_date=metadata.invoice_date.value,
+                                    received_date=received,
+                                    invoice_number=metadata.invoice_number.value,
+                                    supplier=metadata.supplier.value,
+                                    category=metadata.category.value or "Ungeklärt",
+                                    gross_amount_cents=amount_to_cents(metadata.gross_amount.value),
+                                    net_amount_cents=amount_to_cents(metadata.net_amount.value),
+                                    tax_amount_cents=amount_to_cents(metadata.tax_amount.value),
+                                    currency=metadata.currency.value or "EUR",
+                                    due_date=metadata.due_date.value,
+                                    extraction_status=metadata.status,
+                                    extraction_confidence=metadata.confidence,
+                                    extraction_method="backfill-" + metadata.method,
+                                    extraction_json=metadata.to_json(),
+                                    register_year=target_year,
+                                )
                             touched_years.add(target_year)
                     except Exception as exc:
                         errors.append({"attachment_hash": attachment_hash, "path": remote_path, "error": str(exc)})
@@ -1359,15 +1376,15 @@ def _handle_invoices(args: argparse.Namespace, config: Config) -> int:
                 "errors": errors,
                 "registers": registers,
             }
-            print(json.dumps(payload, indent=2, ensure_ascii=False))
+            with archive_access(initial):
+                print(json.dumps(payload, indent=2, ensure_ascii=False))
             return 0 if payload["ok"] else 1
         if command == "correct":
             if not args.yes:
                 raise PermissionError("Metadatenkorrektur benoetigt --yes nach ausdruecklichem Nutzerauftrag")
             tools = load_tool_settings()
             invoice_tool = tools.mail.invoices
-            if not invoice_tool.enabled:
-                raise PermissionError("Zentrales Rechnungswerkzeug ist in tools.toml deaktiviert")
+            initial = _require_invoice_archive(invoice_tool)
             invoice_date = _validate_iso_date(args.invoice_date)
             due_date = _validate_iso_date(args.due_date, optional=True)
             gross = amount_to_cents(args.gross)
@@ -1375,12 +1392,14 @@ def _handle_invoices(args: argparse.Namespace, config: Config) -> int:
             tax = amount_to_cents(args.tax) if args.tax else None
             if gross is None:
                 raise ValueError("--gross ist kein gueltiger Betrag")
-            old_year, new_year = storage.correct_invoice_metadata(
-                args.attachment_hash, invoice_date=invoice_date, invoice_number=args.invoice_number.strip(),
-                supplier=args.supplier.strip(), category=args.category.strip(), gross_amount_cents=gross,
-                net_amount_cents=net, tax_amount_cents=tax, currency=args.currency.strip().upper(),
-                due_date=due_date,
-            )
+            with archive_access(initial):
+                old_year, new_year = storage.correct_invoice_metadata(
+                    args.attachment_hash,
+                    invoice_date=invoice_date, invoice_number=args.invoice_number.strip(),
+                    supplier=args.supplier.strip(), category=args.category.strip(), gross_amount_cents=gross,
+                    net_amount_cents=net, tax_amount_cents=tax, currency=args.currency.strip().upper(),
+                    due_date=due_date,
+                )
             regenerated = []
             for year in sorted({v for v in (old_year, new_year) if v is not None}):
                 regenerated.append(_sync_invoice_register(register, year=year, invoice_tool=invoice_tool))

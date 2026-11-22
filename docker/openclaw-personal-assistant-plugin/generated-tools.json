@@ -4,7 +4,7 @@
   "plugin_id": "personal-assistant-tools",
   "plugin_path": "/opt/openclaw-plugins/personal-assistant-tools",
   "product_version": "3.4.0-r29.0.6",
-  "catalog_sha256": "674cad547a64339cf60fd7b40fa85df2c70615a109e86be49e0b693d1bbeb241",
+  "catalog_sha256": "d53f6f6614c0556a3a0478340ab36aee2fbdcc842893a0437040d7794e249ea6",
   "catalog_tool_count": 174,
   "supported_operation_count": 173,
   "excluded_operation_count": 1,
@@ -7608,7 +7608,7 @@
     {
       "tool_id": "nextcloud.contacts.from-mail-create",
       "domain": "contacts",
-      "description": "Kontakt aus einer eindeutig ausgewaehlten Mail nach Vorschau und ausdruecklichem Nutzerauftrag create-only anlegen; bei mehreren Ressourcen ist --resource aus status/list fuer genau ein Schreibziel erforderlich",
+      "description": "Kontakt aus einer eindeutig ausgewaehlten Mail nach Vorschau und ausdruecklichem Nutzerauftrag create-only anlegen, aktiver Zugriff erfordert den unveraenderten Vorschau-Digest; bei mehreren Ressourcen ist --resource aus status/list fuer genau ein Schreibziel erforderlich",
       "mode": "write",
       "writes_external_data": true,
       "approval": "explicit-user-contact-from-mail-create-only",
@@ -7621,7 +7621,7 @@
         "native_dialog_required": false
       },
       "availability": "contacts-create",
-      "command": "./scripts/assistant.sh contacts from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --yes --resource \"<resource-optional>\"",
+      "command": "./scripts/assistant.sh contacts from-mail --folder \"<Ordner>\" --message-id \"<Mail-ID>\" --expected-subject \"<Betreff>\" --preview-digest \"<preview_digest-optional>\" --yes --resource \"<resource-optional>\"",
       "argument_schema": {
         "type": "object",
         "properties": {
@@ -7639,6 +7639,10 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 2048
+          },
+          "preview_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
           },
           "resource": {
             "type": "string",
@@ -7668,6 +7672,11 @@
           "placeholder": "Betreff",
           "parameter": "expected_subject",
           "required": true
+        },
+        {
+          "placeholder": "preview_digest-optional",
+          "parameter": "preview_digest",
+          "required": false
         },
         {
           "placeholder": "resource-optional",
@@ -9351,10 +9360,14 @@
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 2048
+              },
+              "preview_digest": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
               }
             },
             "additionalProperties": false,
-            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: nextcloud.contacts.configure: resource; nextcloud.contacts.update: expected_name, phone, uid, resource?; nextcloud.contacts.create: email, name, organization, phone, resource?; nextcloud.contacts.from-mail-create: expected_subject, folder, message_id, resource?"
+            "description": "Argumente der gewaehlten Operation. Pflichtfelder nie weglassen. Signaturen: nextcloud.contacts.configure: resource; nextcloud.contacts.update: expected_name, phone, uid, resource?; nextcloud.contacts.create: email, name, organization, phone, resource?; nextcloud.contacts.from-mail-create: expected_subject, folder, message_id, preview_digest?, resource?"
           }
         },
         "required": [

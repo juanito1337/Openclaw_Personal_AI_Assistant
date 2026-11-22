@@ -14,6 +14,15 @@ if [[ ${EUID:-$(id -u)} -eq 0 ]]; then
   echo "Bitte als normaler Benutzer mit Docker-Rechten ausfuehren, nicht mit sudo/root." >&2
   exit 2
 fi
+require_command flock
+exec {deploy_lock}<"$DEPLOYMENT_DIR"
+flock -n "$deploy_lock" || { echo "Deployment laeuft bereits." >&2; exit 2; }
+nextcloud_install_request=normal
+case ${4:-} in
+  --fresh-nextcloud-installation) nextcloud_install_request=fresh ;;
+  '') ;;
+  *) echo "Unbekannte Deploymentoption." >&2; exit 2 ;;
+esac
 require_command docker
 require_command python3
 docker info >/dev/null 2>&1 || {
@@ -197,6 +206,9 @@ echo "Pruefe signierte M7-Images vor jeder Aenderung am laufenden Stack."
 if [[ "$target_talk_proxy_enabled" == true ]]; then
   verify_talk_proxy_image "$target_proxy_image"
 fi
+access_contract=$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.openclaw.nextcloud-access"}}' "$target_image")
+[[ "$access_contract" == 1 ]] || { echo "Unbekannter Nextcloud-Policy-Imagevertrag." >&2; exit 2; }
+access_transition=$(nextcloud_access_transition "$previous_image" "$previous_runtime" "$nextcloud_install_request")
 previous_talk_proxy_enabled=$(talk_proxy_running_state)
 if [[ "$previous_talk_proxy_enabled" == true ]]; then
   [[ "$previous_runtime" == docker ]] || {
@@ -307,7 +319,7 @@ export PREVIOUS_IMAGE="$previous_image" PREVIOUS_PROXY_IMAGE="$previous_proxy_im
   TARGET_TALK_PROXY_IP="$target_talk_proxy_ip" \
   TARGET_TALK_NEXTCLOUD_IP="$target_talk_nextcloud_ip" \
   EXTERNAL_BACKUP_REFERENCE="$external_reference" PREVIOUS_RUNTIME="$previous_runtime"
-backup_id=$("$SCRIPT_DIR/backup.sh" "${previous_image##*:}-to-${target_image##*:}")
+backup_id=$(OPENCLAW_FIRST_DEPLOY_REQUEST="$access_transition" "$SCRIPT_DIR/backup.sh" "${previous_image##*:}-to-${target_image##*:}")
 echo "Verifiziertes Release-Backup: $backup_id"
 trap - ERR
 
@@ -322,6 +334,10 @@ rollback_on_failure() {
   exit "$code"
 }
 trap rollback_on_failure ERR
+if [[ "$access_transition" != verify ]]; then
+  ensure_nextcloud_connection_directory
+fi
+check_nextcloud_access_state "$access_transition" "$OPENCLAW_STATE_DIR" "$OPENCLAW_SECRETS_DIR/nextcloud-connection"
 update_env_value OPENCLAW_IMAGE "$target_image"
 update_env_value OPENCLAW_PROXY_IMAGE "$target_proxy_image"
 update_env_value OPENCLAW_MAINTENANCE_IMAGE "$target_maintenance_image"
@@ -337,7 +353,6 @@ compose --profile maintenance run --rm --no-deps --entrypoint python3 clamav-upd
   -P -m personal_assistant.clamav_health
 compose up -d clamd
 wait_for_healthy clamd 300
-ensure_nextcloud_connection_directory
 # This also completes layout-init before binding the exact pairing directory.
 compose up -d setup-service
 wait_for_healthy setup-service 60

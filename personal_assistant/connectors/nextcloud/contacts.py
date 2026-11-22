@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import urllib.parse
 from dataclasses import dataclass
@@ -8,6 +9,8 @@ from typing import Any
 from ...config import AssistantConfig
 from ...extractors import chunks
 from ...incremental_sync import RemoteObject, StageTelemetry, plan_batch
+from ...nextcloud_access_runtime import check_component_write, component_request, readback_after_write
+from ...nextcloud_index_access import require_scoped_sync
 from ...storage import AssistantStorage
 from .client import NextcloudClient
 from .discovery import DiscoveredCollection
@@ -43,7 +46,11 @@ class NextcloudContacts:
 <card:addressbook-query xmlns:d='DAV:' xmlns:card='urn:ietf:params:xml:ns:carddav'>
  <d:prop><d:getetag/><card:address-data/></d:prop>
 </card:addressbook-query>"""
-        response = self.client.request(
+        response = component_request(
+            self.client,
+            "VCARD",
+            "list",
+            addressbook,
             "REPORT",
             addressbook.href,
             data=body,
@@ -70,7 +77,11 @@ class NextcloudContacts:
 <card:addressbook-query xmlns:d='DAV:' xmlns:card='urn:ietf:params:xml:ns:carddav'>
  <d:prop><d:getetag/></d:prop>
 </card:addressbook-query>"""
-        response = self.client.request(
+        response = component_request(
+            self.client,
+            "VCARD",
+            "list",
+            addressbook,
             "REPORT",
             addressbook.href,
             data=body,
@@ -87,7 +98,7 @@ class NextcloudContacts:
         ]
 
     def read_contact(self, href: str, *, fallback_uid: str = "") -> Contact:
-        response = self.client.request("GET", href, expected={200})
+        response = component_request(self.client, "VCARD", "read", None, "GET", href, expected={200})
         return self._parse_vcard(
             response.data.decode("utf-8", errors="replace"),
             fallback_uid or href,
@@ -97,13 +108,20 @@ class NextcloudContacts:
 
     def contact_exists(self, addressbook: DiscoveredCollection, uid: str) -> bool:
         href = self.contact_href(addressbook, uid)
-        response = self.client.request("GET", href, expected={200, 404})
+        response = component_request(
+            self.client, "VCARD", "read", addressbook, "GET", href, expected={200, 404}
+        )
         return response.status == 200
 
     def create_contact(self, addressbook: DiscoveredCollection, vcard: str, uid: str) -> str:
         """Create a vCard without overwriting an existing CardDAV object."""
+        check_component_write(self.client, addressbook, "VCARD", "create", uid, vcard)
         href = self.contact_href(addressbook, uid)
-        response = self.client.request(
+        response = component_request(
+            self.client,
+            "VCARD",
+            "create",
+            addressbook,
             "PUT",
             href,
             data=vcard.encode("utf-8"),
@@ -115,7 +133,7 @@ class NextcloudContacts:
         )
         if response.status == 412:
             raise FileExistsError(f"CardDAV-Kontakt existiert bereits: {uid}")
-        verify = self.read_contact(href, fallback_uid=uid)
+        verify = readback_after_write(self.client, self.read_contact, href, uid, "VCARD", vcard)
         if verify.uid.strip() != uid.strip():
             raise RuntimeError("CardDAV-Kontakt wurde angelegt, UID konnte aber nicht verifiziert werden")
         return href
@@ -135,13 +153,18 @@ class NextcloudContacts:
         server ETag is sent through ``If-Match`` so a concurrent edit in
         Nextcloud is never overwritten silently.
         """
+        check_component_write(self.client, addressbook, "VCARD", "update", uid, vcard)
         safe_href = self._validated_contact_href(addressbook, href)
         current_etag = str(etag or "").strip()
         if not current_etag:
             current_etag = self.read_contact(safe_href, fallback_uid=uid).etag
         if not current_etag:
             raise RuntimeError("CardDAV-Server lieferte keinen ETag; sicheres Kontakt-Update abgebrochen")
-        response = self.client.request(
+        response = component_request(
+            self.client,
+            "VCARD",
+            "update",
+            addressbook,
             "PUT",
             safe_href,
             data=vcard.encode("utf-8"),
@@ -155,7 +178,7 @@ class NextcloudContacts:
             raise RuntimeError(
                 "Kontakt wurde zwischenzeitlich geaendert; bitte erneut suchen und die Aenderung wiederholen"
             )
-        verified = self.read_contact(safe_href, fallback_uid=uid)
+        verified = readback_after_write(self.client, self.read_contact, safe_href, uid, "VCARD", vcard)
         if verified.uid.strip() != uid.strip():
             raise RuntimeError("CardDAV-Kontakt wurde aktualisiert, UID-Verifikation ist fehlgeschlagen")
         return verified
@@ -183,6 +206,9 @@ class NextcloudContacts:
         *,
         batch_size: int = 100,
     ) -> dict[str, Any]:
+        source = require_scoped_sync(self.client, storage, "VCARD")
+        if source is not None and [item.resource_id for item in addressbooks] != [source.scope.resource_id]:
+            raise PermissionError("scope-unbound")
         stats: dict[str, Any] = {
             "addressbooks": 0,
             "contacts": 0,
@@ -201,6 +227,8 @@ class NextcloudContacts:
                 metadata = self.list_contact_metadata(book)
                 stats["addressbooks"] = int(stats["addressbooks"]) + 1
             except Exception as exc:
+                if source is not None and isinstance(exc, PermissionError):
+                    raise
                 stats["errors"] = int(stats["errors"]) + 1
                 if not storage.core_read_only:
                     storage.audit(
@@ -300,6 +328,8 @@ class NextcloudContacts:
                     stats["contacts"] = int(stats["contacts"]) + 1
                     stats["indexed"] = int(stats["indexed"]) + 1
                 except Exception as exc:
+                    if source is not None and isinstance(exc, PermissionError):
+                        raise
                     telemetry.stop_running()
                     batch_errors += 1
                     stats["errors"] = int(stats["errors"]) + 1
@@ -326,7 +356,7 @@ class NextcloudContacts:
                 if batch_errors == 0
                 else (str(state["cursor"] or "") if state is not None else ""),
                 status="ok" if completed else ("partial" if batch_errors else "in-progress"),
-                detail=str({key: value for key, value in stats.items() if key != "telemetry"}),
+                detail=json.dumps({key: value for key, value in stats.items() if key != "telemetry"}),
                 data_changed=bool(int(stats["indexed"]) or int(stats["moved"]) or int(stats["removed"])),
             )
         stats["telemetry"] = telemetry.to_dict()

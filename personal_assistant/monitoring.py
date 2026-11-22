@@ -70,6 +70,11 @@ def _sync_state_payload(row: sqlite3.Row, *, now: datetime) -> dict[str, Any]:
     result = str(runtime.get("result") or "")
     if not result:
         result = "completed" if str(row["status"] or "").casefold() == "ok" else "failed"
+    # Exact worker provenance belongs in the knowledge owner. Monitor snapshots
+    # retain technical measurements across account changes.
+    bounded_detail = str(row["detail"] or "")[:500]
+    if isinstance(detail, dict) and "nextcloud_source" in detail:
+        bounded_detail = json.dumps({"result": result})
     return {
         "resource_id": str(row["resource_id"]),
         "scope": str(row["scope"]),
@@ -85,7 +90,7 @@ def _sync_state_payload(row: sqlite3.Row, *, now: datetime) -> dict[str, Any]:
             else None
         ),
         "status": str(row["status"]),
-        "detail": str(row["detail"] or "")[:500],
+        "detail": bounded_detail,
     }
 
 
@@ -380,6 +385,11 @@ class PerformanceMonitor:
             knowledge_connection,
             "SELECT resource_id,scope,synced_at,status,detail FROM sync_state ORDER BY resource_id,scope",
         )
+        from .nextcloud_connection import admit_projection, load_access_snapshot
+        from .nextcloud_index_access import sync_state_visible
+
+        with admit_projection(load_access_snapshot()) as snapshot:
+            sync_rows = [row for row in sync_rows if sync_state_visible(snapshot, row)]
         latest_row = self._query_one(
             knowledge_connection,
             "SELECT MAX(indexed_at) latest, COUNT(*) total FROM documents",

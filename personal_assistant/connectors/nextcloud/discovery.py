@@ -5,6 +5,7 @@ import urllib.parse
 from dataclasses import dataclass
 from xml.etree import ElementTree
 
+from ...nextcloud_access_runtime import DAV_PRINCIPAL_PROBE
 from ...nextcloud_connection import collection_resource_id
 from .client import NextcloudClient, NextcloudError
 from .xmlutil import CALDAV, CARDDAV, DAV, parse_multistatus, q
@@ -62,7 +63,7 @@ class NextcloudDiscovery:
             "PROPFIND",
             "/remote.php/dav/",
             headers={"Depth": "0", "Content-Type": "application/xml; charset=utf-8"},
-            data=b"<?xml version='1.0'?><d:propfind xmlns:d='DAV:'><d:prop><d:current-user-principal/></d:prop></d:propfind>",
+            data=DAV_PRINCIPAL_PROBE,
             expected={207},
         )
         return {
@@ -125,6 +126,35 @@ class NextcloudDiscovery:
             "can_move": can_move,
         }
 
+    def _selected(self, *components: str) -> list[DiscoveredCollection] | None:
+        from ...nextcloud_connection import component_operations, effective_resources, load_access_snapshot
+
+        initial = getattr(self.client, "access_snapshot", None)
+        if initial is None or initial.mode == "legacy":
+            return None
+        snapshot = load_access_snapshot()
+        if snapshot.mode != "active" or snapshot.binding != initial.binding:
+            raise PermissionError("policy-changed" if initial.binding else "scope-unbound")
+        result = []
+        for item in effective_resources(snapshot):
+            for component in components:
+                operations = component_operations(item, component)
+                if component in item.metadata["components"] and "list" in operations:
+                    result.append(
+                        DiscoveredCollection(
+                            kind=item.kind,
+                            href=item.remote_id,
+                            name=item.metadata["name"],
+                            resource_id=item.id,
+                            components=(component,),
+                            privileges=operations,
+                            can_read="read" in operations,
+                            can_create="create" in operations,
+                            can_update="update" in operations,
+                        )
+                    )
+        return result
+
     def calendar_collections(self) -> list[DiscoveredCollection]:
         """Discover all CalDAV collections and their advertised capabilities.
 
@@ -133,6 +163,9 @@ class NextcloudDiscovery:
         means calendar, VTODO means task list, and a collection may support
         both. Discovery is read-only and never changes local configuration.
         """
+        selected = self._selected("VEVENT", "VTODO")
+        if selected is not None:
+            return selected
         path = f"/remote.php/dav/calendars/{urllib.parse.quote(self.client.username, safe='')}/"
         body = b"""<?xml version='1.0' encoding='utf-8'?>
 <d:propfind xmlns:d='DAV:' xmlns:cs='http://calendarserver.org/ns/' xmlns:c='urn:ietf:params:xml:ns:caldav'>
@@ -184,6 +217,9 @@ class NextcloudDiscovery:
         return [item for item in self.calendar_collections() if item.supports("VTODO")]
 
     def addressbooks(self) -> list[DiscoveredCollection]:
+        selected = self._selected("VCARD")
+        if selected is not None:
+            return selected
         path = f"/remote.php/dav/addressbooks/users/{urllib.parse.quote(self.client.username, safe='')}/"
         body = b"""<?xml version='1.0' encoding='utf-8'?>
 <d:propfind xmlns:d='DAV:' xmlns:card='urn:ietf:params:xml:ns:carddav'>

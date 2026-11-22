@@ -3,8 +3,10 @@ import { createSetupGateway } from "./setup-ui-auth.js";
 // All server names, resource metadata and errors are untrusted text, never HTML.
 const $ = id => document.getElementById(id);
 const state = { authenticated: false, busy: false, current: null, flow: null, ready: null, participantRooms: "" };
-let gateway, talkExpiryTimer;
+let gateway, talkExpiryTimer, diagnosticsExpiryTimer, folderExpiryTimer, showDiagnostics, showFolder;
 let talkReceivedAt = 0;
+const access = { edits: new Map(), inspectedFolders: new Map(), rows: [], preview: null, blocked: false };
+let accessExpiryTimer, rightsExpiryTimer;
 function node(tag, text, className) {
   const result = document.createElement(tag);
   if (text !== undefined) result.textContent = String(text);
@@ -18,6 +20,8 @@ function disconnected() {
   state.authenticated = false; $("actions").disabled = true;
   $("connect").disabled = false; $("reload").hidden = true;
   $("auth-status").textContent = "Nicht verbunden – erneut mit OpenClaw verbinden";
+  clearAccessDraft(); renderAccess();
+  showDiagnostics?.(); showFolder?.();
   renderTalkRuntime();
 }
 async function run(action, { login = false } = {}) {
@@ -54,48 +58,102 @@ function issues(target, value) {
   }
   if (value.results_may_be_truncated) target.append(node("p", "Die Ergebnisliste kann gekürzt sein.", "muted"));
 }
-function resourceText(item) {
+function resourceText(item, { collection = false } = {}) {
   const rights = [];
   if (item.can_read === true) rights.push("lesen");
-  if (item.can_create === true) rights.push("erstellen");
+  if (item.can_create_file === true) rights.push("Dateien erstellen");
+  if (item.can_mkdir === true) rights.push("Unterordner erstellen");
+  if (item.can_create === true && !("can_create_file" in item || "can_mkdir" in item)) rights.push("erstellen");
   if (item.can_update === true) rights.push("ändern");
   if (item.can_send === true) rights.push("antworten");
+  const rightsLabel = collection ? "Rechte laut Auflistung" : "Serverrechte";
   const read = item.read_check;
   const access = read ? ` · Leseprüfung: ${read.status === "ok" ? "erfolgreich" : read.status === "failed" ? "fehlgeschlagen" : "noch nicht geprüft"}${read.code ? " (" + read.code + ")" : ""}` : "";
-  return `${item.name || item.path || item.resource_id || item.token || "Ressource"}${rights.length ? " · Serverrechte: " + rights.join(", ") : " · Rechte nicht bestätigt"}${access}`;
+  let exactRights = "";
+  if (collection && read?.status === "ok") {
+    const measured = Array.isArray(read.permissions) ? read.permissions : [];
+    const labels = [["read", "lesen"], ["create", "erstellen"], ["update", "ändern"]]
+      .filter(([permission]) => measured.includes(permission)).map(([, label]) => label);
+    exactRights = labels.length ? ` · In der Einzelprüfung bestätigte Rechte: ${labels.join(", ")}`
+      : " · Keine Rechte aus der Einzelprüfung ausgewiesen";
+  }
+  if (collection && item.read_check_source === "retained") exactRights += ` · Frühere Einzelprüfung vom ${item.checked_at}`;
+  return `${item.name || item.path || item.resource_id || item.token || "Ressource"}${rights.length ? ` · ${rightsLabel}: ${rights.join(", ")}` : " · Rechte nicht bestätigt"}${access}${exactRights}`;
 }
 const diagnosticLabels = { ok: "Erfolgreich geprüft", partial: "Teilweise geprüft", failed: "Prüfung fehlgeschlagen", empty: "Keine Sammlungen gefunden", skipped: "Noch nicht geprüft" };
 const talkDiagnosticLabels = { ...diagnosticLabels, ok: "Metadaten erfolgreich geprüft", empty: "Keine Räume gefunden", unavailable: "Talk nicht verfügbar", unsupported: "Voraussetzung fehlt" };
+const evidenceMaxAge = 86400;
+const evidenceLabels = { fresh: "Messung innerhalb des 24-Stunden-Fensters", stale: "Prüfergebnis veraltet", unknown: "Alter der Prüfung unbekannt", superseded: "Früherer Prüfstand", disconnected: "OpenClaw-Verbindung fehlt" };
+const diagnosticDomains = [["user", "Benutzer"], ["calendars", "Kalender"], ["task_lists", "Aufgabenlisten"],
+  ["addressbooks", "Adressbücher"], ["files", "Ordner"], ["talk", "Nextcloud Talk"]];
 function count(value) { return Number.isSafeInteger(value) && value >= 0 ? value : "?"; }
+function evidenceTime(timestamp, freshness, requestedAt) {
+  const { age_seconds: age, max_age_seconds: maximum, state: serverState } = freshness || {};
+  if (!state.authenticated) return { state: "disconnected" };
+  if (!timestamp || !Number.isFinite(Date.parse(timestamp)) || !["fresh", "stale"].includes(serverState)
+    || !Number.isFinite(age) || age < 0 || !Number.isFinite(maximum) || maximum <= 0) return { state: "unknown" };
+  const remaining = (Math.min(maximum, evidenceMaxAge) - age) * 1000 - Math.max(0, performance.now() - requestedAt);
+  return serverState === "stale" || remaining <= 0 ? { state: "stale" } : { state: "fresh", remaining };
+}
 function pendingDiagnostics(text) {
+  showDiagnostics = null; window.clearTimeout(diagnosticsExpiryTimer);
   $("diagnostics").replaceChildren(node("p", text, "muted"));
 }
-function renderDiagnostics(preview, { saved = false, checkedAt = "" } = {}) {
-  const target = $("diagnostics"); target.replaceChildren();
+function renderDiagnostics(preview, { current, freshness, domainFreshness = {}, requestedAt = performance.now(), refreshFailure } = {}) {
+  showDiagnostics = () => {
+    window.clearTimeout(diagnosticsExpiryTimer);
+    const target = $("diagnostics"); target.replaceChildren();
+    const age = refreshFailure ? { state: "superseded" } : evidenceTime(preview?.checked_at, freshness, requestedAt);
+    const ages = {};
+    for (const [domain] of diagnosticDomains) {
+      const retained = domainFreshness[domain];
+      if (retained && age.state === "fresh") ages[domain] = { ...evidenceTime(retained.checked_at, retained, requestedAt),
+        checked_at: retained.checked_at };
+    }
+    target.append(node("p", current ? "Gespeichertes Prüfergebnis. Für einen aktuellen Zugriffstest „Ressourcen neu erkennen“ wählen." : "Ergebnis der letzten Serverprüfung. Beachte die einzelnen Bereiche unten.", "muted"));
+    appendDiagnostics(target, preview, age.state, current, ages);
+    if (refreshFailure) {
+      target.append(node("h3", "Erneute Prüfung fehlgeschlagen"));
+      appendDiagnostics(target, refreshFailure, "unknown", current);
+    }
+    const remaining = [age, ...Object.values(ages)].map(measure => measure.remaining).filter(ms => ms > 0);
+    if (remaining.length) diagnosticsExpiryTimer = window.setTimeout(showDiagnostics, Math.min(...remaining) + 1);
+  };
+  showDiagnostics();
+}
+function appendDiagnostics(target, preview, overallFreshness, current, ages = {}) {
   const report = preview?.diagnostics;
-  const timestamp = preview?.checked_at || checkedAt;
-  target.append(node("p", saved ? "Gespeichertes Prüfergebnis. Für einen aktuellen Zugriffstest „Ressourcen neu erkennen“ wählen." : "Ergebnis der letzten Serverprüfung. Beachte die einzelnen Bereiche unten.", "muted"));
-  if (timestamp) target.append(node("p", `Geprüft am: ${timestamp}`, "muted"));
+  if (preview?.checked_at) target.append(node("p", `Geprüft am: ${preview.checked_at}`, "muted"));
+  if (preview?.oldest_collection_check_at) target.append(node("p", `Älteste berücksichtigte Sammlungsprüfung: ${preview.oldest_collection_check_at}`, "muted"));
+  target.append(node("p", evidenceLabels[overallFreshness], "muted"));
   if (!report) {
     target.append(node("p", "Für diesen Stand liegen noch keine einzelnen Zugriffsprüfungen vor. Ressourcen neu erkennen oder das Konto anmelden.", "muted"));
     return;
   }
   const list = node("div", undefined, "diagnostic-list");
-  for (const [key, label] of [["user", "Benutzer"], ["calendars", "Kalender"], ["task_lists", "Aufgabenlisten"], ["files", "Ordner"], ["talk", "Nextcloud Talk"]]) {
+  for (const [key, label] of diagnosticDomains) {
+    const freshness = ages[key]?.state ?? overallFreshness;
     const check = report[key] || {};
     const labels = key === "talk" ? talkDiagnosticLabels : diagnosticLabels;
     const status = Object.hasOwn(labels, check.status) ? check.status : "skipped";
-    const card = node("div", undefined, `diagnostic ${status}`);
-    card.append(node("h3", label), node("strong", labels[status]));
+    const historical = status === "ok" && freshness !== "fresh";
+    const card = node("div", undefined, `diagnostic ${historical ? "partial" : status}`);
+    card.dataset.domain = key; card.dataset.freshness = freshness;
+    card.append(node("h3", label), node("strong", historical ? evidenceLabels[freshness] : labels[status]));
+    if (ages[key]?.checked_at) card.append(node("p", `Älteste Einzelprüfung in diesem Bereich: ${ages[key].checked_at}`, "muted"));
+    const reachable = report.availability?.status === "ok" ? "Server antwortete" : report.availability?.status === "failed" ? "Prüfung fehlgeschlagen" : "unbestätigt";
+    card.append(node("p", `Erreichbarkeit: ${reachable}. Authentisierung: ${report.user?.loaded === true ? "Konto bei der Prüfung bestätigt" : "unbestätigt"}.`));
     if (key === "user") {
       card.append(node("p", check.loaded === true ? `${preview.display_name || preview.user_id} (${preview.user_id}) · Benutzer geladen` : "Benutzer konnte noch nicht bestätigt werden."));
+      card.append(node("p", "Fähigkeit: Abfrage der Kontoidentität. Prüfumfang: ein Nextcloud-Konto."));
     } else if (key === "talk") {
       card.append(node("p", `Talk-App: ${check.app_available === true ? "verfügbar" : check.app_available === false ? "nicht verfügbar" : "nicht bestätigt"}. Raumzugriff: ${check.api_reachable === true ? "erreichbar" : check.api_reachable === false ? "fehlgeschlagen" : "nicht bestätigt"}.`));
       card.append(node("p", `Antwortzuordnung: ${check.reference_id_supported === true ? "unterstützt" : check.reference_id_supported === false ? "nicht unterstützt" : "nicht bestätigt"}.`));
       card.append(node("p", `${count(check.discovered)} ${check.discovered === 1 ? "Raum" : "Räume"} erfasst · ${count(check.writable)} mit bestätigtem Senderecht · ${count(check.send_unconfirmed)} mit ungeklärtem Senderecht.`));
       card.append(node("p", check.inventory_complete === true ? "Raumliste vollständig erfasst." : "Vollständigkeit der Raumliste nicht bestätigt."));
       card.append(node("p", "Geprüft werden Raummetadaten und vom Server gemeldete Rechte. Keine Chat-Inhalte gelesen und keine Testnachricht gesendet.", "muted"));
-      const next = status === "unavailable" ? "Talk in Nextcloud bereitstellen und Ressourcen neu erkennen."
+      const next = freshness !== "fresh" && ["ok", "empty", "unavailable", "unsupported"].includes(status) ? "Ressourcen neu erkennen und die Talk-Metadaten erneut prüfen."
+        : status === "unavailable" ? "Talk in Nextcloud bereitstellen und Ressourcen neu erkennen."
         : status === "unsupported" ? "Die Talk-Version muss die Antwortzuordnung unterstützen (chat-reference-id)."
         : status === "empty" ? "Das Agentenkonto in Nextcloud zu einem Talk-Raum hinzufügen und Ressourcen neu erkennen."
         : status === "skipped" ? "Das Konto anmelden oder Ressourcen neu erkennen."
@@ -103,13 +161,34 @@ function renderDiagnostics(preview, { saved = false, checkedAt = "" } = {}) {
         : "Die gewünschten Räume und Benutzer unten auswählen; dort den Chat-Dienst prüfen.";
       card.append(node("p", `Nächster Schritt: ${next}`, "muted"));
     } else if (key === "files") {
+      card.append(node("p", `Fähigkeit: Ordnerauflistung per WebDAV ${check.root_readable === true ? "bei der Prüfung bestätigt" : "unbestätigt"}.`));
       card.append(node("p", check.root_readable === true ? "Kontohauptordner erreichbar und lesbar." : "Lesezugriff auf den Kontohauptordner nicht bestätigt."));
       card.append(node("p", `${count(check.discovered)} Ordner erfasst. ${check.inventory_complete === true ? "Auflistung der obersten Ebene vollständig." : "Auflistung der obersten Ebene nicht vollständig bestätigt."}`));
       card.append(node("p", "Unterordner einzeln unter „Ordner durchsuchen“ prüfen. Dateiinhalte wurden nicht geladen.", "muted"));
     } else {
+      const protocol = key === "addressbooks" ? "CardDAV" : "CalDAV";
+      card.append(node("p", `Fähigkeit: ${protocol}-Sammlungen ${check.inventory_complete === true || check.discovered > 0 ? "bei der Prüfung bestätigt" : "unbestätigt"}.`));
       card.append(node("p", `${count(check.discovered)} gefunden · ${count(check.readable)} lesbar · ${count(check.failed)} fehlgeschlagen · ${count(check.skipped)} ungeprüft`));
+      if (Number.isSafeInteger(check.probed) && Number.isSafeInteger(check.retained)) {
+        card.append(node("p", `In dieser Erkennung geprüft: ${check.probed}. Frühere Einzelprüfungen übernommen: ${check.retained}.`));
+      }
       card.append(node("p", check.inventory_complete === true ? "Liste der Sammlungen vollständig erkannt." : "Vollständigkeit der Sammlungsliste nicht bestätigt."));
-      card.append(node("p", "Geprüft wird der Zugriff auf die Sammlung und ihre Metadaten. Termin- und Aufgabeninhalte werden dabei nicht geladen.", "muted"));
+      card.append(node("p", `Geprüft wird der Zugriff auf die Sammlung und ihre Metadaten. ${key === "addressbooks" ? "Kontaktinhalte" : "Termin- und Aufgabeninhalte"} werden dabei nicht geladen.`, "muted"));
+    }
+    if (key === "talk") {
+      const rooms = current?.talk?.room_tokens?.length || 0, users = current?.talk?.allowed_user_ids?.length || 0;
+      card.append(node("p", current ? `Gespeicherte Auswahl: ${rooms} Räume und ${users} Benutzer. Laufzeitbeobachtung: siehe „Chat-Dienst“.`
+        : "Gespeicherte Auswahl: noch offen. Laufzeitbeobachtung: nach der Einrichtung im Abschnitt „Chat-Dienst“.", "muted"));
+    } else {
+      const selection = current ? `Konto ${current.user_id}` : "diese Prüfung ist eine Vorschau";
+      const runtime = ["user", "task_lists"].includes(key) ? "nicht anwendbar (Zugriff bei Bedarf)"
+        : "kein Synchronisierungslauf für dieses Konto und diese Ressourcen belegt";
+      card.append(node("p", `Gespeicherte Auswahl: ${selection}. Laufzeitbeobachtung: ${runtime}.`, "muted"));
+      const next = status === "skipped" || report.user?.loaded !== true ? "Konto anmelden oder Ressourcen neu erkennen."
+        : key === "files" && freshness === "fresh" && status === "ok" ? "Gewünschten Ordner unter „Ordner durchsuchen“ prüfen."
+        : status === "failed" || status === "partial" ? "Fehlercodes und Serverrechte prüfen, dann Ressourcen neu erkennen."
+        : "Bei Bedarf Ressourcen neu erkennen.";
+      card.append(node("p", `Nächster Schritt: ${next}`, "muted"));
     }
     if (check.code) card.append(node("p", `Fehlercode: ${check.code}`, "muted"));
     if (Array.isArray(check.errors) && check.errors.length) {
@@ -132,7 +211,8 @@ function renderPreview(preview) {
     const details = node("details"); details.open = true;
     details.append(node("summary", `${label} (${items.length})`));
     if (!items.length) details.append(node("p", "Keine Einträge in dieser Vorschau.", "muted"));
-    const list = node("ul"); for (const item of items) list.append(node("li", resourceText(item)));
+    const collection = ["calendars", "task_lists", "addressbooks"].includes(key);
+    const list = node("ul"); for (const item of items) list.append(node("li", resourceText(item, { collection })));
     details.append(list); target.append(details);
   }
   target.append(node("p", "Unterordner werden beim Durchsuchen nachgeladen. Die Erkennung ändert keine Berechtigungen auf dem Nextcloud-Server.", "muted"));
@@ -198,14 +278,386 @@ function renderTalkRuntime() {
   target.append(node("p", "Die Rückmeldung des Chat-Dienstes ist keine Zustellbestätigung für einzelne Nachrichten. Es wird keine Testnachricht gesendet.", "muted"));
   target.append(node("p", "Die Rückmeldung bezieht sich auf den zuletzt abgefragten Raum. Weitere ausgewählte Räume werden nacheinander abgefragt.", "muted"));
 }
+const levelLabels = { off: "Aus", read: "Lesen", create: "Lesen und Erstellen", update: "Lesen, Erstellen und Ändern" };
+const componentLabels = { VEVENT: "Kalender", VTODO: "Aufgabenliste", VCARD: "Adressbuch", FILES: "Ordner" };
+const operationLabels = { read: "Lesen", list: "Auflisten", search: "Suchen", create: "Erstellen", update: "Ändern",
+  create_file: "Dateien erstellen (C)", mkdir: "Unterordner erstellen (K)" };
+const serverLabels = { verified: "Gemessen", partial: "Teilweise geprüft", stale: "Messung veraltet", unverified: "Rechte unbestätigt" };
+const readLabels = { ok: "erfolgreich", failed: "fehlgeschlagen", skipped: "übersprungen", unknown: "unbestätigt" };
+const accessConflicts = new Set(["nextcloud-connection-conflict", "nextcloud-policy-conflict", "access-preview-unavailable", "access-preview-changed"]);
+const accessReasons = {
+  "server-right-missing": "Das erforderliche Recht fehlt in Nextcloud",
+  "rights-unverified": "Das Recht ist ungeprüft oder unbestätigt",
+  "rights-stale": "Die letzte Prüfung ist veraltet",
+  "folder-identity-changed": "Der Ordner wurde ersetzt",
+  "scope-unbound": "Die Ressource lässt sich dem aktuellen Konto nicht sicher zuordnen",
+  "scope-invalid": "Die Ressource lässt sich nicht eindeutig bestimmen",
+  "scope-off": "Der Zugriff für den Agenten steht auf Aus",
+  "operation-not-allowed": "Die gewählte Freigabe umfasst diesen Vorgang nicht",
+  "policy-changed": "Die gespeicherte Auswahl hat sich geändert",
+  "policy-integrity-error": "Die gespeicherten Freigaben konnten nicht geprüft werden",
+  "account-root-confirmation-required": "Die Freigabe für das gesamte Konto braucht eine eigene Bestätigung",
+  "legacy-scope-unconfirmed": "Die bisherige Auswahl ist nicht vollständig belegt",
+  "legacy-before-unconfirmed": "Die bisherige Freigabe für diese Ressource ist unklar",
+  "legacy-right-unconfirmed": "Das bisherige Recht wurde bei der Prüfung nicht bestätigt",
+  "legacy-original-proof-missing": "Das Recht war bei der ursprünglichen Kontoprüfung unbestätigt",
+  "legacy-outside-original-selection": "Dieses Recht gehörte nicht zur ursprünglichen Freigabe",
+  "file-scope-incomplete": "Die bisherige Ordnerauswahl lässt sich nicht vollständig prüfen",
+  "legacy-scope-ambiguous": "Die bisherige Freigabe lässt sich nicht eindeutig zuordnen",
+  "legacy-bounded-explicit-selection": "Die bisherigen Rechte überschreiten den Umfang der Vorschau",
+  "legacy-invoice-archive-unbound": "Das Ziel für das Rechnungsarchiv ist unbestätigt",
+  "legacy-mail-calendar-unbound": "Das Kalenderziel für Termine aus E-Mails ist unbestätigt",
+  "legacy-deck-orders-unbound": "Das Ziel für Aufträge in Deck ist unbestätigt",
+};
+const workflowLabels = { "search-and-sync": "Suche und Synchronisierung", "pending-actions": "Offene Aktionen",
+  calendar: "Kalender", tasks: "Aufgaben", contacts: "Kontakte", workspace: "Dateien und Ordner",
+  "invoice-archive": "Rechnungsarchiv", "mail-calendar": "Termine aus E-Mails", "deck-orders": "Aufträge in Deck" };
+const workflowEffects = {
+  "pending-actions": "Offene Pläne und bisherige Einzelbestätigungen müssen anhand der neuen Freigaben erneut geprüft werden.",
+  "search-and-sync": "Suchergebnisse brauchen eine Prüfung mit den neuen Freigaben. Prüfe den Status der Synchronisierung separat.",
+};
+const workerLabels = { "nextcloud-sync": "Synchronisierung", "sync-worker": "Synchronisierung" };
+function accessReason(code) {
+  return Object.hasOwn(accessReasons, code) ? accessReasons[code] : "Zugriff unbestätigt";
+}
+function appendAccessCodes(target, codes) {
+  const values = [...new Set(codes.filter(Boolean))];
+  if (!values.length) return;
+  const details = node("details", undefined, "muted");
+  details.append(node("summary", "Diagnosecodes"), node("code", values.join(" · ")));
+  target.append(details);
+}
+function pathKey(scope) { return JSON.stringify([scope.resource_id, scope.component, scope.path]); }
+function scopeKey(scope) { return JSON.stringify([scope.resource_id, scope.component, scope.path, scope.file_id]); }
+function rowKey(row) { return row.revoke_handle || scopeKey(row.scope); }
+const rowRequestedAt = new WeakMap();
+function rowEvidenceTime(row) {
+  return evidenceTime(row.server?.checked_at, row.server?.freshness, rowRequestedAt.get(row));
+}
+function accessContext(current = state.current) {
+  return JSON.stringify([current?.account_id, current?.revision, current?.access?.mode,
+    current?.access?.binding?.generation, current?.access?.binding?.policy_revision]);
+}
+function clearAccessPreview() {
+  window.clearTimeout(accessExpiryTimer);
+  access.preview = null;
+  $("access-confirm").checked = false;
+  $("access-apply").disabled = true;
+  $("access-review-panel").hidden = true;
+  $("access-diff").replaceChildren();
+}
+function clearAccessDraft() {
+  clearAccessPreview();
+  access.edits.clear();
+  access.inspectedFolders.clear();
+  $("access-root").checked = false;
+}
+function operationText(operations, empty = "Keine") {
+  return operations?.length ? operations.map(operation => operationLabels[operation] || operation).join(", ") : empty;
+}
+function scopeLabel(scope, name) {
+  if (scope.component === "FILES") return scope.path ? `${scope.path} (Ordner)` : "Ganzes Konto (Kontohauptordner)";
+  return `${name || scope.resource_id} (${componentLabels[scope.component] || scope.component})`;
+}
+function rowRightsState(row) {
+  const time = rowEvidenceTime(row);
+  if (time.state === "stale" || row.server?.state === "stale") return "stale";
+  if (!state.authenticated || access.blocked || state.current?.refresh_failure
+      || row.server?.read_check !== "ok" || time.state !== "fresh" || !Number.isFinite(time.remaining)) return "unverified";
+  return row.server?.state;
+}
+function allowedLevels(row) {
+  const measured = ["verified", "partial"].includes(rowRightsState(row));
+  return (row.supported_levels || []).filter(level => Object.hasOwn(levelLabels, level) && (measured || level === "off"));
+}
+function accessLevelLabel(row, level) {
+  const operations = row.server.operations;
+  if (level === "update" && !operations.includes("create")) return "Lesen und Ändern";
+  if (level === "create" && row.scope.component === "FILES") {
+    const creates = ["create_file", "mkdir"].filter(operation => operations.includes(operation));
+    return creates.length === 2 ? "Lesen, Dateien und Unterordner erstellen" : `Lesen und ${operationLabels[creates[0]]}`;
+  }
+  return levelLabels[level];
+}
+function mayEditAccess() {
+  return state.authenticated && !state.flow && !access.blocked && state.current?.connected === true
+    && ["active", "legacy"].includes(state.current?.access?.mode);
+}
+function updateAccessControls() {
+  const rootEdit = [...access.edits.values()].find(edit => edit.scope.path === "");
+  const legacyRoot = !rootEdit && state.current?.access?.mode === "legacy"
+    && access.rows.some(row => row.scope.path === "" && allowedLevels(row).includes("read"));
+  const editedRoot = rootEdit && rootEdit.level !== "off";
+  $("access-root-wrap").hidden = !(legacyRoot || editedRoot);
+  if ($("access-root-wrap").hidden) $("access-root").checked = false;
+  $("access-review").disabled = !mayEditAccess() || (editedRoot && !$("access-root").checked)
+    || (!access.edits.size && state.current?.access?.mode !== "legacy");
+}
+function appendAccessState(target, title, value, detail = "") {
+  const cell = node("div", undefined, "access-state");
+  cell.append(node("strong", title), node("p", value));
+  if (detail) cell.append(node("p", detail, "muted"));
+  target.append(cell);
+}
+function renderAccessRow(row, replacements, mode) {
+  const { scope, server, worker } = row;
+  const label = scopeLabel(scope, row.name);
+  const card = node("article", undefined, "access-row");
+  const identity = row.revoke_handle ? `Freigabekennung ${row.revoke_handle.slice(0, 12)}` : scope.file_id ? `Ordner-ID ${scope.file_id}` : `Ressourcen-ID ${scope.resource_id}`;
+  card.append(node("h3", label), node("p", identity, "muted resource-identity"));
+  const measures = node("div", undefined, "access-states");
+  const rightsState = rowRightsState(row);
+  const serverDetails = [serverLabels[rightsState] || "Rechte unbestätigt",
+    server?.read_check_source === "retained" ? "Einzelprüfung aus früherer Erkennung" : "", server?.checked_at,
+    `Leseprüfung ${readLabels[server?.read_check] || "unbestätigt"}`].filter(Boolean).join(" · ");
+  appendAccessState(measures, "Nextcloud erlaubt", operationText(server?.operations, "Keine Rechte bestätigt"), serverDetails);
+  appendAccessState(measures, "Für den Agenten freigegeben", mode === "legacy"
+    ? "Altbestand · Vorschau zur Übernahme prüfen" : operationText(row.desired_operations, "Aus"));
+  const effective = ["verified", "partial"].includes(rightsState) ? row.effective_operations : [];
+  const effectiveText = operationText(effective, "Kein bestätigter Zugriff");
+  const blockers = Object.entries(row.blockers || {}).filter(([operation]) => row.desired_operations?.includes(operation));
+  appendAccessState(measures, "Aktuell wirksam", effectiveText,
+    [blockers.map(([operation, code]) => `${operationLabels[operation] || operation}: ${accessReason(code)}`).join(" · "),
+      effective?.some(operation => ["create", "update", "create_file", "mkdir"].includes(operation))
+        ? "Fachliche Einzelbestätigung je Aktion bleibt erforderlich." : ""].filter(Boolean).join(". "));
+  card.append(measures);
+  const workerState = worker?.state === "not-applicable" ? "nicht anwendbar (Zugriff bei Bedarf)" : "nicht verfügbar";
+  const workerName = Object.hasOwn(workerLabels, worker?.name) ? ` · ${workerLabels[worker.name]}` : "";
+  card.append(node("p", `Laufzeitbeobachtung: ${workerState}${workerName}`, "muted"));
+  if (row.next_step) card.append(node("p", row.next_step, "muted"));
+  if (replacements || server?.code === "folder-identity-changed") {
+    card.append(node("p", "Für diesen Pfad liegen unterschiedliche Ordneridentitäten vor. Eine Freigabe für die bisherige Ordner-ID gilt nicht für den Ersatzordner. Prüfe die ID in der Vorschau.", "muted"));
+  }
+  appendAccessCodes(card, [server?.code, ...blockers.map(([, code]) => code)]);
+  const input = node("select");
+  input.setAttribute("aria-label", `Zugriff ändern · ${label} · ${identity}`);
+  input.dataset.component = scope.component;
+  if (scope.component === "FILES") { input.dataset.path = scope.path; input.dataset.fileId = scope.file_id; }
+  const unchanged = node("option", "Unverändert lassen"); unchanged.value = "";
+  input.append(unchanged);
+  const levels = allowedLevels(row);
+  for (const level of levels) {
+    const option = node("option", accessLevelLabel(row, level)); option.value = level;
+    input.append(option);
+  }
+  input.disabled = !levels.length;
+  const key = row.revoke_handle || pathKey(scope);
+  const edit = access.edits.get(key);
+  input.value = edit && scopeKey(edit.scope) === scopeKey(scope) ? edit.level : "";
+  input.addEventListener("change", () => {
+    if (!mayEditAccess()) return;
+    clearAccessPreview();
+    if (access.edits.get(key)?.scope.path === "") $("access-root").checked = false;
+    if (levels.includes(input.value)) {
+      if (!access.edits.has(key) && access.edits.size >= 64) {
+        input.value = "";
+        message("Bis zu 64 Ressourcen pro Vorschau ändern. Prüfe zuerst die aktuelle Auswahl.");
+        return;
+      }
+      access.edits.set(key, { scope, level: input.value, ...(row.revoke_handle ? { revoke_handle: row.revoke_handle } : {}) });
+      if (replacements) renderAccess();
+    } else if (access.edits.has(key) && scopeKey(access.edits.get(key).scope) === scopeKey(scope)) {
+      access.edits.delete(key);
+    }
+    updateAccessControls();
+  });
+  const control = node("label", undefined, "access-control");
+  control.append(node("span", "Zugriff ändern"), input);
+  card.append(control);
+  return card;
+}
+function renderAccess() {
+  window.clearTimeout(rightsExpiryTimer);
+  const current = state.current, view = current?.access;
+  $("access-section").hidden = !state.authenticated || Boolean(state.flow) || (!current?.connected && view?.mode !== "integrity-error");
+  $("access-editor").hidden = !mayEditAccess();
+  $("access-more").hidden = !mayEditAccess() || !Number.isSafeInteger(view.next_offset) || view.next_offset <= 0;
+  const target = $("access-rows"); target.replaceChildren();
+  const mode = view?.mode;
+  const descriptions = {
+    active: "Die gespeicherte Freigabe und die jetzt wirksamen Rechte stehen bei jeder Ressource. Änderungen gelten nach deiner Bestätigung der Vorschau.",
+    legacy: "Prüfe die bisherigen Zugriffe in einer Vorschau, bevor du sie in die neuen Freigaben übernimmst. Unklare Zuordnungen werden dort ausgewiesen.",
+    unconfigured: "Für dieses Konto ist noch keine Zugriffsrichtlinie eingerichtet.",
+    "integrity-error": "Die gespeicherte Zugriffsrichtlinie kann nicht verifiziert werden.",
+  };
+  const description = node("p", access.blocked ? "Den Status neu laden, bevor du weitere Zugriffsänderungen vornimmst."
+    : descriptions[mode] || "Für diesen Stand liegt keine Zugriffsübersicht vor.");
+  if (view?.complete === false) description.append(node("span", " Die Zugriffsübersicht ist unvollständig."));
+  if (view?.next_step) description.append(node("span", ` ${view.next_step}`));
+  $("access-mode").replaceChildren(description);
+  appendAccessCodes($("access-mode"), [view?.code]);
+  const rows = new Map((view?.rows || []).map(row => [rowKey(row), row]));
+  for (const [key, row] of access.inspectedFolders) rows.set(key, row);
+  access.rows = [...rows.values()];
+  if (!mayEditAccess()) return;
+  if (!access.rows.length) target.append(node("p", "In diesem Stand sind keine Ressourcen für eine Einzelauswahl erfasst.", "muted"));
+  const pathCounts = new Map();
+  let nextExpiry = Infinity;
+  for (const row of access.rows) {
+    pathCounts.set(pathKey(row.scope), (pathCounts.get(pathKey(row.scope)) || 0) + 1);
+    const key = row.revoke_handle || pathKey(row.scope), edit = access.edits.get(key);
+    if (edit && scopeKey(row.scope) === scopeKey(edit.scope) && !allowedLevels(row).includes(edit.level)) {
+      access.edits.delete(key); clearAccessPreview();
+      message("Die Rechte für eine geplante Freigabe können nicht mehr bestätigt werden. Den Ordner oder die Sammlung erneut prüfen.");
+    }
+    const remaining = rowEvidenceTime(row).remaining;
+    if (remaining > 0 && ["verified", "partial"].includes(rowRightsState(row))) nextExpiry = Math.min(nextExpiry, remaining);
+  }
+  for (const row of access.rows) target.append(renderAccessRow(row, pathCounts.get(pathKey(row.scope)) > 1, mode));
+  if (Number.isFinite(nextExpiry)) rightsExpiryTimer = window.setTimeout(renderAccess, nextExpiry + 1);
+  updateAccessControls();
+}
+function renderAccessPreview(result, params) {
+  const target = $("access-diff"); target.replaceChildren();
+  target.append(node("p", `Konto: ${state.current.user_id} · ${state.current.server_url}`));
+  target.append(node("p", `Vorschau gültig bis ${new Date(result.expires_at).toLocaleString("de-DE")} (Ortszeit).`, "muted"));
+  if (params.confirm_root) {
+    const positiveRoot = result.changes.some(change => change.scope.path === "" && change.after_operations.length > 0);
+    target.append(node("p", positiveRoot ? "Ganzes Konto (Kontohauptordner): Freigabe ausdrücklich bestätigt. Engere Ordnerregeln haben Vorrang."
+      : "Ganzes Konto (Kontohauptordner): In dieser Vorschau ohne Freigabe.", "access-root-note"));
+  }
+  const changes = node("ul", undefined, "access-changes");
+  for (const change of result.changes) {
+    const item = node("li");
+    const identifier = change.revoke_handle ? `Freigabekennung ${change.revoke_handle.slice(0, 12)}` : change.scope.file_id || change.scope.resource_id;
+    item.append(node("strong", scopeLabel(change.scope, change.name)), node("span", ` · ${identifier}`, "muted"),
+      node("p", `Vorher: ${operationText(change.before_operations, "Aus")} → Nachher: ${operationText(change.after_operations, "Aus")}`));
+    changes.append(item);
+  }
+  target.append(changes);
+  if (!result.changes.length) target.append(node("p", "Diese Vorschau übernimmt keine Freigaben."));
+  if (result.affected_workflows.length) {
+    const list = node("ul");
+    for (const item of result.affected_workflows) {
+      const label = Object.hasOwn(workflowLabels, item.workflow) ? workflowLabels[item.workflow] : "Weiterer Ablauf";
+      const effect = Object.hasOwn(workflowEffects, item.workflow) ? workflowEffects[item.workflow] : item.effect;
+      const entry = node("li");
+      entry.append(node("strong", label), node("span", ` · ${effect}`));
+      list.append(entry);
+    }
+    target.append(node("h4", "Betroffene Abläufe"), list);
+  }
+  if (result.withheld.length) {
+    const list = node("ul");
+    for (const item of result.withheld) {
+      const row = item.scope && access.rows.find(row => scopeKey(row.scope) === scopeKey(item.scope));
+      list.append(node("li", [item.scope && scopeLabel(item.scope, row?.name), item.operation && (operationLabels[item.operation] || item.operation),
+        accessReason(item.code), item.next_step].filter(Boolean).join(" · ")));
+    }
+    target.append(node("h4", "Nicht freigegebene Zugriffe"), list);
+    appendAccessCodes(target, result.withheld.map(item => item.code));
+  }
+  $("access-review-panel").hidden = false;
+  $("access-review-heading").focus?.();
+}
+function expireAccessPreview() {
+  clearAccessPreview();
+  message("Die Zugriffsvorschau ist abgelaufen. Änderungen erneut prüfen.");
+}
+function isAccessPreviewCurrent() {
+  const preview = access.preview;
+  return mayEditAccess() && preview && preview.context === accessContext()
+    && performance.now() < preview.deadline && Date.now() < Date.parse(preview.result.expires_at);
+}
+async function loadAccessAfterFailure(error) {
+  const conflict = accessConflicts.has(error?.code);
+  access.blocked = true; clearAccessDraft(); renderAccess();
+  let statusRead = false;
+  if (state.authenticated) {
+    try {
+      const requestedAt = performance.now();
+      renderStatus(await gateway.call("status"), requestedAt);
+      statusRead = true;
+    } catch { /* Explicit status reload remains available if this read cannot be verified. */ }
+  }
+  failure(new Error(conflict ? "Die Zugriffsvorschau passt nicht mehr zum aktuellen Stand. Änderungen erneut auswählen und prüfen."
+    : "Die Speicherung der Freigaben konnte nicht bestätigt werden. Prüfe den angezeigten Stand vor einer neuen Änderung."));
+  message(statusRead ? "Aktueller gespeicherter Stand geladen." : "Mit OpenClaw verbinden oder „Status neu laden“ wählen, um den gespeicherten Stand zu prüfen.");
+}
+$("access-root").addEventListener("change", () => { clearAccessPreview(); updateAccessControls(); });
+$("access-more").addEventListener("click", () => run(async () => {
+  if ($("access-more").hidden || !mayEditAccess()) return;
+  const current = state.current, offset = current.access.next_offset, requestedAt = performance.now();
+  let page;
+  try {
+    page = await gateway.call("status", { expected_revision: current.revision, access_offset: offset });
+    if (!mayEditAccess() || !page?.connected || accessContext(page) !== accessContext(current)
+      || (page.access.next_offset != null && (!Number.isSafeInteger(page.access.next_offset) || page.access.next_offset <= offset))) {
+      throw new Error("Der Prüfstand für weitere Ressourcen hat sich geändert.");
+    }
+  } catch (error) {
+    access.blocked = true; clearAccessDraft(); renderAccess();
+    if (state.authenticated) await loadStatus();
+    throw error;
+  }
+  for (const row of page.access.rows) rowRequestedAt.set(row, requestedAt);
+  const rows = new Map([...current.access.rows, ...page.access.rows].map(row => [rowKey(row), row]));
+  state.current = { ...current, access: { ...page.access, rows: [...rows.values()] } };
+  renderAccess(); message("Weitere Ressourcen geladen.");
+}));
+$("access-review").addEventListener("click", () => run(async () => {
+  if ($("access-review").disabled || !mayEditAccess()) return;
+  clearAccessPreview();
+  const context = accessContext(), current = state.current;
+  const params = { account_id: current.account_id, expected_revision: current.revision,
+    expected_policy_revision: current.access.binding?.policy_revision || "", edits: [...access.edits.values()].map(edit => edit.revoke_handle
+      ? { revoke_handle: edit.revoke_handle, level: "off" } : edit),
+    confirm_root: !$("access-root-wrap").hidden && $("access-root").checked };
+  let result;
+  try { result = await gateway.call("access.preview", params); }
+  catch (error) {
+    if (!accessConflicts.has(error?.code)) throw error;
+    clearAccessDraft(); await loadStatus();
+    throw new Error("Die Zugriffsübersicht hat sich geändert. Änderungen auf Basis des aktuellen Stands erneut auswählen.");
+  }
+  if (!mayEditAccess() || context !== accessContext() || result?.state !== "ready"
+      || result.expected_revision !== params.expected_revision || result.expected_policy_revision !== params.expected_policy_revision
+      || !result.preview_id || !result.preview_digest) throw new Error("Die Zugriffsvorschau passt nicht zum aktuellen Stand. Status neu laden.");
+  const remaining = Date.parse(result.expires_at) - Date.now();
+  if (!Number.isFinite(remaining) || remaining <= 0) { expireAccessPreview(); return; }
+  access.preview = { result, context, deadline: performance.now() + remaining };
+  accessExpiryTimer = window.setTimeout(expireAccessPreview, remaining);
+  renderAccessPreview(result, params);
+  message("Zugriffsvorschau bereit. Prüfe die Änderungen und bestätige sie zum Speichern.");
+}));
+$("access-confirm").addEventListener("change", () => { $("access-apply").disabled = !$("access-confirm").checked || !isAccessPreviewCurrent(); });
+$("access-apply").addEventListener("click", () => {
+  if (!$("access-confirm").checked || !access.preview || state.busy) return;
+  if (!isAccessPreviewCurrent()) { expireAccessPreview(); return; }
+  const { result } = access.preview, current = state.current;
+  clearAccessPreview();
+  return run(async () => {
+    try {
+      const requestedAt = performance.now();
+      const saved = await gateway.call("access.apply", { preview_id: result.preview_id, preview_digest: result.preview_digest,
+        expected_revision: result.expected_revision, expected_policy_revision: result.expected_policy_revision, confirm: true });
+      const binding = saved?.access?.binding, previousBinding = current.access.binding;
+      if (!saved?.connected || saved.account_id !== current.account_id || saved.user_id !== current.user_id
+          || !saved.revision || saved.revision === current.revision || saved.access?.mode !== "active"
+          || binding?.account_id !== current.account_id || binding?.owner_user_id !== current.user_id
+          || !binding.policy_revision || !binding.generation || (previousBinding && binding.generation !== previousBinding.generation)) {
+        await loadAccessAfterFailure(); return;
+      }
+      renderStatus(saved, requestedAt);
+      message("Zugriffsrichtlinie gespeichert. Der neue Stand und die getrennte Laufzeitbeobachtung werden angezeigt.");
+    } catch (error) { await loadAccessAfterFailure(error); }
+  });
+});
 function renderStatus(current, requestedAt) {
+  if (!current.connected || current.account_id !== state.current?.account_id || current.revision !== state.current?.revision) {
+    showFolder = null; window.clearTimeout(folderExpiryTimer); $("folders").replaceChildren();
+  }
+  if (accessContext(current) !== accessContext()) clearAccessDraft();
+  for (const row of current.access?.rows || []) rowRequestedAt.set(row, requestedAt);
   state.current = current;
+  access.blocked = false;
+  renderAccess();
   // Include the entire RPC duration conservatively; transport time must never
   // extend a server observation's lifetime. This also avoids clock-skew claims.
   talkReceivedAt = requestedAt;
   window.clearTimeout(talkExpiryTimer);
   $("current").textContent = current.connected
-    ? `Verbindung gespeichert: ${current.server_url} als ${current.user_id}. Letzte Prüfung: ${current.last_verified_at || "unbekannt"}.`
+    ? `Verbindung gespeichert: ${current.server_url} als ${current.user_id}. Letzte gespeicherte Messung: ${current.preview?.checked_at || "unbekannt"}.`
     : "Noch keine Nextcloud-Verbindung gespeichert.";
   if (current.connected && !state.flow) $("server-url").value = current.server_url;
   $("refresh").hidden = !current.connected;
@@ -213,11 +665,13 @@ function renderStatus(current, requestedAt) {
   $("talk-section").hidden = !current.connected;
   if (current.preview && !state.ready) {
     renderPreview(current.preview);
-    renderDiagnostics(current.preview, { saved: true, checkedAt: current.last_verified_at });
+    const failure = current.refresh_failure;
+    const refreshFailure = failure?.revision === current.revision && failure?.account_id === current.account_id ? failure : null;
+    renderDiagnostics(current.preview, { current, freshness: current.diagnostics_freshness, domainFreshness: current.diagnostics_domain_freshness, requestedAt, refreshFailure });
   }
   if (!current.connected && !state.flow) {
     $("preview-section").hidden = true;
-    $("diagnostics").replaceChildren(node("p", "Noch nicht geprüft. Melde zuerst das Nextcloud-Konto an.", "muted"));
+    pendingDiagnostics("Noch nicht geprüft. Melde zuerst das Nextcloud-Konto an.");
   }
   if (current.connected) renderTalk(current);
 }
@@ -226,18 +680,22 @@ function clearFlow() {
   $("flow-actions").hidden = true; $("app-password").value = "";
   $("login-link").removeAttribute("href"); $("apply-panel").hidden = true;
   $("confirm-access").checked = false; $("apply").disabled = true;
+  renderAccess();
 }
-function showReady(result) {
+function showReady(result, requestedAt) {
   state.flow = result.flow_id; state.ready = result;
-  renderPreview(result.preview); renderDiagnostics(result.preview);
+  renderAccess();
+  renderPreview(result.preview); renderDiagnostics(result.preview, { freshness: result.diagnostics_freshness, domainFreshness: result.diagnostics_domain_freshness, requestedAt });
   $("login-pending").hidden = true; $("flow-actions").hidden = false;
   $("apply-panel").hidden = false; $("refresh").hidden = true;
   $("confirm-access").checked = false; $("apply").disabled = true;
   message("Benutzer geladen. Prüfe die Zugriffsdiagnose und die Ressourcen, bevor du die Verbindung bestätigst.");
 }
-function showLoginFailure(result) {
-  clearFlow(); $("preview-section").hidden = true;
-  renderDiagnostics({ diagnostics: result.diagnostics || {}, checked_at: result.checked_at });
+function showLoginFailure(result, options = {}) {
+  if (!options.refresh) {
+    clearFlow(); $("preview-section").hidden = true;
+    renderDiagnostics({ diagnostics: result.diagnostics || {}, checked_at: result.checked_at });
+  }
   const reasons = {
     "authentication-failed": "Nextcloud hat die Anmeldedaten abgewiesen. Anmeldename und App-Passwort prüfen.",
     "permission-denied": "Nextcloud hat die Benutzerabfrage verweigert. Die Zugriffsrechte des Kontos prüfen.",
@@ -261,6 +719,7 @@ function selectedServer() {
 }
 async function loadStatus() {
   const requestedAt = performance.now();
+  clearAccessPreview();
   const current = await gateway.call("status");
   const previewInvalidated = state.ready && current.revision !== state.ready.expected_revision;
   if (previewInvalidated) clearFlow();
@@ -282,10 +741,11 @@ $("connect").addEventListener("click", () => run(async () => {
 $("reload").addEventListener("click", () => run(loadStatus));
 $("login-form").addEventListener("submit", event => { event.preventDefault(); return run(async () => {
   const server = selectedServer();
-  clearFlow();
+  clearAccessDraft(); clearFlow();
   pendingDiagnostics("Nextcloud-Anmeldung wird vorbereitet. Benutzer und Ressourcen sind noch nicht geprüft.");
   const result = await gateway.call("login.start", { server_url: server.toString() });
   clearFlow(); state.flow = result.flow_id;
+  renderAccess();
   const login = new URL(result.login_url);
   if (login.protocol !== "https:" || login.origin !== server.origin || login.username || login.password) throw new Error("Die Nextcloud-Anmeldeadresse ist ungültig.");
   $("login-link").href = login.toString(); $("login-pending").hidden = false;
@@ -303,11 +763,11 @@ $("credentials-form").addEventListener("submit", event => {
       const server = selectedServer();
       const name = $("login-name").value.trim();
       if (!name || !password) throw new Error("Anmeldename und Nextcloud-App-Passwort eingeben.");
-      clearFlow(); $("preview-section").hidden = true; $("talk-section").hidden = true;
-      pendingDiagnostics("Prüfung läuft: Benutzer, Kalender, Aufgabenlisten, Ordner und Nextcloud Talk. Das Ergebnis erscheint nach der Serverantwort.");
-      message("Benutzer und Zugriff auf Kalender, Aufgabenlisten, Ordner und Talk werden geprüft …");
+      clearAccessDraft(); clearFlow(); $("preview-section").hidden = true; $("talk-section").hidden = true;
+      pendingDiagnostics("Prüfung läuft: Benutzer, Kalender, Aufgabenlisten, Adressbücher, Ordner und Nextcloud Talk.");
+      const requestedAt = performance.now();
       const result = await gateway.call("login.credentials", { server_url: server.toString(), login_name: name, app_password: password });
-      if (result.state === "ready") showReady(result);
+      if (result.state === "ready") showReady(result, requestedAt);
       else if (result.state === "failed") showLoginFailure(result);
       else throw new Error("Die Anmeldung lieferte kein prüfbares Ergebnis.");
     } finally { password = ""; $("app-password").value = ""; }
@@ -316,9 +776,10 @@ $("credentials-form").addEventListener("submit", event => {
 $("poll").addEventListener("click", () => run(async () => {
   if (!state.flow) throw new Error("Zuerst eine Nextcloud-Anmeldung starten.");
   pendingDiagnostics("Anmeldestatus und verfügbare Ressourcen werden abgefragt …");
+  const requestedAt = performance.now();
   const result = await gateway.call("login.poll", { flow_id: state.flow });
   if (result.state === "ready") {
-    showReady(result);
+    showReady(result, requestedAt);
   } else if (result.state === "failed") showLoginFailure(result);
   else if (result.state === "expired" || result.state === "cancelled") {
     clearFlow(); pendingDiagnostics("Die Anmeldung ist beendet. Benutzer und Ressourcen wurden nicht bestätigt.");
@@ -337,7 +798,7 @@ $("cancel").addEventListener("click", () => {
 });
 $("confirm-access").addEventListener("change", () => { $("apply").disabled = !$("confirm-access").checked || !state.ready; });
 $("apply").addEventListener("click", () => run(async () => {
-  if (!state.ready || !$("confirm-access").checked) throw new Error("Die angezeigten Kontoressourcen zuerst bestätigen.");
+  if (!state.ready || !$("confirm-access").checked) throw new Error("Die Verbindung mit dem angezeigten Konto zuerst bestätigen.");
   let result;
   const requestedAt = performance.now();
   try {
@@ -348,35 +809,124 @@ $("apply").addEventListener("click", () => run(async () => {
     pendingDiagnostics("Die Speicherung konnte nicht bestätigt werden. Lade zuerst den Status neu; die bisherige Vorschau ist geschlossen.");
     throw new Error("Die Verbindung konnte nicht bestätigt werden. „Status neu laden“ wählen und den gespeicherten Stand prüfen, bevor du eine neue Anmeldung beginnst.");
   }
-  clearFlow(); renderStatus(result, requestedAt); message("Nextcloud-Verbindung gespeichert und geprüft. Talk kann jetzt separat eingerichtet werden.");
+  clearFlow(); renderStatus(result, requestedAt); message("Nextcloud-Verbindung gespeichert. Prüfe die Freigaben für den Agenten und die Talk-Einstellung separat.");
 }));
 $("refresh").addEventListener("click", () => run(async () => {
+  clearAccessDraft();
+  showFolder = null; window.clearTimeout(folderExpiryTimer); $("folders").replaceChildren();
   pendingDiagnostics("Benutzer und Ressourcen werden erneut auf dem Nextcloud-Server geprüft …");
   const requestedAt = performance.now();
-  const result = await gateway.call("connection.refresh", { expected_revision: state.current.revision });
+  const current = state.current;
+  let result;
+  try { result = await gateway.call("connection.refresh", { expected_revision: current.revision }); }
+  catch (error) {
+    renderDiagnostics(current.preview, { current, refreshFailure: {} });
+    access.blocked = true; renderAccess();
+    throw error;
+  }
   if (result.state === "failed") {
-    showLoginFailure(result);
+    clearFlow();
+    if (result.source_revision === current.revision && result.account_id === current.account_id && result.revision !== current.revision) {
+      await loadStatus();
+      showLoginFailure(result, { refresh: true });
+      message("Die erneute Prüfung ist fehlgeschlagen. Der letzte bestätigte Prüfstand und der aktuelle Fehler sind gespeichert.");
+      return;
+    }
+    const matching = result.account_id === current.account_id && result.revision === current.revision;
+    state.current = { ...current, refresh_failure: matching ? result : {} }; renderAccess();
+    renderDiagnostics(current.preview, { current, refreshFailure: matching ? result : {} });
+    showLoginFailure(result, { refresh: true });
     message("Die erneute Prüfung ist fehlgeschlagen. Die bisher gespeicherte Verbindung bleibt unverändert; ihr alter Prüfstand belegt keinen aktuellen Zugriff.");
     return;
   }
   renderStatus(result, requestedAt); message("Ressourcen erneut erkannt. Angezeigte Einschränkungen bitte beachten.");
-}, { login: true }));
+}));
+function recordFolderMeasurement(path, row) {
+  for (const prior of access.rows) {
+    if (prior.scope.component !== "FILES" || prior.scope.path !== path || prior.scope.file_id === row?.scope.file_id) continue;
+    const code = row ? "folder-identity-changed" : "rights-unverified";
+    access.inspectedFolders.set(rowKey(prior), {
+      ...prior,
+      server: { operations: [], checked_at: null, state: "unverified", read_check: row ? "unknown" : "failed", code },
+      effective_operations: [], supported_levels: prior.supported_levels.includes("off") ? ["off"] : [],
+    });
+  }
+  if (row) access.inspectedFolders.set(rowKey(row), row);
+  renderAccess();
+}
 async function browse(path) {
+  const initial = state.current;
+  const draft = [...access.edits];
+  let removedChoices = 0;
+  if (access.preview) clearAccessPreview();
+  showFolder = null; window.clearTimeout(folderExpiryTimer);
   $("folders").replaceChildren(node("p", "Der angegebene Ordner wird geprüft …", "muted"));
   let result;
+  const requestedAt = performance.now();
   try { result = await gateway.call("folders.list", { path }); }
   catch (error) {
+    // A failed exact probe may have withdrawn persisted evidence.
+    access.blocked = true;
+    clearAccessDraft(); renderAccess();
+    if (state.authenticated) await loadStatus();
+    recordFolderMeasurement(path.replace(/^\/+|\/+$/g, ""), null);
     $("folders").replaceChildren(node("p", "Der Zugriff auf diesen Ordner konnte nicht bestätigt werden.", "error"));
     throw error;
   }
-  $("folder-path").value = result.path || ""; $("folders").replaceChildren(); issues($("folders"), result);
-  const list = node("ul");
-  for (const item of result.folders || []) {
-    const entry = node("li"); const button = node("button", resourceText(item), "secondary"); button.type = "button";
-    button.addEventListener("click", () => run(() => browse(item.path)));
-    entry.append(button); list.append(entry);
+  if (result.account_id === initial.account_id && result.source_revision === initial.revision
+      && result.revision !== initial.revision) {
+    await loadStatus();
+    const latest = state.current, binding = initial.access?.binding;
+    const ownMeasurement = binding && latest.account_id === initial.account_id && latest.user_id === initial.user_id
+      && latest.revision === result.revision && latest.access?.binding?.generation === binding.generation
+      && latest.access.binding.policy_revision === binding.policy_revision;
+    for (const [key, edit] of draft) {
+      const row = ownMeasurement && latest.access.rows.find(row => scopeKey(row.scope) === scopeKey(edit.scope));
+      if (row && !edit.revoke_handle && !row.revoke_handle && allowedLevels(row).includes(edit.level)) {
+        access.edits.set(key, edit);
+      } else removedChoices++;
+    }
+    renderAccess();
   }
-  $("folders").append(list); message("Ordner geladen.");
+  const bound = result.account_id === state.current?.account_id && result.revision === state.current?.revision;
+  if (result.revision && !bound) {
+    access.blocked = true; clearAccessDraft(); renderAccess();
+    $("folders").replaceChildren(node("p", "Die Verbindung hat sich geändert. Den Status neu laden und den Ordner erneut prüfen.", "error"));
+    message(""); return;
+  }
+  const candidate = bound && result.access_row;
+  const exact = candidate?.scope?.component === "FILES" && candidate.scope.path === result.path && candidate.scope.file_id;
+  const accessRow = exact ? candidate : null;
+  if (accessRow) rowRequestedAt.set(accessRow, requestedAt);
+  if (bound) recordFolderMeasurement(result.path ?? path, accessRow);
+  $("folder-path").value = result.path || "";
+  showFolder = () => {
+    window.clearTimeout(folderExpiryTimer);
+    const target = $("folders"); target.replaceChildren(); issues(target, result);
+    const own = bound ? result.selected_folder : null;
+    if (own) {
+      const age = evidenceTime(result.checked_at, result.diagnostics_freshness, requestedAt);
+      target.append(node("p", `Geprüft am: ${result.checked_at || "unbekannt"} · ${evidenceLabels[age.state]}`, "muted"));
+      const right = value => value === true ? "bestätigt" : value === false ? "fehlt" : "unbekannt";
+      target.append(node("p", `Geprüfter Ordner: ${own.path || "Kontohauptordner"}. Gemeldete Serverrechte. Lesen: ${right(own.can_read)}. Dateien erstellen: ${right(own.can_create_file)}. Unterordner erstellen: ${right(own.can_mkdir)}.`));
+      target.append(node("p", `Leseprüfung: ${own.read_check?.status === "ok" ? "erfolgreich" : "unbestätigt"}${own.read_check?.code ? " (" + own.read_check.code + ")" : ""}. Prüfumfang: eine Ordnerebene.`, "muted"));
+      if (age.remaining > 0) folderExpiryTimer = window.setTimeout(showFolder, age.remaining + 1);
+      if (accessRow) {
+        const link = node("a", "Zugriff für den Agenten festlegen"); link.href = "#access-heading";
+        target.append(link);
+      }
+    }
+    const list = node("ul");
+    for (const item of result.folders || []) {
+      const entry = node("li"); const button = node("button", resourceText(item), "secondary"); button.type = "button";
+      button.addEventListener("click", () => run(() => browse(item.path)));
+      entry.append(button); list.append(entry);
+    }
+    target.append(list);
+  };
+  showFolder();
+  removedChoices = Math.max(removedChoices, draft.filter(([key]) => !access.edits.has(key)).length);
+  message(removedChoices ? `Ordner geladen. ${removedChoices} frühere Auswahl(en) bitte erneut auswählen.` : "Ordner geladen.");
 }
 $("folder-form").addEventListener("submit", event => { event.preventDefault(); return run(() => browse($("folder-path").value)); });
 $("talk-rooms").addEventListener("change", () => { state.participantRooms = ""; $("talk-users").replaceChildren(); });
@@ -397,9 +947,14 @@ $("participants").addEventListener("click", () => run(async () => {
 $("save-talk").addEventListener("click", () => run(async () => {
   const enabled = $("talk-enabled").checked; const rooms = checked("talk-rooms").sort(); const users = checked("talk-users");
   if (enabled && (state.participantRooms !== JSON.stringify(rooms) || !users.length || users.length > 32)) throw new Error("Teilnehmer der aktuellen Raumauswahl laden und zwischen einem und 32 Benutzern auswählen.");
+  clearAccessPreview();
   const requestedAt = performance.now();
   const result = await gateway.call("talk.configure", { enabled, room_tokens: rooms, allowed_user_ids: users, expected_revision: state.current.revision });
   renderStatus(result, requestedAt); message(enabled ? "Talk-Auswahl gespeichert und aktiviert. Ob der Chat-Dienst verbunden ist, zeigt der Abschnitt „Chat-Dienst“." : "Talk deaktiviert.");
 }));
-window.addEventListener("focus", renderTalkRuntime);
-window.addEventListener("pagehide", () => { $("app-password").value = ""; gateway?.close(); });
+window.addEventListener("focus", () => {
+  showDiagnostics?.(); showFolder?.(); renderTalkRuntime();
+  if (access.preview && !isAccessPreviewCurrent()) expireAccessPreview();
+  if (access.rows.some(row => expiredRights(row) && ["verified", "partial"].includes(row.server?.state))) renderAccess();
+});
+window.addEventListener("pagehide", () => { $("app-password").value = ""; clearAccessDraft(); gateway?.close(); });

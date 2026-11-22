@@ -7,6 +7,10 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
+from ..nextcloud_access import path_segments
+from ..nextcloud_connection import admit_projection
+from ..nextcloud_file_access import file_context
+
 
 class WorkspaceServiceMixin:
     """Nextcloud file/workspace application service with its own policy boundary."""
@@ -34,17 +38,49 @@ class WorkspaceServiceMixin:
             raise ValueError("max_depth muss zwischen 0 und 10 liegen")
         resource = self.registry.get(resource_id)
         account_root = resource.metadata.get("account_root") is True
-        if not requested and not account_root:
-            raise ValueError("Nextcloud-Pfad darf nicht leer sein")
-        if "read" not in resource.permissions:
-            raise PermissionError("Nextcloud-Ressource besitzt kein Leserecht")
-        roots = tuple(str(v).strip("/") for v in resource.metadata.get("allowed_roots", []))
-        if not roots:
-            roots = tuple(str(v).strip("/") for v in self.config.nextcloud.allowed_file_roots)
-        if not account_root and not any(
-            requested == root or requested.startswith(root + "/") for root in roots
-        ):
-            raise PermissionError("Pfad liegt ausserhalb der erlaubten Nextcloud-Wurzeln")
+        client = getattr(self.nextcloud_files, "client", None)
+        publication = admit_projection(getattr(client, "access_snapshot", None))
+        if getattr(self.nextcloud_files, "managed_access", False) is True:
+            effective = resource.metadata.get("folder_operations", {})
+            recheck = resource.metadata.get("folder_recheck_operations", {})
+            entries = sorted(
+                {root for by_path in (effective, recheck) for root, ops in by_path.items() if "list" in ops}
+            )
+            if path is None and len(entries) > 1:
+                entry_points = []
+                for root in entries:
+                    self.nextcloud_files.verified_entry(root)
+                    entry_points.append(
+                        {"path": root, "name": root.rpartition("/")[2] or "/", "kind": "folder"}
+                    )
+                with publication:
+                    return {
+                        "ok": True,
+                        "connector": "native-nextcloud-webdav",
+                        "resource_id": resource_id,
+                        "root": None,
+                        "max_depth": 0,
+                        "count": len(entry_points),
+                        "complete": True,
+                        "results_may_be_truncated": False,
+                        "item_limit_reached": False,
+                        "unexpanded_folder_count": 0,
+                        "items": entry_points,
+                        "scope": "selected-entry-points",
+                    }
+            requested = self._managed_path(path, entries, "list")
+        else:
+            if not requested and not account_root:
+                raise ValueError("Nextcloud-Pfad darf nicht leer sein")
+            if "read" not in resource.permissions:
+                raise PermissionError("Nextcloud-Ressource besitzt kein Leserecht")
+            roots = tuple(str(v).strip("/") for v in resource.metadata.get("allowed_roots", []))
+            if not roots:
+                roots = tuple(str(v).strip("/") for v in self.config.nextcloud.allowed_file_roots)
+            if not account_root and not any(
+                requested == root or requested.startswith(root + "/") for root in roots
+            ):
+                raise PermissionError("Pfad liegt ausserhalb der erlaubten Nextcloud-Wurzeln")
 
         queue: list[tuple[str, int]] = [(requested, 0)]
         seen: set[str] = set()
@@ -78,19 +114,20 @@ class WorkspaceServiceMixin:
                         unexpanded_folders += 1
             if item_limit_reached:
                 break
-        return {
-            "ok": True,
-            "connector": "native-nextcloud-webdav",
-            "resource_id": resource_id,
-            "root": requested,
-            "max_depth": max_depth,
-            "count": len(items),
-            "complete": unexpanded_folders == 0 and not item_limit_reached,
-            "results_may_be_truncated": unexpanded_folders > 0 or item_limit_reached,
-            "item_limit_reached": item_limit_reached,
-            "unexpanded_folder_count": unexpanded_folders,
-            "items": items,
-        }
+        with publication:
+            return {
+                "ok": True,
+                "connector": "native-nextcloud-webdav",
+                "resource_id": resource_id,
+                "root": requested,
+                "max_depth": max_depth,
+                "count": len(items),
+                "complete": unexpanded_folders == 0 and not item_limit_reached,
+                "results_may_be_truncated": unexpanded_folders > 0 or item_limit_reached,
+                "item_limit_reached": item_limit_reached,
+                "unexpanded_folder_count": unexpanded_folders,
+                "items": items,
+            }
 
     def list_invoice_files(self, *, limit: int = 100) -> dict[str, Any]:
         """List the configured remote invoice archive through controlled WebDAV."""
@@ -127,8 +164,26 @@ class WorkspaceServiceMixin:
             raise PermissionError("Nextcloud-Arbeitsbereich ist deaktiviert")
         return workspace
 
-    def _workspace_path(self, value: str) -> str:
+    def _managed_path(self, value, roots, operation):
+        if not roots:
+            raise PermissionError("scope-off")
+        if value is None:
+            if len(roots) != 1:
+                raise PermissionError("scope-invalid")
+            value = roots[0]
+        parts = path_segments(value)
+        if not any(parts[: len(path_segments(root))] == path_segments(root) for root in roots):
+            if len(roots) != 1 or not value:
+                raise PermissionError("scope-invalid")
+            value = roots[0] + "/" + value
+        file_context(self.nextcloud_files.client.access_snapshot, value, operation)
+        return value
+
+    def _workspace_path(self, value: str, operation: str = "read") -> str:
         workspace = self._workspace()
+        if getattr(self.nextcloud_files, "managed_access", False) is True:
+            roots = self.registry.get(workspace.resource_id).metadata.get("allowed_roots", [])
+            return self._managed_path(value, roots, operation)
         path = self.nextcloud_files.clean_path(value)
         root = self.nextcloud_files.clean_path(workspace.root)
         if not root and path:
@@ -142,7 +197,7 @@ class WorkspaceServiceMixin:
     def _execute_workspace_plan(self, plan) -> dict[str, Any]:
         if plan.status not in {"approved", "completed"}:
             return {"ok": False, "action": asdict(plan), "detail": "ActionPlan benoetigt Freigabe"}
-        result, duplicate = self.actions.execute_workspace(plan.id)
+        result, duplicate = self.actions.execute_workspace(plan.id, recreate_missing=True)
         response = {"ok": result.status == "completed", "duplicate": duplicate, "action": asdict(result)}
         if result.status == "failed" and result.error:
             response["detail"] = result.error
@@ -152,7 +207,7 @@ class WorkspaceServiceMixin:
         workspace = self._workspace()
         if not workspace.allow_mkdir:
             raise PermissionError("Ordner anlegen ist fuer den Nextcloud-Arbeitsbereich deaktiviert")
-        remote = self._workspace_path(path)
+        remote = self._workspace_path(path, "mkdir")
         plan = self.actions.plan(
             "files.mkdir",
             workspace.resource_id,
@@ -180,7 +235,7 @@ class WorkspaceServiceMixin:
         size = local.stat().st_size
         if size > self.config.search.max_file_bytes:
             raise ValueError(f"Datei ist groesser als das konfigurierte Limit: {size} Byte")
-        remote = self._workspace_path(remote_path)
+        remote = self._workspace_path(remote_path, "create_file")
         payload = local.read_bytes()
         antivirus = getattr(self, "antivirus", None)
         if antivirus is not None:
@@ -215,7 +270,7 @@ class WorkspaceServiceMixin:
         data = text.encode("utf-8")
         if len(data) > self.config.search.max_file_bytes:
             raise ValueError("Text ist groesser als das konfigurierte Dateilimit")
-        remote = self._workspace_path(remote_path)
+        remote = self._workspace_path(remote_path, "create_file")
         digest = hashlib.sha256(data).hexdigest()
         outbox = workspace.outbox.expanduser().resolve()
         generated = outbox / ".generated"

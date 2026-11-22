@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
-"""Isolated real-browser launcher regression; Python stdlib, no production access.
+"""Isolated real-browser setup and launcher regression using the Python standard library.
 
 Root runs this with an available Firefox/geckodriver. The normal assertion is
 that an actual click opens the real setup document outside the iframe sandbox.
 Use --expect blocked to record the known failure of the original launcher.
 No synthetic click, popup preference override or copied browser profile is used.
---check-setup-diagnostics adds fresh synthetic operator keys and local mock RPC;
-It never uses a real operator token or a live Nextcloud server. The sandbox values
-are read from the extracted pinned core.
+--setup-page-fixture opens the real plugin assets directly and checks signed
+setup with fresh synthetic operator keys. --check-setup-diagnostics adds the
+synthetic diagnostic checks after exercising the launcher with the pinned core.
+All fixture traffic stays on loopback and uses synthetic accounts.
 """
 
 from __future__ import annotations
 
 import argparse
+import base64
 import contextlib
 import hashlib
 import json
@@ -104,7 +106,7 @@ class WebDriver:
     def evaluate(self, script: str):
         return self.call("POST", "/execute/sync", {"script": script, "args": []})
 
-    def evaluate_async(self, script: str):
+    def evaluate_async(self, script: str, *arguments: object):
         result = self.call(
             "POST",
             "/execute/async",
@@ -113,7 +115,7 @@ class WebDriver:
                     "const done = arguments[arguments.length - 1];\n"
                     "(async () => {\n" + script + "\n})().then(done, error => done({error: String(error)}));"
                 ),
-                "args": [],
+                "args": list(arguments),
             },
         )
         if isinstance(result, dict) and result.get("error"):
@@ -121,7 +123,7 @@ class WebDriver:
         return result
 
 
-def fixture_handler(assets: Path, current: dict[str, Path], mode: str, launcher: Path):
+def fixture_handler(assets: Path, current: dict[str, Path] | None, mode: str, launcher: Path):
     allowed = {
         BASE: (launcher, "text/html; charset=utf-8"),
         BASE + "/setup": (assets / "setup-ui.html", "text/html; charset=utf-8"),
@@ -136,7 +138,7 @@ def fixture_handler(assets: Path, current: dict[str, Path], mode: str, launcher:
         },
     }
 
-    bootstrap = (
+    bootstrap = None if current is None else (
         'sessionStorage.setItem("setup-fixture-loads", '
         'String(Number(sessionStorage.getItem("setup-fixture-loads") || 0) + 1));\n'
         "try {\n"
@@ -164,6 +166,9 @@ def fixture_handler(assets: Path, current: dict[str, Path], mode: str, launcher:
 
         def do_GET(self):
             path = urllib.parse.urlsplit(self.path).path
+            if current is None and path not in allowed:
+                self.send_error(404)
+                return
             if path in ("/", "/cache-fixture"):
                 body = b'<!doctype html><meta charset="utf-8"><title>Isolated cache fixture</title>'
                 mime = "text/html; charset=utf-8"
@@ -545,13 +550,8 @@ def check(driver: WebDriver, origin: str, selector: str, expected: str, timeout:
     return result
 
 
-def check_setup_diagnostics(driver: WebDriver):
-    """Exercise the shipped setup UI against synthetic signed operator RPC only.
-
-    The browser gets fresh test keys and an in-memory WebSocket fixture. No real
-    OpenClaw/Nextcloud endpoint, browser profile or credential store is used.
-    Only redacted assertions/counters leave the browser fixture.
-    """
+def install_signed_fixture(driver: WebDriver, access_checks: bool = False, saved_status: dict | None = None):
+    """Install the synthetic transport after loading the real setup assets."""
     driver.call("POST", "/timeouts", {"implicit": 5000, "pageLoad": 15000, "script": 10000})
     installed = driver.evaluate_async(r"""
         const require = (value, message) => { if (!value) throw Error(message); };
@@ -561,6 +561,7 @@ def check_setup_diagnostics(driver: WebDriver):
           .replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
         const decode = value => Uint8Array.from(atob(value.replaceAll('-', '+').replaceAll('_', '/')),
           character => character.charCodeAt(0));
+        const [accessChecks, saved] = arguments;
         const keys = await crypto.subtle.generateKey({name: 'Ed25519'}, true, ['sign', 'verify']);
         const publicKey = await crypto.subtle.exportKey('raw', keys.publicKey);
         const privateKey = new Uint8Array(await crypto.subtle.exportKey('pkcs8', keys.privateKey));
@@ -595,11 +596,50 @@ def check_setup_diagnostics(driver: WebDriver):
               scope: 'collection-metadata', content_checked: false}}],
           task_lists: [], addressbooks: [], file_roots: [], folders: [], talk_rooms: []};
         const oldPreview = {...preview, checked_at: '2026-10-20T09:00:00Z'};
-        let current = {connected: true, revision: 'previous-revision', user_id: 'agent',
-          server_url: preview.server_url, last_verified_at: oldPreview.checked_at,
+        let current = {connected: true, account_id: 'fixture-account', revision: 'previous-revision',
+          user_id: 'agent', server_url: preview.server_url, last_verified_at: oldPreview.checked_at,
           preview: oldPreview, talk: {enabled: false, room_tokens: [], allowed_user_ids: []}};
-        let pendingCredentials = null;
-        const operations = [], sockets = [], failures = [];
+        const calendar = {resource_id: 'fixture-mixed', component: 'VEVENT', path: null, file_id: null};
+        const tasks = {...calendar, component: 'VTODO'};
+        const folder = {resource_id: 'fixture-account-files', component: 'FILES',
+          path: 'Projektakten', file_id: '505'};
+        const read = ['list', 'read', 'search'];
+        const taskRead = ['list', 'read'];
+        const row = (scope, name, serverOperations, desiredOperations, levels, workerState) => ({
+          scope, name, server: {operations: serverOperations, checked_at: new Date().toISOString(),
+            freshness: {state: 'fresh', age_seconds: 0, max_age_seconds: 86400},
+            read_check: 'ok', state: 'verified', code: ''},
+          desired_operations: desiredOperations, effective_operations: desiredOperations,
+          supported_levels: levels, blockers: {}, next_step: '',
+          worker: {name: workerState === 'unavailable' ? 'nextcloud-sync' : 'not-applicable',
+            state: workerState},
+        });
+        if (accessChecks) current = saved || {
+          ...current, account_id: 'fixture-account', revision: 'connected-fixture-1',
+          access: {
+            mode: 'active', complete: true, code: '', next_step: '',
+            binding: {account_id: 'fixture-account', owner_user_id: 'agent',
+              generation: 'fixture-generation', policy_revision: 'policy-fixture-1'},
+            rows: [
+              row(calendar, 'Teamplan <em>Nord</em>', read, [], ['off', 'read'], 'unavailable'),
+              row(tasks, 'Teamplan <em>Nord</em>', ['create', ...taskRead, 'update'], [],
+                ['off', 'read', 'create', 'update'], 'not-applicable'),
+              row(folder, 'Projektakten', ['create_file', ...read], ['create_file', ...read],
+                ['off', 'read', 'create'], 'unavailable'),
+            ],
+          },
+        };
+        const sameScope = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+        const knownScope = scope => current.access.rows.find(row => sameScope(row.scope, scope));
+        const version = () => ({expected_revision: current.revision,
+          expected_policy_revision: current.access.binding.policy_revision});
+        const matchesVersion = (parameters, reference = version()) =>
+          parameters.expected_revision === reference.expected_revision &&
+          parameters.expected_policy_revision === reference.expected_policy_revision;
+        const hasFields = (value, names) => Object.keys(value).sort().join() === names.sort().join();
+        let pendingCredentials = null, candidate = null, fixtureExpiry = 30_000, applied = 0;
+        let applyBehavior = 'normal';
+        const operations = [], sockets = [], failures = [], nonces = new Set();
         const storageBefore = JSON.stringify(Object.entries(localStorage).sort());
         const sessionBefore = JSON.stringify(Object.entries(sessionStorage).sort());
         class FixtureSocket extends EventTarget {
@@ -607,11 +647,15 @@ def check_setup_diagnostics(driver: WebDriver):
           constructor(url) {
             super(); require(url === endpoint.href, 'Unexpected synthetic gateway endpoint');
             sockets.push(this);
+            this.nonce = crypto.randomUUID();
             queueMicrotask(() => this.frame({type: 'event', event: 'connect.challenge',
-              payload: {nonce: 'synthetic-browser-challenge'}}));
+              payload: {nonce: this.nonce}}));
           }
           frame(value) { this.dispatchEvent(new MessageEvent('message', {data: JSON.stringify(value)})); }
           reply(request, payload) { this.frame({type: 'res', id: request.id, ok: true, payload}); }
+          reject(request, code) {
+            this.frame({type: 'res', id: request.id, ok: false, error: {code, message: code}});
+          }
           send(raw) {
             this.process(raw).catch(() => {
               failures.push('synthetic-rpc-contract-failed'); this.close();
@@ -620,9 +664,18 @@ def check_setup_diagnostics(driver: WebDriver):
           async process(raw) {
             const request = JSON.parse(raw);
             if (request.method === 'connect') {
-              require(request.params.auth?.token === 'synthetic-browser-operator-token',
+              const p = request.params;
+              const device = p.device;
+              require(p.auth?.token === 'synthetic-browser-operator-token',
                 'Synthetic operator authentication missing');
-              require(request.params.device?.id === deviceId, 'Synthetic device identity mismatch');
+              require(device?.id === deviceId && device.publicKey === encode(publicKey) &&
+                device.nonce === this.nonce
+                && p.role === 'operator' && p.scopes.join(',') === 'operator.admin',
+                'Synthetic device identity mismatch');
+              const challenge = ['v2', deviceId, p.client.id, p.client.mode, p.role, p.scopes.join(','),
+                device.signedAt, p.auth.token, device.nonce].join('|');
+              require(await crypto.subtle.verify('Ed25519', keys.publicKey, decode(device.signature),
+                new TextEncoder().encode(challenge)), 'Operator challenge signature mismatch');
               this.reply(request, {auth: {scopes: ['operator.admin']}}); return;
             }
             require(request.method === 'personal_assistant.setup', 'Non-setup RPC attempted');
@@ -632,6 +685,9 @@ def check_setup_diagnostics(driver: WebDriver):
               new TextEncoder().encode(proof.payload)), 'Operator signature mismatch');
             require(signed.operation === operation && signed.actor === 'device:' + deviceId &&
               JSON.stringify(signed.parameters) === JSON.stringify(parameters), 'Proof binding mismatch');
+            require(/^[a-f0-9]{32}$/.test(signed.nonce) && !nonces.has(signed.nonce) &&
+              Math.abs(Date.now() - signed.issued_at) < 60_000, 'Stale or repeated setup proof');
+            nonces.add(signed.nonce);
             operations.push(operation); // Never retain parameters or proof containing the app password.
             if (operation === 'status') this.reply(request, current);
             else if (operation === 'login.credentials') {
@@ -649,15 +705,83 @@ def check_setup_diagnostics(driver: WebDriver):
               current = {...current, revision: 'applied-revision', preview,
                 last_verified_at: preview.checked_at};
               this.reply(request, current);
+            } else if (operation === 'folders.list') {
+              require(parameters.path === 'Fixture', 'Wrong folder selection');
+              this.reply(request, {account_id: current.account_id, revision: current.revision,
+                path: 'Fixture', complete: true, folders: [], checked_at: new Date().toISOString(),
+                diagnostics_freshness: {state: 'fresh', age_seconds: 0, max_age_seconds: 86400},
+                selected_folder: {path: 'Fixture', can_read: true, read_check: {status: 'ok'}}});
+            } else if (operation === 'connection.refresh') {
+              require(parameters.expected_revision === current.revision, 'Wrong refresh revision');
+              this.reject(request, 'fixture-refresh-reply-unavailable');
             } else if (operation === 'login.cancel') this.reply(request, {state: 'cancelled'});
-            else throw Error('Unexpected synthetic setup operation');
+            else if (accessChecks && operation === 'access.preview') {
+              const previewFields = ['account_id', 'confirm_root', 'edits', 'expected_policy_revision',
+                'expected_revision'];
+              require(hasFields(parameters, previewFields) && parameters.account_id === current.account_id
+                && matchesVersion(parameters) && parameters.confirm_root === false,
+                'Access review context mismatch');
+              require(parameters.edits.length > 0 && parameters.edits.every(edit =>
+                hasFields(edit, ['level', 'scope']) &&
+                knownScope(edit.scope)?.supported_levels.includes(edit.level)),
+                'Unknown or unsupported access edit');
+              if (!saved && !applied && !candidate) {
+                require(JSON.stringify(parameters.edits) === JSON.stringify([
+                  {scope: calendar, level: 'read'}, {scope: tasks, level: 'update'},
+                  {scope: folder, level: 'off'},
+                ]), 'Initial access preview must bind both components and one explicit folder revocation');
+              }
+              const changes = parameters.edits.map(({scope, level}) => {
+                const row = knownScope(scope);
+                const selected = {off: [], read, update: ['create', ...taskRead, 'update']};
+                return {scope, name: row.name, before_operations: row.desired_operations,
+                  after_operations: selected[level]};
+              });
+              const encoded = new TextEncoder().encode(JSON.stringify(parameters));
+              const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', encoded));
+              candidate = {
+                state: 'ready', preview_id: crypto.randomUUID().replaceAll('-', ''),
+                preview_digest: Array.from(digest, byte => byte.toString(16).padStart(2, '0')).join(''),
+                ...version(), expires_at: new Date(Date.now() + fixtureExpiry).toISOString(), changes,
+                affected_workflows: [
+                  {workflow: 'search-and-sync', effect: 'Index und Suche prüfen die aktuelle Bindung.'},
+                  {workflow: 'pending-actions', effect: 'Offene Freigaben brauchen die aktuelle Richtlinie.'},
+                ],
+                withheld: [{scope: folder, operation: 'mkdir', code: 'server-right-missing',
+                  next_step: 'Ordnerrechte prüfen.'}],
+              };
+              fixtureExpiry = 30_000;
+              this.reply(request, candidate);
+            } else if (accessChecks && operation === 'access.apply') {
+              require(candidate && parameters.confirm === true && hasFields(parameters, ['confirm',
+                'expected_policy_revision', 'expected_revision', 'preview_digest', 'preview_id']) &&
+                parameters.preview_id === candidate.preview_id &&
+                parameters.preview_digest === candidate.preview_digest &&
+                matchesVersion(parameters, candidate) && Date.now() < Date.parse(candidate.expires_at),
+                'Missing, reused or altered access confirmation');
+              const changes = candidate.changes;
+              candidate = null;
+              if (!matchesVersion(parameters)) {
+                this.reject(request, 'nextcloud-connection-conflict'); return;
+              }
+              applied += 1;
+              const rows = current.access.rows.map(row => {
+                const change = changes.find(item => sameScope(item.scope, row.scope));
+                return change ? {...row, desired_operations: change.after_operations,
+                  effective_operations: change.after_operations} : row;
+              });
+              current = {...current, revision: crypto.randomUUID(), access: {...current.access, rows,
+                binding: {...current.access.binding, policy_revision: crypto.randomUUID()}}};
+              if (applyBehavior === 'uncertain') { this.close(); return; }
+              this.reply(request, current);
+            } else throw Error('Unexpected synthetic setup operation');
           }
           close() { this.readyState = 3; this.dispatchEvent(new Event('close')); }
         }
         window.WebSocket = FixtureSocket;
         window.setupAcceptance = {
           summary: () => ({operations: [...operations], failures: [...failures],
-            pending: pendingCredentials !== null,
+            pending: pendingCredentials !== null, applied,
             passwordEmpty: document.getElementById('app-password').value === '',
             secretAbsent: !document.body.textContent.includes(secret) &&
               !document.documentElement.outerHTML.includes(secret) &&
@@ -679,42 +803,79 @@ def check_setup_diagnostics(driver: WebDriver):
               {state: 'ready', flow_id: 'a'.repeat(32), preview_digest: 'b'.repeat(64),
                 expected_revision: current.revision, preview});
           },
+          expireNextAccessPreview: () => { fixtureExpiry = 2200; },
+          conflict: () => { current = {...current, revision: crypto.randomUUID()}; },
+          uncertain: () => { applyBehavior = 'uncertain'; },
+          savedStatus: () => {
+            require(accessChecks, 'Only synthetic access state can be exported to the test driver');
+            return current;
+          },
           disconnect: () => sockets.at(-1).close(),
         };
         return {installed: true, syntheticOnly: true};
-    """)
+    """, access_checks, saved_status)
     assert installed == {"installed": True, "syntheticOnly": True}
 
-    def wait(script: str, message: str):
-        deadline = time.monotonic() + 10
-        while time.monotonic() < deadline:
-            if driver.evaluate(script):
-                return
-            time.sleep(0.05)
-        raise AssertionError(message)
 
-    def click(selector: str):
-        element = driver.element(selector)
-        driver.call("POST", f"/element/{element[ELEMENT]}/click", {})
+def wait_for(driver: WebDriver, script: str, message: str):
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        if driver.evaluate(script):
+            return
+        time.sleep(0.05)
+    raise AssertionError(message)
 
-    def fill(selector: str, value: str):
-        element = driver.element(selector)
-        driver.call("POST", f"/element/{element[ELEMENT]}/clear", {})
-        driver.call("POST", f"/element/{element[ELEMENT]}/value", {"text": value})
+
+def click_element(driver: WebDriver, selector: str):
+    element = driver.element(selector)
+    driver.call("POST", f"/element/{element[ELEMENT]}/click", {})
+
+
+def fill_element(driver: WebDriver, selector: str, value: str):
+    element = driver.element(selector)
+    driver.call("POST", f"/element/{element[ELEMENT]}/clear", {})
+    driver.call("POST", f"/element/{element[ELEMENT]}/value", {"text": value})
+
+
+def fixture_summary(driver: WebDriver):
+    value = driver.evaluate("return window.setupAcceptance.summary()")
+    assert not value["failures"], "Synthetic signed operator RPC contract failed"
+    assert value["passwordEmpty"], "App password input was not cleared"
+    assert value["secretAbsent"], "Synthetic app password appeared outside the input"
+    assert value["storageUnchanged"], "Setup changed browser storage"
+    return value
+
+
+def check_setup_diagnostics(driver: WebDriver):
+    install_signed_fixture(driver)
+
+    def wait(script, message):
+        wait_for(driver, script, message)
+
+    def click(selector):
+        click_element(driver, selector)
+
+    def fill(selector, value):
+        fill_element(driver, selector, value)
 
     def summary():
-        value = driver.evaluate("return window.setupAcceptance.summary()")
-        assert not value["failures"], "Synthetic signed operator RPC contract failed"
-        assert value["passwordEmpty"], "App password input was not cleared"
-        assert value["secretAbsent"], "Synthetic app password appeared outside the input"
-        assert value["storageUnchanged"], "Setup changed browser storage"
-        return value
+        return fixture_summary(driver)
 
     click("#connect")
     wait("return !document.getElementById('actions').disabled", "Operator did not connect")
     historical = driver.evaluate("return document.getElementById('diagnostics').textContent")
     assert "Gespeichertes Prüfergebnis" in historical and "2026-10-20T09:00:00Z" in historical
     assert summary()["operations"] == ["status"]
+    fill("#folder-path", "Fixture")
+    click("#folder-form button")
+    wait("return document.getElementById('folders').textContent.includes('Lesen: bestätigt')",
+         "Own folder measurement did not appear")
+    click("#refresh")
+    wait("return !document.getElementById('actions').disabled && "
+         "!document.getElementById('error').hidden", "Ambiguous refresh was not reported")
+    assert not driver.evaluate(
+        "return document.getElementById('folders').textContent.includes('Lesen: bestätigt')"
+    )
     click("#credentials-option summary")
     attributes = driver.evaluate("""
         const input = document.getElementById('app-password');
@@ -733,7 +894,7 @@ def check_setup_diagnostics(driver: WebDriver):
         return value
 
     before = submit()
-    assert before["operations"] == ["status", "login.credentials"]
+    assert before["operations"] == ["status", "folders.list", "connection.refresh", "login.credentials"]
     driver.evaluate("window.setupAcceptance.release(false)")
     wait("return !document.getElementById('actions').disabled && "
          "!document.getElementById('apply-panel').hidden", "Direct-login preview did not appear")
@@ -750,7 +911,7 @@ def check_setup_diagnostics(driver: WebDriver):
     assert driver.evaluate("return document.getElementById('apply').disabled")
     assert driver.evaluate("return !document.querySelector('#preview img') && "
                            "document.getElementById('preview').textContent.includes('<img src=x')")
-    assert summary()["operations"] == ["status", "login.credentials"]
+    assert summary()["operations"] == before["operations"]
     click("#confirm-access")
     click("#apply")
     wait("return !document.getElementById('actions').disabled && "
@@ -787,19 +948,184 @@ def check_setup_diagnostics(driver: WebDriver):
             "confirmed_saves": final["operations"].count("connection.apply"),
             "password_cleared_before_reply": True, "browser_storage_unchanged": True,
             "identity_failure_skips_domains": True, "partial_read_probes_rendered": True,
+            "ambiguous_refresh_withholds_previous_folder_rights": True,
             "saved_snapshot_labelled": True, "cancel_and_disconnect_clear_password": True}
+
+
+def check_access_settings(driver: WebDriver, setup_url: str, screenshot: Path | None):
+    """Drive access controls with native WebDriver clicks in the shipped page."""
+    driver.call("POST", "/window/rect", {"width": 1160, "height": 2310})
+    driver.call("POST", "/url", {"url": setup_url})
+    install_signed_fixture(driver, access_checks=True)
+
+    def wait(script, message):
+        wait_for(driver, script, message)
+
+    def click(selector):
+        click_element(driver, selector)
+
+    def select(component, level):
+        click(f'#access-rows select[data-component="{component}"] option[value="{level}"]')
+
+    def connected():
+        click("#connect")
+        wait(
+            "return !document.getElementById('actions').disabled && "
+            "!document.getElementById('access-editor').hidden",
+            "Access editor did not become available",
+        )
+
+    def review():
+        click("#access-review")
+        wait("return !document.getElementById('access-review-panel').hidden", "Access preview did not appear")
+        assert driver.evaluate("return document.getElementById('access-apply').disabled"), (
+            "Review enabled unconfirmed write"
+        )
+
+    def confirm():
+        click("#access-confirm")
+        assert driver.evaluate("return !document.getElementById('access-apply').disabled"), (
+            "Confirmed apply remains disabled"
+        )
+
+    def apply():
+        click("#access-apply")
+        wait("""
+            return !document.getElementById('actions').disabled ||
+              (!document.getElementById('connect').disabled && !document.getElementById('error').hidden);
+        """, "Access apply did not settle")
+        assert_cancelled("Old confirmation survived apply")
+
+    def assert_cancelled(reason):
+        assert driver.evaluate("return document.getElementById('access-review-panel').hidden && "
+                               "!document.getElementById('access-confirm').checked && "
+                               "document.getElementById('access-apply').disabled"), reason
+
+    def read_labels():
+        return driver.evaluate("""
+            return Array.from(document.querySelectorAll('.access-row'), element =>
+              [element.querySelector('select').dataset.component,
+               element.querySelector('.access-state:nth-child(2) p').textContent]);
+        """)
+
+    connected()
+    labels = []
+    for component in ("VEVENT", "VTODO", "FILES"):
+        element = driver.element(f'#access-rows select[data-component="{component}"]')
+        labels.append(driver.call("GET", f"/element/{element[ELEMENT]}/computedlabel"))
+    assert len(set(labels)) == 3 and all(labels), "Controls lack distinct accessible names"
+    assert driver.evaluate("""
+        return !document.querySelector('#access-rows em') &&
+          document.getElementById('access-rows').textContent.includes('<em>Nord</em>');
+    """), "Remote name became markup"
+    select("VEVENT", "read")
+    select("VTODO", "update")
+    select("FILES", "off")
+    review()
+    wanted_before = [
+        ["VEVENT", "Aus"], ["VTODO", "Aus"], ["FILES", "Dateien erstellen (C), Auflisten, Lesen, Suchen"],
+    ]
+    assert read_labels() == wanted_before, "Preview changed the saved display"
+    first_preview = fixture_summary(driver)
+    assert first_preview["applied"] == 0 and first_preview["operations"] == ["status", "access.preview"]
+    diff = driver.evaluate("return document.getElementById('access-diff').innerText")
+    for expected in (
+        "Vorher: Aus → Nachher: Auflisten, Lesen, Suchen",
+        "Vorher: Aus → Nachher: Erstellen, Auflisten, Lesen, Ändern",
+        "→ Nachher: Aus", "Suche und Synchronisierung", "Offene Aktionen", "Unterordner erstellen (K)",
+        "Das erforderliche Recht fehlt in Nextcloud",
+    ):
+        assert expected in diff, f"Access preview missing {expected}"
+    assert all(code not in diff for code in ("search-and-sync", "pending-actions", "server-right-missing"))
+    assert driver.evaluate("""
+        const details = document.querySelector('#access-diff details');
+        return details && !details.open &&
+          details.querySelector('code').textContent === 'server-right-missing';
+    """), "Technical access diagnostics were not available on demand"
+    if screenshot:
+        driver.evaluate("document.getElementById('access-heading').scrollIntoView({block: 'start'})")
+        screenshot.write_bytes(base64.b64decode(driver.call("GET", "/screenshot")))
+    confirm()
+    apply()
+    wanted_saved = [
+        ["VEVENT", "Auflisten, Lesen, Suchen"], ["VTODO", "Erstellen, Auflisten, Lesen, Ändern"],
+        ["FILES", "Aus"],
+    ]
+    assert read_labels() == wanted_saved, "Apply did not return the expected read-back"
+    first_apply = fixture_summary(driver)
+    assert first_apply["applied"] == 1 and first_apply["operations"].count("access.apply") == 1
+
+    # Carry only the synthetic server snapshot across a real document reload.
+    # The new page reauthenticates with fresh test keys and obtains it via status.
+    saved = driver.evaluate("return window.setupAcceptance.savedStatus()")
+    driver.call("POST", "/refresh", {})
+    install_signed_fixture(driver, access_checks=True, saved_status=saved)
+    connected()
+    assert read_labels() == wanted_saved, "Reload failed to show persisted fixture status"
+    assert fixture_summary(driver)["operations"] == ["status"]
+    select("VEVENT", "off")
+    review()
+    confirm()
+    select("VTODO", "off")
+    assert_cancelled("Changing a scope preserved the earlier confirmation")
+    assert fixture_summary(driver)["operations"] == ["status", "access.preview"]
+
+    driver.evaluate("window.setupAcceptance.expireNextAccessPreview()")
+    review()
+    confirm()
+    wait("return document.getElementById('access-review-panel').hidden", "Expired preview stayed visible")
+    assert_cancelled("Expired preview retained an active confirmation")
+    assert fixture_summary(driver)["operations"].count("access.apply") == 0
+
+    review()
+    confirm()
+    driver.evaluate("window.setupAcceptance.conflict()")
+    apply()
+    after_conflict = fixture_summary(driver)
+    assert after_conflict["operations"][-2:] == ["access.apply", "status"], "Conflict did not reload status"
+    assert after_conflict["operations"].count("access.apply") == 1 and after_conflict["applied"] == 0
+    assert read_labels() == wanted_saved, "Conflicting write changed saved fixture policy"
+
+    select("VEVENT", "off")
+    review()
+    confirm()
+    driver.evaluate("window.setupAcceptance.uncertain()")
+    apply()
+    after_loss = fixture_summary(driver)
+    assert after_loss["operations"][-1] == "access.apply", "Disconnected page retried before reconnection"
+    assert driver.evaluate("""
+        return document.getElementById('error').textContent.includes('konnte nicht bestätigt') &&
+          document.getElementById('notice').textContent.includes('Mit OpenClaw verbinden');
+    """)
+    connected()
+    final = fixture_summary(driver)
+    assert final["operations"][-2:] == ["access.apply", "status"], "Uncertain apply did not reload status"
+    assert final["operations"].count("access.apply") == 2 and final["applied"] == 1
+    assert read_labels()[0] == ["VEVENT", "Aus"], "Recovered status did not expose the current fixture policy"
+    return {
+        "synthetic_operator_only": True,
+        "signed_setup_calls": len(first_apply["operations"]) + len(final["operations"]),
+        "native_access_controls": True, "unique_accessible_names": True, "preview_read_only": True,
+        "signed_confirmation_and_status_reload": True, "edit_and_expiry_invalidated_confirmation": True,
+        "revision_conflict_reloaded_without_retry": True, "uncertain_apply_reloaded_without_retry": True,
+        "browser_storage_unchanged": True, "screenshot": str(screenshot) if screenshot else None,
+    }
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--assets", type=Path, default=ROOT / "docker/openclaw-personal-assistant-plugin")
     parser.add_argument("--launcher", type=Path)
-    parser.add_argument(
+    target = parser.add_mutually_exclusive_group(required=True)
+    target.add_argument(
         "--control-ui",
         type=Path,
-        required=True,
         help="Extracted public dist/control-ui directory, original or patched",
     )
+    target.add_argument(
+        "--setup-page-fixture", action="store_true", help="Open the setup page with signed synthetic RPC",
+    )
+    parser.add_argument("--screenshot", type=Path, help="Save the access preview as a PNG")
     parser.add_argument("--plugin-page", type=Path, help="Optional original/patched renderer file override")
     parser.add_argument(
         "--check-cache-upgrade",
@@ -823,19 +1149,29 @@ def main() -> int:
     parser.add_argument("--timeout", type=float, default=3.0)
     parser.add_argument("--webdriver-url", help="Existing loopback geckodriver; otherwise launch a fresh one")
     parser.add_argument("--geckodriver", default=shutil.which("geckodriver") or "/snap/bin/geckodriver")
+    parser.add_argument("--firefox", type=Path, help="Firefox executable for a fresh test session")
     args = parser.parse_args()
     launcher = args.launcher or args.assets / "setup-launch.html"
-    sandbox = sandbox_from_core(args.control_ui, args.sandbox_mode)
-    plugin_page = args.plugin_page or single_renderer(args.control_ui)
+    if args.setup_page_fixture and (
+        args.check_cache_upgrade or args.check_dompurify or args.plugin_page or args.check_setup_diagnostics
+        or args.expect != "opened"
+    ):
+        parser.error("--setup-page-fixture runs without launcher, core and cache checks")
+    if args.screenshot and not args.setup_page_fixture:
+        parser.error("--screenshot requires --setup-page-fixture")
     if args.check_cache_upgrade and (args.plugin_page or args.expect != "opened"):
         parser.error("--check-cache-upgrade requires --expect opened and an unmodified renderer filename")
     if args.check_setup_diagnostics and args.expect != "opened":
         parser.error("--check-setup-diagnostics requires --expect opened")
-    initial_ui = args.check_cache_upgrade or args.control_ui
-    current = {
-        "control_ui": initial_ui,
-        "plugin_page": single_renderer(initial_ui) if args.check_cache_upgrade else plugin_page,
-    }
+    current = None
+    if not args.setup_page_fixture:
+        sandbox = sandbox_from_core(args.control_ui, args.sandbox_mode)
+        plugin_page = args.plugin_page or single_renderer(args.control_ui)
+        initial_ui = args.check_cache_upgrade or args.control_ui
+        current = {
+            "control_ui": initial_ui,
+            "plugin_page": single_renderer(initial_ui) if args.check_cache_upgrade else plugin_page,
+        }
     (ROOT / "build").mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="setup-launch-browser-", dir=ROOT / "build") as folder:
         temporary = Path(folder)
@@ -884,6 +1220,9 @@ def main() -> int:
                         if time.monotonic() >= deadline or process and process.poll() is not None:
                             raise RuntimeError("geckodriver did not become ready") from None
                         time.sleep(0.1)
+                firefox_options: dict[str, object] = {"args": ["-headless"]}
+                if args.firefox:
+                    firefox_options["binary"] = str(args.firefox)
                 created = driver.request(
                     "POST",
                     "/session",
@@ -891,13 +1230,24 @@ def main() -> int:
                         "capabilities": {
                             "alwaysMatch": {
                                 "browserName": "firefox",
-                                "moz:firefoxOptions": {"args": ["-headless"]},
+                                "moz:firefoxOptions": firefox_options,
                             }
                         }
                     },
                 )
                 driver.session = created["sessionId"]
                 origin = f"http://127.0.0.1:{server.server_port}"
+                if args.setup_page_fixture:
+                    setup_url = origin + BASE + "/setup"
+                    driver.call("POST", "/url", {"url": setup_url})
+                    result = {
+                        "mode": "direct-setup-page-fixture",
+                        "browser_version": created["capabilities"].get("browserVersion"),
+                        "setup_diagnostics": check_setup_diagnostics(driver),
+                        "access_settings": check_access_settings(driver, setup_url, args.screenshot),
+                    }
+                    print(json.dumps(result, indent=2))
+                    return 0
                 if args.check_cache_upgrade:
                     cache_result = check_cache_upgrade(
                         driver, origin, current, args.control_ui, dompurify=args.check_dompurify
@@ -924,6 +1274,9 @@ def main() -> int:
                 "fixture_requests": server.RequestHandlerClass.requests,
                 "cache_upgrade": cache_result,
             }
+            if process and (not driver or not driver.session):
+                driver_log = (temporary / "geckodriver.log").read_text(errors="replace")
+                diagnostics["webdriver_startup"] = driver_log[-4000:]
             if driver and driver.session:
                 with contextlib.suppress(OSError, RuntimeError):
                     diagnostics["browser"] = driver.evaluate("""

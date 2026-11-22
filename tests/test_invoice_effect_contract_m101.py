@@ -211,21 +211,6 @@ class InvoiceEffectContractM101Tests(unittest.TestCase):
         self.assertEqual(self._invoice_row(), before)
 
     def test_export_preview_renders_without_opening_nextcloud_or_changing_sqlite(self) -> None:
-        events: list[tuple[str, object]] = []
-
-        class PreviewBridge:
-            def __init__(inner_self, *, dry_run: bool = False, **_: object) -> None:
-                events.append(("bridge-dry-run", dry_run))
-
-            def sync_invoice_register(inner_self, **kwargs: object) -> OperationResult:
-                events.append(("preview", kwargs["remote_path"]))
-                return OperationResult(
-                    True,
-                    "would-sync-invoice-register",
-                    "synthetic preview",
-                    path=str(kwargs["remote_path"]),
-                )
-
         before = self._invoice_row()
         args = argparse.Namespace(
             invoices_command="export",
@@ -235,12 +220,9 @@ class InvoiceEffectContractM101Tests(unittest.TestCase):
             dry_run=True,
             yes=False,
         )
-        with patch("mail_agent.cli.PersonalAssistantActionBridge", PreviewBridge), redirect_stdout(
-            StringIO()
-        ):
+        with patch("mail_agent.cli.PersonalAssistantActionBridge") as bridge, redirect_stdout(StringIO()):
             self.assertEqual(_handle_invoices(args, self.config), 0)
-        self.assertEqual(events[0], ("bridge-dry-run", True))
-        self.assertEqual(events[1][0], "preview")
+        bridge.assert_not_called()
         self.assertEqual(self._invoice_row(), before)
 
     def test_backfill_preview_reads_but_writes_neither_sqlite_nor_register(self) -> None:

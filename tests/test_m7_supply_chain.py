@@ -10,6 +10,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from test_nextcloud_setup_container import _initialize_policy_fixture
+
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts/m7_supply_chain.py"
 DEPLOY_VERIFY = ROOT / "docker/scripts/verify-image-supply-chain.sh"
@@ -22,6 +24,26 @@ def load_module():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def copy_supply_chain_fixture(root: Path) -> None:
+    paths = (
+        ".dockerignore",
+        ".github/workflows/ci.yml",
+        ".github/workflows/container.yml",
+        "Dockerfile",
+        "docker/supply-chain.lock.json",
+        "docker/scripts/verify-image-supply-chain.sh",
+        "docker/openclaw-plugins/contract.json",
+        "docker/openclaw-plugins/package.json",
+        "docker/openclaw-plugins/package-lock.json",
+        "docker/openclaw-security-overrides/package.json",
+        "docker/openclaw-security-overrides/package-lock.json",
+    )
+    for name in paths:
+        target = root / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(ROOT / name, target)
 
 
 class M7SupplyChainTests(unittest.TestCase):
@@ -37,6 +59,38 @@ class M7SupplyChainTests(unittest.TestCase):
         self.assertEqual(report["runtime_security_overrides"], 2)
         self.assertEqual(report["immutable_openclaw_plugins"], 3)
         self.assertGreaterEqual(report["github_actions"], 8)
+
+    def test_workflow_guard_covers_yaml_files_and_rejects_action_flow_maps(self) -> None:
+        commit = "a" * 40
+        for suffix in ("yaml", "flow-map"):
+            with self.subTest(suffix=suffix), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                copy_supply_chain_fixture(root)
+                ci = root / ".github/workflows/ci.yml"
+                if suffix == "yaml":
+                    ci = ci.rename(ci.with_suffix(".yaml"))
+                    prefix = f"      - uses: outside/action@{commit}\n"
+                    expected = r"unlocked GitHub Action: outside/action.*ci\.yaml"
+                else:
+                    prefix = f"      - {{uses: outside/action@{commit}}}\n"
+                    expected = r"ci\.yml:.*unsupported.*uses"
+                text = ci.read_text(encoding="utf-8").replace("    steps:\n", f"    steps:\n{prefix}", 1)
+                ci.write_text(text, encoding="utf-8")
+                with self.assertRaisesRegex(self.module.ContractError, expected):
+                    self.module.verify_lock(root)
+
+    def test_container_permission_profile_uses_the_exact_workflow_filename(self) -> None:
+        for operation in ("rename", "copy"):
+            with self.subTest(operation=operation), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                copy_supply_chain_fixture(root)
+                workflow = root / ".github/workflows/container.yml"
+                if operation == "rename":
+                    workflow.rename(workflow.with_suffix(".yaml"))
+                else:
+                    shutil.copyfile(workflow, workflow.with_suffix(".yaml"))
+                with self.assertRaisesRegex(self.module.ContractError, r"container\.yaml: job permissions"):
+                    self.module.verify_lock(root)
 
     def test_external_runtime_plugins_are_exactly_locked(self) -> None:
         lock = self.module.load_lock()["immutable_openclaw_plugins"]
@@ -479,6 +533,7 @@ class M7SupplyChainTests(unittest.TestCase):
 
     def test_requested_deployment_revision_survives_persisted_defaults(self) -> None:
         persisted = "b" * 40
+        candidate = "fixture.invalid/candidate@sha256:" + "a" * 64
         for requested in (None, "c" * 40, "", "invalid"):
             with self.subTest(requested=requested), tempfile.TemporaryDirectory() as temporary:
                 base = Path(temporary)
@@ -497,8 +552,21 @@ class M7SupplyChainTests(unittest.TestCase):
                 maintenance.chmod(0o755)
                 binary = base / "bin"
                 binary.mkdir()
+                installed = base / "openclaw"
+                (installed / "state").mkdir(parents=True)
+                (installed / "secrets").mkdir()
+                _initialize_policy_fixture(installed)
+                feature = '{{index .Config.Labels "org.opencontainers.image.openclaw.nextcloud-access"}}'
                 for name, body in {
-                    "docker": 'printf "%s\\n" "$*" >> "$DOCKER_PROBE"\nexit 0\n',
+                    "docker": (
+                        'printf "%s\\n" "$*" >> "$DOCKER_PROBE"\n'
+                        'case "$*" in\n'
+                        '  info) exit 0 ;;\n'
+                        f"  'image inspect --format {feature} {candidate}') echo 1 ;;\n"
+                        "  'container ls --all --filter name=^/openclaw-talk-proxy$ "
+                        "--format {{.State}}') exit 0 ;;\n"
+                        "  *) exit 1 ;;\nesac\n"
+                    ),
                     "systemctl": "exit 1\n",
                 }.items():
                     stub = binary / name
@@ -513,18 +581,18 @@ class M7SupplyChainTests(unittest.TestCase):
                     f"OPENCLAW_EXPECTED_SOURCE_REVISION={persisted}\n",
                     encoding="utf-8",
                 )
-                environment = os.environ.copy()
-                environment.pop("OPENCLAW_EXPECTED_SOURCE_REVISION", None)
-                environment.update({
-                    "PATH": f"{binary}:{environment['PATH']}",
+                environment = {
+                    "PATH": f"{binary}:{os.defpath}",
+                    "HOME": str(base),
+                    "OPENCLAW_ROOT": str(installed),
                     "OPENCLAW_DEPLOY_ENV": str(environment_file),
                     "REVISION_PROBE": str(base / "revision"),
                     "DOCKER_PROBE": str(base / "docker-calls"),
-                })
+                }
                 if requested is not None:
                     environment["OPENCLAW_EXPECTED_SOURCE_REVISION"] = requested
                 result = subprocess.run(
-                    [str(scripts / "deploy.sh"), *["fixture.invalid/candidate@sha256:" + "a" * 64] * 3],
+                    [str(scripts / "deploy.sh"), candidate, candidate, candidate],
                     env=environment, capture_output=True, text=True, check=False,
                 )
                 if requested in ("", "invalid"):

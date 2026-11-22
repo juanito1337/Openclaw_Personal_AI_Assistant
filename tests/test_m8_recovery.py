@@ -3,12 +3,67 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import runpy
 import shutil
 import subprocess
+import sys
 import tarfile
 from pathlib import Path
 
+from test_nextcloud_setup_container import _initialize_policy_fixture
+
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_standalone_drill_restores_historical_layouts_without_host_docker(tmp_path: Path) -> None:
+    sentinel = tmp_path / "host-docker-used"
+    docker = tmp_path / "docker"
+    docker.write_text(f"#!/bin/sh\ntouch '{sentinel}'\nexit 77\n", encoding="utf-8")
+    docker.chmod(0o755)
+    output = tmp_path / "report.json"
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "scripts/m8-recovery-drill.py"), "--output", str(output)],
+        env={
+            "PATH": f"{tmp_path}:{os.defpath}",
+            "HOME": str(tmp_path),
+            "TMPDIR": str(tmp_path),
+            "OPENCLAW_DEPLOY_ENV": str(tmp_path / "unused"),
+        },
+        text=True,
+        capture_output=True,
+    )
+    assert not sentinel.exists(), "drill called Docker from the host PATH"
+    assert result.returncode == 0, result.stderr
+    reports = json.loads(output.read_text())["results"]
+    assert [row["source_version"] for row in reports] == ["3.4.0-r26.1", "3.4.0-r27.2.5", "3.4.0-r27.2.5"]
+    assert [row["restored_layout"] for row in reports] == [1, 3, 3]
+    assert all(
+        row["verified_exact_tree"] and row["archive_roots"] == ["config", "secrets", "state"]
+        for row in reports
+    )
+    assert reports[-1]["invalid_migration_gate"] == {
+        "exit_code": 1,
+        "failed_closed": True,
+        "state_unchanged": True,
+    }
+
+
+def test_standalone_drill_rejects_tampered_previous_release(tmp_path: Path) -> None:
+    drill = runpy.run_path(str(ROOT / "scripts/m8-recovery-drill.py"))
+    openclaw = tmp_path / "openclaw"
+    version = "3.4.0-r26.1"
+    drill["_fixture"](openclaw, version)
+    environment = drill["_environment"](openclaw, version)
+    document = Path(environment["OPENCLAW_LEGACY_HOME"]) / "workspace/README.md"
+    document.write_text(version + "\nchanged after manifest creation\n", encoding="utf-8")
+    result = subprocess.run(
+        [str(ROOT / "docker/scripts/backup.sh"), "tampered-identity"],
+        env=environment,
+        text=True,
+        capture_output=True,
+    )
+    assert result.returncode != 0 and "policy-integrity-error" in result.stderr
+    assert not list((openclaw / "backups/releases").rglob("payload.tar.gz"))
 
 
 def _backup(root: Path, *, external_reference: str = "") -> Path:
@@ -214,6 +269,9 @@ def test_rollback_normalizes_runtime_owned_paths_before_restore(tmp_path: Path) 
 
 
 def _stub(path: Path, body: str) -> None:
+    if path.name == "docker":
+        label_check = 'case "$*" in *openclaw.nextcloud-access*) echo 1; exit 0 ;; esac'
+        body = label_check + "\n" + body
     path.write_text("#!/bin/sh\nset -eu\n" + body, encoding="utf-8")
     path.chmod(0o755)
 
@@ -259,6 +317,7 @@ def test_maintenance_preflight_failure_keeps_running_stack_untouched(tmp_path: P
     openclaw = tmp_path / "openclaw"
     for name in ("state", "config", "secrets", "backups/releases"):
         (openclaw / name).mkdir(parents=True, exist_ok=True)
+    _initialize_policy_fixture(openclaw, scripts)
     environment = os.environ.copy()
     environment.update(
         {
@@ -340,6 +399,7 @@ def test_deploy_rejects_legacy_marker_with_running_docker_writer(tmp_path: Path)
     openclaw = tmp_path / "openclaw"
     for name in ("state", "config", "secrets", "backups/releases"):
         (openclaw / name).mkdir(parents=True, exist_ok=True)
+    _initialize_policy_fixture(openclaw, scripts)
     environment = os.environ.copy()
     environment.update(
         {
@@ -481,6 +541,7 @@ def test_legacy_deploy_disables_enabled_writer_timer_and_restores_it_on_backup_f
     _stub(legacy_home / "workspace/scripts/assistant.sh", "exit 0\n")
     _stub(legacy_home / "workspace/scripts/mail-agent.sh", "exit 0\n")
 
+    _initialize_policy_fixture(openclaw, scripts)
     environment = os.environ.copy()
     environment.update(
         {
@@ -587,6 +648,7 @@ def test_failed_product_smoke_runs_automatic_rollback_and_surfaces_rollback_fail
     openclaw = tmp_path / "openclaw"
     for name in ("state", "config", "secrets", "backups/releases"):
         (openclaw / name).mkdir(parents=True, exist_ok=True)
+    _initialize_policy_fixture(openclaw, scripts)
     environment = os.environ.copy()
     environment.update(
         {
@@ -682,6 +744,7 @@ def test_deploy_activates_relevant_folder_only_after_backup_and_before_smoke(
     openclaw = tmp_path / "openclaw"
     for name in ("state", "config", "secrets", "backups/releases"):
         (openclaw / name).mkdir(parents=True, exist_ok=True)
+    _initialize_policy_fixture(openclaw, scripts)
     environment = os.environ.copy()
     environment.update(
         {

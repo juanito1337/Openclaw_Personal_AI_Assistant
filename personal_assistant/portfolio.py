@@ -14,6 +14,7 @@ import urllib.parse
 import urllib.request
 import uuid
 from collections.abc import Callable, Mapping
+from contextlib import nullcontext
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from datetime import time as clock_time
@@ -764,6 +765,7 @@ class PortfolioService:
         dry_run: bool,
         source_name: str = "",
         expected_as_of: str = "",
+        admission=nullcontext,
     ) -> dict[str, Any]:
         self._require_enabled()
         path = self._input_path(value)
@@ -798,6 +800,10 @@ class PortfolioService:
             "positions": len(parsed["positions"]),
             "antivirus": scan.to_dict(),
         }
+        with admission():
+            return self._publish_import(parsed, result, digest, dry_run)
+
+    def _publish_import(self, parsed, result, digest, dry_run):
         if dry_run:
             result["preview"] = {
                 "instruments": parsed["instruments"][:20],
@@ -890,7 +896,7 @@ class PortfolioService:
                 (
                     digest,
                     parsed["source_type"],
-                    display_name,
+                    result["source"],
                     now,
                     parsed["as_of"],
                     len(parsed["instruments"]),
@@ -937,6 +943,7 @@ class PortfolioService:
         dry_run: bool = True,
         source_name: str = "",
         expected_as_of: str = "",
+        admission=nullcontext,
     ) -> dict[str, Any]:
         return self._import_snapshot(
             value,
@@ -944,6 +951,7 @@ class PortfolioService:
             dry_run=dry_run,
             source_name=source_name,
             expected_as_of=expected_as_of,
+            admission=admission,
         )
 
     def holdings(self) -> dict[str, Any]:

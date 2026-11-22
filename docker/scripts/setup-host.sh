@@ -46,6 +46,10 @@ sudo cp "$SOURCE_ROOT/personal_assistant/immutable_plugins.py" \
   "$DEPLOYMENT/scripts/immutable_plugins.py"
 sudo cp "$SOURCE_ROOT/personal_assistant/ollama_priority_config.py" \
   "$DEPLOYMENT/scripts/ollama_priority_config.py"
+sudo install -d -m 700 "$DEPLOYMENT/scripts/personal_assistant"
+sudo install -m 600 "$SOURCE_ROOT/personal_assistant/"{__init__,models,nextcloud_access,nextcloud_connection}.py \
+  "$DEPLOYMENT/scripts/personal_assistant/"
+
 sudo cp "$SOURCE_ROOT/docker/hooks/"*.sh "$DEPLOYMENT/hooks/"
 if [[ ! -f "$DEPLOYMENT/.env" ]]; then
   sudo cp "$DEPLOYMENT/.env.example" "$DEPLOYMENT/.env"
