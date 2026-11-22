@@ -213,6 +213,8 @@ verification_args=(
   --tmpfs "/tmp:rw,nosuid,nodev,noexec,mode=1777"
   --network none
   -e OPENCLAW_LAYOUT_MODE=verify
+  -e OPENCLAW_NEXTCLOUD_CONNECTION_DIR=/run/openclaw-nextcloud
+  -v "$state/nextcloud-fixture:/run/openclaw-nextcloud:ro"
   -v "$state/v3/gateway:/home/node/.openclaw"
   -v "$state/v3/instance:/home/node/.openclaw/workspace:ro"
   -v "$state/v3/domains/mail:/var/lib/openclaw/mail"
@@ -227,6 +229,13 @@ verification_args=(
   -v "$config:/etc/openclaw-agent:ro"
   -v "$secrets:/run/openclaw-secrets:ro"
 )
+
+# The installer creates this required state before role startup. Reproduce that
+# boundary with an explicit disconnected store, never an unmanaged fallback.
+docker run --rm --network none --read-only --entrypoint python3 \
+  -v "$state:/fixture-state" \
+  -v "$ROOT/tests/fixtures/container/init-nextcloud-access.py:/fixture/init-nextcloud-access.py:ro" \
+  "$IMAGE" -P /fixture/init-nextcloud-access.py /fixture-state /fixture-state/nextcloud-fixture
 
 if ! status_json=$(docker run --rm "${verification_args[@]}" "$IMAGE" \
   /opt/openclaw-agent/scripts/assistant.sh status 2>"$fixture/status.stderr"); then
@@ -266,6 +275,8 @@ role_args=(
   --tmpfs "/tmp:rw,nosuid,nodev,noexec,mode=1777"
   --network none
   -e OPENCLAW_LAYOUT_MODE=verify
+  -e OPENCLAW_NEXTCLOUD_CONNECTION_DIR=/run/openclaw-nextcloud
+  -v "$state/nextcloud-fixture:/run/openclaw-nextcloud:ro"
   -v "$state/v3/instance:/home/node/.openclaw/workspace:ro"
   -v "$config:/etc/openclaw-agent:ro"
   -v "$secrets:/run/openclaw-secrets:ro"

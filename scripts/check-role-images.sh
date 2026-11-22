@@ -113,9 +113,10 @@ done
   docker run --rm --network none \
     --mount "type=volume,src=$gateway_volume,dst=/home/node/.openclaw" \
     --mount "type=bind,src=$root/tests/fixtures/container/init-legacy-plugin-index.py,dst=/fixture/init.py,readonly" \
+    --mount "type=bind,src=$root/tests/fixtures/container/init-nextcloud-access.py,dst=/fixture/init-nextcloud-access.py,readonly" \
     --mount "type=bind,src=$plugin_config,dst=/fixture/openclaw.json,readonly" \
-    --entrypoint python3 \
-    "$runtime" /fixture/init.py
+    --entrypoint /bin/sh \
+    "$runtime" -c 'python3 /fixture/init.py && python3 -P /fixture/init-nextcloud-access.py /home/node/.openclaw/state /home/node/.openclaw/nextcloud-fixture'
   docker run -d \
     --name "$gateway_container" \
     --network none \
@@ -128,7 +129,7 @@ done
     --env OPENCLAW_LAYOUT_MODE=verify \
     --env OPENCLAW_EVENT_QUEUE_DIR=/var/lib/openclaw/gateway-events \
     --env OPENCLAW_SETUP_SOCKET=/run/openclaw-setup/control.sock \
-    --env OPENCLAW_NEXTCLOUD_CONNECTION_DIR=/tmp/nextcloud-fixture \
+    --env OPENCLAW_NEXTCLOUD_CONNECTION_DIR=/home/node/.openclaw/nextcloud-fixture \
     --env OPENCLAW_CORE_DATA_DIR=/var/lib/openclaw/core \
     --mount "type=volume,src=$gateway_volume,dst=/home/node/.openclaw" \
     --mount "type=bind,src=$root/tests/fixtures/container/layout-v3.json,dst=/home/node/.openclaw/workspace/.layout-version.json,readonly" \
@@ -164,6 +165,10 @@ import subprocess
 import urllib.request
 
 from personal_assistant.container_entrypoint import load_mounted_role_environment
+from personal_assistant.nextcloud_connection import load_access_snapshot
+
+access = load_access_snapshot()
+assert access.mode == "unconfigured" and access.connection is None
 
 environment = dict(os.environ)
 load_mounted_role_environment("gateway", environment)
@@ -202,7 +207,7 @@ assert account.get("accountId") == "default"
 assert account.get("configured") is False, "Synthetisches Konto darf nicht konfiguriert erscheinen"
 assert account.get("connected") is False, "Synthetisches Konto darf nicht verbunden erscheinen"
 assert account.get("running") is True, "Kontokanal muss ohne Konto im Bereitschaftszustand starten"
-assert not account.get("lastError"), "Kontokanal meldet einen Startfehler"
+assert not account.get("lastError"), "Kontokanal meldet einen Startfehler: " + str(account.get("lastError"))
 '
   docker exec "$gateway_container" \
     python3 -P -m personal_assistant.gateway_events enqueue \

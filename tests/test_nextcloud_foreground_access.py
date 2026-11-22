@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 from test_nextcloud_access import grant, managed, measured, scope, update_policy
+from test_nextcloud_onboarding import ROOT, FakeConnection, FakeNetwork, error_code, multistatus
 
 from personal_assistant import nextcloud_connection as nc
 from personal_assistant.config import AssistantConfig
@@ -198,8 +199,6 @@ def test_contact_create_allowed_and_update_rejected_before_traffic(account):
 
 
 def test_active_redirect_stops_before_followup():
-    from test_nextcloud_onboarding import ROOT, FakeNetwork, error_code
-
     fixture = FakeNetwork()
     fixture.add("REPORT", ROOT, status=307, headers={"location": ROOT + "other"})
     with error_code("redirect-blocked"):
@@ -643,8 +642,6 @@ def test_calendar_metadata_requests_only_component_and_uid(account, component):
 @pytest.mark.parametrize("component", ["VEVENT", "VTODO"])
 def test_single_caldav_object_uses_bounded_report_on_pinned_transport(tmp_path, monkeypatch, component):
     from xml.etree import ElementTree as ET
-
-    from test_nextcloud_onboarding import FakeConnection, FakeNetwork, multistatus
 
     from personal_assistant.connectors.nextcloud.xmlutil import CALDAV, DAV, q
     from personal_assistant.nextcloud_onboarding import SafeNextcloudTransport

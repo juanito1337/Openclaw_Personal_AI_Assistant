@@ -15,13 +15,17 @@ command -v docker >/dev/null 2>&1 || {
 docker image inspect "$image" >/dev/null
 
 fake_assistant="$root/tests/fixtures/m15/fake-assistant.sh"
+# This fixed CLI fixture models an already selected legacy calendar. It needs
+# the installer's managed legacy binding, not a disconnected-account write.
 docker run --rm --interactive --network none --read-only \
   --cap-drop ALL \
   --security-opt no-new-privileges:true \
   --tmpfs /tmp:rw,nosuid,nodev,noexec,size=32m,mode=1777 \
   --mount "type=bind,src=$fake_assistant,dst=/opt/openclaw-agent/scripts/assistant.sh,readonly" \
-  --entrypoint node \
-  "$image" --input-type=module - <<'JS'
+  --mount "type=bind,src=$root/tests/fixtures/container/init-nextcloud-access.py,dst=/fixture/init-nextcloud-access.py,readonly" \
+  --env OPENCLAW_NEXTCLOUD_CONNECTION_DIR=/tmp/nextcloud-connection \
+  --entrypoint /bin/sh \
+  "$image" -c 'python3 -P /fixture/init-nextcloud-access.py /tmp/nextcloud-state "$OPENCLAW_NEXTCLOUD_CONNECTION_DIR" verified-pre-policy && exec node "$@"' fixture --input-type=module - <<'JS'
 import plugin, {testing} from "/opt/openclaw-plugins/personal-assistant-tools/index.js";
 import {spawnJson, shouldBlockGenericTool} from "/opt/openclaw-plugins/personal-assistant-tools/runtime.js";
 
@@ -29,6 +33,7 @@ const factories = [];
 const hooks = new Map();
 plugin.register({
   registerTool(factory, options) { factories.push({factory, options}); },
+  registerChannel() {}, // Channel registration is passive; this fixture runs tools only.
   on(name, handler) { hooks.set(name, handler); },
   logger: {warn() {}, info() {}, debug() {}},
 });

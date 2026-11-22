@@ -2,7 +2,7 @@
   "schema_version": 1,
   "inventory_date": "2026-08-06",
   "source_scope": "all Python modules, shell entrypoints, skills, systemd units, migrations and Markdown documents",
-  "component_count": 616,
+  "component_count": 617,
   "classification_values": [
     "active",
     "compatibility",
@@ -520,7 +520,7 @@
         "docs/architecture/legacy-decisions.json"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -643,7 +643,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -683,7 +683,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-22T13:42:40+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -783,7 +783,7 @@
       ],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -862,7 +862,7 @@
         "docs/RELEASE_3_4_0_R28.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -891,7 +891,7 @@
         "docs/architecture/adr/0012-m8-recovery-und-agentenvertrag.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -914,7 +914,7 @@
         "docs/architecture/legacy-decisions.json"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -972,7 +972,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1491,7 +1491,7 @@
         "docs/architecture/adr/0009-typisierte-domaenen-toolvertraege.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-11-21T02:25:53+01:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -2311,7 +2311,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-foundation.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -2331,7 +2331,7 @@
         "docs/NEXTCLOUD_ACCESS_ROADMAP.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -2357,7 +2357,7 @@
         "docs/architecture/upstream-sources.json"
       ],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -2389,7 +2389,7 @@
         "skills/personal-assistant/references/runtime-security.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-11-15T19:08:38+01:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -2681,7 +2681,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-foundation.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -2822,7 +2822,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-foundation.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -2975,7 +2975,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-foundation.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -4611,7 +4611,7 @@
         "docs/NEXTCLOUD_FOUNDATION_VALIDATION.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -4632,7 +4632,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -5142,7 +5142,7 @@
         "docs/architecture/m16.6-risk-coverage.json"
       ],
       "line_coverage_percent": 66.25,
-      "last_git_change": "2026-08-06T15:45:31+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -5192,7 +5192,7 @@
         "docs/archive/AUDIT_INITIAL_IMPORT.md"
       ],
       "line_coverage_percent": 57.9,
-      "last_git_change": "2026-09-24T21:21:04+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -5272,7 +5272,7 @@
         "docs/archive/AUDIT_INITIAL_IMPORT.md"
       ],
       "line_coverage_percent": 43.04,
-      "last_git_change": "2026-11-21T02:25:53+01:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -5647,7 +5647,7 @@
         "docs/INVOICE_QUALITY_BASELINE_M10.md"
       ],
       "line_coverage_percent": 77.11,
-      "last_git_change": "2026-09-21T00:38:12+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -5670,7 +5670,7 @@
         "docs/INVOICE_QUALITY_BASELINE_M10.md"
       ],
       "line_coverage_percent": 76.73,
-      "last_git_change": "2026-08-16T22:54:00+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -5873,7 +5873,7 @@
         "docs/architecture/legacy-decisions.json"
       ],
       "line_coverage_percent": 73.91,
-      "last_git_change": "2026-09-20T23:06:00+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -6421,7 +6421,7 @@
         "docs/archive/pre-container/ASSISTANT_ARCHITECTURE.md"
       ],
       "line_coverage_percent": 55.67,
-      "last_git_change": "2026-09-14T15:07:40+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -6473,7 +6473,7 @@
         "docs/architecture/m16-baseline.json"
       ],
       "line_coverage_percent": 68.0,
-      "last_git_change": "2026-10-07T21:25:53+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -6504,7 +6504,7 @@
       ],
       "documentation_evidence": [],
       "line_coverage_percent": 83.38,
-      "last_git_change": "2026-11-21T02:25:53+01:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -6587,7 +6587,7 @@
       ],
       "documentation_evidence": [],
       "line_coverage_percent": 64.04,
-      "last_git_change": "2026-09-14T15:07:40+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -6762,7 +6762,7 @@
         "docs/archive/AUDIT_INITIAL_IMPORT.md"
       ],
       "line_coverage_percent": 46.86,
-      "last_git_change": "2026-10-11T12:41:27+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -6834,7 +6834,7 @@
         "docs/NEXTCLOUD_REUSE_COMPARISON.md"
       ],
       "line_coverage_percent": 6.19,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -6859,7 +6859,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": 19.88,
-      "last_git_change": "2026-09-20T23:06:00+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -6884,7 +6884,7 @@
       ],
       "documentation_evidence": [],
       "line_coverage_percent": 39.05,
-      "last_git_change": "2026-08-23T01:47:44+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -6912,7 +6912,7 @@
         "docs/architecture/m16-baseline.json"
       ],
       "line_coverage_percent": 49.32,
-      "last_git_change": "2026-10-07T21:25:53+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -7147,7 +7147,7 @@
         "docs/architecture/legacy-decisions.json"
       ],
       "line_coverage_percent": 100.0,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -7285,7 +7285,7 @@
         "docs/DOCKER_DEPLOYMENT.md"
       ],
       "line_coverage_percent": 74.07,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -7363,7 +7363,7 @@
         "docs/archive/AUDIT_INITIAL_IMPORT.md"
       ],
       "line_coverage_percent": 71.17,
-      "last_git_change": "2026-09-20T22:42:25+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -7403,7 +7403,7 @@
         "docs/architecture/m16.6-risk-coverage.json"
       ],
       "line_coverage_percent": 80.0,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -7434,7 +7434,7 @@
         "docs/NEXTCLOUD_REUSE_COMPARISON.md"
       ],
       "line_coverage_percent": 80.08,
-      "last_git_change": "2026-09-20T22:42:25+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -7490,7 +7490,7 @@
       ],
       "documentation_evidence": [],
       "line_coverage_percent": 92.27,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -7525,7 +7525,7 @@
         "docs/architecture/legacy-decisions.json"
       ],
       "line_coverage_percent": 78.66,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -7555,7 +7555,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-foundation.md"
       ],
       "line_coverage_percent": 56.74,
-      "last_git_change": "2026-08-06T15:45:31+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -7636,7 +7636,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": 63.99,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -7984,7 +7984,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-foundation.md"
       ],
       "line_coverage_percent": 85.93,
-      "last_git_change": "2026-08-06T15:45:31+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -8419,7 +8419,7 @@
         "docs/architecture/DATA_CATALOG.md"
       ],
       "line_coverage_percent": 79.72,
-      "last_git_change": "2026-09-20T22:15:29+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -8451,7 +8451,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": 90.07,
-      "last_git_change": null,
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -8471,7 +8471,7 @@
       ],
       "documentation_evidence": [],
       "line_coverage_percent": 89.72,
-      "last_git_change": null,
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -8489,7 +8489,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": 83.51,
-      "last_git_change": null,
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -8512,9 +8512,11 @@
         "personal_assistant/cli_handlers/core.py",
         "personal_assistant/cli_handlers/mail.py",
         "personal_assistant/nextcloud_talk_account.py",
-        "personal_assistant/services/portfolio.py"
+        "personal_assistant/services/portfolio.py",
+        "scripts/check-role-images.sh"
       ],
       "test_evidence": [
+        "tests/fixtures/container/init-nextcloud-access.py",
         "tests/test_immutable_runtime.py",
         "tests/test_invoice_read_availability.py",
         "tests/test_nextcloud_adapter_access.py",
@@ -8529,7 +8531,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": 85.28,
-      "last_git_change": "2026-11-21T02:25:53+01:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -8551,7 +8553,7 @@
       ],
       "documentation_evidence": [],
       "line_coverage_percent": 97.13,
-      "last_git_change": null,
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -8573,7 +8575,7 @@
       ],
       "documentation_evidence": [],
       "line_coverage_percent": 89.85,
-      "last_git_change": null,
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -8598,7 +8600,7 @@
       ],
       "documentation_evidence": [],
       "line_coverage_percent": 36.67,
-      "last_git_change": null,
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -8616,7 +8618,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": 80.56,
-      "last_git_change": null,
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -8646,7 +8648,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": 89.2,
-      "last_git_change": "2026-11-15T19:08:38+01:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -8676,7 +8678,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": 82.98,
-      "last_git_change": "2026-10-25T23:26:42+01:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -8694,7 +8696,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": 91.42,
-      "last_git_change": null,
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -8712,7 +8714,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": 94.19,
-      "last_git_change": null,
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -8912,7 +8914,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": 85.53,
-      "last_git_change": "2026-08-06T15:45:31+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -8953,7 +8955,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": 73.35,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -9146,7 +9148,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-foundation.md"
       ],
       "line_coverage_percent": 89.61,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -9202,7 +9204,7 @@
         "docs/architecture/README.md"
       ],
       "line_coverage_percent": 85.43,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -9349,7 +9351,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": 63.36,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -9413,7 +9415,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": 86.13,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -9465,7 +9467,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": 76.19,
-      "last_git_change": "2026-08-06T15:45:31+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -9504,7 +9506,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": 81.78,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -9695,7 +9697,7 @@
         "docs/archive/pre-container/ASSISTANT_ARCHITECTURE.md"
       ],
       "line_coverage_percent": 87.52,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -9831,7 +9833,7 @@
         "docs/NEXTCLOUD_REUSE_COMPARISON.md"
       ],
       "line_coverage_percent": 100.0,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -10084,7 +10086,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": 95.71,
-      "last_git_change": "2026-09-14T15:07:40+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -10160,7 +10162,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": 84.49,
-      "last_git_change": "2026-11-21T02:25:53+01:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -11166,7 +11168,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-25T23:26:42+01:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -11229,7 +11231,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-foundation.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-20T21:48:32+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -11475,7 +11477,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-foundation.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -11655,7 +11657,7 @@
         "docs/architecture/upstream-sources.json"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-24T17:20:39+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -11680,7 +11682,7 @@
         "docs/architecture/RECOVERY_AND_RELEASE.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-06T15:45:31+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -12082,7 +12084,7 @@
         "skills/personal-assistant/references/commands.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-25T23:26:42+01:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -12228,7 +12230,7 @@
         "skills/personal-assistant/references/runtime-security.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-11-21T02:25:53+01:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -12267,6 +12269,29 @@
       "documentation_evidence": [],
       "line_coverage_percent": null,
       "last_git_change": "2026-10-22T12:48:43+02:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "tests/fixtures/container/init-nextcloud-access.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "scripts/check-container-runtime.sh",
+        "scripts/check-m13-integration.sh",
+        "scripts/check-m15-integration.sh",
+        "scripts/check-role-images.sh"
+      ],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -12533,7 +12558,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-11-21T02:25:53+01:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -12577,7 +12602,7 @@
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-20T21:07:42+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -12794,7 +12819,7 @@
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-07-28T09:02:12+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -12919,7 +12944,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-foundation.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -12963,7 +12988,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-05T22:34:05+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -12983,7 +13008,7 @@
       ],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-22T12:59:09+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -13030,7 +13055,7 @@
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-14T15:07:40+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -13061,7 +13086,7 @@
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-22T23:19:22+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -13197,7 +13222,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-10T15:08:43+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -13306,7 +13331,7 @@
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-01T21:40:11+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -13350,7 +13375,7 @@
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-16T13:41:27+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -13484,7 +13509,7 @@
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-16T22:54:00+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -13509,7 +13534,7 @@
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-16T16:36:16+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -13692,7 +13717,7 @@
         "docs/architecture/upstream-sources.json"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-11-19T20:08:02+01:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -13712,7 +13737,7 @@
         "docs/TESTING.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-11-15T22:20:32+01:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -13732,7 +13757,7 @@
         "docs/TESTING.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -14310,7 +14335,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -14328,7 +14353,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -14346,7 +14371,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -14404,7 +14429,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -14422,7 +14447,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -14440,7 +14465,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -14458,7 +14483,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -14478,7 +14503,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-11-15T19:08:38+01:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -14518,7 +14543,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-25T23:26:42+01:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -14538,7 +14563,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-22T12:59:09+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -14641,7 +14666,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-11-15T19:08:38+01:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -14669,7 +14694,7 @@
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-08-29T00:36:48+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -15343,7 +15368,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-22T12:59:09+02:00",
+      "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"

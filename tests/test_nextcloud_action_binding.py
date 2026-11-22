@@ -7,6 +7,7 @@ import pytest
 from test_nextcloud_access import measured, update_policy
 from test_nextcloud_foreground_access import account as managed_account
 from test_nextcloud_foreground_access import ics, missing_child, report
+from test_nextcloud_onboarding import multistatus, q
 
 from personal_assistant import cli
 from personal_assistant import nextcloud_connection as nc
@@ -398,8 +399,6 @@ while not (root/'release').exists() and time.monotonic()<deadline:
 ])
 def test_completed_task_requires_conclusive_exact_child_absence(account, actions, monkeypatch, observation):
     from xml.etree import ElementTree as ET
-
-    from test_nextcloud_onboarding import multistatus, q
 
     from personal_assistant.nextcloud_onboarding import CALDAV, DAV
 

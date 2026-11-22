@@ -112,18 +112,23 @@ assert "personal_assistant_mail_read" in replay_safe, manifest
 assert "personal_assistant_mail_write" not in replay_safe, manifest
 PY
 
+# The synthetic CLI models the existing legacy resource configuration. Bind its
+# native calls to the same verified pre-policy transition as an upgraded host.
 result=$(docker run --rm --network none --read-only \
   --cap-drop ALL \
   --security-opt no-new-privileges:true \
   --tmpfs /tmp:rw,nosuid,nodev,noexec,size=32m,mode=1777 \
   --mount "type=bind,src=$fake_assistant,dst=/opt/openclaw-agent/scripts/assistant.sh,readonly" \
-  --entrypoint node \
-  "$image" --input-type=module -e '
+  --mount "type=bind,src=$root/tests/fixtures/container/init-nextcloud-access.py,dst=/fixture/init-nextcloud-access.py,readonly" \
+  --env OPENCLAW_NEXTCLOUD_CONNECTION_DIR=/tmp/nextcloud-connection \
+  --entrypoint /bin/sh \
+  "$image" -c 'python3 -P /fixture/init-nextcloud-access.py /tmp/nextcloud-state "$OPENCLAW_NEXTCLOUD_CONNECTION_DIR" verified-pre-policy && exec node "$@"' fixture --input-type=module -e '
 import plugin from "/opt/openclaw-plugins/personal-assistant-tools/index.js";
 const factories = [];
 const hooks = new Map();
 plugin.register({
   registerTool(factory, options) { factories.push({factory, options}); },
+  registerChannel() {}, // Channel registration is passive; this fixture runs tools only.
   on(name, handler) { hooks.set(name, handler); },
   logger: {warn() {}, info() {}, debug() {}},
 });
