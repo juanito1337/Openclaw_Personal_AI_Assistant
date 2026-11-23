@@ -182,6 +182,15 @@ Kann die Jahres-CSV nicht aktualisiert werden, ist die Rechnungsverarbeitung nic
 
 ## Agentenbefehle
 
+`invoices status`, `invoices list`, `invoices review` und `invoices audit`
+bleiben auch nach der Anmeldung eines verwalteten Nextcloud-Kontos reine
+Lesewege. Eine fehlende Archivzuordnung wird getrennt ausgewiesen und sperrt
+nicht allein den Zugriff auf vorhandene lokale Rechnungsmetadaten. Fehlende
+oder inkompatible Datenbanken werden durch diese Abfragen weder angelegt noch
+migriert; der entsprechende Zustand bleibt sichtbar. Automatische Ablage,
+Export und sonstige Änderungen behalten ihre eigenen Voraussetzungen und
+Freigaben.
+
 ```bash
 ./scripts/assistant.sh invoices status
 ./scripts/assistant.sh invoices audit

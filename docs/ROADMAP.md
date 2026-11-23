@@ -1,5 +1,9 @@
 # Roadmap
 
+Der [aktuelle Entwicklungsstand](DEVELOPMENT_STATUS.md) fasst die konsolidierte
+Git-Basis, Novemberarbeiten, datierte Prüfungen und den zuletzt berichteten
+Betrieb zusammen. Für die nächste Entwicklungsaufgabe dort beginnen.
+
 Die naechsten Schritte fuer die Nextcloud-Einrichtung im bestehenden
 OpenClaw-Plugin, wiederverwendbare Projekte, dauerhafte Agentenrechte pro
 Ressource, kontrollierte Serverfreigaben und spaeteren Mehrbenutzerbetrieb stehen in

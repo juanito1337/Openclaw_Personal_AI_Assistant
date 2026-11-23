@@ -2,7 +2,7 @@
   "schema_version": 1,
   "inventory_date": "2026-08-06",
   "source_scope": "all Python modules, shell entrypoints, skills, systemd units, migrations and Markdown documents",
-  "component_count": 617,
+  "component_count": 619,
   "classification_values": [
     "active",
     "compatibility",
@@ -194,6 +194,7 @@
         "docs/ARCHITECTURE.md",
         "docs/ASSISTANT_ARCHITECTURE.md",
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
+        "docs/DEVELOPMENT_STATUS.md",
         "docs/DOCKER_DEPLOYMENT.md",
         "docs/NEXTCLOUD_REUSE_COMPARISON.md",
         "docs/RELEASE_3_4_0_R28.md",
@@ -1198,7 +1199,9 @@
       "productive_callers": [],
       "test_evidence": [],
       "documentation_evidence": [
-        "docs/AGENT_IMPROVEMENT_ROADMAP.md"
+        "README.md",
+        "docs/AGENT_IMPROVEMENT_ROADMAP.md",
+        "docs/DEVELOPMENT_STATUS.md"
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-10-22T12:48:43+02:00",
@@ -1219,6 +1222,7 @@
       "test_evidence": [],
       "documentation_evidence": [
         "CHANGELOG.md",
+        "README.md",
         "docs/AGENT_IMPROVEMENT_ACCEPTANCE_M18.md",
         "docs/AGENT_STABILIZATION_ROADMAP.md",
         "docs/ROADMAP.md"
@@ -1562,6 +1566,28 @@
       "rollback_relevance": "none"
     },
     {
+      "path": "docs/DEVELOPMENT_STATUS.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Documentation Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "README.md",
+        "docs/ROADMAP.md",
+        "docs/superpowers/plans/2026-11-23-development-consolidation.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
       "path": "docs/DIRECT_CALENDAR.md",
       "types": [
         "document"
@@ -1710,6 +1736,8 @@
       "test_evidence": [],
       "documentation_evidence": [
         "AGENTS.md",
+        "README.md",
+        "docs/DEVELOPMENT_STATUS.md",
         "docs/NEXTCLOUD_ACCESS_ROADMAP.md",
         "docs/NEXTCLOUD_SETUP_UI.md",
         "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
@@ -1765,6 +1793,7 @@
       "documentation_evidence": [
         "README.md",
         "docs/COMMAND_REFERENCE.md",
+        "docs/DEVELOPMENT_STATUS.md",
         "docs/INVOICE_M10_ROLLOUT.md",
         "docs/INVOICE_QUALITY_BASELINE_M10.md",
         "docs/archive/README_PRE_M1.md"
@@ -2303,6 +2332,8 @@
       "productive_callers": [],
       "test_evidence": [],
       "documentation_evidence": [
+        "README.md",
+        "docs/DEVELOPMENT_STATUS.md",
         "docs/NEXTCLOUD_FOUNDATION_VALIDATION.md",
         "docs/NEXTCLOUD_REUSE_COMPARISON.md",
         "docs/ROADMAP.md",
@@ -2328,6 +2359,8 @@
       "productive_callers": [],
       "test_evidence": [],
       "documentation_evidence": [
+        "README.md",
+        "docs/DEVELOPMENT_STATUS.md",
         "docs/NEXTCLOUD_ACCESS_ROADMAP.md"
       ],
       "line_coverage_percent": null,
@@ -2350,6 +2383,7 @@
       ],
       "test_evidence": [],
       "documentation_evidence": [
+        "docs/DEVELOPMENT_STATUS.md",
         "docs/NEXTCLOUD_ACCESS_ROADMAP.md",
         "docs/ROADMAP.md",
         "docs/architecture/EXTERNAL_COMPONENTS.md",
@@ -2374,9 +2408,11 @@
       "productive_callers": [],
       "test_evidence": [],
       "documentation_evidence": [
+        "README.md",
         "docs/AGENT_IMPROVEMENT_ROADMAP.md",
         "docs/CARDDAV_CONTACTS.md",
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
+        "docs/DEVELOPMENT_STATUS.md",
         "docs/DIRECT_CALENDAR.md",
         "docs/DIRECT_TASKS.md",
         "docs/MOBILE_NEXTCLOUD_TALK_ROADMAP.md",
@@ -2663,6 +2699,7 @@
         "docs/ANTIVIRUS.md",
         "docs/COMMAND_REFERENCE.md",
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
+        "docs/DEVELOPMENT_STATUS.md",
         "docs/DOCKER_DEPLOYMENT.md",
         "docs/INVOICE_QUALITY_REPROCESSING_ROADMAP.md",
         "docs/MAIL_ANTIVIRUS_INDEX_ROLLOUT_ROADMAP.md",
@@ -2813,6 +2850,8 @@
       ],
       "test_evidence": [],
       "documentation_evidence": [
+        "README.md",
+        "docs/DEVELOPMENT_STATUS.md",
         "docs/NEXTCLOUD_ACCESS_ROADMAP.md",
         "docs/NEXTCLOUD_FOUNDATION_VALIDATION.md",
         "docs/NEXTCLOUD_REUSE_COMPARISON.md",
@@ -2969,6 +3008,8 @@
       "productive_callers": [],
       "test_evidence": [],
       "documentation_evidence": [
+        "README.md",
+        "docs/DEVELOPMENT_STATUS.md",
         "docs/NEXTCLOUD_FOUNDATION_VALIDATION.md",
         "docs/STACK_UPDATE_ROADMAP.md",
         "docs/architecture/owners.json",
@@ -3043,6 +3084,7 @@
         "docs/ARCHITECTURE.md",
         "docs/ASSISTANT_ARCHITECTURE.md",
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
+        "docs/DEVELOPMENT_STATUS.md",
         "docs/DOCKER_DEPLOYMENT.md",
         "docs/NEXTCLOUD_REUSE_COMPARISON.md",
         "docs/RELEASE_3_4_0_R28.md",
@@ -4274,6 +4316,7 @@
         "docs/ARCHITECTURE.md",
         "docs/ASSISTANT_ARCHITECTURE.md",
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
+        "docs/DEVELOPMENT_STATUS.md",
         "docs/DOCKER_DEPLOYMENT.md",
         "docs/NEXTCLOUD_REUSE_COMPARISON.md",
         "docs/RELEASE_3_4_0_R28.md",
@@ -4382,6 +4425,7 @@
         "docs/ARCHITECTURE.md",
         "docs/ASSISTANT_ARCHITECTURE.md",
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
+        "docs/DEVELOPMENT_STATUS.md",
         "docs/DOCKER_DEPLOYMENT.md",
         "docs/NEXTCLOUD_REUSE_COMPARISON.md",
         "docs/RELEASE_3_4_0_R28.md",
@@ -4640,6 +4684,26 @@
       "rollback_relevance": "none"
     },
     {
+      "path": "docs/superpowers/plans/2026-11-23-development-consolidation.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Documentation Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/DEVELOPMENT_STATUS.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
       "path": "legacy/systemd/README.md",
       "types": [
         "document"
@@ -4668,6 +4732,7 @@
         "docs/ARCHITECTURE.md",
         "docs/ASSISTANT_ARCHITECTURE.md",
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
+        "docs/DEVELOPMENT_STATUS.md",
         "docs/DOCKER_DEPLOYMENT.md",
         "docs/NEXTCLOUD_REUSE_COMPARISON.md",
         "docs/RELEASE_3_4_0_R28.md",
@@ -10335,6 +10400,7 @@
         "docs/CONFIGURATION.md",
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
         "docs/DECK_ORDERS.md",
+        "docs/DEVELOPMENT_STATUS.md",
         "docs/DIRECT_CALENDAR.md",
         "docs/DIRECT_TASKS.md",
         "docs/DOCKER_DEPLOYMENT.md",
@@ -11201,6 +11267,7 @@
         "docs/BUILD_AND_CI.md",
         "docs/CONFIGURATION.md",
         "docs/CONTAINER_ARCHITECTURE_ROADMAP.md",
+        "docs/DEVELOPMENT_STATUS.md",
         "docs/INCREMENTAL_SYNC_SCHEDULER_M16.md",
         "docs/INVOICE_M10_ROLLOUT.md",
         "docs/INVOICE_QUALITY_BASELINE_M10.md",
@@ -11228,7 +11295,8 @@
         "docs/architecture/m16-baseline.json",
         "docs/archive/GIT_REPOSITORY_PRE_M1.md",
         "docs/archive/README_PRE_M1.md",
-        "docs/superpowers/plans/2026-11-22-nextcloud-foundation.md"
+        "docs/superpowers/plans/2026-11-22-nextcloud-foundation.md",
+        "docs/superpowers/plans/2026-11-23-development-consolidation.md"
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-11-22T09:21:55+01:00",
@@ -11397,12 +11465,14 @@
         "docs/AGENT_ACTION_COMPLETION_M15_ACCEPTANCE.md",
         "docs/AGENT_IMPROVEMENT_ACCEPTANCE_M18.md",
         "docs/AGENT_IMPROVEMENT_ROADMAP.md",
+        "docs/DEVELOPMENT_STATUS.md",
         "docs/MAIL_QUALITY_ROLLOUT.md",
         "docs/MAIL_SEARCH_M11_ACCEPTANCE_AND_ROLLOUT.md",
         "docs/RELEASE_3_4_0_R28.md",
         "docs/TESTING.md",
         "docs/architecture/m16-baseline.json",
-        "docs/archive/README_PRE_M1.md"
+        "docs/archive/README_PRE_M1.md",
+        "docs/superpowers/plans/2026-11-23-development-consolidation.md"
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-08-06T15:45:31+02:00",

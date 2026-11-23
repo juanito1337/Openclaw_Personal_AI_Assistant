@@ -10,8 +10,16 @@ Zustand, Instanzkonfiguration und Secrets bleiben ausserhalb des Images unter
 
 ## Verbindliche Dokumentation
 
+Der [aktuelle Entwicklungsstand](docs/DEVELOPMENT_STATUS.md) benennt die
+maßgebliche Git-Basis, die Novemberarbeiten, aktuelle Prüfungen und verbleibende
+Aufgaben. Historische Release- und Abnahmeberichte behalten ihren jeweiligen Stand.
+
 | Thema | Einstieg |
 | --- | --- |
+| Aktuelle Entwicklungsbasis und Konsolidierung | [Entwicklungsstand](docs/DEVELOPMENT_STATUS.md) |
+| Nextcloud-Einrichtung, Diagnose und Zugriffsstufen | [Einrichtung](docs/NEXTCLOUD_SETUP_UI.md), [Diagnosevertrag](docs/INTEGRATION_DIAGNOSTICS.md), [Roadmap](docs/NEXTCLOUD_ACCESS_ROADMAP.md) und [R0/U0/NC0–NC2-Abnahme](docs/NEXTCLOUD_FOUNDATION_VALIDATION.md) |
+| Externe Komponenten und kontrollierte Updates | [Komponentenregister](docs/architecture/EXTERNAL_COMPONENTS.md) und [Update-Roadmap](docs/STACK_UPDATE_ROADMAP.md) |
+| M18 Effizienz und Zuverlässigkeit | [Roadmap](docs/AGENT_IMPROVEMENT_ROADMAP.md) und [Entwicklungsabnahme](docs/AGENT_IMPROVEMENT_ACCEPTANCE_M18.md) |
 | Aktuelles Patch-Update und Abnahme | [Release 3.4.0-r29.0.6](docs/RELEASE_3_4_0_R29_0_6.md) |
 | Kumulatives Basisrelease | [Release 3.4.0-r29](docs/RELEASE_3_4_0_R29.md) |
 | Systemkontext, Container- und Komponentenarchitektur | [Architekturvertrag](docs/architecture/README.md) |
