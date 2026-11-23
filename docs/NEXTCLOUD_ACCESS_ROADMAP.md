@@ -263,7 +263,7 @@ Kontobindung und Rechteauswertung wie die vorhandenen Funktionen.
 
 | Reihenfolge | Paket | Sichtbarer Nutzen und Abnahme |
 | --- | --- | --- |
-| 1 | R1 Kalenderagenda | Abfragen wie „Termine nächste Woche“ nutzen ein begrenztes Zeitfenster und einzelne Serienvorkommen. Ausnahmen, verschobene Termine, Zeitzonen und Teilfehler sind korrekt; Serienbearbeitung wird dadurch nicht erweitert. |
+| 1 | R1 Kalenderagenda | Ein erster lokaler Teil ist `calendar today` mit Tagesbeleg und Serienvorkommen ([ADR 0052](architecture/adr/0052-belegte-kalender-tagesabfrage.md)); keine produktive Aktivierung. Der übrige Ausbau bleibt offen: Abfragen wie „Termine nächste Woche“ nutzen ein begrenztes Zeitfenster und einzelne Serienvorkommen. Ausnahmen, verschobene Termine, Zeitzonen und Teilfehler sind korrekt; Serienbearbeitung wird dadurch nicht erweitert. |
 | 2 | R2 Dateizugriff | Ausgewählte Dateien kontrolliert lesen, Namen live suchen und interne Nextcloud-Links ausgeben. Bestehenden ETag-Download nutzen; Pfade, Größen, Scans und Vollständigkeit prüfen. Keine beliebigen lokalen Downloadziele. |
 | 3 | R3 Kontaktfelder | Postanschrift, Geburtstag und beruflichen Titel lesen beziehungsweise gezielt bearbeiten. Bestehende Felder erhalten und bei mehreren passenden Anschriften eine genaue Auswahl verlangen. Kontakte ohne E-Mail bleiben eine optionale Erweiterung. |
 | 4 | R4 Notes | Notes-App erkennen, Notizen auflisten und lesen. Erstellen später separat; Änderungen erst mit geprüftem Konfliktschutz. |

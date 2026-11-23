@@ -7,10 +7,12 @@ import shlex
 import unicodedata
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
-from .action_completion import action_completion_contract
+from .action_completion import action_completion_contract, classify_action_intent
 from .release import release_path
 from .tool_registry import tool_definitions
 
@@ -21,6 +23,21 @@ PLUGIN_PATH = "/opt/openclaw-plugins/personal-assistant-tools"
 MAX_ROUTED_DOMAINS = 3
 MAX_CAPTURE_BYTES = 8_000_000
 MAX_ERROR_BYTES = 8_000
+_CALENDAR_SCOPE_EXCLUSIONS = (
+    r"\b(?:morgen|gestern|tomorrow|yesterday|mañana|ayer|woche|week|semana|monat|month|mes|jahr|year|año|"
+    r"januar|january|februar|february|märz|maerz|march|april|mai|may|juni|june|juli|july|august|"
+    r"september|oktober|october|november|dezember|december|überhaupt|ueberhaupt|grundsätzlich)\b|"
+    r"\b\d{1,2}[./]\d{1,2}(?:[./]\d{2,4})?\b"
+)
+_CALENDAR_DIAGNOSTICS = (
+    r"\bich (?:kann|konnte)\b[^.!?;\n]{0,60}\bkeine\b[^.!?;\n]{0,30}\btermine?\b"
+    r"[^.!?;\n]{0,30}\b(?:abrufen|lesen|laden|pruefen|prüfen|anzeigen|abfragen|einsehen)\b",
+    r"\b(?:ich habe|es besteht)\b[^.!?;\n]{0,30}\bkeinen zugriff\b[^.!?;\n]{0,50}\btermine?\b",
+)
+_CALENDAR_EMPTY_ANSWERS = (
+    "Heute hast du keine Termine.", "Für heute sind keine Termine eingetragen.",
+    "You have no appointments today.", "No events found today.", "No hay citas hoy.",
+)
 
 _BACKGROUND_APPROVALS = frozenset(
     {
@@ -280,7 +297,7 @@ def _allowed_claims(tool_id: str, mode: str) -> list[str]:
     claims = ["tool-status", "positive-evidence", "tool-error"]
     if tool_id == "assistant.version":
         claims.append("product-version")
-    if tool_id in {"mail.search", "mail.search.local", "assistant.search"}:
+    if tool_id in {"mail.search", "mail.search.local", "assistant.search", "nextcloud.calendar.today"}:
         claims.append("conditional-negative")
     if mode != "read":
         claims.append("write-success-with-postcondition")
@@ -406,11 +423,14 @@ def _route_definitions() -> list[dict[str, Any]]:
                 r"\btermin(?:e|en)?\b",
                 r"\bkalender\b",
                 r"\bcalendar\b",
+                r"\b(?:appointments?|citas?)\b",
+                r"\b(?:my|calendar|scheduled) events?\b",
                 r"\b(?:flug|fluege|flüge|flight|vuelo)(?:\w*)\b",
             ],
             "tool": _DOMAIN_TOOL_NAMES["calendar"]["read"],
             "operations": [
                 "nextcloud.calendar.status",
+                "nextcloud.calendar.today",
                 "nextcloud.calendar.search",
                 "nextcloud.calendar.list",
                 "nextcloud.calendar.from-mail-preview",
@@ -493,27 +513,40 @@ def route_intent(prompt: str) -> dict[str, Any]:
         if any(re.search(pattern, normalized, flags=re.IGNORECASE) for pattern in definition["patterns"]):
             routes.append({key: value for key, value in definition.items() if key not in {"patterns"}})
     routes = routes[:MAX_ROUTED_DOMAINS]
-    return {
+    result: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
         "resolved": bool(routes),
         "routes": routes,
         "read_only_prefetch_only": True,
         "external_write_authorized": False,
     }
+    result["calendar_day_request"] = (
+        "today" if any(item["domain"] == "calendar" for item in routes)
+        and re.search(r"\b(?:heute|today|hoy)\b", normalized)
+        and not re.search(_CALENDAR_SCOPE_EXCLUSIONS, normalized)
+        and classify_action_intent(prompt, result) == "ambiguous" else None
+    )
+    return result
 
 
 def _claim_patterns() -> dict[str, tuple[str, ...]]:
     return {
         "negative": (
-            r"\bkeine(?:n|r|s)?\b.*\b(?:mail|nachricht|datei|termin|aufgabe|kontakt|treffer)",
+            r"\bkeine(?:n|r|s)?\b.*\b(?:mail|nachricht|datei|aufgabe|kontakt|treffer)",
             r"\b(?:keine rechnung(?:en)? (?:gefunden|vorhanden|abgelegt|gespeichert)|"
             r"(?:es gibt|es sind) keine rechnung(?:en)?)\b",
             r"\bnichts gefunden\b",
             r"\bnicht vorhanden\b",
-            r"\bno (?:mail|message|file|event|task|contact).*(?:found|exists)\b",
+            r"\bno (?:mail|message|file|task|contact).*(?:found|exists)\b",
             r"\bno invoices? (?:found|exists?|archived|stored)\b",
             r"\bno (?:hay|existe).*(?:correo|archivo|tarea|contacto)\b",
             r"\bno (?:hay|existen?) (?:ningunas? )?facturas?\b",
+        ),
+        "calendar-negative": (
+            r"\bkeine(?:n|r|s)?\b[^.!?;\n]{0,80}\btermin(?:e|en)?\b",
+            r"\bkalender\b[^.!?\n]{0,60}\bleer\b",
+            r"\bno (?:events?|appointments?)\b",
+            r"\bno (?:hay|existen?) (?:ningunas? )?(?:citas?|eventos?)\b",
         ),
         "write-success": (
             r"\b(?:erfolgreich|erledigt|abgeschlossen|gesendet|verschoben|aktualisiert|angelegt)\b",
@@ -526,11 +559,36 @@ def _claim_patterns() -> dict[str, tuple[str, ...]]:
 
 def classify_claims(text: str) -> list[str]:
     normalized = unicodedata.normalize("NFKC", text).casefold()
+    for pattern in _CALENDAR_DIAGNOSTICS:
+        normalized = re.sub(pattern, "", normalized, flags=re.I)
     return [
         claim
         for claim, patterns in _claim_patterns().items()
         if any(re.search(pattern, normalized, flags=re.IGNORECASE) for pattern in patterns)
     ]
+
+
+def _current_calendar_day(row: Mapping[str, Any], answer: str) -> bool:
+    """Recheck the bounded day proof at reply time (including midnight expiry)."""
+    proof = row.get("calendar_day")
+    # A day proof never licenses unrestricted prose about other periods or
+    # domains. Keep the empty-day answer bounded; positive listings are free-form.
+    if answer.strip().casefold() not in {value.casefold() for value in _CALENDAR_EMPTY_ANSWERS}:
+        return False
+    if not (row.get("tool_id") == "nextcloud.calendar.today" and row.get("domain") == "calendar"
+            and row.get("ok") is True and row.get("complete") is True
+            and "negative" in (row.get("allowed_claims") or []) and isinstance(proof, Mapping)):
+        return False
+    try:
+        now = datetime.now(ZoneInfo(str(proof["timezone"])))
+        observed = datetime.fromisoformat(str(proof["observed_at"]).replace("Z", "+00:00"))
+        if proof["date"] != now.date().isoformat() or not 0 <= (now - observed).total_seconds() <= 900:
+            return False
+    except (KeyError, ValueError, TypeError):
+        return False
+    return not re.search(_CALENDAR_SCOPE_EXCLUSIONS, answer, re.I) and all(
+        value == proof["date"] for value in re.findall(r"\b\d{4}-\d{2}-\d{2}\b", answer)
+    )
 
 
 def guard_claims(
@@ -551,8 +609,28 @@ def guard_claims(
         if not matching:
             issues.append(f"missing-current-evidence:{domain}")
     claims = classify_claims(answer)
-    if "negative" in claims and not any(
-        "negative" in set(row.get("allowed_claims") or []) for row in evidence_rows
+    calendar_negative = "calendar-negative" in claims or (
+        "negative" in claims and any(item.get("domain") == "calendar" for item in routes)
+        and not re.search(r"\b(?:mail|nachricht|datei|aufgabe|kontakt|invoice|rechnung)", answer, re.I)
+    )
+    negative_allowed = any(
+        row.get("domain") != "calendar" and "negative" in (row.get("allowed_claims") or [])
+        for row in evidence_rows
+    )
+    latest_calendar = next((row for row in reversed(evidence_rows)
+                            if row.get("tool_id") == "nextcloud.calendar.today"), {})
+    other_negative = "negative" in claims and (not calendar_negative or bool(re.search(
+        r"\b(?:mail|nachricht|datei|aufgabe|kontakt|invoice|rechnung)", answer, re.I
+    )))
+    empty_day_reply = (
+        route.get("calendar_day_request") == "today" and len(routes) == 1
+        and _current_calendar_day(latest_calendar, _CALENDAR_EMPTY_ANSWERS[0])
+    )
+    if (calendar_negative and not (
+        route.get("calendar_day_request") == "today"
+        and _current_calendar_day(latest_calendar, answer)
+    )) or (other_negative and not negative_allowed) or (
+        empty_day_reply and not _current_calendar_day(latest_calendar, answer)
     ):
         issues.append("negative-claim-not-authorized")
     if "product-version" in claims and not any(
@@ -752,6 +830,9 @@ def build_native_tool_contract() -> dict[str, Any]:
         "native_tools": groups,
         "routes": _route_definitions(),
         "claim_patterns": {key: list(value) for key, value in _claim_patterns().items()},
+        "calendar_diagnostic_patterns": list(_CALENDAR_DIAGNOSTICS),
+        "calendar_scope_exclusions": _CALENDAR_SCOPE_EXCLUSIONS,
+        "calendar_empty_answers": list(_CALENDAR_EMPTY_ANSWERS),
         "action_completion": action_completion_contract(
             item["tool_id"] for item in supported
         ),

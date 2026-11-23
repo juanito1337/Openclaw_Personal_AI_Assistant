@@ -6,6 +6,7 @@ import re
 from dataclasses import dataclass, replace
 from xml.etree import ElementTree as ET
 
+from .calendar_agenda import CALENDAR_TIMEZONE_PROPFIND, calendar_timezone_property, matches_agenda_query
 from .connectors.nextcloud.xmlutil import CALDAV, CARDDAV, DAV, parse_multistatus, q
 from .ical_edit import unescape_ical, unfold_ical
 from .nextcloud_access import COLLECTIONS, Binding, Scope, _url_path, decide_access
@@ -206,6 +207,13 @@ def _report_shape(data, component, operation):
     if prop is None:
         raise PermissionError("scope-invalid")
     require(not prop.attrib and children and children[0] is prop)
+    expansion = prop.find(f"./{q(CALDAV, 'calendar-data')}/{q(CALDAV, 'expand')}")
+    if expansion is not None:
+        require(
+            component == "VEVENT" and operation == "list"
+            and matches_agenda_query(data, expansion, root.find(q(CALDAV, "timezone")))
+        )
+        return {q(DAV, "getetag"), q(CALDAV, "calendar-data")}, True
     payload_tag = q(namespace, "address-data" if is_card else "calendar-data")
     require(len(prop) in (1, 2) and prop[0].tag == q(DAV, "getetag"))
     require(_leaf(prop[0]))
@@ -261,7 +269,7 @@ def _report_shape(data, component, operation):
     if operation != "list":
         uid_filter = root.find(".//" + q(CALDAV, "prop-filter"))
         require(not is_card and uid_filter is not None and bool(uid_filter[0].text), "operation-not-allowed")
-    return {item.tag for item in prop}
+    return {item.tag for item in prop}, False
 
 
 def _verified_multistatus(data, allowed_props):
@@ -395,6 +403,25 @@ def _read_calendar_object(snapshot, scope, collection, href, send, uid=""):
     )
 
 
+def _agenda_report_response(response, snapshot, scope, parent, allowed_props):
+    """Validate each agenda row before releasing it, replacing failures without content."""
+    try:
+        root = ET.fromstring(response.data)
+    except ET.ParseError:
+        return replace(response, data=b"")
+    if root.tag != q(DAV, "multistatus") or root.attrib or len(root) > 10000:
+        return replace(response, data=b"")
+    for index, row in enumerate(root):
+        single = ET.Element(q(DAV, "multistatus"))
+        single.append(row)
+        try:
+            serialized = replace(response, data=ET.tostring(single))
+            _response_items(serialized, snapshot, scope, parent, allowed_props)
+        except (PermissionError, ValueError):
+            root[index] = ET.Element(q(DAV, "response"))
+    return replace(response, data=ET.tostring(root))
+
+
 def dispatch_component(snapshot, access, method, href, headers, data, send):
     scope = access.scope
     operation = access.operation
@@ -416,13 +443,22 @@ def dispatch_component(snapshot, access, method, href, headers, data, send):
     require(not (set(headers) - allowed_headers))
     if method == "REPORT":
         require(target == parent and operation in {"list", "read", "search"} and headers.get("Depth") == "1")
-        props = _report_shape(data, scope.component, operation)
+        props, is_agenda = _report_shape(data, scope.component, operation)
         response = send(method, href, headers=headers, data=data)
         require(response.status >= 300 or response.status == 207, "rights-unverified")
         if response.status == 207:
+            if is_agenda:
+                return _agenda_report_response(response, snapshot, scope, parent, props)
             _response_items(response, snapshot, scope, parent, props)
         return response
     if method == "PROPFIND":
+        if data == CALENDAR_TIMEZONE_PROPFIND:
+            require(scope.component == "VEVENT" and operation == "list"
+                    and target == parent and headers.get("Depth") == "0")
+            response = send(method, href, headers=headers, data=data)
+            if response.status == 207 and not calendar_timezone_property(response.data, response.url or href):
+                return replace(response, data=b"")
+            return response
         require(operation == "read" and headers.get("Depth") == "0")
         root = ET.fromstring(data or b"")
         require(

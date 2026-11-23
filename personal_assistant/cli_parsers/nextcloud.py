@@ -67,6 +67,8 @@ def add_commands(sub: Any) -> None:
     )
     calendar_list = calendar_sub.add_parser("list", help="Termine im konfigurierten Zeitraum lesen")
     calendar_list.add_argument("--limit", type=int, default=100)
+    calendar_today = calendar_sub.add_parser("today", help="Termine fuer heute in der Kalenderzeitzone lesen")
+    calendar_today.add_argument("--limit", type=int, default=100)
     calendar_search = calendar_sub.add_parser(
         "search", help="Termine nach Titel, Ort, Beschreibung oder UID suchen"
     )
@@ -238,7 +240,7 @@ def add_commands(sub: Any) -> None:
     contacts_mail.add_argument("--yes", action="store_true")
 
     for parser in (
-        calendar_status, calendar_list, calendar_search, calendar_create, calendar_update,
+        calendar_status, calendar_list, calendar_today, calendar_search, calendar_create, calendar_update,
         calendar_from_mail, tasks_status, tasks_list, tasks_create, tasks_update,
         contacts_status, contacts_list, contacts_search, contacts_create, contacts_update,
         contacts_mail,

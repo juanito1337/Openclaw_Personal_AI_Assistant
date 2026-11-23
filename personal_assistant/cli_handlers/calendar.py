@@ -7,7 +7,7 @@ from typing import Any
 
 def handle(args: argparse.Namespace, assistant: Any, emit: Callable[[Any], None]) -> int:
     command = args.calendar_command
-    if command in {"configure", "discover"}:
+    if command in {"configure", "discover", "today"}:
         return _handle(args, assistant, emit)
     resource_id = getattr(args, "resource", "")
     if resource_id:
@@ -49,6 +49,8 @@ def _handle(args: argparse.Namespace, assistant: Any, emit: Callable[[Any], None
         )
     elif command == "list":
         result = assistant.calendar_list(limit=args.limit)
+    elif command == "today":
+        result = assistant.calendar_today(limit=args.limit, resource_id=args.resource or None)
     elif command == "search":
         result = assistant.calendar_search(args.query, limit=args.limit)
     elif command == "from-mail":

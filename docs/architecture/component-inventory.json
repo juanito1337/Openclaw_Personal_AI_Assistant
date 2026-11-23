@@ -2,7 +2,7 @@
   "schema_version": 1,
   "inventory_date": "2026-08-06",
   "source_scope": "all Python modules, shell entrypoints, skills, systemd units, migrations and Markdown documents",
-  "component_count": 619,
+  "component_count": 625,
   "classification_values": [
     "active",
     "compatibility",
@@ -4288,6 +4288,30 @@
       "rollback_relevance": "none"
     },
     {
+      "path": "docs/architecture/adr/0052-belegte-kalender-tagesabfrage.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Architecture Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/DEVELOPMENT_STATUS.md",
+        "docs/NEXTCLOUD_ACCESS_ROADMAP.md",
+        "docs/architecture/adr/README.md",
+        "docs/architecture/owners.json",
+        "docs/superpowers/plans/2026-11-23-calendar-day-evidence.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
       "path": "docs/architecture/adr/README.md",
       "types": [
         "document"
@@ -4677,6 +4701,24 @@
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-11-22T09:21:55+01:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-11-23-calendar-day-evidence.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Documentation Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -6561,6 +6603,7 @@
       "test_evidence": [
         "tests/test_action_completion_m15.py",
         "tests/test_agent_tool_orchestration_m13.py",
+        "tests/test_calendar_answer_evidence.py",
         "tests/test_invoice_read_availability.py",
         "tests/test_m8_skill_contract.py",
         "tests/test_mail_learning_quality_m167.py",
@@ -6633,6 +6676,24 @@
       ],
       "line_coverage_percent": 100.0,
       "last_git_change": "2026-10-22T12:48:43+02:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "personal_assistant/calendar_agenda.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Core Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": 85.11,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -6783,6 +6844,7 @@
         "tests/test_agent_operational_tools.py",
         "tests/test_caldav_discovery_tools.py",
         "tests/test_caldav_update_tools.py",
+        "tests/test_calendar_today.py",
         "tests/test_carddav_contact_tools.py",
         "tests/test_carddav_contact_update.py",
         "tests/test_gateway_event_relay.py",
@@ -6868,7 +6930,8 @@
         "scripts/check-role-images.sh"
       ],
       "test_evidence": [
-        "tests/ruff-baseline.json"
+        "tests/ruff-baseline.json",
+        "tests/test_calendar_today.py"
       ],
       "documentation_evidence": [
         "docs/NEXTCLOUD_REUSE_COMPARISON.md",
@@ -7326,6 +7389,7 @@
         "tests/mypy-baseline.json",
         "tests/ruff-baseline.json",
         "tests/test_artifact_hygiene.py",
+        "tests/test_calendar_agenda.py",
         "tests/test_container_runtime.py",
         "tests/test_immutable_runtime.py",
         "tests/test_incremental_sync_m163.py",
@@ -7418,6 +7482,7 @@
         "tests/ruff-baseline.json",
         "tests/test_action_completion_m15.py",
         "tests/test_caldav_update_tools.py",
+        "tests/test_calendar_agenda.py",
         "tests/test_direct_calendar_tool.py",
         "tests/test_incremental_sync_m163.py",
         "tests/test_nextcloud_foreground_access.py",
@@ -7451,6 +7516,7 @@
       "test_evidence": [
         "tests/ruff-baseline.json",
         "tests/test_caldav_update_tools.py",
+        "tests/test_calendar_agenda.py",
         "tests/test_help_nextcloud_training.py",
         "tests/test_incremental_sync_m163.py",
         "tests/test_invoice_effect_contract_m101.py",
@@ -7543,6 +7609,7 @@
         "tests/ruff-baseline.json",
         "tests/test_caldav_discovery_tools.py",
         "tests/test_caldav_update_tools.py",
+        "tests/test_calendar_agenda.py",
         "tests/test_carddav_contact_tools.py",
         "tests/test_carddav_contact_update.py",
         "tests/test_help_nextcloud_training.py",
@@ -7636,6 +7703,8 @@
       "classification": "active",
       "productive_callers": [],
       "test_evidence": [
+        "tests/test_calendar_agenda.py",
+        "tests/test_calendar_today.py",
         "tests/test_nextcloud_file_access.py",
         "tests/test_nextcloud_foreground_access.py"
       ],
@@ -8432,6 +8501,7 @@
         "tests/test_action_completion_m15.py",
         "tests/test_agent_tool_architecture.py",
         "tests/test_caldav_update_tools.py",
+        "tests/test_calendar_today.py",
         "tests/test_carddav_contact_tools.py",
         "tests/test_carddav_contact_update.py",
         "tests/test_direct_calendar_tool.py",
@@ -8505,6 +8575,7 @@
       ],
       "test_evidence": [
         "tests/test_agent_tool_architecture.py",
+        "tests/test_calendar_agenda.py",
         "tests/test_nextcloud_access.py",
         "tests/test_nextcloud_foreground_access.py",
         "tests/test_nextcloud_local_visibility.py",
@@ -8532,6 +8603,7 @@
       "classification": "active",
       "productive_callers": [],
       "test_evidence": [
+        "tests/test_calendar_agenda.py",
         "tests/test_nextcloud_foreground_access.py"
       ],
       "documentation_evidence": [],
@@ -8701,6 +8773,8 @@
         "personal_assistant/nextcloud_talk_account.py"
       ],
       "test_evidence": [
+        "tests/test_calendar_agenda.py",
+        "tests/test_calendar_today.py",
         "tests/test_nextcloud_action_binding.py",
         "tests/test_nextcloud_adapter_access.py",
         "tests/test_nextcloud_connection.py",
@@ -8953,6 +9027,7 @@
       "test_evidence": [
         "tests/ruff-baseline.json",
         "tests/test_artifact_hygiene.py",
+        "tests/test_calendar_today.py",
         "tests/test_carddav_contact_tools.py",
         "tests/test_carddav_contact_update.py",
         "tests/test_m5_tool_contract.py",
@@ -9179,6 +9254,7 @@
       "test_evidence": [
         "tests/mypy-baseline.json",
         "tests/ruff-baseline.json",
+        "tests/test_calendar_today.py",
         "tests/test_carddav_contact_tools.py",
         "tests/test_carddav_contact_update.py",
         "tests/test_component_registry.py",
@@ -9387,6 +9463,7 @@
         "tests/test_agent_tool_architecture.py",
         "tests/test_caldav_discovery_tools.py",
         "tests/test_caldav_update_tools.py",
+        "tests/test_calendar_today.py",
         "tests/test_carddav_contact_tools.py",
         "tests/test_carddav_contact_update.py",
         "tests/test_cli_startup.py",
@@ -10110,6 +10187,7 @@
         "tests/test_agent_tool_orchestration_m13.py",
         "tests/test_caldav_discovery_tools.py",
         "tests/test_caldav_update_tools.py",
+        "tests/test_calendar_today.py",
         "tests/test_carddav_contact_tools.py",
         "tests/test_carddav_contact_update.py",
         "tests/test_direct_calendar_tool.py",
@@ -10180,6 +10258,7 @@
         "tests/test_antivirus_tool.py",
         "tests/test_caldav_discovery_tools.py",
         "tests/test_caldav_update_tools.py",
+        "tests/test_calendar_today.py",
         "tests/test_carddav_contact_tools.py",
         "tests/test_carddav_contact_update.py",
         "tests/test_clamd_socket_m14.py",
@@ -11296,6 +11375,7 @@
         "docs/archive/GIT_REPOSITORY_PRE_M1.md",
         "docs/archive/README_PRE_M1.md",
         "docs/superpowers/plans/2026-11-22-nextcloud-foundation.md",
+        "docs/superpowers/plans/2026-11-23-calendar-day-evidence.md",
         "docs/superpowers/plans/2026-11-23-development-consolidation.md"
       ],
       "line_coverage_percent": null,
@@ -11472,6 +11552,7 @@
         "docs/TESTING.md",
         "docs/architecture/m16-baseline.json",
         "docs/archive/README_PRE_M1.md",
+        "docs/superpowers/plans/2026-11-23-calendar-day-evidence.md",
         "docs/superpowers/plans/2026-11-23-development-consolidation.md"
       ],
       "line_coverage_percent": null,
@@ -12866,6 +12947,65 @@
       "documentation_evidence": [],
       "line_coverage_percent": null,
       "last_git_change": "2026-08-06T15:45:31+02:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "tests/test_calendar_agenda.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "tests/test_calendar_answer_evidence.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "tests/test_calendar_today.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "personal_assistant/tool_catalog/calendar.py"
+      ],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/COMMAND_REFERENCE.md",
+        "skills/personal-assistant/references/tool-contract.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"

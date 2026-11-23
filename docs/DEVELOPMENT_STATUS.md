@@ -4,6 +4,23 @@ Stand: **23. November 2026**. Diese Übersicht ist der Einstieg für die weitere
 Entwicklung. Datierte Abnahmeberichte bleiben Nachweise ihres jeweiligen Laufs;
 sie ersetzen keine aktuelle Prüfung der Installation.
 
+## Aktuelle Fehlerkorrektur
+
+Auf dem konsolidierten Commit `55e5003` entsteht im Nachfolgezweig
+`codex/fix-calendar-day-evidence-20261123` eine begrenzte Korrektur für
+„Welche Termine habe ich heute?“. Die Liveprüfung vom 23. November zeigte
+funktionierenden Kalenderzugriff, aber ein allgemeines Listing mit 100 Zeilen
+und `complete=false`. Daraus folgt keine Aussage über einen leeren heutigen Tag.
+Die zusätzliche Tagesabfrage und ihre Nachweisgrenzen sind in
+[ADR 0052](architecture/adr/0052-belegte-kalender-tagesabfrage.md) dokumentiert.
+Die Korrektur ist lokal implementiert und unabhängig geprüft. Repository- und
+Wheel-Abnahme bestehen mit jeweils 2.440 erfolgreichen Tests und zwei optionalen
+Image-Skips; der Repositorylauf misst 74,37 % kombinierte Abdeckung. Die drei
+isolierten Recovery-Szenarien bestehen ebenfalls. Die nachfolgenden älteren
+Konsolidierungsnachweise belegen den Ausgangsstand. Container-Abnahme und
+produktive Aktivierung bleiben getrennte Schritte; diese Änderung aktiviert
+keinen produktiven Dienst.
+
 ## Maßgeblicher Quellstand
 
 Die Konsolidierung baut auf `807c374437ff470f1ce81e171664c466f9e247f0`

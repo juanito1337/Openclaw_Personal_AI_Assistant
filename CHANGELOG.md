@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Die registrierte Leseabfrage `calendar today` prueft den heutigen lokalen Tag
+  ueber alle ausgewaehlten Kalender samt Serienvorkommen. Zeitfenster,
+  Ressourcenfehler, Vollstaendigkeit und Begrenzungen bleiben sichtbar. Nur ein
+  vollstaendiger leerer Tagesbefund erlaubt eine entsprechende Negativauskunft;
+  die allgemeine Kalenderliste und fremde oder veraltete Belege reichen nicht.
+  Belegte Kalender-Zugriffsfehler koennen ohne irrtuemliche
+  `negative-claim-not-authorized`-Sperre berichtet werden. Keine neue
+  Schreibberechtigung oder produktive Aktivierung.
+
 - Rechnungsstatus, Metadatenliste, Review und Audit bleiben nach der Anmeldung
   eines verwalteten Nextcloud-Kontos als reine Lesewege erreichbar. Eine fehlende
   Archivzuordnung wird getrennt ausgewiesen; automatische Ablage und externe

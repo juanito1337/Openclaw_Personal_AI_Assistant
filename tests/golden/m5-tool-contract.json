@@ -1096,6 +1096,14 @@
     "approval": "none"
   },
   {
+    "id": "nextcloud.calendar.today",
+    "description": "Heutige Termine einschliesslich Serienvorkommen in der konfigurierten Kalenderzeitzone lesen; ohne --resource alle ausgewaehlten Kalender, optional genau eine stabile Ressourcen-ID",
+    "command": "./scripts/assistant.sh calendar today --limit 100 --resource \"<resource-optional>\"",
+    "mode": "read",
+    "writes_external_data": false,
+    "approval": "none"
+  },
+  {
     "id": "nextcloud.calendar.search",
     "description": "Termine nach Titel, Ort, Beschreibung oder UID suchen; ohne --resource alle freigegebenen Ressourcen, optional genau eine stabile Ressourcen-ID",
     "command": "./scripts/assistant.sh calendar search --query \"<Suchbegriff>\" --limit 50 --resource \"<resource-optional>\"",

@@ -123,6 +123,19 @@ and task create are bounded registered writes; existing-object update, complete
 or reopen requires exact UID and explicit approval. Do not describe the calendar
 integration as create-only.
 
+For “Which appointments do I have today?”, use `nextcloud.calendar.today` with
+an empty `arguments` object. The registered CLI is `calendar today --limit 100`;
+an explicit `--resource` restricts the result to that one selected calendar.
+The default covers every selected calendar in the configured timezone, including
+expanded recurrence instances. A general list or text search does not prove a
+complete day. Inspect `scope`, `complete`, `resource_errors`,
+`results_may_be_truncated` and `absence_proven`. Only a current, complete empty
+day over all selected resources permits the exact answer “Heute hast du keine Termine.”
+(English: “You have no appointments today.”; Spanish: “No hay citas hoy.”). Keep useful
+partial events and explain the exact failed resource or timezone limitation.
+Never apply a day proof to another date, a broader interval or another domain.
+This read does not authorize modifying a recurrence instance or series.
+
 For legacy single-calendar configuration, the central direct
 `nextcloud.calendar.resource_id` is a diagnostic recovery
 target for a stale typed mail-calendar reference only when the old ID has exactly

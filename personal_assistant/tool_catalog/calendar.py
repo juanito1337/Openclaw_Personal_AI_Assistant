@@ -52,6 +52,18 @@ TOOLS: tuple[ToolDefinition, ...] = (
         test_anchor="tests/test_direct_calendar_tool.py",
     ),
     define(
+        id="nextcloud.calendar.today",
+        domain="calendar",
+        description="Heutige Termine einschliesslich Serienvorkommen in der konfigurierten Kalenderzeitzone lesen; ohne --resource alle ausgewaehlten Kalender, optional genau eine stabile Ressourcen-ID",
+        command='./scripts/assistant.sh calendar today --limit 100 --resource "<resource-optional>"',
+        mode="read",
+        writes_external_data=False,
+        approval="none",
+        availability="calendar-list",
+        documentation_anchor="docs/DIRECT_CALENDAR.md",
+        test_anchor="tests/test_calendar_today.py",
+    ),
+    define(
         id="nextcloud.calendar.search",
         domain="calendar",
         description='Termine nach Titel, Ort, Beschreibung oder UID suchen; ohne --resource alle freigegebenen Ressourcen, optional genau eine stabile Ressourcen-ID',

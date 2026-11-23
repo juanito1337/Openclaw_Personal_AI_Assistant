@@ -200,6 +200,16 @@ def render_evidence_schema() -> str:
                     ],
                 },
             },
+            "calendar_day": {
+                "type": "object",
+                "required": ["date", "timezone", "observed_at"],
+                "properties": {
+                    "date": {"type": "string", "format": "date"},
+                    "timezone": {"type": "string", "minLength": 1, "maxLength": 128},
+                    "observed_at": {"type": "string", "format": "date-time"},
+                },
+                "additionalProperties": False,
+            },
             "next_actions": {
                 "type": "array",
                 "uniqueItems": True,

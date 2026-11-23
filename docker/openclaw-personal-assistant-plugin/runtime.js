@@ -448,12 +448,47 @@ export function projectPayload(payload, limits) {
 function isComplete(operation, payload, ok) {
   if (!ok) return false;
   if (typeof payload?.complete === "boolean") {
-    return payload.complete && !(payload.folder_errors?.length > 0) && payload.results_may_be_truncated !== true;
+    return payload.complete && !(payload.folder_errors?.length > 0) &&
+      !(payload.resource_errors?.length > 0) && payload.results_may_be_truncated !== true;
   }
   if (["mail.search", "mail.search.local", "assistant.search"].includes(operation.tool_id)) {
     return false;
   }
   return true;
+}
+
+function localDay(instant, timezone) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  }).formatToParts(new Date(instant));
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return { date: `${values.year}-${values.month}-${values.day}`,
+    time: `${values.hour}:${values.minute}:${values.second}` };
+}
+
+function calendarDayProof(payload, ok) {
+  const scope = payload?.scope;
+  if (!ok || payload?.ok !== true || payload?.complete !== true || payload?.absence_proven !== true ||
+    payload?.count !== 0 || !Array.isArray(payload.events) || payload.events.length !== 0 ||
+    payload.results_may_be_truncated !== false || !Array.isArray(payload.resource_errors) ||
+    payload.resource_errors.length !== 0 || scope?.kind !== 'calendar-day' || scope.relative !== 'today' ||
+    scope.selection !== 'all-selected' || !Array.isArray(scope.resource_ids) || !scope.resource_ids.length ||
+    !scope.resource_ids.every((id) => typeof id === 'string' && id.length > 0) ||
+    new Set(scope.resource_ids).size !== scope.resource_ids.length ||
+    typeof scope.timezone !== 'string' || typeof payload.observed_at !== 'string') return null;
+  try {
+    const start = Date.parse(scope.start), end = Date.parse(scope.end), observed = Date.parse(payload.observed_at);
+    const age = Date.now() - observed;
+    const nextDate = new Date(Date.parse(`${scope.date}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+    if (!Number.isFinite(age) || age < 0 || age > 900_000 || observed < start || observed >= end ||
+      start % 1000 !== 0 || end % 1000 !== 0 ||
+      localDay(Date.now(), scope.timezone).date !== scope.date ||
+      localDay(start, scope.timezone).date !== scope.date || localDay(start, scope.timezone).time !== '00:00:00' ||
+      localDay(end, scope.timezone).date !== nextDate || localDay(end, scope.timezone).time !== '00:00:00' ||
+      end - start < 23 * 3_600_000 || end - start > 25 * 3_600_000) return null;
+    return {date: scope.date, timezone: scope.timezone, observed_at: payload.observed_at};
+  } catch { return null; }
 }
 
 function postconditionVerified(operation, payload, ok) {
@@ -471,6 +506,7 @@ export function makeEvidence(operation, result, payload, turnId, toolCallId) {
   const complete = isComplete(operation, payload, ok);
   const rows = resultRows(payload);
   const allowedClaims = ["tool-status", ok ? "positive-evidence" : "tool-error"];
+  const calendarDay = operation.tool_id === 'nextcloud.calendar.today' ? calendarDayProof(payload, ok) : null;
   if (operation.tool_id === "assistant.version" && ok) allowedClaims.push("product-version");
   if (
     ["mail.search", "mail.search.local", "assistant.search"].includes(operation.tool_id) &&
@@ -480,6 +516,7 @@ export function makeEvidence(operation, result, payload, turnId, toolCallId) {
   ) {
     allowedClaims.push("negative");
   }
+  if (calendarDay) allowedClaims.push('negative');
   const postcondition = postconditionVerified(operation, payload, ok);
   if (postcondition) allowedClaims.push("write-success");
   return {
@@ -498,6 +535,7 @@ export function makeEvidence(operation, result, payload, turnId, toolCallId) {
     approval: operation.approval,
     postcondition_verified: postcondition,
     allowed_claims: allowedClaims,
+    ...(calendarDay ? {calendar_day: calendarDay} : {}),
     next_actions: [],
   };
 }
@@ -512,13 +550,19 @@ export function routePrompt(contract, prompt) {
     }
     if (routes.length >= Number(contract.limits?.max_routed_domains ?? 3)) break;
   }
-  return {
+  const result = {
     schema_version: contract.schema_version,
     resolved: routes.length > 0,
     routes,
     read_only_prefetch_only: true,
     external_write_authorized: false,
   };
+  result.calendar_day_request = routes.some((item) => item.domain === 'calendar') &&
+    /\b(?:heute|today|hoy)\b/iu.test(normalized) &&
+    !new RegExp(contract.calendar_scope_exclusions, 'iu').test(normalized) &&
+    classifyActionIntent(contract, prompt, result) === 'ambiguous'
+    ? 'today' : null;
+  return result;
 }
 
 function normalizedText(value) {
@@ -814,7 +858,10 @@ export function guardActionCompletion(contract, obligation, answer) {
 }
 
 function classifyClaims(contract, answer) {
-  const normalized = String(answer ?? "").normalize("NFKC").toLocaleLowerCase("de-DE");
+  let normalized = String(answer ?? "").normalize("NFKC").toLocaleLowerCase("de-DE");
+  for (const pattern of contract.calendar_diagnostic_patterns ?? []) {
+    normalized = normalized.replace(new RegExp(pattern, 'giu'), '');
+  }
   return Object.entries(contract.claim_patterns ?? {})
     .filter(([, patterns]) => patterns.some((pattern) => new RegExp(pattern, "iu").test(normalized)))
     .map(([claim]) => claim);
@@ -829,7 +876,18 @@ export function guardAnswer(contract, route, answer, evidence) {
     if (matching.length === 0) issues.push(`missing-current-evidence:${item.domain}`);
   }
   const claims = classifyClaims(contract, answer);
-  if (claims.includes("negative") && !evidence.some((row) => row.allowed_claims?.includes("negative"))) {
+  const calendarNegative = claims.includes('calendar-negative') || (claims.includes('negative') &&
+    (route?.routes ?? []).some((item) => item.domain === 'calendar') &&
+    !/\b(?:mail|nachricht|datei|aufgabe|kontakt|invoice|rechnung)/iu.test(answer));
+  const negativeAllowed = evidence.some((row) => row.domain !== 'calendar' && row.allowed_claims?.includes('negative'));
+  const latestCalendar = evidence.findLast((row) => row.tool_id === 'nextcloud.calendar.today');
+  const otherNegative = claims.includes('negative') && (!calendarNegative ||
+    /\b(?:mail|nachricht|datei|aufgabe|kontakt|invoice|rechnung)/iu.test(answer));
+  const emptyDayReply = route?.calendar_day_request === 'today' && route.routes.length === 1 &&
+    currentCalendarDay(contract, latestCalendar, contract.calendar_empty_answers?.[0] ?? '');
+  if ((calendarNegative && !(route?.calendar_day_request === 'today' &&
+      currentCalendarDay(contract, latestCalendar, answer))) || (otherNegative && !negativeAllowed) ||
+    (emptyDayReply && !currentCalendarDay(contract, latestCalendar, answer))) {
     issues.push("negative-claim-not-authorized");
   }
   if (
@@ -846,6 +904,20 @@ export function guardAnswer(contract, route, answer, evidence) {
     issues.push("write-success-not-authorized");
   }
   return { ok: issues.length === 0, claims, issues, fail_closed: true };
+}
+
+function currentCalendarDay(contract, row, answer) {
+  const proof = row?.calendar_day;
+  if (!(contract.calendar_empty_answers ?? []).some((value) => normalizedText(value) === normalizedText(answer))) return false;
+  if (row?.tool_id !== 'nextcloud.calendar.today' || row.domain !== 'calendar' || row.ok !== true ||
+    row.complete !== true || !row.allowed_claims?.includes('negative') || !proof) return false;
+  try {
+    const age = Date.now() - Date.parse(proof.observed_at);
+    return Number.isFinite(age) && age >= 0 && age <= 900_000 &&
+      localDay(Date.now(), proof.timezone).date === proof.date &&
+      !new RegExp(contract.calendar_scope_exclusions, 'iu').test(answer) &&
+      [...answer.matchAll(/\b\d{4}-\d{2}-\d{2}\b/g)].every((match) => match[0] === proof.date);
+  } catch { return false; }
 }
 
 export function shouldBlockGenericTool(toolName, params) {

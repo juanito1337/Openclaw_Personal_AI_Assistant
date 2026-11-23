@@ -226,6 +226,7 @@ function rememberEvidence(key, evidence) {
     tool_id: evidence.tool_id, domain: evidence.domain, run_id: evidence.run_id,
     turn_id: evidence.turn_id, ok: evidence.ok, postcondition_verified: evidence.postcondition_verified,
     allowed_claims: evidence.allowed_claims,
+    complete: evidence.complete, calendar_day: evidence.calendar_day,
   });
   evidenceByRun.set(key, rows.slice(-32));
 }
@@ -476,6 +477,7 @@ function buildRoutingContext(route, obligation, confirmation = null) {
     "Jeden nativen Aufruf mit operation und allen Pflichtfeldern unter arguments ausfuehren; arguments niemals leer lassen, wenn die Signatur Pflichtfelder nennt.",
     "Nach invalid-arguments genau einmal mit geaenderten vollstaendigen Argumenten korrigieren. Bei retry_allowed=false sofort stoppen und den Fehler berichten.",
     "Mail: letzte eingegangene Mails des gesamten Kontos mit mail.recent und leerem arguments-Objekt; INBOX kann nach automatischen Verschiebungen leer sein. mail.list nur fuer einen ausdruecklich genannten Einzelordner mit arguments.folder; Suche mit mail.search und arguments.query; mail.read erst nach einem Treffer mit folder, message_id und expected_subject.",
+    "Kalender: Fuer heutige Termine nextcloud.calendar.today mit leerem arguments-Objekt verwenden; damit werden alle ausgewaehlten Kalender in der konfigurierten Zeitzone samt Serienvorkommen geprueft. calendar.list oder eine Textsuche belegt keinen leeren Tag. Nur absence_proven=true mit vollstaendigem Tagesumfang erlaubt exakt die Antwort: Heute hast du keine Termine. Keine weiteren Aussagen an diesen Abwesenheitsbeleg anhaengen; sonst positive Teilbefunde und konkrete Einschraenkungen nennen.",
     "Bei Schreibwuenschen zuerst read-only identifizieren/vorschauen. Ein eindeutiger aktueller Nutzerauftrag kann eine begrenzte Routineaktion bereits freigeben; sensible Aenderungen behalten ihren nativen Einmal-Dialog.",
     "Freigaben: Die Schaltflaeche ist der normale Dialogweg; eine sichtbare ID ist nur technischer Fallback. Ein einfaches Ja gilt nur fuer genau eine intern gespeicherte, unveraenderte und noch gueltige Aktion. Bei missing-or-stale-bound-approval wurde nichts ausgefuehrt: nicht automatisch wiederholen und keinen alten Befehl empfehlen.",
     "Mail: Ein Entwurf ist kein Versand. Nach mail.reply-draft, mail.compose-draft oder mail.forward-draft Empfaenger, Betreff und vollstaendigen Text anzeigen; bei Weiterleitungen auch ZIP-Digest und Original-Anhangsnamen. Den Turn als approval-required beenden. Den passenden reply-, compose- oder forward-send erst nach einer danach erteilten ausdruecklichen Versandanweisung und eigener nativer Einzelfreigabe aufrufen.",
@@ -814,11 +816,14 @@ export default definePluginEntry({
       if (issues.length === 0 || retryByRun.has(key)) return undefined;
       retryByRun.add(key);
       metrics.guard_revisions += 1;
+      const instruction = route.calendar_day_request === "today" && !obligationByRun.get(key)
+        ? "Nutze nextcloud.calendar.today ohne Ressourceneinschraenkung, sofern noch kein aktueller Tagesbefund vorliegt. Bei vollstaendig belegtem leerem Tag antworte exakt: Heute hast du keine Termine. Bei Fehler oder Teilbefund nenne vorhandene Termine und die konkrete Einschraenkung; behaupte keinen leeren Tag."
+        : "Fuehre jetzt ausschliesslich den naechsten registrierten Werkzeugschritt der ACTION_OBLIGATION_V1 aus oder berichte den bereits belegten typisierten Blocker. Kein Zukunftsversprechen und keine Meta-Ankuendigung.";
       return {
         action: "revise",
         reason: issues.join(","),
         retry: {
-          instruction: `Fuehre jetzt ausschliesslich den naechsten registrierten Werkzeugschritt der ACTION_OBLIGATION_V1 aus oder berichte den bereits belegten typisierten Blocker. Kein Zukunftsversprechen und keine Meta-Ankuendigung. Probleme: ${issues.join(", ")}`,
+          instruction: `${instruction} Probleme: ${issues.join(", ")}`,
           idempotencyKey: `personal-assistant-action-evidence-${key}`,
           maxAttempts: 1,
         },

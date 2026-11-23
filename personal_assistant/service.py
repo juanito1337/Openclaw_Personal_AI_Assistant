@@ -48,6 +48,7 @@ from .registry import ResourceRegistry
 from .release import release_report
 from .resource_identity import (
     ResourceIdentityError,
+    ResourceReference,
     configured_references,
     inventory_report,
     resolve_reference,
@@ -1461,6 +1462,122 @@ class PersonalAssistant(
             "complete": len(events) == len(selected),
             "results_may_be_truncated": len(events) > len(selected),
         }
+
+    @publish_current_account_result
+    def calendar_today(self, *, limit: int = 100, resource_id: str | None = None) -> dict[str, Any]:
+        settings = self.tool_settings.nextcloud.calendar
+        zone = ZoneInfo(settings.timezone)
+        start = datetime.now(zone).replace(hour=0, minute=0, second=0, microsecond=0, fold=0)
+        end = start + timedelta(days=1)
+        bounded = max(1, min(int(limit), 500))
+
+        snapshot = getattr(self.registry, "access_snapshot", None)
+        active = snapshot is not None and snapshot.mode == "active"
+        resource_ids: tuple[str, ...]
+        if resource_id:
+            resource_ids = (resource_id,)
+        elif active and snapshot is not None:
+            # The effective settings omit grants whose current rights cannot be
+            # confirmed. Include these in the scope so a failed calendar cannot
+            # silently turn a partial result into a complete empty agenda.
+            resource_ids = tuple(
+                grant.scope.resource_id
+                for grant in snapshot.policy.grants
+                if grant.scope.component == "VEVENT" and "list" in grant.operations
+            )
+        else:
+            resource_ids = settings.resource_ids or ((settings.resource_id,) if settings.resource_id else ())
+
+        def event_order(event: dict[str, Any]) -> tuple[datetime, str, str, str, str]:
+            starts_at = datetime.fromisoformat(event["start"])
+            if starts_at.tzinfo is None:  # All-day dates are local calendar dates.
+                starts_at = starts_at.replace(tzinfo=zone)
+            return (
+                starts_at.astimezone(UTC), event["title"].casefold(), event["uid"],
+                event["recurrence_id"], event["resource_id"],
+            )
+
+        events: list[dict[str, Any]] = []
+        errors: list[dict[str, Any]] = []
+        clipped = False
+        if not resource_ids:
+            errors.append({"code": "resource-id-missing"})
+        elif not active and (not settings.enabled or not settings.allow_list):
+            errors.append({"code": "calendar-read-disabled"})
+        else:
+            for selected_id in resource_ids:
+                try:
+                    with self.select_nextcloud_resource("calendar", selected_id):
+                        resource = resolve_reference(
+                            self.registry,
+                            ResourceReference(
+                                "calendar", "nextcloud.calendar.resource_id", True, selected_id,
+                                "calendar", "VEVENT", ("read",),
+                            ),
+                        )
+                        decision = self.policy.decide(selected_id, "calendar.read", {})
+                        if not decision.allowed:
+                            raise PermissionError(decision.reason)
+                        report = self.nextcloud_calendar.list_agenda(
+                            self._calendar_collection(resource), start=start, end=end, timezone_name=zone.key
+                        )
+                    events.extend({**event, "resource_id": selected_id} for event in report["events"])
+                    if len(events) > bounded:
+                        events.sort(key=event_order)
+                        del events[bounded:]
+                        clipped = True
+                    codes = list(dict.fromkeys(error["code"] for error in report["errors"]))
+                    if report["complete"] is not True and not codes:
+                        codes.append("resource-read-incomplete")
+                    errors.extend({"resource_id": selected_id, "code": code} for code in codes)
+                except Exception as exc:
+                    errors.append({"resource_id": selected_id, "code": self._calendar_day_read_error(exc)})
+
+        observed = datetime.now(zone)
+        if observed.date() != start.date():
+            errors.append({"code": "calendar-day-changed"})
+
+        events.sort(key=event_order)
+        complete = not errors and not clipped
+        return {
+            "ok": not errors,
+            "count": len(events),
+            "events": events,
+            "complete": complete,
+            "results_may_be_truncated": not complete,
+            "resource_errors": errors,
+            "observed_at": observed.astimezone(UTC).isoformat(),
+            "scope": {
+                "kind": "calendar-day",
+                "relative": "today",
+                "selection": "single-resource" if resource_id else "all-selected",
+                "date": start.date().isoformat(),
+                "timezone": zone.key,
+                "start": start.isoformat(),
+                "end": end.isoformat(),
+                "resource_ids": list(resource_ids),
+            },
+            "absence_proven": complete and not events and not resource_id,
+        }
+
+    @staticmethod
+    def _calendar_day_read_error(exc: Exception) -> str:
+        if isinstance(exc, ResourceIdentityError):
+            return exc.code
+        if isinstance(exc, KeyError):
+            if str(exc).startswith("'resource-id-duplicate:"):
+                return "resource-id-duplicate"
+            return "resource-id-stale"
+        if isinstance(exc, PermissionError):
+            reason = str(exc)
+            known = {
+                "scope-off", "scope-unbound", "scope-invalid", "operation-not-allowed", "rights-stale",
+                "rights-unverified", "server-right-missing", "policy-changed", "policy-integrity-error",
+                "nextcloud-resource-not-authorized", "nextcloud-resource-disabled",
+                "nextcloud-resource-component-mismatch",
+            }
+            return reason if reason in known else "permission-denied"
+        return "resource-read-failed"
 
     @publish_current_account_result
     def calendar_search(self, query: str, *, limit: int = 50) -> dict[str, Any]:

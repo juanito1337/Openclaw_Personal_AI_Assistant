@@ -7,6 +7,13 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from ...calendar_agenda import (
+    CALENDAR_TIMEZONE_PROPFIND,
+    agenda_query,
+    agenda_timezone_error,
+    calendar_timezone_property,
+    parse_agenda,
+)
 from ...config import AssistantConfig
 from ...extractors import chunks
 from ...ical_edit import component_properties, first_value, unescape_ical
@@ -75,6 +82,36 @@ class NextcloudCalendar:
             if not raw:
                 continue
             result.append(self._parse_ics(raw, item.href, item.properties.get(q(DAV, "getetag"), "")))
+        return result
+
+    def list_agenda(
+        self, calendar: DiscoveredCollection, *, start: datetime, end: datetime, timezone_name: str,
+    ) -> dict[str, Any]:
+        body, zone = agenda_query(start, end, timezone_name)
+        response = component_request(
+            self.client, "VEVENT", "list", calendar, "REPORT", calendar.href, data=body,
+            headers={"Depth": "1", "Content-Type": "application/xml; charset=utf-8"}, expected={207},
+        )
+        result = parse_agenda(response.data, response.url or calendar.href, start=start, end=end, zone=zone)
+        if result["complete"]:
+            try:
+                measured = component_request(
+                    self.client, "VEVENT", "list", calendar, "PROPFIND", calendar.href,
+                    data=CALENDAR_TIMEZONE_PROPFIND,
+                    headers={"Depth": "0", "Content-Type": "application/xml; charset=utf-8"}, expected={207},
+                )
+                definition = calendar_timezone_property(measured.data, measured.url or calendar.href)
+                issue = agenda_timezone_error(definition, zone, start, end)
+            except PermissionError as exc:
+                issue = str(exc)
+                if issue not in {"server-right-missing", "rights-unverified"}:
+                    raise
+            except NextcloudError as exc:
+                if str(exc).startswith("nextcloud-connection-changed"):
+                    raise
+                issue = "calendar-timezone-unverified"
+            if issue:
+                result.update(complete=False, errors=[{"code": issue}])
         return result
 
     def list_event_metadata(self, calendar: DiscoveredCollection) -> list[CalendarMetadata]:

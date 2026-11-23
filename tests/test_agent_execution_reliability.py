@@ -555,6 +555,52 @@ console.log(JSON.stringify({results,calls:operationCalls(),state:obligationByRun
     assert sum(row["details"]["personalAssistantEvidence"]["ok"] for row in data["results"]) == 1
 
 
+@pytest.mark.parametrize("complete", [True, False])
+def test_real_calendar_today_hooks_keep_day_proof_and_report_partial_failure(complete: bool) -> None:
+    harness = HOOK_HARNESS.replace(
+        "invocations.push(invocation);",
+        """invocations.push(invocation);
+        if (invocation.argv.slice(0,2).join(' ')==='calendar today') {
+          const observed=new Date().toISOString();
+          const date=observed.slice(0,10), start=date+'T00:00:00Z';
+          const end=new Date(Date.parse(start)+86400000).toISOString();
+          return {returncode:0,stderr:'',stdout:JSON.stringify({
+            ok:COMPLETE,complete:COMPLETE,count:0,events:[],absence_proven:COMPLETE,
+            results_may_be_truncated:!COMPLETE,
+            resource_errors:COMPLETE?[]:[{code:'rights-unverified',resource_id:'b'}],
+            observed_at:observed,scope:{kind:'calendar-day',relative:'today',selection:'all-selected',
+              date,timezone:'UTC',start,end,resource_ids:['a','b']}
+          })};
+        }
+        """.replace("COMPLETE", json.dumps(complete)),
+    )
+    data = _node(harness + r"""
+const context=await begin('run','Welche Termine habe ich heute?');
+const operation='nextcloud.calendar.today';
+const prepared=await gate('run',operation);
+const response=await execute(operation,prepared.params);
+const revision=await hooks.get('before_agent_finalize')(
+  {runId:'run',lastAssistantMessage:'Es gibt keine Termine.'},{runId:'run'});
+const absence=await reply('run','Heute hast du keine Termine.');
+const diagnostic=await reply('run','Ich kann keine Termine zuverlässig abrufen: Kalenderrechte fehlen.');
+await begin('other','Welche Termine habe ich heute?');
+const stale=await reply('other','Heute hast du keine Termine.');
+console.log(JSON.stringify({context,response,revision,absence:absence??null,diagnostic:diagnostic??null,stale}));
+""")
+    assert "nextcloud.calendar.today" in data["context"]["prependContext"]
+    response = json.loads(data["response"]["content"][0]["text"])
+    assert response["evidence"]["tool_id"] == "nextcloud.calendar.today"
+    assert response["evidence"]["complete"] is complete
+    assert "nextcloud.calendar.today" in data["revision"]["retry"]["instruction"]
+    assert "Heute hast du keine Termine." in data["revision"]["retry"]["instruction"]
+    if complete:
+        assert data["absence"] is None
+    else:
+        assert "negative-claim-not-authorized" in data["absence"]["payload"]["text"]
+        assert data["diagnostic"] is None
+    assert data["stale"]["reason"] == "personal-assistant-evidence-guard"
+
+
 @pytest.mark.parametrize(
     ("catalog_result", "error"),
     [

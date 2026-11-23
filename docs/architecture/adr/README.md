@@ -59,4 +59,6 @@ verweist mit Status `Superseded` auf den Nachfolger.
 
 | [0051](0051-openclaw-einrichtung-und-nextcloud-konto.md) | Accepted | administrative Plugin-GUI, Login Flow v2 und ressourcengebundener Talk-Benutzerkanal |
 
+| [0052](0052-belegte-kalender-tagesabfrage.md) | Accepted | belegte Tagesagenda, Serienvorkommen und begrenzte Kalender-Negativaussagen |
+
 Neue ADRs beginnen mit der [Vorlage](0000-template.md).
