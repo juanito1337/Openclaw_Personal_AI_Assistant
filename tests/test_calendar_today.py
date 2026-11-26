@@ -181,6 +181,31 @@ def test_partial_report_preserves_findings_and_sanitizes_failed_resource(monkeyp
     assert "private response body" not in repr(result)
 
 
+def test_calendar_today_revalidates_fallback_diagnostic_counts(legacy):
+    legacy.nextcloud_calendar.replies["first"] = agenda(complete=False, errors=(
+        {"code": "calendar-fallback-provenance-invalid", "diagnostic_counts": {
+            "embedded-timezone/rrule-unsupported": 4, "raw-singleton/invalid-event-time": True,
+            "private title": 1, "raw-singleton/invalid-event-duration": 1001,
+        }, "private field": "private title"},
+        {"code": "calendar-fallback-series-omitted", "diagnostic_counts": {
+            "omitted-series/YEARLY/TZID/COUNT": 1, "omitted-series/YEARLY/private/COUNT": 1,
+            "embedded-timezone/rrule-unsupported": 2, "omitted-series/WEEKLY/UTC/NONE": 0,
+        }},
+    ))
+
+    result = legacy.calendar_today()
+
+    assert result["resource_errors"] == [
+        {"resource_id": "first", "code": "calendar-fallback-provenance-invalid", "diagnostic_counts": {
+            "embedded-timezone/rrule-unsupported": 4,
+        }},
+        {"resource_id": "first", "code": "calendar-fallback-series-omitted", "diagnostic_counts": {
+            "omitted-series/YEARLY/TZID/COUNT": 1,
+        }},
+    ]
+    assert result["complete"] is False and result["absence_proven"] is False
+
+
 def test_limit_applies_after_merging_and_ordering_by_instant(monkeypatch, legacy):
     freeze_clock(monkeypatch, "2026-11-23T10:00:00+00:00")
     legacy.tool_settings.nextcloud.calendar = replace(

@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 
 from .actions import ActionService
 from .antivirus import HostAntivirus
-from .calendar_agenda import TIMEZONE_DIAGNOSTIC_REASONS
+from .calendar_agenda import TIMEZONE_DIAGNOSTIC_REASONS, project_fallback_diagnostic_counts
 from .calendar_from_mail import (
     build_calendar_mail_preview,
     canonical_preview_digest,
@@ -1530,7 +1530,7 @@ class PersonalAssistant(
                     resource_errors: dict[str, dict[str, Any]] = {}
                     for error in report["errors"]:
                         code = error["code"]
-                        evidence = {"resource_id": selected_id, "code": code}
+                        evidence: dict[str, Any] = {"resource_id": selected_id, "code": code}
                         reason = error.get("reason")
                         if (code == "calendar-timezone-unverified" and isinstance(reason, str)
                                 and reason in TIMEZONE_DIAGNOSTIC_REASONS):
@@ -1539,6 +1539,9 @@ class PersonalAssistant(
                                 status = error.get(field)
                                 if type(status) is int and 100 <= status <= 599:
                                     evidence[field] = status
+                        counts = project_fallback_diagnostic_counts(code, error.get("diagnostic_counts"))
+                        if counts:
+                            evidence["diagnostic_counts"] = counts
                         resource_errors.setdefault(code, evidence)
                     if report["complete"] is not True and not resource_errors:
                         errors.append({"resource_id": selected_id, "code": "resource-read-incomplete"})

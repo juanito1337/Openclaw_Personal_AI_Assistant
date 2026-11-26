@@ -460,3 +460,33 @@ def test_property_404_fallback_rejects_unproved_time_or_scope(failure, expected_
     assert expected_code in {error["code"] for error in result["errors"]}
     if failure == "foreign-probe-url":
         assert len(transport.replies) == 3
+
+
+def test_fallback_counts_timezone_and_omitted_series_without_exposing_objects():
+    embedded = resource(event("DTSTART;TZID=Europe/Berlin:20261126T123000", uid="private-timezone"))
+    embedded = embedded.replace(
+        "BEGIN:VEVENT", "BEGIN:VTIMEZONE\r\nTZID:Europe/Berlin\r\nEND:VTIMEZONE\r\nBEGIN:VEVENT",
+    )
+    raw = multistatus(
+        row(embedded, name="private-object.ics"),
+        row(resource(event("DTSTART:20261199T120000Z", uid="private-invalid")), name="invalid.ics"),
+        row(resource(event("DTSTART;TZID=Europe/Berlin:20260101T123000", "RRULE:FREQ=YEARLY;COUNT=2",
+                           uid="private-series")), name="series.ics"),
+        row(resource(event("DTSTART;VALUE=DATE:20260102", "RRULE:FREQ=MONTHLY", uid="private-date-a")),
+            name="a.ics"),
+        row(resource(event("DTSTART;VALUE=DATE:20260103", "RRULE:FREQ=MONTHLY", uid="private-date-b")),
+            name="b.ics"),
+    )
+    transport = MissingTimezoneTransport(multistatus(), raw)
+
+    result = NextcloudCalendar(AssistantConfig(), transport).list_agenda(COLLECTION, **day(11, 26))
+
+    assert result == {"complete": False, "events": [], "errors": [
+        {"code": "calendar-fallback-provenance-invalid", "diagnostic_counts": {
+            "embedded-timezone/observance-missing": 1, "raw-singleton/invalid-temporal-value": 1,
+        }},
+        {"code": "calendar-fallback-series-omitted", "diagnostic_counts": {
+            "omitted-series/MONTHLY/DATE/NONE": 2, "omitted-series/YEARLY/TZID/COUNT": 1,
+        }},
+    ]}
+    assert "private" not in repr(result)

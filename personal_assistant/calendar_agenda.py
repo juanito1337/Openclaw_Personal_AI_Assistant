@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from calendar import monthrange
+from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
@@ -36,6 +37,14 @@ AGENDA_RAW_REPORT = b"""<c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:param
 </c:calendar-query>"""
 AGENDA_RESPONSE_MAX_BYTES = 4 * 1024 * 1024
 AGENDA_RAW_MAX_OBJECTS = 1000
+_PROVENANCE_INVALID = "calendar-fallback-provenance-invalid"
+_SERIES_OMITTED = "calendar-fallback-series-omitted"
+_RRULE_FREQUENCIES = frozenset({"SECONDLY", "MINUTELY", "HOURLY", "DAILY", "WEEKLY", "MONTHLY", "YEARLY"})
+_SOURCE_PARSE_REASONS = frozenset({
+    "invalid-event-properties", "invalid-event-time", "invalid-event-duration", "invalid-calendar-data",
+    "invalid-recurrence-id", "ambiguous-duration-timezone", "event-outside-agenda", "floating-event-time",
+    "invalid-temporal-value", "temporal-overflow", "unknown-tzid",
+})
 _DURATION = re.compile(
     r"P(?:(?P<weeks>[0-9]+)W|(?:(?P<days>[0-9]+)D)?"
     r"(?:T(?:(?P<hours>[0-9]+)H)?(?:(?P<minutes>[0-9]+)M)?(?:(?P<seconds>[0-9]+)S)?)?)"
@@ -580,9 +589,9 @@ _RRULE_RANGES = {
 _WEEKDAY = r"(?:MO|TU|WE|TH|FR|SA|SU)"
 
 
-def _object_timezones_verified(source: _AgendaObject, start: datetime, end: datetime) -> bool:
+def _object_timezone_issue(source: _AgendaObject, start: datetime, end: datetime) -> str:
     if not source.has_timezones:
-        return True
+        return ""
     names = set()
     for component in source.components:
         for line in component:
@@ -590,7 +599,14 @@ def _object_timezones_verified(source: _AgendaObject, start: datetime, end: date
                 match = re.search(r';TZID=(?:"([^"]+)"|([^;]+))(?:;|$)', line.partition(":")[0], re.I)
                 if match:
                     names.add(match[1] or match[2])
-    return all(agenda_timezone_error(source.raw, ZoneInfo(name), start, end) == ("", "") for name in names)
+    for name in sorted(names):
+        try:
+            code, reason = agenda_timezone_error(source.raw, ZoneInfo(name), start, end)
+        except ZoneInfoNotFoundError:
+            return "unknown-tzid"
+        if code:
+            return reason or "timezone-mismatch"
+    return ""
 
 
 def _rule_independent(line: str, *, all_day: bool) -> bool:
@@ -600,7 +616,7 @@ def _rule_independent(line: str, *, all_day: bool) -> bool:
     freq = rule.get("FREQ", "")
     if (header.upper() != "RRULE" or len(rule) != len(tokens) or not all(rule.values())
             or rule.keys() - (_RRULE_RANGES.keys() | {"FREQ", "UNTIL", "WKST", "BYDAY"})
-            or freq not in {"SECONDLY", "MINUTELY", "HOURLY", "DAILY", "WEEKLY", "MONTHLY", "YEARLY"}
+            or freq not in _RRULE_FREQUENCIES
             or {"COUNT", "UNTIL"} <= rule.keys()
             or (all_day and (freq in {"SECONDLY", "MINUTELY", "HOURLY"}
                              or rule.keys() & {"BYSECOND", "BYMINUTE", "BYHOUR"}))
@@ -732,6 +748,52 @@ def _series_outside_day(source: _AgendaObject, zone: ZoneInfo, start: datetime, 
     return True
 
 
+def _omitted_series_diagnostic(source: _AgendaObject) -> str:
+    master = next(
+        part for part in source.components if all(property_name(line) != "RECURRENCE-ID" for line in part)
+    )
+    timestamp = _event_time(next(line for line in master if property_name(line) == "DTSTART"), None)
+    basis = ("UTC" if timestamp.tzinfo is UTC else "TZID") if isinstance(timestamp, datetime) else "DATE"
+    rule = next((line.partition(":")[2].upper() for line in master if property_name(line) == "RRULE"), "")
+    fields = dict(part.split("=", 1) for part in rule.split(";") if part)
+    bound = "UNTIL" if "UNTIL" in fields else "COUNT" if "COUNT" in fields else "NONE"
+    return f"omitted-series/{fields.get('FREQ', 'NONE')}/{basis}/{bound}"
+
+
+def _source_parse_reason(exc: Exception) -> str:
+    if isinstance(exc, ZoneInfoNotFoundError):
+        return "unknown-tzid"
+    if isinstance(exc, OverflowError):
+        return "temporal-overflow"
+    reason = str(exc)
+    return reason if reason in _SOURCE_PARSE_REASONS else "invalid-temporal-value"
+
+
+def project_fallback_diagnostic_counts(code: str, counts: object) -> dict[str, int]:
+    """Bound and revalidate content-free diagnostics before crossing the tool boundary."""
+    def allowed(key: str) -> bool:
+        stage, _, tail = key.partition("/")
+        if code == _PROVENANCE_INVALID:
+            if stage == "embedded-timezone":
+                return tail in TIMEZONE_DIAGNOSTIC_REASONS | {"timezone-mismatch", "unknown-tzid"}
+            return (stage in {"raw-singleton", "expanded-instance", "series-bound"}
+                    and tail in _SOURCE_PARSE_REASONS)
+        if code == _SERIES_OMITTED and stage == "omitted-series":
+            parts = tail.split("/")
+            return (len(parts) == 3 and parts[0] in _RRULE_FREQUENCIES | {"NONE"}
+                    and parts[1] in {"UTC", "TZID", "DATE"} and parts[2] in {"UNTIL", "COUNT", "NONE"})
+        return False
+
+    if not isinstance(counts, dict):
+        return {}
+    validated = {
+        key: count for key, count in counts.items()
+        if isinstance(key, str) and len(key) <= 72 and type(count) is int
+        and 1 <= count <= AGENDA_RAW_MAX_OBJECTS and allowed(key)
+    }
+    return dict(sorted(validated.items(), key=lambda item: (-item[1], item[0]))[:64])
+
+
 def project_agenda_fallback(
     before: dict[str, _AgendaObject], expanded: dict[str, _AgendaObject], after: dict[str, _AgendaObject],
     *, zone: ZoneInfo, start: datetime, end: datetime,
@@ -745,24 +807,32 @@ def project_agenda_fallback(
     start, end = start.astimezone(UTC), end.astimezone(UTC)
     events: list[dict[str, Any]] = []
     codes: set[str] = set()
+    diagnostics: dict[str, Counter[str]] = {_PROVENANCE_INVALID: Counter(), _SERIES_OMITTED: Counter()}
 
     def instant(event: dict[str, Any], key: str) -> datetime:
         parse = date.fromisoformat if event["all_day"] else datetime.fromisoformat
         return _instant(parse(event[key]), zone)
 
     for path, source in before.items():
+        stage = "embedded-timezone"
         try:
-            if not _object_timezones_verified(source, start, end):
-                codes.add("calendar-fallback-provenance-invalid")
-            elif not _requires_expansion(source):
+            timezone_issue = _object_timezone_issue(source, start, end)
+            if timezone_issue:
+                codes.add(_PROVENANCE_INVALID)
+                diagnostics[_PROVENANCE_INVALID][f"{stage}/{timezone_issue}"] += 1
+                continue
+            if not _requires_expansion(source):
+                stage = "raw-singleton"
                 event = _agenda_event(source.components[0], zone, start, end, raw_single=True)
                 if event is not None:
                     events.append(event)
             else:
+                stage = "series-bound"
                 day_type = _expansion_day_type(source)
                 if day_type is None:
                     codes.add("calendar-timezone-dependent-series")
                 elif path in expanded:
+                    stage = "expanded-instance"
                     if not _normalized_expansion(expanded[path], all_day=day_type):
                         codes.add("calendar-fallback-expansion-unbound")
                         continue
@@ -774,11 +844,17 @@ def project_agenda_fallback(
                         if _overlaps(instant(event, "start"), instant(event, "end"), start, end)
                     )
                 elif not _series_outside_day(source, zone, start, end):
-                    codes.add("calendar-fallback-series-omitted")
-        except (ValueError, OverflowError, ZoneInfoNotFoundError):
-            codes.add("calendar-fallback-provenance-invalid")
+                    codes.add(_SERIES_OMITTED)
+                    diagnostics[_SERIES_OMITTED][_omitted_series_diagnostic(source)] += 1
+        except (ValueError, OverflowError, ZoneInfoNotFoundError) as exc:
+            codes.add(_PROVENANCE_INVALID)
+            diagnostics[_PROVENANCE_INVALID][f"{stage}/{_source_parse_reason(exc)}"] += 1
     events.sort(key=lambda event: (instant(event, "start"), event["uid"], event["recurrence_id"]))
-    return {"complete": not codes, "events": events, "errors": [{"code": code} for code in sorted(codes)]}
+    errors = []
+    for code in sorted(codes):
+        counts = project_fallback_diagnostic_counts(code, diagnostics.get(code))
+        errors.append({"code": code, **({"diagnostic_counts": counts} if counts else {})})
+    return {"complete": not codes, "events": events, "errors": errors}
 
 
 def parse_agenda(
