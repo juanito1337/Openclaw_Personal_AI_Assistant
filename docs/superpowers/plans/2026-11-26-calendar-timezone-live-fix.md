@@ -65,6 +65,17 @@ were recorded. RFC 4791 makes this collection property optional. Its absence
 does not establish a server timezone; Sabre expansion can erase the original
 floating/UTC distinction.
 
+The first guarded fallback candidate `fd1447d` retained the one positive live
+event but exposed additional provenance and omitted-series failures. Its full
+repository and installed-wheel checks were interrupted with exit 143 before
+further source changes; they are not completion evidence. A diagnostic follow-up
+`b4f38f8` at `2026-11-26T14:41:21Z` classified eight embedded timezone rule
+failures, two invalid standalone durations and one omitted unbounded yearly
+TZID series. A conservative day-nonoverlap proof is required before irrelevant
+historical objects can be excluded. The normal three-role pinned Docker build
+of `fd1447d` passed, including the repaired zstd package pin; no production
+container was activated.
+
 ## Correction invariants
 
 Only the exact scoped empty `calendar-timezone` property in a 404 propstat

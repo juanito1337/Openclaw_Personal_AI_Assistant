@@ -2,7 +2,7 @@
   "schema_version": 1,
   "inventory_date": "2026-08-06",
   "source_scope": "all Python modules, shell entrypoints, skills, systemd units, migrations and Markdown documents",
-  "component_count": 627,
+  "component_count": 629,
   "classification_values": [
     "active",
     "compatibility",
@@ -6712,13 +6712,14 @@
       "classification": "active",
       "productive_callers": [],
       "test_evidence": [
+        "tests/test_calendar_timezone_definitions.py",
         "tests/test_nextcloud_foreground_access.py"
       ],
       "documentation_evidence": [
         "docs/superpowers/plans/2026-11-26-calendar-timezone-live-fix.md"
       ],
       "line_coverage_percent": 85.11,
-      "last_git_change": "2026-11-26T15:33:42+01:00",
+      "last_git_change": "2026-11-26T15:40:22+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -7416,6 +7417,7 @@
         "tests/ruff-baseline.json",
         "tests/test_artifact_hygiene.py",
         "tests/test_calendar_agenda.py",
+        "tests/test_calendar_agenda_bounds.py",
         "tests/test_calendar_today.py",
         "tests/test_container_runtime.py",
         "tests/test_immutable_runtime.py",
@@ -7511,6 +7513,7 @@
         "tests/test_action_completion_m15.py",
         "tests/test_caldav_update_tools.py",
         "tests/test_calendar_agenda.py",
+        "tests/test_calendar_agenda_bounds.py",
         "tests/test_calendar_today.py",
         "tests/test_direct_calendar_tool.py",
         "tests/test_incremental_sync_m163.py",
@@ -9527,7 +9530,7 @@
         "docs/superpowers/plans/2026-11-26-calendar-timezone-live-fix.md"
       ],
       "line_coverage_percent": 64.46,
-      "last_git_change": "2026-11-26T15:09:21+01:00",
+      "last_git_change": "2026-11-26T15:40:22+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -12999,7 +13002,25 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": "2026-11-26T15:33:42+01:00",
+      "last_git_change": "2026-11-26T15:40:22+01:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "tests/test_calendar_agenda_bounds.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -13025,6 +13046,24 @@
       "rollback_relevance": "none"
     },
     {
+      "path": "tests/test_calendar_timezone_definitions.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
       "path": "tests/test_calendar_today.py",
       "types": [
         "python-module"
@@ -13040,7 +13079,7 @@
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-11-26T15:33:42+01:00",
+      "last_git_change": "2026-11-26T15:40:22+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"

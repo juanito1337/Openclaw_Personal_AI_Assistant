@@ -26,7 +26,9 @@ TIMEZONE_DIAGNOSTIC_REASONS = frozenset({
     "http-status", "transport-error", "dav-envelope-invalid", "dav-scope-mismatch", "response-url-mismatch",
     "property-missing", "property-empty", "property-http-error", "timezone-definition-invalid",
     "timezone-id-invalid", "observance-missing", "observance-invalid", "observance-ambiguous",
-    "rrule-invalid", "rrule-unsupported",
+    "rrule-invalid", "rrule-unsupported", "rrule-field-syntax", "rrule-temporal-overflow",
+    "rrule-bymonth-list", "rrule-bymonth-invalid", "rrule-bymonth-range", "rrule-bymonthday-invalid",
+    "rrule-until-local", "rrule-until-date", "rrule-until-invalid",
 })
 CALENDAR_TIMEZONE_PROPFIND = b"""<d:propfind xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
  <d:prop><c:calendar-timezone/></d:prop>
@@ -43,7 +45,8 @@ _RRULE_FREQUENCIES = frozenset({"SECONDLY", "MINUTELY", "HOURLY", "DAILY", "WEEK
 _SOURCE_PARSE_REASONS = frozenset({
     "invalid-event-properties", "invalid-event-time", "invalid-event-duration", "invalid-calendar-data",
     "invalid-recurrence-id", "ambiguous-duration-timezone", "event-outside-agenda", "floating-event-time",
-    "invalid-temporal-value", "temporal-overflow", "unknown-tzid",
+    "invalid-temporal-value", "temporal-overflow", "unknown-tzid", "event-duration-zero-length",
+    "event-duration-end-before-start", "event-duration-type-mismatch",
 })
 _DURATION = re.compile(
     r"P(?:(?P<weeks>[0-9]+)W|(?:(?P<days>[0-9]+)D)?"
@@ -224,18 +227,41 @@ def _offset_value(value: str) -> timedelta:
 def _yearly_onsets(
     value: str, first: datetime, before: timedelta, window: tuple[datetime, datetime],
 ) -> list[datetime]:
-    parts = dict(entry.split("=", 1) for entry in value.upper().split(";"))
+    try:
+        parts = dict(entry.split("=", 1) for entry in value.upper().split(";"))
+    except ValueError:
+        raise _TimezoneParseIssue("rrule-field-syntax") from None
     if (
         parts.pop("FREQ", "") != "YEARLY" or parts.pop("INTERVAL", "1") != "1"
         or set(parts) - {"BYMONTH", "BYMONTHDAY", "BYDAY", "UNTIL"}
     ):
         raise _TimezoneParseIssue("rrule-unsupported")
-    month = int(parts.get("BYMONTH", str(first.month)))
-    days = [int(item) for item in parts["BYMONTHDAY"].split(",")] if "BYMONTHDAY" in parts else []
+    month_value = parts.get("BYMONTH", str(first.month))
+    try:
+        month = int(month_value)
+    except ValueError:
+        reason = "rrule-bymonth-list" if "," in month_value else "rrule-bymonth-invalid"
+        raise _TimezoneParseIssue(reason) from None
+    try:
+        days = [int(item) for item in parts["BYMONTHDAY"].split(",")] if "BYMONTHDAY" in parts else []
+    except ValueError:
+        raise _TimezoneParseIssue("rrule-bymonthday-invalid") from None
     weekday_rule = re.fullmatch(r"([+-]?[1-5])?(MO|TU|WE|TH|FR|SA|SU)", parts.get("BYDAY", ""))
     if "BYDAY" in parts and weekday_rule is None:
         raise _TimezoneParseIssue("rrule-unsupported")
-    until = datetime.strptime(parts["UNTIL"], _UTC_STAMP).replace(tzinfo=UTC) if "UNTIL" in parts else None
+    until = None
+    if "UNTIL" in parts:
+        value = parts["UNTIL"]
+        try:
+            until = datetime.strptime(value, _UTC_STAMP).replace(tzinfo=UTC)
+        except ValueError:
+            if re.fullmatch(r"[0-9]{8}T[0-9]{6}", value):
+                raise _TimezoneParseIssue("rrule-until-local") from None
+            if re.fullmatch(r"[0-9]{8}", value):
+                raise _TimezoneParseIssue("rrule-until-date") from None
+            raise _TimezoneParseIssue("rrule-until-invalid") from None
+    if not 1 <= month <= 12:
+        raise _TimezoneParseIssue("rrule-bymonth-range")
     years = set(range(max(1, window[0].year - 1), window[1].year + 1))
     if until:
         years.update((max(1, until.year - 1), until.year))
@@ -289,7 +315,9 @@ def _observances(
                 onsets.extend(_yearly_onsets(properties["RRULE"][0], begins, before, window))
             except _TimezoneParseIssue:
                 raise
-            except (ValueError, OverflowError):
+            except OverflowError:
+                raise _TimezoneParseIssue("rrule-temporal-overflow") from None
+            except ValueError:
                 raise _TimezoneParseIssue("rrule-invalid") from None
         transitions.update((item.replace(tzinfo=UTC) - before, before, after) for item in onsets)
     ordered = sorted(transitions)
@@ -342,7 +370,7 @@ def agenda_timezone_error(value: str, zone: ZoneInfo, start: datetime, end: date
     return "", ""
 
 
-def _event_time(line: str, zone: ZoneInfo | None) -> date | datetime:
+def _event_wall_value(line: str) -> tuple[date | datetime, str | None]:
     header, _, value = line.partition(":")
     parameters: dict[str, str] = {}
     for assignment in header.split(";")[1:]:
@@ -356,29 +384,41 @@ def _event_time(line: str, zone: ZoneInfo | None) -> date | datetime:
     if re.fullmatch(r"[0-9]{8}", value):
         if zone_name or declared_type not in {"", "DATE"}:
             raise ValueError("invalid-event-time")
-        return datetime.strptime(value, "%Y%m%d").date()
+        return datetime.strptime(value, "%Y%m%d").date(), None
     if declared_type not in {"", "DATE-TIME"} or not re.fullmatch(r"[0-9]{8}T[0-9]{6}Z?", value):
         raise ValueError("invalid-event-time")
     if value.endswith("Z"):
         if zone_name:
             raise ValueError("invalid-event-time")
-        return datetime.strptime(value, _UTC_STAMP).replace(tzinfo=UTC)
+        return datetime.strptime(value, _UTC_STAMP).replace(tzinfo=UTC), None
+    return datetime.strptime(value, _LOCAL_STAMP), zone_name
+
+
+def _event_time(line: str, zone: ZoneInfo | None) -> date | datetime:
+    wall, zone_name = _event_wall_value(line)
+    if not isinstance(wall, datetime) or wall.tzinfo is not None:
+        return wall
     target = ZoneInfo(zone_name) if zone_name else zone
     if target is None:
         raise ValueError("floating-event-time")
-    local = datetime.strptime(value, _LOCAL_STAMP)
-    return local.replace(tzinfo=target, fold=0)
+    return wall.replace(tzinfo=target, fold=0)
 
 
-def _end_from_duration(start: date | datetime, value: str) -> date | datetime:
+def _duration_parts(value: str) -> tuple[timedelta, timedelta]:
     match = _DURATION.fullmatch(value)
     if not match or value.endswith("T"):
         raise ValueError("invalid-event-duration")
     units = {key: int(amount or "0") for key, amount in match.groupdict().items()}
-    calendar_days = timedelta(weeks=units["weeks"], days=units["days"])
-    elapsed = timedelta(hours=units["hours"], minutes=units["minutes"], seconds=units["seconds"])
-    if not (calendar_days or elapsed) or (elapsed and not isinstance(start, datetime)):
-        raise ValueError("invalid-event-duration")
+    return (timedelta(weeks=units["weeks"], days=units["days"]),
+            timedelta(hours=units["hours"], minutes=units["minutes"], seconds=units["seconds"]))
+
+
+def _end_from_duration(start: date | datetime, value: str) -> date | datetime:
+    calendar_days, elapsed = _duration_parts(value)
+    if not (calendar_days or elapsed):
+        raise ValueError("event-duration-zero-length")
+    if elapsed and not isinstance(start, datetime):
+        raise ValueError("event-duration-type-mismatch")
     if calendar_days and isinstance(start, datetime) and start.tzinfo is UTC:
         # Expansion can leave a nominal day/week duration after stripping TZID.
         raise ValueError("ambiguous-duration-timezone")
@@ -429,10 +469,12 @@ def _agenda_event(
     else:
         finishes = begins + timedelta(days=1) if all_day else begins
     if isinstance(finishes, datetime) == all_day:
-        raise ValueError("invalid-event-duration")
+        raise ValueError("event-duration-type-mismatch")
     first, last = _instant(begins, zone), _instant(finishes, zone)
-    if last < first or (last == first and "DTEND" in fields):
-        raise ValueError("invalid-event-duration")
+    if last < first:
+        raise ValueError("event-duration-end-before-start")
+    if last == first and "DTEND" in fields:
+        raise ValueError("event-duration-zero-length")
     if not _overlaps(first, last, start, end):
         if raw_single:
             return None
@@ -707,6 +749,178 @@ def _normalized_expansion(source: _AgendaObject, *, all_day: bool) -> bool:
         return False
 
 
+_MAX_UTC_OFFSET = timedelta(days=1)
+_MAX_YEARLY_CANDIDATE_DAYS = 64
+
+
+def _utc_envelope(wall: date | datetime) -> tuple[datetime, datetime]:
+    """Enclose every possible instant of a wall value without using its TZID."""
+    if isinstance(wall, datetime):
+        if wall.tzinfo is UTC:
+            return wall, wall
+        neutral = wall.replace(tzinfo=UTC)
+    else:
+        neutral = datetime.combine(wall, time.min, UTC)
+    return neutral - _MAX_UTC_OFFSET, neutral + _MAX_UTC_OFFSET
+
+
+def _embedded_offsets_bounded(source: _AgendaObject) -> bool:
+    if not source.has_timezones:
+        return True
+    lines = unfold_ical(source.raw)
+    try:
+        for first, last in _component_blocks(lines, "VTIMEZONE"):
+            definition = lines[first:last + 1]
+            blocks = _component_blocks(definition, "STANDARD") + _component_blocks(definition, "DAYLIGHT")
+            if not blocks or any(
+                line.upper().startswith("BEGIN:") and line.upper() not in {"BEGIN:STANDARD", "BEGIN:DAYLIGHT"}
+                for line in definition[1:-1]
+            ):
+                return False
+            for first_observance, last_observance in blocks:
+                properties = [definition[index] for index in _direct_property_indices(
+                    definition, first_observance, last_observance,
+                )]
+                for name in ("TZOFFSETFROM", "TZOFFSETTO"):
+                    offsets = [line.partition(":")[2] for line in properties if property_name(line) == name]
+                    if len(offsets) != 1:
+                        return False
+                    _offset_value(offsets[0])
+        return True
+    except ValueError:
+        return False
+
+
+def _raw_singleton_outside_day(component: list[str], start: datetime, end: datetime) -> bool:
+    fields = {}
+    for line in component:
+        name = property_name(line)
+        if name in {"DTSTART", "DTEND", "DURATION"}:
+            if name in fields:
+                return False
+            fields[name] = line
+    if "DTSTART" not in fields or {"DTEND", "DURATION"} <= fields.keys():
+        return False
+    try:
+        begins, _ = _event_wall_value(fields["DTSTART"])
+        begin_low, begin_high = _utc_envelope(begins)
+        if "DTEND" in fields:
+            finishes, _ = _event_wall_value(fields["DTEND"])
+            end_low, end_high = _utc_envelope(finishes)
+        elif "DURATION" in fields:
+            days, elapsed = _duration_parts(fields["DURATION"].partition(":")[2])
+            if elapsed and not isinstance(begins, datetime):
+                return False
+            end_low, end_high = _utc_envelope(begins + days)
+            end_low, end_high = end_low + elapsed, end_high + elapsed
+        else:
+            finishes = begins if isinstance(begins, datetime) else begins + timedelta(days=1)
+            end_low, end_high = _utc_envelope(finishes)
+        return max(begin_high, end_high) < start or min(begin_low, end_low) >= end
+    except (ValueError, OverflowError):
+        return False
+
+
+def _yearly_date_may_match(candidate: date, seed: date, rule: dict[str, str]) -> bool:
+    date_selectors = {"BYDAY", "BYMONTHDAY", "BYYEARDAY", "BYWEEKNO"} & rule.keys()
+    if "BYMONTH" in rule:
+        if candidate.month not in {int(month) for month in rule["BYMONTH"].split(",")}:
+            return False
+    elif not date_selectors and candidate.month != seed.month:
+        return False
+    if "BYMONTHDAY" in rule:
+        month_days = monthrange(candidate.year, candidate.month)[1]
+        possible_days = {candidate.day, candidate.day - month_days - 1}
+        if not possible_days & {int(value) for value in rule["BYMONTHDAY"].split(",")}:
+            return False
+    elif not date_selectors and candidate.day != seed.day:
+        return False
+    if "BYDAY" in rule:
+        weekday = ("MO", "TU", "WE", "TH", "FR", "SA", "SU")[candidate.weekday()]
+        if weekday not in {value[-2:] for value in rule["BYDAY"].split(",")}:
+            return False
+    # Ordinals, year/week selectors, COUNT/UNTIL, and time-of-day selectors
+    # can narrow the possible dates further. Deliberately ignore them here.
+    return True
+
+
+def _upper_duration(first: date | datetime, fields: dict[str, str]) -> timedelta:
+    first_low, first_high = _utc_envelope(first)
+    if "DTEND" in fields:
+        first_end, _ = _event_wall_value(fields["DTEND"])
+        _, end_high = _utc_envelope(first_end)
+        return end_high - first_low
+    if "DURATION" in fields:
+        days, elapsed = _duration_parts(fields["DURATION"].partition(":")[2])
+        uncertainty = 2 * _MAX_UTC_OFFSET if days and first_low != first_high else timedelta()
+        return days + elapsed + uncertainty
+    return timedelta() if isinstance(first, datetime) else timedelta(days=3)
+
+
+def _inherited_override_may_overlap(source: _AgendaObject, start: datetime, end: datetime) -> bool:
+    parts = [{property_name(line): line for line in component} for component in source.components]
+    overrides = [fields for fields in parts if "RECURRENCE-ID" in fields and "DTEND" not in fields]
+    if not overrides:
+        return False
+    master = next(fields for fields in parts if "RECURRENCE-ID" not in fields)
+    inherited = _upper_duration(_event_wall_value(master["DTSTART"])[0], master)
+    if not inherited:
+        return False
+    for override in overrides:
+        first, _ = _event_wall_value(override["DTSTART"])
+        low, high = _utc_envelope(first)
+        if low < end and high + inherited >= start:
+            return True
+    return False
+
+
+def _has_mixed_recurrence_sources(source: _AgendaObject) -> bool:
+    # Nextcloud's Sabre iterator can prefer RDATE over RRULE instead of
+    # expanding the union. Returned rows then establish only a subset.
+    return any({"RRULE", "RDATE"} <= {property_name(line) for line in part} for part in source.components)
+
+
+def _yearly_series_outside_day(source: _AgendaObject, start: datetime, end: datetime) -> bool:
+    """Reject dates excluded by a superset of possible yearly starts, not generated instances."""
+    parts = [{property_name(line): line for line in component} for component in source.components]
+    master = next(fields for fields in parts if "RECURRENCE-ID" not in fields)
+    master_duration = _upper_duration(_event_wall_value(master["DTSTART"])[0], master)
+    yearly = False
+    for component, fields in zip(source.components, parts, strict=True):
+        first, _ = _event_wall_value(fields["DTSTART"])
+        duration = _upper_duration(first, fields)
+        if "RECURRENCE-ID" in fields and "DTEND" not in fields:
+            # Sabre can retain the master's duration when a moved occurrence
+            # does not carry DTEND, including when it carries DURATION.
+            duration = max(duration, master_duration)
+
+        starts = [first]
+        for line in component:
+            if property_name(line) == "RDATE":
+                header, _, values = line.partition(":")
+                starts.extend(_event_wall_value(f"{header}:{value}")[0] for value in values.split(","))
+        for value in starts:
+            low, high = _utc_envelope(value)
+            if low < end and high + duration >= start:
+                return False
+
+        if "RRULE" not in fields:
+            continue
+        rule = dict(part.split("=", 1) for part in fields["RRULE"].partition(":")[2].upper().split(";"))
+        if rule["FREQ"] != "YEARLY":
+            return False
+        yearly = True
+        seed = first.date() if isinstance(first, datetime) else first
+        earliest = (start - duration - _MAX_UTC_OFFSET).date()
+        latest = (end + _MAX_UTC_OFFSET).date()
+        span = (latest - earliest).days + 1
+        if span > _MAX_YEARLY_CANDIDATE_DAYS or any(
+            _yearly_date_may_match(earliest + timedelta(days=offset), seed, rule) for offset in range(span)
+        ):
+            return False
+    return yearly
+
+
 def _series_outside_day(source: _AgendaObject, zone: ZoneInfo, start: datetime, end: datetime) -> bool:
     """Prove nonoverlap for simple temporal bounds without generating any recurrence set."""
     for component in source.components:
@@ -723,6 +937,8 @@ def _series_outside_day(source: _AgendaObject, zone: ZoneInfo, start: datetime, 
             return False
         if all(_instant(value, zone) >= end for value in dates):
             continue
+        if "RECURRENCE-ID" in fields and "DTEND" not in fields:
+            return False
 
         latest = max(dates)
         if "RRULE" in fields:
@@ -816,12 +1032,16 @@ def project_agenda_fallback(
     for path, source in before.items():
         stage = "embedded-timezone"
         try:
+            requires_expansion = _requires_expansion(source)
+            if (not requires_expansion and _raw_singleton_outside_day(source.components[0], start, end)
+                    and _embedded_offsets_bounded(source)):
+                continue
             timezone_issue = _object_timezone_issue(source, start, end)
             if timezone_issue:
                 codes.add(_PROVENANCE_INVALID)
                 diagnostics[_PROVENANCE_INVALID][f"{stage}/{timezone_issue}"] += 1
                 continue
-            if not _requires_expansion(source):
+            if not requires_expansion:
                 stage = "raw-singleton"
                 event = _agenda_event(source.components[0], zone, start, end, raw_single=True)
                 if event is not None:
@@ -833,7 +1053,9 @@ def project_agenda_fallback(
                     codes.add("calendar-timezone-dependent-series")
                 elif path in expanded:
                     stage = "expanded-instance"
-                    if not _normalized_expansion(expanded[path], all_day=day_type):
+                    if (not _normalized_expansion(expanded[path], all_day=day_type)
+                            or _has_mixed_recurrence_sources(source)
+                            or _inherited_override_may_overlap(source, start, end)):
                         codes.add("calendar-fallback-expansion-unbound")
                         continue
                     instances = _expanded_events(
@@ -843,7 +1065,8 @@ def project_agenda_fallback(
                         event for event in instances
                         if _overlaps(instant(event, "start"), instant(event, "end"), start, end)
                     )
-                elif not _series_outside_day(source, zone, start, end):
+                elif not (_series_outside_day(source, zone, start, end)
+                          or _yearly_series_outside_day(source, start, end)):
                     codes.add(_SERIES_OMITTED)
                     diagnostics[_SERIES_OMITTED][_omitted_series_diagnostic(source)] += 1
         except (ValueError, OverflowError, ZoneInfoNotFoundError) as exc:

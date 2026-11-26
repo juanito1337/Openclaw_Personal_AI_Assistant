@@ -470,7 +470,7 @@ def test_fallback_counts_timezone_and_omitted_series_without_exposing_objects():
     raw = multistatus(
         row(embedded, name="private-object.ics"),
         row(resource(event("DTSTART:20261199T120000Z", uid="private-invalid")), name="invalid.ics"),
-        row(resource(event("DTSTART;TZID=Europe/Berlin:20260101T123000", "RRULE:FREQ=YEARLY;COUNT=2",
+        row(resource(event("DTSTART;TZID=Europe/Berlin:20251126T123000", "RRULE:FREQ=YEARLY;COUNT=2",
                            uid="private-series")), name="series.ics"),
         row(resource(event("DTSTART;VALUE=DATE:20260102", "RRULE:FREQ=MONTHLY", uid="private-date-a")),
             name="a.ics"),
@@ -490,3 +490,19 @@ def test_fallback_counts_timezone_and_omitted_series_without_exposing_objects():
         }},
     ]}
     assert "private" not in repr(result)
+
+
+@pytest.mark.parametrize("start,end,reason", [
+    ("DTSTART:20261126T120000Z", "DTEND:20261126T120000Z", "event-duration-zero-length"),
+    ("DTSTART:20261126T120000Z", "DTEND:20261126T110000Z", "event-duration-end-before-start"),
+    ("DTSTART:20261126T120000Z", "DTEND;VALUE=DATE:20261126", "event-duration-type-mismatch"),
+    ("DTSTART;VALUE=DATE:20261126", "DURATION:PT1H", "event-duration-type-mismatch"),
+])
+def test_on_day_unusable_single_interval_reports_its_duration_reason(start, end, reason):
+    transport = MissingTimezoneTransport(multistatus(), multistatus(row(resource(event(start, end)))))
+
+    result = NextcloudCalendar(AssistantConfig(), transport).list_agenda(COLLECTION, **day(11, 26))
+
+    assert result == {"complete": False, "events": [], "errors": [{
+        "code": "calendar-fallback-provenance-invalid", "diagnostic_counts": {f"raw-singleton/{reason}": 1},
+    }]}

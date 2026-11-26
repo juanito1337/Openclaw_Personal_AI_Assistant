@@ -57,6 +57,15 @@ lokal nachweisbaren Zeitgrenzen als außerhalb des Tages. Andernfalls bleibt
 `calendar-fallback-series-omitted` sichtbar: Nextcloud kann aufwändige oder
 ungültige Serien bei der Filterung ohne eigene Fehlerzeile auslassen.
 
+Für den Tagesbeleg dürfen Originalobjekte vorher ausgeschlossen werden, wenn
+konservative Zeitgrenzen eine Überschneidung sicher ausschließen. Bei
+Einzelterminen werden beide Endpunkte und zulässige eingebettete UTC-Offsets
+geprüft; unbekannte Dauern bleiben unvollständig. Bei fehlenden Jahresserien
+prüft eine begrenzte Obermenge möglicher Startdaten auch Dauern, zusätzliche
+Wiederholungsdaten und verschobene Instanzen. Das erzeugt keine lokalen
+Serieninstanzen. Nicht belegbare Kombinationen der Serverexpansion, etwa
+RRULE zusammen mit RDATE, bleiben unvollständig.
+
 Der Connector liefert `events`, `complete` und inhaltsfreie `errors`. Instanzen
 behalten UID, Wiederholungsidentität und Ressource; ihre Darstellung autorisiert
 keine Instanz- oder Serienänderung. Ungültige, teilweise oder nicht expandierte

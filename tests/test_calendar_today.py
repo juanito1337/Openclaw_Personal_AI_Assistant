@@ -362,7 +362,7 @@ def test_today_report_finds_event_hidden_by_historical_list_limit(account, monke
         ("missing-observance", {"reason": "observance-missing", "property_status": 200}),
         ("invalid-observance", {"reason": "observance-invalid", "property_status": 200}),
         ("unsupported-rrule", {"reason": "rrule-unsupported", "property_status": 200}),
-        ("invalid-rrule", {"reason": "rrule-invalid", "property_status": 200}),
+        ("invalid-rrule", {"reason": "rrule-bymonth-range", "property_status": 200}),
         ("outer-http-error", {"reason": "http-status", "http_status": 502}),
         ("transport-error", {"reason": "transport-error"}),
     ],
