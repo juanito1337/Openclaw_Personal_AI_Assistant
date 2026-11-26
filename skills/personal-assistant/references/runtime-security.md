@@ -95,11 +95,28 @@ each candidate still needs its own unchanged approval and verified postcondition
 - The supervisor remains outside the business-job scheduler. A worker must hold
   and renew its lease; repeated renewal failure is fail-closed. Queue wait itself
   is not a failure.
-- In the container runtime the supervisor is observation-only for domain state.
-  The narrow mail dry-run recovery runs before the productive child inside the
-  single mail worker. Worker alerts use the bounded coordination queue; only the
-  gateway-local relay owns gateway credentials and connects over loopback. Never
-  enable insecure private WebSockets or give gateway credentials to a worker.
+- In every container role, `jobs check` observes job health and updates alerts.
+  The single mail worker runs the allowed dry-run recovery before its productive
+  child. Explicit `jobs on` and `jobs restart` wake the existing worker when a run
+  is requested. Worker alerts use the bounded coordination queue. The gateway-local
+  relay owns the gateway credentials and connects over loopback. Never enable
+  insecure private WebSockets or give gateway credentials to a worker.
+- The allowlisted five-message mail release-validation dry-run has its own
+  900-second cooperative budget, with 60 seconds reserved for completion and a
+  960-second outer watchdog. Readiness and recheck remain separately bounded.
+  Every model attempt, including schema/token retries, uses the remaining budget.
+  A partial validation or model timeout cannot stamp a successful dry-run.
+  Timeout codes distinguish `mail-recovery-readiness-timeout`,
+  `mail-recovery-dry-run-timeout` and `mail-recovery-recheck-timeout`; recovery
+  failure preserves the fingerprint-bound cooldown. A failed capture closes its
+  process group and pipes before returning. Inspect the registered job status and
+  `performance mail --limit 20` to distinguish a failed check from model work.
+  Under legacy systemd, administrative `jobs check --deep` can perform the same
+  allowlisted recovery. Use `jobs status --target all --deep` to observe current
+  health without updating alerts or running recovery.
+  The separate explicit native `mail.dry-run` still has the plugin's 120-second
+  invocation limit. Its timeout leaves the validation outcome unknown; the longer
+  automatic worker recovery does not run through that plugin limit.
 - A successfully persisted and delivered child-job degradation is a healthy
   supervisor observation, not a supervisor process failure. Preserve the child's
   `DEGRADED`/`FAILED` result and alert, but do not report the observer itself as

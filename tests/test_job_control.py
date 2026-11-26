@@ -26,6 +26,9 @@ class FakeSystem:
         self.mail_missing = True
         self.mail_gate_stale = True
         self.dry_run_fail = False
+        self.dry_run_timeout = False
+        self.mail_readiness_returncodes: list[int | None] = []
+        self.command_timeouts: list[int] = []
         self.proxy_ok = True
         self.lock_held = False
         self.lock_checks = 0
@@ -52,6 +55,7 @@ class FakeSystem:
     def __call__(self, command, timeout: int) -> CommandResult:
         args = list(command)
         self.commands.append(args)
+        self.command_timeouts.append(timeout)
         if args and args[0] == "env":
             index = 1
             while index < len(args) and "=" in args[index] and not args[index].startswith("/"):
@@ -115,12 +119,14 @@ class FakeSystem:
                 "auto_recoverable": self.mail_gate_stale,
                 "gate": {
                     "last_dry_run_ok": True,
-                    "stored_fingerprint": "old" if self.mail_gate_stale else "current",
-                    "current_fingerprint": "current",
+                    "stored_fingerprint": "a" * 64 if self.mail_gate_stale else "c" * 64,
+                    "current_fingerprint": "c" * 64,
                     "fingerprint_matches": not self.mail_gate_stale,
                 },
             }
-            return CommandResult(4 if self.mail_gate_stale else 0, json.dumps(payload), "")
+            override = self.mail_readiness_returncodes.pop(0) if self.mail_readiness_returncodes else None
+            returncode = override if override is not None else (4 if self.mail_gate_stale else 0)
+            return CommandResult(returncode, json.dumps(payload), "")
         if args and args[0].endswith("scripts/mail-agent.sh") and args[1:] == ["lock-status"]:
             self.lock_checks += 1
             payload = {
@@ -131,7 +137,11 @@ class FakeSystem:
                 "detail": "locked" if self.lock_held else "free",
             }
             return CommandResult(3 if self.lock_held else 0, json.dumps(payload), "")
-        if args and args[0].endswith("scripts/mail-agent.sh") and args[1:] == ["run", "--dry-run", "--no-digest", "--limit", "5"]:
+        if args and args[0].endswith("scripts/mail-agent.sh") and args[1:6] == [
+            "run", "--dry-run", "--no-digest", "--limit", "5",
+        ]:
+            if self.dry_run_timeout:
+                return CommandResult(124, "", "Zeitlimit ueberschritten")
             if self.dry_run_lock_failures > 0:
                 self.dry_run_lock_failures -= 1
                 return CommandResult(3, "", "Ein anderer Mail-Interface-Lauf ist bereits aktiv: lock")
@@ -335,6 +345,68 @@ class JobControlTests(unittest.TestCase):
         self.assertEqual(jobs["mail-index"]["timer"]["ActiveState"], "inactive")
         self.assertEqual(jobs["mail-index"]["timer"]["UnitFileState"], "disabled")
         self.assertEqual(jobs["mail-index"]["issues"], [])
+
+    def test_container_check_observes_failed_gate_in_every_role(self) -> None:
+        for role in ("gateway", "agent-cli", "mail-worker", "sync-worker", "supervisor-worker", ""):
+            with self.subTest(role=role):
+                location = self.root / (role or "unspecified")
+                location.mkdir()
+                state_path = location / "job_control.json"
+                state_path.write_text(json.dumps({"desired": {"mail": True}}), encoding="utf-8")
+                (location / "mail.json").write_text(json.dumps({
+                    "job": "mail", "state": "waiting", "result": "failed", "last_exit_code": 124,
+                    "updated_at": datetime.now(UTC).isoformat(),
+                }), encoding="utf-8")
+                system = FakeSystem()
+                system.mail_missing = False
+                environment = {
+                    "OPENCLAW_RUNTIME": "container", "OPENCLAW_ROLE": role,
+                    "OPENCLAW_JOB_STATUS_DIR": str(location), "OPENCLAW_EVENT_QUEUE_DIR": str(location),
+                }
+                with patch.dict("os.environ", environment):
+                    controller = JobController(
+                        state_path=state_path, workspace_root=self.workspace,
+                        runner=system, specs=(self.spec,),
+                        sleeper=lambda _seconds: None,
+                    )
+                    report = controller.check(target="mail", deep=True)
+                self.assertFalse(report["ok"])
+                self.assertEqual(report["jobs"][0]["state"], "failed")
+                self.assertEqual(report["automatic_recoveries"], [])
+                self.assertEqual(report.get("automatic_recovery_owner"), "mail-worker")
+                self.assertEqual("observer_cycle" in report, role == "supervisor-worker")
+                self.assertFalse(any(
+                    "production-check" in call or "--dry-run" in call for call in system.commands
+                ))
+                self.assertEqual(sum(call[-1] == "doctor" for call in system.commands),
+                                 0 if role == "supervisor-worker" else 1)
+                self.assertFalse((location / "mail.wake").exists())
+                updated = json.loads(state_path.read_text(encoding="utf-8"))
+                self.assertEqual(updated["desired"], {"mail": True})
+                self.assertTrue(updated["active_alerts"])
+                self.assertEqual(updated["recovery"], {})
+
+    def test_container_mail_restart_wakes_only_the_existing_owner(self) -> None:
+        location = self.root / "mail-restart"
+        location.mkdir()
+        state_path = location / "job_control.json"
+        state_path.write_text(json.dumps({"desired": {"mail": False}}), encoding="utf-8")
+        self.system.mail_missing = False
+        with patch.dict("os.environ", {
+            "OPENCLAW_RUNTIME": "container", "OPENCLAW_ROLE": "gateway",
+            "OPENCLAW_JOB_STATUS_DIR": str(location), "OPENCLAW_EVENT_QUEUE_DIR": str(location),
+        }):
+            controller = JobController(
+                state_path=state_path, workspace_root=self.workspace, runner=self.system, specs=(self.spec,),
+            )
+            result = controller.on(target="mail", restart=True, run_now=False)
+        self.assertTrue(result["actions"][0]["ok"])
+        self.assertTrue(result["actions"][0]["restart_requested"])
+        self.assertTrue((location / "mail.wake").is_file())
+        self.assertEqual(json.loads(state_path.read_text(encoding="utf-8"))["desired"], {"mail": True})
+        self.assertFalse(any(
+            "production-check" in call or "--dry-run" in call for call in self.system.commands
+        ))
 
     def test_container_activation_accepts_pending_first_heartbeat_without_alert(self) -> None:
         spec = next(
@@ -793,6 +865,45 @@ class JobControlTests(unittest.TestCase):
         self.assertEqual(len(dry_runs), 1)
         self.assertIn("OPENCLAW_OLLAMA_PRIORITY=maintenance", dry_runs[0])
         self.assertIn("OPENCLAW_OLLAMA_SOURCE=supervisor-recovery", dry_runs[0])
+        self.assertEqual(dry_runs[0][-4:], ["--max-runtime", "900", "--shutdown-reserve", "60"])
+        dry_index = self.system.commands.index(dry_runs[0])
+        self.assertEqual(self.system.command_timeouts[dry_index], 960)
+
+    def test_readiness_timeout_cannot_authorize_recovery_from_partial_output(self) -> None:
+        self.system.mail_missing = False
+        self.system.mail_readiness_returncodes = [124]
+        report = self.controller.check(target="mail")
+        outcome = report["automatic_recoveries"][0]
+        self.assertEqual(outcome["recovery"].get("code"), "mail-recovery-readiness-timeout")
+        self.assertFalse(outcome["recovery"]["attempted"])
+        self.assertFalse(outcome["restart"]["attempted"])
+        self.assertFalse(any("--dry-run" in cmd for cmd in self.system.commands))
+        self.assertNotIn("mail-production-gate", self.controller.state["recovery"])
+
+    def test_dry_run_timeout_records_fingerprint_cooldown(self) -> None:
+        self.system.mail_missing = False
+        self.system.dry_run_timeout = True
+        report = self.controller.check(target="mail")
+        outcome = report["automatic_recoveries"][0]
+        self.assertEqual(outcome["recovery"].get("code"), "mail-recovery-dry-run-timeout")
+        self.assertEqual(outcome["recovery"]["dry_run"]["returncode"], 124)
+        self.assertFalse(outcome["restart"]["attempted"])
+        saved = self.controller.state["recovery"]["mail-production-gate"]
+        self.assertEqual(saved.get("code"), "mail-recovery-dry-run-timeout")
+        retry = self.controller.check(target="mail")["automatic_recoveries"][0]
+        self.assertTrue(retry["recovery"]["cooldown"])
+        self.assertEqual(sum("--dry-run" in cmd for cmd in self.system.commands), 1)
+
+    def test_recheck_timeout_does_not_restart_mail(self) -> None:
+        self.system.mail_missing = False
+        self.system.mail_readiness_returncodes = [None, 124]
+        report = self.controller.check(target="mail")
+        outcome = report["automatic_recoveries"][0]
+        self.assertEqual(outcome["recovery"].get("code"), "mail-recovery-recheck-timeout")
+        self.assertEqual(outcome["recovery"]["after"]["returncode"], 124)
+        self.assertFalse(outcome["restart"]["attempted"])
+        self.assertEqual(self.controller.state["recovery"]["mail-production-gate"].get("code"),
+                         "mail-recovery-recheck-timeout")
 
     def test_failed_automatic_dry_run_is_not_repeated_during_cooldown(self) -> None:
         self.system.mail_missing = False

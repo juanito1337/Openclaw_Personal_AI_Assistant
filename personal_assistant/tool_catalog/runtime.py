@@ -256,7 +256,10 @@ TOOLS: tuple[ToolDefinition, ...] = (
     define(
         id="assistant.jobs.check",
         domain="runtime",
-        description="Hintergrundjobs pruefen, Alerts aktualisieren und die eng begrenzte Mail-Dry-Run-Sperre automatisch beheben",
+        description=(
+            "Hintergrundjobs pruefen und Alerts aktualisieren. Im Container prueft der Mail-Worker die "
+            "Mail-Produktionsfreigabe. Der Legacy-Jobcheck kann die begrenzte Wiederherstellung ausloesen."
+        ),
         command="./scripts/assistant.sh jobs check --target all --deep",
         mode="local-write",
         writes_external_data=False,

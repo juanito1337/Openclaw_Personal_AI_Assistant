@@ -2,7 +2,7 @@
   "schema_version": 1,
   "inventory_date": "2026-08-06",
   "source_scope": "all Python modules, shell entrypoints, skills, systemd units, migrations and Markdown documents",
-  "component_count": 629,
+  "component_count": 635,
   "classification_values": [
     "active",
     "compatibility",
@@ -4306,7 +4306,7 @@
         "docs/superpowers/plans/2026-11-26-calendar-timezone-live-fix.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-11-26T15:33:42+01:00",
+      "last_git_change": "2026-11-26T15:51:56+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -4758,7 +4758,45 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": "2026-11-26T15:33:42+01:00",
+      "last_git_change": "2026-11-26T15:54:27+01:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-11-26-mail-production-gate-timeout.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Documentation Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "docs/superpowers/specs/2026-11-26-mail-production-gate-timeout-design.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Documentation Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/superpowers/plans/2026-11-26-mail-production-gate-timeout.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -5228,14 +5266,16 @@
         "tests/test_mail_agent.py",
         "tests/test_mail_projection_m96.py",
         "tests/test_mail_quarantine_sources.py",
-        "tests/test_mail_review_m9.py"
+        "tests/test_mail_review_m9.py",
+        "tests/test_mail_run_runtime_budget.py"
       ],
       "documentation_evidence": [
         "docs/TESTING.md",
         "docs/architecture/m16-baseline.json",
-        "docs/archive/AUDIT_INITIAL_IMPORT.md"
+        "docs/archive/AUDIT_INITIAL_IMPORT.md",
+        "docs/superpowers/plans/2026-11-26-mail-production-gate-timeout.md"
       ],
-      "line_coverage_percent": 53.64,
+      "line_coverage_percent": 62.78,
       "last_git_change": "2026-09-20T23:06:00+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -5340,6 +5380,7 @@
         "tests/ruff-baseline.json",
         "tests/test_batch_classifier.py",
         "tests/test_mail_agent.py",
+        "tests/test_mail_run_runtime_budget.py",
         "tests/test_ollama_priority_proxy.py",
         "tests/test_order_deck_tool.py",
         "tests/test_performance_telemetry.py",
@@ -5348,9 +5389,10 @@
       "documentation_evidence": [
         "docs/TESTING.md",
         "docs/architecture/m16-baseline.json",
-        "docs/archive/AUDIT_INITIAL_IMPORT.md"
+        "docs/archive/AUDIT_INITIAL_IMPORT.md",
+        "docs/superpowers/plans/2026-11-26-mail-production-gate-timeout.md"
       ],
-      "line_coverage_percent": 68.91,
+      "line_coverage_percent": 72.73,
       "last_git_change": "2026-09-21T00:23:18+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -5385,6 +5427,7 @@
         "tests/test_m6_legacy_cleanup.py",
         "tests/test_mail_cli_m166.py",
         "tests/test_mail_review_m9.py",
+        "tests/test_mail_run_runtime_budget.py",
         "tests/test_mail_search_backfill_m112.py",
         "tests/test_nextcloud_adapter_access.py",
         "tests/test_performance_telemetry.py"
@@ -5397,9 +5440,10 @@
         "docs/architecture/README.md",
         "docs/architecture/m16-baseline.json",
         "docs/architecture/m16.6-risk-coverage.json",
-        "docs/archive/AUDIT_INITIAL_IMPORT.md"
+        "docs/archive/AUDIT_INITIAL_IMPORT.md",
+        "docs/superpowers/plans/2026-11-26-mail-production-gate-timeout.md"
       ],
-      "line_coverage_percent": 43.04,
+      "line_coverage_percent": 48.34,
       "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -5955,6 +5999,7 @@
         "tests/test_mail_quarantine_sources.py",
         "tests/test_mail_recent.py",
         "tests/test_mail_review_m9.py",
+        "tests/test_mail_run_runtime_budget.py",
         "tests/test_mail_search_backfill_m112.py",
         "tests/test_mail_search_contract_m111.py",
         "tests/test_mail_search_lexical_m114.py",
@@ -6302,13 +6347,14 @@
         "tests/mypy-baseline.json",
         "tests/ruff-baseline.json",
         "tests/test_help_nextcloud_training.py",
-        "tests/test_m6_legacy_cleanup.py"
+        "tests/test_m6_legacy_cleanup.py",
+        "tests/test_mail_run_runtime_budget.py"
       ],
       "documentation_evidence": [
         "docs/architecture/m16-baseline.json",
         "docs/archive/AUDIT_INITIAL_IMPORT.md"
       ],
-      "line_coverage_percent": 28.68,
+      "line_coverage_percent": 38.15,
       "last_git_change": "2026-08-08T11:13:16+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -6396,7 +6442,7 @@
         "docs/RUNTIME_CAPACITY_M16.md",
         "docs/TESTING.md"
       ],
-      "line_coverage_percent": 77.3,
+      "line_coverage_percent": 79.23,
       "last_git_change": "2026-09-20T23:33:52+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -6442,7 +6488,7 @@
         "tests/test_subject_patterns_m95.py"
       ],
       "documentation_evidence": [],
-      "line_coverage_percent": 63.98,
+      "line_coverage_percent": 67.2,
       "last_git_change": "2026-08-14T03:03:27+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -6718,8 +6764,8 @@
       "documentation_evidence": [
         "docs/superpowers/plans/2026-11-26-calendar-timezone-live-fix.md"
       ],
-      "line_coverage_percent": 85.11,
-      "last_git_change": "2026-11-26T15:40:22+01:00",
+      "line_coverage_percent": 88.64,
+      "last_git_change": "2026-11-26T15:51:56+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -6912,7 +6958,8 @@
         "docs/architecture/README.md",
         "docs/architecture/m16-baseline.json",
         "docs/architecture/m16.6-risk-coverage.json",
-        "docs/archive/AUDIT_INITIAL_IMPORT.md"
+        "docs/archive/AUDIT_INITIAL_IMPORT.md",
+        "docs/superpowers/plans/2026-11-26-mail-production-gate-timeout.md"
       ],
       "line_coverage_percent": 46.86,
       "last_git_change": "2026-11-22T09:21:55+01:00",
@@ -7165,7 +7212,8 @@
         "tests/ruff-baseline.json"
       ],
       "documentation_evidence": [
-        "docs/QUALITY_CONSOLIDATION_M16.md"
+        "docs/QUALITY_CONSOLIDATION_M16.md",
+        "docs/superpowers/plans/2026-11-26-mail-production-gate-timeout.md"
       ],
       "line_coverage_percent": 13.95,
       "last_git_change": "2026-09-20T23:06:00+02:00",
@@ -7351,7 +7399,8 @@
         "tests/ruff-baseline.json"
       ],
       "documentation_evidence": [
-        "docs/QUALITY_CONSOLIDATION_M16.md"
+        "docs/QUALITY_CONSOLIDATION_M16.md",
+        "docs/superpowers/plans/2026-11-26-mail-production-gate-timeout.md"
       ],
       "line_coverage_percent": 100.0,
       "last_git_change": "2026-10-11T12:41:27+02:00",
@@ -7525,7 +7574,7 @@
         "docs/archive/AUDIT_INITIAL_IMPORT.md",
         "docs/superpowers/plans/2026-11-26-calendar-timezone-live-fix.md"
       ],
-      "line_coverage_percent": 71.29,
+      "line_coverage_percent": 73.97,
       "last_git_change": "2026-11-26T15:33:42+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -7568,7 +7617,7 @@
         "docs/QUALITY_CONSOLIDATION_M16.md",
         "docs/architecture/m16.6-risk-coverage.json"
       ],
-      "line_coverage_percent": 80.0,
+      "line_coverage_percent": 84.69,
       "last_git_change": "2026-11-26T15:33:42+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -8016,7 +8065,8 @@
         "tests/ruff-baseline.json"
       ],
       "documentation_evidence": [
-        "docs/QUALITY_CONSOLIDATION_M16.md"
+        "docs/QUALITY_CONSOLIDATION_M16.md",
+        "docs/superpowers/plans/2026-11-26-mail-production-gate-timeout.md"
       ],
       "line_coverage_percent": 100.0,
       "last_git_change": "2026-08-06T15:45:31+02:00",
@@ -8227,6 +8277,8 @@
         "tests/test_gateway_event_relay.py",
         "tests/test_job_control.py",
         "tests/test_m6_legacy_cleanup.py",
+        "tests/test_mail_recovery_cooldown.py",
+        "tests/test_mail_recovery_process.py",
         "tests/test_mail_search_reconcile_m113.py",
         "tests/test_portfolio_tool.py",
         "tests/test_runtime_telemetry_m162.py"
@@ -8235,9 +8287,10 @@
         "docs/DOMAIN_QUALITY_M168.md",
         "docs/M16_ACCEPTANCE.md",
         "docs/TESTING.md",
-        "docs/architecture/m16-baseline.json"
+        "docs/architecture/m16-baseline.json",
+        "docs/superpowers/plans/2026-11-26-mail-production-gate-timeout.md"
       ],
-      "line_coverage_percent": 86.73,
+      "line_coverage_percent": 87.98,
       "last_git_change": "2026-09-24T09:43:52+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -8427,6 +8480,24 @@
       "rollback_relevance": "none"
     },
     {
+      "path": "personal_assistant/mail_recovery.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Core Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": 88.37,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
       "path": "personal_assistant/mail_search.py",
       "types": [
         "python-module"
@@ -8511,8 +8582,10 @@
         "tests/test_gateway_event_relay.py",
         "tests/test_immutable_runtime.py"
       ],
-      "documentation_evidence": [],
-      "line_coverage_percent": 54.29,
+      "documentation_evidence": [
+        "docs/superpowers/plans/2026-11-26-mail-production-gate-timeout.md"
+      ],
+      "line_coverage_percent": 74.49,
       "last_git_change": "2026-08-18T01:08:00+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -8588,7 +8661,7 @@
       "documentation_evidence": [
         "docs/architecture/DATA_CATALOG.md"
       ],
-      "line_coverage_percent": 79.72,
+      "line_coverage_percent": 79.88,
       "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -8621,7 +8694,7 @@
       "documentation_evidence": [
         "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
-      "line_coverage_percent": 90.51,
+      "line_coverage_percent": 90.73,
       "last_git_change": "2026-11-22T09:21:55+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -8642,7 +8715,7 @@
         "tests/test_nextcloud_foreground_access.py"
       ],
       "documentation_evidence": [],
-      "line_coverage_percent": 89.55,
+      "line_coverage_percent": 90.62,
       "last_git_change": "2026-11-26T15:33:42+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -9529,7 +9602,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-access.md",
         "docs/superpowers/plans/2026-11-26-calendar-timezone-live-fix.md"
       ],
-      "line_coverage_percent": 64.46,
+      "line_coverage_percent": 64.95,
       "last_git_change": "2026-11-26T15:40:22+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -9898,7 +9971,7 @@
         "tests/test_talk_proxy_guard.py"
       ],
       "documentation_evidence": [],
-      "line_coverage_percent": 88.7,
+      "line_coverage_percent": 89.27,
       "last_git_change": "2026-10-22T12:48:43+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -10150,7 +10223,8 @@
         "tests/ruff-baseline.json"
       ],
       "documentation_evidence": [
-        "docs/QUALITY_CONSOLIDATION_M16.md"
+        "docs/QUALITY_CONSOLIDATION_M16.md",
+        "docs/superpowers/plans/2026-11-26-mail-production-gate-timeout.md"
       ],
       "line_coverage_percent": 100.0,
       "last_git_change": "2026-10-11T12:41:27+02:00",
@@ -10403,7 +10477,7 @@
         "docs/architecture/adr/0007-shared-sqlite-scheduler.md",
         "docs/architecture/state-access.json"
       ],
-      "line_coverage_percent": 86.21,
+      "line_coverage_percent": 85.41,
       "last_git_change": "2026-09-20T22:42:25+02:00",
       "runtime_telemetry": {
         "status": "not-collected",
@@ -13002,7 +13076,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": "2026-11-26T15:40:22+01:00",
+      "last_git_change": "2026-11-26T15:51:56+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -13020,7 +13094,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-11-26T15:51:56+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -13056,7 +13130,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-11-26T15:51:56+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -13079,7 +13153,7 @@
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-11-26T15:40:22+01:00",
+      "last_git_change": "2026-11-26T15:51:56+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -13425,7 +13499,9 @@
       "classification": "active",
       "productive_callers": [],
       "test_evidence": [],
-      "documentation_evidence": [],
+      "documentation_evidence": [
+        "docs/superpowers/plans/2026-11-26-mail-production-gate-timeout.md"
+      ],
       "line_coverage_percent": null,
       "last_git_change": "2026-08-18T08:41:43+02:00",
       "runtime_telemetry": {
@@ -13861,7 +13937,8 @@
       ],
       "documentation_evidence": [
         "docs/DOMAIN_QUALITY_M168.md",
-        "docs/TESTING.md"
+        "docs/TESTING.md",
+        "docs/superpowers/plans/2026-11-26-mail-production-gate-timeout.md"
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-09-24T07:56:57+02:00",
@@ -14343,6 +14420,42 @@
       "rollback_relevance": "none"
     },
     {
+      "path": "tests/test_mail_recovery_cooldown.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "tests/test_mail_recovery_process.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
       "path": "tests/test_mail_review_m9.py",
       "types": [
         "python-module"
@@ -14361,6 +14474,24 @@
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-08-14T14:43:28+02:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "tests/test_mail_run_runtime_budget.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -15301,7 +15432,8 @@
       "test_evidence": [],
       "documentation_evidence": [
         "docs/AGENT_IMPROVEMENT_ACCEPTANCE_M18.md",
-        "docs/architecture/legacy-decisions.json"
+        "docs/architecture/legacy-decisions.json",
+        "docs/superpowers/plans/2026-11-26-mail-production-gate-timeout.md"
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-08-06T15:45:31+02:00",

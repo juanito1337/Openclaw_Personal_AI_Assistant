@@ -5,8 +5,9 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+from urllib.request import Request
 
-from mail_agent.classifier import OllamaClassifier, OllamaOutputTruncatedError
+from mail_agent.classifier import OllamaClassifier, OllamaOutputTruncatedError, RuntimeBudgetExceeded
 from mail_agent.config import load_config
 from mail_agent.models import Classification, Envelope
 from mail_agent.parser import parse_eml
@@ -64,6 +65,15 @@ def _classification_payload() -> dict[str, object]:
     }
 
 
+def _request_budget(request: Request, client_timeout: int) -> tuple[int, int, int]:
+    headers = {name.lower(): value for name, value in request.header_items()}
+    return (
+        int(headers["x-openclaw-queue-timeout-seconds"]),
+        int(headers["x-openclaw-upstream-timeout-seconds"]),
+        client_timeout,
+    )
+
+
 class OllamaReliabilityTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
@@ -110,6 +120,8 @@ class OllamaReliabilityTests(unittest.TestCase):
 
     def test_truncated_single_json_retries_with_larger_schema_budget(self) -> None:
         requests: list[dict[str, object]] = []
+        budgets: list[tuple[int, int, int]] = []
+        now = 1000.0
         responses = [
             _Response({
                 "message": {"content": '{"category":"relevant"'},
@@ -123,16 +135,22 @@ class OllamaReliabilityTests(unittest.TestCase):
             }),
         ]
 
-        def fake_urlopen(request, timeout):
-            del timeout
+        def fake_urlopen(request: Request, timeout: int) -> _Response:
+            nonlocal now
             requests.append(json.loads(request.data.decode("utf-8")))
+            budgets.append(_request_budget(request, timeout))
+            now += 220.0
             return responses.pop(0)
 
-        with patch("urllib.request.urlopen", side_effect=fake_urlopen):
+        with (
+            patch("mail_agent.classifier.time.monotonic", new=lambda: now),
+            patch("urllib.request.urlopen", new=fake_urlopen),
+        ):
             result = self.classifier.classify(self.message())
 
         self.assertEqual(result.source, "ollama")
         self.assertEqual(len(requests), 2)
+        self.assertEqual(budgets, [(600, 600, 1230), (600, 600, 1230)])
         self.assertIsInstance(requests[0]["format"], dict)
         self.assertIsInstance(requests[1]["format"], dict)
         self.assertEqual(requests[0]["options"]["num_predict"], 512)
@@ -140,6 +158,67 @@ class OllamaReliabilityTests(unittest.TestCase):
         metrics = self.classifier.metrics_snapshot()
         self.assertEqual(metrics["truncated_outputs"], 1)
         self.assertEqual(metrics["truncation_retries"], 1)
+
+    def test_schema_fallback_recomputes_transport_timeouts_from_remaining_budget(self) -> None:
+        now = 1000.0
+        self.classifier.set_runtime_deadline(1330.0)
+        budgets: list[tuple[int, int, int]] = []
+        formats: list[object] = []
+        responses = [
+            _Response({"message": {"content": "unparseable reply"}, "done_reason": "stop"}),
+            _Response({
+                "message": {"content": json.dumps(_classification_payload())},
+                "done_reason": "stop",
+            }),
+        ]
+
+        def fake_urlopen(request: Request, timeout: int) -> _Response:
+            nonlocal now
+            budgets.append(_request_budget(request, timeout))
+            formats.append(json.loads(request.data)["format"])
+            now += 150.0
+            return responses.pop(0)
+
+        with (
+            patch("mail_agent.classifier.time.monotonic", new=lambda: now),
+            patch("urllib.request.urlopen", new=fake_urlopen),
+        ):
+            result = self.classifier.classify(self.message())
+
+        self.assertEqual(result.source, "ollama")
+        self.assertIsInstance(formats[0], dict)
+        self.assertEqual(formats[1], "json")
+        self.assertEqual(budgets, [(100, 200, 330), (50, 100, 180)])
+
+    def test_token_retry_stops_before_transport_when_remaining_budget_is_insufficient(self) -> None:
+        now = 1000.0
+        self.classifier.set_runtime_deadline(1330.0)
+        budgets: list[tuple[int, int, int]] = []
+        responses = [
+            _Response({
+                "message": {"content": '{"category":"relevant"'},
+                "done_reason": "length",
+            }),
+            _Response({
+                "message": {"content": json.dumps(_classification_payload())},
+                "done_reason": "stop",
+            }),
+        ]
+
+        def fake_urlopen(request: Request, timeout: int) -> _Response:
+            nonlocal now
+            budgets.append(_request_budget(request, timeout))
+            now += 220.0
+            return responses.pop(0)
+
+        with (
+            patch("mail_agent.classifier.time.monotonic", new=lambda: now),
+            patch("urllib.request.urlopen", new=fake_urlopen),
+            self.assertRaises(RuntimeBudgetExceeded),
+        ):
+            self.classifier.classify(self.message())
+
+        self.assertEqual(budgets, [(100, 200, 330)])
 
     def test_truncated_batch_is_split_without_repeating_format_json(self) -> None:
         self.config.ollama.batch_size = 3

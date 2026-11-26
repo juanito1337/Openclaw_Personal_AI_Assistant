@@ -17,7 +17,7 @@ from typing import Any
 from personal_assistant.antivirus import HostAntivirus
 from personal_assistant.tool_settings import load_tool_settings
 
-from .app import MailAgent
+from .app import MailAgent, RunSummary
 from .assistant_bridge import PersonalAssistantActionBridge
 from .command import CommandRunner
 from .config import Config, load_config
@@ -57,6 +57,14 @@ from .training import TrainingManager
 from .utils import normalize_address, now_utc_iso
 
 
+def _report_mail_run(config: Config, summary: RunSummary, *, dry_run: bool, limit: int) -> int:
+    if dry_run:
+        summary.validate_dry_run_completion()
+        record_dry_run(config, processed=summary.processed, errors=summary.errors, limit=limit)
+    print(json.dumps(summary.to_dict(), indent=2, ensure_ascii=False))
+    return 1 if summary.errors else 0
+
+
 def _configure_logging(log_file: Path, verbose: bool) -> None:
     level = logging.DEBUG if verbose else logging.INFO
     formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -92,7 +100,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     run.add_argument("--batch-size", type=int, default=20, help="Batchgroesse im Drain-Modus")
     run.add_argument("--max-messages", type=int, default=500, help="Sicherheitsgrenze pro Drain-Start")
-    run.add_argument("--max-runtime", type=int, default=2400, help="Harte maximale Drain-Laufzeit in Sekunden")
+    run.add_argument(
+        "--max-runtime", type=int, default=2400,
+        help="Begrenztes Laufzeitbudget fuer Drain und Dry-Run in Sekunden",
+    )
     run.add_argument("--shutdown-reserve", type=int, default=180, help="Reserve fuer kontrollierten Abschluss vor dem harten Laufzeitlimit")
     run.add_argument("--max-batches", type=int, default=100, help="Maximale Anzahl Drain-Batches")
     run.add_argument("--dry-run", action="store_true")
@@ -1757,15 +1768,7 @@ def main(argv: list[str] | None = None) -> int:
             try:
                 with ProcessLock(config.runtime.lock_file):
                     summary = agent.review_quarantine(limit=max(1, args.limit))
-                    print(json.dumps(summary.to_dict(), indent=2, ensure_ascii=False))
-                    if dry_run:
-                        record_dry_run(
-                            config,
-                            processed=summary.processed,
-                            errors=summary.errors,
-                            limit=max(1, args.limit),
-                        )
-                    return 0 if not summary.errors else 1
+                    return _report_mail_run(config, summary, dry_run=dry_run, limit=max(1, args.limit))
             except ProcessLockError as exc:
                 print(str(exc), file=sys.stderr)
                 return 3
@@ -1822,17 +1825,23 @@ def main(argv: list[str] | None = None) -> int:
                             recorded_limit = args.batch_size
                         else:
                             limit = max(1, args.limit)
-                            summary = agent.run(limit=limit, include_digest=not args.no_digest)
+                            if dry_run:
+                                if not 0 < args.shutdown_reserve < args.max_runtime:
+                                    print(
+                                        "--shutdown-reserve muss positiv und kleiner als --max-runtime sein.",
+                                        file=sys.stderr,
+                                    )
+                                    return 2
+                                summary = agent.run(
+                                    limit=limit,
+                                    include_digest=not args.no_digest,
+                                    max_runtime_seconds=args.max_runtime,
+                                    shutdown_reserve_seconds=args.shutdown_reserve,
+                                )
+                            else:
+                                summary = agent.run(limit=limit, include_digest=not args.no_digest)
                             recorded_limit = limit
-                        print(json.dumps(summary.to_dict(), indent=2, ensure_ascii=False))
-                        if dry_run:
-                            record_dry_run(
-                                config,
-                                processed=summary.processed,
-                                errors=summary.errors,
-                                limit=recorded_limit,
-                            )
-                        return 0 if not summary.errors else 1
+                        return _report_mail_run(config, summary, dry_run=dry_run, limit=recorded_limit)
                     result = agent.digest.send_if_due(force=True)
                     print(json.dumps(asdict(result), indent=2, ensure_ascii=False))
                     return 0 if result.ok else 1

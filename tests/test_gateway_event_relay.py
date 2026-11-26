@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import io
 import json
 import os
 import subprocess
 import tempfile
 import unittest
 from collections.abc import Sequence
+from contextlib import redirect_stderr
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import patch
@@ -126,19 +128,19 @@ class MailWorkerRecoveryTests(unittest.TestCase):
                 "ok": False,
                 "auto_recoverable": True,
                 "blockers": ["Konfiguration oder Regeln wurden seit dem letzten Dry-Run geaendert"],
-                "gate": {"current_fingerprint": "new", "stored_fingerprint": "old"},
+                "gate": {"current_fingerprint": "c" * 64, "stored_fingerprint": "a" * 64},
             }
             sequence = [
                 self._completed(4, stale),
                 self._completed(0, {"processed": 5, "errors": [], "actions": [{"ok": True}]}),
                 self._completed(0, {"ok": True, "blockers": [], "gate": {}}),
             ]
-            calls: list[tuple[list[str], dict[str, str]]] = []
+            calls: list[tuple[list[str], dict[str, str], int]] = []
 
             def capture(
-                command: Sequence[str], *, environment: dict[str, str]
+                command: Sequence[str], *, environment: dict[str, str], timeout: int = 300,
             ) -> subprocess.CompletedProcess[str]:
-                calls.append((list(command), environment))
+                calls.append((list(command), environment, timeout))
                 return sequence.pop(0)
 
             with (
@@ -154,7 +156,11 @@ class MailWorkerRecoveryTests(unittest.TestCase):
 
             self.assertEqual(result, 0)
             productive.assert_called_once()
-            self.assertEqual(calls[1][0][-5:], ["run", "--dry-run", "--no-digest", "--limit", "5"])
+            self.assertEqual(calls[1][0][1:], [
+                "run", "--dry-run", "--no-digest", "--limit", "5",
+                "--max-runtime", "900", "--shutdown-reserve", "60",
+            ])
+            self.assertEqual([call[2] for call in calls], [300, 960, 300])
             self.assertEqual(calls[1][1]["OPENCLAW_OLLAMA_PRIORITY"], "maintenance")
             self.assertEqual(calls[1][1]["OPENCLAW_OLLAMA_SOURCE"], "mail-worker-recovery")
 
@@ -180,6 +186,54 @@ class MailWorkerRecoveryTests(unittest.TestCase):
         self.assertEqual(result, 4)
         self.assertEqual(capture.call_count, 1)
         productive.assert_not_called()
+
+    def test_capture_timeouts_block_productive_work_and_report_their_phase(self) -> None:
+        stale = self._completed(4, {
+            "ok": False, "auto_recoverable": True, "gate": {"current_fingerprint": "c" * 64},
+        })
+        dry_run = self._completed(0, {"processed": 5, "errors": [], "actions": [{"ok": True}]})
+        timeout = self._completed(124, {})
+        for prefix, code in (
+            ([], "mail-recovery-readiness-timeout"),
+            ([stale], "mail-recovery-dry-run-timeout"),
+            ([stale, dry_run], "mail-recovery-recheck-timeout"),
+        ):
+            with self.subTest(phase=code), tempfile.TemporaryDirectory() as folder:
+                recovery_state = Path(folder) / "recovery.json"
+                stderr = io.StringIO()
+                with (
+                    patch("personal_assistant.mail_worker._run_capture", side_effect=[*prefix, timeout]),
+                    patch("personal_assistant.mail_worker._run_productive") as productive,
+                    redirect_stderr(stderr),
+                ):
+                    result = run_cycle(
+                        ["mail-agent", "run"],
+                        mail_agent="/image/scripts/mail-agent.sh",
+                        state_path=recovery_state,
+                    )
+                self.assertEqual(result, 124)
+                productive.assert_not_called()
+                self.assertIn(code, stderr.getvalue())
+                if not prefix:
+                    self.assertFalse(recovery_state.exists())
+                    continue
+                state = json.loads(recovery_state.read_text())
+                self.assertFalse(state["ok"])
+                self.assertEqual(state["reason"], code)
+                self.assertEqual(state["returncode"], 124)
+                with (
+                    patch("personal_assistant.mail_worker._run_capture", return_value=stale) as capture,
+                    patch("personal_assistant.mail_worker._run_productive") as productive,
+                    redirect_stderr(stderr),
+                ):
+                    retry = run_cycle(
+                        ["mail-agent", "run"],
+                        mail_agent="/image/scripts/mail-agent.sh",
+                        state_path=recovery_state,
+                    )
+                self.assertEqual(retry, 4)
+                capture.assert_called_once()
+                productive.assert_not_called()
 
 
 class SupervisorOwnershipTests(unittest.TestCase):

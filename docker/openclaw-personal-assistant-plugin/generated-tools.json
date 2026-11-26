@@ -4,7 +4,7 @@
   "plugin_id": "personal-assistant-tools",
   "plugin_path": "/opt/openclaw-plugins/personal-assistant-tools",
   "product_version": "3.4.0-r29.0.6",
-  "catalog_sha256": "c7620354d805185381c93d9a58b54bedd7defaeb798bec2b2e7d7a849693450d",
+  "catalog_sha256": "3c0c0872a52ce39ec99105824e0081288ab5f61a4d20c49a201b48856cf51955",
   "catalog_tool_count": 175,
   "supported_operation_count": 174,
   "excluded_operation_count": 1,
@@ -799,7 +799,7 @@
     {
       "tool_id": "assistant.jobs.check",
       "domain": "runtime",
-      "description": "Hintergrundjobs pruefen, Alerts aktualisieren und die eng begrenzte Mail-Dry-Run-Sperre automatisch beheben",
+      "description": "Hintergrundjobs pruefen und Alerts aktualisieren. Im Container prueft der Mail-Worker die Mail-Produktionsfreigabe. Der Legacy-Jobcheck kann die begrenzte Wiederherstellung ausloesen.",
       "mode": "local-write",
       "writes_external_data": false,
       "approval": "job-monitoring-and-safe-mail-recovery",

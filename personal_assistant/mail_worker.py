@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import signal
@@ -11,12 +10,26 @@ import sys
 import time
 import uuid
 from collections.abc import Sequence
+from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from .mail_recovery import (
+    DRY_RUN_TIMEOUT,
+    FINGERPRINT_UNVERIFIED,
+    READINESS_TIMEOUT,
+    RECHECK_TIMEOUT,
+    RECOVERY_RUNTIME_ARGS,
+    RECOVERY_WATCHDOG_SECONDS,
+    finish_recovery_capture,
+    recovery_fingerprint,
+    start_recovery_capture,
+)
+
 RECOVERY_COOLDOWN = timedelta(minutes=30)
 CHILD: subprocess.Popen[Any] | None = None
+CAPTURE_GROUP: int | None = None
 
 
 def _now() -> datetime:
@@ -62,12 +75,6 @@ def _payload(stdout: str) -> dict[str, Any] | None:
     return value if isinstance(value, dict) else None
 
 
-def _signature(value: dict[str, Any]) -> str:
-    relevant = {"blockers": value.get("blockers") or [], "gate": value.get("gate") or {}}
-    rendered = json.dumps(relevant, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(rendered.encode("utf-8")).hexdigest()
-
-
 def _in_cooldown(state: dict[str, Any], signature: str) -> bool:
     if state.get("signature") != signature or state.get("ok"):
         return False
@@ -80,30 +87,27 @@ def _in_cooldown(state: dict[str, Any], signature: str) -> bool:
     return _now() - attempted.astimezone(UTC) < RECOVERY_COOLDOWN
 
 
-def _run_capture(command: Sequence[str], *, environment: dict[str, str]) -> subprocess.CompletedProcess[str]:
-    global CHILD
-    CHILD = subprocess.Popen(
-        list(command),
-        env=environment,
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
+def _run_capture(
+    command: Sequence[str], *, environment: dict[str, str], timeout: int = 300,
+) -> subprocess.CompletedProcess[str]:
+    global CHILD, CAPTURE_GROUP
+    process = start_recovery_capture(command, environment=environment)
+    CHILD = process
+    CAPTURE_GROUP = process.pid
     try:
-        stdout, stderr = CHILD.communicate(timeout=300)
-    except subprocess.TimeoutExpired:
-        CHILD.kill()
-        CHILD.communicate()
+        result = finish_recovery_capture(process, timeout)
+    finally:
+        CAPTURE_GROUP = None
         CHILD = None
-        raise
-    result = subprocess.CompletedProcess(list(command), int(CHILD.returncode), stdout, stderr)
-    CHILD = None
     if result.stdout:
         print(result.stdout, end="" if result.stdout.endswith("\n") else "\n")
     if result.stderr:
         print(result.stderr, end="" if result.stderr.endswith("\n") else "\n", file=sys.stderr)
     return result
+
+
+def _report_timeout(code: str) -> None:
+    print(f"Mail-Produktionsfreigabe ueberschritt das Zeitlimit ({code})", file=sys.stderr)
 
 
 def _run_productive(command: Sequence[str], *, environment: dict[str, str]) -> int:
@@ -126,6 +130,9 @@ def run_cycle(
     path = state_path or _state_path()
     check_command = [mail_agent, "production-check"]
     check = _run_capture(check_command, environment=env)
+    if check.returncode == 124:
+        _report_timeout(READINESS_TIMEOUT)
+        return 124
     check_payload = _payload(check.stdout)
     if check.returncode == 0 and check_payload is not None and check_payload.get("ok"):
         return _run_productive(productive_command, environment=env)
@@ -136,7 +143,10 @@ def run_cycle(
     ):
         return int(check.returncode or 4)
 
-    signature = _signature(check_payload)
+    signature = recovery_fingerprint(check_payload.get("gate"))
+    if signature is None:
+        print(f"Mail-Produktionsfreigabe bleibt blockiert ({FINGERPRINT_UNVERIFIED})", file=sys.stderr)
+        return 4
     state = _load_state(path)
     if _in_cooldown(state, signature):
         print(
@@ -156,8 +166,9 @@ def run_cycle(
     dry_run: subprocess.CompletedProcess[str] | None = None
     for attempt in range(1, 4):
         dry_run = _run_capture(
-            [mail_agent, "run", "--dry-run", "--no-digest", "--limit", "5"],
+            [mail_agent, "run", "--dry-run", "--no-digest", "--limit", "5", *RECOVERY_RUNTIME_ARGS],
             environment=recovery_environment,
+            timeout=RECOVERY_WATCHDOG_SECONDS,
         )
         if dry_run.returncode != 3 or attempt == 3:
             break
@@ -169,6 +180,10 @@ def run_cycle(
     actions_ok = all(bool(item.get("ok")) for item in actions if isinstance(item, dict))
     dry_ok = dry_run.returncode == 0 and isinstance(dry_payload, dict) and not errors and actions_ok
     if not dry_ok:
+        reason = "dry-run-failed"
+        if dry_run.returncode == 124:
+            reason = DRY_RUN_TIMEOUT
+            _report_timeout(reason)
         # A process-lock collision is transient and must not create a cooldown.
         if dry_run.returncode != 3:
             _write_state(
@@ -178,7 +193,7 @@ def run_cycle(
                     "signature": signature,
                     "attempted_at": _iso(),
                     "ok": False,
-                    "reason": "dry-run-failed",
+                    "reason": reason,
                     "returncode": dry_run.returncode,
                 },
             )
@@ -187,6 +202,10 @@ def run_cycle(
     after = _run_capture(check_command, environment=env)
     after_payload = _payload(after.stdout)
     ok = after.returncode == 0 and isinstance(after_payload, dict) and bool(after_payload.get("ok"))
+    reason = "production-gate-verified" if ok else "production-gate-still-blocked"
+    if after.returncode == 124:
+        reason = RECHECK_TIMEOUT
+        _report_timeout(reason)
     _write_state(
         path,
         {
@@ -194,7 +213,7 @@ def run_cycle(
             "signature": signature,
             "attempted_at": _iso(),
             "ok": ok,
-            "reason": "production-gate-verified" if ok else "production-gate-still-blocked",
+            "reason": reason,
             "returncode": after.returncode,
         },
     )
@@ -204,7 +223,10 @@ def run_cycle(
 
 
 def _forward_signal(signum: int, _frame: object) -> None:
-    if CHILD is not None and CHILD.poll() is None:
+    if CAPTURE_GROUP is not None:
+        with suppress(ProcessLookupError):
+            os.killpg(CAPTURE_GROUP, signum)
+    elif CHILD is not None and CHILD.poll() is None:
         CHILD.send_signal(signum)
 
 
@@ -221,9 +243,6 @@ def main(argv: list[str] | None = None) -> int:
     mail_agent = str(image_root / "scripts/mail-agent.sh")
     try:
         return run_cycle(arguments, mail_agent=mail_agent)
-    except subprocess.TimeoutExpired:
-        print("Mail-Produktionsfreigabe ueberschritt das Zeitlimit", file=sys.stderr)
-        return 124
     except OSError as exc:
         print(str(exc), file=sys.stderr)
         return 127

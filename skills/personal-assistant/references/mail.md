@@ -476,6 +476,15 @@ search. A local image/index rollback never restores or changes remote mail.
 
 ## Classification and learning
 
+Release validation keeps the existing five-message dry-run and fingerprint
+checks. The single-batch dry-run honors its runtime budget as well as the reserve
+for completion; model retries consume that same remaining budget. A runtime
+stop or model timeout is a failed validation, even when a safe classification
+fallback or some earlier actions completed. A dry-run drain stopped by its
+runtime reserve is also incomplete and must not approve productive work.
+Use `performance mail --limit 20` and the registered job diagnostics for technical
+timings; model-server reachability alone does not prove a completed validation.
+
 Sender alone is not category proof unless Jan created an explicit hard rule.
 Deterministic routine/spam reuse requires two older consistent corrections for
 the normalized sender/subject pattern; one clear older relevant correction may

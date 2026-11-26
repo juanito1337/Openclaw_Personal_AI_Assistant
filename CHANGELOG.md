@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Die Mail-Produktionsfreigabe verwendet fuer ihren unveraenderten
+  Fuenf-Nachrichten-Probelauf ein eigenes begrenztes Laufzeitbudget statt des
+  kuerzeren Vorpruefungs-Timeouts. Modellwiederholungen berechnen ihre Restzeit
+  erneut; abgebrochene oder durch Modell-Timeouts unvollstaendige Probelaufe
+  erzeugen keine Freigabe. Watchdog-Fehler unterscheiden Vorpruefung, Probelauf
+  und Nachpruefung, halten den Fingerprint-Cooldown ein und beenden erfasste
+  Kindprozesse begrenzt. Im Container beobachtet `jobs check` die Freigabe;
+  ausschliesslich der Mail-Worker fuehrt deren Wiederherstellung aus.
+  Index und Sync bleiben an ihre bisherigen
+  Vollstaendigkeits- und Frischenachweise gebunden.
+
 - Kalender ohne gesetzte Nextcloud-Eigenschaft `calendar-timezone` erhalten
   einen begrenzten zweiten Leseweg: Originaltermine und Serienexpansion werden
   ueber unveraenderte Objektidentitaeten und ETags verbunden. Einzeltermine

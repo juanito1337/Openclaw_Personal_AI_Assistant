@@ -15,6 +15,17 @@ from typing import Any
 
 from .config import WORKSPACE_ROOT
 from .gateway_events import event_command, relay_status
+from .mail_recovery import (
+    DRY_RUN_TIMEOUT,
+    FINGERPRINT_UNVERIFIED,
+    READINESS_TIMEOUT,
+    RECHECK_TIMEOUT,
+    RECOVERY_RUNTIME_ARGS,
+    RECOVERY_WATCHDOG_SECONDS,
+    finish_recovery_capture,
+    recovery_fingerprint,
+    start_recovery_capture,
+)
 from .run_contract import canonical_run_result
 from .work_scheduler import AdaptiveWorkScheduler
 
@@ -77,6 +88,17 @@ def _default_runner(command: Sequence[str], timeout: int) -> CommandResult:
         return CommandResult(124, stdout, (stderr + "\nZeitlimit ueberschritten").strip())
     except OSError as exc:
         return CommandResult(127, "", str(exc))
+
+
+def _mail_stage_runner(command: Sequence[str], timeout: int) -> CommandResult:
+    try:
+        completed = finish_recovery_capture(start_recovery_capture(command), timeout)
+    except OSError as exc:
+        return CommandResult(127, "", str(exc))
+    detail = completed.stderr
+    if completed.returncode == 124 and not detail:
+        detail = "Zeitlimit ueberschritten"
+    return CommandResult(completed.returncode, completed.stdout, detail)
 
 
 def default_job_specs() -> tuple[JobSpec, ...]:
@@ -229,13 +251,17 @@ class JobController:
         os.chmod(temporary, 0o600)
         temporary.replace(self.state_path)
 
-    def _run(self, command: Sequence[str], timeout: int = 120) -> CommandResult:
+    def _run(
+        self, command: Sequence[str], timeout: int = 120, *, isolated_mail_stage: bool = False,
+    ) -> CommandResult:
         resolved = list(command)
         for index, value in enumerate(resolved):
             if value.startswith("scripts/"):
                 resolved[index] = str((self.code_root / value).resolve())
         if resolved and not Path(resolved[0]).is_absolute() and "/" in resolved[0]:
             resolved[0] = str((self.workspace_root / resolved[0]).resolve())
+        if isolated_mail_stage and self.runner is _default_runner:
+            return _mail_stage_runner(resolved, timeout)
         return self.runner(resolved, timeout)
 
     def _select(self, target: str, *, for_off: bool = False) -> list[JobSpec]:
@@ -552,26 +578,19 @@ class JobController:
     def _mail_readiness(self, spec: JobSpec) -> dict[str, Any]:
         if not spec.readiness_command:
             return {"checked": False, "ok": True, "auto_recoverable": False, "detail": "Kein Production-Gate konfiguriert"}
-        result = self._run(spec.readiness_command, timeout=180)
-        payload = self._json_payload(result)
+        result = self._run(spec.readiness_command, timeout=180, isolated_mail_stage=True)
+        payload = None if result.returncode == 124 else self._json_payload(result)
         return {
             "checked": True,
             "ok": bool(result.returncode == 0 and isinstance(payload, dict) and payload.get("ok")),
-            "auto_recoverable": bool(isinstance(payload, dict) and payload.get("auto_recoverable")),
+            "auto_recoverable": result.returncode == 4 and isinstance(payload, dict)
+            and payload.get("auto_recoverable") is True,
             "returncode": result.returncode,
             "blockers": list(payload.get("blockers") or []) if isinstance(payload, dict) else [],
             "gate": payload.get("gate") if isinstance(payload, dict) else {},
             "result": payload,
             "detail": (result.stderr.strip() or result.stdout.strip())[-4000:],
         }
-
-    @staticmethod
-    def _recovery_signature(readiness: dict[str, Any]) -> str:
-        value = {
-            "blockers": readiness.get("blockers") or [],
-            "gate": readiness.get("gate") or {},
-        }
-        return json.dumps(value, ensure_ascii=False, sort_keys=True, default=str)
 
     def _recovery_in_cooldown(self, key: str, signature: str) -> bool:
         previous = self.state.get("recovery", {}).get(key)
@@ -641,17 +660,6 @@ class JobController:
         }
 
     def _quiesce_mail_for_recovery(self, spec: JobSpec) -> dict[str, Any]:
-        if self.container_mode:
-            self.state["desired"][spec.name] = False
-            self._save_state()
-            idle = self._wait_for_mail_idle(spec, attempts=60, interval_seconds=2.0)
-            return {
-                "ok": bool(idle.get("ok")),
-                "commands": [{"command": "container desired mail=off", "returncode": 0, "detail": ""}],
-                "idle": idle,
-                "transient": bool(idle.get("transient")),
-                "container": True,
-            }
         commands: list[dict[str, Any]] = []
         for unit in (spec.timer_unit, spec.service_unit):
             result = self._run(["systemctl", "--user", "stop", unit], timeout=60)
@@ -669,18 +677,6 @@ class JobController:
         }
 
     def _restore_mail_timer(self, spec: JobSpec) -> dict[str, Any]:
-        if self.container_mode:
-            self.state["desired"][spec.name] = True
-            self._save_state()
-            self.container_status_dir.mkdir(parents=True, exist_ok=True)
-            (self.container_status_dir / f"{spec.name}.wake").touch()
-            return {
-                "attempted": True,
-                "ok": True,
-                "command": "container desired mail=on",
-                "returncode": 0,
-                "detail": "Container-Mailworker wird aufgeweckt",
-            }
         result = self._run(["systemctl", "--user", "enable", "--now", spec.timer_unit], timeout=60)
         return {
             "attempted": True,
@@ -715,9 +711,24 @@ class JobController:
         }
 
     def _recover_mail_production_gate(self, spec: JobSpec, *, force_attempt: bool = False) -> dict[str, Any]:
+        if self.container_mode:
+            return {
+                "attempted": False,
+                "ok": False,
+                "code": "mail-recovery-owned-by-worker",
+                "detail": "Der Mail-Worker besitzt die automatische Wiederherstellung im Containerbetrieb",
+            }
         before = self._mail_readiness(spec)
         if before.get("ok"):
             return {"attempted": False, "ok": True, "before": before, "detail": "Produktionsfreigabe ist gueltig"}
+        if before.get("returncode") == 124:
+            return {
+                "attempted": False,
+                "ok": False,
+                "code": READINESS_TIMEOUT,
+                "before": before,
+                "detail": "Zeitlimit bei der ersten Pruefung der Mail-Produktionsfreigabe",
+            }
         if not before.get("auto_recoverable"):
             return {
                 "attempted": False,
@@ -729,7 +740,15 @@ class JobController:
             return {"attempted": False, "ok": False, "before": before, "detail": "Kein sicherer Dry-Run konfiguriert"}
 
         key = "mail-production-gate"
-        signature = self._recovery_signature(before)
+        signature = recovery_fingerprint(before.get("gate"))
+        if signature is None:
+            return {
+                "attempted": False,
+                "ok": False,
+                "code": FINGERPRINT_UNVERIFIED,
+                "before": before,
+                "detail": "Kein verifizierter Konfigurationsfingerprint fuer die automatische Freigabe",
+            }
         if not force_attempt and self._recovery_in_cooldown(key, signature):
             return {
                 "attempted": False,
@@ -780,8 +799,10 @@ class JobController:
                     "OPENCLAW_OLLAMA_PRIORITY=maintenance",
                     "OPENCLAW_OLLAMA_SOURCE=supervisor-recovery",
                     *spec.automatic_recovery_command,
+                    *RECOVERY_RUNTIME_ARGS,
                 ],
-                timeout=240,
+                timeout=RECOVERY_WATCHDOG_SECONDS,
+                isolated_mail_stage=True,
             )
             summary = self._json_payload(dry_run)
             transient_lock = self._is_transient_lock_failure(dry_run, summary)
@@ -821,12 +842,20 @@ class JobController:
         dry_ok = dry_run.returncode == 0 and isinstance(summary, dict) and not errors and actions_ok
         after = self._mail_readiness(spec) if dry_ok else before
         ok = bool(dry_ok and after.get("ok"))
+        timeout_evidence = {}
+        if dry_run.returncode == 124:
+            timeout_evidence = {"code": DRY_RUN_TIMEOUT}
+        elif after.get("returncode") == 124:
+            timeout_evidence = {"code": RECHECK_TIMEOUT}
         detail = (
             f"Dry-Run verarbeitet={summary.get('processed', 0) if isinstance(summary, dict) else '?'}; "
             f"Fehler={len(errors)}; Production-Gate={'frei' if after.get('ok') else 'blockiert'}"
         )
+        if timeout_evidence:
+            detail = f"{detail} ({timeout_evidence['code']})"
 
         record = {
+            **timeout_evidence,
             "signature": signature,
             "attempted_at": _utc_now(),
             "ok": ok,
@@ -840,6 +869,7 @@ class JobController:
         if not ok:
             timer_restore = self._restore_mail_timer(spec)
         return {
+            **timeout_evidence,
             "attempted": True,
             "ok": ok,
             "before": before,
@@ -856,9 +886,6 @@ class JobController:
         }
 
     def _restart_mail_after_recovery(self, spec: JobSpec) -> dict[str, Any]:
-        if self.container_mode:
-            restored = self._restore_mail_timer(spec)
-            return {"ok": bool(restored.get("ok")), "commands": [restored], "container": True}
         commands: list[dict[str, Any]] = []
         for unit in (spec.service_unit, spec.timer_unit):
             result = self._run(["systemctl", "--user", "reset-failed", unit], timeout=30)
@@ -1323,21 +1350,13 @@ class JobController:
 
 
     def check(self, *, target: str = "all", deep: bool = False) -> dict[str, Any]:
-        """Check desired jobs and perform only allowlisted, non-destructive recovery.
-
-        Currently automatic recovery is limited to the mail safety gate: run a
-        bounded dry-run, verify the machine-readable production gate, then reset
-        and start the existing service without ever using ``--force``.
-        """
-
-        initial = self.status(target=target, deep=deep, record=False)
+        """Record job health and apply the allowlisted mail recovery only under legacy systemd."""
         recoveries: list[dict[str, Any]] = []
-        observer_only = (
-            self.container_mode
-            and os.environ.get("OPENCLAW_ROLE", "").strip() == "supervisor-worker"
-        )
-        for job in initial["jobs"]:
-            if observer_only or job.get("name") != "mail" or job.get("desired") != "on":
+        legacy_jobs: list[dict[str, Any]] = []
+        if not self.container_mode:
+            legacy_jobs = self.status(target=target, deep=deep, record=False)["jobs"]
+        for job in legacy_jobs:
+            if job.get("name") != "mail" or job.get("desired") != "on":
                 continue
             spec = self.specs["mail"]
             # Always verify the machine-readable production gate. A previous
@@ -1374,8 +1393,9 @@ class JobController:
 
         report = self.status(target=target, deep=deep, record=True)
         report["automatic_recoveries"] = recoveries
-        if observer_only:
+        if self.container_mode:
             report["automatic_recovery_owner"] = "mail-worker"
+        if self.container_mode and os.environ.get("OPENCLAW_ROLE", "").strip() == "supervisor-worker":
             supervisor = next(
                 (job for job in report["jobs"] if job.get("name") == "supervisor"),
                 None,

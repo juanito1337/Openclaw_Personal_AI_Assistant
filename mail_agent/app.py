@@ -97,6 +97,21 @@ class RunSummary:
         self.actions.extend(other.actions)
         self.errors.extend(other.errors)
 
+    def mark_budget_exhausted(self) -> None:
+        if "mail-runtime-budget-exhausted" not in self.errors:
+            self.errors.append("mail-runtime-budget-exhausted")
+
+    def validate_dry_run_completion(self) -> None:
+        if self.drain.get("stop_reason") == "runtime-reserve":
+            self.mark_budget_exhausted()
+        timeout_metrics = ("queue_timeouts", "upstream_timeouts", "runtime_budget_stops")
+        if (
+            any(self.classifier.get(key) for key in timeout_metrics)
+            and "mail-runtime-budget-exhausted" not in self.errors
+            and "dry-run-model-timeout" not in self.errors
+        ):
+            self.errors.append("dry-run-model-timeout")
+
     def to_dict(self) -> dict[str, object]:
         data: dict[str, object] = {
             "processed": self.processed,
@@ -112,6 +127,8 @@ class RunSummary:
 
 
 class MailAgent:
+    _dry_run_work_deadline: float | None = None
+
     def __init__(self, config: Config, dry_run: bool = False) -> None:
         self.config = config
         self.dry_run = dry_run
@@ -215,6 +232,21 @@ class MailAgent:
             drain=summary.drain,
         )
 
+    def _finish_bounded_run(self, summary: RunSummary, finish_deadline: float | None) -> None:
+        if self.dry_run:
+            if finish_deadline is not None and time.monotonic() >= finish_deadline:
+                summary.mark_budget_exhausted()
+            summary.validate_dry_run_completion()
+        self._finish_telemetry(summary)
+        # Digest and telemetry are part of finishing this validation. Check its
+        # hard limit before the CLI can record the returned summary as successful.
+        if finish_deadline is not None and time.monotonic() >= finish_deadline:
+            summary.mark_budget_exhausted()
+
+    def _check_work_budget(self) -> None:
+        if self._dry_run_work_deadline is not None and time.monotonic() >= self._dry_run_work_deadline:
+            raise RuntimeBudgetExceeded("Laufzeitbudget vor dem naechsten Arbeitsschritt erschoepft")
+
     def _required_folders(self) -> list[str]:
         return list(dict.fromkeys([
             *self.config.folders.all(),
@@ -289,6 +321,7 @@ class MailAgent:
                 "path": "",
             })
         if self.config.nextcloud.enabled and self.config.nextcloud.contacts_enabled:
+            self._check_work_budget()
             contacts_ok, contacts_detail = self.nextcloud.refresh_contact_cache(force=False)
             if not contacts_ok:
                 self.log.warning("Nextcloud-Kontaktabgleich nicht verfuegbar: %s", contacts_detail)
@@ -296,27 +329,35 @@ class MailAgent:
 
     def _process_batch(self, limit: int) -> RunSummary:
         summary = RunSummary()
-        self._process_feedback(summary, limit=limit)
-        if summary.errors:
-            return summary
+        try:
+            self._process_feedback(summary, limit=limit)
+            if summary.errors:
+                return summary
 
-        remaining = max(0, limit - summary.processed)
-        available_quarantine = self._available_quarantine_folders()
-        if remaining and available_quarantine and self.config.mailbox.quarantine_max_per_run > 0:
-            quarantine_budget = min(
-                self.config.mailbox.quarantine_max_per_run,
-                max(1, remaining // 5),
-            )
-            for folder in available_quarantine:
-                if quarantine_budget <= 0:
-                    break
-                before = summary.processed
-                self._process_quarantine_folder(folder, summary, quarantine_budget)
-                quarantine_budget -= max(0, summary.processed - before)
+            remaining = max(0, limit - summary.processed)
+            if remaining == 0:
+                return summary
+            self._check_work_budget()
+            available_quarantine = self._available_quarantine_folders()
+            if available_quarantine and self.config.mailbox.quarantine_max_per_run > 0:
+                quarantine_budget = min(
+                    self.config.mailbox.quarantine_max_per_run,
+                    max(1, remaining // 5),
+                )
+                for folder in available_quarantine:
+                    if quarantine_budget <= 0:
+                        break
+                    before = summary.processed
+                    self._process_quarantine_folder(folder, summary, quarantine_budget)
+                    quarantine_budget -= max(0, summary.processed - before)
 
-        remaining = max(0, limit - summary.processed)
-        if remaining:
-            self._process_folder(self.config.mailbox.source_folder, summary, remaining)
+            remaining = max(0, limit - summary.processed)
+            if remaining:
+                self._process_folder(self.config.mailbox.source_folder, summary, remaining)
+        except RuntimeBudgetExceeded:
+            if not self.dry_run:
+                raise
+            summary.mark_budget_exhausted()
         return summary
 
     def _available_quarantine_folders(self) -> list[str]:
@@ -347,27 +388,58 @@ class MailAgent:
         except Exception as exc:
             summary.errors.append(f"Mail-Suchprojektion konnte nicht veroeffentlicht werden: {exc}")
 
-    def run(self, limit: int = 20, include_digest: bool = True) -> RunSummary:
+    def run(
+        self,
+        limit: int = 20,
+        include_digest: bool = True,
+        *,
+        max_runtime_seconds: int | None = None,
+        shutdown_reserve_seconds: int = 60,
+    ) -> RunSummary:
+        work_deadline = None
+        finish_deadline = None
+        if max_runtime_seconds is not None:
+            if not 0 < shutdown_reserve_seconds < max_runtime_seconds:
+                raise ValueError("shutdown-reserve muss positiv und kleiner als max-runtime sein")
+            finish_deadline = time.monotonic() + max_runtime_seconds
+            work_deadline = finish_deadline - shutdown_reserve_seconds
         summary = RunSummary()
         self._start_telemetry("run-dry" if self.dry_run else "run")
         self.classifier.reset_metrics()
+        if work_deadline is not None:
+            self.classifier.set_runtime_deadline(work_deadline)
+        if self.dry_run:
+            self._dry_run_work_deadline = work_deadline
         try:
+            self._check_work_budget()
             with self._phase("preflight"):
                 prepared = self._prepare_run(summary)
             if not prepared:
                 return summary
+            if work_deadline is not None and time.monotonic() >= work_deadline:
+                raise RuntimeBudgetExceeded("Laufzeitbudget nach der Vorpruefung erschoepft")
             with self._phase("mail_processing"):
                 summary.merge(self._process_batch(limit=max(1, limit)))
+            if finish_deadline is not None and time.monotonic() >= finish_deadline:
+                raise RuntimeBudgetExceeded("Laufzeitbudget vor dem Abschluss erschoepft")
             if summary.errors:
                 return summary
             if include_digest:
                 with self._phase("digest"):
                     self._append_digest(summary)
             return summary
+        except RuntimeBudgetExceeded:
+            if work_deadline is None:
+                raise
+            summary.mark_budget_exhausted()
+            return summary
         finally:
+            self._dry_run_work_deadline = None
+            if work_deadline is not None:
+                self.classifier.clear_runtime_deadline()
             self._refresh_search_projection(summary)
             summary.classifier = self.classifier.metrics_snapshot()
-            self._finish_telemetry(summary)
+            self._finish_bounded_run(summary, finish_deadline)
 
     def review_quarantine(self, limit: int = 20) -> RunSummary:
         summary = RunSummary()
@@ -402,7 +474,7 @@ class MailAgent:
         finally:
             self._refresh_search_projection(summary)
             summary.classifier = self.classifier.metrics_snapshot()
-            self._finish_telemetry(summary)
+            self._finish_bounded_run(summary, None)
 
     def drain(
         self,
@@ -438,7 +510,10 @@ class MailAgent:
         deadline_setter = getattr(self.classifier, "set_runtime_deadline", None)
         if callable(deadline_setter):
             deadline_setter(work_deadline)
+        if self.dry_run:
+            self._dry_run_work_deadline = work_deadline
         try:
+            self._check_work_budget()
             with self._phase("preflight"):
                 prepared = self._prepare_run(summary)
             if not prepared:
@@ -482,6 +557,7 @@ class MailAgent:
                     break
 
                 if self.dry_run:
+                    self._check_work_budget()
                     envelopes, error = self.himalaya.list_envelopes(
                         self.config.mailbox.source_folder, limit=1
                     )
@@ -521,7 +597,16 @@ class MailAgent:
             if include_digest and not summary.errors and stop_reason != "runtime-reserve":
                 self._append_digest(summary)
             return summary
+        except RuntimeBudgetExceeded:
+            if not self.dry_run:
+                raise
+            stop_reason = "runtime-reserve"
+            return summary
         finally:
+            self._dry_run_work_deadline = None
+            deadline_clearer = getattr(self.classifier, "clear_runtime_deadline", None)
+            if callable(deadline_clearer):
+                deadline_clearer()
             elapsed = time.monotonic() - started
             if not stop_reason:
                 stop_reason = "completed"
@@ -539,11 +624,8 @@ class MailAgent:
                 "stop_reason": stop_reason,
                 "inbox_remaining": inbox_remaining,
             }
-            deadline_clearer = getattr(self.classifier, "clear_runtime_deadline", None)
-            if callable(deadline_clearer):
-                deadline_clearer()
             self._refresh_search_projection(summary)
-            self._finish_telemetry(summary)
+            self._finish_bounded_run(summary, started + max_runtime_seconds if self.dry_run else None)
 
     def _process_feedback(self, summary: RunSummary, limit: int) -> None:
         learning_registry = getattr(self, "learning_folders", None)
@@ -559,6 +641,7 @@ class MailAgent:
             remaining = max(0, limit - summary.processed)
             if remaining == 0:
                 break
+            self._check_work_budget()
             with self._phase("mail_list"):
                 envelopes, error = self.himalaya.list_envelopes(folder, limit=remaining)
             if error:
@@ -569,6 +652,7 @@ class MailAgent:
             for envelope in envelopes:
                 if summary.processed >= limit:
                     break
+                self._check_work_budget()
                 message = self._load_message(folder, envelope, summary)
                 if not message:
                     continue
@@ -632,6 +716,7 @@ class MailAgent:
                 summary.add(message, result, classification.category)
 
     def _process_folder(self, folder: str, summary: RunSummary, limit: int) -> None:
+        self._check_work_budget()
         with self._phase("mail_list"):
             envelopes, error = self.himalaya.list_envelopes(folder, limit=limit)
         if error:
@@ -646,6 +731,7 @@ class MailAgent:
         )
 
         for envelope in envelopes:
+            self._check_work_budget()
             message = self._load_message(folder, envelope, summary)
             if not message:
                 continue
@@ -708,6 +794,7 @@ class MailAgent:
             self._classify_and_route_batch(folder, pending, summary)
 
     def _process_quarantine_folder(self, folder: str, summary: RunSummary, limit: int) -> None:
+        self._check_work_budget()
         with self._phase("mail_list"):
             envelopes, error = self.himalaya.list_envelopes(folder, limit=limit)
         if error:
@@ -728,6 +815,7 @@ class MailAgent:
         pending: list[ParsedMessage] = []
         prefetch = self.config.ollama.batch_prefetch if self.config.ollama.batch_enabled else 1
         for envelope in envelopes:
+            self._check_work_budget()
             message = self._load_message(folder, envelope, summary)
             if not message:
                 continue
@@ -768,6 +856,7 @@ class MailAgent:
         messages: list[ParsedMessage],
         summary: RunSummary,
     ) -> None:
+        self._check_work_budget()
         with self._phase("classification"):
             classifications = self.classifier.classify_many(messages)
         if len(classifications) != len(messages):
@@ -777,6 +866,7 @@ class MailAgent:
             return
         with self._phase("routing"):
             for message, classification in zip(messages, classifications, strict=True):
+                self._check_work_budget()
                 result = self._route_quarantine(message, classification, folder)
                 summary.processed += 1
                 summary.add(message, result, classification.category)
@@ -885,6 +975,7 @@ class MailAgent:
         messages: list[ParsedMessage],
         summary: RunSummary,
     ) -> None:
+        self._check_work_budget()
         with self._phase("classification"):
             classifications = self.classifier.classify_many(messages)
         if len(classifications) != len(messages):
@@ -894,6 +985,7 @@ class MailAgent:
             return
         with self._phase("routing"):
             for message, classification in zip(messages, classifications, strict=True):
+                self._check_work_budget()
                 result = self._route(message, classification, folder)
                 summary.processed += 1
                 summary.add(message, result, classification.category)
