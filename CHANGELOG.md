@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Kalender ohne gesetzte Nextcloud-Eigenschaft `calendar-timezone` erhalten
+  einen begrenzten zweiten Leseweg: Originaltermine und Serienexpansion werden
+  ueber unveraenderte Objektidentitaeten und ETags verbunden. Einzeltermine
+  behalten dadurch ihre urspruengliche UTC-, lokale oder Ganztagsbedeutung.
+  Nicht belegbare Serien, parallele Aenderungen und Antwortlimits bleiben
+  sichtbar unvollstaendig; die fehlende Eigenschaft wird nicht als Serverzeitzone
+  interpretiert. Der Runtime-Build aktualisiert ausserdem den nicht mehr
+  verfuegbaren Alpine-zstd-Pin auf `1.6.0-r1`.
+
 - Die registrierte Leseabfrage `calendar today` prueft den heutigen lokalen Tag
   ueber alle ausgewaehlten Kalender samt Serienvorkommen. Zeitfenster,
   Ressourcenfehler, Vollstaendigkeit und Begrenzungen bleiben sichtbar. Nur ein

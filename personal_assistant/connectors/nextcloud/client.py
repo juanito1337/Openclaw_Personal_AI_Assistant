@@ -41,8 +41,16 @@ class NextcloudError(RuntimeError):
     pass
 
 
+def _read_body(response, max_response_bytes):
+    data = response.read() if max_response_bytes is None else response.read(max_response_bytes + 1)
+    if max_response_bytes is not None and len(data) > max_response_bytes:
+        raise NextcloudError("response-limit")
+    return data
+
+
 class _BlockRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
+        fp.close()
         raise NextcloudError("redirect-blocked")
 
 
@@ -98,6 +106,34 @@ class NextcloudClient:
                 return base_url
         raise NextcloudError("Nextcloud muss HTTPS verwenden; HTTP ist nur mit expliziter LAN-Ausnahme erlaubt")
 
+    def dav_request_url(self, path: str) -> str:
+        """Expected URL for response scope checks; the transport still validates access."""
+        if self.connection:
+            from ...nextcloud_onboarding import OnboardingError, normalize_server_url
+
+            try:
+                base = normalize_server_url(self.connection["server_url"])
+                target = self._managed_target(path)
+                parsed = urllib.parse.urlsplit(urllib.parse.urljoin(base + "/", target))
+                address = urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, "", "", ""))
+                origin = normalize_server_url(address)
+            except OnboardingError as exc:
+                raise NextcloudError(exc.code) from exc
+            authority = urllib.parse.urlsplit(origin).netloc
+            if authority != urllib.parse.urlsplit(base).netloc:
+                raise NextcloudError("foreign-origin")
+            encoded_path = urllib.parse.quote(parsed.path or "/", safe="/%:@!$&'()*+,;=-._~")
+            return urllib.parse.urlunsplit(("https", authority, encoded_path, parsed.query, ""))
+        return self.validate_url() + "/" + path.lstrip("/")
+
+    @staticmethod
+    def _managed_target(path):
+        return (
+            path.lstrip("/")
+            if path == "/status.php" or path.startswith(("/remote.php/", "/ocs/"))
+            else path
+        )
+
     def request(
         self,
         method: str,
@@ -108,7 +144,13 @@ class NextcloudClient:
         timeout: int | None = None,
         expected: set[int] | None = None,
         access: AccessContext | None = None,
+        max_response_bytes: int | None = None,
     ) -> DavResponse:
+        if max_response_bytes is not None and (
+            type(max_response_bytes) is not int or max_response_bytes <= 0
+        ):
+            raise ValueError("response-bound-invalid")
+        response_bound = {} if max_response_bytes is None else {"max_response_bytes": max_response_bytes}
         current_snapshot = load_access_snapshot()
         verify_native_access(current_snapshot)
         require(current_snapshot.mode != "unconfigured", "scope-unbound")
@@ -132,7 +174,9 @@ class NextcloudClient:
                             admitted, access.scope, access.operation, expected_binding=access.binding
                         )
                         require(decision.allowed, decision.code)
-                    return self._managed_request(verb, target, headers, data, timeout, follow_redirects=False)
+                    return self._managed_request(
+                        verb, target, headers, data, timeout, follow_redirects=False, **response_bound
+                    )
 
             if access is None:
                 # Only two release-owned health probes have no domain scope.
@@ -180,7 +224,7 @@ class NextcloudClient:
                 if account_failure_observation(admitted):
                     require(self._health_request(method, path, headers, data), "rights-unverified")
                 result = self._legacy_request(
-                    method, path, headers, data, timeout, expected, follow_redirects=False
+                    method, path, headers, data, timeout, expected, follow_redirects=False, **response_bound
                 )
             try:
                 with admit_projection(self.access_snapshot):
@@ -189,7 +233,9 @@ class NextcloudClient:
                 if method in {"PUT", "MKCOL", "MOVE", "POST"} and 200 <= result.status < 300:
                     raise delivery_uncertain(exc) from exc
                 raise
-        return self._legacy_request(method, path, headers, data, timeout, expected, follow_redirects=True)
+        return self._legacy_request(
+            method, path, headers, data, timeout, expected, follow_redirects=True, **response_bound
+        )
 
     @staticmethod
     def _health_request(method, path, headers, data):
@@ -200,20 +246,25 @@ class NextcloudClient:
             and headers == {"Depth": "0", "Content-Type": "application/xml; charset=utf-8"}
         )
 
-    def _legacy_request(self, method, path, headers, data, timeout, expected, *, follow_redirects):
+    def _legacy_request(
+        self, method, path, headers, data, timeout, expected, *, follow_redirects, max_response_bytes=None,
+    ):
         missing = self.missing_environment()
         if missing:
             raise NextcloudError("Fehlende Umgebungsvariablen: " + ", ".join(missing))
+        # urllib's default redirect handler drains the intermediate body before
+        # following it. A bounded, scope-bound DAV read must not take that path.
+        follow_redirects = follow_redirects and max_response_bytes is None
         if self.connection:
+            response_bound = {} if max_response_bytes is None else {"max_response_bytes": max_response_bytes}
             result = self._managed_request(
-                method, path, headers, data, timeout, follow_redirects=follow_redirects
+                method, path, headers, data, timeout, follow_redirects=follow_redirects, **response_bound
             )
             if expected and result.status not in expected:
                 raise NextcloudError(f"nextcloud-http-{result.status}")
             return result
-        base_url = self.validate_url()
+        url = self.dav_request_url(path)
         _, username, token = self.credentials()
-        url = base_url + "/" + path.lstrip("/")
         auth = base64.b64encode(f"{username}:{token}".encode()).decode("ascii")
         request_headers = {
             "Authorization": "Basic " + auth,
@@ -236,17 +287,18 @@ class NextcloudClient:
                     status=int(response.status),
                     reason=str(response.reason or ""),
                     headers={str(k): str(v) for k, v in response.headers.items()},
-                    data=response.read(),
+                    data=_read_body(response, max_response_bytes),
                     url=str(response.url),
                 )
         except urllib.error.HTTPError as exc:
-            result = DavResponse(
-                status=int(exc.code),
-                reason=str(exc.reason or "HTTP-Fehler"),
-                headers={str(k): str(v) for k, v in exc.headers.items()},
-                data=exc.read(),
-                url=url,
-            )
+            with exc:
+                result = DavResponse(
+                    status=int(exc.code),
+                    reason=str(exc.reason or "HTTP-Fehler"),
+                    headers={str(k): str(v) for k, v in exc.headers.items()},
+                    data=_read_body(exc, max_response_bytes),
+                    url=url,
+                )
         except (urllib.error.URLError, TimeoutError, ssl.SSLError) as exc:
             raise NextcloudError(str(exc)) from exc
         if expected and result.status not in expected:
@@ -256,7 +308,9 @@ class NextcloudClient:
             )
         return result
 
-    def _managed_request(self, method, path, headers, data, timeout, *, follow_redirects):
+    def _managed_request(
+        self, method, path, headers, data, timeout, *, follow_redirects, max_response_bytes=None,
+    ):
         from ...nextcloud_onboarding import OnboardingError, SafeNextcloudTransport
 
         if self.connection is None:
@@ -268,18 +322,17 @@ class NextcloudClient:
         request_headers = {k: v for k, v in (headers or {}).items() if k.lower() != "content-length"}
         request_headers["Authorization"] = "Basic " + auth
         try:
+            response_limit = max(self.config.search.max_file_bytes, 4 * 1024 * 1024)
+            if max_response_bytes is not None:
+                response_limit = min(response_limit, max_response_bytes)
             transport = SafeNextcloudTransport(
                 base_url,
                 allow_private=True,
                 expected_ips=tuple(self.connection["expected_ips"]),
                 timeout_seconds=timeout or self.config.nextcloud.request_timeout_seconds,
-                max_response_bytes=max(self.config.search.max_file_bytes, 4 * 1024 * 1024),
+                max_response_bytes=response_limit,
             )
-            target = (
-                path.lstrip("/")
-                if path == "/status.php" or path.startswith(("/remote.php/", "/ocs/"))
-                else path
-            )
+            target = self._managed_target(path)
             response = transport.request(
                 method, target, headers=request_headers, data=data, follow_redirects=follow_redirects
             )

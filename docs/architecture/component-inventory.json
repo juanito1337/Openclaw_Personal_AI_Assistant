@@ -2,7 +2,7 @@
   "schema_version": 1,
   "inventory_date": "2026-08-06",
   "source_scope": "all Python modules, shell entrypoints, skills, systemd units, migrations and Markdown documents",
-  "component_count": 626,
+  "component_count": 627,
   "classification_values": [
     "active",
     "compatibility",
@@ -4758,7 +4758,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-11-26T15:09:21+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -6711,12 +6711,14 @@
       "owner": "Core Maintainers",
       "classification": "active",
       "productive_callers": [],
-      "test_evidence": [],
+      "test_evidence": [
+        "tests/test_nextcloud_foreground_access.py"
+      ],
       "documentation_evidence": [
         "docs/superpowers/plans/2026-11-26-calendar-timezone-live-fix.md"
       ],
       "line_coverage_percent": 85.11,
-      "last_git_change": "2026-11-23T08:53:56+01:00",
+      "last_git_change": "2026-11-26T15:09:21+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -7429,6 +7431,7 @@
         "tests/test_nextcloud_file_access.py",
         "tests/test_nextcloud_foreground_access.py",
         "tests/test_nextcloud_local_visibility.py",
+        "tests/test_nextcloud_response_bounds.py",
         "tests/test_nextcloud_setup.py",
         "tests/test_nextcloud_talk_m17.py",
         "tests/test_personal_assistant_core.py",
@@ -7520,7 +7523,7 @@
         "docs/superpowers/plans/2026-11-26-calendar-timezone-live-fix.md"
       ],
       "line_coverage_percent": 71.29,
-      "last_git_change": "2026-11-23T08:53:56+01:00",
+      "last_git_change": "2026-11-26T15:09:21+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -7553,6 +7556,7 @@
         "tests/test_nextcloud_file_access.py",
         "tests/test_nextcloud_foreground_access.py",
         "tests/test_nextcloud_local_visibility.py",
+        "tests/test_nextcloud_response_bounds.py",
         "tests/test_nextcloud_setup.py",
         "tests/test_personal_assistant_core.py",
         "tests/test_risk_paths_m166.py"
@@ -8808,6 +8812,7 @@
         "tests/test_nextcloud_connection.py",
         "tests/test_nextcloud_foreground_access.py",
         "tests/test_nextcloud_onboarding.py",
+        "tests/test_nextcloud_response_bounds.py",
         "tests/test_nextcloud_setup.py",
         "tests/test_nextcloud_talk_managed_status.py"
       ],
@@ -9522,7 +9527,7 @@
         "docs/superpowers/plans/2026-11-26-calendar-timezone-live-fix.md"
       ],
       "line_coverage_percent": 64.46,
-      "last_git_change": "2026-11-23T08:53:56+01:00",
+      "last_git_change": "2026-11-26T15:09:21+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -12994,7 +12999,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": "2026-11-23T08:53:56+01:00",
+      "last_git_change": "2026-11-26T15:09:21+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -13035,7 +13040,7 @@
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-11-23T08:53:56+01:00",
+      "last_git_change": "2026-11-26T15:09:21+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -14764,6 +14769,24 @@
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-10-22T13:17:15+02:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "tests/test_nextcloud_response_bounds.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"

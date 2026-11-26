@@ -117,7 +117,7 @@ RUN apk add --no-cache \
        jq=1.8.2-r0 \
        rsync=3.5.2-r1 \
        sqlite=3.49.2-r1 \
-       zstd=1.5.7-r0 \
+       zstd=1.6.0-r1 \
        procps-ng=4.0.4-r3 \
        tini=0.19.0-r3 \
        python3=3.12.16-r0 \

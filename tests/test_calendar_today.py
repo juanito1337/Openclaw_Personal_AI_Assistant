@@ -330,7 +330,6 @@ def test_today_report_finds_event_hidden_by_historical_list_limit(account, monke
 @pytest.mark.parametrize(
     "wire_failure,expected_detail",
     [
-        ("property-404", {"reason": "property-missing", "property_status": 404}),
         ("absent-property", {"reason": "property-missing", "property_status": 200}),
         ("empty-property", {"reason": "property-empty", "property_status": 200}),
         ("unexpected-xml", {"reason": "dav-envelope-invalid"}),
@@ -368,21 +367,23 @@ def test_calendar_today_reports_only_content_free_timezone_diagnostics(
     ))
     timezone_property = (
         "" if wire_failure == "absent-property"
-        else "<c:calendar-timezone/>" if wire_failure in {"empty-property", "property-404"}
+        else "<c:calendar-timezone/>" if wire_failure == "empty-property"
         else f"<c:calendar-timezone>{timezone}</c:calendar-timezone>"
     )
     href = "/cal/private-scope/" if wire_failure == "foreign-href" else "/cal/first/"
-    prop_status = "404 Not Found" if wire_failure == "property-404" else "200 OK"
     probe = (
         '<d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">'
         f"<d:response><d:href>{href}</d:href><d:propstat><d:prop>{timezone_property}</d:prop>"
-        f"<d:status>HTTP/1.1 {prop_status}</d:status></d:propstat></d:response></d:multistatus>"
+        "<d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>"
     ).encode()
     if wire_failure == "unexpected-xml":
         probe = b"<other>private fixture detail</other>"
 
     class Transport:
-        def request(self, method, href, *, data, headers, expected=None):
+        def dav_request_url(self, href):
+            return "https://synthetic.invalid" + href
+
+        def request(self, method, href, *, data, headers, expected=None, max_response_bytes=None):
             assert href == "/cal/first/"
             url = "https://synthetic.invalid" + href
             if method == "REPORT":

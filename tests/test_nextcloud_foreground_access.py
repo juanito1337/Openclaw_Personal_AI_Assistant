@@ -1,17 +1,23 @@
 """Foreground access through synthetic managed account and pinned transport."""
 
+from dataclasses import replace
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
+from xml.etree import ElementTree as ET
 
 import pytest
 from test_nextcloud_access import grant, managed, measured, scope, update_policy
 from test_nextcloud_onboarding import ROOT, FakeConnection, FakeNetwork, error_code, multistatus
 
+from personal_assistant import calendar_agenda
 from personal_assistant import nextcloud_connection as nc
+from personal_assistant.calendar_agenda import CALENDAR_TIMEZONE_PROPFIND, calendar_timezone_property_evidence
 from personal_assistant.config import AssistantConfig
 from personal_assistant.connectors.nextcloud.calendar import NextcloudCalendar
 from personal_assistant.connectors.nextcloud.client import NextcloudClient
 from personal_assistant.connectors.nextcloud.discovery import NextcloudDiscovery
 from personal_assistant.connectors.nextcloud.tasks import NextcloudTasks
+from personal_assistant.nextcloud_access_runtime import component_request
 from personal_assistant.nextcloud_onboarding import HttpResponse
 from personal_assistant.registry import ResourceRegistry
 from personal_assistant.service import PersonalAssistant
@@ -122,6 +128,116 @@ def test_calendar_report_cannot_return_other_scope(account, component, suffix):
     account.replies["REPORT"] = HttpResponse(207, {}, report(account.href + suffix, component))
     with pytest.raises(PermissionError), pa.select_nextcloud_resource("calendar", account.id):
         pa.calendar_list()
+
+
+@pytest.mark.parametrize("status,property_xml,suffix,proof", [
+    (404, "<c:calendar-timezone/>", "", True),
+    (404, "", "", False),
+    (404, "<c:calendar-timezone>private</c:calendar-timezone>", "", False),
+    (404, "<c:calendar-timezone/>", "foreign/", False),
+    (403, "<c:calendar-timezone/>", "", False),
+])
+def test_timezone_property_absence_is_exact_and_content_free(account, status, property_xml, suffix, proof):
+    pa = account.pa
+    collection = pa._calendar_collection(pa.registry.get(account.id))
+    body = f"""<d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+        <d:response><d:href>{account.href}{suffix}</d:href><d:propstat><d:prop>{property_xml}</d:prop>
+        <d:status>HTTP/1.1 {status} private</d:status></d:propstat></d:response></d:multistatus>"""
+    account.replies["PROPFIND"] = HttpResponse(207, {}, body.encode())
+    reply = component_request(
+        pa.nextcloud_client, "VEVENT", "list", collection, "PROPFIND", account.href,
+        data=CALENDAR_TIMEZONE_PROPFIND, headers={"Depth": "0"},
+    )
+    if proof:
+        assert calendar_timezone_property_evidence(reply.data, reply.url) == ("", "property-missing", 404)
+    else:
+        assert reply.data == b""
+    assert b"private" not in reply.data
+
+
+def test_timezone_probe_does_not_release_an_unexpected_success_body(account):
+    pa = account.pa
+    collection = pa._calendar_collection(pa.registry.get(account.id))
+    account.replies["PROPFIND"] = HttpResponse(200, {}, b"private")
+    reply = component_request(
+        pa.nextcloud_client, "VEVENT", "list", collection, "PROPFIND", account.href,
+        data=CALENDAR_TIMEZONE_PROPFIND, headers={"Depth": "0"},
+    )
+    assert reply.status == 200 and reply.data == b""
+
+
+def test_timezone_probe_checks_response_url_against_selected_calendar(account, monkeypatch):
+    pa = account.pa
+    collection = pa._calendar_collection(pa.registry.get(account.id))
+    wrong = "https://unselected.invalid" + account.href
+    body = f"""<d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+        <d:response><d:href>{wrong}</d:href><d:propstat><d:prop>
+        <c:calendar-timezone>private</c:calendar-timezone></d:prop>
+        <d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>"""
+    account.replies["PROPFIND"] = HttpResponse(207, {}, body.encode())
+    request = pa.nextcloud_client._managed_request
+    monkeypatch.setattr(pa.nextcloud_client, "_managed_request",
+                        lambda *args, **kwargs: replace(request(*args, **kwargs), url=wrong))
+    with pytest.raises(PermissionError, match="scope-invalid"):
+        component_request(
+            pa.nextcloud_client, "VEVENT", "list", collection, "PROPFIND", account.href,
+            data=CALENDAR_TIMEZONE_PROPFIND, headers={"Depth": "0"},
+        )
+
+
+def test_raw_agenda_proof_releases_only_scoped_vevent_objects(account):
+    pa = account.pa
+    collection = pa._calendar_collection(pa.registry.get(account.id))
+    valid = ET.fromstring(report(account.href + "one.ics", "VEVENT"))
+    valid.find(".//{DAV:}status").text = "HTTP/1.1 200 private-status"
+    foreign = ET.fromstring(report(account.href + "../foreign/private.ics", "VEVENT"))[0]
+    other_component = ET.fromstring(report(account.href + "private-task.ics", "VTODO"))[0]
+    unbound = report(account.href + "private-unbound.ics", "VEVENT").replace(
+        b"UID:one", b"UID:one\r\nUID:one\r\nEND:VEVENT\r\nBEGIN:VEVENT"
+    )
+    valid.extend([foreign, other_component, ET.fromstring(unbound)[0]])
+    account.replies["REPORT"] = HttpResponse(207, {}, ET.tostring(valid))
+    reply = component_request(
+        pa.nextcloud_client, "VEVENT", "list", collection, "REPORT", account.href,
+        data=calendar_agenda.AGENDA_RAW_REPORT, headers={"Depth": "1"},
+    )
+    assert b"one.ics" in reply.data and b"VEVENT" in reply.data
+    assert b"private" not in reply.data and b"VTODO" not in reply.data
+    assert [len(row) for row in ET.fromstring(reply.data)] == [2, 0, 0, 0]
+
+
+def test_managed_day_agenda_recovers_from_explicit_timezone_404(account):
+    pa = account.pa
+    collection = pa._calendar_collection(pa.registry.get(account.id))
+    meeting = report(account.href + "one.ics", "VEVENT").replace(
+        b"UID:one", b"UID:one\r\nDTSTART:20261126T100000Z"
+    )
+    missing = f"""<d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+        <d:response><d:href>{account.href}</d:href><d:propstat><d:prop><c:calendar-timezone/></d:prop>
+        <d:status>HTTP/1.1 404 Not Found</d:status></d:propstat></d:response></d:multistatus>"""
+    account.replies["REPORT"] = HttpResponse(207, {}, meeting)
+    account.replies["PROPFIND"] = HttpResponse(207, {}, missing.encode())
+    start = datetime(2026, 11, 26, tzinfo=UTC)
+
+    result = pa.nextcloud_calendar.list_agenda(
+        collection, start=start, end=start + timedelta(days=1), timezone_name="UTC"
+    )
+
+    assert result["complete"] and result["errors"] == []
+    assert [entry["uid"] for entry in result["events"]] == ["one"]
+    assert [call[0] for call in account.calls] == ["REPORT", "PROPFIND", "REPORT", "REPORT", "REPORT"]
+    assert all(path == account.href and not options["follow_redirects"] for _, path, options in account.calls)
+
+
+def test_raw_agenda_error_releases_only_http_status(account):
+    pa = account.pa
+    collection = pa._calendar_collection(pa.registry.get(account.id))
+    account.replies["REPORT"] = HttpResponse(507, {}, b"private remote error content")
+    reply = component_request(
+        pa.nextcloud_client, "VEVENT", "list", collection, "REPORT", account.href,
+        data=calendar_agenda.AGENDA_RAW_REPORT, headers={"Depth": "1"},
+    )
+    assert reply.status == 507 and reply.data == b""
 
 
 def test_active_client_requires_typed_context_before_remote_request(account):

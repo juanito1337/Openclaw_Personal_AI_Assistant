@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from calendar import monthrange
+from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
 from urllib.parse import unquote, urlsplit
@@ -21,7 +22,7 @@ _DAV_SUCCESS = re.compile(r"HTTP/\d+(?:\.\d+)? 200(?: [^\r\n]*)?")
 _DAV_STATUS = re.compile(r"HTTP/\d+(?:\.\d+)? ([1-5][0-9]{2})(?: [^\r\n]*)?")
 _REPORT_MARGIN = timedelta(days=1)
 TIMEZONE_DIAGNOSTIC_REASONS = frozenset({
-    "http-status", "transport-error", "dav-envelope-invalid", "dav-scope-mismatch",
+    "http-status", "transport-error", "dav-envelope-invalid", "dav-scope-mismatch", "response-url-mismatch",
     "property-missing", "property-empty", "property-http-error", "timezone-definition-invalid",
     "timezone-id-invalid", "observance-missing", "observance-invalid", "observance-ambiguous",
     "rrule-invalid", "rrule-unsupported",
@@ -29,6 +30,12 @@ TIMEZONE_DIAGNOSTIC_REASONS = frozenset({
 CALENDAR_TIMEZONE_PROPFIND = b"""<d:propfind xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
  <d:prop><c:calendar-timezone/></d:prop>
 </d:propfind>"""
+AGENDA_RAW_REPORT = b"""<c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+ <d:prop><d:getetag/><c:calendar-data/></d:prop>
+ <c:filter><c:comp-filter name="VCALENDAR"><c:comp-filter name="VEVENT"/></c:comp-filter></c:filter>
+</c:calendar-query>"""
+AGENDA_RESPONSE_MAX_BYTES = 4 * 1024 * 1024
+AGENDA_RAW_MAX_OBJECTS = 1000
 _DURATION = re.compile(
     r"P(?:(?P<weeks>[0-9]+)W|(?:(?P<days>[0-9]+)D)?"
     r"(?:T(?:(?P<hours>[0-9]+)H)?(?:(?P<minutes>[0-9]+)M)?(?:(?P<seconds>[0-9]+)S)?)?)"
@@ -139,7 +146,8 @@ def calendar_timezone_property_evidence(data: bytes, url: str) -> tuple[str, str
         if (
             path.query or path.fragment or not path.path
             or unquote(path.path).rstrip("/") != unquote(requested.path).rstrip("/")
-            or (path.netloc and (path.scheme, path.netloc) != (requested.scheme, requested.netloc))
+            or ((path.scheme or path.netloc)
+                and (path.scheme, path.netloc) != (requested.scheme, requested.netloc))
         ):
             return "", "dav-scope-mismatch", None
         status = statuses[0]
@@ -168,6 +176,26 @@ def calendar_timezone_property_evidence(data: bytes, url: str) -> tuple[str, str
 def calendar_timezone_property(data: bytes, url: str) -> str:
     definition, _, _ = calendar_timezone_property_evidence(data, url)
     return definition
+
+
+def calendar_timezone_absence(data: bytes, url: str) -> bool:
+    """Require an explicit property-level 404 on the exact requested collection."""
+    if calendar_timezone_property_evidence(data, url) != ("", "property-missing", 404):
+        return False
+    root = ET.fromstring(data)
+    response = root[0]
+    href = response.find(q(DAV, "href"))
+    propstat = response.find(q(DAV, "propstat"))
+    assert href is not None and propstat is not None
+    prop = propstat.find(q(DAV, "prop"))
+    status = propstat.find(q(DAV, "status"))
+    assert prop is not None and status is not None
+    return (
+        len(prop) == 1 and len(href) == len(status) == 0
+        and not any(element.attrib for element in (response, href, propstat, prop, status))
+        and not any((element.text or "").strip() for element in (root, response, propstat, prop))
+        and not any((element.tail or "").strip() for element in root.iter())
+    )
 
 
 class _TimezoneParseIssue(ValueError):
@@ -305,7 +333,7 @@ def agenda_timezone_error(value: str, zone: ZoneInfo, start: datetime, end: date
     return "", ""
 
 
-def _event_time(line: str, zone: ZoneInfo) -> date | datetime:
+def _event_time(line: str, zone: ZoneInfo | None) -> date | datetime:
     header, _, value = line.partition(":")
     parameters: dict[str, str] = {}
     for assignment in header.split(";")[1:]:
@@ -327,6 +355,8 @@ def _event_time(line: str, zone: ZoneInfo) -> date | datetime:
             raise ValueError("invalid-event-time")
         return datetime.strptime(value, _UTC_STAMP).replace(tzinfo=UTC)
     target = ZoneInfo(zone_name) if zone_name else zone
+    if target is None:
+        raise ValueError("floating-event-time")
     local = datetime.strptime(value, _LOCAL_STAMP)
     return local.replace(tzinfo=target, fold=0)
 
@@ -362,7 +392,9 @@ def _overlaps(first: datetime, last: datetime, start: datetime, end: datetime) -
     return start <= first < end if first == last else first < end and start < last
 
 
-def _agenda_event(lines: list[str], zone: ZoneInfo, start: datetime, end: datetime) -> dict[str, Any]:
+def _agenda_event(
+    lines: list[str], zone: ZoneInfo, start: datetime, end: datetime, *, raw_single: bool = False,
+) -> dict[str, Any] | None:
     fields: dict[str, str] = {}
     used_fields = {"UID", "DTSTART", "DTEND", "DURATION", "RECURRENCE-ID", "SUMMARY",
                    "DESCRIPTION", "LOCATION", "STATUS"}
@@ -393,6 +425,8 @@ def _agenda_event(lines: list[str], zone: ZoneInfo, start: datetime, end: dateti
     if last < first or (last == first and "DTEND" in fields):
         raise ValueError("invalid-event-duration")
     if not _overlaps(first, last, start, end):
+        if raw_single:
+            return None
         raise ValueError("event-outside-agenda")
 
     recurrence_id = ""
@@ -409,23 +443,35 @@ def _agenda_event(lines: list[str], zone: ZoneInfo, start: datetime, end: dateti
     }
 
 
-def _expanded_events(raw: str, zone: ZoneInfo, start: datetime, end: datetime) -> list[dict[str, Any]]:
+def _agenda_components(raw: str, *, allow_timezones: bool = False) -> tuple[list[list[str]], bool]:
     lines = unfold_ical(raw)
     if _component_blocks(lines, "VCALENDAR") != [(0, len(lines) - 1)]:
         raise ValueError("invalid-calendar-data")
-    events = []
+    events: list[list[str]] = []
     cursor = 1
-    for first, last in _component_blocks(lines, "VEVENT"):
-        if any(line.upper().startswith(("BEGIN:", "END:")) for line in lines[cursor:first]):
+    event_blocks = _component_blocks(lines, "VEVENT")
+    zone_blocks = _component_blocks(lines, "VTIMEZONE") if allow_timezones else []
+    for first, last in sorted(event_blocks + zone_blocks):
+        if first < cursor or any(line.upper().startswith(("BEGIN:", "END:")) for line in lines[cursor:first]):
             raise ValueError("invalid-calendar-data")
-        if any(line.upper().startswith("BEGIN:") and line.upper() != "BEGIN:VALARM"
-               for line in lines[first + 1:last]):
-            raise ValueError("invalid-calendar-data")
-        properties = [lines[index] for index in _direct_property_indices(lines, first, last)]
-        events.append(_agenda_event(properties, zone, start, end))
+        if lines[first].upper() == "BEGIN:VEVENT":
+            if any(line.upper().startswith("BEGIN:") and line.upper() != "BEGIN:VALARM"
+                   for line in lines[first + 1:last]):
+                raise ValueError("invalid-calendar-data")
+            events.append([lines[index] for index in _direct_property_indices(lines, first, last)])
         cursor = last + 1
     if not events or any(line.upper().startswith(("BEGIN:", "END:")) for line in lines[cursor:-1]):
         raise ValueError("invalid-calendar-data")
+    return events, bool(zone_blocks)
+
+
+def _expanded_events(raw: str, zone: ZoneInfo, start: datetime, end: datetime) -> list[dict[str, Any]]:
+    components, _ = _agenda_components(raw)
+    events = []
+    for properties in components:
+        event = _agenda_event(properties, zone, start, end)
+        assert event is not None
+        events.append(event)
     recurrence_ids = {event["recurrence_id"] for event in events}
     if len({event["uid"] for event in events}) != 1 or len(recurrence_ids) != len(events):
         raise ValueError("invalid-recurrence-id")
@@ -435,7 +481,7 @@ def _expanded_events(raw: str, zone: ZoneInfo, start: datetime, end: datetime) -
     return events
 
 
-def _row_calendar_data(row: ET.Element, request_url: str) -> tuple[str, str]:
+def _row_calendar_data(row: ET.Element, request_url: str) -> tuple[str, str, str]:
     hrefs = row.findall(q(DAV, "href"))
     statuses = row.findall(q(DAV, "propstat"))
     if row.tag != q(DAV, "response") or len(hrefs) != 1 or not statuses or len(row) != len(statuses) + 1:
@@ -448,7 +494,7 @@ def _row_calendar_data(row: ET.Element, request_url: str) -> tuple[str, str]:
     if (
         href.query or href.fragment or not path.startswith(prefix) or not name
         or "/" in name or "\\" in name or name in {".", ".."}
-        or (href.netloc and (href.scheme, href.netloc) != (parent.scheme, parent.netloc))
+        or ((href.scheme or href.netloc) and (href.scheme, href.netloc) != (parent.scheme, parent.netloc))
     ):
         raise ValueError("invalid-calendar-response")
 
@@ -466,7 +512,273 @@ def _row_calendar_data(row: ET.Element, request_url: str) -> tuple[str, str]:
             fields[item.tag] = value
     if fields.keys() != {etag, payload}:
         raise ValueError("incomplete-calendar-response")
-    return path, fields[payload]
+    return path, fields[etag], fields[payload]
+
+
+class AgendaFallbackError(ValueError):
+    """A content-free rejection of a property-404 agenda read."""
+
+
+@dataclass(frozen=True, slots=True)
+class _AgendaObject:
+    etag: str
+    uid: str
+    raw: str
+    components: list[list[str]]
+    has_timezones: bool
+
+
+def parse_agenda_provenance(data: bytes, url: str, *, expanded: bool = False) -> dict[str, _AgendaObject]:
+    if len(data) > AGENDA_RESPONSE_MAX_BYTES:
+        raise AgendaFallbackError("calendar-fallback-provenance-limit")
+    invalid = "calendar-fallback-expansion-unbound" if expanded else "calendar-fallback-provenance-invalid"
+    try:
+        root = ET.fromstring(data)
+        if root.tag != q(DAV, "multistatus") or root.attrib or (root.text or "").strip():
+            raise ValueError
+        if len(root) > AGENDA_RAW_MAX_OBJECTS:
+            raise AgendaFallbackError("calendar-fallback-provenance-limit")
+        objects: dict[str, _AgendaObject] = {}
+        uids: set[str] = set()
+        for row in root:
+            path, etag, raw = _row_calendar_data(row, url)
+            if path in objects or not re.fullmatch(r'"[\x21\x23-\x7e\x80-\xff]+"', etag):
+                raise ValueError
+            components, has_timezones = _agenda_components(raw, allow_timezones=not expanded)
+            event_uids = [
+                [unescape_ical(line.partition(":")[2]).strip()
+                 for line in part if property_name(line) == "UID"]
+                for part in components
+            ]
+            if any(len(uid) != 1 or not uid[0] for uid in event_uids):
+                raise ValueError
+            uid = event_uids[0][0]
+            if uid in uids or any(item[0] != uid for item in event_uids):
+                raise ValueError
+            uids.add(uid)
+            objects[path] = _AgendaObject(etag, uid, raw, components, has_timezones)
+        return objects
+    except AgendaFallbackError:
+        raise
+    except (ET.ParseError, ValueError, OverflowError):
+        raise AgendaFallbackError(invalid) from None
+
+
+def _requires_expansion(source: _AgendaObject) -> bool:
+    return len(source.components) != 1 or any(
+        property_name(line) in _RECURRENCE_PROPERTIES | {"RECURRENCE-ID"}
+        for line in source.components[0]
+    )
+
+
+_TEMPORAL_FIELDS = frozenset({"DTSTART", "DTEND", "RECURRENCE-ID", "RDATE", "EXDATE"})
+_RRULE_RANGES = {
+    "COUNT": (1, 2**31 - 1), "INTERVAL": (1, 2**31 - 1), "BYSECOND": (0, 59), "BYMINUTE": (0, 59),
+    "BYHOUR": (0, 23), "BYMONTHDAY": (-31, 31), "BYYEARDAY": (-366, 366), "BYWEEKNO": (-53, 53),
+    "BYMONTH": (1, 12), "BYSETPOS": (-366, 366),
+}
+_WEEKDAY = r"(?:MO|TU|WE|TH|FR|SA|SU)"
+
+
+def _object_timezones_verified(source: _AgendaObject, start: datetime, end: datetime) -> bool:
+    if not source.has_timezones:
+        return True
+    names = set()
+    for component in source.components:
+        for line in component:
+            if property_name(line) in _TEMPORAL_FIELDS:
+                match = re.search(r';TZID=(?:"([^"]+)"|([^;]+))(?:;|$)', line.partition(":")[0], re.I)
+                if match:
+                    names.add(match[1] or match[2])
+    return all(agenda_timezone_error(source.raw, ZoneInfo(name), start, end) == ("", "") for name in names)
+
+
+def _rule_independent(line: str, *, all_day: bool) -> bool:
+    header, _, value = line.partition(":")
+    tokens = [token.split("=", 1) for token in value.upper().split(";")]
+    rule = dict(tokens)
+    freq = rule.get("FREQ", "")
+    if (header.upper() != "RRULE" or len(rule) != len(tokens) or not all(rule.values())
+            or rule.keys() - (_RRULE_RANGES.keys() | {"FREQ", "UNTIL", "WKST", "BYDAY"})
+            or freq not in {"SECONDLY", "MINUTELY", "HOURLY", "DAILY", "WEEKLY", "MONTHLY", "YEARLY"}
+            or {"COUNT", "UNTIL"} <= rule.keys()
+            or (all_day and (freq in {"SECONDLY", "MINUTELY", "HOURLY"}
+                             or rule.keys() & {"BYSECOND", "BYMINUTE", "BYHOUR"}))
+            or (freq != "YEARLY" and "BYWEEKNO" in rule)
+            or (freq == "WEEKLY" and "BYMONTHDAY" in rule)
+            or (freq in {"DAILY", "WEEKLY", "MONTHLY"} and "BYYEARDAY" in rule)
+            or ("BYSETPOS" in rule and not any(name.startswith("BY") and name != "BYSETPOS"
+                                              for name in rule))):
+        return False
+    if "UNTIL" in rule and isinstance(_event_time(f"UNTIL:{rule['UNTIL']}", None), datetime) == all_day:
+        return False
+    if "WKST" in rule and not re.fullmatch(_WEEKDAY, rule["WKST"]):
+        return False
+    for weekday in rule.get("BYDAY", "").split(",") if "BYDAY" in rule else ():
+        match = re.fullmatch(rf"([+-]?[0-9]{{1,2}})?{_WEEKDAY}", weekday)
+        if not match or (match[1] is not None and (
+            not 1 <= abs(int(match[1])) <= 53 or freq not in {"MONTHLY", "YEARLY"} or "BYWEEKNO" in rule
+        )):
+            return False
+    for name, (low, high) in _RRULE_RANGES.items():
+        if name not in rule:
+            continue
+        values = rule[name].split(",")
+        if name in {"COUNT", "INTERVAL"} and len(values) != 1:
+            return False
+        for value in values:
+            if not re.fullmatch(r"[+-]?[0-9]{1,10}", value):
+                return False
+            number = int(value)
+            if not low <= number <= high or (low < 0 and number == 0):
+                return False
+    return True
+
+
+def _expansion_day_type(source: _AgendaObject) -> bool | None:
+    masters = 0
+    day_type: bool | None = None
+    overrides: set[date | datetime] = set()
+    try:
+        for component in source.components:
+            names = [property_name(line) for line in component]
+            if names.count("DTSTART") != 1 or any(names.count(name) > 1 for name in (
+                "DTEND", "DURATION", "RECURRENCE-ID", "RRULE",
+            )) or "EXRULE" in names or {"DTEND", "DURATION"} <= set(names):
+                return None
+            masters += int("RECURRENCE-ID" not in names)
+            start = _event_time(component[names.index("DTSTART")], None)
+            all_day = not isinstance(start, datetime)
+            if day_type is not None and all_day != day_type:
+                return None
+            day_type = all_day
+            for name, line in zip(names, component, strict=True):
+                header, _, value = line.partition(":")
+                if name in {"DTEND", "RECURRENCE-ID", "RDATE", "EXDATE"}:
+                    for item in value.split(",") if name in {"RDATE", "EXDATE"} else (value,):
+                        parsed = _event_time(f"{header}:{item}", None)
+                        if isinstance(parsed, datetime) == all_day:
+                            return None
+                        if name == "DTEND" and parsed <= start:
+                            return None
+                        if name == "RECURRENCE-ID":
+                            key = parsed.astimezone(UTC) if isinstance(parsed, datetime) else parsed
+                            if key in overrides:
+                                return None
+                            overrides.add(key)
+                elif name == "DURATION":
+                    _end_from_duration(start, value)
+                elif name == "RRULE" and (
+                    "RECURRENCE-ID" in names or not _rule_independent(line, all_day=all_day)
+                ):
+                    return None
+        return day_type if masters == 1 else None
+    except (ValueError, OverflowError, ZoneInfoNotFoundError):
+        return None
+
+
+def _normalized_expansion(source: _AgendaObject, *, all_day: bool) -> bool:
+    try:
+        for component in source.components:
+            for line in component:
+                if property_name(line) not in _TEMPORAL_FIELDS:
+                    continue
+                value = _event_time(line, None)
+                if isinstance(value, datetime) == all_day or (not all_day and not line.endswith("Z")):
+                    return False
+        return True
+    except (ValueError, OverflowError, ZoneInfoNotFoundError):
+        return False
+
+
+def _series_outside_day(source: _AgendaObject, zone: ZoneInfo, start: datetime, end: datetime) -> bool:
+    """Prove nonoverlap for simple temporal bounds without generating any recurrence set."""
+    for component in source.components:
+        fields = {property_name(line): line for line in component}
+        first = _event_time(fields["DTSTART"], None)
+        dates = [first]
+        for line in component:
+            if property_name(line) == "RDATE":
+                header, _, dates_text = line.partition(":")
+                dates.extend(_event_time(f"{header}:{value}", None) for value in dates_text.split(","))
+        # Explicit TZID series are usable when the server returns their instances.
+        # Keep absent series incomplete when local date arithmetic is not exact.
+        if any(isinstance(item, datetime) and item.tzinfo is not UTC for item in dates):
+            return False
+        if all(_instant(value, zone) >= end for value in dates):
+            continue
+
+        latest = max(dates)
+        if "RRULE" in fields:
+            rule = dict(part.split("=", 1) for part in fields["RRULE"].partition(":")[2].upper().split(";"))
+            if "UNTIL" in rule:
+                latest = max(latest, _event_time(f"UNTIL:{rule['UNTIL']}", None))
+            elif ("COUNT" in rule and rule["FREQ"] in {"DAILY", "WEEKLY"}
+                  and rule.keys() <= {"FREQ", "COUNT", "INTERVAL", "WKST"}):
+                days = (int(rule["COUNT"]) - 1) * int(rule.get("INTERVAL", "1"))
+                latest = max(latest, first + timedelta(days=days * (7 if rule["FREQ"] == "WEEKLY" else 1)))
+            else:
+                return False
+        if "DTEND" in fields:
+            first_end = _event_time(fields["DTEND"], None)
+            if isinstance(first_end, datetime) and first_end.tzinfo is not UTC:
+                return False
+        elif "DURATION" in fields:
+            first_end = _end_from_duration(first, fields["DURATION"].partition(":")[2])
+        else:
+            first_end = first if isinstance(first, datetime) else first + timedelta(days=1)
+        if _instant(latest + (first_end - first), zone) >= start:
+            return False
+    return True
+
+
+def project_agenda_fallback(
+    before: dict[str, _AgendaObject], expanded: dict[str, _AgendaObject], after: dict[str, _AgendaObject],
+    *, zone: ZoneInfo, start: datetime, end: datetime,
+) -> dict[str, Any]:
+    before_keys = {path: (source.etag, source.uid) for path, source in before.items()}
+    if before != after:
+        raise AgendaFallbackError("calendar-fallback-snapshot-changed")
+    if any(before_keys.get(path) != (source.etag, source.uid) for path, source in expanded.items()):
+        raise AgendaFallbackError("calendar-fallback-expansion-unbound")
+
+    start, end = start.astimezone(UTC), end.astimezone(UTC)
+    events: list[dict[str, Any]] = []
+    codes: set[str] = set()
+
+    def instant(event: dict[str, Any], key: str) -> datetime:
+        parse = date.fromisoformat if event["all_day"] else datetime.fromisoformat
+        return _instant(parse(event[key]), zone)
+
+    for path, source in before.items():
+        try:
+            if not _object_timezones_verified(source, start, end):
+                codes.add("calendar-fallback-provenance-invalid")
+            elif not _requires_expansion(source):
+                event = _agenda_event(source.components[0], zone, start, end, raw_single=True)
+                if event is not None:
+                    events.append(event)
+            else:
+                day_type = _expansion_day_type(source)
+                if day_type is None:
+                    codes.add("calendar-timezone-dependent-series")
+                elif path in expanded:
+                    if not _normalized_expansion(expanded[path], all_day=day_type):
+                        codes.add("calendar-fallback-expansion-unbound")
+                        continue
+                    instances = _expanded_events(
+                        expanded[path].raw, zone, start - _REPORT_MARGIN, end + _REPORT_MARGIN,
+                    )
+                    events.extend(
+                        event for event in instances
+                        if _overlaps(instant(event, "start"), instant(event, "end"), start, end)
+                    )
+                elif not _series_outside_day(source, zone, start, end):
+                    codes.add("calendar-fallback-series-omitted")
+        except (ValueError, OverflowError, ZoneInfoNotFoundError):
+            codes.add("calendar-fallback-provenance-invalid")
+    events.sort(key=lambda event: (instant(event, "start"), event["uid"], event["recurrence_id"]))
+    return {"complete": not codes, "events": events, "errors": [{"code": code} for code in sorted(codes)]}
 
 
 def parse_agenda(
@@ -491,7 +803,7 @@ def parse_agenda(
 
     for row in response:
         try:
-            path, raw = _row_calendar_data(row, request_url)
+            path, _, raw = _row_calendar_data(row, request_url)
             if path in seen:
                 raise ValueError("duplicate-calendar-response")
             seen.add(path)

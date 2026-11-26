@@ -9,11 +9,17 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from ...calendar_agenda import (
+    AGENDA_RAW_REPORT,
+    AGENDA_RESPONSE_MAX_BYTES,
     CALENDAR_TIMEZONE_PROPFIND,
+    AgendaFallbackError,
     agenda_query,
     agenda_timezone_error,
+    calendar_timezone_absence,
     calendar_timezone_property_evidence,
     parse_agenda,
+    parse_agenda_provenance,
+    project_agenda_fallback,
 )
 from ...config import AssistantConfig
 from ...extractors import chunks
@@ -89,52 +95,99 @@ class NextcloudCalendar:
         self, calendar: DiscoveredCollection, *, start: datetime, end: datetime, timezone_name: str,
     ) -> dict[str, Any]:
         body, zone = agenda_query(start, end, timezone_name)
+        request_url = self.client.dav_request_url(calendar.href)
         response = component_request(
             self.client, "VEVENT", "list", calendar, "REPORT", calendar.href, data=body,
             headers={"Depth": "1", "Content-Type": "application/xml; charset=utf-8"}, expected={207},
+            max_response_bytes=AGENDA_RESPONSE_MAX_BYTES,
         )
-        result = parse_agenda(response.data, response.url or calendar.href, start=start, end=end, zone=zone)
-        if result["complete"]:
-            issue = self._agenda_timezone_issue(calendar, zone, start, end)
-            if issue:
-                result.update(complete=False, errors=[issue])
+        if response.url != request_url:
+            return {"complete": False, "events": [], "errors": [{"code": "invalid-calendar-response"}]}
+        result = parse_agenda(response.data, request_url, start=start, end=end, zone=zone)
+        issue, missing = self._agenda_timezone_issue(calendar, request_url, zone, start, end)
+        if missing:
+            return self._agenda_without_collection_timezone(calendar, request_url, body, zone, start, end)
+        if issue and issue.get("reason") == "response-url-mismatch":
+            return {"complete": False, "events": [], "errors": [issue]}
+        if issue and result["complete"]:
+            result.update(complete=False, errors=[issue])
         return result
 
     def _agenda_timezone_issue(
-        self, calendar: DiscoveredCollection, zone: ZoneInfo, start: datetime, end: datetime,
-    ) -> dict[str, str | int] | None:
+        self, calendar: DiscoveredCollection, request_url: str, zone: ZoneInfo,
+        start: datetime, end: datetime,
+    ) -> tuple[dict[str, str | int] | None, bool]:
         unverified = "calendar-timezone-unverified"
         try:
             measured = component_request(
                 self.client, "VEVENT", "list", calendar, "PROPFIND", calendar.href,
                 data=CALENDAR_TIMEZONE_PROPFIND,
                 headers={"Depth": "0", "Content-Type": "application/xml; charset=utf-8"},
+                max_response_bytes=AGENDA_RESPONSE_MAX_BYTES,
             )
         except PermissionError as exc:
             code = str(exc)
             if code not in {"server-right-missing", "rights-unverified"}:
                 raise
-            return {"code": code}
+            return {"code": code}, False
         except NextcloudError as exc:
             if str(exc).startswith("nextcloud-connection-changed"):
                 raise
-            return {"code": unverified, "reason": "transport-error"}
+            return {"code": unverified, "reason": "transport-error"}, False
         if measured.status != 207:
-            return {"code": unverified, "reason": "http-status", "http_status": measured.status}
-        definition, reason, property_status = calendar_timezone_property_evidence(
-            measured.data, measured.url or calendar.href,
-        )
+            return {"code": unverified, "reason": "http-status", "http_status": measured.status}, False
+        if measured.url != request_url:
+            return {"code": unverified, "reason": "response-url-mismatch"}, False
+        if calendar_timezone_absence(measured.data, request_url):
+            return None, True
+        definition, reason, property_status = calendar_timezone_property_evidence(measured.data, request_url)
         code = unverified
         if definition:
             code, reason = agenda_timezone_error(definition, zone, start, end)
         if not code:
-            return None
+            return None, False
         issue: dict[str, str | int] = {"code": code}
         if reason:
             issue["reason"] = reason
             if property_status is not None:
                 issue["property_status"] = property_status
-        return issue
+        return issue, False
+
+    def _agenda_without_collection_timezone(
+        self, calendar: DiscoveredCollection, url: str, expanded_query: bytes,
+        zone: ZoneInfo, start: datetime, end: datetime,
+    ) -> dict[str, Any]:
+        def scoped_report(query: bytes, *, expanded: bool = False):
+            response = component_request(
+                self.client, "VEVENT", "list", calendar, "REPORT", calendar.href, data=query,
+                headers={"Depth": "1", "Content-Type": "application/xml; charset=utf-8"},
+                max_response_bytes=AGENDA_RESPONSE_MAX_BYTES,
+            )
+            if response.status != 207:
+                raise AgendaFallbackError("calendar-fallback-http-error")
+            if response.url != url:
+                failure_code = ("calendar-fallback-expansion-unbound" if expanded
+                                else "calendar-fallback-provenance-invalid")
+                raise AgendaFallbackError(failure_code)
+            return parse_agenda_provenance(response.data, url, expanded=expanded)
+
+        try:
+            before = scoped_report(AGENDA_RAW_REPORT)
+            expanded = scoped_report(expanded_query, expanded=True)
+            after = scoped_report(AGENDA_RAW_REPORT)
+            return project_agenda_fallback(before, expanded, after, zone=zone, start=start, end=end)
+        except AgendaFallbackError as exc:
+            code = str(exc)
+        except PermissionError as exc:
+            code = str(exc)
+            if code not in {"server-right-missing", "rights-unverified"}:
+                raise
+        except NextcloudError as exc:
+            if str(exc).startswith("nextcloud-connection-changed"):
+                raise
+            code = ("calendar-fallback-provenance-limit" if str(exc) == "response-limit"
+                    else "calendar-fallback-transport-error")
+        return {"complete": False, "events": [], "errors": [{"code": code}]}
 
     def list_event_metadata(self, calendar: DiscoveredCollection) -> list[CalendarMetadata]:
         now = datetime.now(UTC)

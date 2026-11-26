@@ -69,6 +69,9 @@ class LegacyTransport:
         self.timezone_body = timezone_body if timezone_body is not None else timezone_response()
         self.calls = []
 
+    def dav_request_url(self, href):
+        return href
+
     def request(self, method, href, **kwargs):
         self.calls.append((method, href, kwargs))
         body = self.timezone_body if method == "PROPFIND" else self.body
@@ -242,6 +245,7 @@ def test_managed_agenda_preserves_verified_positive_rows_on_a_failed_sibling(acc
     failed = row(None, name="private.ics", status="HTTP/1.1 403 Confidential detail")
     failed = failed.replace(HREF, account.href)
     account.replies["REPORT"] = HttpResponse(207, {}, multistatus(valid, failed))
+    account.replies["PROPFIND"] = HttpResponse(207, {}, timezone_response(href=account.href))
     result = pa.nextcloud_calendar.list_agenda(collection, **day(11, 23))
     assert [entry["uid"] for entry in result["events"]] == ["observed"]
     assert result["complete"] is False
@@ -321,3 +325,138 @@ def test_an_annual_standard_and_daylight_definition_proves_both_dst_transition_d
     calendar = NextcloudCalendar(AssistantConfig(), LegacyTransport(multistatus(), property_body))
     assert calendar.list_agenda(COLLECTION, **day(3, 29))["complete"]
     assert calendar.list_agenda(COLLECTION, **day(10, 25))["complete"]
+
+
+def missing_timezone():
+    return multistatus(
+        f"<d:response><d:href>{HREF}</d:href><d:propstat><d:prop><c:calendar-timezone/></d:prop>"
+        "<d:status>HTTP/1.1 404 Not Found</d:status></d:propstat></d:response>"
+    )
+
+
+class MissingTimezoneTransport:
+    def __init__(self, expanded, before, after=None, *, probe_url=None, expansion_url=None):
+        self.url = "https://calendar.example" + HREF
+        self.replies = [
+            ("REPORT", True, expanded, self.url),
+            ("PROPFIND", False, missing_timezone(), probe_url or self.url),
+            ("REPORT", False, before, self.url),
+            ("REPORT", True, expanded, expansion_url or self.url),
+            ("REPORT", False, before if after is None else after, self.url),
+        ]
+
+    def dav_request_url(self, href):
+        assert href == HREF
+        return self.url
+
+    def request(self, method, href, **kwargs):
+        expected_method, expanded, payload, url = self.replies.pop(0)
+        assert method == expected_method and href == HREF
+        if method == "REPORT":
+            root = ET.fromstring(kwargs["data"])
+            assert (root.find(".//" + q(CALDAV, "expand")) is not None) == expanded
+            if not expanded:
+                assert root.find(".//" + q(CALDAV, "time-range")) is None
+                assert kwargs["max_response_bytes"] == 4 * 1024 * 1024
+        return DavResponse(207, "Multi-Status", {}, payload, url)
+
+
+def test_missing_collection_timezone_uses_raw_wall_time_and_retains_absolute_series():
+    before = multistatus(
+        row(resource(event("DTSTART:20261126T233000", uid="floating")), name="float.ics"),
+        row(resource(event("DTSTART:20261126T233000Z", uid="utc")), name="utc.ics"),
+        row(resource(event("DTSTART;VALUE=DATE:20261126", uid="date")), name="date.ics"),
+        row(resource(event("DTSTART:20261112T090000Z", "RRULE:FREQ=WEEKLY", uid="series"))),
+        row(
+            resource(event("DTSTART:20261101T090000Z", "RRULE:FREQ=DAILY;COUNT=2", uid="old")),
+            name="old.ics",
+        ),
+    )
+    expanded = multistatus(
+        row(resource(event("DTSTART:20261126T233000Z", uid="floating")), name="float.ics"),
+        row(resource(event("DTSTART:20261126T233000Z", uid="utc")), name="utc.ics"),
+        row(resource(event("DTSTART;VALUE=DATE:20261126", uid="date")), name="date.ics"),
+        row(resource(event("DTSTART:20261126T100000Z", "RECURRENCE-ID:20261126T090000Z", uid="series"))),
+    )
+    transport = MissingTimezoneTransport(expanded, before)
+    result = NextcloudCalendar(AssistantConfig(), transport).list_agenda(COLLECTION, **day(11, 26))
+
+    assert result["complete"] is True and result["errors"] == []
+    assert [(entry["uid"], entry["start"], entry["recurrence_id"]) for entry in result["events"]] == [
+        ("date", "2026-11-26", ""),
+        ("series", "2026-11-26T11:00:00+01:00", "2026-11-26T10:00:00+01:00"),
+        ("floating", "2026-11-26T23:30:00+01:00", ""),
+    ]
+    assert transport.replies == []
+
+
+def test_empty_expansion_with_property_404_needs_both_complete_raw_snapshots():
+    transport = MissingTimezoneTransport(multistatus(), multistatus())
+
+    assert NextcloudCalendar(AssistantConfig(), transport).list_agenda(COLLECTION, **day(11, 26)) == {
+        "events": [], "complete": True, "errors": [],
+    }
+    assert transport.replies == []
+
+
+@pytest.mark.parametrize("failure,expected_code", [
+    ("changed-etag", "calendar-fallback-snapshot-changed"),
+    ("unmatched-expanded", "calendar-fallback-expansion-unbound"),
+    ("weak-etag", "calendar-fallback-provenance-invalid"),
+    ("duplicate", "calendar-fallback-provenance-invalid"),
+    ("floating-series", "calendar-timezone-dependent-series"),
+    ("floating-exception", "calendar-timezone-dependent-series"),
+    ("malformed-rrule", "calendar-timezone-dependent-series"),
+    ("invalid-end", "calendar-timezone-dependent-series"),
+    ("duplicate-override", "calendar-timezone-dependent-series"),
+    ("omitted-infinite-series", "calendar-fallback-series-omitted"),
+    ("date-became-timed", "calendar-fallback-expansion-unbound"),
+    ("floating-expansion", "calendar-fallback-expansion-unbound"),
+    ("foreign-expanded-url", "calendar-fallback-expansion-unbound"),
+    ("foreign-probe-url", "calendar-timezone-unverified"),
+])
+def test_property_404_fallback_rejects_unproved_time_or_scope(failure, expected_code):
+    master = event("DTSTART:20261119T090000Z", "RRULE:FREQ=WEEKLY")
+    if failure == "malformed-rrule":
+        master = event("DTSTART:20261119T090000Z", "RRULE:FREQ=YEARLY;BYMONTH=99;COUNT=garbage")
+    if failure == "invalid-end":
+        master = event("DTSTART:20261119T090000Z", "DTEND:20261119T080000Z", "RRULE:FREQ=WEEKLY")
+    if failure == "date-became-timed":
+        master = event("DTSTART;VALUE=DATE:20261119", "RRULE:FREQ=WEEKLY")
+    if failure == "omitted-infinite-series":
+        master = event("DTSTART:20260101T000000Z", "RRULE:FREQ=MINUTELY")
+    events = (
+        event("DTSTART:20261119T090000", "RRULE:FREQ=WEEKLY"),
+    ) if failure == "floating-series" else (master,)
+    if failure == "floating-exception":
+        events += (event("DTSTART:20261126T100000", "RECURRENCE-ID:20261126T090000Z"),)
+    if failure == "duplicate-override":
+        override = event("DTSTART:20261126T100000Z", "RECURRENCE-ID:20261126T090000Z")
+        events += (override, override)
+    before = multistatus(row(resource(*events)))
+    if failure == "weak-etag":
+        before = before.replace(b'"one"', b'W/"one"')
+    if failure == "duplicate":
+        before = multistatus(row(resource(master)) * 2)
+    after = before.replace(b'"one"', b'"changed"') if failure == "changed-etag" else before
+    expanded = multistatus(row(resource(event("DTSTART:20261126T100000Z", "RECURRENCE-ID:20261126T090000Z"))))
+    if failure == "omitted-infinite-series":
+        expanded = multistatus()
+    if failure == "floating-expansion":
+        expanded = expanded.replace(b"T100000Z", b"T100000").replace(b"T090000Z", b"T090000")
+    if failure == "unmatched-expanded":
+        expanded = expanded.replace(b"one.ics", b"other.ics")
+    foreign = "https://different.example" + HREF
+    transport = MissingTimezoneTransport(
+        expanded, before, after,
+        probe_url=foreign if failure == "foreign-probe-url" else None,
+        expansion_url=foreign if failure == "foreign-expanded-url" else None,
+    )
+
+    result = NextcloudCalendar(AssistantConfig(), transport).list_agenda(COLLECTION, **day(11, 26))
+
+    assert result["complete"] is False
+    assert result["events"] == []
+    assert expected_code in {error["code"] for error in result["errors"]}
+    if failure == "foreign-probe-url":
+        assert len(transport.replies) == 3

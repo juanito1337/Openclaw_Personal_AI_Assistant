@@ -30,18 +30,18 @@
 
 **Files:** `personal_assistant/calendar_agenda.py`, `personal_assistant/connectors/nextcloud/calendar.py`, the error projection in `personal_assistant/service.py`, and calendar agenda/today tests.
 
-- [ ] Add failing service/connector regressions for exact property-level 404, invalid DAV shape/scope, HTTP/transport failure and invalid timezone observance/rule evidence.
-- [ ] Expose only allowlisted `reason`, `property_status` and `http_status` alongside the existing failure `code`; keep incomplete/absence behavior unchanged.
-- [ ] Run the targeted calendar and scoped-access suites and review the diagnosis delta.
-- [ ] Build a uniquely identified local immutable image and run only the registered status/today commands through an isolated agent-cli overlay against the currently selected calendar.
-- [ ] Record bounded technical results, including exact resource scope and observation timestamp, without event contents.
+- [x] Add failing service/connector regressions for exact property-level 404, invalid DAV shape/scope, HTTP/transport failure and invalid timezone observance/rule evidence.
+- [x] Expose only allowlisted `reason`, `property_status` and `http_status` alongside the existing failure `code`; keep incomplete/absence behavior unchanged.
+- [x] Run the targeted calendar and scoped-access suites and review the diagnosis delta.
+- [x] Build a uniquely identified local immutable image and run only the registered status/today commands through an isolated agent-cli overlay against the currently selected calendar.
+- [x] Record bounded technical results, including exact resource scope and observation timestamp, without event contents.
 
 ## 2. Correct the observed cause
 
-- [ ] Record the precise observed failure and its supporting protocol evidence below before implementing the fix.
-- [ ] Add a synthetic regression reproducing that response/definition and independently expected local-day results; observe the failure against the old behavior.
-- [ ] Make the smallest correction that passes the regression while preserving unknown/mismatch fail-closed cases.
-- [ ] Verify recurrence, floating/all-day, 23/25-hour days, partial errors, exact scope and empty-day evidence. Update the existing reference/ADR where the accepted evidence changes.
+- [x] Record the precise observed failure and its supporting protocol evidence below before implementing the fix.
+- [x] Add a synthetic regression reproducing that response/definition and independently expected local-day results; observe the failure against the old behavior.
+- [x] Make the smallest correction that passes the regression while preserving unknown/mismatch fail-closed cases.
+- [x] Verify recurrence, floating/all-day, 23/25-hour days, partial errors, exact scope and empty-day evidence. Update the existing reference/ADR where the accepted evidence changes.
 - [ ] Review independently and repeat the isolated live check until the real selected calendar returns a complete, untruncated day with no resource errors.
 
 ## 3. Publish and deploy
@@ -56,3 +56,36 @@
 ## Live root-cause evidence
 
 The previous rollout on 2026-11-23 returned `calendar-timezone-unverified`, one positive event, `complete=false`, and no absence proof. The exact lower-level cause was not observable. Today's baseline verifies production revision `807c374437ff470f1ce81e171664c466f9e247f0`, product `3.4.0-r29.0.6`, legacy selected calendar access and configured `Europe/Berlin`. These facts do not prove the remote timezone property.
+
+The immutable diagnostic source `4a0951f` received a valid, selected-collection
+`calendar-timezone` property-level 404 at `2026-11-26T14:12:39Z`. The registered
+query still returned one event and correctly remained incomplete. Receipt:
+`build/calendar-timezone-20261126/live-timezone-diagnosis.json`; no event contents
+were recorded. RFC 4791 makes this collection property optional. Its absence
+does not establish a server timezone; Sabre expansion can erase the original
+floating/UTC distinction.
+
+## Correction invariants
+
+Only the exact scoped empty `calendar-timezone` property in a 404 propstat
+activates the alternative evidence path. Read the original VEVENT objects with
+the existing scoped no-time-range REPORT, run a fresh expanded day REPORT, then
+read the original objects again. Bound each body to 4 MiB and each raw snapshot
+to 1,000 objects. Require identical complete href, strong ETag and UID maps
+around expansion. Expanded objects must match those originals. A malformed,
+limited, redirected, changed or denied response never proves an empty day.
+
+Project standalone original events locally in the configured day timezone.
+Use server-expanded recurrence only when every original temporal property is
+independent of the missing collection timezone; unsupported floating or custom
+timezone series remain incomplete. This does not introduce a recurrence engine,
+change the remote calendar, or expand account permissions. Both legacy and
+active policy paths preserve the selected resource and publication fence.
+
+## Independent runtime prerequisite
+
+Before any candidate activation, the existing production model coordinator
+reports its upstream version probe timing out. It is reachable with an empty
+queue but unhealthy; normal deployment does not restart the external model
+server, and rollback also requires that upstream. The registered status must
+recover before the downtime window. This is independent of the calendar error.

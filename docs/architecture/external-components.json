@@ -639,14 +639,15 @@
         "stages": [
           "runtime"
         ],
-        "version": "1.5.7-r0"
+        "version": "1.6.0-r1"
       },
       "review": {
         "status": "unknown"
       },
       "source": "https://pkgs.alpinelinux.org/packages",
       "source_files": [
-        "Dockerfile"
+        "Dockerfile",
+        "docker/supply-chain.lock.json"
       ],
       "tests": [],
       "update_source": "https://alpinelinux.org/releases/"

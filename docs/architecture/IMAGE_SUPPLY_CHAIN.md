@@ -67,6 +67,11 @@ Am 2026-10-22 wurden die nicht mehr aufloesbaren bisherigen Pins gezielt auf
 und [`curl=8.14.1-r4`](https://pkgs.alpinelinux.org/package/v3.22/main/x86_64/curl)
 aus dem offiziellen Alpine-v3.22-main-Index aktualisiert; andere Paketpins und
 Basisimage-Digests blieben dabei erhalten.
+
+Am 2026-11-26 wurde der Runtime-Pin fuer zstd auf
+[`1.6.0-r1`](https://pkgs.alpinelinux.org/package/v3.22/main/x86_64/zstd) aktualisiert.
+Der offizielle Alpine-v3.22-main-Index lieferte `1.5.7-r0` nicht mehr aus.
+
 Es gibt keine pauschale Vulnerability-Ausnahme: jede bekannte kritische
 Schwachstelle, auch ohne Fix, stoppt die Freigabe.
 

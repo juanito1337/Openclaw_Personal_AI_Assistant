@@ -136,6 +136,19 @@ partial events and explain the exact failed resource or timezone limitation.
 Never apply a day proof to another date, a broader interval or another domain.
 This read does not authorize modifying a recurrence instance or series.
 
+An empty `calendar-timezone` property with its own 404 status on the exact
+selected collection lets the registered read use original events to prove the day.
+The connector reads originals, requests fresh server expansion, and reads the
+originals again. Each response is bounded to 4 MiB and 1,000 objects. Both
+original reads must agree on object paths, strong ETags, UIDs and original data.
+Expanded objects must match those paths, ETags and UIDs. In one local pass the
+connector projects standalone events directly from the originals and uses the
+bound expansions for supported recurrence instances. Series must use all-day
+dates, UTC, or a known IANA timezone whose embedded rules, when present, have
+been verified for the query window. Floating series, unverifiable timezone rules,
+ambiguous times, changed objects, invalid responses and exceeded limits make the
+result incomplete. Use the reported `resource_errors` to explain partial results.
+
 For legacy single-calendar configuration, the central direct
 `nextcloud.calendar.resource_id` is a diagnostic recovery
 target for a stale typed mail-calendar reference only when the old ID has exactly

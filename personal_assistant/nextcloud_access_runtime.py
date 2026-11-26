@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass, replace
 from xml.etree import ElementTree as ET
 
-from .calendar_agenda import CALENDAR_TIMEZONE_PROPFIND, calendar_timezone_property, matches_agenda_query
+from . import calendar_agenda
 from .connectors.nextcloud.xmlutil import CALDAV, CARDDAV, DAV, parse_multistatus, q
 from .ical_edit import unescape_ical, unfold_ical
 from .nextcloud_access import COLLECTIONS, Binding, Scope, _url_path, decide_access
@@ -149,7 +149,7 @@ def _object_uid(raw, component):
     lines = unfold_ical(raw)
     stack: list[str] = []
     root = "VCARD" if component == "VCARD" else "VCALENDAR"
-    uids = []
+    uids: list[str] = []
     count = 0
     closed = False
     for line in lines:
@@ -172,12 +172,14 @@ def _object_uid(raw, component):
                 count += 1
         elif prop == "END":
             require(stack and stack.pop() == name)
+            if name == component:
+                require(len(uids) == count)
             closed = not stack
         else:
             require(bool(stack))
             if prop.split(";", 1)[0] == "UID" and stack[-1] == component:
                 uids.append(value if component == "VCARD" else unescape_ical(value))
-    require(closed and count > 0 and len(uids) == count and len(set(uids)) == 1 and uids[0].strip())
+    require(closed and count > 0 and len(set(uids)) == 1 and uids[0].strip())
     return uids[0]
 
 
@@ -211,7 +213,7 @@ def _report_shape(data, component, operation):
     if expansion is not None:
         require(
             component == "VEVENT" and operation == "list"
-            and matches_agenda_query(data, expansion, root.find(q(CALDAV, "timezone")))
+            and calendar_agenda.matches_agenda_query(data, expansion, root.find(q(CALDAV, "timezone")))
         )
         return {q(DAV, "getetag"), q(CALDAV, "calendar-data")}, True
     payload_tag = q(namespace, "address-data" if is_card else "calendar-data")
@@ -269,7 +271,7 @@ def _report_shape(data, component, operation):
     if operation != "list":
         uid_filter = root.find(".//" + q(CALDAV, "prop-filter"))
         require(not is_card and uid_filter is not None and bool(uid_filter[0].text), "operation-not-allowed")
-    return {item.tag for item in prop}, False
+    return {item.tag for item in prop}, data == calendar_agenda.AGENDA_RAW_REPORT
 
 
 def _verified_multistatus(data, allowed_props):
@@ -403,22 +405,51 @@ def _read_calendar_object(snapshot, scope, collection, href, send, uid=""):
     )
 
 
+def _agenda_property_row(href, properties, status_text):
+    row = ET.Element(q(DAV, "response"))
+    ET.SubElement(row, q(DAV, "href")).text = href
+    entry = ET.SubElement(row, q(DAV, "propstat"))
+    prop = ET.SubElement(entry, q(DAV, "prop"))
+    for tag, text in properties.items():
+        ET.SubElement(prop, tag).text = text
+    ET.SubElement(entry, q(DAV, "status")).text = status_text
+    return row
+
+
 def _agenda_report_response(response, snapshot, scope, parent, allowed_props):
     """Validate each agenda row before releasing it, replacing failures without content."""
     try:
         root = ET.fromstring(response.data)
     except ET.ParseError:
         return replace(response, data=b"")
-    if root.tag != q(DAV, "multistatus") or root.attrib or len(root) > 10000:
+    if root.tag != q(DAV, "multistatus") or root.attrib or (root.text or "").strip() or len(root) > 10000:
         return replace(response, data=b"")
     for index, row in enumerate(root):
         single = ET.Element(q(DAV, "multistatus"))
         single.append(row)
         try:
+            require(not (row.tail or "").strip())
             serialized = replace(response, data=ET.tostring(single))
-            _response_items(serialized, snapshot, scope, parent, allowed_props)
+            checked, = _response_items(serialized, snapshot, scope, parent, allowed_props)
+            values = {tag: prop.text for tag, prop in checked.raw_properties.items()}
+            root[index] = _agenda_property_row(checked.href, values, "HTTP/1.1 200 OK")
         except (PermissionError, ValueError):
             root[index] = ET.Element(q(DAV, "response"))
+    return replace(response, data=ET.tostring(root))
+
+
+def _agenda_timezone_response(response, snapshot, parent, href):
+    if response.status != 207:
+        return replace(response, data=b"")
+    require(segments(snapshot.connection, response.url) == parent)
+    definition = calendar_agenda.calendar_timezone_property(response.data, response.url)
+    if not definition and not calendar_agenda.calendar_timezone_absence(response.data, response.url):
+        return replace(response, data=b"")
+    remote_href = ET.fromstring(response.data).findtext(f"./{q(DAV, 'response')}/{q(DAV, 'href')}")
+    require(segments(snapshot.connection, remote_href) == parent)
+    root = ET.Element(q(DAV, "multistatus"))
+    status_text = "HTTP/1.1 200 OK" if definition else "HTTP/1.1 404 Not Found"
+    root.append(_agenda_property_row(href, {q(CALDAV, "calendar-timezone"): definition}, status_text))
     return replace(response, data=ET.tostring(root))
 
 
@@ -448,17 +479,16 @@ def dispatch_component(snapshot, access, method, href, headers, data, send):
         require(response.status >= 300 or response.status == 207, "rights-unverified")
         if response.status == 207:
             if is_agenda:
+                require(segments(snapshot.connection, response.url) == parent)
                 return _agenda_report_response(response, snapshot, scope, parent, props)
             _response_items(response, snapshot, scope, parent, props)
         return response
     if method == "PROPFIND":
-        if data == CALENDAR_TIMEZONE_PROPFIND:
+        if data == calendar_agenda.CALENDAR_TIMEZONE_PROPFIND:
             require(scope.component == "VEVENT" and operation == "list"
                     and target == parent and headers.get("Depth") == "0")
             response = send(method, href, headers=headers, data=data)
-            if response.status == 207 and not calendar_timezone_property(response.data, response.url or href):
-                return replace(response, data=b"")
-            return response
+            return _agenda_timezone_response(response, snapshot, parent, href)
         require(operation == "read" and headers.get("Depth") == "0")
         root = ET.fromstring(data or b"")
         require(
