@@ -6,12 +6,13 @@ import re
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from ...calendar_agenda import (
     CALENDAR_TIMEZONE_PROPFIND,
     agenda_query,
     agenda_timezone_error,
-    calendar_timezone_property,
+    calendar_timezone_property_evidence,
     parse_agenda,
 )
 from ...config import AssistantConfig
@@ -94,25 +95,46 @@ class NextcloudCalendar:
         )
         result = parse_agenda(response.data, response.url or calendar.href, start=start, end=end, zone=zone)
         if result["complete"]:
-            try:
-                measured = component_request(
-                    self.client, "VEVENT", "list", calendar, "PROPFIND", calendar.href,
-                    data=CALENDAR_TIMEZONE_PROPFIND,
-                    headers={"Depth": "0", "Content-Type": "application/xml; charset=utf-8"}, expected={207},
-                )
-                definition = calendar_timezone_property(measured.data, measured.url or calendar.href)
-                issue = agenda_timezone_error(definition, zone, start, end)
-            except PermissionError as exc:
-                issue = str(exc)
-                if issue not in {"server-right-missing", "rights-unverified"}:
-                    raise
-            except NextcloudError as exc:
-                if str(exc).startswith("nextcloud-connection-changed"):
-                    raise
-                issue = "calendar-timezone-unverified"
+            issue = self._agenda_timezone_issue(calendar, zone, start, end)
             if issue:
-                result.update(complete=False, errors=[{"code": issue}])
+                result.update(complete=False, errors=[issue])
         return result
+
+    def _agenda_timezone_issue(
+        self, calendar: DiscoveredCollection, zone: ZoneInfo, start: datetime, end: datetime,
+    ) -> dict[str, str | int] | None:
+        unverified = "calendar-timezone-unverified"
+        try:
+            measured = component_request(
+                self.client, "VEVENT", "list", calendar, "PROPFIND", calendar.href,
+                data=CALENDAR_TIMEZONE_PROPFIND,
+                headers={"Depth": "0", "Content-Type": "application/xml; charset=utf-8"},
+            )
+        except PermissionError as exc:
+            code = str(exc)
+            if code not in {"server-right-missing", "rights-unverified"}:
+                raise
+            return {"code": code}
+        except NextcloudError as exc:
+            if str(exc).startswith("nextcloud-connection-changed"):
+                raise
+            return {"code": unverified, "reason": "transport-error"}
+        if measured.status != 207:
+            return {"code": unverified, "reason": "http-status", "http_status": measured.status}
+        definition, reason, property_status = calendar_timezone_property_evidence(
+            measured.data, measured.url or calendar.href,
+        )
+        code = unverified
+        if definition:
+            code, reason = agenda_timezone_error(definition, zone, start, end)
+        if not code:
+            return None
+        issue: dict[str, str | int] = {"code": code}
+        if reason:
+            issue["reason"] = reason
+            if property_status is not None:
+                issue["property_status"] = property_status
+        return issue
 
     def list_event_metadata(self, calendar: DiscoveredCollection) -> list[CalendarMetadata]:
         now = datetime.now(UTC)

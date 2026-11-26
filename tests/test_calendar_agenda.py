@@ -190,8 +190,11 @@ def test_managed_report_permits_only_matching_bounded_vevent_expansion(account):
         ("UTC", timezone_response(), []),
         ("UTC", timezone_response(name="Etc/UTC"), []),
         ("UTC", timezone_response(offset="+0100"), [{"code": "calendar-timezone-mismatch"}]),
-        ("UTC", multistatus(), [{"code": "calendar-timezone-unverified"}]),
-        ("UTC", timezone_response(href=HREF + "other/"), [{"code": "calendar-timezone-unverified"}]),
+        ("UTC", multistatus(), [{"code": "calendar-timezone-unverified", "reason": "dav-envelope-invalid"}]),
+        (
+            "UTC", timezone_response(href=HREF + "other/"),
+            [{"code": "calendar-timezone-unverified", "reason": "dav-scope-mismatch"}],
+        ),
         (ZONE, timezone_response(name=ZONE, offset="+0200"), [{"code": "calendar-timezone-mismatch"}]),
         (ZONE, timezone_response(name=ZONE, offset="+0100"), []),
     ],
@@ -250,7 +253,7 @@ def test_a_timezone_definition_without_any_observance_is_unverified():
     bad = bad.replace(b"END:STANDARD\r\n", b"")
     calendar = NextcloudCalendar(AssistantConfig(), LegacyTransport(multistatus(), bad))
     assert calendar.list_agenda(COLLECTION, **day(11, 23, "UTC"))["errors"] == [
-        {"code": "calendar-timezone-unverified"},
+        {"code": "calendar-timezone-unverified", "reason": "observance-missing", "property_status": 200},
     ]
 
 

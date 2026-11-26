@@ -18,7 +18,14 @@ _LOCAL_STAMP = "%Y%m%dT%H%M%S"
 _RECURRENCE_PROPERTIES = {"EXDATE", "EXRULE", "RDATE", "RRULE"}
 _UTC_NAMES = {"UTC", "Etc/UTC", "Etc/GMT", "GMT", "UCT", "Etc/UCT", "Zulu", "Etc/Zulu"}
 _DAV_SUCCESS = re.compile(r"HTTP/\d+(?:\.\d+)? 200(?: [^\r\n]*)?")
+_DAV_STATUS = re.compile(r"HTTP/\d+(?:\.\d+)? ([1-5][0-9]{2})(?: [^\r\n]*)?")
 _REPORT_MARGIN = timedelta(days=1)
+TIMEZONE_DIAGNOSTIC_REASONS = frozenset({
+    "http-status", "transport-error", "dav-envelope-invalid", "dav-scope-mismatch",
+    "property-missing", "property-empty", "property-http-error", "timezone-definition-invalid",
+    "timezone-id-invalid", "observance-missing", "observance-invalid", "observance-ambiguous",
+    "rrule-invalid", "rrule-unsupported",
+})
 CALENDAR_TIMEZONE_PROPFIND = b"""<d:propfind xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
  <d:prop><c:calendar-timezone/></d:prop>
 </d:propfind>"""
@@ -117,35 +124,54 @@ def matches_agenda_query(data: bytes, expansion: ET.Element, timezone: ET.Elemen
     return data == canonical
 
 
-def calendar_timezone_property(data: bytes, url: str) -> str:
+def calendar_timezone_property_evidence(data: bytes, url: str) -> tuple[str, str, int | None]:
+    """Return the scoped property or a content-free rejection reason and propstat status."""
+    invalid = ("", "dav-envelope-invalid", None)
     try:
         root = ET.fromstring(data)
         if root.tag != q(DAV, "multistatus") or root.attrib or len(root) != 1:
-            return ""
+            return invalid
         response = root[0]
         hrefs, statuses = response.findall(q(DAV, "href")), response.findall(q(DAV, "propstat"))
         if response.tag != q(DAV, "response") or len(response) != 2 or len(hrefs) != 1 or len(statuses) != 1:
-            return ""
+            return invalid
         path, requested = urlsplit(hrefs[0].text or ""), urlsplit(url)
         if (
             path.query or path.fragment or not path.path
             or unquote(path.path).rstrip("/") != unquote(requested.path).rstrip("/")
             or (path.netloc and (path.scheme, path.netloc) != (requested.scheme, requested.netloc))
         ):
-            return ""
+            return "", "dav-scope-mismatch", None
         status = statuses[0]
         props = status.find(q(DAV, "prop"))
-        if props is None or len(status) != 2 or len(props) != 1:
-            return ""
+        match = _DAV_STATUS.fullmatch(status.findtext(q(DAV, "status")) or "")
+        if props is None or len(status) != 2 or len(props) > 1 or match is None:
+            return invalid
+        property_status = int(match[1])
+        if len(props) == 0:
+            return "", "property-missing", property_status
         entry = props[0]
-        if (
-            entry.tag != q(CALDAV, "calendar-timezone") or entry.attrib or len(entry)
-            or not _DAV_SUCCESS.fullmatch(status.findtext(q(DAV, "status")) or "")
-        ):
-            return ""
-        return (entry.text or "").strip()
+        if entry.tag != q(CALDAV, "calendar-timezone") or entry.attrib or len(entry):
+            return invalid
+        definition = (entry.text or "").strip()
+        if property_status == 404 and not definition:
+            return "", "property-missing", property_status
+        if property_status != 200:
+            return "", "property-http-error", property_status
+        if not definition:
+            return "", "property-empty", property_status
+        return definition, "", property_status
     except (ET.ParseError, ValueError):
-        return ""
+        return invalid
+
+
+def calendar_timezone_property(data: bytes, url: str) -> str:
+    definition, _, _ = calendar_timezone_property_evidence(data, url)
+    return definition
+
+
+class _TimezoneParseIssue(ValueError):
+    pass
 
 
 def _offset_value(value: str) -> timedelta:
@@ -166,12 +192,12 @@ def _yearly_onsets(
         parts.pop("FREQ", "") != "YEARLY" or parts.pop("INTERVAL", "1") != "1"
         or set(parts) - {"BYMONTH", "BYMONTHDAY", "BYDAY", "UNTIL"}
     ):
-        raise ValueError("unsupported-timezone-rule")
+        raise _TimezoneParseIssue("rrule-unsupported")
     month = int(parts.get("BYMONTH", str(first.month)))
     days = [int(item) for item in parts["BYMONTHDAY"].split(",")] if "BYMONTHDAY" in parts else []
     weekday_rule = re.fullmatch(r"([+-]?[1-5])?(MO|TU|WE|TH|FR|SA|SU)", parts.get("BYDAY", ""))
     if "BYDAY" in parts and weekday_rule is None:
-        raise ValueError("unsupported-timezone-rule")
+        raise _TimezoneParseIssue("rrule-unsupported")
     until = datetime.strptime(parts["UNTIL"], _UTC_STAMP).replace(tzinfo=UTC) if "UNTIL" in parts else None
     years = set(range(max(1, window[0].year - 1), window[1].year + 1))
     if until:
@@ -205,7 +231,7 @@ def _observances(
 ) -> list[tuple[datetime, timedelta, timedelta]]:
     definitions = sorted(_component_blocks(lines, "STANDARD") + _component_blocks(lines, "DAYLIGHT"))
     if not definitions:
-        raise ValueError("missing-timezone-observance")
+        raise _TimezoneParseIssue("observance-missing")
     transitions: set[tuple[datetime, timedelta, timedelta]] = set()
     for first, last in definitions:
         properties: dict[str, list[str]] = {}
@@ -222,28 +248,33 @@ def _observances(
         for dates in properties.get("RDATE", []):
             onsets.extend(datetime.strptime(value, _LOCAL_STAMP) for value in dates.split(","))
         if properties.get("RRULE"):
-            onsets.extend(_yearly_onsets(properties["RRULE"][0], begins, before, window))
+            try:
+                onsets.extend(_yearly_onsets(properties["RRULE"][0], begins, before, window))
+            except _TimezoneParseIssue:
+                raise
+            except (ValueError, OverflowError):
+                raise _TimezoneParseIssue("rrule-invalid") from None
         transitions.update((item.replace(tzinfo=UTC) - before, before, after) for item in onsets)
     ordered = sorted(transitions)
     if len({item[0] for item in ordered}) != len(ordered):
-        raise ValueError("ambiguous-timezone-observance")
+        raise _TimezoneParseIssue("observance-ambiguous")
     return ordered
 
 
-def agenda_timezone_error(value: str, zone: ZoneInfo, start: datetime, end: datetime) -> str:
+def agenda_timezone_error(value: str, zone: ZoneInfo, start: datetime, end: datetime) -> tuple[str, str]:
     try:
         lines = unfold_ical(value)
         blocks = _component_blocks(lines, "VTIMEZONE")
         if len(blocks) != 1 or _component_blocks(lines, "VCALENDAR") != [(0, len(lines) - 1)]:
-            return "calendar-timezone-unverified"
+            return "calendar-timezone-unverified", "timezone-definition-invalid"
         first, last = blocks[0]
         names = [lines[index][5:] for index in _direct_property_indices(lines, first, last)
                  if lines[index].upper().startswith("TZID:")]
         if len(names) != 1:
-            return "calendar-timezone-unverified"
+            return "calendar-timezone-unverified", "timezone-id-invalid"
         same_zone = names[0] == zone.key or names[0] in _UTC_NAMES and zone.key in _UTC_NAMES
         if not same_zone:
-            return "calendar-timezone-mismatch"
+            return "calendar-timezone-mismatch", ""
 
         low = start.astimezone(UTC) - _REPORT_MARGIN
         high = end.astimezone(UTC) + _REPORT_MARGIN
@@ -266,10 +297,12 @@ def agenda_timezone_error(value: str, zone: ZoneInfo, start: datetime, end: date
                 current_offset = transition[2]
                 transition = next(transition_iterator, None)
             if instant.astimezone(zone).utcoffset() != current_offset:
-                return "calendar-timezone-mismatch"
+                return "calendar-timezone-mismatch", ""
+    except _TimezoneParseIssue as exc:
+        return "calendar-timezone-unverified", str(exc)
     except (ValueError, OverflowError):
-        return "calendar-timezone-unverified"
-    return ""
+        return "calendar-timezone-unverified", "observance-invalid"
+    return "", ""
 
 
 def _event_time(line: str, zone: ZoneInfo) -> date | datetime:

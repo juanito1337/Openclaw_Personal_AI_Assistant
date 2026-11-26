@@ -15,6 +15,9 @@ from personal_assistant import nextcloud_connection as nc
 from personal_assistant import service
 from personal_assistant.cli import parser
 from personal_assistant.cli_handlers.calendar import handle
+from personal_assistant.config import AssistantConfig
+from personal_assistant.connectors.nextcloud.calendar import NextcloudCalendar
+from personal_assistant.connectors.nextcloud.client import DavResponse, NextcloudError
 from personal_assistant.connectors.nextcloud.xmlutil import CALDAV, DAV, q
 from personal_assistant.models import Resource
 from personal_assistant.nextcloud_onboarding import HttpResponse
@@ -322,3 +325,86 @@ def test_today_report_finds_event_hidden_by_historical_list_limit(account, monke
     bounds = {"start": "20261121T230000Z", "end": "20261124T230000Z"}
     assert query.find(".//" + q(CALDAV, "time-range")).attrib == bounds
     assert query.find(".//" + q(CALDAV, "expand")).attrib == bounds
+
+
+@pytest.mark.parametrize(
+    "wire_failure,expected_detail",
+    [
+        ("property-404", {"reason": "property-missing", "property_status": 404}),
+        ("absent-property", {"reason": "property-missing", "property_status": 200}),
+        ("empty-property", {"reason": "property-empty", "property_status": 200}),
+        ("unexpected-xml", {"reason": "dav-envelope-invalid"}),
+        ("foreign-href", {"reason": "dav-scope-mismatch"}),
+        ("missing-observance", {"reason": "observance-missing", "property_status": 200}),
+        ("invalid-observance", {"reason": "observance-invalid", "property_status": 200}),
+        ("unsupported-rrule", {"reason": "rrule-unsupported", "property_status": 200}),
+        ("invalid-rrule", {"reason": "rrule-invalid", "property_status": 200}),
+        ("outer-http-error", {"reason": "http-status", "http_status": 502}),
+        ("transport-error", {"reason": "transport-error"}),
+    ],
+)
+def test_calendar_today_reports_only_content_free_timezone_diagnostics(
+    legacy, monkeypatch, wire_failure, expected_detail,
+):
+    freeze_clock(monkeypatch, "2026-11-26T12:00:00+00:00")
+    report = multistatus([("/cal/first/meeting.ics", {
+        q(DAV, "getetag"): '"synthetic"',
+        q(CALDAV, "calendar-data"): "\r\n".join((
+            "BEGIN:VCALENDAR", "VERSION:2.0", "BEGIN:VEVENT", "UID:meeting",
+            "DTSTAMP:20261126T090000Z", "DTSTART:20261126T100000Z", "END:VEVENT", "END:VCALENDAR",
+        )),
+    })])
+    observance = ["BEGIN:STANDARD", "DTSTART:20261025T030000", "TZOFFSETFROM:+0200", "TZOFFSETTO:+0100"]
+    if wire_failure == "invalid-observance":
+        observance[1] = "DTSTART:private fixture detail"
+    if wire_failure == "unsupported-rrule":
+        observance.append("RRULE:FREQ=MONTHLY")
+    if wire_failure == "invalid-rrule":
+        observance.append("RRULE:FREQ=YEARLY;BYMONTH=13")
+    observance.append("END:STANDARD")
+    timezone = "\r\n".join((
+        "BEGIN:VCALENDAR", "VERSION:2.0", "BEGIN:VTIMEZONE", "TZID:Europe/Berlin",
+        *(observance if wire_failure != "missing-observance" else ()), "END:VTIMEZONE", "END:VCALENDAR",
+    ))
+    timezone_property = (
+        "" if wire_failure == "absent-property"
+        else "<c:calendar-timezone/>" if wire_failure in {"empty-property", "property-404"}
+        else f"<c:calendar-timezone>{timezone}</c:calendar-timezone>"
+    )
+    href = "/cal/private-scope/" if wire_failure == "foreign-href" else "/cal/first/"
+    prop_status = "404 Not Found" if wire_failure == "property-404" else "200 OK"
+    probe = (
+        '<d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">'
+        f"<d:response><d:href>{href}</d:href><d:propstat><d:prop>{timezone_property}</d:prop>"
+        f"<d:status>HTTP/1.1 {prop_status}</d:status></d:propstat></d:response></d:multistatus>"
+    ).encode()
+    if wire_failure == "unexpected-xml":
+        probe = b"<other>private fixture detail</other>"
+
+    class Transport:
+        def request(self, method, href, *, data, headers, expected=None):
+            assert href == "/cal/first/"
+            url = "https://synthetic.invalid" + href
+            if method == "REPORT":
+                return DavResponse(207, "Multi-Status", {}, report, url)
+            assert method == "PROPFIND" and headers["Depth"] == "0"
+            assert b"calendar-timezone" in data
+            if wire_failure == "transport-error":
+                raise NextcloudError("private fixture detail")
+            if wire_failure == "outer-http-error":
+                if expected and 502 not in expected:
+                    raise NextcloudError("HTTP 502: private fixture detail")
+                return DavResponse(502, "Bad Gateway", {}, b"private fixture detail", url)
+            return DavResponse(207, "Multi-Status", {}, probe, url)
+
+    legacy.nextcloud_calendar = NextcloudCalendar(AssistantConfig(), Transport())
+
+    result = legacy.calendar_today()
+
+    assert result["ok"] is False and result["complete"] is False and result["absence_proven"] is False
+    assert [event["uid"] for event in result["events"]] == ["meeting"]
+    assert result["resource_errors"] == [{
+        "resource_id": "first", "code": "calendar-timezone-unverified", **expected_detail,
+    }]
+    assert "private fixture detail" not in repr(result)
+    assert "private-scope" not in repr(result)

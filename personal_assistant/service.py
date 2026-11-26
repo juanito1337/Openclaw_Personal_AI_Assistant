@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 
 from .actions import ActionService
 from .antivirus import HostAntivirus
+from .calendar_agenda import TIMEZONE_DIAGNOSTIC_REASONS
 from .calendar_from_mail import (
     build_calendar_mail_preview,
     canonical_preview_digest,
@@ -1526,10 +1527,22 @@ class PersonalAssistant(
                         events.sort(key=event_order)
                         del events[bounded:]
                         clipped = True
-                    codes = list(dict.fromkeys(error["code"] for error in report["errors"]))
-                    if report["complete"] is not True and not codes:
-                        codes.append("resource-read-incomplete")
-                    errors.extend({"resource_id": selected_id, "code": code} for code in codes)
+                    resource_errors: dict[str, dict[str, Any]] = {}
+                    for error in report["errors"]:
+                        code = error["code"]
+                        evidence = {"resource_id": selected_id, "code": code}
+                        reason = error.get("reason")
+                        if (code == "calendar-timezone-unverified" and isinstance(reason, str)
+                                and reason in TIMEZONE_DIAGNOSTIC_REASONS):
+                            evidence["reason"] = reason
+                            for field in ("http_status", "property_status"):
+                                status = error.get(field)
+                                if type(status) is int and 100 <= status <= 599:
+                                    evidence[field] = status
+                        resource_errors.setdefault(code, evidence)
+                    if report["complete"] is not True and not resource_errors:
+                        errors.append({"resource_id": selected_id, "code": "resource-read-incomplete"})
+                    errors.extend(resource_errors.values())
                 except Exception as exc:
                     errors.append({"resource_id": selected_id, "code": self._calendar_day_read_error(exc)})
 
