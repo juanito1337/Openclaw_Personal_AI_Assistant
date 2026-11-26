@@ -485,6 +485,17 @@ runtime reserve is also incomplete and must not approve productive work.
 Use `performance mail --limit 20` and the registered job diagnostics for technical
 timings; model-server reachability alone does not prove a completed validation.
 
+The manual chat operation `mail.dry-run` remains read-only with empty structured
+arguments and the fixed twenty-message limit. It forwards a 900-second runtime
+budget and 60-second completion reserve to the worker; the native executor allows
+960 seconds and retains the bound result briefly for reply finalization. This
+does not extend a pending write approval or enable a job. The operator CLI exposes
+the same `--max-runtime` and `--shutdown-reserve` options for a shorter diagnostic;
+both must be positive and the reserve must be smaller than the runtime budget.
+A dedicated dry-run answer is derived from that exact current operation's result.
+It proves only the bounded pipeline check, not mailbox contents or absence. An
+unrelated mail read, a failed probe or an evicted run cannot replace this proof.
+
 Sender alone is not category proof unless Jan created an explicit hard rule.
 Deterministic routine/spam reuse requires two older consistent corrections for
 the normalized sender/subject pattern; one clear older relevant correction may

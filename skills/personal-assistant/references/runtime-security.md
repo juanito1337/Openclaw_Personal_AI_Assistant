@@ -61,7 +61,15 @@ or a stored status flag proof of successful message delivery.
 ## Bounded action state
 
 The native plugin retains at most 128 recent runs for 15 minutes and at most
-64 KiB of prompt per run. Oversized instructions are rejected for writes, not
+64 KiB of prompt per run. A currently live manual `mail.dry-run` may retain its
+result context for one bounded 960-second execution and up to 1800 seconds of
+finalization, capped at 3600 seconds from the original run start. This matches the
+release model/agent budgets; an operator-configured shorter agent timeout remains
+in force. This never renews the original 15-minute write-authorization deadline or
+the 180-second approval nonce. Expired or evicted runs cannot acquire this window,
+and repeated calls cannot renew it. After the original 15-minute deadline,
+only finalization/delivery remains available; no new tool call is admitted.
+Oversized instructions are rejected for writes, not
 truncated into apparent approval. Expiration or eviction revokes bound pending
 authorizations; it never creates a new approval or transfers evidence to a new
 run. Several reply payloads are not proof that a run is over. An expired action
@@ -114,9 +122,13 @@ each candidate still needs its own unchanged approval and verified postcondition
   Under legacy systemd, administrative `jobs check --deep` can perform the same
   allowlisted recovery. Use `jobs status --target all --deep` to observe current
   health without updating alerts or running recovery.
-  The separate explicit native `mail.dry-run` still has the plugin's 120-second
-  invocation limit. Its timeout leaves the validation outcome unknown; the longer
-  automatic worker recovery does not run through that plugin limit.
+  The explicit native `mail.dry-run` uses the same 900-second cooperative budget,
+  60-second completion reserve and 960-second outer watchdog for its unchanged
+  twenty-message limit. Other native operations retain their existing limits.
+  Cancellation and timeout terminate the command's process group; a timed-out,
+  cancelled or incomplete result cannot prove a successful validation. Use the
+  registered mail status/doctor and job check after such a failure, without an
+  automatic retry.
 - A successfully persisted and delivered child-job degradation is a healthy
   supervisor observation, not a supervisor process failure. Preserve the child's
   `DEGRADED`/`FAILED` result and alert, but do not report the observer itself as

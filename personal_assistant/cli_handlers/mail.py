@@ -61,7 +61,12 @@ def run_external(args: argparse.Namespace, *, initial=None) -> int:
     if args.mail_command in {"status", "doctor", "guide"}:
         command.append(args.mail_command)
     elif args.mail_command == "dry-run":
-        command += ["run", "--dry-run", "--no-digest", "--limit", str(max(1, args.limit))]
+        if not 0 < args.shutdown_reserve < args.max_runtime:
+            raise ValueError("--shutdown-reserve muss positiv und kleiner als --max-runtime sein")
+        command += [
+            "run", "--dry-run", "--no-digest", "--limit", str(max(1, args.limit)),
+            "--max-runtime", str(args.max_runtime), "--shutdown-reserve", str(args.shutdown_reserve),
+        ]
     elif args.mail_command == "run":
         command += ["run", "--no-digest", "--limit", str(max(1, args.limit))]
         if args.drain:

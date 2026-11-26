@@ -295,6 +295,9 @@ export function requiresNativeAccess(id) {
 }
 
 export async function spawnJson(invocation, limits, options = {}) {
+  if (options.signal?.aborted) {
+    return { returncode: 130, stdout: "", stderr: "", error: "tool-aborted" };
+  }
   const runner = options.runner ?? spawn;
   const env = { ...(options.env ?? process.env) };
   delete env.OPENCLAW_NC_EXPECTED_ACCESS;
@@ -305,11 +308,13 @@ export async function spawnJson(invocation, limits, options = {}) {
   }
   const timeoutMs = Math.max(1, Number(limits.tool_timeout_seconds ?? 120)) * 1000;
   return await new Promise((resolve) => {
+    const processGroup = process.platform !== "win32";
     const child = runner(invocation.executable, invocation.argv, {
       cwd: options.cwd ?? WORKDIR,
       env,
       stdio: ["pipe", "pipe", "pipe"],
       shell: false,
+      detached: processGroup,
     });
     let stdout = "";
     let stderr = "";
@@ -319,14 +324,51 @@ export async function spawnJson(invocation, limits, options = {}) {
     let settled = false;
     let timer;
     let killTimer;
-    let timedOut = false;
+    let cleanupTimer;
+    let stopError = null;
+    const signalTree = (signal) => {
+      try {
+        if (processGroup && Number.isInteger(child.pid)) process.kill(-child.pid, signal);
+        else child.kill(signal);
+      } catch (error) {
+        if (error?.code !== "ESRCH") child.kill(signal);
+      }
+    };
     const finish = (result) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
       clearTimeout(killTimer);
+      clearTimeout(cleanupTimer);
+      options.signal?.removeEventListener("abort", abort);
+      if (stopError) {
+        signalTree("SIGKILL");
+        for (const pipe of [child.stdin, child.stdout, child.stderr]) pipe?.destroy();
+      }
       resolve(result);
     };
+    const completed = (code, signal) => finish({
+      returncode: stopError === "tool-timeout" ? 124 : stopError ? 130 : Number(code ?? 1),
+      stdout,
+      stderr,
+      stdout_bytes: stdoutBytes,
+      stdout_sha256: stdoutHash.digest("hex"),
+      stdout_truncated: stdoutTruncated,
+      signal: signal ?? null,
+      ...(stopError ? { error: stopError } : {}),
+    });
+    const stop = (error) => {
+      if (settled || stopError) return;
+      stopError = error;
+      signalTree("SIGTERM");
+      killTimer = setTimeout(() => {
+        signalTree("SIGKILL");
+        // A descendant outside the group can retain a pipe. Close our capture
+        // handles after bounded cleanup instead of waiting indefinitely for EOF.
+        cleanupTimer = setTimeout(() => { if (!settled) completed(null, "SIGKILL"); }, 250);
+      }, 2000);
+    };
+    const abort = () => stop("tool-aborted");
     child.stdout?.on("data", (chunk) => {
       const data = Buffer.from(chunk);
       stdoutBytes += data.length;
@@ -341,22 +383,11 @@ export async function spawnJson(invocation, limits, options = {}) {
     child.on("error", (error) => finish({ returncode: 127, stdout, stderr, error: error.message }));
     child.on("close", (code, signal) => {
       if (settled) return;
-      finish({
-        returncode: timedOut ? 124 : Number(code ?? 1),
-        stdout,
-        stderr,
-        stdout_bytes: stdoutBytes,
-        stdout_sha256: stdoutHash.digest("hex"),
-        stdout_truncated: stdoutTruncated,
-        signal: signal ?? null,
-        ...(timedOut ? { error: "tool-timeout" } : {}),
-      });
+      completed(code, signal);
     });
-    timer = setTimeout(() => {
-      timedOut = true;
-      child.kill("SIGTERM");
-      killTimer = setTimeout(() => child.kill("SIGKILL"), 2000);
-    }, timeoutMs);
+    timer = setTimeout(() => stop("tool-timeout"), timeoutMs);
+    options.signal?.addEventListener("abort", abort, { once: true });
+    if (options.signal?.aborted) abort();
     if (invocation.stdin !== null) child.stdin?.end(invocation.stdin);
     else child.stdin?.end();
   });
@@ -371,6 +402,7 @@ function parseJsonOutput(output) {
 }
 
 function classifyError(result, payload) {
+  if (result.error === "tool-aborted") return "cancelled";
   if (["operation-disabled-in-live-capabilities", "live-tool-catalog-unavailable", "live-tool-catalog-invalid",
     "policy-integrity-error", "scope-unbound", "policy-changed"]
     .includes(result.error)) return result.error;
@@ -542,9 +574,16 @@ export function makeEvidence(operation, result, payload, turnId, toolCallId) {
 
 export function routePrompt(contract, prompt) {
   const normalized = String(prompt ?? "").normalize("NFKC").toLocaleLowerCase("de-DE");
+  const dryRun = new RegExp(contract.mail_dry_run_status.pattern, "iu").test(normalized) &&
+    !new RegExp(contract.mail_dry_run_status.discovery_pattern, "iu").test(normalized);
   const routes = [];
   for (const route of contract.routes ?? []) {
-    if ((route.patterns ?? []).some((pattern) => new RegExp(pattern, "iu").test(normalized))) {
+    if (route.id === "mail-dry-run" && !dryRun) continue;
+    const candidate = route.id === "mail-search" && dryRun
+      ? normalized.replace(new RegExp(contract.mail_dry_run_status.pattern, "giu"), "") : normalized;
+    if (route.id === "mail-search" && dryRun &&
+        !new RegExp(contract.mail_dry_run_status.mail_query_pattern, "iu").test(candidate)) continue;
+    if ((route.patterns ?? []).some((pattern) => new RegExp(pattern, "iu").test(candidate))) {
       const { patterns: _patterns, ...publicRoute } = route;
       routes.push(publicRoute);
     }
@@ -876,6 +915,11 @@ export function guardAnswer(contract, route, answer, evidence) {
     if (matching.length === 0) issues.push(`missing-current-evidence:${item.domain}`);
   }
   const claims = classifyClaims(contract, answer);
+  const dryRunRoute = (route?.routes ?? []).some((item) => item.id === 'mail-dry-run');
+  const dryRunAnswer = dryRunStatusAnswer(contract, evidence);
+  const dryRunStatus = dryRunRoute && route.routes.length === 1 && dryRunAnswer &&
+    normalizedText(answer) === normalizedText(dryRunAnswer);
+  if (dryRunRoute && !dryRunStatus) issues.push('dry-run-status-not-authorized');
   const calendarNegative = claims.includes('calendar-negative') || (claims.includes('negative') &&
     (route?.routes ?? []).some((item) => item.domain === 'calendar') &&
     !/\b(?:mail|nachricht|datei|aufgabe|kontakt|invoice|rechnung)/iu.test(answer));
@@ -898,12 +942,21 @@ export function guardAnswer(contract, route, answer, evidence) {
   }
   if (
     claims.includes("write-success") &&
+    !dryRunStatus &&
     (route?.routes ?? []).some((item) => item.claim_classes?.includes("write-success")) &&
     !evidence.some((row) => row.ok && row.allowed_claims?.includes("write-success"))
   ) {
     issues.push("write-success-not-authorized");
   }
   return { ok: issues.length === 0, claims, issues, fail_closed: true };
+}
+
+export function dryRunStatusAnswer(contract, evidence) {
+  const row = evidence.findLast((item) => item.tool_id === 'mail.dry-run' && item.domain === 'mail');
+  if (!row) return '';
+  return row.ok === true && row.complete === true
+    ? contract.mail_dry_run_status.success_answer
+    : contract.mail_dry_run_status.failure_answer_template.replace('{error}', row.error || 'incomplete-result');
 }
 
 function currentCalendarDay(contract, row, answer) {
@@ -939,22 +992,83 @@ export function shouldBlockGenericTool(toolName, params) {
 // are generous for this single-user agent but bound abandoned sessions as well.
 export const RUN_RETENTION = Object.freeze({ maxRuns: 128, ttlMs: 15 * 60_000, maxPromptBytes: 65_536 });
 
-export function createRunRetention({ maxRuns = RUN_RETENTION.maxRuns, ttlMs = RUN_RETENTION.ttlMs, now = Date.now, onEvict = () => {} } = {}) {
+export function createRunRetention({ maxRuns = RUN_RETENTION.maxRuns, ttlMs = RUN_RETENTION.ttlMs,
+  now = Date.now, onEvict = () => {}, onAuthorizationExpire = () => {} } = {}) {
   if (!Number.isInteger(maxRuns) || maxRuns < 1 || !Number.isFinite(ttlMs) || ttlMs <= 0) throw new Error("invalid-retention-limits");
   const records = new Map();
-  const remove = (key) => { records.delete(key); onEvict(key); };
+  // Running invocations keep only an opaque generation reservation after
+  // eviction. Admission is bounded too; never evict a still-running reservation.
+  const inFlight = new Set();
+  const retired = new Map();
+  const remove = (key) => {
+    const record = records.get(key);
+    records.delete(key);
+    if (record) {
+      retired.set(key, record.hardExpiresAt);
+      while (retired.size > maxRuns) retired.delete(retired.keys().next().value);
+    }
+    onEvict(key);
+  };
   const sweep = () => {
     const time = now();
-    for (const [key, expiresAt] of records) if (expiresAt <= time) remove(key);
+    for (const [key, expiresAt] of retired) if (expiresAt <= time) retired.delete(key);
+    for (const [key, record] of records) {
+      if (!record.authorizationExpired && record.authorizeUntil <= time) {
+        record.authorizationExpired = true;
+        onAuthorizationExpire(key);
+      }
+      if (record.expiresAt <= time) remove(key);
+    }
   };
   return {
     start(key) {
       sweep();
-      if (records.has(key)) remove(key);
+      if (records.has(key) || retired.has(key) || [...inFlight].some((item) => item.key === key)) return false;
       while (records.size >= maxRuns) remove(records.keys().next().value);
-      records.set(key, now() + ttlMs);
+      const expiresAt = now() + ttlMs;
+      records.set(key, { expiresAt, authorizeUntil: expiresAt, authorizationExpired: false, read: null,
+        generation: randomUUID(), hardExpiresAt: now() + 3_600_000 });
+      return true;
     },
     has(key) { sweep(); return records.has(key); },
+    retire(key) { sweep(); if (records.has(key)) remove(key); },
+    canAuthorize(key) { sweep(); return records.has(key) && !records.get(key).authorizationExpired; },
+    generation(key) { sweep(); return records.get(key)?.generation; },
+    readStarted(key) { sweep(); return Boolean(records.get(key)?.read); },
+    acquireInvocation(key, generation) {
+      sweep();
+      const record = records.get(key);
+      if (!record || record.authorizationExpired || record.generation !== generation || inFlight.size >= maxRuns) return null;
+      const binding = { key, generation };
+      inFlight.add(binding);
+      return binding;
+    },
+    invocationCurrent(binding) {
+      sweep();
+      return inFlight.has(binding) && records.get(binding.key)?.generation === binding.generation;
+    },
+    releaseInvocation(binding) { inFlight.delete(binding); },
+    retainRead(key, callId, timeoutMs, finalizationMs) {
+      sweep();
+      const record = records.get(key);
+      // One bounded read may outlast its original turn context. This keeps only
+      // evidence/routing; pending approvals and write authority still expire.
+      if (!record || record.authorizationExpired || record.read || !callId ||
+          !Number.isFinite(timeoutMs) || timeoutMs <= 0 || timeoutMs > 960_000 ||
+          !Number.isFinite(finalizationMs) || finalizationMs <= 0 || finalizationMs > 1_800_000) return false;
+      record.read = { callId, finalizationMs, finished: false };
+      record.expiresAt = Math.min(record.hardExpiresAt,
+        Math.max(record.expiresAt, now() + timeoutMs + finalizationMs));
+      return true;
+    },
+    finishRead(key, callId) {
+      sweep();
+      const record = records.get(key);
+      if (!record || record.read?.callId !== callId || record.read.finished) return;
+      record.read.finished = true;
+      record.expiresAt = Math.max(record.authorizeUntil,
+        Math.min(record.expiresAt, now() + record.read.finalizationMs));
+    },
     size() { sweep(); return records.size; },
     sweep,
   };

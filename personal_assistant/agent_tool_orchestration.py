@@ -23,6 +23,17 @@ PLUGIN_PATH = "/opt/openclaw-plugins/personal-assistant-tools"
 MAX_ROUTED_DOMAINS = 3
 MAX_CAPTURE_BYTES = 8_000_000
 MAX_ERROR_BYTES = 8_000
+_MAIL_DRY_RUN_PATTERN = (
+    r"\b(?:mail[ .-]dry[- ]?run|dry[- ]?run(?:\s+(?:für|fuer|for))?"
+    r"(?:\s+(?:mein(?:e|en|em)?|das|die|the|my))?\s+(?:mails?|e-?mails?|postfach|mailbox))\b"
+)
+_MAIL_DRY_RUN_DISCOVERY = r"\b(?:suche|such|finde|search|find|lies|lese)\b|\bread\s+(?:mail|message)"
+_MAIL_QUERY_REQUEST = (
+    r"\b(?:zeige|zeig|show|lies|lese|read|suche|search|finde|find|welche)\b.{0,80}"
+    r"\b(?:mails?|e-?mails?|nachrichten|messages?|postfach|mailbox)\b"
+)
+_MAIL_DRY_RUN_SUCCESS = "Der Mail-Dry-Run wurde erfolgreich abgeschlossen."
+_MAIL_DRY_RUN_FAILURE = "Der Mail-Dry-Run ist fehlgeschlagen oder unvollständig (Fehler: {error})."
 _CALENDAR_SCOPE_EXCLUSIONS = (
     r"\b(?:morgen|gestern|tomorrow|yesterday|mañana|ayer|woche|week|semana|monat|month|mes|jahr|year|año|"
     r"januar|january|februar|february|märz|maerz|march|april|mai|may|juni|june|juli|july|august|"
@@ -358,6 +369,14 @@ def _route_definitions() -> list[dict[str, Any]]:
             "claim_classes": ["product-version"],
         },
         {
+            "id": "mail-dry-run",
+            "domain": "mail",
+            "patterns": [_MAIL_DRY_RUN_PATTERN],
+            "tool": _DOMAIN_TOOL_NAMES["mail"]["read"],
+            "operations": ["mail.dry-run"],
+            "claim_classes": ["tool-status", "write-success"],
+        },
+        {
             "id": "mail-search",
             "domain": "mail",
             "patterns": [
@@ -508,9 +527,18 @@ def _route_definitions() -> list[dict[str, Any]]:
 
 def route_intent(prompt: str) -> dict[str, Any]:
     normalized = unicodedata.normalize("NFKC", prompt).casefold()
+    dry_run = bool(re.search(_MAIL_DRY_RUN_PATTERN, normalized, re.I)
+                   and not re.search(_MAIL_DRY_RUN_DISCOVERY, normalized, re.I))
     routes: list[dict[str, Any]] = []
     for definition in _route_definitions():
-        if any(re.search(pattern, normalized, flags=re.IGNORECASE) for pattern in definition["patterns"]):
+        if definition["id"] == "mail-dry-run" and not dry_run:
+            continue
+        candidate = (re.sub(_MAIL_DRY_RUN_PATTERN, "", normalized, flags=re.I)
+                     if definition["id"] == "mail-search" and dry_run else normalized)
+        if (definition["id"] == "mail-search" and dry_run
+                and not re.search(_MAIL_QUERY_REQUEST, candidate, re.I)):
+            continue
+        if any(re.search(pattern, candidate, flags=re.IGNORECASE) for pattern in definition["patterns"]):
             routes.append({key: value for key, value in definition.items() if key not in {"patterns"}})
     routes = routes[:MAX_ROUTED_DOMAINS]
     result: dict[str, Any] = {
@@ -609,6 +637,20 @@ def guard_claims(
         if not matching:
             issues.append(f"missing-current-evidence:{domain}")
     claims = classify_claims(answer)
+    dry_run_route = any(item.get("id") == "mail-dry-run" for item in routes)
+    latest_dry_run = next((row for row in reversed(evidence_rows)
+                          if row.get("tool_id") == "mail.dry-run" and row.get("domain") == "mail"), {})
+    dry_run_answer = ""
+    if latest_dry_run:
+        if latest_dry_run.get("ok") is True and latest_dry_run.get("complete") is True:
+            dry_run_answer = _MAIL_DRY_RUN_SUCCESS
+        else:
+            error = str(latest_dry_run.get("error") or "incomplete-result")
+            dry_run_answer = _MAIL_DRY_RUN_FAILURE.format(error=error)
+    dry_run_status = bool(dry_run_route and len(routes) == 1 and dry_run_answer
+                          and answer.strip().casefold() == dry_run_answer.casefold())
+    if dry_run_route and not dry_run_status:
+        issues.append("dry-run-status-not-authorized")
     calendar_negative = "calendar-negative" in claims or (
         "negative" in claims and any(item.get("domain") == "calendar" for item in routes)
         and not re.search(r"\b(?:mail|nachricht|datei|aufgabe|kontakt|invoice|rechnung)", answer, re.I)
@@ -642,6 +684,7 @@ def guard_claims(
         issues.append("version-claim-not-authorized")
     if (
         "write-success" in claims
+        and not dry_run_status
         and any("write-success" in set(item.get("claim_classes") or []) for item in routes)
         and not any(
             bool(row.get("ok")) and "write-success" in set(row.get("allowed_claims") or [])
@@ -683,6 +726,10 @@ def _operation_entry(definition: Any) -> dict[str, Any]:
         "exclusion_reason": compiled.exclusion_reason,
         "allowed_claims": _allowed_claims(definition.id, definition.mode),
         "error_codes": list(definition.error_codes),
+        **({"execution_limits": {
+            "tool_timeout_seconds": 960,
+            "finalization_grace_seconds": 1800,
+        }} if definition.id == "mail.dry-run" else {}),
     }
 
 
@@ -833,6 +880,13 @@ def build_native_tool_contract() -> dict[str, Any]:
         "calendar_diagnostic_patterns": list(_CALENDAR_DIAGNOSTICS),
         "calendar_scope_exclusions": _CALENDAR_SCOPE_EXCLUSIONS,
         "calendar_empty_answers": list(_CALENDAR_EMPTY_ANSWERS),
+        "mail_dry_run_status": {
+            "pattern": _MAIL_DRY_RUN_PATTERN,
+            "discovery_pattern": _MAIL_DRY_RUN_DISCOVERY,
+            "mail_query_pattern": _MAIL_QUERY_REQUEST,
+            "success_answer": _MAIL_DRY_RUN_SUCCESS,
+            "failure_answer_template": _MAIL_DRY_RUN_FAILURE,
+        },
         "action_completion": action_completion_contract(
             item["tool_id"] for item in supported
         ),

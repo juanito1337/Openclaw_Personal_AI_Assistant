@@ -255,6 +255,8 @@ def add_commands(sub: Any) -> None:
     index_reconcile.add_argument("--yes", action="store_true")
     mail_dry = mail_sub.add_parser("dry-run")
     mail_dry.add_argument("--limit", type=int, default=20)
+    mail_dry.add_argument("--max-runtime", type=int, default=900)
+    mail_dry.add_argument("--shutdown-reserve", type=int, default=60)
     mail_run = mail_sub.add_parser("run")
     mail_run.add_argument("--limit", type=int, default=20)
     mail_run.add_argument("--drain", action="store_true")

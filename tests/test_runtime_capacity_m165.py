@@ -247,7 +247,7 @@ def test_tool_capture_limit_returns_typed_error_without_partial_json() -> None:
     import { makeEvidence, spawnJson } from './docker/openclaw-personal-assistant-plugin/runtime.js';
 const invocation={
   executable:process.execPath,
-  argv:['-e',"process.stdout.write(JSON.stringify({ok:true,data:'x'.repeat(5000)}))"],
+  argv:['-e',"require('node:fs').writeSync(1,JSON.stringify({ok:true,data:'x'.repeat(5000)}))"],
   env:{},cwd:process.cwd(),stdin:null,
 };
     const result=await spawnJson(

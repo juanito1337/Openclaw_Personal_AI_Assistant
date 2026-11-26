@@ -405,8 +405,8 @@ TOOLS: tuple[ToolDefinition, ...] = (
     define(
         id="mail.dry-run",
         domain="mail",
-        description="Mail-Pipeline ohne externe Aenderungen pruefen",
-        command="./scripts/assistant.sh mail dry-run --limit 20",
+        description="Mail-Pipeline ohne externe Aenderungen mit begrenztem Laufzeitbudget pruefen",
+        command="./scripts/assistant.sh mail dry-run --limit 20 --max-runtime 900 --shutdown-reserve 60",
         mode="read",
         writes_external_data=False,
         approval="none",

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Der manuelle Mail-Probelauf im Chat erhaelt ein eigenes begrenztes
+  Laufzeitbudget statt des allgemeinen 120-Sekunden-Limits. Sein gebundener
+  Ergebnisnachweis bleibt waehrend des Probelaufs und kurz fuer die Antwort
+  erhalten, ohne die urspruengliche Schreibfreigabe zu verlaengern. Abbruch und
+  Watchdog beenden auch Unterprozesse; unvollstaendige Probelaufe bleiben
+  fehlgeschlagen. Andere Werkzeuglimits und der Umfang von zwanzig Nachrichten
+  bleiben unveraendert.
+
 - Die Mail-Produktionsfreigabe verwendet fuer ihren unveraenderten
   Fuenf-Nachrichten-Probelauf ein eigenes begrenztes Laufzeitbudget statt des
   kuerzeren Vorpruefungs-Timeouts. Modellwiederholungen berechnen ihre Restzeit

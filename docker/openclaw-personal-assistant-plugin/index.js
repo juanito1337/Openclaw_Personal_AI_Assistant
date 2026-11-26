@@ -11,6 +11,7 @@ import {
   compileInvocation,
   createApprovalLedger,
   createRunRetention,
+  dryRunStatusAnswer,
   RUN_RETENTION,
   guardAnswer,
   guardActionCompletion,
@@ -51,16 +52,20 @@ const writeInFlightByRun = new Map();
 const pendingConfirmationsBySession = new Map();
 const liveToolsCache = { expiresAt: 0, value: null };
 const ledger = createApprovalLedger(contract.limits.approval_ttl_seconds);
-const runRetention = createRunRetention({ onEvict(key) {
-  for (const store of [routeByRun, evidenceByRun, obligationByRun, retryByRun,
-    invalidArgumentsByRun, turnLatencyByRun, promptByRun, sessionByRun, requesterByRun, confirmationByRun,
-    writeInFlightByRun]) store.delete(key);
+function revokeRunAuthorizations(key) {
   ledger.revokeRun(key);
+  confirmationByRun.delete(key);
   for (const [session, records] of pendingConfirmationsBySession) {
     const remaining = records.filter((record) => record.run_id !== key);
     if (remaining.length) pendingConfirmationsBySession.set(session, remaining);
     else pendingConfirmationsBySession.delete(session);
   }
+}
+const runRetention = createRunRetention({ onAuthorizationExpire: revokeRunAuthorizations, onEvict(key) {
+  for (const store of [routeByRun, evidenceByRun, obligationByRun, retryByRun,
+    invalidArgumentsByRun, turnLatencyByRun, promptByRun, sessionByRun, requesterByRun, confirmationByRun,
+    writeInFlightByRun]) store.delete(key);
+  revokeRunAuthorizations(key);
 } });
 const metrics = {
   routed: 0,
@@ -226,22 +231,43 @@ function rememberEvidence(key, evidence) {
     tool_id: evidence.tool_id, domain: evidence.domain, run_id: evidence.run_id,
     turn_id: evidence.turn_id, ok: evidence.ok, postcondition_verified: evidence.postcondition_verified,
     allowed_claims: evidence.allowed_claims,
-    complete: evidence.complete, calendar_day: evidence.calendar_day,
+    complete: evidence.complete, calendar_day: evidence.calendar_day, error: evidence.error,
   });
   evidenceByRun.set(key, rows.slice(-32));
 }
 
-function stoppedOperation(operation, currentRun, toolCallId, error) {
-  const payload = { ok: false, complete: false, status: "blocked", executed: false,
+function stoppedOperation(operation, currentRun, toolCallId, error, remember = true) {
+  const approvalMissing = error === "missing-or-stale-bound-approval";
+  const payload = { ok: false, complete: false,
+    status: approvalMissing ? "approval-required" : error === "tool-aborted" ? "cancelled" : "blocked", executed: false,
     external_write_attempted: false, postcondition_verified: false };
   const evidence = makeEvidence(operation, { returncode: 77, stdout: "", stderr: "", error }, payload, currentRun, toolCallId);
-  rememberEvidence(currentRun, evidence);
+  if (remember) rememberEvidence(currentRun, evidence);
   return jsonToolResult({ evidence, result: payload,
-    diagnostic: { category: error, retry_allowed: false, new_tool_call_required: true } },
-  { personalAssistantEvidence: evidence });
+    diagnostic: { category: approvalMissing ? "approval-required" : error,
+      code: error, retry_allowed: false, new_tool_call_required: true } },
+  { personalAssistantEvidence: evidence, personalAssistantEvidenceAdmissible: remember });
 }
 
-async function executeOperation(toolName, toolContext, toolCallId, rawParams) {
+async function executeOperation(toolName, toolContext, toolCallId, rawParams, signal) {
+  const operation = operationFromCall(toolName, rawParams);
+  const key = rawParams?.__approval_run_id || runKey(toolContext, toolCallId);
+  const binding = runRetention.acquireInvocation(key, rawParams?.__run_generation);
+  if (!binding) return stoppedOperation(operation, key, toolCallId,
+    operation.mode === "read" ? "turn-state-missing-or-expired" : "missing-or-stale-bound-approval", false);
+  try {
+    if (operation.tool_id === 'mail.dry-run' && runRetention.readStarted(key)) {
+      return stoppedOperation(operation, key, toolCallId, 'read-execution-not-current-or-already-started', false);
+    }
+    const response = await executeBoundOperation(toolName, toolContext, toolCallId, rawParams, signal, binding);
+    response.details.personalAssistantGeneration = binding.generation;
+    return response;
+  } finally {
+    runRetention.releaseInvocation(binding);
+  }
+}
+
+async function executeBoundOperation(toolName, toolContext, toolCallId, rawParams, signal, binding) {
   const operation = operationFromCall(toolName, rawParams);
   const args = rawParams?.arguments ?? {};
   // A tool factory can be created before OpenClaw resumes a call after native
@@ -253,7 +279,8 @@ async function executeOperation(toolName, toolContext, toolCallId, rawParams) {
     ? rawParams.__approval_run_id
     : "";
   const currentRun = approvalRunId || runKey(toolContext, toolCallId);
-  const retained = runRetention.has(currentRun);
+  if (signal?.aborted) return stoppedOperation(operation, currentRun, toolCallId, "tool-aborted");
+  const retained = runRetention.canAuthorize(currentRun);
   if (!retained && operation.mode === "read") {
     return stoppedOperation(operation, currentRun, toolCallId, "turn-state-missing-or-expired");
   }
@@ -381,7 +408,7 @@ async function executeOperation(toolName, toolContext, toolCallId, rawParams) {
       return stoppedOperation(operation, currentRun, toolCallId, "write-already-in-flight");
     }
     if (!ledger.check(approvalBinding)) return approvalFailure();
-    const block = !retained ? "turn-state-missing-or-expired"
+    const block = !runRetention.canAuthorize(currentRun) ? "turn-state-missing-or-expired"
       : actionWriteBlock(contract, obligationByRun.get(currentRun), operation, args);
     if (block) return stoppedOperation(operation, currentRun, toolCallId, block);
   }
@@ -420,22 +447,40 @@ async function executeOperation(toolName, toolContext, toolCallId, rawParams) {
   }
   // Capability discovery may have yielded to other runs. Never resurrect an
   // evicted/expired run or act after another call made its obligation terminal.
-  const executionBlock = !runRetention.has(currentRun) ? "turn-state-missing-or-expired"
+  const executionBlock = !(runRetention.invocationCurrent(binding) && runRetention.canAuthorize(currentRun))
+    ? "turn-state-missing-or-expired"
     : actionWriteBlock(contract, obligationByRun.get(currentRun), operation, args);
   if (executionBlock) return stoppedOperation(operation, currentRun, toolCallId, executionBlock);
   if (operation.mode !== "read" && writeInFlightByRun.has(currentRun)) {
     return stoppedOperation(operation, currentRun, toolCallId, "write-already-in-flight");
+  }
+  if (signal?.aborted) return stoppedOperation(operation, currentRun, toolCallId, "tool-aborted");
+  const executionLimits = { ...contract.limits, ...operation.execution_limits };
+  const retainedRead = operation.tool_id === "mail.dry-run" && operation.mode === "read";
+  if (retainedRead && !runRetention.retainRead(currentRun, toolCallId,
+      executionLimits.tool_timeout_seconds * 1000, executionLimits.finalization_grace_seconds * 1000)) {
+    return stoppedOperation(operation, currentRun, toolCallId, "read-execution-not-current-or-already-started", false);
   }
   if (operation.mode !== "read" && !ledger.consume(approvalBinding)) return approvalFailure();
   if (operation.mode !== "read") writeInFlightByRun.set(currentRun, approvalBinding.nonce);
   const toolStarted = Date.now();
   let result;
   try {
-    result = await spawnJson(invocation, contract.limits, { nativeAccess });
+    result = await spawnJson(invocation, executionLimits, { nativeAccess, signal: retainedRead ? signal : undefined });
   } finally {
+    if (retainedRead) runRetention.finishRead(currentRun, toolCallId);
     if (operation.mode !== "read" && writeInFlightByRun.get(currentRun) === approvalBinding.nonce) {
       writeInFlightByRun.delete(currentRun);
     }
+  }
+  if (!runRetention.invocationCurrent(binding)) {
+    // The command ran, but its originating context was evicted or expired.
+    // Discard its payload and never publish positive evidence into a new run.
+    const evidence = makeEvidence(operation,
+      { returncode: 77, error: "turn-state-missing-or-expired" }, null, currentRun, toolCallId);
+    return jsonToolResult({ evidence, result: null, diagnostic: {
+      category: "turn-state-missing-or-expired", retry_allowed: false, new_tool_call_required: true,
+    } }, { personalAssistantEvidence: evidence });
   }
   const toolElapsed = Math.max(0, Date.now() - toolStarted);
   metrics.tool_loop_total_ms += toolElapsed;
@@ -463,6 +508,9 @@ async function executeOperation(toolName, toolContext, toolCallId, rawParams) {
           stderr: String(result.stderr ?? "").slice(0, contract.limits.max_error_bytes),
         },
   };
+  if (operation.tool_id === 'mail.dry-run') {
+    response.response_instruction = `Antworte zum Dry-Run exakt: ${dryRunStatusAnswer(contract, [evidence])}`;
+  }
   if (operation.tool_id === "assistant.agent-tools.status" && payload && typeof payload === "object") {
     response.result = { ...payload, runtime_metrics: { ...metrics }, pending_approvals: ledger.size() };
   }
@@ -477,6 +525,7 @@ function buildRoutingContext(route, obligation, confirmation = null) {
     "Jeden nativen Aufruf mit operation und allen Pflichtfeldern unter arguments ausfuehren; arguments niemals leer lassen, wenn die Signatur Pflichtfelder nennt.",
     "Nach invalid-arguments genau einmal mit geaenderten vollstaendigen Argumenten korrigieren. Bei retry_allowed=false sofort stoppen und den Fehler berichten.",
     "Mail: letzte eingegangene Mails des gesamten Kontos mit mail.recent und leerem arguments-Objekt; INBOX kann nach automatischen Verschiebungen leer sein. mail.list nur fuer einen ausdruecklich genannten Einzelordner mit arguments.folder; Suche mit mail.search und arguments.query; mail.read erst nach einem Treffer mit folder, message_id und expected_subject.",
+    `Mail-Dry-Run: Nutze mail.dry-run mit arguments: {}. Bei erfolgreichem vollstaendigem Nachweis antworte exakt: ${contract.mail_dry_run_status.success_answer} Bei Fehlern verwende die belegte response_instruction des Tools. Dieser Nachweis erlaubt keine Aussagen zu Mailinhalten oder Schreibaktionen.`,
     "Kalender: Fuer heutige Termine nextcloud.calendar.today mit leerem arguments-Objekt verwenden; damit werden alle ausgewaehlten Kalender in der konfigurierten Zeitzone samt Serienvorkommen geprueft. calendar.list oder eine Textsuche belegt keinen leeren Tag. Nur absence_proven=true mit vollstaendigem Tagesumfang erlaubt exakt die Antwort: Heute hast du keine Termine. Keine weiteren Aussagen an diesen Abwesenheitsbeleg anhaengen; sonst positive Teilbefunde und konkrete Einschraenkungen nennen.",
     "Bei Schreibwuenschen zuerst read-only identifizieren/vorschauen. Ein eindeutiger aktueller Nutzerauftrag kann eine begrenzte Routineaktion bereits freigeben; sensible Aenderungen behalten ihren nativen Einmal-Dialog.",
     "Freigaben: Die Schaltflaeche ist der normale Dialogweg; eine sichtbare ID ist nur technischer Fallback. Ein einfaches Ja gilt nur fuer genau eine intern gespeicherte, unveraenderte und noch gueltige Aktion. Bei missing-or-stale-bound-approval wurde nichts ausgefuehrt: nicht automatisch wiederholen und keinen alten Befehl empfehlen.",
@@ -542,8 +591,8 @@ export default definePluginEntry({
           label: group.name.replaceAll("_", " "),
           description: group.description,
           parameters: group.parameters,
-          execute: async (toolCallId, rawParams) =>
-            await executeOperation(group.name, toolContext, toolCallId, rawParams),
+          execute: async (toolCallId, rawParams, signal) =>
+            await executeOperation(group.name, toolContext, toolCallId, rawParams, signal),
         }),
         // OpenClaw cannot infer a factory-backed tool's name during discovery.
         // Without this static registration metadata the plugin loads, but the
@@ -557,6 +606,10 @@ export default definePluginEntry({
       const key = String(event.runId || runKey(ctx));
       const session = conversationKey(ctx, event);
       const prompt = String(event.prompt ?? "");
+      if (runRetention.has(key) && (promptByRun.get(key) !== prompt || sessionByRun.get(key) !== session)) {
+        runRetention.retire(key);
+        return { prependContext: "turn-state-missing-or-expired; neue Anweisung benoetigt eine neue Run-ID" };
+      }
       if (runRetention.has(key) && promptByRun.get(key) === prompt && sessionByRun.get(key) === session) {
         const retainedRoute = routeByRun.get(key);
         const prior = confirmationByRun.get(key);
@@ -569,7 +622,7 @@ export default definePluginEntry({
           ? { prependContext: buildRoutingContext(retainedRoute, obligationByRun.get(key), confirmationByRun.get(key)) }
           : undefined;
       }
-      runRetention.start(key);
+      if (!runRetention.start(key)) return { prependContext: "turn-state-missing-or-expired" };
       requesterByRun.set(key, { sender: sdkSender(ctx), shared: sharedSession(ctx, session) });
       // Do not truncate into an apparently explicit authorization. An oversized
       // prompt can be retried by the user with one bounded, complete instruction.
@@ -636,7 +689,8 @@ export default definePluginEntry({
       const group = groupByName.get(event.toolName);
       if (!group) return undefined;
       const approvalRunId = String(event.runId || runKey(ctx, event.toolCallId));
-      if (!runRetention.has(approvalRunId)) return { block: true, blockReason: "turn-state-missing-or-expired" };
+      if (!runRetention.canAuthorize(approvalRunId)) return { block: true, blockReason: "turn-state-missing-or-expired" };
+      const generation = runRetention.generation(approvalRunId);
       let operation;
       try {
         operation = operationFromCall(event.toolName, event.params);
@@ -668,8 +722,10 @@ export default definePluginEntry({
         if (obligation && !obligation.terminal_state && obligation.tool_calls >= contract.action_completion.limits.max_tool_calls) {
           return { block: true, blockReason: "tool-call-limit" };
         }
-        return { params: { ...withoutApprovalBinding(event.params), __approval_run_id: approvalRunId } };
+        return { params: { ...withoutApprovalBinding(event.params), __approval_run_id: approvalRunId,
+          __run_generation: generation } };
       }
+      if (!runRetention.canAuthorize(approvalRunId)) return { block: true, blockReason: "turn-state-missing-or-expired" };
       const args = event.params?.arguments ?? {};
       let nativeAccess;
       let sender;
@@ -688,7 +744,9 @@ export default definePluginEntry({
         } catch {
           return { block: true, blockReason: "policy-integrity-error" };
         }
-        if (!runRetention.has(approvalRunId)) return { block: true, blockReason: "turn-state-missing-or-expired" };
+        if (!runRetention.canAuthorize(approvalRunId) || runRetention.generation(approvalRunId) !== generation) {
+          return { block: true, blockReason: "turn-state-missing-or-expired" };
+        }
       }
       const accessDigest = nativeAccess ? stableDigest(nativeAccess) : null;
       const actionBlock = promptByRun.get(approvalRunId) === null ? "prompt-retention-limit"
@@ -732,6 +790,7 @@ export default definePluginEntry({
         ...withoutApprovalBinding(event.params),
         __approval_nonce: nonce,
         __approval_run_id: approvalRunId,
+        __run_generation: generation,
       };
       if (decision.authorized) {
         if (decision.source === "single-pending-confirmation" && confirmation) {
@@ -788,8 +847,11 @@ export default definePluginEntry({
       if (!groupByName.has(event.toolName)) return undefined;
       const evidence = event.result?.details?.personalAssistantEvidence;
       if (!evidence) return undefined;
+      if (event.result.details.personalAssistantEvidenceAdmissible === false) return undefined;
       const key = String(event.runId || runKey(ctx, event.toolCallId));
       if (String(evidence.turn_id ?? "") !== key) return undefined;
+      if (!event.result?.details?.personalAssistantGeneration ||
+          event.result.details.personalAssistantGeneration !== runRetention.generation(key)) return undefined;
       rememberEvidence(key, evidence);
       return undefined;
     });
@@ -800,6 +862,8 @@ export default definePluginEntry({
       if (!runRetention.has(key)) return undefined; // Delivery guard fails closed below.
       const route = routeByRun.get(key);
       if (!route?.resolved) return undefined;
+      if (route.routes.length === 1 && route.routes[0].id === 'mail-dry-run' &&
+          dryRunStatusAnswer(contract, evidenceByRun.get(key) ?? [])) return undefined;
       const evidenceVerdict = guardAnswer(contract, route, event.lastAssistantMessage, evidenceByRun.get(key) ?? []);
       const actionVerdict = guardActionCompletion(
         contract,
@@ -859,6 +923,12 @@ export default definePluginEntry({
       }
       const route = routeByRun.get(key);
       if (!route?.resolved || typeof event.payload?.text !== "string") return undefined;
+      if (route.routes.length === 1 && route.routes[0].id === 'mail-dry-run') {
+        const text = dryRunStatusAnswer(contract, evidenceByRun.get(key) ?? []);
+        if (text && text !== event.payload.text) {
+          return { payload: { ...event.payload, text }, reason: 'personal-assistant-dry-run-status' };
+        }
+      }
       const evidenceVerdict = guardAnswer(contract, route, event.payload.text, evidenceByRun.get(key) ?? []);
       let obligation = obligationByRun.get(key);
       const actionVerdict = guardActionCompletion(contract, obligation, event.payload.text);
