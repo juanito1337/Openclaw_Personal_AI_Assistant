@@ -114,10 +114,15 @@ await hooks.get("before_prompt_build")(
   {prompt:"Sende den bereits vollstaendig angezeigten Mailentwurf jetzt.", messages:[]},
   {runId:staleRun, sessionId:`session-${staleRun}`},
 );
-const staleResult = await nativeTool("personal_assistant_mail_write", staleRun).execute(
-  `${staleRun}-send`,
-  {operation:"mail.compose-send", arguments:{draft_id:"synthetic-draft"}},
+const staleCall = `${staleRun}-send`;
+const staleApproval = await hooks.get("before_tool_call")(
+  {toolName:"personal_assistant_mail_write",toolCallId:staleCall,
+    params:{operation:"mail.compose-send",arguments:{draft_id:"synthetic-draft"}}},
+  {runId:staleRun,sessionId:`session-${staleRun}`},
 );
+assert(staleApproval?.requireApproval && staleApproval.params, "mail send did not request native approval");
+staleApproval.requireApproval.onResolution("timeout");
+const staleResult = await nativeTool("personal_assistant_mail_write", staleRun).execute(staleCall, staleApproval.params);
 const stalePayload = JSON.parse(staleResult.content[0].text);
 assert(stalePayload.evidence?.error === "approval-required", "stale mail approval is untyped");
 assert(stalePayload.result?.external_write_attempted === false, "stale mail approval attempted a send");

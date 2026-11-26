@@ -99,7 +99,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-11-26T21:38:57+01:00",
+      "last_git_change": "2026-11-26T23:45:02+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -1495,7 +1495,7 @@
         "docs/architecture/adr/0009-typisierte-domaenen-toolvertraege.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-11-23T08:53:56+01:00",
+      "last_git_change": "2026-11-26T23:45:02+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -4776,7 +4776,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-11-26T23:45:02+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -6700,8 +6700,8 @@
       "documentation_evidence": [
         "docs/superpowers/plans/2026-11-26-chat-mail-dry-run.md"
       ],
-      "line_coverage_percent": 84.34,
-      "last_git_change": "2026-11-23T08:53:56+01:00",
+      "line_coverage_percent": 85.46,
+      "last_git_change": "2026-11-26T23:45:02+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -7138,8 +7138,8 @@
         "docs/architecture/m16-baseline.json",
         "docs/superpowers/plans/2026-11-26-chat-mail-dry-run.md"
       ],
-      "line_coverage_percent": 49.32,
-      "last_git_change": "2026-11-22T09:21:55+01:00",
+      "line_coverage_percent": 50.68,
+      "last_git_change": "2026-11-26T23:45:02+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -7352,7 +7352,7 @@
         "docs/superpowers/plans/2026-11-26-chat-mail-dry-run.md"
       ],
       "line_coverage_percent": 100.0,
-      "last_git_change": "2026-10-07T21:25:53+02:00",
+      "last_git_change": "2026-11-26T23:45:02+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -10155,7 +10155,7 @@
         "docs/superpowers/plans/2026-11-26-chat-mail-dry-run.md"
       ],
       "line_coverage_percent": 100.0,
-      "last_git_change": "2026-10-07T21:25:53+02:00",
+      "last_git_change": "2026-11-26T23:45:02+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -11821,7 +11821,7 @@
         "docs/AGENT_TOOL_ORCHESTRATION_M13_ACCEPTANCE.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-11-23T08:53:56+01:00",
+      "last_git_change": "2026-11-26T23:45:02+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -12409,7 +12409,7 @@
         "skills/personal-assistant/references/commands.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-11-26T21:38:57+01:00",
+      "last_git_change": "2026-11-26T23:45:02+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -12490,7 +12490,7 @@
         "skills/personal-assistant/references/commands.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-11-26T21:38:57+01:00",
+      "last_git_change": "2026-11-26T23:45:02+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -12522,7 +12522,7 @@
         "skills/personal-assistant/references/runtime-security.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-11-23T08:53:56+01:00",
+      "last_git_change": "2026-11-26T23:45:02+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -13245,7 +13245,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-11-26T23:45:02+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -14795,7 +14795,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-11-26T23:45:02+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -15648,7 +15648,7 @@
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-21T01:06:58+02:00",
+      "last_git_change": "2026-11-26T23:45:02+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"

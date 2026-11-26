@@ -218,7 +218,7 @@ bd864419b42cf1774667121294d3707228cffff1590d498a814922179144c5ee  ./docs/archite
 755d0ad19c1948bb79295fe3e21ca280765ab7ca0d58e069111088c31ed3786f  ./docs/architecture/adr/README.md
 b99c97a76723cd2ece9e00dc9ece17aac47daaa672657252d63cdb234645fcd9  ./docs/architecture/clamd-operating-budget-m14.json
 d27b02d1ed286794ce453b80b4911bcbf476dfb08d005437510e5419f237203c  ./docs/architecture/compatibility-policy.json
-be7c4c13cce3d999f2b14f32eb78a05320c7831626ebc3bbaebe6196922aa81f  ./docs/architecture/component-inventory.json
+4e2517966a487c443f520c85a2a2f1b79c7eb14f767d38fcac0b2759cdb1db26  ./docs/architecture/component-inventory.json
 02924bbd2312bc68517d7a577e9461836aaa2d706381bc0994cfd81b7a6341ba  ./docs/architecture/external-components.json
 1f707ea0d3c63cf76a35d64fd62988a6f59c1c5e73fe7a09fe62fdb7901a919c  ./docs/architecture/image-baseline-m7.json
 b397cdaa70d5dbcd4bfd22ed503433570b67bb978059bd5916e8793d173807c3  ./docs/architecture/legacy-decisions.json
@@ -514,9 +514,9 @@ ff785228cfd3bbbcb79cbf08f16daced3e119352457bc81f01f1e1ccef7d9d6a  ./scripts/chec
 cbb83b2f1dc6001ed743b775dad292038d5f1b62a81bbd5530daef40125855a1  ./scripts/check-local-signature.sh
 0ab08629b852387ef6f1610a69f0f2b2beadd9e978162217a59eb83a0c4da646  ./scripts/check-m11-integration.sh
 401d9ad81f723fd42d7f19b0bfac6f5629676dc6d8a8bd1c6566bfcf89fa0742  ./scripts/check-m12-integration.sh
-7720af7e433380cfa13f87b4032297b8074a38931a5e32d97b9857206b43e1ac  ./scripts/check-m13-integration.sh
+afb8f16bb4a9e12e1ff5f58cd8f99aab51cb5224873322f00f255b987317d1c7  ./scripts/check-m13-integration.sh
 b9bf21cb78c40d5919a11e9a1db5de822e5da7116d46a12edc6a4b3c40756496  ./scripts/check-m14-integration.sh
-94a507ed570b848d19e066531dafc02390d21773d4515c8a60eb70a3330d4179  ./scripts/check-m15-integration.sh
+6d3d4abff5e3f5f4a5ef77428dc3dc62fab70beecf653d1a40535fd198c871e8  ./scripts/check-m15-integration.sh
 715ff950464d323cf05f4a0b7cac9d5fd4e116966eed818e14f56f75cadf3631  ./scripts/check-m8-integration.sh
 123e6644ccdc32dad0bcf72dc74fb5c9b70780366791445267115ce18b1ca3b0  ./scripts/check-mypy.py
 8b724caadef0dca76a941b6e08cbc88f9da1f6a5b3266c008e91c8ea724b26fa  ./scripts/check-nextcloud-setup-browser.py

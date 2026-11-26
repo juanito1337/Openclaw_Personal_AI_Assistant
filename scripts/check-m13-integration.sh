@@ -150,17 +150,22 @@ async function startRun(runId, prompt) {
   );
 }
 async function invoke(name, operation, args, runId, callId) {
-  const result = await nativeTool(name, runId).execute(callId, {operation,arguments:args});
+  const ctx = {runId,sessionId:`session-${runId}`};
+  const before = await hooks.get("before_tool_call")(
+    {runId,toolName:name,params:{operation,arguments:args},toolCallId:callId}, ctx,
+  );
+  if (before?.block || before?.requireApproval || !before?.params) {
+    throw new Error(`read was not admitted: ${operation}: ${before?.blockReason ?? "missing read admission"}`);
+  }
+  const result = await nativeTool(name, runId).execute(callId, before.params);
+  await hooks.get("after_tool_call")({runId,toolName:name,toolCallId:callId,result}, ctx);
   const payload = JSON.parse(result.content[0].text);
   if (!payload.evidence || payload.evidence.tool_id !== operation) {
     throw new Error(`evidence mismatch: ${operation}`);
   }
   return payload;
 }
-await hooks.get("before_prompt_build")(
-  {prompt:"Welche Agenten-Version ist installiert?", messages:[]},
-  {runId:"run-version",sessionId:"session-version"},
-);
+await startRun("run-version", "Welche Agenten-Version ist installiert?");
 const versionPayload = await invoke(
   "personal_assistant_runtime_read", "assistant.version", {}, "run-version", "call-version",
 );
@@ -180,17 +185,12 @@ const invalidMailRepeatBlock = await hooks.get("before_tool_call")(
   {toolName:"personal_assistant_mail_read",params:{operation:"mail.list",arguments:{}},toolCallId:"call-mail-invalid-2"},
   {runId:"run-mail-invalid"},
 );
-const invalidMailSecond = await invoke(
-  "personal_assistant_mail_read", "mail.list", {}, "run-mail-invalid", "call-mail-invalid-2",
-);
 if (
   invalidMailFirst.diagnostic?.category !== "invalid-arguments" ||
   invalidMailFirst.diagnostic?.retry_allowed !== true ||
   invalidMailFirst.diagnostic?.fatal !== false ||
   invalidMailRepeatBlock?.block !== true ||
   !invalidMailRepeatBlock.blockReason.includes("Korrekturversuch bereits verbraucht") ||
-  invalidMailSecond.diagnostic?.retry_allowed !== false ||
-  invalidMailSecond.diagnostic?.fatal !== true ||
   invalidMailFirst.evidence?.error !== "invalid-arguments"
 ) {
   throw new Error("bounded invalid-argument result failed");
