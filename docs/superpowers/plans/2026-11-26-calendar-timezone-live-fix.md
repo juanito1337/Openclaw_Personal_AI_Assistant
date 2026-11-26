@@ -42,7 +42,7 @@
 - [x] Add a synthetic regression reproducing that response/definition and independently expected local-day results; observe the failure against the old behavior.
 - [x] Make the smallest correction that passes the regression while preserving unknown/mismatch fail-closed cases.
 - [x] Verify recurrence, floating/all-day, 23/25-hour days, partial errors, exact scope and empty-day evidence. Update the existing reference/ADR where the accepted evidence changes.
-- [ ] Review independently and repeat the isolated live check until the real selected calendar returns a complete, untruncated day with no resource errors.
+- [x] Review independently and repeat the isolated live check until the real selected calendar returns a complete, untruncated day with no resource errors.
 
 ## 3. Publish and deploy
 
@@ -75,6 +75,14 @@ TZID series. A conservative day-nonoverlap proof is required before irrelevant
 historical objects can be excluded. The normal three-role pinned Docker build
 of `fd1447d` passed, including the repaired zstd package pin; no production
 container was activated.
+
+The independently reviewed candidate `d7f8f63` passed the isolated live read at
+`2026-11-26T14:53:07Z`: one event, `complete=true`,
+`results_may_be_truncated=false`, no resource errors, all selected resources and
+the exact 2026-11-26 day in Europe/Berlin. Receipt:
+`build/calendar-timezone-20261126/d7f8f63-live-today.json`. All 184 combined
+calendar, timezone, response-bound and managed-foreground tests passed before
+that immutable candidate was built. Production was not changed by this test.
 
 ## Correction invariants
 

@@ -262,7 +262,7 @@ c7b4fd00b51fb728c3e53c01b77fdd0ae0144832327fb5b81d17371e3105f85b  ./docs/superpo
 e965703e68e9be6379109eeb48a094616a650492ab874f18004539893c6d5bce  ./docs/superpowers/plans/2026-11-22-nextcloud-foundation.md
 0a5ff0ead2b27540fbbf30ed41aee1c847a23ffe4126a32783e267a9814c3c8b  ./docs/superpowers/plans/2026-11-23-calendar-day-evidence.md
 7a8d8a484e26c921a1c0c973100bff76e7b5586af58bbc2267a848518f3cb075  ./docs/superpowers/plans/2026-11-23-development-consolidation.md
-4725b6ea4e888b80ca45294f4d5b283f6afd26c3408a1291496692cdc3d9407b  ./docs/superpowers/plans/2026-11-26-calendar-timezone-live-fix.md
+3735acc2103ac48e67c17cc854cb5a5a8f5cdff01e606780577a52877d20b317  ./docs/superpowers/plans/2026-11-26-calendar-timezone-live-fix.md
 0dd7d2156dc926cde1c34107696bd09eb167ad1b458a4f0ff9440e1aab7a8fbe  ./legacy/systemd/README.md
 2e404c97d31ede8fc591cb6b3cfb0210fb63057022fce78edefb0a580030960c  ./legacy/systemd/manifest.json
 db90acae3567d65c532fde0a7045280ebd22cb73a5f28d9404f6e05e4ff322da  ./legacy/systemd/set-mail-agent-interval.sh
