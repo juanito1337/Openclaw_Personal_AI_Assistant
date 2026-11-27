@@ -157,16 +157,19 @@ class ClamdUnixClient:
                 "oversize",
                 f"ClamAV-Stream ist groesser als {self.max_stream_bytes} Byte",
             )
-        client = self._connect()
+        deadline = time.monotonic() + self.timeout_seconds
+        client = self._connect(deadline=deadline)
         try:
+            client.settimeout(self._remaining_timeout(deadline))
             self._send(client, b"zINSTREAM\0")
             view = memoryview(data)
             for offset in range(0, len(view), STREAM_CHUNK_BYTES):
                 chunk = bytes(view[offset : offset + STREAM_CHUNK_BYTES])
-                self._send(client, struct.pack("!I", len(chunk)))
-                self._send(client, chunk)
+                client.settimeout(self._remaining_timeout(deadline))
+                self._send(client, struct.pack("!I", len(chunk)) + chunk)
+            client.settimeout(self._remaining_timeout(deadline))
             self._send(client, struct.pack("!I", 0))
-            response = self._receive(client)
+            response = self._receive(client, deadline=deadline)
         finally:
             client.close()
 

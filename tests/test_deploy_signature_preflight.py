@@ -89,7 +89,7 @@ def _signature_environment(tmp_path: Path) -> tuple[dict[str, str], Path]:
         "'openclaw-agent_clamav-db openclaw-agent clamav-db'))\n"
         "    raise SystemExit(0)\n"
         "if args and args[0] == 'run':\n"
-        "    if 'personal_assistant.clamav_health' in args:\n"
+        "    if 'personal_assistant.clamav_vendor' in args:\n"
         "        raise SystemExit(int(os.environ.get('SIGNATURE_TEST_HEALTH_EXIT', '0')))\n"
         "    raise SystemExit(0)\n"
         "raise SystemExit(86)\n",
@@ -124,7 +124,7 @@ def test_signature_mode_uses_only_candidate_health_with_controlled_read_only_vol
     assert calls[0][-1] == "openclaw-agent_clamav-db"
     run = calls[1]
     assert run[0] == "run" and "--rm" in run and "--read-only" in run
-    assert run[run.index("--network") + 1] == "none"
+    assert run[run.index("--network") + 1] == "bridge"
     assert run[run.index("--user") + 1] == "100:101"
     assert run[run.index("--cap-drop") + 1] == "ALL"
     assert run[run.index("--security-opt") + 1] == "no-new-privileges:true"
@@ -133,13 +133,13 @@ def test_signature_mode_uses_only_candidate_health_with_controlled_read_only_vol
         "type=volume,src=openclaw-agent_clamav-db,dst=/var/lib/clamav,readonly,volume-nocopy"
     )
     assert "CLAMAV_DATABASE_DIR=/var/lib/clamav" in run
-    assert "CLAMAV_SIGNATURE_MAX_AGE_SECONDS=172800" in run
-    assert run[-5:] == [
+    assert run[-6:] == [
         "python3",
         "fixture.invalid/candidate:maintenance",
         "-P",
         "-m",
-        "personal_assistant.clamav_health",
+        "personal_assistant.clamav_vendor",
+        "--check",
     ]
     assert all(
         "freshclam" not in call and "personal_assistant.clamav_transport" not in call for call in calls
@@ -239,3 +239,185 @@ def test_explicit_compose_project_keeps_its_selected_signature_volume(tmp_path: 
     assert (
         "type=volume,src=selected-instance_clamav-db,dst=/var/lib/clamav,readonly,volume-nocopy" in calls[1]
     )
+
+
+@pytest.mark.parametrize("running", [True, False])
+def test_backup_failure_restores_actual_updater_state(tmp_path: Path, running: bool) -> None:
+    env, _, scripts = _deployment(tmp_path)
+    marker = Path(env["TALK_TEST_RUNNING"] + ".updater")
+    if running:
+        marker.touch()
+    result = _run(
+        [str(scripts / "deploy.sh"), "new:runtime", "new:proxy", "new:maintenance"], env
+    )
+    assert result.returncode == 19, result.stderr
+    assert marker.exists() is running
+    log = Path(env["TALK_TEST_DOCKER_LOG"]).read_text()
+    assert log.index("stop clamav-update") < log.index("stop setup-service")
+    assert (" start clamav-update" in log) is running
+
+
+def test_unverified_updater_stop_leaves_other_services_running(tmp_path: Path) -> None:
+    env, _, scripts = _deployment(tmp_path)
+    Path(env["TALK_TEST_RUNNING"] + ".updater").touch()
+    env["UPDATER_TEST_IGNORE_STOP"] = "true"
+    result = _run([str(scripts / "deploy.sh"), "new:runtime", "new:proxy", "new:maintenance"], env)
+    assert result.returncode != 0
+    log = Path(env["TALK_TEST_DOCKER_LOG"]).read_text()
+    assert "stop clamav-update" in log and "stop setup-service" not in log
+    assert "up -d --no-deps ollama-proxy" not in log
+    assert "ClamAV-Updater" in result.stderr
+
+
+def test_old_current_signatures_require_verified_recovery_before_stop(tmp_path: Path) -> None:
+    """Old health rejects the age; signed candidate vendor comparison accepts the same files."""
+    from personal_assistant.clamav_health import signature_age_seconds
+
+    age = signature_age_seconds("ClamAV 1.4.3/28194/Mon Jan  1 00:00:00 2024", now=1704412800)
+    assert age is not None and age > 172800
+    env, env_file, scripts = _deployment(tmp_path)
+    with env_file.open("a") as stream:
+        stream.write("OPENCLAW_CLAMD_IMAGE=fixture.invalid/old:maintenance\n")
+    env["TEST_LEGACY_AGE"] = str(age)
+    _stub(
+        scripts / "check-maintenance-runtime.sh",
+        'if [[ "$1" == fixture.invalid/old:* ]]; then (( TEST_LEGACY_AGE <= 172800 )); exit; fi\n'
+        'if [[ "${2:-}" == --signatures ]]; then echo "vendor-equal" >> "$TALK_TEST_DOCKER_LOG"; fi\n'
+        'if [[ "${2:-}" == --recovery ]]; then exit 27; fi\n',
+    )
+    result = _run([str(scripts / "deploy.sh"), "new:runtime", "new:proxy", "new:maintenance"], env)
+    log = Path(env["TALK_TEST_DOCKER_LOG"]).read_text()
+    assert "vendor-equal" in log
+    assert result.returncode != 0 and " stop " not in log
+    assert not Path(env["TALK_TEST_PREVIOUS"]).exists()
+
+
+@pytest.mark.parametrize("failure", ["", "scanner", "signature-bootstrap"])
+def test_recovery_exercises_only_private_writable_database(tmp_path, monkeypatch, failure):
+    import runpy
+
+    tools = runpy.run_path(str(CHECKER.with_name("check-clamav-recovery.py")))
+    check = tools["check"]
+    logs = []
+    volume = "a" * 64
+    scanner = "b" * 64
+    image = "r.invalid/recovery@sha256:" + "3" * 64
+
+    def docker(*args, **kwargs):
+        logs.append(args)
+        if args[:2] == ("volume", "create"):
+            return volume
+        if args[:2] == ("run", "-d"):
+            return scanner
+        if args[0] == "inspect":
+            return "false" if failure == "scanner" else "true"
+        if args[0] == "ps":
+            return scanner if failure != "signature-bootstrap" else ""
+        if "--once" in args and failure == "signature-bootstrap":
+            raise RuntimeError("fake-bootstrap")
+        return ""
+
+    monkeypatch.setitem(check.__globals__, "docker", docker)
+    if failure:
+        with pytest.raises(RuntimeError, match="recovery-(scanner-readiness|signature-bootstrap)-failed"):
+            check(image, "live")
+    else:
+        check(image, "live")
+    for args in logs:
+        if args[0] == "run":
+            assert image in args and "--read-only" in args
+            for item in args:
+                if "src=live," in item:
+                    assert ",readonly,volume-nocopy" in item
+                    assert args[args.index("--network") + 1] == "none"
+            if "--once" in args:
+                assert args[args.index("--network") + 1] == "bridge" and "src=live," not in str(args)
+    assert logs[-1] == ("volume", "rm", volume)
+    if failure != "signature-bootstrap":
+        assert ("rm", "-f", scanner) in logs
+
+
+def test_verified_backup_keeps_observed_images_and_distinct_recovery_image(tmp_path):
+    from test_nextcloud_setup_container import _initialize_policy_fixture
+    from test_talk_proxy_lifecycle import _environment
+
+    env, _, root = _environment(tmp_path)
+    _initialize_policy_fixture(root)
+    candidate = "fixture.invalid/new-maintenance@sha256:" + "a" * 64
+    env.update(
+        PREVIOUS_MAINTENANCE_IMAGE="fixture.invalid/old:maintenance",
+        PREVIOUS_CLAMD_IMAGE="fixture.invalid/old:scanner",
+        TARGET_MAINTENANCE_IMAGE=candidate, TARGET_CLAMD_IMAGE=candidate,
+        CLAMAV_RECOVERY_IMAGE=candidate, CLAMAV_RECOVERY_REVISION="2" * 40,
+        OPENCLAW_EXPECTED_RELEASE="test-release",
+    )
+    result = _run([str(CHECKER.with_name("backup.sh")), "recovery"], env)
+    assert result.returncode == 0, result.stderr
+    backup = root / "backups/releases" / result.stdout.strip().splitlines()[-1]
+    manifest_file = backup / "manifest.json"
+    manifest = json.loads(manifest_file.read_text())
+    assert manifest["previous_maintenance_image"] == "fixture.invalid/old:maintenance"
+    assert manifest["previous_clamd_image"] == "fixture.invalid/old:scanner"
+    assert manifest["recovery_maintenance_image"] == manifest["recovery_clamd_image"] == candidate
+    assert manifest["recovery_maintenance_revision"] == "2" * 40
+    manifest["recovery_clamd_image"] = manifest["previous_clamd_image"]
+    manifest_file.write_text(json.dumps(manifest))
+    assert _run([str(CHECKER.with_name("verify-backup.sh")), str(backup)], env).returncode != 0
+
+
+@pytest.mark.parametrize("automatic,preflight,remaining", [
+    (False, 0, ""), (False, 33, ""), (True, 0, ""), (True, 33, ""), (True, 0, "running"),
+])
+def test_rollback_verifies_recovery_and_fences_failed_candidate(tmp_path, preflight, automatic, remaining):
+    from test_talk_proxy_lifecycle import _environment
+
+    env, env_file, root = _environment(tmp_path)
+    (root / "config/himalaya").mkdir()
+    env["HIMALAYA_CONFIG_DIR"] = str(root / "config/himalaya")
+    env["RECOVERY_TEST_RC"] = str(preflight)
+    env["TEST_REMAINING_STATE"] = remaining
+    scripts = env_file.parent / "scripts"
+    scripts.mkdir()
+    for name in ("rollback.sh", "common.sh"):
+        shutil.copy2(CHECKER.with_name(name), scripts / name)
+    for name in ("verify-backup.sh", "restore-local-state.sh", "backup.sh"):
+        _stub(scripts / name, "exit 0\n")
+    _stub(scripts / "verify-image-supply-chain.sh", 'echo "verified $*" >> "$TALK_TEST_DOCKER_LOG"\n')
+    _stub(scripts / "check-maintenance-runtime.sh",
+          'echo "smoke $*" >> "$TALK_TEST_DOCKER_LOG"\nexit "$RECOVERY_TEST_RC"\n')
+    image = "fixture.invalid/new-maintenance@sha256:" + "9" * 64
+    backup = root / "backups/releases/test-backup"
+    backup.mkdir()
+    (backup / "manifest.json").write_text(json.dumps({
+        "previous_runtime": "docker", "previous_image": "old-runtime", "previous_proxy_image": "old-proxy",
+        "previous_maintenance_image": "old-maintenance", "previous_clamd_image": "old-scanner",
+        "target_maintenance_image": image, "target_clamd_image": image, "recovery_maintenance_image": image,
+        "recovery_clamd_image": image, "recovery_maintenance_revision": "1" * 40,
+        "recovery_maintenance_release": "test-release", "recovery_clamav_policy": "vendor-v1",
+        "recovery_clamav_reason": "previous-image-build-age-policy", "previous_clamav_updater_running": False,
+    }))
+    args = [str(scripts / "rollback.sh"), "test-backup"]
+    if automatic:
+        args.append("--automatic")
+    result = _run(args, env)
+    log = Path(env["TALK_TEST_DOCKER_LOG"]).read_text()
+    if remaining:
+        assert result.returncode != 0
+        assert "down --remove-orphans" in log and "verified " not in log and "up -d" not in log
+        return
+    assert result.returncode == preflight, result.stderr
+    assert log.index(f"verified {image}") < log.index(f"smoke {image} --recovery")
+    if automatic:
+        offline = log.index("com.docker.compose.project=")
+        assert log.index("down --remove-orphans") < offline < log.index("verified ")
+    if preflight:
+        if not automatic:
+            assert "down --remove-orphans" not in log
+        assert "up -d" not in log
+    else:
+        if not automatic:
+            assert log.index(f"smoke {image} --recovery") < log.index("down --remove-orphans")
+        values = env_file.read_text()
+        assert "OPENCLAW_IMAGE=old-runtime" in values and "OPENCLAW_PROXY_IMAGE=old-proxy" in values
+        assert f"OPENCLAW_MAINTENANCE_IMAGE={image}" in values and f"OPENCLAW_CLAMD_IMAGE={image}" in values
+        assert "jobs status --target all --deep" in log

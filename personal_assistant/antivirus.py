@@ -13,7 +13,9 @@ from pathlib import Path
 from typing import Any
 
 from .clamav_health import database_identity, signature_age_seconds, signature_build_time
+from .clamav_vendor import PROOF_TTL_SECONDS, vendor_readiness
 from .clamd_client import ClamdClientError, ClamdUnixClient
+from .clamd_health import check_clamd
 from .config import WORKSPACE_ROOT
 from .tool_settings import AntivirusToolSettings
 
@@ -173,7 +175,7 @@ class HostAntivirus:
         self.settings = settings
         self.store = AntivirusStore(database or _default_antivirus_database())
         self._runner = runner
-        self._identity: str | None = None
+        self.database_dir = Path(os.environ.get("CLAMAV_DATABASE_DIR", "/var/lib/clamav"))
         self._identity_transport = ""
 
     def close(self) -> None:
@@ -191,7 +193,7 @@ class HostAntivirus:
                 ],
                 capture_output=True,
                 text=True,
-                timeout=8,
+                timeout=CLAMD_DIAGNOSTIC_TIMEOUT_SECONDS,
                 check=False,
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
@@ -210,7 +212,7 @@ class HostAntivirus:
         args: list[str],
         *,
         input_bytes: bytes | None = None,
-        timeout: int | None = None,
+        timeout: float | None = None,
     ) -> subprocess.CompletedProcess[bytes]:
         if self._runner is not None:
             return self._runner(args, input_bytes=input_bytes, timeout=timeout)
@@ -224,26 +226,40 @@ class HostAntivirus:
         )
 
     def scanner_identity(self, *, refresh: bool = False) -> str:
-        if self._identity and not refresh:
-            return self._identity
-        daemon = self._daemon_status()
-        if daemon["ready"]:
-            if daemon.get("version"):
-                self._identity = f"clamd:{daemon['version']}"
-            else:
-                self._identity = self._binary_identity(self.settings.binary)
-            self._identity_transport = str(daemon.get("transport") or "clamdscan-systemd")
-            return self._identity
-        fallback = self.settings.fallback_binary if self.settings.allow_standalone_fallback else ""
-        self._identity = self._binary_identity(fallback)
-        self._identity_transport = "standalone" if self._identity != "clamav:unavailable" else "unavailable"
-        return self._identity
+        return self._identity_from_status(self._daemon_status())
 
-    def _binary_identity(self, binary: str, *, timeout: int = 15) -> str:
+    def _identity_from_status(self, daemon: dict) -> str:
+        evidence = daemon.get("currentness", {})
+        if evidence.get("ok"):
+            self._identity_transport = "daemon-stream"
+            return f"clamd:{daemon['version']}:{evidence['generation']}:{evidence['instance']}"
+        return self._standalone_identity()
+
+    def _standalone_identity(self) -> str:
+        if self.settings.allow_standalone_fallback:
+            disk = vendor_readiness(self.database_dir)
+            if disk["ok"]:
+                binary = self._binary_identity(
+                    self.settings.fallback_binary, database_dir=self.database_dir,
+                    timeout=CLAMD_DIAGNOSTIC_TIMEOUT_SECONDS,
+                )
+                version = binary.partition(":")[2]
+                if self._version_fields(version)["signature_version"] == str(disk["versions"]["daily"]):
+                    self._identity_transport = "standalone"
+                    return f"{binary}:{disk['generation']}"
+        self._identity_transport = "unavailable"
+        return "clamav:unavailable"
+
+    def _binary_identity(
+        self, binary: str, *, timeout: float = 5, database_dir: Path | None = None,
+    ) -> str:
         if not binary:
             return "clamav:unavailable"
         try:
-            result = self._run([binary, "--version"], timeout=timeout)
+            command = [binary]
+            if database_dir is not None:
+                command.append(f"--database={database_dir}")
+            result = self._run([*command, "--version"], timeout=timeout)
             output = (result.stdout + b"\n" + result.stderr).decode(
                 "utf-8", errors="replace"
             ).strip()
@@ -281,21 +297,22 @@ class HostAntivirus:
             timeout_seconds=min(CLAMD_DIAGNOSTIC_TIMEOUT_SECONDS, self.settings.timeout_seconds)
         )
         if client is None:
+            deadline = time.monotonic() + CLAMD_DIAGNOSTIC_TIMEOUT_SECONDS
             unit = self._systemd_unit(self.settings.daemon_service)
             ready = unit.get("ActiveState") == "active"
             identity = (
-                self._binary_identity(self.settings.binary, timeout=CLAMD_DIAGNOSTIC_TIMEOUT_SECONDS)
-                if ready else ""
+                self._binary_identity(self.settings.binary, timeout=deadline - time.monotonic())
+                if ready and time.monotonic() < deadline else ""
             )
             version = identity.split(":", 1)[1] if ":" in identity else ""
             fields = self._version_fields(version)
             fields["signature_timestamp"] = ""
             age = None
-            if signature_build_time(version) is not None:
+            if signature_build_time(version) is not None and time.monotonic() < deadline:
                 # A legacy clamd renders VERSION in its own (unknown) timezone.
                 # The same daily database number binds its build to a known UTC timestamp.
                 try:
-                    disk = database_identity(timeout=CLAMD_DIAGNOSTIC_TIMEOUT_SECONDS, run=subprocess.run)
+                    disk = database_identity(timeout=deadline - time.monotonic(), run=subprocess.run)
                 except (OSError, subprocess.SubprocessError):
                     disk = ""
                 disk_fields = self._version_fields(disk)
@@ -305,6 +322,8 @@ class HostAntivirus:
                         fields["signature_timestamp"] = disk_fields["signature_timestamp"]
             return {
                 **unit,
+                "currentness": {"ok": False, "reasons": ["legacy-resident-unverified"],
+                                "vendor": vendor_readiness(self.database_dir)},
                 "ready": ready,
                 "transport": "clamdscan-systemd" if ready else "",
                 "socket": "",
@@ -315,8 +334,10 @@ class HostAntivirus:
                 **fields,
             }
         try:
-            client.ping()
-            version = client.version()
+            report = check_clamd(client.socket_path, database_dir=self.database_dir,
+                                 timeout_seconds=client.timeout_seconds,
+                                 max_stream_bytes=client.max_stream_bytes)
+            version = str(report["version"])
         except (ClamdClientError, OSError, ValueError) as exc:
             return {
                 "available": False,
@@ -328,11 +349,14 @@ class HostAntivirus:
                 "signature_age_source": "",
                 "error_category": getattr(exc, "category", "daemon-unavailable"),
                 "error": str(exc),
+                "currentness": {"ok": False, "reasons": ["resident-unverified"],
+                                "vendor": vendor_readiness(self.database_dir)},
                 **self._version_fields(""),
             }
         age = signature_age_seconds(version)
         return {
             "available": True,
+            "currentness": report["currentness"],
             "ready": True,
             "transport": "daemon-stream",
             "socket": str(client.socket_path),
@@ -344,21 +368,18 @@ class HostAntivirus:
         }
 
     def index_readiness(self) -> dict[str, Any]:
-        daemon = self._daemon_status()
+        return self._index_evidence(self._daemon_status())
+
+    def _index_evidence(self, daemon: dict) -> dict[str, Any]:
         age = daemon.get("signature_age_seconds")
-        signatures_fresh = bool(
-            daemon.get("ready")
-            and age is not None
-            and int(age) <= self.settings.signature_max_age_seconds
-        )
-        daemon_required = bool(self.settings.require_daemon_for_index)
+        evidence = daemon.get("currentness", {})
+        signatures_fresh = bool(daemon.get("ready") and evidence.get("ok"))
         ready = bool(
             self.settings.enabled
             and self.settings.fail_closed
             and self.settings.scan_raw_mail
             and self.settings.scan_attachments
-            and (not daemon_required or daemon.get("ready"))
-            and (not daemon_required or signatures_fresh)
+            and signatures_fresh
         )
         reasons: list[str] = []
         if not self.settings.enabled:
@@ -369,19 +390,21 @@ class HostAntivirus:
             reasons.append("raw-mail-scan-disabled")
         if not self.settings.scan_attachments:
             reasons.append("attachment-scan-disabled")
-        if daemon_required and not daemon.get("ready"):
+        if not daemon.get("ready"):
             reasons.append("clamd-not-ready")
-        elif daemon_required and not signatures_fresh:
-            reasons.append("clamd-signatures-not-fresh")
+        elif not signatures_fresh:
+            reasons.extend(evidence.get("reasons") or ["clamd-signatures-unverified"])
         return {
             "ok": ready,
             "index_ready": ready,
-            "daemon_required": daemon_required,
+            "daemon_required": True,
             "daemon_ready": bool(daemon.get("ready")),
             "signatures_fresh": signatures_fresh,
+            "currentness": evidence,
             "signature_age_seconds": age,
             "signature_age_source": daemon.get("signature_age_source") or "",
-            "signature_max_age_seconds": self.settings.signature_max_age_seconds,
+            "signature_policy": "vendor-currentness",
+            "vendor_proof_ttl_seconds": PROOF_TTL_SECONDS,
             "transport": daemon.get("transport") or "",
             "engine_version": daemon.get("engine_version") or "",
             "signature_version": daemon.get("signature_version") or "",
@@ -392,7 +415,7 @@ class HostAntivirus:
 
     def doctor(self, *, live_scan: bool = True) -> dict[str, Any]:
         daemon = self._daemon_status()
-        identity = self.scanner_identity(refresh=True)
+        identity = self._identity_from_status(daemon)
         freshclam = self._systemd_unit(self.settings.freshclam_service)
         binary = shutil.which(self.settings.binary)
         fallback = (
@@ -415,13 +438,14 @@ class HostAntivirus:
             "daemon_ready": bool(daemon.get("ready")),
             "transport": daemon.get("transport") or self._identity_transport,
             "signature_age_seconds": daemon.get("signature_age_seconds"),
-            "signature_max_age_seconds": self.settings.signature_max_age_seconds,
-            "index_readiness": self.index_readiness(),
+            "signature_policy": "vendor-currentness",
+            "vendor_proof_ttl_seconds": PROOF_TTL_SECONDS,
+            "index_readiness": self._index_evidence(daemon),
         }
         if not self.settings.enabled:
             result.update({"ok": True, "detail": "Virenscanner ist deaktiviert"})
             return result
-        if not binary and not fallback:
+        if not daemon.get("currentness", {}).get("ok") and not binary and not fallback:
             result["detail"] = "Weder clamdscan noch clamscan ist installiert"
             return result
         daemon_ok = bool(daemon.get("ready"))
@@ -441,7 +465,7 @@ class HostAntivirus:
             result["fallback_used"] = scan.fallback_used
             result["detail"] = "Scan erfolgreich" if scan.clean else scan.detail or scan.status
         else:
-            result["ok"] = bool(binary and daemon_ok) or bool(fallback)
+            result["ok"] = identity != "clamav:unavailable"
             result["detail"] = "Scanner verfuegbar" if result["ok"] else "Scanner nicht verfuegbar"
             result["scanner_works"] = result["ok"]
         return result
@@ -492,115 +516,52 @@ class HostAntivirus:
         return ""
 
     def _invoke_standalone(self, path: Path) -> tuple[str, str, str, float, str]:
-        attempts: list[tuple[str, list[str]]] = []
-        if shutil.which(self.settings.binary):
-            attempts.append(
-                (
-                    "clamdscan-fdpass",
-                    [self.settings.binary, "--fdpass", "--no-summary", "--stdout", str(path)],
-                )
-            )
-            attempts.append(
-                (
-                    "clamdscan-stream",
-                    [self.settings.binary, "--stream", "--no-summary", "--stdout", str(path)],
-                )
-            )
-        if self.settings.allow_standalone_fallback and shutil.which(self.settings.fallback_binary):
-            attempts.append(
-                (
-                    "clamscan",
-                    [self.settings.fallback_binary, "--no-summary", "--stdout", str(path)],
-                )
-            )
-        if not attempts:
+        binary = self.settings.fallback_binary
+        if not self.settings.allow_standalone_fallback or not shutil.which(binary):
             return "error", "", "Kein ClamAV-Scanner installiert", 0.0, "unavailable"
-
-        errors: list[str] = []
-        for backend, command in attempts:
-            started = time.monotonic()
-            try:
-                result = self._run(command, timeout=self.settings.timeout_seconds)
-            except subprocess.TimeoutExpired:
-                errors.append(f"{backend}: Timeout")
-                continue
-            except OSError as exc:
-                errors.append(f"{backend}: {exc}")
-                continue
-            duration = (time.monotonic() - started) * 1000.0
-            output = (
-                (result.stdout + b"\n" + result.stderr)
-                .decode("utf-8", errors="replace")
-                .strip()
-                .replace(str(path), "<scan-object>")
-            )
-            if result.returncode == 0:
-                return "clean", "", output[-2000:], duration, backend
-            if result.returncode == 1:
-                return "infected", self._parse_signature(output), output[-2000:], duration, backend
-            errors.append(f"{backend}: rc={result.returncode}: {output[-1000:]}")
-        return "error", "", " | ".join(errors)[-4000:], 0.0, "standalone"
+        command = [binary, f"--database={self.database_dir}", "--no-summary", "--stdout", str(path)]
+        started = time.monotonic()
+        try:
+            result = self._run(command, timeout=self.settings.timeout_seconds)
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            return "error", "", f"clamscan: {type(exc).__name__}", 0.0, "clamscan"
+        duration = (time.monotonic() - started) * 1000.0
+        output = (result.stdout + b"\n" + result.stderr).decode("utf-8", errors="replace")
+        detail = output.strip().replace(str(path), "<scan-object>")[-2000:]
+        if result.returncode == 0:
+            return "clean", "", detail, duration, "clamscan"
+        if result.returncode == 1:
+            return "infected", self._parse_signature(output), detail, duration, "clamscan"
+        return "error", "", f"clamscan: rc={result.returncode}: {detail}", duration, "clamscan"
 
     def _invoke(
         self,
         data: bytes,
         path: Path,
+        identity: str,
     ) -> tuple[str, str, str, float, str, bool, str, str]:
         client = self._daemon_client()
-        daemon_error = ""
-        daemon_category = ""
-        if client is not None:
+        reason = "daemon-unverified"
+        if identity.startswith("clamd:") and client is not None:
             started = time.monotonic()
             try:
-                version_before = client.version()
                 response = client.scan(data)
-                version_after = client.version()
-                if version_after != version_before:
-                    raise ClamdClientError(
-                        "signature-changed-during-scan",
-                        "ClamAV-Identitaet wechselte waehrend des Scans",
-                    )
-                duration = (time.monotonic() - started) * 1000.0
-                return (
-                    response.status,
-                    response.signature,
-                    response.detail,
-                    duration,
-                    "daemon-stream",
-                    False,
-                    "",
-                    f"clamd:{version_after}",
-                )
+                return (response.status, response.signature, response.detail,
+                        (time.monotonic() - started) * 1000, "daemon-stream", False, "", identity)
             except (ClamdClientError, OSError, ValueError) as exc:
-                daemon_category = getattr(exc, "category", "daemon-unavailable")
-                daemon_error = str(exc)
-                if not self.settings.allow_standalone_fallback:
-                    return (
-                        "error", "", daemon_error, 0.0, "daemon-stream", False,
-                        daemon_category, self.scanner_identity(refresh=True),
-                    )
+                reason = getattr(exc, "category", "daemon-unavailable")
+                fallback_identity = self._standalone_identity()
+                # A scan interrupted by a generation change cannot switch to a
+                # newly downloaded database and claim the original scan succeeded.
+                if fallback_identity == "clamav:unavailable" or (
+                    fallback_identity.rsplit(":", 1)[-1] != identity.rsplit(":", 2)[-2]
+                ):
+                    return "error", "", str(exc), 0.0, "daemon-stream", False, reason, identity
+                identity = fallback_identity
+        if identity == "clamav:unavailable":
+            return "error", "", "ClamAV-Signaturstand unbestaetigt", 0.0, "", False, "unverified", identity
         status, signature, detail, duration, transport = self._invoke_standalone(path)
-        if transport == "daemon-stream":
-            identity = self.scanner_identity(refresh=True)
-        elif transport.startswith("clamdscan"):
-            identity = self._binary_identity(self.settings.binary)
-        else:
-            identity = self._binary_identity(self.settings.fallback_binary)
-        self._identity = identity
-        self._identity_transport = transport
-        fallback_used = client is not None
-        if daemon_error:
-            detail = f"{daemon_category}: {daemon_error} | {detail}"[-4000:]
-        return (
-            status,
-            signature,
-            detail,
-            duration,
-            transport,
-            fallback_used,
-            daemon_category,
-            identity,
-        )
+        return status, signature, detail, duration, transport, True, reason, identity
 
     def scan_bytes(
         self,
@@ -636,9 +597,9 @@ class HostAntivirus:
             )
             self.store.put(result)
             return result
-        if use_cache:
+        if use_cache and identity != "clamav:unavailable":
             cached = self._cached(digest, identity, name=name, source_type=source_type, size=len(data))
-            if cached is not None:
+            if cached is not None and self.scanner_identity(refresh=True) == identity:
                 return cached
 
         temp_root = self.settings.temp_dir.expanduser().resolve()
@@ -658,7 +619,13 @@ class HostAntivirus:
                 fallback_used,
                 fallback_reason,
                 result_identity,
-            ) = self._invoke(data, path)
+            ) = self._invoke(data, path, identity)
+        if status in {"clean", "infected"}:
+            current = self._standalone_identity() if fallback_used else self.scanner_identity(refresh=True)
+            if current != result_identity:
+                status, signature = "error", ""
+                detail = "ClamAV-Signaturgeneration wechselte waehrend des Scans"
+                fallback_reason = "signature-changed-during-scan"
         result = AntivirusResult(
             status=status,
             sha256=digest,

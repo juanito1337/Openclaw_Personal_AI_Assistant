@@ -19,8 +19,10 @@
     "max_threads": 2,
     "max_queue": 16,
     "scan_timeout_seconds": 120,
-    "self_check_seconds": 600,
-    "signature_max_age_seconds": 172800
+    "self_check_seconds": 0,
+    "vendor_poll_seconds": 300,
+    "vendor_proof_ttl_seconds": 660,
+    "resident_heartbeat_ttl_seconds": 20
   },
   "acceptance": {
     "hermetic_real_daemon": true,

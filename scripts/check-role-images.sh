@@ -367,6 +367,9 @@ trap - EXIT
 docker run --rm --network none --entrypoint python3 "$maintenance" -P -c '
 import personal_assistant.clamav_health
 import personal_assistant.clamav_transport
+import personal_assistant.clamav_update
+import personal_assistant.clamav_vendor
+import personal_assistant.clamd_runner
 import personal_assistant.clamd_client
 import personal_assistant.clamd_health
 from pathlib import Path

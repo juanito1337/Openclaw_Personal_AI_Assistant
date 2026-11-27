@@ -435,61 +435,21 @@ raise SystemExit(86)
         with self.assertRaisesRegex(ValueError, "worker stopped"):
             evaluate("", {**base, "state": "stopped", "updated_at": current.isoformat()}, current=current)
 
-    def test_clamav_health_requires_complete_fresh_signatures_and_identity(self) -> None:
-        with tempfile.TemporaryDirectory() as folder:
-            database = Path(folder)
-            current = datetime(2026, 11, 27, 6, 26, 59, tzinfo=UTC).timestamp()
-            for name in ("main.cvd", "daily.cld", "bytecode.cvd"):
-                path = database / name
-                path.write_bytes(b"signature")
-                # Explicit timestamps make this test independent of wall time.
-                os.utime(path, (current - 60, current - 60))
-            completed = subprocess.CompletedProcess(
-                ["clamscan", "--version"], 0, "ClamAV 1.4.3/28194/Wed Nov 25 06:26:59 2026\n", ""
-            )
-            report = inspect_database(
-                database, max_age_seconds=172800, now=current, run=lambda *args, **kwargs: completed
-            )
-            self.assertTrue(report["ok"])
-            self.assertEqual(report["daily_age_seconds"], 172800)
-            with self.assertRaisesRegex(ValueError, "zu alt"):
-                inspect_database(
-                    database, max_age_seconds=172800, now=current + 1, run=lambda *a, **k: completed
-                )
-            (database / "main.cvd").unlink()
-            with self.assertRaisesRegex(ValueError, "Signatur fehlt"):
-                inspect_database(
-                    database,
-                    max_age_seconds=120,
-                    now=current,
-                    run=lambda *args, **kwargs: completed,
-                )
+    def test_clamav_health_accepts_old_database_with_current_vendor_proof(self) -> None:
+        current = datetime(2026, 11, 27, tzinfo=UTC).timestamp()
+        version = "ClamAV 1.4.3/28194/Mon May  1 00:00:00 2023"
+        with mock.patch("personal_assistant.clamav_health.vendor_readiness",
+                        return_value={"ok": True, "versions": {"daily": 28194}}):
+            run = mock.Mock(return_value=subprocess.CompletedProcess([], 0, version, ""))
+            report = inspect_database(Path("/fixtures"), max_age_seconds=1, now=current, run=run)
+        self.assertTrue(report["ok"])
+        self.assertGreater(report["daily_age_seconds"], 172800)
 
-    def test_clamav_health_rejects_old_database_and_unverifiable_scanner(self) -> None:
+    def test_clamav_health_missing_vendor_proof_fails(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
-            database = Path(folder)
-            current = 2_000_000_000.0
-            for name in ("main.cvd", "daily.cvd", "bytecode.cvd"):
-                path = database / name
-                path.write_bytes(b"signature")
-                os.utime(path, (current - 500, current - 500))
-            good = subprocess.CompletedProcess(
-                ["clamscan", "--version"], 0, "ClamAV 1.4/42/Wed Nov 25 06:26:59 2026\n", ""
-            )
-            with self.assertRaisesRegex(ValueError, "zu alt"):
-                inspect_database(database, max_age_seconds=120, now=current, run=lambda *args, **kwargs: good)
-            os.utime(database / "daily.cvd", (current, current))
-            bad = subprocess.CompletedProcess(["clamscan", "--version"], 0, "ClamAV 1.4\n", "")
-            with self.assertRaisesRegex(ValueError, "Scanneridentitaet"):
-                inspect_database(database, max_age_seconds=120, now=current, run=lambda *args, **kwargs: bad)
-            for identity in (
-                "ClamAV 1.4/42", "ClamAV 1.4/42/not-a-date", "ClamAV 1.4/42/Thu Jan 1 00:00:00 2099",
-            ):
-                with self.subTest(identity=identity), self.assertRaises(ValueError):
-                    invalid = subprocess.CompletedProcess([], 0, identity, "")
-                    inspect_database(
-                        database, max_age_seconds=120, now=current, run=mock.Mock(return_value=invalid)
-                    )
+            report = inspect_database(Path(folder), max_age_seconds=172800)
+        self.assertFalse(report["ok"])
+        self.assertTrue(report["reasons"])
 
     def test_clamav_transport_exercises_libcurl_https_and_fails_closed(self) -> None:
         class FakeFunction:

@@ -147,6 +147,7 @@ class AntivirusToolSettings:
     cache_hours: int = 24
     max_scan_bytes: int = 100_000_000
     timeout_seconds: int = 120
+    # Constructor compatibility only. Currentness is proven against vendor versions.
     signature_max_age_seconds: int = 172_800
     temp_dir: Path = DEFAULT_ANTIVIRUS_TEMP
 
@@ -422,16 +423,6 @@ def load_tool_settings(
         cache_hours=max(0, min(int(antivirus_data.get("cache_hours", 24)), 720)),
         max_scan_bytes=max(1024, min(int(antivirus_data.get("max_scan_bytes", 100_000_000)), 1_000_000_000)),
         timeout_seconds=max(5, min(int(antivirus_data.get("timeout_seconds", 120)), 1800)),
-        signature_max_age_seconds=max(
-            300,
-            min(
-                int(
-                    os.environ.get("CLAMAV_SIGNATURE_MAX_AGE_SECONDS")
-                    or antivirus_data.get("signature_max_age_seconds", 172_800)
-                ),
-                2_592_000,
-            ),
-        ),
         temp_dir=_runtime_path(
             "OPENCLAW_SECURITY_DATA_DIR",
             "tmp",

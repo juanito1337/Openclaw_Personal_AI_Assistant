@@ -172,17 +172,34 @@ through the private role-mounted Unix socket. Interpret `scanner_works`,
 `index_readiness` separately. A clean standalone `clamscan` fallback is not a
 healthy daemon and cannot authorize mail backfill, reconciliation or job start.
 
-Signature freshness is measured from the signature timestamp, never the local
-download/copy modification time. Docker updater health checks the available
-database identity; daemon health also checks the resident VERSION identity.
-The container daemon emits UTC. Legacy daemon wall time is not interpreted as
-UTC: its signature number must match a separately obtained UTC database identity.
-The diagnostic exposes `signature_age_source`; absent proof remains unready.
-An updater's successful "up-to-date" result means no newer version was offered,
-not that the available signatures satisfy the existing 48-hour age limit.
-Deployment checks candidate signature readiness read-only before stopping
-writers and retains the post-update check. A stale vendor release remains a
-visible prerequisite failure until fresh signatures become available.
+Signature readiness uses the latest official vendor versions of `main`, `daily`
+and `bytecode`, not a maximum signature-build age. The sole updater performs a
+DNS-only check of `current.cvd.clamav.net` every 300 seconds and starts FreshClam
+immediately when a newer version is observed. DNS visibility/cache and actual
+download/load time bound the reaction; this is not instantaneous push delivery.
+FreshClam remains responsible for downloads and CDN cooldown. Before first
+approval or after a database change, a bounded native `cl_cvdverify` additionally
+authenticates CVD archives or the signed CLD manifests and contained hashes.
+Periodic verification of unchanged hashes does not interrupt the scanner.
+
+An atomic vendor receipt must be at most 660 seconds old, refer to a plausible
+DNS record (at most 12 hours old, never future), and match all three installed
+database identities. A failed probe or known pending update cannot refresh an
+earlier success. DNS is the official version announcement, not a cryptographic
+proof that no newer release exists. Receipt checks are offline in ordinary roles.
+
+The netless scanner supervisor loads the published stable database generation
+and attests it against the actual child/socket instance. VERSION alone proves
+only the daily number. Main/bytecode changes therefore require a new loaded
+generation too. Cache and completed scans must keep the same attested identity.
+Signature build age and its UTC source remain diagnostic only. Missing legacy
+publisher/resident evidence is explicitly unverified, never an age-based fallback.
+
+Deployment compares candidate and vendor read-only before stopping domain
+writers; it does not require an existing receipt on the first migration.
+The previous updater is stopped and verified offline before the one-shot
+candidate update. Backup/rollback restores its observed state, and only one
+signature writer may run at any time.
 
 ## Monitoring and failure handling
 

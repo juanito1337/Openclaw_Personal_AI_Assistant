@@ -826,17 +826,17 @@ def test_index_status_doctor_cli_and_typed_catalog_are_consistent(
 
 
 @pytest.mark.parametrize(
-    ("daemon_ready", "age", "expected_ok", "reason"),
+    ("daemon_ready", "age", "currentness", "expected_ok", "reason"),
     [
-        (True, 172800, True, ""),
-        (True, 172801, False, "clamd-signatures-not-fresh"),
-        (True, None, False, "clamd-signatures-not-fresh"),
-        (False, None, False, "clamd-not-ready"),
+        (True, 999999, {"ok": True, "reasons": []}, True, ""),
+        (True, 100, {"ok": False, "reasons": ["vendor-updating"]}, False, "vendor-updating"),
+        (True, None, {"ok": False, "reasons": ["resident-unverified"]}, False, "resident-unverified"),
+        (False, None, {}, False, "clamd-not-ready"),
     ],
 )
 def test_index_doctor_distinguishes_current_scanner_from_valid_imported_index(
     storage: AssistantStorage, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
-    daemon_ready: bool, age: int | None, expected_ok: bool, reason: str,
+    daemon_ready: bool, age: int | None, currentness: dict, expected_ok: bool, reason: str,
 ) -> None:
     _publish(storage, [_record("doctor-readiness", subject="Synthetic", body="needle")])
     scanner = HostAntivirus(
@@ -844,6 +844,7 @@ def test_index_doctor_distinguishes_current_scanner_from_valid_imported_index(
     )
     monkeypatch.setattr(scanner, "_daemon_status", lambda: {
         "ready": daemon_ready, "signature_age_seconds": age,
+        "currentness": currentness,
         "transport": "daemon-stream", "engine_version": "1.4.3",
         "signature_version": "28194", "signature_timestamp": "Wed Nov 25 06:26:59 2026",
     })

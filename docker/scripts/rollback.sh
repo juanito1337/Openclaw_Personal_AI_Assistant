@@ -32,6 +32,10 @@ target_maintenance_image=$(read_manifest target_maintenance_image)
 previous_clamd_image=$(read_manifest previous_clamd_image)
 target_clamd_image=$(read_manifest target_clamd_image)
 previous_runtime=$(read_manifest previous_runtime)
+previous_updater_running=$(read_manifest previous_clamav_updater_running)
+# Older backup manifests predate updater-state capture and always restarted it.
+previous_updater_running=${previous_updater_running:-true}
+[[ "$previous_updater_running" == true || "$previous_updater_running" == false ]] || exit 2
 previous_talk_proxy_enabled=$(read_manifest previous_talk_proxy_enabled)
 previous_talk_proxy_enabled=${previous_talk_proxy_enabled:-false}
 validate_talk_proxy_flag "$previous_talk_proxy_enabled"
@@ -55,6 +59,20 @@ if [[ "$previous_runtime" == "docker" && -z "$previous_clamd_image" ]]; then
   rollback_maintenance_image=${target_maintenance_image:-${target_clamd_image:-$previous_maintenance_image}}
   rollback_clamd_image=${target_clamd_image:-$rollback_maintenance_image}
 fi
+recovery_image=$(read_manifest recovery_maintenance_image)
+if [[ -n "$recovery_image" ]]; then
+  recovery_revision=$(read_manifest recovery_maintenance_revision)
+  recovery_release=$(read_manifest recovery_maintenance_release)
+  [[ "$previous_runtime" == docker && "$recovery_image" == "$target_maintenance_image" &&
+     "$recovery_image" == "$(read_manifest recovery_clamd_image)" &&
+     "$(read_manifest recovery_clamav_policy)" == vendor-v1 &&
+     "$(read_manifest recovery_clamav_reason)" == previous-image-build-age-policy &&
+     "$recovery_revision" =~ ^[0-9a-f]{40}$ && -n "$recovery_release" ]] || {
+    echo "ClamAV-Recovery-Vertrag im Backup ist ungueltig." >&2; exit 2
+  }
+  rollback_maintenance_image=$recovery_image
+  rollback_clamd_image=$recovery_image
+fi
 restore_hook=${OPENCLAW_EXTERNAL_RESTORE_HOOK:-}
 
 if [[ "$previous_talk_proxy_enabled" == true ]]; then
@@ -63,10 +81,7 @@ if [[ "$previous_talk_proxy_enabled" == true ]]; then
     echo "Talk-Proxy kann nicht als Teil einer Legacy-Runtime restauriert werden." >&2
     exit 2
   }
-  # Check before stopping the candidate: pre-Caddy releases must not be started
-  # with a service entrypoint they do not contain.
-  docker pull "$previous_proxy_image" >/dev/null
-  verify_talk_proxy_image "$previous_proxy_image"
+
 fi
 
 # The executable contract is checked before stopping anything. The hook can
@@ -152,16 +167,44 @@ if [[ "$previous_runtime" == "legacy-systemd" ]] && ! legacy_home_ready; then
   }
 fi
 
-echo "Stoppe aktuellen Containerstand."
-compose --profile talk down --remove-orphans >/dev/null 2>&1 || true
-setup_service_is_offline || {
-  echo "Rollback abgebrochen: Setup-Service ist nicht sicher gestoppt; Verbindungsstore bleibt unveraendert." >&2
-  exit 1
+verify_recovery_images() {
+  if [[ -n "$recovery_image" ]]; then
+    OPENCLAW_EXPECTED_RELEASE="$recovery_release" "$SCRIPT_DIR/verify-image-supply-chain.sh" \
+      "$recovery_image" "$recovery_revision" maintenance
+    [[ "$(clamav_image_policy "$recovery_image")" == vendor-v1 ]] || exit 2
+    "$SCRIPT_DIR/check-maintenance-runtime.sh" "$recovery_image" --recovery
+  fi
+  if [[ "$previous_talk_proxy_enabled" == true ]]; then
+    docker pull "$previous_proxy_image" >/dev/null
+    verify_talk_proxy_image "$previous_proxy_image"
+  fi
 }
-talk_proxy_is_offline || {
-  echo "Rollback abgebrochen: Talk-Proxy ist nicht sicher gestoppt; CA-Zustand bleibt unveraendert." >&2
-  exit 1
+
+fence_candidate_stack() {
+  local project="${COMPOSE_PROJECT_NAME:-openclaw-agent}" states state
+  echo "Stoppe aktuellen Containerstand und verifiziere den Writer-Stillstand."
+  compose --profile tools --profile maintenance --profile talk down --remove-orphans >/dev/null 2>&1 || \
+    compose --profile tools --profile maintenance --profile talk stop
+  states=$(docker container ls --all --filter "label=com.docker.compose.project=$project" --format '{{.State}}')
+  while IFS= read -r state; do
+    case "$state" in
+      ''|created|exited|dead) ;;
+      *) echo "Rollback gesperrt: laufende oder ungeklaerte Container im Kandidatenprojekt." >&2; exit 1 ;;
+    esac
+  done <<< "$states"
+  if ! { [[ "$(clamav_updater_running_state)" == false ]] && setup_service_is_offline && talk_proxy_is_offline; }; then
+    echo "Rollback gesperrt: Kandidaten-Writer sind nicht nachweislich gestoppt." >&2; exit 1
+  fi
 }
+
+if [[ "$automatic" == --automatic ]]; then
+  # An already failed candidate cannot keep writing while remote verification runs.
+  fence_candidate_stack
+  verify_recovery_images
+else
+  verify_recovery_images
+  fence_candidate_stack
+fi
 
 # Preserve the failed state for later diagnosis. It is deliberately excluded
 # from normal retention deletion during this rollback operation.
@@ -235,7 +278,19 @@ else
   # Existing restored credentials remain unchanged.
   ensure_nextcloud_connection_directory
   start_setup_service_if_supported
-  compose --profile maintenance run --rm --entrypoint freshclam clamav-update --verbose || true
+  bootstrap_result=0
+  # Older signed images use the original FreshClam bootstrap.
+  compose --profile maintenance run --rm --no-deps --entrypoint sh clamav-update -ec '
+    if test -f /opt/openclaw-agent/personal_assistant/clamav_update.py; then
+      exec python3 -P -m personal_assistant.clamav_update --once
+    fi
+    python3 -P -m personal_assistant.clamav_health >/dev/null 2>&1 || exec freshclam --datadir=/var/lib/clamav
+  ' || bootstrap_result=$?
+  if [[ "$previous_updater_running" == true ]]; then
+    compose --profile maintenance up -d --no-deps clamav-update
+    [[ "$(clamav_updater_running_state)" == true ]] || exit 70
+  fi
+  (( bootstrap_result == 0 )) || exit "$bootstrap_result"
   compose up -d clamd
   wait_for_healthy clamd 300
   # clamd and its one-shot socket initializer are already healthy. Traversing
@@ -246,14 +301,23 @@ else
   if [[ "$previous_talk_proxy_enabled" == true ]]; then
     start_talk_proxy
   fi
-  compose --profile maintenance up -d clamav-update
+
   compose up -d --no-deps mail-worker sync-worker supervisor-worker portfolio-worker monitor-worker
   wait_for_healthy mail-worker 180
   wait_for_healthy sync-worker 180
   wait_for_healthy supervisor-worker 180
   wait_for_healthy portfolio-worker 180
   wait_for_healthy monitor-worker 180
-  echo "Rollback erfolgreich: $previous_image"
+  echo "Vorherige Anwendung und Worker gestartet: $previous_image"
+  if [[ -n "$recovery_image" ]]; then
+    echo "Verifizierte ClamAV-Recovery-Rolle: $recovery_image (vendor-v1)."
+    echo "Die vorherige Anwendung behaelt ihre 48-Stunden-Grenze; bei aelterer Daily bleibt der Index gesperrt."
+    echo "Separater Fachstatus des wiederhergestellten Anwendungsstands:"
+    if ! compose --profile tools run --rm --no-deps agent-cli \
+      /opt/openclaw-agent/scripts/assistant.sh jobs status --target all --deep; then
+      echo "Fachstatus meldet eine Stoerung oder konnte nicht vollstaendig verifiziert werden." >&2
+    fi
+  fi
 fi
 ln -sfn "$backup_id" "$OPENCLAW_BACKUP_DIR/latest"
 [[ "$automatic" == "--automatic" ]] || echo "Wiederhergestellt aus: $backup_id"

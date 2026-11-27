@@ -297,8 +297,8 @@ raise SystemExit(86)
         deploy = (root / "docker/scripts/deploy.sh").read_text(encoding="utf-8")
         clamav = compose.split("  clamav-update:\n", 1)[1].split("\nvolumes:\n", 1)[0]
         self.assertIn("personal_assistant.clamav_health", clamav)
-        self.assertIn('SIGNATURE_GROUPS = ("main", "daily", "bytecode")', verifier)
-        self.assertIn("max_age_seconds", verifier)
+        self.assertIn("vendor_readiness", verifier)
+        self.assertIn("clamav-update --once", deploy)
         self.assertIn("scanner_identity", verifier)
         self.assertNotIn("127.0.0.1:18789", clamav)
         self.assertIn("mem_limit: 2g", clamav)
@@ -572,10 +572,12 @@ raise SystemExit(86)
             "Rollback wurde vor dem Stoppen der aktuellen Container abgebrochen",
             rollback,
         )
-        self.assertLess(
-            rollback.index("restore_legacy_home_from_migration"),
-            rollback.index('echo "Stoppe aktuellen Containerstand."'),
+        preflight = rollback.index(
+            'if [[ "$previous_runtime" == "legacy-systemd" ]] && ! legacy_home_ready; then'
         )
+        recover_home = rollback.index("  restore_legacy_home_from_migration || {", preflight)
+        first_stop = rollback.index("\n  fence_candidate_stack\n")
+        self.assertLess(recover_home, first_stop)
 
     def test_live_migration_validates_and_stages_before_publishing_state(self) -> None:
         migration = (Path(__file__).resolve().parents[1] / "docker/scripts/migrate-live.sh").read_text(

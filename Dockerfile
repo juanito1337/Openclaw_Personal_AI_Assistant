@@ -294,6 +294,7 @@ LABEL org.opencontainers.image.title="OpenClaw ClamAV maintenance" \
       org.opencontainers.image.base.name="python:3.11-alpine3.22" \
       org.opencontainers.image.base.digest="sha256:a4fc589b32e824f3f02ed9d7e7be19518aa47e105b80416336af9f202275a489" \
       org.opencontainers.image.openclaw.role="maintenance" \
+      org.opencontainers.image.openclaw.clamav-policy="vendor-v1" \
       org.opencontainers.image.openclaw.layout-min="1" \
       org.opencontainers.image.openclaw.layout-max="3" \
       org.opencontainers.image.openclaw.layout-current="3"
@@ -306,8 +307,9 @@ RUN apk add --no-cache \
        tini=0.19.0-r3
 COPY VERSION RELEASE.json /opt/openclaw-agent/
 COPY personal_assistant/__init__.py personal_assistant/clamav_health.py \
-     personal_assistant/clamav_transport.py personal_assistant/clamd_client.py \
-     personal_assistant/clamd_health.py /opt/openclaw-agent/personal_assistant/
+     personal_assistant/clamav_transport.py personal_assistant/clamav_update.py \
+     personal_assistant/clamav_vendor.py personal_assistant/clamav_verify.py personal_assistant/clamd_client.py \
+     personal_assistant/clamd_health.py personal_assistant/clamd_runner.py /opt/openclaw-agent/personal_assistant/
 COPY docker/clamav-update.sh docker/clamd.sh docker/clamav-socket-init.sh \
      /opt/openclaw-agent/docker/
 COPY docker/supply-chain.lock.json /usr/share/openclaw/supply-chain.lock.json

@@ -252,6 +252,35 @@ restore_talk_proxy_configuration() {
   export OPENCLAW_TALK_PROXY_ENABLED="$enabled"
 }
 
+clamav_image_policy() {
+  local policy
+  policy=$(docker image inspect --format \
+    '{{index .Config.Labels "org.opencontainers.image.openclaw.clamav-policy"}}' "$1") || return 1
+  case "$policy" in
+    vendor-v1) echo vendor-v1 ;;
+    ''|'<no value>') echo legacy ;;
+    *) echo "Unbekannter ClamAV-Imagevertrag." >&2; return 1 ;;
+  esac
+}
+
+clamav_updater_running_state() {
+  local state
+  state=$(docker container ls --all --filter 'name=^/openclaw-clamav-update$' \
+    --format '{{.State}}') || return 1
+  case "$state" in
+    running|restarting) echo true ;;
+    ''|created|exited|dead) echo false ;;
+    *) echo "ClamAV-Updater-Zustand ist nicht eindeutig." >&2; return 1 ;;
+  esac
+}
+
+stop_clamav_updater() {
+  local state
+  compose --profile maintenance stop clamav-update || return 1
+  state=$(clamav_updater_running_state) || return 1
+  [[ "$state" == false ]]
+}
+
 talk_proxy_container_state() {
   local state
   # --all and the exact state avoid overlooking restart-policy activity or a

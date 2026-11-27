@@ -47,6 +47,10 @@ def _environment(tmp_path: Path) -> tuple[dict[str, str], Path, Path]:
         fake_bin / "docker",
         'printf "%s\\n" "$*" >> "$TALK_TEST_DOCKER_LOG"\n'
         'if [[ "$1 ${2:-}" == "container ls" ]]; then\n'
+        '  if [[ " $* " == *"label=com.docker.compose.project="* ]]; then\n'
+        '    echo "${TEST_REMAINING_STATE:-}"; exit 0; fi\n'
+        '  if [[ " $* " == *"openclaw-clamav-update"* ]]; then\n'
+        '    if [[ -f "$TALK_TEST_RUNNING.updater" ]]; then echo running; fi; exit 0; fi\n'
         '  if [[ " $* " == *"openclaw-setup-service"* ]]; then exit 0; fi\n'
         '  [[ "${TALK_TEST_DOCKER_FAILURE:-false}" != true ]] || exit 7\n'
         '  if [[ -n "${TALK_TEST_STATE:-}" ]]; then printf "%s\\n" "$TALK_TEST_STATE";\n'
@@ -54,11 +58,22 @@ def _environment(tmp_path: Path) -> tuple[dict[str, str], Path, Path]:
         'elif [[ "$1 ${2:-}" == "container inspect" ]]; then\n'
         '  if [[ " $* " == *"OPENCLAW_TALK_PROXY_IP"* ]]; then printf "192.168.2.30\\n";\n'
         '  elif [[ " $* " == *"OPENCLAW_TALK_NEXTCLOUD_IP"* ]]; then printf "192.168.2.4\\n"; fi\n'
+        'elif [[ " $* " == *"org.opencontainers.image.openclaw.clamav-policy"* ]]; then\n'
+        '  if [[ "${TEST_LEGACY_AGE:-}" && " $* " == *"fixture.invalid/old:"* ]]; then echo "";\n'
+        '  else echo vendor-v1; fi\n'
         'elif [[ " $* " == *"org.opencontainers.image.openclaw.nextcloud-access"* ]]; then echo 1\n'
         'elif [[ " $* " == *"org.opencontainers.image.openclaw.talk-proxy"* ]]; then\n'
         '  printf "%s\\n" "${TALK_TEST_IMAGE_SUPPORT:-1}"\n'
+        'elif [[ " $* " == *" --entrypoint sh clamav-update "* ]]; then\n'
+        '  exit "${UPDATER_TEST_BOOTSTRAP_EXIT:-0}"\n'
+        'elif [[ " $* " == *" stop clamav-update "* ]]; then\n'
+        '  if [[ "${UPDATER_TEST_IGNORE_STOP:-false}" != true ]]; then\n'
+        '    rm -f "$TALK_TEST_RUNNING.updater"; fi\n'
+        'elif [[ " $* " == *" start clamav-update "* ]]; then touch "$TALK_TEST_RUNNING.updater"\n'
+        'elif [[ " $* " == *" up -d --no-deps clamav-update "* ]]; then touch "$TALK_TEST_RUNNING.updater"\n'
         'elif [[ " $* " == *" stop talk-proxy "* || " $* " == *" down "* ]]; then\n'
         '  rm -f "$TALK_TEST_RUNNING"\n'
+        '  if [[ " $* " == *" down "* ]]; then rm -f "$TALK_TEST_RUNNING.updater"; fi\n'
         'elif [[ " $* " == *" up -d --no-deps talk-proxy "* ]]; then\n'
         '  [[ "${TALK_TEST_START_FAILURE:-false}" != true ]] || exit 7\n'
         '  touch "$TALK_TEST_RUNNING"\n'
@@ -299,9 +314,10 @@ def test_candidate_proxy_starts_only_after_backup_and_product_smoke(tmp_path: Pa
     assert commands.index("product-smoke") < commands.index("up -d --no-deps talk-proxy")
 
 
+@pytest.mark.parametrize("bootstrap_exit", [0, 17])
 @pytest.mark.parametrize("previous_enabled", [None, False, True])
 def test_rollback_restores_recorded_activation_and_old_manifest_defaults_off(
-    tmp_path: Path, previous_enabled: bool | None
+    tmp_path: Path, previous_enabled: bool | None, bootstrap_exit: int
 ) -> None:
     env, env_file, root = _environment(tmp_path)
     (root / "config/himalaya").mkdir()
@@ -326,10 +342,15 @@ def test_rollback_restores_recorded_activation_and_old_manifest_defaults_off(
     }
     if previous_enabled is not None:
         manifest["previous_talk_proxy_enabled"] = previous_enabled
+        manifest["previous_clamav_updater_running"] = previous_enabled
     (backup / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
     Path(env["TALK_TEST_RUNNING"]).touch()
+    env["UPDATER_TEST_BOOTSTRAP_EXIT"] = str(bootstrap_exit)
     result = _run([str(scripts / "rollback.sh"), "test-backup", "--automatic"], env)
-    assert result.returncode == 0, result.stderr
+    assert result.returncode == bootstrap_exit, result.stderr
+    assert Path(env["TALK_TEST_RUNNING"] + ".updater").exists() is (previous_enabled is not False)
+    if bootstrap_exit:
+        return
     expected = previous_enabled is True
     assert f"OPENCLAW_TALK_PROXY_ENABLED={str(expected).lower()}\n" in env_file.read_text()
     if expected:
@@ -337,6 +358,7 @@ def test_rollback_restores_recorded_activation_and_old_manifest_defaults_off(
         assert "OPENCLAW_TALK_NEXTCLOUD_IP=192.168.2.4\n" in env_file.read_text()
     commands = Path(env["TALK_TEST_DOCKER_LOG"]).read_text()
     assert "--profile talk down --remove-orphans" in commands
+    assert ("up -d --no-deps clamav-update" in commands) is (previous_enabled is not False)
     assert ("up -d --no-deps talk-proxy" in commands) is expected
 
 

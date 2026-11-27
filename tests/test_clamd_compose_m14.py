@@ -98,12 +98,13 @@ def test_index_runtime_receives_daemon_readiness_configuration() -> None:
     for name in ("gateway", "mail-worker", "agent-cli"):
         environment = services[name]["environment"]
         assert environment["OPENCLAW_CLAMD_SOCKET"] == "/run/clamav/clamd.sock"
-        assert environment["CLAMAV_SIGNATURE_MAX_AGE_SECONDS"] == "172800"
+        assert mounts(services[name])["/var/lib/clamav"]["read_only"] is True
 
 
 def test_clamd_entrypoint_sets_utc_for_resident_version_responses() -> None:
     startup = (ROOT / "docker/clamd.sh").read_text(encoding="utf-8").splitlines()
-    assert startup.index("export TZ=UTC") < startup.index('exec /usr/sbin/clamd --config-file="$config"')
+    runner = "exec python3 -P -m personal_assistant.clamd_runner"
+    assert startup.index("export TZ=UTC") < startup.index(runner)
 
 
 def test_compose_matches_machine_readable_operating_budget() -> None:
@@ -127,7 +128,5 @@ def test_compose_matches_machine_readable_operating_budget() -> None:
     assert int(environment["CLAMAV_MAX_THREADS"]) == scanner["max_threads"]
     assert int(environment["CLAMAV_MAX_QUEUE"]) == scanner["max_queue"]
     assert int(environment["CLAMAV_SCAN_TIMEOUT_SECONDS"]) == scanner["scan_timeout_seconds"]
-    assert int(environment["CLAMAV_SELF_CHECK_SECONDS"]) == scanner["self_check_seconds"]
-    assert int(environment["CLAMAV_SIGNATURE_MAX_AGE_SECONDS"]) == scanner[
-        "signature_max_age_seconds"
-    ]
+    assert scanner["self_check_seconds"] == 0
+    assert 'echo "SelfCheck 0"' in (ROOT / "docker/clamd.sh").read_text()

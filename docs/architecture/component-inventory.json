@@ -2,7 +2,7 @@
   "schema_version": 1,
   "inventory_date": "2026-08-06",
   "source_scope": "all Python modules, shell entrypoints, skills, systemd units, migrations and Markdown documents",
-  "component_count": 640,
+  "component_count": 650,
   "classification_values": [
     "active",
     "compatibility",
@@ -100,7 +100,7 @@
         "docs/archive/README_PRE_M1.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-11-26T23:45:02+01:00",
+      "last_git_change": "2026-11-27T08:40:47+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -292,7 +292,9 @@
         "compose.yaml"
       ],
       "test_evidence": [],
-      "documentation_evidence": [],
+      "documentation_evidence": [
+        "docs/superpowers/plans/2026-11-27-clamav-vendor-currentness.md"
+      ],
       "line_coverage_percent": null,
       "last_git_change": "2026-08-06T15:45:31+02:00",
       "runtime_telemetry": {
@@ -311,14 +313,17 @@
       "productive_callers": [
         "Dockerfile",
         "compose.yaml",
+        "docker/scripts/check-clamav-recovery.py",
         "scripts/check-role-images.sh"
       ],
       "test_evidence": [
         "tests/test_clamd_compose_m14.py"
       ],
-      "documentation_evidence": [],
+      "documentation_evidence": [
+        "docs/superpowers/plans/2026-11-27-clamav-vendor-currentness.md"
+      ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-07T10:18:39+02:00",
+      "last_git_change": "2026-11-27T08:40:47+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -515,6 +520,7 @@
       ],
       "test_evidence": [
         "tests/test_container_runtime.py",
+        "tests/test_deploy_signature_preflight.py",
         "tests/test_m8_recovery.py",
         "tests/test_nextcloud_setup_container.py",
         "tests/test_talk_proxy_lifecycle.py"
@@ -569,6 +575,28 @@
       "rollback_relevance": "none"
     },
     {
+      "path": "docker/scripts/check-clamav-recovery.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Operations Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "docker/scripts/check-maintenance-runtime.sh"
+      ],
+      "test_evidence": [
+        "tests/test_deploy_signature_preflight.py"
+      ],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
       "path": "docker/scripts/check-layout-compatibility.py",
       "types": [
         "python-module"
@@ -602,6 +630,7 @@
       "classification": "active",
       "productive_callers": [
         "docker/scripts/deploy.sh",
+        "docker/scripts/rollback.sh",
         "scripts/check-role-images.sh"
       ],
       "test_evidence": [
@@ -613,7 +642,7 @@
       ],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-07T10:18:39+02:00",
+      "last_git_change": "2026-11-27T08:40:47+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -639,6 +668,7 @@
       ],
       "test_evidence": [
         "tests/test_container_migration.py",
+        "tests/test_deploy_signature_preflight.py",
         "tests/test_m7_supply_chain.py",
         "tests/test_m8_recovery.py",
         "tests/test_nextcloud_setup_container.py",
@@ -689,7 +719,7 @@
         "docs/superpowers/plans/2026-11-22-nextcloud-access.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-11-22T09:21:55+01:00",
+      "last_git_change": "2026-11-27T08:40:47+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -889,6 +919,7 @@
       ],
       "test_evidence": [
         "tests/test_container_runtime.py",
+        "tests/test_deploy_signature_preflight.py",
         "tests/test_m8_recovery.py",
         "tests/test_nextcloud_setup_container.py",
         "tests/test_talk_proxy_lifecycle.py"
@@ -941,6 +972,7 @@
       ],
       "test_evidence": [
         "tests/test_container_runtime.py",
+        "tests/test_deploy_signature_preflight.py",
         "tests/test_m8_recovery.py",
         "tests/test_talk_proxy_lifecycle.py"
       ],
@@ -1049,6 +1081,7 @@
       ],
       "test_evidence": [
         "tests/test_container_runtime.py",
+        "tests/test_deploy_signature_preflight.py",
         "tests/test_talk_proxy_lifecycle.py"
       ],
       "documentation_evidence": [
@@ -1073,11 +1106,13 @@
       "productive_callers": [
         "docker/scripts/common.sh",
         "docker/scripts/deploy.sh",
+        "docker/scripts/rollback.sh",
         "scripts/m7_supply_chain.py"
       ],
       "test_evidence": [
         "tests/test_container_migration.py",
         "tests/test_container_runtime.py",
+        "tests/test_deploy_signature_preflight.py",
         "tests/test_m7_supply_chain.py",
         "tests/test_m8_recovery.py",
         "tests/test_release_promotion_m161.py",
@@ -4808,7 +4843,7 @@
       "rollback_relevance": "none"
     },
     {
-      "path": "docs/superpowers/plans/2026-11-27-mail-owner-signature-readiness.md",
+      "path": "docs/superpowers/plans/2026-11-27-clamav-vendor-currentness.md",
       "types": [
         "document"
       ],
@@ -4819,6 +4854,24 @@
       "documentation_evidence": [],
       "line_coverage_percent": null,
       "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-11-27-mail-owner-signature-readiness.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Documentation Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": "2026-11-27T08:40:47+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -4839,6 +4892,26 @@
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-11-26T21:38:57+01:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "docs/superpowers/specs/2026-11-27-clamav-vendor-currentness-design.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Documentation Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/superpowers/plans/2026-11-27-clamav-vendor-currentness.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -6762,10 +6835,11 @@
         "docs/architecture/DATA_CATALOG.md",
         "docs/architecture/m16-baseline.json",
         "docs/architecture/state-access.json",
+        "docs/superpowers/plans/2026-11-27-clamav-vendor-currentness.md",
         "docs/superpowers/plans/2026-11-27-mail-owner-signature-readiness.md"
       ],
-      "line_coverage_percent": 81.31,
-      "last_git_change": "2026-09-07T10:18:39+02:00",
+      "line_coverage_percent": 82.64,
+      "last_git_change": "2026-11-27T08:40:47+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -6851,10 +6925,9 @@
       "productive_callers": [
         "Dockerfile",
         "compose.yaml",
-        "docker/clamd.sh",
         "docker/healthcheck.sh",
-        "docker/scripts/check-maintenance-runtime.sh",
         "docker/scripts/deploy.sh",
+        "docker/scripts/rollback.sh",
         "scripts/benchmark-m7.py",
         "scripts/check-role-images.sh"
       ],
@@ -6865,10 +6938,11 @@
       ],
       "documentation_evidence": [
         "docs/TESTING.md",
+        "docs/superpowers/plans/2026-11-27-clamav-vendor-currentness.md",
         "docs/superpowers/plans/2026-11-27-mail-owner-signature-readiness.md"
       ],
-      "line_coverage_percent": 75.0,
-      "last_git_change": "2026-08-06T15:45:31+02:00",
+      "line_coverage_percent": 83.33,
+      "last_git_change": "2026-11-27T08:40:47+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -6902,6 +6976,80 @@
       "rollback_relevance": "none"
     },
     {
+      "path": "personal_assistant/clamav_update.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Core Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "Dockerfile",
+        "docker/clamav-update.sh",
+        "docker/scripts/rollback.sh",
+        "scripts/check-role-images.sh"
+      ],
+      "test_evidence": [],
+      "documentation_evidence": [
+        "docs/superpowers/plans/2026-11-27-clamav-vendor-currentness.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "personal_assistant/clamav_vendor.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Core Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "Dockerfile",
+        "docker/scripts/check-clamav-recovery.py",
+        "docker/scripts/check-maintenance-runtime.sh",
+        "scripts/check-role-images.sh"
+      ],
+      "test_evidence": [
+        "tests/test_clamav_update.py",
+        "tests/test_deploy_signature_preflight.py"
+      ],
+      "documentation_evidence": [
+        "docs/superpowers/plans/2026-11-27-clamav-vendor-currentness.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "personal_assistant/clamav_verify.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Core Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "Dockerfile",
+        "personal_assistant/clamav_vendor.py"
+      ],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
       "path": "personal_assistant/clamd_client.py",
       "types": [
         "python-module"
@@ -6918,8 +7066,8 @@
         "tests/test_clamd_socket_m14.py"
       ],
       "documentation_evidence": [],
-      "line_coverage_percent": 77.99,
-      "last_git_change": "2026-09-07T10:18:39+02:00",
+      "line_coverage_percent": 81.61,
+      "last_git_change": "2026-11-27T08:40:47+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -6937,17 +7085,47 @@
         "Dockerfile",
         "compose.yaml",
         "docker/healthcheck.sh",
+        "docker/scripts/check-clamav-recovery.py",
         "docker/scripts/check-maintenance-runtime.sh",
         "scripts/check-role-images.sh"
       ],
       "test_evidence": [
+        "tests/test_clamd_resident_generation.py",
         "tests/test_clamd_socket_m14.py"
       ],
       "documentation_evidence": [
+        "docs/superpowers/plans/2026-11-27-clamav-vendor-currentness.md",
         "docs/superpowers/plans/2026-11-27-mail-owner-signature-readiness.md"
       ],
-      "line_coverage_percent": 0.0,
-      "last_git_change": "2026-09-07T10:18:39+02:00",
+      "line_coverage_percent": 84.85,
+      "last_git_change": "2026-11-27T08:40:47+01:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "personal_assistant/clamd_runner.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Core Maintainers",
+      "classification": "active",
+      "productive_callers": [
+        "Dockerfile",
+        "docker/clamd.sh",
+        "scripts/check-role-images.sh"
+      ],
+      "test_evidence": [
+        "tests/test_clamd_compose_m14.py",
+        "tests/test_clamd_socket_m14.py"
+      ],
+      "documentation_evidence": [
+        "docs/superpowers/plans/2026-11-27-clamav-vendor-currentness.md"
+      ],
+      "line_coverage_percent": null,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -9713,8 +9891,8 @@
         "docs/superpowers/plans/2026-11-26-chat-mail-dry-run.md",
         "docs/superpowers/plans/2026-11-27-mail-owner-signature-readiness.md"
       ],
-      "line_coverage_percent": 40.28,
-      "last_git_change": "2026-10-07T21:25:53+02:00",
+      "line_coverage_percent": 69.66,
+      "last_git_change": "2026-11-27T08:40:47+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -12455,7 +12633,7 @@
         "skills/personal-assistant/references/commands.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-11-26T23:45:02+01:00",
+      "last_git_change": "2026-11-27T08:40:47+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -12536,7 +12714,7 @@
         "skills/personal-assistant/references/commands.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-11-26T23:45:02+01:00",
+      "last_git_change": "2026-11-27T08:40:47+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -13299,6 +13477,42 @@
       "rollback_relevance": "none"
     },
     {
+      "path": "tests/test_clamav_update.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "tests/test_clamav_vendor.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
       "path": "tests/test_clamd_compose_m14.py",
       "types": [
         "python-module"
@@ -13312,7 +13526,25 @@
         "docs/architecture/upstream-sources.json"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-08T08:34:57+02:00",
+      "last_git_change": "2026-11-27T08:40:47+01:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "tests/test_clamd_resident_generation.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -13337,7 +13569,7 @@
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-07T10:18:39+02:00",
+      "last_git_change": "2026-11-27T08:40:47+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -13416,7 +13648,7 @@
         "docs/architecture/adr/0008-container-netze-host-ollama.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-10-22T12:48:43+02:00",
+      "last_git_change": "2026-11-27T08:40:47+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -13498,7 +13730,7 @@
       "test_evidence": [],
       "documentation_evidence": [],
       "line_coverage_percent": null,
-      "last_git_change": null,
+      "last_git_change": "2026-11-27T08:40:47+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -14359,7 +14591,7 @@
         "skills/personal-assistant/references/tool-contract.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-09-12T11:22:16+02:00",
+      "last_git_change": "2026-11-27T08:40:47+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"

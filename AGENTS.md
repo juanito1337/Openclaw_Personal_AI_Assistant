@@ -272,8 +272,14 @@ approved `mail index backfill --restart ...`; do not silently resume the blocked
 checkpoint or enable the job.
 
 In the Docker runtime `clamav-update` only updates signatures; it is not the
-scanner daemon. `clamd` readiness requires the registered socket PING/VERSION and
-fresh active signature identity. A successful `clamscan` fallback proves only one
+scanner daemon. Signature readiness requires a recent official vendor-version
+observation for main/daily/bytecode and matching installed and attested resident
+generations; signature build age alone never blocks a confirmed current release.
+The sole updater polls DNS every 300 seconds and immediately updates an observed
+newer version through FreshClam. Unknown, expired or contradictory observations
+and a pending scanner load remain unready. `clamd` readiness also requires the
+registered socket PING/VERSION and its instance-bound load evidence.
+A successful `clamscan` fallback proves only one
 bounded scan, never daemon or mail-index readiness. Backfill and reconcile must
 stop before Raw-Fetch when `index_readiness.index_ready=false`; do not start or
 enable the index job as an automatic repair.

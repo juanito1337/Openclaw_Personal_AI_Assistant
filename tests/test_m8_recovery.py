@@ -129,6 +129,11 @@ def _environment(tmp_path: Path) -> tuple[dict[str, str], Path, Path]:
     docker.write_text(
         "#!/usr/bin/env bash\n"
         "printf '%s\\n' \"$*\" >> \"$M8_DOCKER_LOG\"\n"
+        'case "$*" in\n'
+        '  *"up -d --no-deps clamav-update"*) touch "$M8_DOCKER_LOG.updater";;\n'
+        '  *"stop clamav-update"*) rm -f "$M8_DOCKER_LOG.updater";;\n'
+        '  *"container ls"*"openclaw-clamav-update"*) test ! -f "$M8_DOCKER_LOG.updater" || echo running;;\n'
+        'esac\n'
         "if [[ \" $* \" == *\" ps -q \"* ]]; then printf 'm8-fixture-id\\n'; fi\n"
         "if [[ \"$1\" == inspect ]]; then printf 'running\\n'; fi\n"
         "exit 0\n",
@@ -271,7 +276,8 @@ def test_rollback_normalizes_runtime_owned_paths_before_restore(tmp_path: Path) 
 def _stub(path: Path, body: str) -> None:
     if path.name == "docker":
         label_check = 'case "$*" in *openclaw.nextcloud-access*) echo 1; exit 0 ;; esac'
-        body = label_check + "\n" + body
+        policy_check = 'case "$*" in *openclaw.clamav-policy*) echo vendor-v1; exit 0 ;; esac'
+        body = policy_check + "\n" + label_check + "\n" + body
     path.write_text("#!/bin/sh\nset -eu\n" + body, encoding="utf-8")
     path.chmod(0o755)
 

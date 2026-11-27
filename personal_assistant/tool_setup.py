@@ -144,7 +144,6 @@ def _write_tools(path: Path, settings: ToolSettings) -> Path | None:
         f"cache_hours = {antivirus.cache_hours}",
         f"max_scan_bytes = {antivirus.max_scan_bytes}",
         f"timeout_seconds = {antivirus.timeout_seconds}",
-        f"signature_max_age_seconds = {antivirus.signature_max_age_seconds}",
         f"temp_dir = {_toml_string(str(antivirus.temp_dir))}",
         "",
         "[portfolio]",

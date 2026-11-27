@@ -55,14 +55,18 @@ class AntivirusToolTests(unittest.TestCase):
         os.chmod(self.scanner_path, 0o755)
         self.settings = AntivirusToolSettings(
             enabled=True,
-            binary=str(self.scanner_path),
-            fallback_binary="",
-            allow_standalone_fallback=False,
+            binary="",
+            fallback_binary=str(self.scanner_path),
+            allow_standalone_fallback=True,
             fail_closed=True,
             cache_hours=24,
             max_scan_bytes=10_000_000,
             temp_dir=self.root / "scan-tmp",
         )
+        self.enterContext(patch(
+            "personal_assistant.antivirus.vendor_readiness",
+            return_value={"ok": True, "generation": "a" * 64, "versions": {"daily": 99999}},
+        ))
         self.antivirus = HostAntivirus(self.settings, database=self.root / "antivirus.sqlite3")
 
     def tearDown(self) -> None:

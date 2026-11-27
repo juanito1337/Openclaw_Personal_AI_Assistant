@@ -582,6 +582,27 @@ signature database before publishing it; the former 512 MiB limit could terminat
 that bounded validation with signal 9 even though the downloaded database was
 valid.
 
+Existing Docker installations additionally compare all three installed signature
+versions with a bounded official vendor DNS observation before stopping writers.
+The signature build date is informational: an old vendor release is usable while
+a fresh observation confirms it is still current. The single updater polls every
+300 seconds; known-newer versions invalidate readiness before FreshClam writes.
+Observations expire after 660 seconds and cannot be renewed by failed probes.
+The netless daemon supervisor attests each complete loaded database generation;
+it restarts its own child on a new generation, including main/bytecode-only changes.
+The installer stops and verifies the old updater before its one-shot candidate
+update, and rollback preserves the previously observed updater state.
+
+On the transition from an age-gated scanner to `vendor-v1`, the release backup
+keeps the observed original image references and separately records the verified
+recovery maintenance/scanner pair. Before any deployment stop, that exact signed
+image must start its real scanner against a private copy of the selected public
+signatures. Rollback re-verifies it before use and restores the previous
+application/proxy and local state. The older application's index can still be
+blocked by its own historical age rule; recovery infrastructure startability is
+not proof of business-job success. Automatic rollback first fences the failed
+candidate's writers; failed online recovery checks cannot leave them writing.
+
 ### Fast live-test loop
 
 Branches below `test/**` publish a container automatically after the repository

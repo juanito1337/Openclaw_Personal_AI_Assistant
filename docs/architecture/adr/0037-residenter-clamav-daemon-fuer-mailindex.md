@@ -36,8 +36,13 @@ prozess-, rechte- und netzseitig getrennte Rollen:
 - Scanbytes werden gestreamt. Temporäre Maildateien werden nicht zwischen
   Container-Dateisystemen geteilt und es wird kein TCP-Port exponiert.
 
-Die Cacheidentität ist die vom aktiven Daemon belegte Kombination aus Engine-
-und Signaturversion. Der verwendete Transport wird separat gespeichert und
+Die Cacheidentität ist die vom aktiven Daemon belegte Kombination aus Engine,
+allen drei Datenbankinhalten und geladener Daemoninstanz. Ein netzloser Supervisor
+lädt eine stabile, vom einzelnen Updater publizierte Generation und attestiert
+sie erst nach PING/VERSION gegen den eigenen Kindprozess und Socket. Interne
+unbelegte SelfCheck-Reloads sind deaktiviert; eine neue Generation startet den
+eigenen Daemon kontrolliert neu. Ein aktueller Herstellervergleich ersetzt die
+frühere feste Altersgrenze. Der verwendete Transport wird separat gespeichert und
 diagnostiziert. Ein Standalone-Fallback bleibt für bisherige begrenzte
 Einzeloperationen sichtbar und fail-closed verfügbar, ist aber keine
 Indexbereitschaft. Backfill und Reconcile brechen vor dem ersten IMAP-Raw-Fetch

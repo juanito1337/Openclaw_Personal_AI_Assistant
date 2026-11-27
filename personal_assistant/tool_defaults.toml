@@ -52,7 +52,6 @@ scan_attachments = true
 cache_hours = 24
 max_scan_bytes = 100000000
 timeout_seconds = 120
-signature_max_age_seconds = 172800
 temp_dir = "personal_assistant/data/antivirus_tmp"
 
 [portfolio]

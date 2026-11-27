@@ -246,15 +246,38 @@ python3 "$SCRIPT_DIR/check-layout-compatibility.py" \
 # Existing Docker installations already own a signature database. Reject known
 # missing/stale prerequisites before stopping writers or creating a backup.
 # First/legacy installs retain their initial, post-backup freshclam bootstrap.
+recovery_maintenance_image=""
 if [[ "$previous_runtime" == docker && "$access_transition" != fresh ]]; then
   echo "Pruefe vorhandene ClamAV-Signaturen vor dem Writer-Stopp."
   "$SCRIPT_DIR/check-maintenance-runtime.sh" "$target_maintenance_image" --signatures
+  previous_updater_policy=$(clamav_image_policy "$previous_maintenance_image")
+  previous_scanner_policy=$(clamav_image_policy "${previous_clamd_image:-$previous_maintenance_image}")
+  if [[ "$previous_updater_policy" == legacy || "$previous_scanner_policy" == legacy ]]; then
+    [[ "$(clamav_image_policy "$target_maintenance_image")" == vendor-v1 ]] || {
+      echo "Verifizierter ClamAV-Recovery-Vertrag fehlt." >&2; exit 2
+    }
+    "$SCRIPT_DIR/check-maintenance-runtime.sh" "$target_maintenance_image" --recovery
+    recovery_maintenance_image=$target_maintenance_image
+  fi
 fi
+
+previous_updater_running=$(clamav_updater_running_state)
+
+restore_previous_updater() {
+  if [[ "$previous_updater_running" == true ]]; then
+    compose --profile maintenance start clamav-update || return 1
+    [[ "$(clamav_updater_running_state)" == true ]] || return 1
+  fi
+}
 
 restart_previous_on_prebackup_failure() {
   local code=$?
   trap - ERR
   echo "Vorbereitendes Backup fehlgeschlagen; starte den bisherigen Stand erneut." >&2
+  if ! restore_previous_updater; then
+    echo "Vorheriger ClamAV-Updater konnte nicht verifiziert wiederhergestellt werden." >&2
+    code=70
+  fi
   if [[ "$previous_runtime" == "legacy-systemd" ]]; then
     units_file="$OPENCLAW_CONFIG_DIR/legacy-active-units.txt"
     if [[ -s "$units_file" ]]; then
@@ -283,9 +306,13 @@ restart_previous_on_prebackup_failure() {
   fi
   exit "$code"
 }
-trap restart_previous_on_prebackup_failure ERR
-
 echo "Stoppe alle schreibenden Laufzeiten."
+if ! stop_clamav_updater; then
+  echo "ClamAV-Updater-Stillstand nicht verifiziert; Deployment abgebrochen." >&2
+  restore_previous_updater || exit 70
+  exit 1
+fi
+trap restart_previous_on_prebackup_failure ERR
 compose stop setup-service
 setup_service_is_offline || {
   echo "Setup-Service laeuft noch; Verbindungsbackup ist nicht konsistent." >&2
@@ -316,6 +343,8 @@ if [[ -n "$backup_hook" && -x "$backup_hook" ]]; then
   [[ -n "$external_reference" ]] || { echo "Externer Backup-Hook lieferte keine Referenz." >&2; false; }
 fi
 
+export CLAMAV_RECOVERY_IMAGE="$recovery_maintenance_image" CLAMAV_RECOVERY_REVISION="$expected_source_revision"
+export PREVIOUS_CLAMAV_UPDATER_RUNNING="$previous_updater_running"
 export PREVIOUS_IMAGE="$previous_image" PREVIOUS_PROXY_IMAGE="$previous_proxy_image" \
   PREVIOUS_MAINTENANCE_IMAGE="$previous_maintenance_image" TARGET_IMAGE="$target_image" \
   TARGET_PROXY_IMAGE="$target_proxy_image" TARGET_MAINTENANCE_IMAGE="$target_maintenance_image" \
@@ -355,10 +384,11 @@ export OPENCLAW_PROXY_IMAGE="$target_proxy_image"
 export OPENCLAW_MAINTENANCE_IMAGE="$target_maintenance_image"
 export OPENCLAW_CLAMD_IMAGE="$target_maintenance_image"
 
-compose --profile maintenance run --rm --no-deps --entrypoint freshclam clamav-update \
-  --stdout --datadir=/var/lib/clamav --verbose
+compose --profile maintenance run --rm --no-deps clamav-update --once
 compose --profile maintenance run --rm --no-deps --entrypoint python3 clamav-update \
   -P -m personal_assistant.clamav_health
+compose --profile maintenance up -d clamav-update
+wait_for_healthy clamav-update 180
 compose up -d clamd
 wait_for_healthy clamd 300
 # This also completes layout-init before binding the exact pairing directory.
@@ -390,8 +420,6 @@ fi
 if [[ "$target_talk_proxy_enabled" == true ]]; then
   start_talk_proxy
 fi
-compose --profile maintenance up -d clamav-update
-wait_for_healthy clamav-update 180
 compose up -d --no-deps mail-worker sync-worker supervisor-worker portfolio-worker monitor-worker
 wait_for_healthy mail-worker 180
 wait_for_healthy sync-worker 180

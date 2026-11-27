@@ -138,6 +138,20 @@ payload={
   "state_directory": os.environ.get("OPENCLAW_STATE_DIR", ""),
   "verified": False,
 }
+if os.environ.get("CLAMAV_RECOVERY_IMAGE"):
+    payload.update(
+        recovery_maintenance_image=os.environ["CLAMAV_RECOVERY_IMAGE"],
+        recovery_clamd_image=os.environ["CLAMAV_RECOVERY_IMAGE"],
+        recovery_maintenance_revision=os.environ["CLAMAV_RECOVERY_REVISION"],
+        recovery_maintenance_release=os.environ["OPENCLAW_EXPECTED_RELEASE"],
+        recovery_clamav_policy="vendor-v1",
+        recovery_clamav_reason="previous-image-build-age-policy",
+    )
+if "PREVIOUS_CLAMAV_UPDATER_RUNNING" in os.environ:
+    value = os.environ["PREVIOUS_CLAMAV_UPDATER_RUNNING"]
+    if value not in ("true", "false"):
+        raise SystemExit("Invalid updater state")
+    payload["previous_clamav_updater_running"] = value == "true"
 path.write_text(json.dumps(payload, indent=2, ensure_ascii=False)+"\n", encoding="utf-8")
 PY
 

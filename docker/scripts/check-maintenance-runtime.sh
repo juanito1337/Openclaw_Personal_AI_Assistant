@@ -10,7 +10,7 @@ common=(
 )
 
 case ${2:-} in
-  --signatures)
+  --signatures|--recovery)
     # Match compose.yaml's project/volume contract without resolving service
     # environment files or starting another updater. Only an existing database
     # may be mounted: Docker must not silently bootstrap an empty volume here.
@@ -30,11 +30,15 @@ case ${2:-} in
       echo "ClamAV-Signaturvolume gehoert nicht zum ausgewaehlten Compose-Projekt." >&2
       exit 1
     }
-    "${common[@]}" --network none --user 100:101 \
+    if [[ "$2" == --recovery ]]; then
+      python3 "$(dirname "$0")/check-clamav-recovery.py" "$image" "$volume"
+      echo "Isolierter ClamAV-Recovery-Start auf verifizierter Datenbankgeneration bestaetigt."
+      exit 0
+    fi
+    "${common[@]}" --network bridge --user 100:101 \
       --mount "type=volume,src=$volume,dst=/var/lib/clamav,readonly,volume-nocopy" \
       --env CLAMAV_DATABASE_DIR=/var/lib/clamav \
-      --env "CLAMAV_SIGNATURE_MAX_AGE_SECONDS=${CLAMAV_SIGNATURE_MAX_AGE_SECONDS:-172800}" \
-      --entrypoint python3 "$image" -P -m personal_assistant.clamav_health
+      --entrypoint python3 "$image" -P -m personal_assistant.clamav_vendor --check
     echo "Vorhandene ClamAV-Signaturen mit Kandidat-Maintenance-Laufzeit verifiziert."
     exit 0
     ;;

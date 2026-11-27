@@ -17,13 +17,28 @@ archive="$backup/payload.tar.gz"
 (cd "$backup" && sha256sum -c payload.tar.gz.sha256)
 tar -tzf "$archive" >/dev/null
 python3 - "$backup/manifest.json" <<'PY'
-import json, sys
+import json, re, sys
 from pathlib import Path
 p=Path(sys.argv[1])
 data=json.loads(p.read_text())
 required=("backup_id","created_at","previous_image","target_image","archive_sha256")
 missing=[key for key in required if not data.get(key)]
 if missing: raise SystemExit("Manifestfelder fehlen: " + ", ".join(missing))
+recovery = {key: value for key, value in data.items() if key.startswith("recovery_clam")
+            or key.startswith("recovery_maintenance")}
+if recovery:
+    image = recovery.get("recovery_maintenance_image", "")
+    valid = (
+        isinstance(image, str) and re.search(r"@sha256:[0-9a-f]{64}$", image)
+        and image == data.get("target_maintenance_image") == data.get("target_clamd_image")
+        and image == recovery.get("recovery_clamd_image") and data.get("previous_runtime") == "docker"
+        and re.fullmatch(r"[0-9a-f]{40}", recovery.get("recovery_maintenance_revision", ""))
+        and recovery.get("recovery_maintenance_release")
+        and recovery.get("recovery_clamav_policy") == "vendor-v1"
+        and recovery.get("recovery_clamav_reason") == "previous-image-build-age-policy"
+    )
+    if not valid:
+        raise SystemExit("Ungueltiger ClamAV-Recovery-Vertrag")
 print(json.dumps({"ok": True, "backup_id": data["backup_id"], "previous_image": data["previous_image"]}, ensure_ascii=False))
 PY
 

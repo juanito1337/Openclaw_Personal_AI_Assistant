@@ -12,7 +12,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
-SIGNATURE_GROUPS = ("main", "daily", "bytecode")
+from .clamav_vendor import vendor_readiness
 
 
 def signature_build_time(version: str) -> datetime | None:
@@ -36,7 +36,7 @@ def signature_age_seconds(version: str, *, now: float | None = None) -> int | No
 
 
 def database_identity(
-    *, database_dir: Path | None = None, timeout: int, run: Callable[..., subprocess.CompletedProcess[str]],
+    *, database_dir: Path | None = None, timeout: float, run: Callable[..., subprocess.CompletedProcess[str]],
 ) -> str:
     command = ["clamscan"]
     if database_dir is not None:
@@ -51,44 +51,34 @@ def database_identity(
 def inspect_database(
     database_dir: Path,
     *,
-    max_age_seconds: int,
+    max_age_seconds: int | None = None,
     now: float | None = None,
     run: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
 ) -> dict[str, object]:
-    if max_age_seconds < 1:
-        raise ValueError("CLAMAV_SIGNATURE_MAX_AGE_SECONDS muss positiv sein")
-    selected: dict[str, Path] = {}
-    for group in SIGNATURE_GROUPS:
-        matches = [database_dir / f"{group}.{suffix}" for suffix in ("cvd", "cld")]
-        usable = [path for path in matches if path.is_file() and path.stat().st_size > 0]
-        if not usable:
-            raise ValueError(f"ClamAV-Signatur fehlt: {group}.cvd/.cld")
-        selected[group] = max(usable, key=lambda path: path.stat().st_mtime)
-    identity = database_identity(database_dir=database_dir, timeout=10, run=run)
-    age = signature_age_seconds(identity, now=now)
-    if age is None:
-        raise ValueError("ClamAV-Scanneridentitaet oder Signaturzeitstempel ist nicht verifizierbar")
-    if age > max_age_seconds:
-        raise ValueError(f"ClamAV-daily-Signatur ist zu alt: {age}s > {max_age_seconds}s")
+    evidence = vendor_readiness(database_dir, now=now)
+    identity = database_identity(database_dir=database_dir, timeout=5, run=run) if evidence["ok"] else ""
+    reasons = list(evidence.get("reasons", []))
+    if evidence["ok"] and (signature_build_time(identity) is None
+                           or identity.split("/")[1] != str(evidence["versions"]["daily"])):
+        reasons.append("scanner-identity-mismatch")
     return {
-        "ok": True,
+        **evidence,
+        "ok": evidence["ok"] and not reasons,
+        "reasons": reasons,
         "scanner_identity": identity,
-        "daily_age_seconds": age,
-        "max_age_seconds": max_age_seconds,
-        "signatures": {name: path.name for name, path in selected.items()},
+        "daily_age_seconds": signature_age_seconds(identity, now=now),
     }
 
 
 def main() -> int:
     database_dir = Path(os.environ.get("CLAMAV_DATABASE_DIR", "/var/lib/clamav"))
-    max_age = int(os.environ.get("CLAMAV_SIGNATURE_MAX_AGE_SECONDS", "172800"))
     try:
-        report = inspect_database(database_dir, max_age_seconds=max_age)
+        report = inspect_database(database_dir)
     except (OSError, ValueError, subprocess.SubprocessError) as exc:
         print(f"ClamAV nicht bereit: {exc}")
         return 1
     print(json.dumps(report, sort_keys=True))
-    return 0
+    return 0 if report["ok"] else 1
 
 
 if __name__ == "__main__":

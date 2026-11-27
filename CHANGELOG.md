@@ -2,13 +2,17 @@
 
 ## Unreleased
 
-- ClamAV-Gesundheitspruefungen bewerten das Alter der tatsaechlichen Signatur
-  statt des spaeteren lokalen Dateidatums. Der Daemon muss auch fuer seinen
-  residenten Signaturstand einen gueltigen Frischenachweis liefern. Der
-  Index-Doctor zeigt aktuelle Scanner-Bereitschaft getrennt von der Integritaet
-  des vorhandenen Suchindex. Eine fehlende Signaturfreigabe stoppt das Deployment
-  vor dem Writer-Stopp; die unveraenderte Altersgrenze bleibt verbindlich, auch
-  wenn der Hersteller aktuell keine neueren Signaturen anbietet.
+- ClamAV prueft den aktuellen Herstellerstand fuer `main`, `daily` und
+  `bytecode` statt Signaturen allein nach 48 Stunden zu sperren. Der einzelne
+  Updater fragt alle fuenf Minuten per DNS nach; erkannte neue Versionen
+  werden sofort ueber FreshClam geladen und vor Freigabe im Scanner belegt.
+  Auch alte Signaturen bleiben bei frischem Hersteller-Gleichstand zulaessig.
+  Fehlende, veraltete oder widerspruechliche Nachweise sperren weiterhin.
+  Scanner-Cache und laufende Scans sind an die gesamte geladene Generation
+  gebunden. Index-Doctor und Container-Health unterscheiden gespeicherten
+  Index, Herstellerbeleg, installierte Datenbanken und geladenen Scannerstand.
+  Deployment prueft den Hersteller vor dem Writer-Stopp und serialisiert
+  Signaturupdates auch waehrend Installation und Rollback.
 
 - Der manuelle Mail-Probelauf im Chat erhaelt ein eigenes begrenztes
   Laufzeitbudget statt des allgemeinen 120-Sekunden-Limits. Sein gebundener

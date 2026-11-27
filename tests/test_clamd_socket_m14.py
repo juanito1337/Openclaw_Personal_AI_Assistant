@@ -7,17 +7,20 @@ import subprocess
 import tempfile
 import threading
 import time
+import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager, suppress
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
 from personal_assistant.antivirus import HostAntivirus
 from personal_assistant.clamd_client import ClamdClientError, ClamdUnixClient
-from personal_assistant.clamd_health import check_clamd
+from personal_assistant.clamd_health import RECEIPT, check_clamd, socket_identity
 from personal_assistant.clamd_health import main as clamd_health_main
+from personal_assistant.clamd_runner import publish
 from personal_assistant.tool_settings import AntivirusToolSettings
 
 
@@ -88,8 +91,21 @@ class FakeClamd:
 @contextmanager
 def fake_clamd(root: Path) -> Iterator[FakeClamd]:
     daemon = FakeClamd(root / "clamd.sock")
+    def attest(generation="a" * 64, *, group=None):
+        versions = {"daily": int(daemon.version.split("/")[1]), "main": 10, "bytecode": 3}
+        if group:
+            versions[group] += 1
+        disk.update(ok=True, generation=generation, versions=versions)
+        publish(root / RECEIPT, {"schema": 1, "instance": uuid.uuid4().hex,
+                                 "checked_at": time.time(), "version": daemon.version,
+                                 "versions": versions, "generation": generation,
+                                 "socket": socket_identity(daemon.path)})
+    disk = {}
+    daemon.attest = attest
+    attest()
     try:
-        yield daemon
+        with patch("personal_assistant.clamd_health.vendor_readiness", return_value=disk):
+            yield daemon
     finally:
         daemon.close()
 
@@ -99,8 +115,6 @@ def fake_clamd(root: Path) -> Iterator[FakeClamd]:
 )
 def test_daemon_health_checks_loaded_signature_independently_of_fresh_disk(tmp_path, monkeypatch, resident):
     now = datetime.now(UTC)
-    disk = {"ok": True, "scanner_identity": f"ClamAV 1.4.3/28195/{now.ctime()}", "daily_age_seconds": 0}
-    monkeypatch.setattr("personal_assistant.clamd_health.inspect_database", lambda *a, **k: disk)
     stamps = {
         "stale": (now - timedelta(days=3)).ctime(),
         "malformed": "not-a-date",
@@ -120,7 +134,7 @@ def test_daemon_health_checks_loaded_signature_independently_of_fresh_disk(tmp_p
             index = antivirus.index_readiness()
         finally:
             antivirus.close()
-    expected = resident == "fresh-but-one-version-behind"
+    expected = False
     assert report["daemon_ready"] is index["daemon_ready"] is True
     assert report["ok"] is index["index_ready"] is expected
     assert report["signatures_fresh"] is index["signatures_fresh"] is expected
@@ -134,10 +148,12 @@ def test_daemon_healthcheck_exits_unhealthy_with_disk_problem_but_preserves_sock
     with fake_clamd(tmp_path) as daemon:
         monkeypatch.setenv("OPENCLAW_CLAMD_SOCKET", str(daemon.path))
         monkeypatch.setenv("CLAMAV_DATABASE_DIR", str(tmp_path))
-        assert clamd_health_main() == 1
+        with patch("personal_assistant.clamd_health.vendor_readiness", return_value={"ok": False}):
+            assert clamd_health_main() == 1
     report = json.loads(capsys.readouterr().out)
     assert report["ok"] is report["database"]["ok"] is False
-    assert report["daemon_ready"] is report["signatures_fresh"] is True
+    assert report["daemon_ready"] is True
+    assert report["signatures_fresh"] is False
 
 
 @pytest.mark.parametrize(("age", "disk_case", "expected_age"), [
@@ -195,7 +211,8 @@ def test_legacy_age_requires_matching_utc_database_identity(
     assert daemon["version"] == resident
     assert readiness["signature_age_source"] == ("matching-local-database-utc" if expected_age else "")
     assert readiness["signature_timestamp"] == (built.ctime() if expected_age else "")
-    assert readiness["index_ready"] is (expected_age is not None and expected_age <= 172800)
+    assert readiness["index_ready"] is False
+    assert "legacy-resident-unverified" in readiness["reasons"]
 
 
 def test_private_client_ping_version_clean_and_infected() -> None:
@@ -378,7 +395,7 @@ def test_signature_identity_change_invalidates_clean_cache() -> None:
                 assert first.clean and not first.cached
                 assert len(daemon.payloads) == 1
                 daemon.version = "ClamAV 1.4.3/100000/Fri Jan  1 00:00:00 2099"
-                antivirus.scanner_identity(refresh=True)
+                daemon.attest("b" * 64)
                 second = antivirus.scan_bytes(b"same-mail", name="mail.eml", source_type="test")
                 assert second.clean and not second.cached
                 assert second.scanner_identity != first.scanner_identity
@@ -410,6 +427,7 @@ def test_signature_change_during_scan_fails_closed_without_clean_cache() -> None
                 assert result.fallback_reason == "signature-changed-during-scan"
                 assert antivirus.store.summary()["counts"].get("clean", 0) == 0
                 daemon.change_version_after_scan = False
+                daemon.attest("b" * 64)
                 recovered = antivirus.scan_bytes(
                     b"mail-during-reload",
                     name="mail.eml",
@@ -439,7 +457,9 @@ def test_index_preflight_rejects_missing_or_unready_contract() -> None:
         require_index_antivirus_ready(Unready())  # type: ignore[arg-type]
 
 
-def test_missing_daemon_may_scan_standalone_but_never_enables_index() -> None:
+def test_missing_daemon_may_scan_standalone_but_never_enables_index(monkeypatch) -> None:
+    monkeypatch.setattr("personal_assistant.antivirus.vendor_readiness",
+                        lambda _: {"ok": True, "generation": "a" * 64, "versions": {"daily": 99999}})
     with tempfile.TemporaryDirectory() as folder:
         root = Path(folder)
         fallback = root / "clamscan"
@@ -470,3 +490,88 @@ def test_missing_daemon_may_scan_standalone_but_never_enables_index() -> None:
             assert "clamd-not-ready" in readiness["reasons"]
         finally:
             antivirus.close()
+
+
+def test_old_but_attested_scanner_is_ready_and_main_only_change_invalidates_cache(tmp_path):
+    with fake_clamd(tmp_path) as daemon:
+        daemon.version = "ClamAV 1.4.3/99999/Mon May  1 00:00:00 2023"
+        daemon.attest()
+        av = HostAntivirus(AntivirusToolSettings(daemon_socket=str(daemon.path), temp_dir=tmp_path),
+                           database=tmp_path / "av.sqlite3")
+        try:
+            assert av.index_readiness()["index_ready"]
+            a = av.scan_bytes(b"same", name="mail", source_type="test")
+            daemon.attest("b" * 64)
+            b = av.scan_bytes(b"same", name="mail", source_type="test")
+            assert a.clean and b.clean and not b.cached
+            assert a.scanner_identity != b.scanner_identity
+        finally:
+            av.close()
+
+
+@pytest.mark.parametrize("group", ["main", "bytecode"])
+def test_non_daily_change_during_stream_cannot_publish_clean(tmp_path, monkeypatch, group):
+    with fake_clamd(tmp_path) as daemon:
+        av = HostAntivirus(AntivirusToolSettings(daemon_socket=str(daemon.path), temp_dir=tmp_path),
+                           database=tmp_path / "av.sqlite3")
+        scan = ClamdUnixClient.scan
+
+        def update_during_scan(client, data):
+            response = scan(client, data)
+            daemon.attest("b" * 64, group=group)
+            return response
+
+        monkeypatch.setattr(ClamdUnixClient, "scan", update_during_scan)
+        try:
+            result = av.scan_bytes(b"mail", name="test", source_type="test")
+            assert result.error
+            assert result.fallback_reason == "signature-changed-during-scan"
+            assert av.store.summary()["counts"].get("clean", 0) == 0
+        finally:
+            av.close()
+
+
+@pytest.mark.parametrize("change", ["expired", "socket-reused", "missing"])
+def test_invalid_resident_proof_blocks_even_with_responding_daemon(tmp_path, change):
+    with fake_clamd(tmp_path) as daemon:
+        receipt = tmp_path / RECEIPT
+        proof = json.loads(receipt.read_bytes())
+        if change == "expired":
+            proof["checked_at"] -= 21
+            publish(receipt, proof)
+        elif change == "socket-reused":
+            proof["socket"][1] += 1
+            publish(receipt, proof)
+        else:
+            receipt.unlink()
+        report = check_clamd(daemon.path, database_dir=tmp_path, max_age_seconds=172800,
+                             timeout_seconds=1, max_stream_bytes=1024)
+        assert report["daemon_ready"] is True
+        assert report["ok"] is False
+        assert report["currentness"]["reasons"]
+
+
+def test_stream_trickling_verdict_uses_one_total_deadline(tmp_path):
+    path = tmp_path / "trickle.sock"
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as server:
+        server.bind(str(path))
+        server.listen(1)
+
+        def serve():
+            client, _ = server.accept()
+            with client, suppress(OSError):
+                # Read the complete INSTREAM command, one-byte object and terminator.
+                FakeClamd._exact(client, len(b"zINSTREAM\0") + 9)
+                for byte in b"stream: OK\0":
+                    client.sendall(bytes([byte]))
+                    time.sleep(0.025)
+
+        thread = threading.Thread(target=serve, daemon=True)
+        thread.start()
+        try:
+            client = ClamdUnixClient(path, timeout_seconds=0.1, max_stream_bytes=1024)
+            with pytest.raises(ClamdClientError) as failed:
+                client.scan(b"x")
+            assert failed.value.category == "timeout"
+        finally:
+            thread.join(timeout=1)
