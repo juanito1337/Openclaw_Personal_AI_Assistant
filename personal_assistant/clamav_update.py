@@ -6,9 +6,11 @@ import os
 import stat
 import subprocess
 import time
+from contextlib import ExitStack
 from pathlib import Path
 
 from .clamav_vendor import (
+    GROUPS,
     POLL_SECONDS,
     VendorError,
     database_snapshot,
@@ -20,6 +22,9 @@ from .clamav_vendor import (
     verify_snapshot,
 )
 
+UPDATER_UID = 100
+READER_GID = 101
+LEGACY_DATABASE_GID = 102
 DEFAULT_MAINTENANCE_INTERVAL = 14400
 OBSERVATION_FIELDS = ("source", "checked_at", "record_timestamp", "versions")
 
@@ -52,6 +57,38 @@ def _previous_status(database: Path) -> dict:
     except VendorError:
         return {}
     return prior if vendor_observation_valid(prior, prior.get("checked_at", 0.0)) else {}
+
+
+def ensure_reader_access(database: Path, snapshot: dict) -> bool:
+    """Grant the scanner reader group access only to the three authenticated, inode-bound files."""
+    with ExitStack() as stack:
+        changes = []
+        for group in GROUPS:
+            item = snapshot["files"][group]
+            if item["name"] not in (f"{group}.cld", f"{group}.cvd"):
+                raise VendorError("database-invalid")
+            fd = os.open(database / item["name"], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+            stack.callback(os.close, fd)
+            info = os.fstat(fd)
+            if (not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or info.st_uid != UPDATER_UID
+                    or info.st_gid not in (READER_GID, LEGACY_DATABASE_GID)):
+                raise VendorError("database-invalid")
+            expected = (item["device"], item["inode"], item["ctime_ns"])
+            if (info.st_dev, info.st_ino, info.st_ctime_ns) != expected:
+                raise VendorError("database-changed")
+            if info.st_gid == READER_GID and info.st_mode & stat.S_IRGRP:
+                continue
+            if info.st_gid == LEGACY_DATABASE_GID and info.st_mode & stat.S_IROTH:
+                # Already readable by the consumer, even with the original package group.
+                continue
+            changes.append((fd, info))
+        for fd, info in changes:
+            if info.st_gid != READER_GID:
+                # Never transfer old group write/execute privileges to scan consumers.
+                os.fchmod(fd, stat.S_IMODE(info.st_mode) & ~stat.S_IRWXG)
+                os.fchown(fd, -1, READER_GID)
+            os.fchmod(fd, stat.S_IMODE(os.fstat(fd).st_mode) | stat.S_IRGRP)
+        return bool(changes)
 
 
 def _update(database: Path, maintenance: bool, lock_fd: int) -> bool:
@@ -98,6 +135,12 @@ def _update(database: Path, maintenance: bool, lock_fd: int) -> bool:
                 if requested == observation["versions"] or attempt == 1:
                     raise VendorError("database-version-mismatch")
                 publish_status(database, {**observation, "state": "update-required"})
+        if ensure_reader_access(database, disk):
+            previous_generation = disk["generation"]
+            disk = database_snapshot(database)
+            if disk["generation"] != previous_generation:
+                raise VendorError("database-changed")
+            verify_snapshot(database, disk)
         publish_status(database, {**observation, "state": "current", "database": disk})
         return True
     except (OSError, VendorError) as exc:

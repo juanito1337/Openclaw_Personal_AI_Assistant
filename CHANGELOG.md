@@ -13,6 +13,10 @@
   Index, Herstellerbeleg, installierte Datenbanken und geladenen Scannerstand.
   Deployment prueft den Hersteller vor dem Writer-Stopp und serialisiert
   Signaturupdates auch waehrend Installation und Rollback.
+  Bestaetigte Signaturdateien erhalten bei Bedarf Leserechte fuer die bereits
+  konfigurierte Scannergruppe, auch wenn FreshClam sie mit `0600` ersetzt.
+  Bereits lesbare Dateien bleiben unveraendert; nach Rechteaenderungen werden
+  Dateihashes und native Signaturpruefung vor Freigabe erneut bestaetigt.
 
 - Der manuelle Mail-Probelauf im Chat erhaelt ein eigenes begrenztes
   Laufzeitbudget statt des allgemeinen 120-Sekunden-Limits. Sein gebundener

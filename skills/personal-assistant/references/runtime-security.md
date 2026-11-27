@@ -181,6 +181,12 @@ FreshClam remains responsible for downloads and CDN cooldown. Before first
 approval or after a database change, a bounded native `cl_cvdverify` additionally
 authenticates CVD archives or the signed CLD manifests and contained hashes.
 Periodic verification of unchanged hashes does not interrupt the scanner.
+The updater also ensures that the existing scanner reader group can read the
+three authenticated databases, including legacy or FreshClam-created `0600`
+files. Only known updater-owned, inode-bound regular files may be adjusted.
+Already readable files retain their metadata; changed metadata requires a new
+snapshot and native authentication before publication. Consumers keep their
+unprivileged UID and read-only database mount.
 
 An atomic vendor receipt must be at most 660 seconds old, refer to a plausible
 DNS record (at most 12 hours old, never future), and match all three installed

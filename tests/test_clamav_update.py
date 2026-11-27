@@ -1,3 +1,4 @@
+import os
 from unittest.mock import ANY, Mock
 
 import pytest
@@ -11,6 +12,8 @@ VERSIONS = {"main": 1, "daily": 2, "bytecode": 3}
 def native_verification(monkeypatch):
     # These tests use synthetic headers; real native verification has its own suite.
     monkeypatch.setattr(updater, "verify_snapshot", lambda *_: None)
+    monkeypatch.setattr(updater, "UPDATER_UID", os.geteuid())
+    monkeypatch.setattr(updater, "READER_GID", os.getegid())
 
 
 def test_equal_header_bootstrap_cannot_publish_without_native_authentication(tmp_path, monkeypatch):
@@ -33,6 +36,7 @@ def test_equal_header_bootstrap_cannot_publish_without_native_authentication(tmp
 
 @pytest.mark.parametrize("group", ["main", "daily", "bytecode"])
 def test_new_group_blocks_before_download_and_rechecks(tmp_path, monkeypatch, group):
+    monkeypatch.setattr(updater, "ensure_reader_access", lambda *_: False)
     offered = {**VERSIONS, group: VERSIONS[group] + 1}
     probe = Mock(return_value={"versions": offered})
     states = []
@@ -93,6 +97,7 @@ def test_failed_pass_never_renews_success(tmp_path, monkeypatch, failure):
 
 
 def test_detection_revokes_previous_receipt_before_inspecting_disk(tmp_path, monkeypatch):
+    monkeypatch.setattr(updater, "ensure_reader_access", lambda *_: False)
     newer = {**VERSIONS, "main": 4}
     previous = {
         "source": "current.cvd.clamav.net",
@@ -118,6 +123,7 @@ def test_detection_revokes_previous_receipt_before_inspecting_disk(tmp_path, mon
 
 
 def test_external_lock_covers_probe_until_publication(tmp_path, monkeypatch):
+    monkeypatch.setattr(updater, "ensure_reader_access", lambda *_: False)
     import fcntl
 
     def check_lock():
@@ -136,6 +142,7 @@ def test_external_lock_covers_probe_until_publication(tmp_path, monkeypatch):
 
 
 def test_bootstrap_checks_again_after_download(tmp_path, monkeypatch):
+    monkeypatch.setattr(updater, "ensure_reader_access", lambda *_: False)
     probe = Mock(return_value={"versions": VERSIONS})
     download = Mock()
     monkeypatch.setattr(updater, "query_vendor", probe)
@@ -158,6 +165,7 @@ def test_symlink_database_never_creates_a_lock_in_target(tmp_path):
 
 
 def test_periodic_download_inherits_lock_until_freshclam_exits(tmp_path, monkeypatch):
+    monkeypatch.setattr(updater, "ensure_reader_access", lambda *_: False)
     import os
     import subprocess
 
@@ -275,6 +283,7 @@ def test_periodic_revalidation_keeps_verified_generation_current(tmp_path, monke
     ],
 )
 def test_distinct_newer_offer_gets_one_immediate_followup(tmp_path, monkeypatch, offers, installed, states):
+    monkeypatch.setattr(updater, "ensure_reader_access", lambda *_: False)
     def observations(values):
         return [{"versions": {**VERSIONS, "main": value}} for value in values]
 
@@ -288,3 +297,72 @@ def test_distinct_newer_offer_gets_one_immediate_followup(tmp_path, monkeypatch,
     assert [call.args[1]["state"] for call in publish.call_args_list] == states
     assert download.call_count == states.count("updating")
     assert publish.call_args.args[1]["versions"]["main"] == offers[-1]
+
+
+@pytest.mark.parametrize("replace", [False, True])
+def test_public_reader_can_open_legacy_or_replaced_private_daily(tmp_path, monkeypatch, replace):
+    import os
+    import stat
+
+    from test_clamav_vendor import current
+
+    proof = current(tmp_path)
+    daily = tmp_path / "daily.cvd"
+    if replace:
+        def download(*_):
+            replacement = tmp_path / "replacement"
+            replacement.write_bytes(daily.read_bytes())
+            replacement.chmod(0o600)
+            replacement.replace(daily)
+        monkeypatch.setattr(updater, "download", download)
+    else:
+        daily.chmod(0o600)
+    # A previous updater can attest a real 0600 file without testing consumer access.
+    proof["database"] = updater.database_snapshot(tmp_path)
+    updater.publish_status(tmp_path, {**proof, "state": "updating" if replace else "current"})
+    monkeypatch.setattr(updater, "query_vendor", lambda: {
+        k: proof[k] for k in updater.OBSERVATION_FIELDS
+    })
+    verified = []
+    def verify(path, snapshot):
+        assert updater.disk_matches(path, snapshot)
+        verified.append((stat.S_IMODE(daily.stat().st_mode), snapshot))
+    monkeypatch.setattr(updater, "verify_snapshot", verify)
+    assert updater.run_once(tmp_path)
+    assert stat.S_IMODE(daily.stat().st_mode) == 0o640
+    assert daily.stat().st_gid == os.getegid()
+    status = updater.read_status(tmp_path)
+    assert verified[-1] == (0o640, status["database"])
+    assert updater.disk_matches(tmp_path, status["database"])
+    metadata = daily.stat().st_ctime_ns
+    verified.clear()
+    assert updater.run_once(tmp_path)
+    assert daily.stat().st_ctime_ns == metadata and not verified
+
+
+@pytest.mark.parametrize("problem", ["uid", "gid", "hardlink", "symlink"])
+def test_reader_access_rejects_unknown_ownership_or_link_before_changing_any_file(
+    tmp_path, monkeypatch, problem
+):
+    from test_clamav_vendor import databases
+
+    databases(tmp_path)
+    main = tmp_path / "main.cvd"
+    main.chmod(0o600)
+    snapshot = updater.database_snapshot(tmp_path)
+    daily = tmp_path / "daily.cvd"
+    if problem == "uid":
+        monkeypatch.setattr(updater, "UPDATER_UID", os.geteuid() + 42)
+    elif problem == "gid":
+        monkeypatch.setattr(updater, "READER_GID", os.getegid() + 42)
+        monkeypatch.setattr(updater, "LEGACY_DATABASE_GID", os.getegid() + 43)
+    elif problem == "hardlink":
+        (tmp_path / "linked").hardlink_to(daily)
+    else:
+        original = daily.rename(tmp_path / "target")
+        daily.symlink_to(original)
+    before = main.stat()
+    with pytest.raises((OSError, updater.VendorError)):
+        updater.ensure_reader_access(tmp_path, snapshot)
+    after = main.stat()
+    assert before.st_ctime_ns == after.st_ctime_ns and before.st_mode == after.st_mode
