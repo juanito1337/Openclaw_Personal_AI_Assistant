@@ -9,6 +9,39 @@ common=(
   --security-opt no-new-privileges:true
 )
 
+case ${2:-} in
+  --signatures)
+    # Match compose.yaml's project/volume contract without resolving service
+    # environment files or starting another updater. Only an existing database
+    # may be mounted: Docker must not silently bootstrap an empty volume here.
+    project=${COMPOSE_PROJECT_NAME:-openclaw-agent}
+    [[ "$project" =~ ^[a-z0-9][a-z0-9_-]*$ ]] || {
+      echo "Ungueltiges Compose-Projekt fuer die ClamAV-Signaturpruefung." >&2
+      exit 2
+    }
+    volume="${project}_clamav-db"
+    identity=$(docker volume inspect --format \
+      '{{.Name}} {{index .Labels "com.docker.compose.project"}} {{index .Labels "com.docker.compose.volume"}}' \
+      "$volume") || {
+      echo "Bestehendes ClamAV-Signaturvolume ist nicht verifizierbar; Writer bleiben unveraendert." >&2
+      exit 1
+    }
+    [[ "$identity" == "$volume $project clamav-db" ]] || {
+      echo "ClamAV-Signaturvolume gehoert nicht zum ausgewaehlten Compose-Projekt." >&2
+      exit 1
+    }
+    "${common[@]}" --network none --user 100:101 \
+      --mount "type=volume,src=$volume,dst=/var/lib/clamav,readonly,volume-nocopy" \
+      --env CLAMAV_DATABASE_DIR=/var/lib/clamav \
+      --env "CLAMAV_SIGNATURE_MAX_AGE_SECONDS=${CLAMAV_SIGNATURE_MAX_AGE_SECONDS:-172800}" \
+      --entrypoint python3 "$image" -P -m personal_assistant.clamav_health
+    echo "Vorhandene ClamAV-Signaturen mit Kandidat-Maintenance-Laufzeit verifiziert."
+    exit 0
+    ;;
+  '') ;;
+  *) echo "Unbekannte Maintenance-Pruefoption." >&2; exit 2 ;;
+esac
+
 "${common[@]}" --network none --entrypoint /usr/bin/freshclam "$image" --version >/dev/null
 "${common[@]}" --network none --entrypoint /usr/bin/clamscan "$image" --version >/dev/null
 "${common[@]}" --network none --entrypoint /usr/sbin/clamd "$image" --version >/dev/null

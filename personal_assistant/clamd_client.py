@@ -10,6 +10,7 @@ from __future__ import annotations
 import socket
 import stat
 import struct
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -66,10 +67,18 @@ class ClamdUnixClient:
                 "Konfigurierter ClamAV-Daemonpfad ist kein Unix-Socket",
             )
 
-    def _connect(self) -> socket.socket:
+    @staticmethod
+    def _remaining_timeout(deadline: float) -> float:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise ClamdClientError("timeout", "ClamAV-Daemonabfrage hat Zeitlimit erreicht")
+        return remaining
+
+    def _connect(self, *, deadline: float | None = None) -> socket.socket:
         self._validate_socket_path()
+        timeout = self.timeout_seconds if deadline is None else self._remaining_timeout(deadline)
         client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        client.settimeout(self.timeout_seconds)
+        client.settimeout(timeout)
         try:
             client.connect(str(self.socket_path))
         except PermissionError as exc:
@@ -92,12 +101,13 @@ class ClamdUnixClient:
         except (BrokenPipeError, ConnectionResetError, OSError) as exc:
             raise ClamdClientError("daemon-disconnected", "ClamAV-Daemon hat Verbindung beendet") from exc
 
-    @staticmethod
-    def _receive(client: socket.socket) -> str:
+    def _receive(self, client: socket.socket, *, deadline: float | None = None) -> str:
         chunks: list[bytes] = []
         size = 0
         try:
             while True:
+                if deadline is not None:
+                    client.settimeout(self._remaining_timeout(deadline))
                 chunk = client.recv(min(4096, MAX_RESPONSE_BYTES - size + 1))
                 if not chunk:
                     break
@@ -120,10 +130,12 @@ class ClamdUnixClient:
         return value
 
     def _command(self, command: bytes) -> str:
-        client = self._connect()
+        deadline = time.monotonic() + self.timeout_seconds
+        client = self._connect(deadline=deadline)
         try:
+            client.settimeout(self._remaining_timeout(deadline))
             self._send(client, b"z" + command + b"\0")
-            return self._receive(client)
+            return self._receive(client, deadline=deadline)
         finally:
             client.close()
 

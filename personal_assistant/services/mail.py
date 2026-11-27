@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +13,7 @@ class MailApplicationMixin:
     mail_move_service: Any
     storage: Any
     config: Any
+    antivirus: Any
 
     def mail_move_status(self) -> dict[str, Any]:
         return self.mail_move_service.status()
@@ -61,6 +63,29 @@ class MailApplicationMixin:
         )
         result["semantic_configuration"] = configuration
         result["reconciliation"] = self._reconcile_runtime_status()
+        # Stored index integrity and current ingestion prerequisites are
+        # independent. A previous complete generation must not hide a scanner
+        # outage, and that outage must not invalidate the searchable generation.
+        try:
+            readiness = dict(self.antivirus.index_readiness())
+            if not all(isinstance(readiness.get(key), bool) for key in ("ok", "index_ready")):
+                raise ValueError("Missing typed antivirus readiness")
+        except Exception as exc:
+            readiness = {
+                "ok": False,
+                "index_ready": False,
+                "reasons": ["antivirus-readiness-unavailable"],
+                "error_category": type(exc).__name__,
+            }
+        readiness.update({
+            "checked_at": datetime.now(UTC).isoformat(),
+            "scope": "configured-mail-index-antivirus",
+            "next_step": "./scripts/assistant.sh security antivirus doctor --no-live-scan",
+        })
+        result["index_readiness"] = readiness
+        if readiness.get("ok") is not True or readiness.get("index_ready") is not True:
+            result["ok"] = False
+            result["state"] = "degraded"
         return result
 
     def mail_index_shadow(self, query: str, *, limit: int = 50) -> dict[str, Any]:

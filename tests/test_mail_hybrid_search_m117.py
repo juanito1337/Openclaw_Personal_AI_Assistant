@@ -15,6 +15,7 @@ import pytest
 import personal_assistant.cli as assistant_cli
 from mail_agent.models import Envelope, OperationResult
 from personal_assistant.adapters.mail import MailMoveService
+from personal_assistant.antivirus import HostAntivirus
 from personal_assistant.cli import parser as assistant_parser
 from personal_assistant.cli_handlers.mail import handle as handle_mail
 from personal_assistant.mail_embeddings import EmbeddingModel
@@ -26,9 +27,10 @@ from personal_assistant.mail_search import MailSearchFilters
 from personal_assistant.models import Resource
 from personal_assistant.policy import PolicyEngine
 from personal_assistant.registry import ResourceRegistry
+from personal_assistant.services.mail import MailApplicationMixin
 from personal_assistant.storage import AssistantStorage
 from personal_assistant.tool_catalog import TOOLS
-from personal_assistant.tool_settings import MailMoveToolSettings
+from personal_assistant.tool_settings import AntivirusToolSettings, MailMoveToolSettings
 
 MODEL = EmbeddingModel(
     "fixture-embed",
@@ -821,6 +823,86 @@ def test_index_status_doctor_cli_and_typed_catalog_are_consistent(
     assert by_id["mail.index.backfill"].approval == "explicit-user-local-mail-index-backfill"
     assert by_id["mail.index.reconcile"].approval == "explicit-user-local-mail-index-reconcile"
     assert by_id["mail.search"].test_anchor == "tests/test_mail_hybrid_search_m117.py"
+
+
+@pytest.mark.parametrize(
+    ("daemon_ready", "age", "expected_ok", "reason"),
+    [
+        (True, 172800, True, ""),
+        (True, 172801, False, "clamd-signatures-not-fresh"),
+        (True, None, False, "clamd-signatures-not-fresh"),
+        (False, None, False, "clamd-not-ready"),
+    ],
+)
+def test_index_doctor_distinguishes_current_scanner_from_valid_imported_index(
+    storage: AssistantStorage, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    daemon_ready: bool, age: int | None, expected_ok: bool, reason: str,
+) -> None:
+    _publish(storage, [_record("doctor-readiness", subject="Synthetic", body="needle")])
+    scanner = HostAntivirus(
+        AntivirusToolSettings(), database=tmp_path / "antivirus.sqlite3"
+    )
+    monkeypatch.setattr(scanner, "_daemon_status", lambda: {
+        "ready": daemon_ready, "signature_age_seconds": age,
+        "transport": "daemon-stream", "engine_version": "1.4.3",
+        "signature_version": "28194", "signature_timestamp": "Wed Nov 25 06:26:59 2026",
+    })
+    assistant = MailApplicationMixin()
+    assistant.storage = storage
+    assistant.config = SimpleNamespace(search=_config(mail_snapshot_dir=str(tmp_path / "projection")))
+    assistant.antivirus = scanner
+    try:
+        doctor = assistant.mail_index_doctor()
+        assert doctor["ok"] is expected_ok
+        assert doctor["state"] == ("healthy" if expected_ok else "degraded")
+        assert doctor["status"]["search_eligible"] is True
+        assert doctor["checks"]["sqlite"]["ok"] is True
+        readiness = doctor["index_readiness"]
+        assert readiness["index_ready"] is expected_ok
+        assert readiness["checked_at"]
+        assert readiness["scope"] == "configured-mail-index-antivirus"
+        assert readiness["next_step"] == "./scripts/assistant.sh security antivirus doctor --no-live-scan"
+        assert readiness["reasons"] == ([reason] if reason else [])
+        assert assistant.mail_index_status()["search_eligible"] is True
+    finally:
+        scanner.close()
+
+
+def test_index_doctor_preserves_integrity_evidence_when_scanner_probe_fails(
+    storage: AssistantStorage, tmp_path: Path,
+) -> None:
+    _publish(storage, [_record("doctor-error", subject="Synthetic", body="needle")])
+
+    class UnavailableScanner:
+        def index_readiness(self):
+            raise OSError("private scanner error content must not be disclosed")
+
+    assistant = MailApplicationMixin()
+    assistant.storage = storage
+    assistant.config = SimpleNamespace(search=_config(mail_snapshot_dir=str(tmp_path / "projection")))
+    assistant.antivirus = UnavailableScanner()
+    doctor = assistant.mail_index_doctor()
+    assert doctor["ok"] is False
+    assert doctor["status"]["search_eligible"] is True
+    assert doctor["checks"]["sqlite"]["ok"] is True
+    assert doctor["index_readiness"]["index_ready"] is False
+    assert doctor["index_readiness"]["reasons"] == ["antivirus-readiness-unavailable"]
+    assert "private scanner" not in repr(doctor)
+
+
+@pytest.mark.parametrize("payload", [None, {}, {"ok": True, "index_ready": "yes"}])
+def test_index_doctor_missing_readiness_is_unknown_not_success(
+    storage: AssistantStorage, tmp_path: Path, payload: Any,
+) -> None:
+    _publish(storage, [_record("doctor-missing", subject="Synthetic", body="needle")])
+    assistant = MailApplicationMixin()
+    assistant.storage = storage
+    assistant.config = SimpleNamespace(search=_config(mail_snapshot_dir=str(tmp_path / "projection")))
+    assistant.antivirus = SimpleNamespace(index_readiness=lambda: payload)
+    doctor = assistant.mail_index_doctor()
+    assert doctor["ok"] is False
+    assert doctor["index_readiness"]["index_ready"] is False
+    assert doctor["index_readiness"]["reasons"] == ["antivirus-readiness-unavailable"]
 
 
 def test_shadow_cli_uses_registered_handler_instead_of_external_mail_cli(

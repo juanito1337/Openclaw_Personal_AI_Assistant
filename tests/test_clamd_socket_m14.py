@@ -1,17 +1,23 @@
 from __future__ import annotations
 
+import json
 import socket
 import struct
+import subprocess
 import tempfile
 import threading
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager, suppress
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 
 from personal_assistant.antivirus import HostAntivirus
 from personal_assistant.clamd_client import ClamdClientError, ClamdUnixClient
+from personal_assistant.clamd_health import check_clamd
+from personal_assistant.clamd_health import main as clamd_health_main
 from personal_assistant.tool_settings import AntivirusToolSettings
 
 
@@ -20,7 +26,7 @@ class FakeClamd:
         self.path = path
         self.stop = threading.Event()
         self.payloads: list[bytes] = []
-        self.version = "ClamAV 1.4.3/99999/Fri Jan  1 00:00:00 2099"
+        self.version = f"ClamAV 1.4.3/99999/{datetime.now(UTC).ctime()}"
         self.change_version_after_scan = False
         self.server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.server.bind(str(path))
@@ -88,6 +94,110 @@ def fake_clamd(root: Path) -> Iterator[FakeClamd]:
         daemon.close()
 
 
+@pytest.mark.parametrize(
+    "resident", ["stale", "malformed", "missing", "future", "fresh-but-one-version-behind"]
+)
+def test_daemon_health_checks_loaded_signature_independently_of_fresh_disk(tmp_path, monkeypatch, resident):
+    now = datetime.now(UTC)
+    disk = {"ok": True, "scanner_identity": f"ClamAV 1.4.3/28195/{now.ctime()}", "daily_age_seconds": 0}
+    monkeypatch.setattr("personal_assistant.clamd_health.inspect_database", lambda *a, **k: disk)
+    stamps = {
+        "stale": (now - timedelta(days=3)).ctime(),
+        "malformed": "not-a-date",
+        "missing": "",
+        "future": (now + timedelta(days=1)).ctime(),
+        "fresh-but-one-version-behind": (now - timedelta(days=1)).ctime(),
+    }
+    with fake_clamd(tmp_path) as daemon:
+        daemon.version = f"ClamAV 1.4.3/28194/{stamps[resident]}"
+        report = check_clamd(
+            daemon.path, database_dir=tmp_path, max_age_seconds=172800, timeout_seconds=1,
+            max_stream_bytes=1024,
+        )
+        settings = AntivirusToolSettings(daemon_socket=str(daemon.path), temp_dir=tmp_path / "scan")
+        antivirus = HostAntivirus(settings, database=tmp_path / "antivirus.sqlite3")
+        try:
+            index = antivirus.index_readiness()
+        finally:
+            antivirus.close()
+    expected = resident == "fresh-but-one-version-behind"
+    assert report["daemon_ready"] is index["daemon_ready"] is True
+    assert report["ok"] is index["index_ready"] is expected
+    assert report["signatures_fresh"] is index["signatures_fresh"] is expected
+    known_age = resident in ("stale", "fresh-but-one-version-behind")
+    assert index["signature_age_source"] == ("daemon-version-utc" if known_age else "")
+
+
+def test_daemon_healthcheck_exits_unhealthy_with_disk_problem_but_preserves_socket_evidence(
+    tmp_path, monkeypatch, capsys,
+):
+    with fake_clamd(tmp_path) as daemon:
+        monkeypatch.setenv("OPENCLAW_CLAMD_SOCKET", str(daemon.path))
+        monkeypatch.setenv("CLAMAV_DATABASE_DIR", str(tmp_path))
+        assert clamd_health_main() == 1
+    report = json.loads(capsys.readouterr().out)
+    assert report["ok"] is report["database"]["ok"] is False
+    assert report["daemon_ready"] is report["signatures_fresh"] is True
+
+
+@pytest.mark.parametrize(("age", "disk_case", "expected_age"), [
+    (172800, "same", 172800),
+    (172801, "same", 172801),
+    (172801, "newer", None),
+    (172801, "engine-only", None),
+    (172801, "no-resident-signature", None),
+    (172801, "bad-resident-date", None),
+    (172801, "bad-disk-date", None),
+    (172801, "unavailable", None),
+])
+def test_legacy_age_requires_matching_utc_database_identity(
+    tmp_path, monkeypatch, age, disk_case, expected_age,
+):
+    now = datetime(2026, 11, 27, 12, tzinfo=UTC)
+    built = now - timedelta(seconds=age)
+    # A daemon running in Europe/Berlin renders this November build in CET.
+    resident = f"ClamAV 1.4.3/28194/{(built + timedelta(hours=1)).ctime()}"
+    if disk_case == "no-resident-signature":
+        resident = "ClamAV 1.4.3"
+    if disk_case == "bad-resident-date":
+        resident = "ClamAV 1.4.3/28194/no-date"
+    disk = f"ClamAV 1.4.3/{28195 if disk_case == 'newer' else 28194}/{built.ctime()}"
+    if disk_case == "engine-only":
+        disk = "ClamAV 1.4.3"
+    if disk_case == "bad-disk-date":
+        disk = "ClamAV 1.4.3/28194/no-date"
+
+    def version_probe(args, **kwargs):
+        assert args in (["clamdscan", "--version"], ["clamscan", "--version"])
+        assert 0 < kwargs["timeout"] <= 5
+        if args[0] == "clamscan":
+            assert kwargs["env"]["TZ"] == "UTC"
+            if disk_case == "unavailable":
+                raise OSError("no scanner")
+        output = resident if args[0] == "clamdscan" else disk
+        if kwargs.get("text"):
+            return subprocess.CompletedProcess(args, 0, output, "")
+        return subprocess.CompletedProcess(args, 0, output.encode("ascii"), b"")
+
+    monkeypatch.setenv("TZ", "Europe/Berlin")
+    monkeypatch.setattr(subprocess, "run", version_probe)
+    monkeypatch.setattr(time, "time", lambda: now.timestamp())
+    monkeypatch.setattr(HostAntivirus, "_systemd_unit", lambda self, name: {"ActiveState": "active"})
+    settings = AntivirusToolSettings(daemon_socket="", allow_standalone_fallback=False)
+    antivirus = HostAntivirus(settings, database=tmp_path / "antivirus.sqlite3")
+    try:
+        daemon = antivirus._daemon_status()
+        readiness = antivirus.index_readiness()
+    finally:
+        antivirus.close()
+    assert readiness["daemon_ready"] is True
+    assert readiness["signature_age_seconds"] == expected_age
+    assert daemon["version"] == resident
+    assert readiness["signature_age_source"] == ("matching-local-database-utc" if expected_age else "")
+    assert readiness["signature_timestamp"] == (built.ctime() if expected_age else "")
+    assert readiness["index_ready"] is (expected_age is not None and expected_age <= 172800)
+
+
 def test_private_client_ping_version_clean_and_infected() -> None:
     with tempfile.TemporaryDirectory() as folder:
         root = Path(folder)
@@ -122,16 +232,18 @@ def test_client_rejects_oversize_and_non_socket_before_scan() -> None:
 
 
 @pytest.mark.parametrize(
-    ("reply", "delay", "category"),
+    ("reply", "delay", "byte_delay", "category"),
     [
-        (b"", 0.0, "protocol-error"),
-        (b"not-a-clamd-reply\0", 0.0, "protocol-error"),
-        (b"PONG\0", 0.2, "timeout"),
+        (b"", 0.0, 0.0, "protocol-error"),
+        (b"not-a-clamd-reply\0", 0.0, 0.0, "protocol-error"),
+        (b"PONG\0", 0.2, 0.0, "timeout"),
+        (b"PONG\0", 0.0, 0.025, "timeout"),
     ],
 )
 def test_client_types_empty_corrupt_and_timeout_responses(
     reply: bytes,
     delay: float,
+    byte_delay: float,
     category: str,
 ) -> None:
     with tempfile.TemporaryDirectory() as folder:
@@ -146,8 +258,12 @@ def test_client_types_empty_corrupt_and_timeout_responses(
                 client.recv(1024)
                 if delay:
                     threading.Event().wait(delay)
-                if reply:
-                    with suppress(OSError):
+                with suppress(OSError):
+                    if byte_delay:
+                        for byte in reply:
+                            client.sendall(bytes([byte]))
+                            time.sleep(byte_delay)
+                    else:
                         client.sendall(reply)
 
         thread = threading.Thread(target=serve_once, daemon=True)
@@ -170,6 +286,46 @@ def test_client_types_missing_socket() -> None:
         with pytest.raises(ClamdClientError) as failure:
             client.ping()
         assert failure.value.category == "socket-unavailable"
+
+
+def test_index_readiness_times_out_promptly_on_silent_socket(tmp_path, monkeypatch):
+    monkeypatch.setattr("personal_assistant.antivirus.CLAMD_DIAGNOSTIC_TIMEOUT_SECONDS", 0.05)
+    path = tmp_path / "silent.sock"
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as silent:
+        silent.bind(str(path))
+        silent.listen(1)
+        settings = AntivirusToolSettings(daemon_socket=str(path), timeout_seconds=2)
+        antivirus = HostAntivirus(settings, database=tmp_path / "av.sqlite3")
+        try:
+            started = time.monotonic()
+            readiness = antivirus.index_readiness()
+            elapsed = time.monotonic() - started
+        finally:
+            antivirus.close()
+    assert readiness["index_ready"] is readiness["daemon_ready"] is False
+    assert "clamd-not-ready" in readiness["reasons"]
+    assert elapsed < 1
+
+
+def test_stream_scan_uses_configured_timeout(tmp_path, monkeypatch):
+    scan_timeouts = []
+    original_scan = ClamdUnixClient.scan
+
+    def record_scan(client, data):
+        scan_timeouts.append(client.timeout_seconds)
+        return original_scan(client, data)
+
+    monkeypatch.setattr(ClamdUnixClient, "scan", record_scan)
+    with fake_clamd(tmp_path) as daemon:
+        settings = AntivirusToolSettings(
+            daemon_socket=str(daemon.path), timeout_seconds=127, temp_dir=tmp_path,
+        )
+        antivirus = HostAntivirus(settings, database=tmp_path / "av.sqlite3")
+        try:
+            result = antivirus.scan_bytes(b"mail", name="test", source_type="test")
+        finally:
+            antivirus.close()
+    assert result.clean and scan_timeouts == [127]
 
 
 def test_host_antivirus_reports_daemon_transport_and_cache() -> None:

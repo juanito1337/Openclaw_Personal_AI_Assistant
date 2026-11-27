@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 umask 007
+export TZ=UTC
 
 database=${CLAMAV_DATABASE_DIR:-/var/lib/clamav}
 socket_path=${OPENCLAW_CLAMD_SOCKET:-/run/clamav/clamd.sock}

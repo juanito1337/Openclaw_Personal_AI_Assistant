@@ -438,19 +438,24 @@ raise SystemExit(86)
     def test_clamav_health_requires_complete_fresh_signatures_and_identity(self) -> None:
         with tempfile.TemporaryDirectory() as folder:
             database = Path(folder)
-            current = 2_000_000_000.0
+            current = datetime(2026, 11, 27, 6, 26, 59, tzinfo=UTC).timestamp()
             for name in ("main.cvd", "daily.cld", "bytecode.cvd"):
                 path = database / name
                 path.write_bytes(b"signature")
                 # Explicit timestamps make this test independent of wall time.
                 os.utime(path, (current - 60, current - 60))
             completed = subprocess.CompletedProcess(
-                ["clamscan", "--version"], 0, "ClamAV 1.4.3/27888/Tue Aug 5 00:00:00 2026\n", ""
+                ["clamscan", "--version"], 0, "ClamAV 1.4.3/28194/Wed Nov 25 06:26:59 2026\n", ""
             )
             report = inspect_database(
-                database, max_age_seconds=120, now=current, run=lambda *args, **kwargs: completed
+                database, max_age_seconds=172800, now=current, run=lambda *args, **kwargs: completed
             )
             self.assertTrue(report["ok"])
+            self.assertEqual(report["daily_age_seconds"], 172800)
+            with self.assertRaisesRegex(ValueError, "zu alt"):
+                inspect_database(
+                    database, max_age_seconds=172800, now=current + 1, run=lambda *a, **k: completed
+                )
             (database / "main.cvd").unlink()
             with self.assertRaisesRegex(ValueError, "Signatur fehlt"):
                 inspect_database(
@@ -468,13 +473,23 @@ raise SystemExit(86)
                 path = database / name
                 path.write_bytes(b"signature")
                 os.utime(path, (current - 500, current - 500))
-            good = subprocess.CompletedProcess(["clamscan", "--version"], 0, "ClamAV 1.4/42/date\n", "")
+            good = subprocess.CompletedProcess(
+                ["clamscan", "--version"], 0, "ClamAV 1.4/42/Wed Nov 25 06:26:59 2026\n", ""
+            )
             with self.assertRaisesRegex(ValueError, "zu alt"):
                 inspect_database(database, max_age_seconds=120, now=current, run=lambda *args, **kwargs: good)
             os.utime(database / "daily.cvd", (current, current))
             bad = subprocess.CompletedProcess(["clamscan", "--version"], 0, "ClamAV 1.4\n", "")
             with self.assertRaisesRegex(ValueError, "Scanneridentitaet"):
                 inspect_database(database, max_age_seconds=120, now=current, run=lambda *args, **kwargs: bad)
+            for identity in (
+                "ClamAV 1.4/42", "ClamAV 1.4/42/not-a-date", "ClamAV 1.4/42/Thu Jan 1 00:00:00 2099",
+            ):
+                with self.subTest(identity=identity), self.assertRaises(ValueError):
+                    invalid = subprocess.CompletedProcess([], 0, identity, "")
+                    inspect_database(
+                        database, max_age_seconds=120, now=current, run=mock.Mock(return_value=invalid)
+                    )
 
     def test_clamav_transport_exercises_libcurl_https_and_fails_closed(self) -> None:
         class FakeFunction:

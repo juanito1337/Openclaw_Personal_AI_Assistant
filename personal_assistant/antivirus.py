@@ -9,15 +9,16 @@ import tempfile
 import time
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
-from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any
 
+from .clamav_health import database_identity, signature_age_seconds, signature_build_time
 from .clamd_client import ClamdClientError, ClamdUnixClient
 from .config import WORKSPACE_ROOT
 from .tool_settings import AntivirusToolSettings
 
 DEFAULT_ANTIVIRUS_DB = WORKSPACE_ROOT / "personal_assistant/data/antivirus.sqlite3"
+CLAMD_DIAGNOSTIC_TIMEOUT_SECONDS = 5
 
 
 def _default_antivirus_database() -> Path:
@@ -238,11 +239,11 @@ class HostAntivirus:
         self._identity_transport = "standalone" if self._identity != "clamav:unavailable" else "unavailable"
         return self._identity
 
-    def _binary_identity(self, binary: str) -> str:
+    def _binary_identity(self, binary: str, *, timeout: int = 15) -> str:
         if not binary:
             return "clamav:unavailable"
         try:
-            result = self._run([binary, "--version"], timeout=15)
+            result = self._run([binary, "--version"], timeout=timeout)
             output = (result.stdout + b"\n" + result.stderr).decode(
                 "utf-8", errors="replace"
             ).strip()
@@ -252,27 +253,14 @@ class HostAntivirus:
             return "clamav:unavailable"
         return f"{binary}:{output.splitlines()[0][:300]}"
 
-    def _daemon_client(self) -> ClamdUnixClient | None:
+    def _daemon_client(self, *, timeout_seconds: float | None = None) -> ClamdUnixClient | None:
         if not self.settings.daemon_socket:
             return None
         return ClamdUnixClient(
             self.settings.daemon_socket,
-            timeout_seconds=self.settings.timeout_seconds,
+            timeout_seconds=self.settings.timeout_seconds if timeout_seconds is None else timeout_seconds,
             max_stream_bytes=self.settings.max_scan_bytes,
         )
-
-    @staticmethod
-    def _signature_age(version: str) -> int | None:
-        parts = version.split("/", 2)
-        if len(parts) != 3:
-            return None
-        try:
-            stamp = parsedate_to_datetime(parts[2])
-        except (TypeError, ValueError, OverflowError):
-            return None
-        if stamp.tzinfo is None:
-            stamp = stamp.replace(tzinfo=UTC)
-        return max(0, int((datetime.now(UTC) - stamp.astimezone(UTC)).total_seconds()))
 
     @staticmethod
     def _version_fields(version: str) -> dict[str, str]:
@@ -289,21 +277,42 @@ class HostAntivirus:
         }
 
     def _daemon_status(self) -> dict[str, Any]:
-        client = self._daemon_client()
+        client = self._daemon_client(
+            timeout_seconds=min(CLAMD_DIAGNOSTIC_TIMEOUT_SECONDS, self.settings.timeout_seconds)
+        )
         if client is None:
             unit = self._systemd_unit(self.settings.daemon_service)
             ready = unit.get("ActiveState") == "active"
-            identity = self._binary_identity(self.settings.binary) if ready else ""
+            identity = (
+                self._binary_identity(self.settings.binary, timeout=CLAMD_DIAGNOSTIC_TIMEOUT_SECONDS)
+                if ready else ""
+            )
             version = identity.split(":", 1)[1] if ":" in identity else ""
+            fields = self._version_fields(version)
+            fields["signature_timestamp"] = ""
+            age = None
+            if signature_build_time(version) is not None:
+                # A legacy clamd renders VERSION in its own (unknown) timezone.
+                # The same daily database number binds its build to a known UTC timestamp.
+                try:
+                    disk = database_identity(timeout=CLAMD_DIAGNOSTIC_TIMEOUT_SECONDS, run=subprocess.run)
+                except (OSError, subprocess.SubprocessError):
+                    disk = ""
+                disk_fields = self._version_fields(disk)
+                if disk_fields["signature_version"] == fields["signature_version"]:
+                    age = signature_age_seconds(disk)
+                    if age is not None:
+                        fields["signature_timestamp"] = disk_fields["signature_timestamp"]
             return {
                 **unit,
                 "ready": ready,
                 "transport": "clamdscan-systemd" if ready else "",
                 "socket": "",
                 "version": version,
-                "signature_age_seconds": self._signature_age(version),
+                "signature_age_seconds": age,
+                "signature_age_source": "matching-local-database-utc" if age is not None else "",
                 "error_category": "" if ready else "daemon-unavailable",
-                **self._version_fields(version),
+                **fields,
             }
         try:
             client.ping()
@@ -316,11 +325,12 @@ class HostAntivirus:
                 "socket": str(client.socket_path),
                 "version": "",
                 "signature_age_seconds": None,
+                "signature_age_source": "",
                 "error_category": getattr(exc, "category", "daemon-unavailable"),
                 "error": str(exc),
                 **self._version_fields(""),
             }
-        age = self._signature_age(version)
+        age = signature_age_seconds(version)
         return {
             "available": True,
             "ready": True,
@@ -328,6 +338,7 @@ class HostAntivirus:
             "socket": str(client.socket_path),
             "version": version,
             "signature_age_seconds": age,
+            "signature_age_source": "daemon-version-utc" if age is not None else "",
             "error_category": "",
             **self._version_fields(version),
         }
@@ -369,6 +380,7 @@ class HostAntivirus:
             "daemon_ready": bool(daemon.get("ready")),
             "signatures_fresh": signatures_fresh,
             "signature_age_seconds": age,
+            "signature_age_source": daemon.get("signature_age_source") or "",
             "signature_max_age_seconds": self.settings.signature_max_age_seconds,
             "transport": daemon.get("transport") or "",
             "engine_version": daemon.get("engine_version") or "",

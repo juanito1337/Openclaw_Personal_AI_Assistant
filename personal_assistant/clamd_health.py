@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import time
 from pathlib import Path
 
-from .clamav_health import inspect_database
+from .clamav_health import inspect_database, signature_age_seconds
 from .clamd_client import ClamdClientError, ClamdUnixClient
 
 
@@ -19,7 +20,6 @@ def check_clamd(
     timeout_seconds: float,
     max_stream_bytes: int,
 ) -> dict[str, object]:
-    database = inspect_database(database_dir, max_age_seconds=max_age_seconds)
     client = ClamdUnixClient(
         socket_path,
         timeout_seconds=timeout_seconds,
@@ -28,12 +28,22 @@ def check_clamd(
     started = time.monotonic()
     client.ping()
     version = client.version()
+    latency = (time.monotonic() - started) * 1000.0
+    age = signature_age_seconds(version)
+    fresh = age is not None and age <= max_age_seconds
+    try:
+        database = inspect_database(database_dir, max_age_seconds=max_age_seconds)
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        database = {"ok": False, "detail": str(exc)}
     return {
-        "ok": True,
+        "ok": fresh and database["ok"] is True,
         "daemon_ready": True,
         "transport": "daemon-stream",
         "version": version,
-        "latency_ms": round((time.monotonic() - started) * 1000.0, 3),
+        "latency_ms": round(latency, 3),
+        "signatures_fresh": fresh,
+        "signature_age_seconds": age,
+        "signature_max_age_seconds": max_age_seconds,
         "database": database,
     }
 
@@ -61,7 +71,7 @@ def main() -> int:
         )
         return 1
     print(json.dumps(report, sort_keys=True))
-    return 0
+    return 0 if report["ok"] else 1
 
 
 if __name__ == "__main__":

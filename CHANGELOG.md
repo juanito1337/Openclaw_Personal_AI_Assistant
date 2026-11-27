@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- ClamAV-Gesundheitspruefungen bewerten das Alter der tatsaechlichen Signatur
+  statt des spaeteren lokalen Dateidatums. Der Daemon muss auch fuer seinen
+  residenten Signaturstand einen gueltigen Frischenachweis liefern. Der
+  Index-Doctor zeigt aktuelle Scanner-Bereitschaft getrennt von der Integritaet
+  des vorhandenen Suchindex. Eine fehlende Signaturfreigabe stoppt das Deployment
+  vor dem Writer-Stopp; die unveraenderte Altersgrenze bleibt verbindlich, auch
+  wenn der Hersteller aktuell keine neueren Signaturen anbietet.
+
 - Der manuelle Mail-Probelauf im Chat erhaelt ein eigenes begrenztes
   Laufzeitbudget statt des allgemeinen 120-Sekunden-Limits. Sein gebundener
   Ergebnisnachweis bleibt waehrend des Probelaufs und kurz fuer die Antwort

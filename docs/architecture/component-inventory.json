@@ -2,7 +2,7 @@
   "schema_version": 1,
   "inventory_date": "2026-08-06",
   "source_scope": "all Python modules, shell entrypoints, skills, systemd units, migrations and Markdown documents",
-  "component_count": 638,
+  "component_count": 640,
   "classification_values": [
     "active",
     "compatibility",
@@ -61,7 +61,8 @@
         "docs/architecture/adr/0006-toolvertrag-source-of-truth.md",
         "docs/architecture/adr/0012-m8-recovery-und-agentenvertrag.md",
         "docs/architecture/adr/0014-abgeschlossenes-workspace-profil.md",
-        "docs/archive/AUDIT_INITIAL_IMPORT.md"
+        "docs/archive/AUDIT_INITIAL_IMPORT.md",
+        "docs/superpowers/plans/2026-11-27-mail-owner-signature-readiness.md"
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-11-15T19:08:38+01:00",
@@ -312,7 +313,9 @@
         "compose.yaml",
         "scripts/check-role-images.sh"
       ],
-      "test_evidence": [],
+      "test_evidence": [
+        "tests/test_clamd_compose_m14.py"
+      ],
       "documentation_evidence": [],
       "line_coverage_percent": null,
       "last_git_change": "2026-09-07T10:18:39+02:00",
@@ -603,6 +606,7 @@
       ],
       "test_evidence": [
         "tests/test_container_runtime.py",
+        "tests/test_deploy_signature_preflight.py",
         "tests/test_m7_supply_chain.py",
         "tests/test_m8_recovery.py",
         "tests/test_talk_proxy_lifecycle.py"
@@ -668,6 +672,7 @@
       ],
       "test_evidence": [
         "tests/test_container_runtime.py",
+        "tests/test_deploy_signature_preflight.py",
         "tests/test_m7_supply_chain.py",
         "tests/test_m8_recovery.py",
         "tests/test_talk_proxy_lifecycle.py"
@@ -860,7 +865,8 @@
         "CHANGELOG.md",
         "REPOSITORY_AUDIT.md",
         "docs/DOCKER_DEPLOYMENT.md",
-        "docs/RELEASE_3_4_0_R28.md"
+        "docs/RELEASE_3_4_0_R28.md",
+        "docs/superpowers/plans/2026-11-27-mail-owner-signature-readiness.md"
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-11-22T09:21:55+01:00",
@@ -4802,6 +4808,24 @@
       "rollback_relevance": "none"
     },
     {
+      "path": "docs/superpowers/plans/2026-11-27-mail-owner-signature-readiness.md",
+      "types": [
+        "document"
+      ],
+      "owner": "Documentation Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
       "path": "docs/superpowers/specs/2026-11-26-mail-production-gate-timeout-design.md",
       "types": [
         "document"
@@ -6663,7 +6687,8 @@
       ],
       "documentation_evidence": [
         "docs/architecture/m16-baseline.json",
-        "docs/superpowers/plans/2026-11-26-chat-mail-dry-run.md"
+        "docs/superpowers/plans/2026-11-26-chat-mail-dry-run.md",
+        "docs/superpowers/plans/2026-11-27-mail-owner-signature-readiness.md"
       ],
       "line_coverage_percent": 68.0,
       "last_git_change": "2026-11-22T09:21:55+01:00",
@@ -6729,13 +6754,15 @@
         "tests/test_carddav_contact_tools.py",
         "tests/test_clamd_socket_m14.py",
         "tests/test_mail_agent.py",
+        "tests/test_mail_hybrid_search_m117.py",
         "tests/test_portfolio_tool.py"
       ],
       "documentation_evidence": [
         "docs/TESTING.md",
         "docs/architecture/DATA_CATALOG.md",
         "docs/architecture/m16-baseline.json",
-        "docs/architecture/state-access.json"
+        "docs/architecture/state-access.json",
+        "docs/superpowers/plans/2026-11-27-mail-owner-signature-readiness.md"
       ],
       "line_coverage_percent": 81.31,
       "last_git_change": "2026-09-07T10:18:39+02:00",
@@ -6826,16 +6853,19 @@
         "compose.yaml",
         "docker/clamd.sh",
         "docker/healthcheck.sh",
+        "docker/scripts/check-maintenance-runtime.sh",
         "docker/scripts/deploy.sh",
         "scripts/benchmark-m7.py",
         "scripts/check-role-images.sh"
       ],
       "test_evidence": [
         "tests/test_container_hardening_m4.py",
-        "tests/test_container_runtime.py"
+        "tests/test_container_runtime.py",
+        "tests/test_deploy_signature_preflight.py"
       ],
       "documentation_evidence": [
-        "docs/TESTING.md"
+        "docs/TESTING.md",
+        "docs/superpowers/plans/2026-11-27-mail-owner-signature-readiness.md"
       ],
       "line_coverage_percent": 75.0,
       "last_git_change": "2026-08-06T15:45:31+02:00",
@@ -6859,7 +6889,8 @@
       ],
       "test_evidence": [
         "tests/test_container_hardening_m4.py",
-        "tests/test_container_runtime.py"
+        "tests/test_container_runtime.py",
+        "tests/test_deploy_signature_preflight.py"
       ],
       "documentation_evidence": [],
       "line_coverage_percent": 77.36,
@@ -6909,8 +6940,12 @@
         "docker/scripts/check-maintenance-runtime.sh",
         "scripts/check-role-images.sh"
       ],
-      "test_evidence": [],
-      "documentation_evidence": [],
+      "test_evidence": [
+        "tests/test_clamd_socket_m14.py"
+      ],
+      "documentation_evidence": [
+        "docs/superpowers/plans/2026-11-27-mail-owner-signature-readiness.md"
+      ],
       "line_coverage_percent": 0.0,
       "last_git_change": "2026-09-07T10:18:39+02:00",
       "runtime_telemetry": {
@@ -7136,7 +7171,8 @@
       ],
       "documentation_evidence": [
         "docs/architecture/m16-baseline.json",
-        "docs/superpowers/plans/2026-11-26-chat-mail-dry-run.md"
+        "docs/superpowers/plans/2026-11-26-chat-mail-dry-run.md",
+        "docs/superpowers/plans/2026-11-27-mail-owner-signature-readiness.md"
       ],
       "line_coverage_percent": 50.68,
       "last_git_change": "2026-11-26T23:45:02+01:00",
@@ -7349,7 +7385,8 @@
       "test_evidence": [],
       "documentation_evidence": [
         "docs/architecture/m16-baseline.json",
-        "docs/superpowers/plans/2026-11-26-chat-mail-dry-run.md"
+        "docs/superpowers/plans/2026-11-26-chat-mail-dry-run.md",
+        "docs/superpowers/plans/2026-11-27-mail-owner-signature-readiness.md"
       ],
       "line_coverage_percent": 100.0,
       "last_git_change": "2026-11-26T23:45:02+01:00",
@@ -9607,6 +9644,7 @@
         "tests/test_incremental_sync_m163.py",
         "tests/test_invoice_effect_contract_m101.py",
         "tests/test_m5_tool_contract.py",
+        "tests/test_mail_hybrid_search_m117.py",
         "tests/test_mail_projection_m96.py",
         "tests/test_nextcloud_connection.py",
         "tests/test_nextcloud_discovery_idempotency.py",
@@ -9667,10 +9705,13 @@
       "owner": "Core Maintainers",
       "classification": "active",
       "productive_callers": [],
-      "test_evidence": [],
+      "test_evidence": [
+        "tests/test_mail_hybrid_search_m117.py"
+      ],
       "documentation_evidence": [
         "docs/architecture/m16-baseline.json",
-        "docs/superpowers/plans/2026-11-26-chat-mail-dry-run.md"
+        "docs/superpowers/plans/2026-11-26-chat-mail-dry-run.md",
+        "docs/superpowers/plans/2026-11-27-mail-owner-signature-readiness.md"
       ],
       "line_coverage_percent": 40.28,
       "last_git_change": "2026-10-07T21:25:53+02:00",
@@ -10152,7 +10193,8 @@
       "test_evidence": [],
       "documentation_evidence": [
         "docs/architecture/m16-baseline.json",
-        "docs/superpowers/plans/2026-11-26-chat-mail-dry-run.md"
+        "docs/superpowers/plans/2026-11-26-chat-mail-dry-run.md",
+        "docs/superpowers/plans/2026-11-27-mail-owner-signature-readiness.md"
       ],
       "line_coverage_percent": 100.0,
       "last_git_change": "2026-11-26T23:45:02+01:00",
@@ -10556,6 +10598,7 @@
         "personal_assistant/portfolio.py",
         "personal_assistant/runtime_identity.py",
         "personal_assistant/service.py",
+        "personal_assistant/services/mail.py",
         "personal_assistant/setup.py",
         "personal_assistant/tool_catalog/calendar.py",
         "personal_assistant/tool_catalog/contacts.py",
@@ -10585,6 +10628,7 @@
         "tests/test_agent_tool_orchestration_m13.py",
         "tests/test_container_migration.py",
         "tests/test_container_runtime.py",
+        "tests/test_deploy_signature_preflight.py",
         "tests/test_direct_tasks_tool.py",
         "tests/test_immutable_runtime.py",
         "tests/test_invoice_backlog_audit_m107.py",
@@ -10593,6 +10637,7 @@
         "tests/test_m8_recovery.py",
         "tests/test_m8_skill_contract.py",
         "tests/test_mail_exec_routing.py",
+        "tests/test_mail_hybrid_search_m117.py",
         "tests/test_mail_owner_cycle_m126.py",
         "tests/test_mail_projection_m96.py",
         "tests/test_mail_search_lexical_m114.py",
@@ -11326,7 +11371,7 @@
         "docs/BUILD_AND_CI.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-11-22T09:41:46+01:00",
+      "last_git_change": "2026-11-27T00:04:12+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -11380,7 +11425,7 @@
         "docs/TESTING.md"
       ],
       "line_coverage_percent": null,
-      "last_git_change": "2026-11-22T09:41:46+01:00",
+      "last_git_change": "2026-11-27T00:04:12+01:00",
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"
@@ -12011,6 +12056,7 @@
       ],
       "test_evidence": [
         "tests/test_container_runtime.py",
+        "tests/test_deploy_signature_preflight.py",
         "tests/test_gateway_event_relay.py",
         "tests/test_immutable_runtime.py",
         "tests/test_job_control.py",
@@ -13435,6 +13481,24 @@
       ],
       "line_coverage_percent": null,
       "last_git_change": "2026-10-24T17:20:39+02:00",
+      "runtime_telemetry": {
+        "status": "not-collected",
+        "reason": "M6 inventory stores no user content or production telemetry"
+      },
+      "rollback_relevance": "none"
+    },
+    {
+      "path": "tests/test_deploy_signature_preflight.py",
+      "types": [
+        "python-module"
+      ],
+      "owner": "Quality Maintainers",
+      "classification": "active",
+      "productive_callers": [],
+      "test_evidence": [],
+      "documentation_evidence": [],
+      "line_coverage_percent": null,
+      "last_git_change": null,
       "runtime_telemetry": {
         "status": "not-collected",
         "reason": "M6 inventory stores no user content or production telemetry"

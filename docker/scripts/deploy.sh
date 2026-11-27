@@ -243,6 +243,14 @@ python3 "$SCRIPT_DIR/check-layout-compatibility.py" \
   --target-min "$target_layout_min" \
   --target-max "$target_layout_max"
 
+# Existing Docker installations already own a signature database. Reject known
+# missing/stale prerequisites before stopping writers or creating a backup.
+# First/legacy installs retain their initial, post-backup freshclam bootstrap.
+if [[ "$previous_runtime" == docker && "$access_transition" != fresh ]]; then
+  echo "Pruefe vorhandene ClamAV-Signaturen vor dem Writer-Stopp."
+  "$SCRIPT_DIR/check-maintenance-runtime.sh" "$target_maintenance_image" --signatures
+fi
+
 restart_previous_on_prebackup_failure() {
   local code=$?
   trap - ERR

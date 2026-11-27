@@ -101,6 +101,11 @@ def test_index_runtime_receives_daemon_readiness_configuration() -> None:
         assert environment["CLAMAV_SIGNATURE_MAX_AGE_SECONDS"] == "172800"
 
 
+def test_clamd_entrypoint_sets_utc_for_resident_version_responses() -> None:
+    startup = (ROOT / "docker/clamd.sh").read_text(encoding="utf-8").splitlines()
+    assert startup.index("export TZ=UTC") < startup.index('exec /usr/sbin/clamd --config-file="$config"')
+
+
 def test_compose_matches_machine_readable_operating_budget() -> None:
     budget = json.loads(
         (ROOT / "docs/architecture/clamd-operating-budget-m14.json").read_text(

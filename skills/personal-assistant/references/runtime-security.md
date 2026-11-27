@@ -172,6 +172,18 @@ through the private role-mounted Unix socket. Interpret `scanner_works`,
 `index_readiness` separately. A clean standalone `clamscan` fallback is not a
 healthy daemon and cannot authorize mail backfill, reconciliation or job start.
 
+Signature freshness is measured from the signature timestamp, never the local
+download/copy modification time. Docker updater health checks the available
+database identity; daemon health also checks the resident VERSION identity.
+The container daemon emits UTC. Legacy daemon wall time is not interpreted as
+UTC: its signature number must match a separately obtained UTC database identity.
+The diagnostic exposes `signature_age_source`; absent proof remains unready.
+An updater's successful "up-to-date" result means no newer version was offered,
+not that the available signatures satisfy the existing 48-hour age limit.
+Deployment checks candidate signature readiness read-only before stopping
+writers and retains the post-update check. A stale vendor release remains a
+visible prerequisite failure until fresh signatures become available.
+
 ## Monitoring and failure handling
 
 Use `monitor status --days 7 --live`, `monitor record` and `monitor history` for
