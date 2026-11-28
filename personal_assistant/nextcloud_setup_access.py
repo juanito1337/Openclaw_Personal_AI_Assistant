@@ -30,6 +30,8 @@ MAX_DISCOVERED_ROWS = 4096  # Account discovery bounds each of the four componen
 MAX_PREVIEW_BYTES = 256 * 1024
 MAX_PROOF_BYTES = 24 * 1024
 STATUS_BYTE_LIMIT = 2 * 1024 * 1024
+MAX_FILE_CREATE_TARGETS = 16
+MAX_FILE_CREATE_TARGET_BYTES = 8 * 1024
 ROOT_STEP = "Kontowurzel gesondert bestätigen oder einzelne Ordner wählen."
 MEASURE_STEP = "Konto erneut prüfen oder den genauen Ordner öffnen."
 LEGACY_STEP = "Bisherige Abläufe prüfen und die gewünschten Ressourcen einzeln auswählen."
@@ -167,7 +169,7 @@ def _scope_for(conn, component, row) -> access.Scope:
     return access.Scope(collection_resource_id(conn, row["href"]), component)
 
 
-def _scopes(snap, requested=()):
+def _scopes(snap, requested=(), *, incomplete_components=None):
     found: dict[access.Scope, dict] = {}
     inv = snap.connection["discovery_snapshot"]
     complete = inv.get("complete") is True
@@ -180,6 +182,8 @@ def _scopes(snap, requested=()):
                 scope = _scope_for(snap.connection, component, row)
             except (AttributeError, TypeError, KeyError, ValueError, ConnectionError):
                 complete = False
+                if incomplete_components is not None:
+                    incomplete_components.add(component)
                 continue
             if (
                 scope not in found
@@ -187,9 +191,23 @@ def _scopes(snap, requested=()):
                 and len(found) >= len(grants) + MAX_DISCOVERED_ROWS
             ):
                 complete = False
+                if incomplete_components is not None:
+                    incomplete_components.add(component)
                 continue
             found[scope] = row
     return found, complete
+
+
+def _file_grant(by_path, path):
+    segments = access.path_segments(path)
+    return next(
+        (
+            by_path[parent]
+            for size in range(len(segments), -1, -1)
+            if (parent := "/".join(segments[:size])) in by_path
+        ),
+        None,
+    )
 
 
 class EvidenceIndex:
@@ -233,15 +251,7 @@ class EvidenceIndex:
         snap = self.snapshot
         inv = dict(self.header)
         if scope.component == "FILES":
-            segments = access.path_segments(scope.path)
-            grant = next(
-                (
-                    self.by_path[path]
-                    for size in range(len(segments), -1, -1)
-                    if (path := "/".join(segments[:size])) in self.by_path
-                ),
-                None,
-            )
+            grant = _file_grant(self.by_path, scope.path)
             paths = {scope.path, grant.scope.path} if grant else {scope.path}
             for path in paths:
                 for group, raw in self.files.get(path, []):
@@ -328,28 +338,157 @@ def _row(snap, scope, raw):
     }
 
 
-def status_view(snap):
-    scopes, complete = _scopes(snap) if snap.connection else ({}, True)
-    rows = []
-    if snap.connection:
-        resources = {r.id: r for r in connection_resources(snap.connection)} if snap.mode == "legacy" else {}
-        index = EvidenceIndex(snap)
-        for scope, raw in scopes.items():
-            row = _row(index.scoped(scope), scope, raw)
-            if snap.mode == "legacy":
-                old = _legacy_operations(scope, resources.get(scope.resource_id))
-                effective = old.intersection(row["server"]["operations"])
-                row["effective_operations"] = sorted(effective)
-                for op in effective:
-                    row["blockers"].pop(op, None)
-            rows.append(row)
-    return {
+def status_view(snap, editor, account_failure):
+    incomplete: set[str] = set()
+    scopes, complete = _scopes(snap, incomplete_components=incomplete) if snap.connection else ({}, True)
+    rows: list[dict] = []
+    view = {
         "mode": snap.mode,
         "binding": snap.binding.to_dict() if snap.binding else None,
         "rows": rows,
         "complete": complete,
         "code": "" if complete else "inventory-incomplete",
         "next_step": LEGACY_STEP if snap.mode == "legacy" else MEASURE_STEP if not complete else "",
+    }
+    if snap.connection:
+        resources = {r.id: r for r in connection_resources(snap.connection)} if snap.mode == "legacy" else {}
+        index = EvidenceIndex(snap)
+        configured = {g.scope: g.operations for g in index.by_scope.values()}
+        for scope, raw in scopes.items():
+            row = _row(index.scoped(scope), scope, raw)
+            if snap.mode == "legacy":
+                old = _legacy_operations(scope, resources.get(scope.resource_id))
+                if scope.component != "FILES" or scope.path == "":
+                    configured[scope] = old
+                effective = old.intersection(row["server"]["operations"])
+                row["effective_operations"] = sorted(effective)
+                for op in effective:
+                    row["blockers"].pop(op, None)
+            rows.append(row)
+        editor.present_rows(snap, rows, account_failed=bool(account_failure))
+        if access.inventory_matches_account(snap.connection, snap.connection["discovery_snapshot"]):
+            view["overview"] = _status_overview(
+                index, rows, scopes, configured, incomplete, editor.service._freshness, account_failure
+            )
+    return view
+
+
+def _checks_complete(inventory, component, scopes):
+    files = component == "FILES"
+    key = "files" if files else access.COLLECTIONS[component]
+    diagnostics = inventory.get("diagnostics")
+    domain = diagnostics.get(key) if isinstance(diagnostics, dict) else None
+    if files:
+        # Account discovery counts the root and immediate children. Later own
+        # observations can add deep folders or replace/remove a saved row.
+        first_level = {
+            scope.path for scope, row in scopes.items()
+            if row and scope.component == "FILES" and "/" not in scope.path
+        }
+        if "" not in first_level:
+            return False
+        if isinstance(domain, dict) and "discovered" in domain:
+            discovered = domain["discovered"]
+            if type(discovered) is not int or discovered != len(first_level):
+                return False
+    if diagnostics is not None:
+        return (
+            isinstance(domain, dict)
+            and domain.get("inventory_complete") is True
+            and (domain.get("status") == "ok" if files else domain.get("status") in ("ok", "empty"))
+            and (files or domain.get("checks_complete") is True)
+        )
+    # Older snapshots can report a complete inventory but must explicitly
+    # include its section. The separate per-row checks still apply.
+    return (
+        inventory.get("complete") is True
+        and not inventory.get("results_may_be_truncated")
+        and not inventory.get("errors")
+        and not inventory.get("limitations")
+        and all(k in inventory for k in (("file_roots", "folders") if files else (key,)))
+    )
+
+
+def _oldest_freshness(*checks):
+    return max(checks, key=lambda check: (check["age_seconds"] is None, check["age_seconds"] or 0))
+
+
+def _overview_check(checked_at, freshness):
+    return {**freshness, "checked_at": checked_at if freshness["age_seconds"] is not None else None}
+
+
+def _status_overview(index, rows, scopes, configured, incomplete, freshness, account_failure):
+    """Summarize saved, presented evidence before the operator page is clipped."""
+    conn = index.snapshot.connection
+    inventory = conn["discovery_snapshot"]
+    checked_at = inventory.get("checked_at")
+    if account_failure:
+        checked_at = account_failure["checked_at"]
+    account_check = _overview_check(checked_at, freshness(checked_at))
+    if account_failure:
+        account_check["state"] = "failed"
+    components = {
+        component: dict.fromkeys(("known", "selected", "readable", "creatable", "updatable", "blocked"), 0)
+        | {
+            "complete": not account_failure and account_check["state"] != "unknown"
+            and component not in incomplete and _checks_complete(inventory, component, scopes),
+            "freshness": account_check,
+        }
+        for component in access.OPERATIONS
+    }
+    checks = {
+        scope: _overview_check(row["server"]["checked_at"], row["server"]["freshness"])
+        for scope, row in zip(scopes, rows, strict=True)
+    }
+    legacy = index.snapshot.mode == "legacy"
+    if legacy:
+        legacy_root_check = next(
+            (check for scope, check in checks.items() if scope.component == "FILES" and scope.path == ""),
+            _overview_check(None, freshness(None)),
+        )
+    targets = []
+    for scope, row in zip(scopes, rows, strict=True):
+        component = components[scope.component]
+        known = bool(scopes[scope])
+        desired = set(configured.get(scope, ()))
+        check = checks[scope]
+        component["known"] += known
+        component["selected"] += bool(desired)
+        read_status = row["server"]["read_check"]
+        verified = (
+            read_status == "ok" and row["server"]["state"] == "verified" and check["state"] != "unknown"
+        )
+        if (known and not verified) or (desired and not known):
+            component["complete"] = False
+        if known and read_status in ("ok", "failed") and not account_failure:
+            component["freshness"] = _oldest_freshness(component["freshness"], check)
+
+        evidence = _oldest_freshness(account_check, check)
+        if scope.component == "FILES":
+            grant = _file_grant(index.by_path, scope.path)
+            if grant is not None:
+                evidence = _oldest_freshness(evidence, checks[grant.scope])
+            elif legacy:
+                evidence = _oldest_freshness(evidence, legacy_root_check)
+        fresh = evidence["state"] == "fresh" and not account_failure
+        effective = set(row["effective_operations"]) if fresh else set()
+        component["blocked"] += bool(desired - effective)
+        component["readable"] += "read" in effective
+        component["updatable"] += "update" in effective
+        create_operation = "create_file" if scope.component == "FILES" else "create"
+        component["creatable"] += create_operation in effective
+        if "create_file" in effective and not _masked_scope(scope, conn["app_password"]):
+            targets.append({"scope": row["scope"], "freshness": evidence})
+
+    targets.sort(key=lambda row: (row["scope"]["path"], row["scope"]["file_id"]))
+    targets = _bounded_list(targets[:MAX_FILE_CREATE_TARGETS], MAX_FILE_CREATE_TARGET_BYTES - 2)
+    return {
+        "schema_version": 1,
+        "account_id": account_namespace(conn),
+        "connection_revision": conn["revision"],
+        "components": components,
+        "file_create_targets": targets,
+        "file_create_targets_truncated": len(targets) < components["FILES"]["creatable"],
     }
 
 
@@ -393,6 +532,8 @@ def bound_status(result, offset=0):
         _fail("access-page-unavailable")
     preview = result["preview"]
     summary = {k: preview[k] for k in ("server_url", "user_id", "checked_at", "files_depth") if k in preview}
+    if isinstance(preview.get("display_name"), str):
+        summary["display_name"] = preview["display_name"][:512]
     summary.update(complete=False, results_may_be_truncated=True, limitations=["operator-response-limit"])
     for key in ("calendars", "task_lists", "addressbooks", "file_roots", "folders", "talk_rooms", "errors"):
         summary[key] = _bounded_list(preview.get(key, []), STATUS_BYTE_LIMIT // 128)
@@ -698,14 +839,15 @@ class AccessEditor:
         wire = _encoded([snap.binding.to_dict(), snap.connection["revision"], scope.to_dict()])
         return hmac.digest(self._selector_key, wire, "sha256").hex()
 
-    def present_rows(self, snap, rows):
+    def present_rows(self, snap, rows, *, account_failed=None):
         grants = {g.scope for g in snap.policy.grants} if snap.policy else set()
         secret = snap.connection["app_password"]
-        failure = self.service.account_failure(snap)
+        if account_failed is None:
+            account_failed = bool(self.service.account_failure(snap))
         for row in rows:
             row["server"]["freshness"] = self.service._freshness(row["server"]["checked_at"])
             scope = access.Scope(**row["scope"])
-            if failure:
+            if account_failed:
                 row["blockers"].update(dict.fromkeys(row["effective_operations"], "rights-unverified"))
                 row["effective_operations"] = []
                 row["supported_levels"] = ["off"]
@@ -809,12 +951,27 @@ class AccessEditor:
         prefix = self._folder_key(conn, path)[:-1]
         observed = {key[-1]: row for key, row in self.folders.items() if key[:-1] == prefix}
         next_inventory = dict(inventory)
+        unavailable = {p for p, row in observed.items() if row is None}
+        lost_evidence = False
         for section in ("file_roots", "folders"):
             applicable = {p: r for p, r in observed.items() if (section == "file_roots") == (p == "")}
-            next_inventory[section] = [
-                r for r in inventory.get(section, []) if r.get("path") not in applicable
-            ]
+            stored_rows = inventory.get(section, [])
+            lost_evidence |= any(row.get("path") in unavailable for row in stored_rows)
+            next_inventory[section] = [r for r in stored_rows if r.get("path") not in applicable]
             next_inventory[section].extend(r for r in applicable.values() if r is not None)
+        if lost_evidence:
+            next_inventory["complete"] = False
+            diagnostics = inventory.get("diagnostics")
+            files = diagnostics.get("files") if isinstance(diagnostics, dict) else None
+            if isinstance(files, dict):
+                root_readable = any(
+                    (row.get("read_check") or {}).get("status") == "ok"
+                    for row in next_inventory["file_roots"]
+                )
+                next_inventory["diagnostics"] = {**diagnostics, "files": {
+                    **files, "inventory_complete": False, "root_readable": root_readable,
+                    "status": "partial" if root_readable else "failed",
+                }}
         updated = {**conn, "discovery_snapshot": next_inventory}
         if snap.mode == "legacy" and "legacy_access_origin" not in updated:
             updated["legacy_access_origin"] = _legacy_origin(snap)

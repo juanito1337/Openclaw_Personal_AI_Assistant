@@ -15,6 +15,7 @@ class Element {
   addEventListener(event, handler) { this.events.set(event, handler); }
   setAttribute(name, value) { this[name] = String(value); }
   removeAttribute(name) { delete this[name]; }
+  focus() { this.focused = true; }
   querySelectorAll(selector) {
     const result = [];
     for (const child of this.children) {
@@ -68,6 +69,26 @@ async function choose($, component, level) {
   await select.trigger("change");
 }
 const fresh = (age_seconds = 10) => ({ state: "fresh", age_seconds, max_age_seconds: 86400 });
+const overviewTime = "2026-10-25T11:30:00Z";
+const overviewAge = age => ({ checked_at: overviewTime, ...fresh(age) });
+function overviewComponent(overrides = {}) {
+  return { known: 1, selected: 1, readable: 1, creatable: 0, updatable: 0, blocked: 0, complete: true,
+    freshness: overviewAge(), ...overrides };
+}
+function overviewCurrent() {
+  const current = accessCurrent();
+  current.credentials_stored = true;
+  current.last_verified_at = overviewTime;
+  current.diagnostics_freshness = fresh();
+  current.access.overview = { schema_version: 1, account_id: current.account_id, connection_revision: current.revision,
+    components: { VEVENT: overviewComponent(), VTODO: overviewComponent({ selected: 0, readable: 0 }),
+      VCARD: overviewComponent(), FILES: overviewComponent({ complete: false, creatable: 1 }) },
+    file_create_targets: [{ scope: accessFolder, freshness: overviewAge() }], file_create_targets_truncated: false };
+  return current;
+}
+function overviewCards($) {
+  return Object.fromEntries(($("overview-cards")?.children || []).map(card => [card.dataset.overviewDomain, card]));
+}
 function collection(overrides = {}) {
   return { status: "ok", inventory_complete: true, discovered: 1, checked: 1, readable: 1, failed: 0, skipped: 0,
     checks_complete: true, content_checked: false, scope: "collection-metadata", errors: [], limitations: [], ...overrides };
@@ -172,11 +193,11 @@ async function withUi(options, exercise) {
     for (const [id, timer] of [...timers]) if (timer.at <= now) { timers.delete(id); timer.handler(); }
   };
   fakeWindow.top = fakeWindow; fakeWindow.self = fakeWindow;
+  const $ = id => elements.get(id) || elements.get("access-rows")?.children.find(row => row.id === id);
   const replacement = { window: fakeWindow, location: { origin: "https://openclaw.example.test" },
-    document: { getElementById: id => elements.get(id), createElement: tag => new Element(tag), body: new Element("body") },
+    document: { getElementById: $, createElement: tag => new Element(tag), body: new Element("body") },
     WebSocket: Socket, crypto: webcrypto, performance: { now: () => now }, Date: FixtureDate };
   const previous = Object.fromEntries(Object.keys(replacement).map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
-  const $ = id => elements.get(id);
   const enterCredentials = (server = "https://cloud.example.test") => { $("server-url").value = server; $("login-name").value = " agent-login "; $("app-password").value = password; };
   const assertNoSecret = () => {
     assert.equal($("app-password").value, "");
@@ -195,6 +216,187 @@ async function withUi(options, exercise) {
     }
   }
 }
+
+test("overview keeps saved sign-in details and editor access on the first setup page", async () => {
+  await withUi({ current: overviewCurrent() }, async ({ $, html, assertNoSecret }) => {
+    assert.ok(html.indexOf('id="overview-section"') < html.indexOf('id="access-section"'));
+    assert.deepEqual(Object.keys(overviewCards($)), ["account", "calendars", "task_lists", "addressbooks", "files", "talk"]);
+    assert.match($("current").textContent, /cloud\.example\.test.*Agent Account.*agent.*App-Passwort gespeichert/);
+    assert.equal($("credentials-option").open, false);
+    await overviewCards($).account.children.find(child => child.tag === "a").trigger("click");
+    assert.equal($("credentials-option").open, true);
+    assert.equal($("login-name").value, "");
+    assert.equal($("server-url").value, "https://cloud.example.test/");
+    assertNoSecret();
+  });
+  await withUi({}, async ({ $, assertNoSecret }) => {
+    assert.equal($("credentials-option").open, true);
+    assert.match(overviewCards($).account.textContent, /Kein Konto gespeichert/);
+    assertNoSecret();
+  });
+});
+
+test("complete calendar coverage uses summary totals across bounded detail pages and separates agent access", async () => {
+  const current = overviewCurrent();
+  current.preview.results_may_be_truncated = true; current.preview.complete = false;
+  current.preview.diagnostics.calendars = collection({ discovered: 140, checked: 140, readable: 140 });
+  current.access.complete = false; current.access.next_offset = 3;
+  current.access.overview.components.VEVENT = overviewComponent({ known: 140, selected: 140, readable: 140, creatable: 28, updatable: 9 });
+  await withUi({ current }, async ({ $ }) => {
+    const { calendars, task_lists } = overviewCards($);
+    assert.match(calendars?.textContent || "", /Alle sichtbaren Kalender für den Agenten lesbar/);
+    assert.match(calendars.textContent, /140 erkannt.*140 serverseitig lesbar.*140 ausgewählt.*140 für den Agenten lesbar/);
+    assert.match(calendars.textContent, /28 mit Erstellrecht.*9 mit Änderungsrecht/);
+    assert.match(task_lists.textContent, /0 ausgewählt.*0 für den Agenten lesbar/);
+    const link = calendars.children.find(child => child.tag === "a");
+    assert.equal(link.href, "#access-VEVENT");
+    await link.trigger("click");
+    assert.equal($("access-rows").children.find(row => row.id === "access-VEVENT")?.focused, true);
+  });
+});
+
+test("failed or skipped calendar probes never claim all visible calendars and keep saved blocked counts", async () => {
+  const current = overviewCurrent();
+  current.preview.diagnostics.calendars = collection({ status: "partial", discovered: 4, checked: 2, readable: 1, failed: 1, skipped: 2, checks_complete: false });
+  current.access.overview.components.VEVENT = overviewComponent({ known: 4, selected: 5, blocked: 3, complete: false });
+  current.preview.diagnostics.addressbooks = collection({ status: "empty", discovered: 0, checked: 0, readable: 0 });
+  current.access.overview.components.VCARD = overviewComponent({ known: 0, selected: 0, readable: 0 });
+  await withUi({ current }, async ({ $ }) => {
+    const { calendars, addressbooks } = overviewCards($);
+    assert.match(calendars?.textContent || "", /Unvollständig geprüft.*4 erkannt.*1 serverseitig lesbar.*5 ausgewählt.*1 für den Agenten lesbar.*3.*blockiert/);
+    assert.doesNotMatch(calendars.textContent, /Alle sichtbaren|5 von 4/);
+    assert.match(addressbooks.textContent, /Keine sichtbaren Adressbücher gefunden/);
+  });
+});
+
+test("clipped diagnostic metadata leaves server counts unknown while bound effective counts remain visible", async () => {
+  const current = overviewCurrent();
+  delete current.preview.diagnostics;
+  current.preview.complete = false;
+  current.preview.results_may_be_truncated = true;
+  await withUi({ current }, async ({ $ }) => {
+    const { calendars, files } = overviewCards($);
+    assert.match(calendars.textContent, /Unvollständig geprüft.*1 ausgewählt.*1 für den Agenten lesbar/);
+    assert.doesNotMatch(calendars.textContent, /serverseitig lesbar|Alle sichtbaren/);
+    assert.match(files.textContent, /Projekte.*Ordner-ID 32/);
+  });
+});
+
+test("file overview lists only bounded fresh effective create-file targets with exact folder identities", async () => {
+  const current = overviewCurrent();
+  current.access.rows[2].effective_operations = [...reading, "mkdir"]; // This detail row does not authorize any file creation.
+  current.access.overview.components.FILES = overviewComponent({ known: 3, selected: 3, creatable: 3, complete: false });
+  const target = { ...accessFolder, path: "Verträge/<img src=x>", file_id: "58" };
+  current.access.overview.file_create_targets = [{ scope: target, freshness: overviewAge() },
+    { scope: { ...target, path: "Alt", file_id: "59" }, freshness: overviewAge(86399) }];
+  current.access.overview.file_create_targets_truncated = true;
+  await withUi({ current }, async ({ $, advanceTime }) => {
+    const { files } = overviewCards($);
+    assert.match(files?.textContent || "", /Dateien erstellen/);
+    assert.match(files.textContent, /Verträge\/<img src=x>.*Ordner-ID 58/);
+    assert.match(files.textContent, /Alt.*Ordner-ID 59/);
+    assert.match(files.textContent, /gekürzt/);
+    assert.match(files.textContent, /engere Regeln/i);
+    assert.doesNotMatch(files.textContent, /Projekte|Upload erfolgreich/);
+    advanceTime(2000);
+    assert.doesNotMatch(overviewCards($).files.textContent, /Alt.*Ordner-ID 59|3 mit Datei-Erstellrecht/);
+    assert.match(overviewCards($).files.textContent, /Verträge/);
+  });
+});
+
+test("unsaved access and Talk edits leave current overview counts intact", async () => {
+  const current = overviewCurrent();
+  current.talk = { enabled: false, room_tokens: [], allowed_user_ids: [] };
+  await withUi({ current }, async ({ $, operations }) => {
+    await choose($, "VEVENT", "off");
+    $("talk-enabled").checked = true;
+    $("talk-rooms").children[0].children[0].checked = true;
+    await $("talk-rooms").trigger("change");
+    const { calendars, talk } = overviewCards($);
+    assert.match(calendars?.textContent || "", /1 ausgewählt.*1 für den Agenten lesbar/);
+    assert.match(talk.textContent, /Gespeichert: aus.*0 Räume.*0 erlaubte Benutzer/);
+    assert.deepEqual(operations.map(item => item.operation), ["status"]);
+  });
+});
+
+test("newer account failure invalidates older positive overview evidence, even after reload", async () => {
+  const current = overviewCurrent();
+  const failure = { state: "failed", code: "authentication-failed", account_id: current.account_id, revision: current.revision,
+    checked_at: "2026-10-25T12:00:00Z", diagnostics: failedDiagnostics() };
+  let checked = false;
+  await withUi({ current, respond: operation => {
+    if (operation === "connection.refresh") { checked = true; return failure; }
+    if (operation === "status" && checked) return { ...current, refresh_failure: failure };
+  } }, async ({ $ }) => {
+    assert.match(overviewCards($).calendars?.textContent || "", /Alle sichtbaren Kalender/);
+    await $("refresh").trigger("click");
+    for (const reload of [false, true]) {
+      if (reload) await $("reload").trigger("click");
+      const { account, calendars, files } = overviewCards($);
+      assert.match(account.textContent, /Kontoprüfung fehlgeschlagen/);
+      assert.match($("current").textContent, /Agent Account/);
+      assert.match(calendars.textContent, /1 ausgewählt/);
+      assert.doesNotMatch(calendars.textContent, /Alle sichtbaren|1 für den Agenten lesbar/);
+      assert.doesNotMatch(files.textContent, /Projekte/);
+    }
+  });
+});
+
+test("overview evidence expires on monotonic transport and elapsed time and on disconnect", async () => {
+  const current = overviewCurrent();
+  current.access.overview.components.VEVENT.freshness = overviewAge(86399);
+  current.access.overview.components.VCARD.freshness = overviewAge(86397);
+  await withUi({ current, replyDelayMs: 2000 }, async ({ $, advanceTime, sockets }) => {
+    assert.match(overviewCards($).calendars?.textContent || "", /veraltet/);
+    assert.match(overviewCards($).addressbooks.textContent, /Alle sichtbaren Adressbücher/);
+    advanceTime(2000);
+    assert.match(overviewCards($).addressbooks.textContent, /veraltet/);
+    sockets[0].close();
+    assert.match(overviewCards($).account.textContent, /OpenClaw-Verbindung fehlt/);
+    assert.doesNotMatch(overviewCards($).files.textContent, /Projekte/);
+  });
+});
+
+test("missing, malformed and differently bound overview summaries cannot revive positive permissions", async () => {
+  for (const mutate of [current => { delete current.access.overview; },
+    current => { current.access.overview.connection_revision = "previous"; },
+    current => { current.access.overview.account_id = "other-account"; },
+    current => { current.access.overview.components.VEVENT.readable = "1"; },
+    current => { current.access.overview.components.VEVENT.freshness.checked_at = null; }]) {
+    const current = overviewCurrent(); mutate(current);
+    await withUi({ current }, async ({ $ }) => {
+      assert.match(overviewCards($).calendars?.textContent || "", /unvollständig|unbekannt/i);
+      assert.doesNotMatch(overviewCards($).calendars.textContent, /Alle sichtbaren Kalender/);
+    });
+  }
+});
+
+test("an integrity failure does not claim that the account was never configured", async () => {
+  const current = { connected: false, revision: "", state: "failed", code: "policy-integrity-error",
+    access: { mode: "integrity-error", binding: null, rows: [], complete: false, code: "policy-integrity-error" } };
+  await withUi({ current }, async ({ $ }) => {
+    assert.equal(overviewCards($).account.dataset.state, "failed");
+    assert.match($("current").textContent, /Gespeicherte Verbindung nicht verifizierbar/);
+    assert.doesNotMatch(overviewCards($).talk.textContent, /Kein Konto gespeichert/);
+  });
+});
+
+test("file targets in contradictory failed evidence cannot appear as granted", async () => {
+  const current = overviewCurrent();
+  current.access.overview.components.FILES.freshness.state = "failed";
+  await withUi({ current }, async ({ $ }) => {
+    assert.equal(overviewCards($).files.dataset.state, "failed");
+    assert.doesNotMatch(overviewCards($).files.textContent, /Projekte|mit Datei-Erstellrecht/);
+  });
+});
+
+test("overview Talk distinguishes saved enablement from the expiring bound worker observation", async () => {
+  await withUi({ current: talkCurrent() }, async ({ $, advanceTime }) => {
+    assert.match(overviewCards($).talk?.textContent || "", /Verbunden.*Gespeichert: an.*1 Raum.*1 erlaubter Benutzer/);
+    advanceTime(81_000);
+    assert.match(overviewCards($).talk.textContent, /Status veraltet.*Gespeichert: an/);
+  });
+});
 
 test("actual UI completes login, preview confirmation, folder browsing and explicit Talk selection", async () => {
   await withUi({}, async ({ $, operations }) => {

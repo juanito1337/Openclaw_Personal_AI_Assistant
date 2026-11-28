@@ -179,6 +179,8 @@ def _redact_operator_view(view, secret):
         clean["source_revision"] = view["source_revision"]
     if "source_revision" in view.get("refresh_failure", {}):
         clean["refresh_failure"]["source_revision"] = view["refresh_failure"]["source_revision"]
+    if overview := view.get("access", {}).get("overview"):
+        clean["access"]["overview"]["connection_revision"] = overview["connection_revision"]
     return clean
 
 
@@ -295,14 +297,13 @@ class NextcloudSetupService:
     def _status(self, snapshot, *, offset=0) -> dict[str, Any]:
         connection = snapshot.connection
         result = public_connection(connection)
+        result["credentials_stored"] = connection is not None
+        failure = self.account_failure(snapshot) if connection else None
         if snapshot.managed or connection:
-            result["access"] = status_view(snapshot)
-            if connection:
-                self.access.present_rows(snapshot, result["access"]["rows"])
+            result["access"] = status_view(snapshot, self.access, failure)
         if connection:
             result["preview"] = safe_preview(connection["discovery_snapshot"])
             result.update(self._diagnostic_freshness(result["preview"]))
-            failure = self.account_failure(snapshot)
             if failure:
                 result["refresh_failure"] = failure
             result["last_verified_at"] = connection.get("last_verified_at", "")

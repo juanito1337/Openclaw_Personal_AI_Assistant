@@ -1,18 +1,37 @@
 <!doctype html>
 <html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Nextcloud · Personal Assistant</title><link rel="stylesheet" href="/plugins/personal-assistant-tools/nextcloud/setup-ui.css"><script type="module" src="/plugins/personal-assistant-tools/nextcloud/setup-ui-browser.js"></script></head>
 <body data-control-ui-base-path="__CONTROL_UI_BASE_PATH__"><main>
-<header><p class="eyebrow">PERSONAL ASSISTANT · EINRICHTUNG</p><h1>Deine Nextcloud in OpenClaw</h1><p>Nextcloud-Konto verbinden und Zugriff für den Agenten je Ressource festlegen.</p><a id="dashboard" href="__CONTROL_UI_BASE_PATH__/" target="_blank" rel="noopener noreferrer">OpenClaw öffnen ↗</a></header>
+<header class="setup-header"><h1>Deine Nextcloud in OpenClaw</h1></header>
 <p id="error" class="error" role="alert" hidden></p><p id="notice" role="status" aria-live="polite"></p>
-<section aria-labelledby="auth-heading"><h2 id="auth-heading">1 · OpenClaw verbinden</h2><p>Verwende deine bestehende Administratoranmeldung im selben Browser. Falls du noch nicht angemeldet bist, öffne zuerst OpenClaw über den Link oben.</p><button id="connect">Mit OpenClaw verbinden</button><button id="reload" class="secondary" hidden>Status neu laden</button><span id="auth-status" class="muted">Noch nicht verbunden</span></section>
+<section class="auth-strip" aria-labelledby="auth-heading">
+<div><h2 id="auth-heading" tabindex="-1">OpenClaw-Administrator</h2><span id="auth-status" class="muted">Anmeldung im selben Browser erforderlich</span></div>
+<div class="setup-actions"><button id="connect" type="button">Mit OpenClaw verbinden</button><button id="reload" class="secondary" type="button" hidden>Status neu laden</button><a id="dashboard" href="__CONTROL_UI_BASE_PATH__/" target="_blank" rel="noopener noreferrer">OpenClaw öffnen ↗</a></div>
+</section>
 <fieldset id="actions" disabled><legend class="sr-only">Nextcloud-Einrichtung</legend>
-<section aria-labelledby="connection-heading"><h2 id="connection-heading">2 · Nextcloud anmelden</h2><p id="current">Verbindungsstatus noch nicht geladen.</p>
-<form id="login-form"><label for="server-url">Nextcloud-Serveradresse</label><input type="url" id="server-url" placeholder="https://cloud.example.de" autocomplete="url" required maxlength="2048"><p class="muted">Die Adresse deiner Nextcloud, bei Bedarf einschließlich Unterordner. Verwende das Konto, dessen Ressourcen der Assistent verwenden soll.</p><button type="submit">Bei Nextcloud anmelden</button></form>
-<details id="credentials-option"><summary>Agentenkonto mit App-Passwort anmelden</summary><p>Trage die Zugangsdaten des Nextcloud-Kontos ein, das der Assistent verwenden soll. Es gilt die Serveradresse oben.</p><p class="muted">Ein App-Passwort kannst du in Nextcloud unter Persönliche Einstellungen → Sicherheit erstellen. Verwende hier dieses App-Passwort. Zugangsdaten gehören in diese Einrichtung und bleiben außerhalb des Agentenchats.</p>
-<form id="credentials-form" autocomplete="off"><label for="login-name">Nextcloud-Anmeldename</label><input type="text" id="login-name" autocomplete="username" required maxlength="512" autocapitalize="none" spellcheck="false"><label for="app-password">Nextcloud-App-Passwort</label><input type="password" id="app-password" autocomplete="off" required maxlength="4096" spellcheck="false"><p class="muted">Die Eingabe wird nach dem Absenden geleert. Die Verbindung wird erst nach deiner Bestätigung des Kontos gespeichert.</p><button id="credentials-submit" type="submit">Anmeldedaten prüfen</button></form></details>
+<section class="connection-section" aria-labelledby="connection-heading">
+<div class="connection-summary"><div><h2 id="connection-heading" tabindex="-1">Nextcloud-Verbindung</h2><p id="current">Verbindungsstatus noch nicht geladen.</p></div>
+<button id="refresh" class="secondary" type="button" hidden>Ressourcen neu erkennen</button></div>
+<details id="credentials-option" open><summary id="connection-edit">Verbindung einrichten</summary>
+<form id="credentials-form" autocomplete="off">
+<div class="connection-fields">
+<div><label for="server-url">Serveradresse</label><input type="url" id="server-url" placeholder="https://cloud.example.de" autocomplete="url" required maxlength="2048"></div>
+<div><label for="login-name">Anmeldename</label><input type="text" id="login-name" autocomplete="username" required maxlength="512" autocapitalize="none" spellcheck="false"></div>
+<div><label for="app-password">Nextcloud-App-Passwort</label><input type="password" id="app-password" autocomplete="off" required maxlength="4096" spellcheck="false" aria-describedby="credentials-help"></div>
+</div>
+<p id="credentials-help" class="muted">In Nextcloud unter Persönliche Einstellungen → Sicherheit ein App-Passwort erstellen. Die Verbindung wird nach Bestätigung des Kontos gespeichert.</p></form>
+<div class="setup-actions connection-actions">
+<button id="credentials-submit" type="submit" form="credentials-form">Anmeldedaten prüfen</button>
+<form id="login-form"><button class="secondary" type="submit">Alternativ bei Nextcloud anmelden ↗</button></form>
+</div>
+</details>
 <div id="login-pending" hidden><p>Öffne die Nextcloud-Anmeldung und bestätige dort den Zugriff. Kehre anschließend zu diesem Tab zurück.</p><p><a id="login-link" class="button" target="_blank" rel="noopener noreferrer">Nextcloud-Anmeldung öffnen ↗</a></p><button id="poll">Anmeldung prüfen</button></div><p id="flow-actions" hidden><button id="cancel" class="secondary">Anmeldung verwerfen</button></p>
 </section>
+<section id="overview-section" aria-labelledby="overview-heading">
+<h2 id="overview-heading">Zugriff und Status</h2>
+<div id="overview-cards" class="overview-grid"></div>
+</section>
 <section id="access-section" aria-labelledby="access-heading" hidden>
-<h2 id="access-heading">Zugriff für den Agenten</h2>
+<h2 id="access-heading" tabindex="-1">Zugriff für den Agenten</h2>
 <div id="access-mode"></div>
 <div id="access-editor" hidden>
 <p class="muted">Kalender und Aufgabenlisten kannst du auch dann getrennt freigeben, wenn sie zur selben CalDAV-Sammlung gehören. Bei Dateien bedeutet C „Dateien erstellen“, K „Unterordner erstellen“. Beide Rechte werden getrennt geprüft.</p>
@@ -28,9 +47,9 @@
 </div>
 </div>
 </section>
-<section id="login-diagnostics" aria-labelledby="diagnostics-heading"><h2 id="diagnostics-heading">Anmeldung und Zugriff</h2><div id="diagnostics" aria-live="polite"><p class="muted">Noch nicht geprüft. Melde zuerst das Nextcloud-Konto an.</p></div></section>
-<section id="preview-section" aria-labelledby="preview-heading" hidden><h2 id="preview-heading">Erkannte Ressourcen</h2><div id="preview"></div><div id="apply-panel" hidden><label class="choice"><input id="confirm-access" type="checkbox" autocomplete="off"> Ich bestätige die Verbindung mit dem angezeigten Konto. Der Zugriff für den Agenten wird separat festgelegt und steht für neue Konten auf Aus.</label><button id="apply" disabled>Verbindung bestätigen</button></div><button id="refresh" class="secondary" hidden>Ressourcen neu erkennen</button></section>
-<section id="folders-section" hidden aria-labelledby="folders-heading"><h2 id="folders-heading">Ordner durchsuchen</h2><p>Ordner werden bei Bedarf geladen. Inhalte werden hier nicht heruntergeladen.</p><form id="folder-form"><label for="folder-path">Pfad im Nextcloud-Konto</label><input id="folder-path" value="" placeholder="/" maxlength="2048"><button type="submit">Ordner anzeigen</button></form><div id="folders"></div></section>
-<section id="talk-section" hidden aria-labelledby="talk-heading"><h2 id="talk-heading">Nextcloud Talk</h2><p>Wähle die Räume, in denen der Assistent antworten darf, und die erlaubten Benutzer. Änderungen über Talk behalten ihre Freigaben.</p><div id="talk-status" aria-live="polite"></div><div id="talk-rooms"></div><button id="participants" class="secondary">Teilnehmer der ausgewählten Räume laden</button><div id="talk-users"></div><label class="choice"><input id="talk-enabled" type="checkbox"> Talk für diese Auswahl aktivieren</label><button id="save-talk">Talk-Einstellung speichern</button></section>
+<section id="login-diagnostics" aria-labelledby="diagnostics-heading"><h2 id="diagnostics-heading" tabindex="-1">Anmeldung und Zugriff</h2><div id="diagnostics" aria-live="polite"><p class="muted">Noch nicht geprüft. Melde zuerst das Nextcloud-Konto an.</p></div></section>
+<section id="preview-section" aria-labelledby="preview-heading" hidden><h2 id="preview-heading" tabindex="-1">Erkannte Ressourcen</h2><div id="apply-panel" hidden><label class="choice"><input id="confirm-access" type="checkbox" autocomplete="off"> Ich bestätige die Verbindung mit dem angezeigten Konto. Der Zugriff für den Agenten wird separat festgelegt und steht für neue Konten auf Aus.</label><button id="apply" disabled>Verbindung bestätigen</button></div><div id="preview"></div></section>
+<section id="folders-section" hidden aria-labelledby="folders-heading"><h2 id="folders-heading" tabindex="-1">Ordner durchsuchen</h2><p>Ordner werden bei Bedarf geladen. Inhalte werden hier nicht heruntergeladen.</p><form id="folder-form"><label for="folder-path">Pfad im Nextcloud-Konto</label><input id="folder-path" value="" placeholder="/" maxlength="2048"><button type="submit">Ordner anzeigen</button></form><div id="folders"></div></section>
+<section id="talk-section" hidden aria-labelledby="talk-heading"><h2 id="talk-heading" tabindex="-1">Nextcloud Talk</h2><p>Wähle die Räume, in denen der Assistent antworten darf, und die erlaubten Benutzer. Änderungen über Talk behalten ihre Freigaben.</p><div id="talk-status" aria-live="polite"></div><div id="talk-rooms"></div><button id="participants" class="secondary">Teilnehmer der ausgewählten Räume laden</button><div id="talk-users"></div><label class="choice"><input id="talk-enabled" type="checkbox"> Talk für diese Auswahl aktivieren</label><button id="save-talk">Talk-Einstellung speichern</button></section>
 </fieldset><noscript>Bitte JavaScript aktivieren, um die OpenClaw-Einrichtung zu verwenden.</noscript>
 </main></body></html>

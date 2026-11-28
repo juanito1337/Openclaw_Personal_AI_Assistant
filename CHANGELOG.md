@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- Die Nextcloud-Einrichtung buendelt Verbindung, Konto, Kalender,
+  Aufgabenlisten, Adressbuecher, Dateien und Talk in der ersten Ansicht.
+  Serveradresse und Anmeldedaten lassen sich dort bearbeiten; gespeicherte
+  Passwoerter bleiben verborgen. Gesamtzahlen unterscheiden Serverrechte,
+  gespeicherte Auswahl und wirksame Agentenrechte auch bei mehreren
+  Ressourcenseiten. Dateiziele erfordern das konkrete Recht zum Erstellen von
+  Dateien. Unvollstaendige, fehlgeschlagene und veraltete Pruefungen sowie
+  Talk-Laufzeitbeobachtungen bleiben getrennt sichtbar. Bestehende Vorschau-
+  und Bestaetigungsschritte gelten weiter.
+
 - ClamAV prueft den aktuellen Herstellerstand fuer `main`, `daily` und
   `bytecode` statt Signaturen allein nach 48 Stunden zu sperren. Der einzelne
   Updater fragt alle fuenf Minuten per DNS nach; erkannte neue Versionen

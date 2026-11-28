@@ -1,10 +1,10 @@
 # Nextcloud in OpenClaw einrichten
 
-Die neue Einrichtungsseite verbindet ein Nextcloud-Konto mit dem vorhandenen
-Personal Assistant. Sie startet mit der Serveradresse und einer Anmeldung bei
-Nextcloud. Kalender, Aufgabenlisten, Adressbuecher, Dateibereiche und Talk-Raeume
-werden anschliessend automatisch erkannt. Die Serveradresse allein erteilt
-keinen Zugriff.
+Die Einrichtungsseite verbindet ein Nextcloud-Konto mit dem vorhandenen
+Personal Assistant. Die erste Ansicht zeigt die gespeicherte Verbindung und
+den Pruefstand von Konto, Kalendern, Aufgabenlisten, Adressbuechern, Dateien und
+Talk. Serveradresse und Anmeldedaten lassen sich dort bearbeiten. Die
+Serveradresse allein erteilt keinen Zugriff.
 
 Diese Anleitung beschreibt den Entwicklungsstand. Tests und lokale
 Browserpruefungen sind keine produktive Aktivierung. Auslieferung, Backup,
@@ -40,12 +40,52 @@ Kontodaten und Aenderungen gehen ausschliesslich ueber den authentisierten,
 administrativ autorisierten Gatewayaufruf. Fehlende Anmeldung oder
 Administratorrechte blockieren die Bedienung.
 
+## Die erste Ansicht lesen
+
+Nach **Mit OpenClaw verbinden** stehen oben die gespeicherte Serveradresse,
+das bestaetigte Konto und der Speicherstatus des App-Passworts. Ein gespeichertes
+App-Passwort belegt noch keine aktuell erfolgreiche Anmeldung. **Verbindung
+bearbeiten** oeffnet die Eingabefelder direkt auf dieser Seite; das Passwort
+wird niemals wieder angezeigt. Der bestaetigte Nextcloud-Benutzer wird nicht
+als moeglicherweise abweichender Anmeldename vorausgefuellt.
+
+Die sechs Karten unter **Zugriff und Status** unterscheiden:
+
+- **Konto:** Ergebnis und Zeitpunkt der authentisierten Kontopruefung.
+- **Kalender, Aufgabenlisten und Adressbuecher:** erkannte Sammlungen,
+  serverseitig lesbare Sammlungen, gespeicherte Auswahl und aktuell wirksame
+  Lese-, Erstell- und Aenderungsrechte des Agenten. Die Auswahl kann auch
+  inzwischen nicht mehr erreichbare Ressourcen enthalten. Die Gesamtzahlen
+  bleiben erhalten, wenn die darunterliegende Ressourcenliste mehrere Seiten
+  hat. Eine fehlende Diagnose wird als unbekannt behandelt. **Alle sichtbaren
+  Kalender fuer den Agenten lesbar** erscheint nur bei vollstaendiger, aktueller
+  Erkennung und passender Einzelpruefung sowie Freigabe aller Sammlungen.
+- **Dateien:** wirksame Rechte zum Erstellen von Dateien und die genau
+  geprueften Ordner mit ihrer Identitaet. Das Recht, Unterordner anzulegen,
+  reicht dafuer nicht. Engere Ordnerregeln behalten Vorrang; ein gepruefter
+  Ordner belegt keinen Zugriff auf alle Unterordner. Eine begrenzte Zielliste
+  wird gekennzeichnet. Die Anzeige fuehrt keinen Probeupload aus.
+- **Talk:** gespeicherte Aktivierung, Raum- und Benutzerauswahl sowie die davon
+  unabhaengige Workerbeobachtung. Eine Aktivierung allein belegt kein Polling
+  und keine Nachrichtenzustellung.
+
+Jede Karte fuehrt direkt zur passenden Bearbeitung oder Diagnose weiter.
+Ungespeicherte Eingaben ersetzen den angezeigten gespeicherten Stand nicht.
+Fehlende, unvollstaendige, fehlgeschlagene und veraltete Pruefungen bleiben
+unterscheidbar. Auch ohne Neuladen verliert eine abgelaufene Pruefung ihre
+positive Anzeige. Endet die OpenClaw-Anmeldung, sind Aenderungen gesperrt.
+
+**Status neu laden** liest die gespeicherten Pruefungen und die vorhandene
+Talk-Beobachtung. **Ressourcen neu erkennen** fragt Nextcloud neu ab; es
+aktiviert weder Freigaben noch Hintergrunddienste.
+
 ## Konto verbinden
 
 1. Die HTTPS-Basisadresse eingeben, zum Beispiel `https://cloud.example.de` oder
    `https://cloud.example.de/nextcloud`. Ein eigener Port ist moeglich. Keine
    WebDAV-Unteradresse, Zugangsdaten oder Suchparameter in die URL eintragen.
-2. **Bei Nextcloud anmelden** waehlen. Den angezeigten Nextcloud-Anmeldelink
+2. Fuer die Browseranmeldung **Alternativ bei Nextcloud anmelden** waehlen.
+   Den angezeigten Nextcloud-Anmeldelink
    oeffnen und das Konto anmelden, dessen Ressourcen der Assistant verwenden
    soll. Vorhandene Zwei-Faktor-Anmeldung erfolgt auf Nextcloud.
 3. Zum Einrichtungstab zurueckkehren und **Anmeldung pruefen** waehlen. Die
@@ -55,10 +95,10 @@ Administratorrechte blockieren die Bedienung.
    Verbindung mit dem angezeigten Konto bestaetigen. Bei einem neuen Konto
    stehen die Freigaben fuer den Agenten anfangs auf **Aus**.
 
-Alternativ **Agentenkonto mit App-Passwort anmelden** aufklappen. Dieselbe
-Serveradresse oben wird mit dem Nextcloud-Anmeldenamen und einem eigens fuer
-diesen Assistant erstellten App-Passwort verwendet. Ein eigenes Agentenkonto
-kann so ohne Browserwechsel verbunden werden. Das App-Passwort wird in Nextcloud
+Direkt unter **Verbindung einrichten** beziehungsweise **Verbindung bearbeiten**
+stehen alternativ die Felder fuer Serveradresse, Nextcloud-Anmeldename und ein
+eigens fuer diesen Assistant erstelltes App-Passwort bereit. Ein eigenes
+Agentenkonto kann so ohne Browserwechsel verbunden werden. Das App-Passwort wird in Nextcloud
 unter **Persoenliche Einstellungen > Sicherheit** erstellt; siehe die
 [Nextcloud-Anmeldedokumentation](https://docs.nextcloud.com/server/stable/developer_manual/client_apis/LoginFlow/index.html).
 Das normale Kontopasswort bleibt auf Nextcloud. Zugangsdaten nicht im Agentenchat
@@ -288,6 +328,12 @@ mit frischen Testschluesseln.
 ```bash
 python3 scripts/check-nextcloud-setup-browser.py --setup-page-fixture
 ```
+
+Der Test prueft auch die erste Desktopansicht, die Bedienung der
+Verbindungseingaben per Tastatur, eine schmale Ansicht ohne horizontales
+Ueberlaufen sowie den Ablauf der Rechtebelege. Mit `--overview-screenshot`
+und `--mobile-screenshot` lassen sich Bilder dieser synthetischen Ansichten
+speichern.
 
 Zur Abnahme des Einstiegs gehoert ein echter Browserklick auf die Hostkarte:
 Er muss den eigenen Tab mit dem festen Einrichtungsziel oeffnen. Eine erfolgreiche

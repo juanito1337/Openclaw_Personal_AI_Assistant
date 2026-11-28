@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import http.client
 import json
 import socket
@@ -166,14 +167,18 @@ def apply(service, preview, actor="device-one"):
 
 
 def test_real_login_flow_to_atomic_store_without_credentials_in_gui(setup_service):
-    assert not setup_service.status()["connected"]
+    disconnected = setup_service.status()
+    assert not disconnected["connected"] and disconnected["credentials_stored"] is False
     preview = ready(setup_service)
     assert setup_service.store.read() is None
     assert PASSWORD not in json.dumps(preview)
     status = apply(setup_service, preview)
     assert status["connected"] and status["user_id"] == "assistant"
+    assert status["credentials_stored"] is True
     assert PASSWORD not in json.dumps(status)
     assert "app_password" not in json.dumps(status)
+    assert "login_name" not in json.dumps(status)
+    assert "assistant@example.invalid" not in json.dumps(status)
     assert setup_service.store.read()["login_name"] == "assistant@example.invalid"
     assert setup_service.store.read()["app_password"] == PASSWORD
     assert status["talk"]["enabled"] is False
@@ -522,13 +527,23 @@ def test_status_does_not_renew_saved_evidence(setup_service):
 @pytest.mark.parametrize("checked_at", [None, "invalid", "2026-11-22T11:00:00", "2026-11-22T11:00:00Z"])
 def test_missing_future_and_invalid_measurements_are_not_fresh(setup_service, checked_at):
     setup_service.wall_clock = lambda: datetime(2026, 11, 22, 10, tzinfo=UTC)
-    setup_service.discovery = lambda *args: {**discovery(*args), "checked_at": checked_at}
+
+    def measured(*args):
+        inventory = discovery(*args)
+        identity = inventory["server_url"] + "\0" + inventory["user_id"]
+        fingerprint = hashlib.sha256(identity.encode()).hexdigest()
+        return {**inventory, "account_id": fingerprint, "checked_at": checked_at}
+
+    setup_service.discovery = measured
     status = apply(setup_service, ready(setup_service))
     assert status["diagnostics_freshness"] == {
         "state": "unknown",
         "age_seconds": None,
         "max_age_seconds": 86400,
     }
+    overview = status["access"]["overview"]
+    assert all(counts["freshness"]["checked_at"] is None and not counts["complete"]
+               for counts in overview["components"].values())
 
 
 def test_folder_rpc_binds_exact_folder_evidence_to_current_connection(setup_service, monkeypatch):
@@ -670,7 +685,9 @@ def test_socket_transport_health_dispatch_and_malformed_request(
     try:
         assert check_socket(path)
         status, value = request(json.dumps(signed_request()))
-        assert status == 200 and value == {"ok": True, "result": {"connected": False, "revision": ""}}
+        assert status == 200 and value == {
+            "ok": True, "result": {"connected": False, "revision": "", "credentials_stored": False}
+        }
         status, value = request(json.dumps({**signed_request(), "actor": "device:forged"}))
         assert status == 200 and value["error"]["code"] == "operator-proof-invalid"
         status, value = request("{")
@@ -957,7 +974,11 @@ def test_missing_selected_folder_can_be_revoked(access_service):
     current = s.store.read()
     current["discovery_snapshot"]["folders"] = []
     s.store.save(current, expected_revision=current["revision"])
-    row = next(r for r in s.status()["access"]["rows"] if r["scope"]["path"] == "Belege")
+    access = s.status()["access"]
+    files = access["overview"]["components"]["FILES"]
+    assert files["known"] == 1 and files["selected"] == files["blocked"] == 1
+    assert files["creatable"] == 0 and not files["complete"]
+    row = next(r for r in access["rows"] if r["scope"]["path"] == "Belege")
     assert (
         row["desired_operations"] and row["effective_operations"] == [] and row["supported_levels"] == ["off"]
     )
@@ -1265,6 +1286,331 @@ def test_legacy_status_distinguishes_existing_effective_rights_from_unselected_p
     row = next(r for r in result["rows"] if r["scope"]["component"] == "VEVENT")
     assert result["mode"] == "legacy" and result["binding"] is None
     assert not row["desired_operations"] and "read" in row["effective_operations"]
+    calendar = result["overview"]["components"]["VEVENT"]
+    assert (calendar["known"], calendar["selected"], calendar["readable"]) == (2, 2, 2)
+    assert (calendar["creatable"], calendar["updatable"], calendar["blocked"]) == (1, 1, 0)
+
+
+def test_overview_totals_include_rows_on_later_status_pages(access_service, monkeypatch):
+    from personal_assistant import nextcloud_setup_access as editor
+
+    s = access_service
+    grant_levels(s, [("VEVENT", None, "update")])
+    current = s.store.read()
+    calendars = current["discovery_snapshot"]["calendars"]
+    calendars.extend(
+        {**calendars[0], "name": "Kalender " + "x" * 400,
+         "href": f"/nc/remote.php/dav/calendars/assistant/additional-{n}/"}
+        for n in range(30)
+    )
+    s.store.save(current, expected_revision=current["revision"])
+    monkeypatch.setattr(editor, "STATUS_BYTE_LIMIT", 18 * 1024)
+    first = s.status()
+    detail = first["access"]
+    assert detail["next_offset"] and not detail["complete"]
+    overview = detail["overview"]
+    assert overview["schema_version"] == 1
+    assert overview["account_id"] == first["account_id"]
+    assert overview["connection_revision"] == first["revision"]
+    calendar = overview["components"]["VEVENT"]
+    assert calendar["complete"] and calendar["freshness"]["state"] == "fresh"
+    assert (calendar["known"], calendar["selected"], calendar["readable"]) == (32, 1, 1)
+    assert (calendar["creatable"], calendar["updatable"], calendar["blocked"]) == (1, 1, 0)
+    second = s.status({"expected_revision": first["revision"], "access_offset": detail["next_offset"]})
+    assert second["access"]["overview"] == overview
+    assert editor._wire_size({"ok": True, "result": second}) < editor.STATUS_BYTE_LIMIT
+
+
+@pytest.mark.parametrize("domain_status", ["empty", "partial", "skipped"])
+def test_overview_preserves_domain_inventory_completeness(access_service, domain_status):
+    s = access_service
+    current = s.store.read()
+    inventory = current["discovery_snapshot"]
+    inventory["calendars"] = []
+    inventory.update(complete=False, results_may_be_truncated=True, diagnostics={
+        "calendars": {"status": domain_status, "inventory_complete": domain_status == "empty",
+                      "checks_complete": domain_status == "empty"},
+        "task_lists": {"status": "ok", "inventory_complete": True, "checks_complete": True},
+    })
+    s.store.save(current, expected_revision=current["revision"])
+    components = s.status()["access"]["overview"]["components"]
+    assert components["VEVENT"]["known"] == 0
+    assert components["VEVENT"]["complete"] is (domain_status == "empty")
+    assert components["VEVENT"]["freshness"]["state"] == "fresh"
+    assert components["VTODO"]["complete"] and components["VTODO"]["known"] == 2
+    assert not components["VCARD"]["complete"]
+
+
+@pytest.mark.parametrize("check_status", ["failed", "skipped"])
+def test_overview_withholds_unchecked_collection_even_with_complete_inventory(access_service, check_status):
+    s = access_service
+    grant_levels(s, [("VEVENT", None, "update")])
+    current = s.store.read()
+    current["discovery_snapshot"]["calendars"][0]["read_check"]["status"] = check_status
+    s.store.save(current, expected_revision=current["revision"])
+    calendar = s.status()["access"]["overview"]["components"]["VEVENT"]
+    assert calendar["known"] == 2 and not calendar["complete"]
+    assert calendar["selected"] == calendar["blocked"] == 1
+    assert calendar["readable"] == calendar["creatable"] == calendar["updatable"] == 0
+
+
+def test_overview_ages_from_oldest_domain_measurement_without_renewing(access_service):
+    s = access_service
+    grant_levels(s, [("VEVENT", None, "update")])
+    current = s.store.read()
+    now = s.wall_clock()
+    old = (now - timedelta(seconds=86300)).isoformat()
+    current["discovery_snapshot"]["calendars"][0]["checked_at"] = old
+    s.store.save(current, expected_revision=current["revision"])
+    before = s.status()["access"]["overview"]["components"]["VEVENT"]
+    assert before["freshness"] == {"state": "fresh", "checked_at": old, "age_seconds": 86300,
+                                  "max_age_seconds": 86400}
+    assert before["readable"] == before["creatable"] == 1
+    s.wall_clock = lambda: now + timedelta(seconds=100)
+    after = s.status()["access"]["overview"]["components"]["VEVENT"]
+    assert after["freshness"] == {**before["freshness"], "state": "stale", "age_seconds": 86400}
+    assert after["readable"] == after["creatable"] == after["updatable"] == 0
+    assert after["selected"] == after["blocked"] == 1
+
+
+def test_overview_failed_account_keeps_saved_selection_but_withholds_positive_access(access_service):
+    s = access_service
+    status = grant_levels(s, [("VEVENT", None, "update"), ("FILES", "Belege", "create")])
+
+    def revoked(*args):
+        raise OnboardingError("authentication-failed")
+
+    s.discovery = revoked
+    s.transport_factory = Transport
+    failure = s.dispatch("connection.refresh", {"expected_revision": status["revision"]}, actor="one")
+    assert failure["state"] == "failed"
+    current = NextcloudSetupService(s.store, wall_clock=s.wall_clock).status()
+    overview = current["access"]["overview"]
+    assert current["credentials_stored"] is True
+    assert overview["connection_revision"] == current["revision"]
+    assert all(not row["complete"] and row["freshness"]["state"] == "failed"
+               for row in overview["components"].values())
+    for component in ("VEVENT", "FILES"):
+        counts = overview["components"][component]
+        assert counts["selected"] == counts["blocked"] == 1
+        assert counts["readable"] == counts["creatable"] == counts["updatable"] == 0
+    assert overview["file_create_targets"] == []
+
+
+def test_overview_file_targets_follow_exact_create_rights_and_off_subtrees(access_service):
+    s = access_service
+    args = access_params(s, [("FILES", "", "create"), ("FILES", "Belege", "create"),
+                             ("FILES", "Belege/Privat", "off")])
+    preview = s.dispatch("access.preview", {**args, "confirm_root": True}, actor="one")
+    s.dispatch("access.apply", confirmation(preview), actor="one")
+    current = s.store.read()
+    folders = current["discovery_snapshot"]["folders"]
+    folders.extend(
+        {**folders[0], "path": path, "file_id": file_id,
+         "href": f"/nc/remote.php/dav/files/assistant/{path}/"}
+        for path, file_id in (("Belege/Arbeit", "81"), ("Belege/Privat/Nachlass", "82"))
+    )
+    s.store.save(current, expected_revision=current["revision"])
+    overview = s.status()["access"]["overview"]
+    files = overview["components"]["FILES"]
+    assert (files["known"], files["selected"], files["readable"], files["creatable"]) == (6, 2, 4, 2)
+    targets = overview["file_create_targets"]
+    assert {(t["scope"]["path"], t["scope"]["file_id"]) for t in targets} == {
+        ("Belege", "11"), ("Belege/Arbeit", "81"),
+    }
+    assert all(t["freshness"]["state"] == "fresh" for t in targets)
+    assert overview["file_create_targets_truncated"] is False
+
+
+def test_overview_bounds_targets_and_excludes_secret_reflections(access_service, monkeypatch):
+    from personal_assistant import nextcloud_setup_access as editor
+
+    s = access_service
+    grant_levels(s, [("FILES", "Belege", "create"), ("FILES", "BelegeAlt", "create")])
+    current = s.store.read()
+    secret = current["app_password"]
+    folders = current["discovery_snapshot"]["folders"]
+    path = f"Belege/{secret}"
+    folders.append({**folders[0], "path": path, "file_id": "333",
+                    "href": f"/nc/remote.php/dav/files/assistant/{path}/"})
+    s.store.save(current, expected_revision=current["revision"])
+    full = s.status()["access"]["overview"]
+    assert secret not in json.dumps(full) and "[redacted]" not in json.dumps(full)
+    assert full["file_create_targets_truncated"] is True
+    assert len(full["file_create_targets"]) == 3
+    monkeypatch.setattr(editor, "MAX_FILE_CREATE_TARGETS", 1)
+    bounded = s.status()["access"]["overview"]
+    assert bounded["components"]["FILES"]["creatable"] == 4
+    assert bounded["file_create_targets"] == full["file_create_targets"][:1]
+    assert bounded["file_create_targets_truncated"] is True
+
+
+def test_overview_expires_inherited_file_targets_with_their_saved_parent(access_service):
+    s = access_service
+    grant_levels(s, [("FILES", "Belege", "create")])
+    current = s.store.read()
+    now = s.wall_clock()
+    old = (now - timedelta(seconds=86300)).isoformat()
+    current["discovery_snapshot"]["folders"][0]["checked_at"] = old
+    s.store.save(current, expected_revision=current["revision"])
+    before = s.status()["access"]["overview"]
+    targets = {target["scope"]["path"]: target["freshness"] for target in before["file_create_targets"]}
+    assert targets["Belege/Privat"] == targets["Belege"]
+    assert targets["Belege/Privat"]["checked_at"] == old
+    s.wall_clock = lambda: now + timedelta(seconds=100)
+    after = s.status()["access"]["overview"]
+    assert after["file_create_targets"] == []
+    assert after["components"]["FILES"]["creatable"] == 0
+
+
+def test_overview_target_byte_budget_applies_to_long_exact_paths(access_service):
+    from personal_assistant import nextcloud_setup_access as editor
+
+    s = access_service
+    grant_levels(s, [("FILES", "Belege", "create")])
+    current = s.store.read()
+    folders = current["discovery_snapshot"]["folders"]
+    for n in range(6):
+        path = f"Belege/{n}/" + "x" * 1900
+        folders.append({**folders[0], "path": path, "file_id": str(1000 + n),
+                        "href": f"/nc/remote.php/dav/files/assistant/{path}/"})
+    s.store.save(current, expected_revision=current["revision"])
+    overview = s.status()["access"]["overview"]
+    targets = overview["file_create_targets"]
+    assert 2 < len(targets) < overview["components"]["FILES"]["creatable"] == 8
+    assert editor._wire_size(targets) <= editor.MAX_FILE_CREATE_TARGET_BYTES
+    assert overview["file_create_targets_truncated"] is True
+
+
+@pytest.mark.parametrize("path", ["", "Belege"])
+@pytest.mark.parametrize("diagnostics", [True, False])
+def test_overview_failed_folder_probe_invalidates_persisted_inventory(
+    access_service, monkeypatch, path, diagnostics
+):
+    s = access_service
+    s.transport_factory = Transport
+    current = s.store.read()
+    inventory = current["discovery_snapshot"]
+    inventory["folders"] = inventory["folders"][:1] if path else []
+    if diagnostics:
+        inventory["diagnostics"] = {
+            "files": {"status": "ok", "inventory_complete": True, "root_readable": True},
+            "calendars": {"status": "ok", "inventory_complete": True, "checks_complete": True},
+        }
+    s.store.save(current, expected_revision=current["revision"])
+    before = s.status()["access"]["overview"]["components"]
+    assert before["FILES"]["known"] == 1 + bool(path) and before["FILES"]["complete"]
+
+    def unavailable(transport, credentials, requested_path):
+        assert requested_path == path
+        raise OnboardingError("resource-unavailable")
+
+    monkeypatch.setattr("personal_assistant.nextcloud_setup.discover_folders", unavailable)
+    with pytest.raises(OnboardingError) as exc:
+        s.dispatch("folders.list", {"path": path}, actor="one")
+    assert exc.value.code == "resource-unavailable"
+    status = NextcloudSetupService(s.store).status()
+    after = status["access"]["overview"]["components"]
+    assert after["FILES"]["known"] == bool(path) and not after["FILES"]["complete"]
+    if diagnostics:
+        assert after["VEVENT"]["complete"]
+        files = status["preview"]["diagnostics"]["files"]
+        assert not files["inventory_complete"]
+        assert files["status"] == ("partial" if path else "failed")
+
+
+def test_overview_missing_preexisting_root_cannot_inherit_complete_file_diagnostics(access_service):
+    s = access_service
+    current = s.store.read()
+    current["discovery_snapshot"].update(
+        file_roots=[], folders=[],
+        diagnostics={"files": {"status": "ok", "inventory_complete": True, "root_readable": True}},
+    )
+    s.store.save(current, expected_revision=current["revision"])
+    files = s.status()["access"]["overview"]["components"]["FILES"]
+    assert files["known"] == 0 and not files["complete"]
+
+
+@pytest.mark.parametrize(("paths", "complete"), [
+    ((), False),
+    (("Belege/Privat",), False),
+    (("Belege",), True),
+    (("Belege", "Belege/Privat"), True),
+    (("Belege", "BelegeAlt"), False),
+])
+def test_overview_reconciles_historical_first_level_file_count(access_service, paths, complete):
+    s = access_service
+    current = s.store.read()
+    inventory = current["discovery_snapshot"]
+    inventory["folders"] = [row for row in inventory["folders"] if row["path"] in paths]
+    inventory["diagnostics"] = {"files": {
+        "status": "ok", "inventory_complete": True, "root_readable": True,
+        "scope": "first-level", "depth": 1, "discovered": 2,
+    }}
+    s.store.save(current, expected_revision=current["revision"])
+    files = s.status()["access"]["overview"]["components"]["FILES"]
+    assert files["known"] == 1 + len(paths)
+    assert files["complete"] is complete
+
+
+def test_overview_retained_failed_probe_ages_from_original_check_after_refresh(tmp_path, monkeypatch):
+    from test_nextcloud_access import managed
+    from test_nextcloud_onboarding import CALENDARS, credentials, discovery_network
+
+    from personal_assistant import nextcloud_onboarding as onboarding
+
+    first = discovery_network(unknown_rights=["read"])
+    href = CALENDARS + "events/"
+    first.responses["PROPFIND", href] = [HttpResponse(403, {}, b"")]
+    creds = credentials()
+    previous = onboarding.discover_account(first.transport(), creds)
+    now = datetime.now(UTC)
+    old = (now - timedelta(seconds=86300)).isoformat()
+    failed = next(row for row in previous["calendars"] if row["href"] == href)
+    assert failed["read_check"]["status"] == "failed"
+    failed["checked_at"] = old
+    # Leave one unmeasured collection to take the next scan's single probe slot.
+    previous["addressbooks"][0].pop("checked_at")
+    store = managed(tmp_path)
+    saved = store.save({"server_url": creds.server_url, "user_id": previous["user_id"],
+                        "login_name": creds.login_name, "app_password": creds.app_password,
+                        "expected_ips": previous["expected_ips"], "discovery_snapshot": previous},
+                       expected_revision="")
+    monkeypatch.setattr(onboarding, "MAX_COLLECTION_READ_CHECKS", 1)
+    second = discovery_network(unknown_rights=["read"])
+    s = NextcloudSetupService(store, transport_factory=lambda *a, **kw: second.transport(),
+                              wall_clock=lambda: now + timedelta(seconds=1))
+    status = s.dispatch("connection.refresh", {"expected_revision": saved["revision"]}, actor="one")
+    row = next(row for row in status["preview"]["calendars"] if row["href"] == href)
+    assert (row["read_check_source"], row["read_check"]["status"]) == ("retained", "failed")
+    component = status["access"]["overview"]["components"]["VEVENT"]
+    assert not component["complete"]
+    assert component["freshness"] == {"state": "fresh", "checked_at": old,
+                                      "age_seconds": 86301, "max_age_seconds": 86400}
+    s.wall_clock = lambda: now + timedelta(seconds=100)
+    aged = s.status()["access"]["overview"]["components"]["VEVENT"]["freshness"]
+    assert (aged["state"], aged["checked_at"], aged["age_seconds"]) == ("stale", old, 86400)
+
+
+@pytest.mark.parametrize("fingerprint", [None, "different-inventory-account"])
+def test_overview_does_not_attribute_unbound_legacy_selection_to_current_account(tmp_path, fingerprint):
+    from test_nextcloud_access import measured
+
+    from personal_assistant.nextcloud_connection import initialize_access_store
+
+    current = measured()
+    inventory = current["discovery_snapshot"]
+    inventory.pop("account_id")
+    if fingerprint:
+        inventory["account_id"] = fingerprint
+    store = ConnectionStore(tmp_path / "store")
+    store.save(current, expected_revision="")
+    state = tmp_path / "state"
+    state.mkdir()
+    initialize_access_store(state, store.directory, transition="verified-pre-policy")
+    status = NextcloudSetupService(store).status()
+    assert status["credentials_stored"] and status["access"]["mode"] == "legacy"
+    assert "overview" not in status["access"]
 
 
 def test_status_resolves_lost_success_reply_without_repeating_save(access_service, monkeypatch):

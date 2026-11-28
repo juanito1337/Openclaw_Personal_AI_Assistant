@@ -4,7 +4,7 @@ import { createSetupGateway } from "./setup-ui-auth.js";
 const $ = id => document.getElementById(id);
 const state = { authenticated: false, busy: false, current: null, flow: null, ready: null, participantRooms: "" };
 let gateway, talkExpiryTimer, diagnosticsExpiryTimer, folderExpiryTimer, showDiagnostics, showFolder;
-let talkReceivedAt = 0;
+let talkReceivedAt = 0, overviewReceivedAt = 0, overviewExpiryTimer, overviewRefreshState;
 const access = { edits: new Map(), inspectedFolders: new Map(), rows: [], preview: null, blocked: false };
 let accessExpiryTimer, rightsExpiryTimer;
 function node(tag, text, className) {
@@ -18,11 +18,11 @@ function failure(error) { $("error").textContent = error?.message || "Die Einric
 function disconnected() {
   $("app-password").value = "";
   state.authenticated = false; $("actions").disabled = true;
-  $("connect").disabled = false; $("reload").hidden = true;
+  $("connect").disabled = false; $("connect").hidden = false; $("reload").hidden = true;
   $("auth-status").textContent = "Nicht verbunden – erneut mit OpenClaw verbinden";
   clearAccessDraft(); renderAccess();
   showDiagnostics?.(); showFolder?.();
-  renderTalkRuntime();
+  renderOverview(); renderTalkRuntime();
 }
 async function run(action, { login = false } = {}) {
   if (state.busy) return;
@@ -95,6 +95,239 @@ function evidenceTime(timestamp, freshness, requestedAt) {
   const remaining = (Math.min(maximum, evidenceMaxAge) - age) * 1000 - Math.max(0, performance.now() - requestedAt);
   return serverState === "stale" || remaining <= 0 ? { state: "stale" } : { state: "fresh", remaining };
 }
+const overviewDomains = [
+  ["account", "Konto"], ["calendars", "Kalender", "VEVENT"], ["task_lists", "Aufgabenlisten", "VTODO"],
+  ["addressbooks", "Adressbücher", "VCARD"], ["files", "Dateien", "FILES"], ["talk", "Talk"],
+];
+const overviewCards = new Map();
+const overviewLabels = {
+  disconnected: "OpenClaw-Verbindung fehlt", unconfigured: "Kein Konto gespeichert",
+  unknown: "Prüfstand unbekannt", failed: "Kontoprüfung fehlgeschlagen",
+  stale: "Prüfergebnis veraltet", pending: "Serverprüfung läuft",
+};
+const overviewDateFormat = new Intl.DateTimeFormat("de-DE", { dateStyle: "short", timeStyle: "short" });
+function addOverviewCards() {
+  for (const [domain, title, component] of overviewDomains) {
+    const card = node("article", undefined, "overview-card");
+    card.dataset.overviewDomain = domain;
+    const status = node("strong", undefined, "overview-status");
+    const facts = node("div", undefined, "overview-facts");
+    const link = node("a", undefined, "overview-link");
+    link.addEventListener("click", event => {
+      const [id] = overviewDestination(domain, component);
+      const target = $(id);
+      if (!target) return;
+      if (id === "server-url") $("credentials-option").open = true;
+      event.preventDefault();
+      target.focus();
+    });
+    card.append(node("h3", title), status, facts, link);
+    overviewCards.set(domain, { card, status, facts, link, component });
+    $("overview-cards").append(card);
+  }
+}
+function overviewDestination(domain, component) {
+  if (!state.authenticated) return ["auth-heading", "OpenClaw verbinden"];
+  if (state.current?.state === "failed" && !state.current.connected) return ["access-heading", "Fehlerdiagnose ansehen"];
+  if (domain === "account") return ["server-url", "Verbindung bearbeiten"];
+  if (state.ready) return ["preview-heading", "Kontovorschau prüfen"];
+  if (!state.current?.connected) return ["server-url", "Konto einrichten"];
+  if (component && !$("access-section").hidden && !$("access-editor").hidden) {
+    const id = `access-${component}`;
+    return [$(id) ? id : "access-heading", "Freigaben bearbeiten"];
+  }
+  if (domain === "files" && !$("folders-section").hidden) return ["folders-heading", "Ordner prüfen"];
+  if (domain === "talk" && !$("talk-section").hidden) return ["talk-heading", "Talk-Einstellung"];
+  return ["diagnostics-heading", "Diagnose ansehen"];
+}
+function setOverviewCard(domain, stateName, title) {
+  const { card, status, facts, link, component } = overviewCards.get(domain);
+  card.dataset.state = stateName;
+  status.textContent = title;
+  facts.replaceChildren();
+  const [destination, label] = overviewDestination(domain, component);
+  link.href = `#${destination}`;
+  link.textContent = label;
+  link.setAttribute("aria-label", `${card.children[0].textContent} · ${label}`);
+  return facts;
+}
+function appendOverviewTime(target, label, timestamp) {
+  if (typeof timestamp !== "string" || !Number.isFinite(Date.parse(timestamp))) return;
+  const line = node("p", `${label} `, "muted");
+  const time = node("time", overviewDateFormat.format(new Date(timestamp)));
+  time.dateTime = timestamp; time.title = timestamp;
+  line.append(time); target.append(line);
+}
+function overviewSummary(current) {
+  const summary = current?.access?.overview;
+  if (!["active", "legacy"].includes(current?.access?.mode) || summary?.schema_version !== 1
+    || !current?.account_id || summary.account_id !== current.account_id
+    || !current.revision || summary.connection_revision !== current.revision) return null;
+  return summary;
+}
+function validOverviewCount(value) { return Number.isSafeInteger(value) && value >= 0; }
+function validOverviewFreshness(freshness) {
+  if (freshness?.max_age_seconds !== evidenceMaxAge) return false;
+  const stamped = typeof freshness.checked_at === "string" && Number.isFinite(Date.parse(freshness.checked_at))
+    && Number.isFinite(freshness.age_seconds) && freshness.age_seconds >= 0;
+  const missing = freshness.checked_at === null && freshness.age_seconds === null;
+  if (["fresh", "stale"].includes(freshness.state)) return stamped;
+  if (freshness.state === "failed") return stamped || missing;
+  return freshness.state === "unknown" && missing;
+}
+function overviewPermissions(summary, component) {
+  const counts = summary?.components?.[component];
+  if (!counts || !["known", "selected", "readable", "creatable", "updatable", "blocked"].every(key => validOverviewCount(counts[key]))
+    || typeof counts.complete !== "boolean" || counts.blocked > counts.selected
+    || Math.max(counts.readable, counts.creatable, counts.updatable) > counts.known
+    || !validOverviewFreshness(counts.freshness)) return null;
+  return counts;
+}
+function overviewConnectionState(current) {
+  if (!state.authenticated) return "disconnected";
+  if (!current) return "unknown";
+  if (current.state === "failed") return "failed";
+  return current.connected === true ? null : "unconfigured";
+}
+function overviewIdentity(current, readAge) {
+  const connectionState = overviewConnectionState(current);
+  if (connectionState) return connectionState;
+  if (overviewRefreshState) return overviewRefreshState;
+  const user = current.preview?.diagnostics?.user;
+  if (current.refresh_failure || user?.status === "failed") return "failed";
+  if (user?.status !== "ok" || user.loaded !== true || !current.user_id || current.preview.user_id !== current.user_id) return "unknown";
+  return readAge(current.preview.checked_at, current.diagnostics_freshness).state;
+}
+function overviewCollectionCheck(domain, current, readAge, accountState) {
+  const check = current.preview?.diagnostics?.[domain];
+  if (!check || accountState !== "fresh") return {};
+  const retained = current.diagnostics_domain_freshness?.[domain];
+  if (retained) {
+    const { state } = readAge(retained.checked_at, retained);
+    if (state !== "fresh") return { state };
+  }
+  const complete = ["ok", "empty"].includes(check.status) && check.inventory_complete === true && check.checks_complete === true
+    && validOverviewCount(check.discovered) && check.checked === check.discovered
+    && validOverviewCount(check.readable) && check.readable <= check.checked && check.failed === 0 && check.skipped === 0
+    && Array.isArray(check.errors) && check.errors.length === 0
+    && Array.isArray(check.limitations) && check.limitations.length === 0;
+  const readable = ["ok", "empty", "partial"].includes(check.status) && validOverviewCount(check.readable)
+    && validOverviewCount(check.checked) && check.readable <= check.checked ? check.readable : null;
+  return { complete, discovered: check.discovered, readable };
+}
+function fileCreateTargets(summary, counts, readAge, accountState) {
+  const targets = summary?.file_create_targets;
+  const capped = summary?.file_create_targets_truncated;
+  if (!counts || !Array.isArray(targets) || targets.length > 16 || targets.length > counts.creatable
+      || capped !== (targets.length < counts.creatable)) return null;
+  const keys = new Set();
+  const checked = [];
+  for (const target of targets) {
+    const scope = target?.scope;
+    if (scope?.component !== "FILES" || typeof scope.path !== "string" || !scope.file_id || typeof scope.file_id !== "string"
+      || !scope.resource_id || typeof scope.resource_id !== "string" || target.freshness?.state !== "fresh"
+      || !validOverviewFreshness(target.freshness)) return null;
+    const key = scopeKey(scope);
+    if (keys.has(key)) return null;
+    keys.add(key);
+    if (accountState === "fresh" && !access.blocked && readAge(target.freshness.checked_at, target.freshness).state === "fresh") checked.push(scope);
+  }
+  return { scopes: checked, capped, expired: checked.length < targets.length };
+}
+function appendCreateTargets(target, files) {
+  if (files.scopes.length) {
+    const list = node("ul", undefined, "overview-targets");
+    const items = files.scopes.map(scope => {
+      const item = node("li", `/${scope.path} · Ordner-ID ${scope.file_id}`);
+      item.title = `Ressourcen-ID ${scope.resource_id}`;
+      return item;
+    });
+    target.append(node("p", "Dateien erstellen in"), list);
+    list.append(...items.slice(0, 2));
+    if (items.length > 2) {
+      const rest = node("details"); const list = node("ul", undefined, "overview-targets");
+      rest.append(node("summary", `Weitere geprüfte Ziele (${items.length - 2})`), list);
+      list.append(...items.slice(2)); target.append(rest);
+    }
+    target.append(node("p", "Unterordner separat prüfen. Engere Regeln können Zugriff begrenzen.", "muted"));
+  }
+  if (files.capped || files.expired) {
+    const limitation = [files.capped ? "Zielliste gekürzt" : "", files.expired ? "Zielprüfungen veraltet" : ""].filter(Boolean).join(" · ");
+    target.append(node("p", limitation, "muted"));
+  }
+}
+function renderPermissionCard(domain, title, component, current, summary, readAge, accountState) {
+  const counts = overviewPermissions(summary, component);
+  const clippedDiagnostics = accountState === "unknown" && summary
+    && current.preview?.results_may_be_truncated === true && !current.preview.diagnostics?.user
+    && current.preview.user_id === current.user_id
+    && readAge(current.preview.checked_at, current.diagnostics_freshness).state === "fresh";
+  const accountEvidence = clippedDiagnostics ? "fresh" : accountState;
+  const isFiles = domain === "files", files = isFiles ? fileCreateTargets(summary, counts, readAge, accountEvidence) : null;
+  const check = current?.connected && !isFiles ? overviewCollectionCheck(domain, current, readAge, accountState) : {};
+  const measured = counts && readAge(counts.freshness.checked_at, counts.freshness).state;
+  const stateName = accountEvidence !== "fresh" ? accountEvidence : access.blocked ? "unknown" : check.state || measured || "unknown";
+  const complete = !clippedDiagnostics && counts?.complete && (isFiles ? files && !files.capped && !files.expired
+    : check.complete && check.discovered === counts.known);
+  let label = overviewLabels[stateName];
+  let displayState = stateName;
+  if (stateName === "fresh") {
+    displayState = "partial";
+    label = "Unvollständig geprüft";
+    if (isFiles && !files) { displayState = "unknown"; label = "Ordnerziele unbekannt"; }
+    else if (complete && !isFiles && counts.known === 0 && counts.selected === 0) {
+      displayState = "empty"; label = `Keine sichtbaren ${title} gefunden`;
+    } else if (complete && counts.blocked === 0 && !isFiles && counts.known === counts.readable && check.readable === counts.known) {
+      displayState = "ok"; label = `Alle sichtbaren ${title} für den Agenten lesbar`;
+    } else if (complete && isFiles && files.scopes.length) {
+      displayState = "ok"; label = "Dateierstellung für geprüfte Ordner erlaubt";
+    } else if (complete && counts.selected === 0) {
+      displayState = "disabled"; label = "Keine Freigaben ausgewählt";
+    } else if (complete && counts.blocked > 0) label = "Freigaben teilweise blockiert";
+    else if (complete) label = isFiles ? "Keine bestätigten Ziele zum Erstellen" : "Leserechte unterscheiden sich je Sammlung";
+  }
+  const target = setOverviewCard(domain, displayState, label);
+  if (counts) {
+    const total = [`${counts.known} erkannt`,
+      validOverviewCount(check.readable) && !access.blocked ? `${check.readable} serverseitig lesbar` : "",
+      `${counts.selected} ausgewählt${current.access.mode === "legacy" ? " (Altbestand)" : ""}`].filter(Boolean);
+    target.append(node("p", total.join(" · ")));
+    if (stateName === "fresh" && (!isFiles || files)) {
+      const rights = [`${counts.readable} für den Agenten lesbar`];
+      if (isFiles && !files.expired) rights.push(`${counts.creatable} mit Datei-Erstellrecht`);
+      if (!isFiles) rights.push(`${counts.creatable} mit Erstellrecht`, `${counts.updatable} mit Änderungsrecht`);
+      if (counts.blocked > 0) rights.push(`${counts.blocked} blockiert`);
+      target.append(node("p", rights.join(" · ")));
+    }
+    if (files && accountEvidence === "fresh" && stateName !== "failed" && !access.blocked) appendCreateTargets(target, files);
+    if (accountState !== "disconnected") appendOverviewTime(target, "Prüfstand", counts.freshness.checked_at);
+  }
+}
+function renderOverview() {
+  window.clearTimeout(overviewExpiryTimer);
+  const current = state.current;
+  let expiry = Infinity;
+  const readAge = (timestamp, freshness) => {
+    const age = freshness?.state === "failed" ? { state: "failed" } : evidenceTime(timestamp, freshness, overviewReceivedAt);
+    if (age.remaining > 0) expiry = Math.min(expiry, age.remaining);
+    return age;
+  };
+  const accountState = overviewIdentity(current, readAge);
+  const hasCredentials = current?.credentials_stored === true;
+  const accountLabel = accountState === "fresh" ? (hasCredentials ? "Konto bestätigt" : "Zugangsdaten unbestätigt")
+    : current?.state === "failed" && accountState === "failed" ? "Verbindung nicht verifizierbar" : overviewLabels[accountState];
+  const account = setOverviewCard("account", accountState === "fresh" ? (hasCredentials ? "ok" : "unknown") : accountState, accountLabel);
+  if (current?.connected && state.authenticated) {
+    appendOverviewTime(account, accountState === "failed" ? "Fehlgeschlagen am" : "Letzte Kontoprüfung",
+      accountState === "failed" ? current.refresh_failure?.checked_at : current.preview?.checked_at);
+  }
+  const summary = overviewSummary(current);
+  for (const [domain, title, component] of overviewDomains) {
+    if (component) renderPermissionCard(domain, title, component, current, summary, readAge, accountState);
+  }
+  if (Number.isFinite(expiry)) overviewExpiryTimer = window.setTimeout(renderOverview, expiry + 1);
+}
+
 function pendingDiagnostics(text) {
   showDiagnostics = null; window.clearTimeout(diagnosticsExpiryTimer);
   $("diagnostics").replaceChildren(node("p", text, "muted"));
@@ -242,7 +475,11 @@ const runtimeLabels = {
 function renderTalkRuntime() {
   window.clearTimeout(talkExpiryTimer);
   const current = state.current;
-  if (!current?.connected) return;
+  if (!current?.connected) {
+    const status = overviewConnectionState(current);
+    setOverviewCard("talk", status, overviewLabels[status]);
+    return;
+  }
   const target = $("talk-status"), runtime = current.talk_runtime, worker = runtime?.worker || {};
   const rooms = current.talk?.room_tokens || [], users = current.talk?.allowed_user_ids || [];
   const enabled = current.talk?.enabled === true;
@@ -252,6 +489,7 @@ function renderTalkRuntime() {
   let status = runtime && Object.hasOwn(runtimeLabels, runtime.state) ? runtime.state : "unavailable";
   if (!state.authenticated) status = "unavailable";
   else if (!enabled) status = "disabled";
+  else if (current.refresh_failure || current.preview?.diagnostics?.user?.status === "failed" || overviewRefreshState === "failed") status = "unavailable";
   else if (!runtime || runtime.mode !== "managed-account") status = "unavailable";
   else if (status !== "unavailable" && (runtime.connection_revision !== current.revision || runtime.room_count !== rooms.length || runtime.allowed_user_count !== users.length)) status = "pending";
   else if (["active", "degraded", "failed"].includes(status)) {
@@ -263,6 +501,11 @@ function renderTalkRuntime() {
     else if (age !== null && maxAge) talkExpiryTimer = window.setTimeout(renderTalkRuntime, (maxAge - age) * 1000 + 1);
   } else if (status === "disabled") status = "pending";
   const [label, next] = runtimeLabels[status];
+  const summary = setOverviewCard("talk", !state.authenticated ? "disconnected" : status === "active" ? "ok" : status,
+    state.authenticated ? label : overviewLabels.disconnected);
+  if (typeof current.talk?.enabled === "boolean" && Array.isArray(rooms) && Array.isArray(users)) {
+    summary.append(node("p", `Gespeichert: ${enabled ? "an" : "aus"} · ${rooms.length} ${rooms.length === 1 ? "Raum" : "Räume"} · ${users.length} ${users.length === 1 ? "erlaubter Benutzer" : "erlaubte Benutzer"}`));
+  } else summary.append(node("p", "Gespeicherte Auswahl unbekannt.", "muted"));
   target.dataset.state = status;
   target.className = `diagnostic ${status === "active" ? "ok" : status === "failed" || status === "invalid" ? "failed" : "partial"}`;
   target.replaceChildren(node("h3", "Chat-Dienst"), node("strong", label));
@@ -270,7 +513,10 @@ function renderTalkRuntime() {
   target.append(node("p", "Die Mitgliedschaft der gespeicherten Benutzer wird beim Statusabruf nicht erneut geprüft. Zum Ändern der Auswahl zuerst die Teilnehmer laden.", "muted"));
   if (typeof worker.observed_at === "number" && Number.isFinite(worker.observed_at)) {
     const observed = new Date(worker.observed_at * 1000);
-    if (Number.isFinite(observed.getTime())) target.append(node("p", `Letzte Rückmeldung: ${observed.toISOString()}${age === null ? "" : " · beim Anzeigen " + Math.floor(age) + " Sekunden alt"}.`, "muted"));
+    if (Number.isFinite(observed.getTime())) {
+      target.append(node("p", `Letzte Rückmeldung: ${observed.toISOString()}${age === null ? "" : " · beim Anzeigen " + Math.floor(age) + " Sekunden alt"}.`, "muted"));
+      if (state.authenticated) appendOverviewTime(summary, "Letzte Rückmeldung", observed.toISOString());
+    }
   }
   if (worker.code) target.append(node("p", `Diagnosecode: ${worker.code}`, "muted"));
   if (Array.isArray(runtime?.issues) && runtime.issues.length) target.append(node("p", `Hinweise: ${runtime.issues.join(", ")}`, "muted"));
@@ -503,7 +749,16 @@ function renderAccess() {
     const remaining = rowEvidenceTime(row).remaining;
     if (remaining > 0 && ["verified", "partial"].includes(rowRightsState(row))) nextExpiry = Math.min(nextExpiry, remaining);
   }
-  for (const row of access.rows) target.append(renderAccessRow(row, pathCounts.get(pathKey(row.scope)) > 1, mode));
+  const components = new Set();
+  for (const row of access.rows) {
+    const card = renderAccessRow(row, pathCounts.get(pathKey(row.scope)) > 1, mode);
+    if (!components.has(row.scope.component)) {
+      components.add(row.scope.component);
+      card.id = `access-${row.scope.component}`;
+      card.tabIndex = -1;
+    }
+    target.append(card);
+  }
   if (Number.isFinite(nextExpiry)) rightsExpiryTimer = window.setTimeout(renderAccess, nextExpiry + 1);
   updateAccessControls();
 }
@@ -561,7 +816,7 @@ function isAccessPreviewCurrent() {
 }
 async function loadAccessAfterFailure(error) {
   const conflict = accessConflicts.has(error?.code);
-  access.blocked = true; clearAccessDraft(); renderAccess();
+  access.blocked = true; clearAccessDraft(); renderAccess(); renderOverview();
   let statusRead = false;
   if (state.authenticated) {
     try {
@@ -586,14 +841,16 @@ $("access-more").addEventListener("click", () => run(async () => {
       throw new Error("Der Prüfstand für weitere Ressourcen hat sich geändert.");
     }
   } catch (error) {
-    access.blocked = true; clearAccessDraft(); renderAccess();
+    access.blocked = true; clearAccessDraft(); renderAccess(); renderOverview();
     if (state.authenticated) await loadStatus();
     throw error;
   }
   for (const row of page.access.rows) rowRequestedAt.set(row, requestedAt);
   const rows = new Map([...current.access.rows, ...page.access.rows].map(row => [rowKey(row), row]));
-  state.current = { ...current, access: { ...page.access, rows: [...rows.values()] } };
-  renderAccess(); message("Weitere Ressourcen geladen.");
+  // This continuation adds rows to the original status. Keep the original
+  // overview and its age tied to that status instead of renewing its timer.
+  state.current = { ...current, access: { ...page.access, overview: current.access.overview, rows: [...rows.values()] } };
+  renderAccess(); renderOverview(); message("Weitere Ressourcen geladen.");
 }));
 $("access-review").addEventListener("click", () => run(async () => {
   if ($("access-review").disabled || !mayEditAccess()) return;
@@ -644,6 +901,7 @@ $("access-apply").addEventListener("click", () => {
   });
 });
 function renderStatus(current, requestedAt) {
+  const previous = state.current;
   if (!current.connected || current.account_id !== state.current?.account_id || current.revision !== state.current?.revision) {
     showFolder = null; window.clearTimeout(folderExpiryTimer); $("folders").replaceChildren();
   }
@@ -651,16 +909,27 @@ function renderStatus(current, requestedAt) {
   for (const row of current.access?.rows || []) rowRequestedAt.set(row, requestedAt);
   state.current = current;
   access.blocked = false;
+  overviewRefreshState = null;
   renderAccess();
   // Include the entire RPC duration conservatively; transport time must never
   // extend a server observation's lifetime. This also avoids clock-skew claims.
-  talkReceivedAt = requestedAt;
+  talkReceivedAt = overviewReceivedAt = requestedAt;
   window.clearTimeout(talkExpiryTimer);
+  const displayName = current.preview?.user_id === current.user_id ? current.preview?.display_name : null;
+  const account = displayName && displayName !== current.user_id ? `${displayName} (${current.user_id})` : current.user_id;
+  const credentials = current.credentials_stored === true ? "App-Passwort gespeichert"
+    : current.credentials_stored === false ? "Kein App-Passwort gespeichert" : "Speicherstatus des App-Passworts unbekannt";
   $("current").textContent = current.connected
-    ? `Verbindung gespeichert: ${current.server_url} als ${current.user_id}. Letzte gespeicherte Messung: ${current.preview?.checked_at || "unbekannt"}.`
-    : "Noch keine Nextcloud-Verbindung gespeichert.";
-  if (current.connected && !state.flow) $("server-url").value = current.server_url;
-  $("refresh").hidden = !current.connected;
+    ? `${current.server_url} · ${account} · ${credentials}`
+    : current.state === "failed" ? "Gespeicherte Verbindung nicht verifizierbar." : "Noch keine Nextcloud-Verbindung gespeichert.";
+  if (!state.flow && (!previous || current.connected !== previous.connected || current.server_url !== previous.server_url
+    || current.user_id !== previous.user_id)) {
+    $("credentials-option").open = !current.connected;
+    $("server-url").value = current.server_url || "";
+    $("login-name").value = "";
+  }
+  $("connection-edit").textContent = current.connected ? "Verbindung bearbeiten" : "Verbindung einrichten";
+  $("refresh").hidden = !current.connected || Boolean(state.flow);
   $("folders-section").hidden = !current.connected;
   $("talk-section").hidden = !current.connected;
   if (current.preview && !state.ready) {
@@ -674,13 +943,17 @@ function renderStatus(current, requestedAt) {
     pendingDiagnostics("Noch nicht geprüft. Melde zuerst das Nextcloud-Konto an.");
   }
   if (current.connected) renderTalk(current);
+  else renderTalkRuntime();
+  renderOverview();
 }
 function clearFlow() {
   state.flow = null; state.ready = null; $("login-pending").hidden = true;
   $("flow-actions").hidden = true; $("app-password").value = "";
   $("login-link").removeAttribute("href"); $("apply-panel").hidden = true;
   $("confirm-access").checked = false; $("apply").disabled = true;
-  renderAccess();
+  $("refresh").hidden = !state.current?.connected;
+  $("talk-section").hidden = !state.current?.connected;
+  renderAccess(); renderOverview(); renderTalkRuntime();
 }
 function showReady(result, requestedAt) {
   state.flow = result.flow_id; state.ready = result;
@@ -689,6 +962,8 @@ function showReady(result, requestedAt) {
   $("login-pending").hidden = true; $("flow-actions").hidden = false;
   $("apply-panel").hidden = false; $("refresh").hidden = true;
   $("confirm-access").checked = false; $("apply").disabled = true;
+  renderOverview();
+  $("preview-heading").focus();
   message("Benutzer geladen. Prüfe die Zugriffsdiagnose und die Ressourcen, bevor du die Verbindung bestätigst.");
 }
 function showLoginFailure(result, options = {}) {
@@ -713,11 +988,13 @@ function showLoginFailure(result, options = {}) {
   message("Die Anmeldung wurde nicht gespeichert. Nach der Korrektur erneut prüfen.");
 }
 function selectedServer() {
-  const server = new URL($("server-url").value.trim());
+  let server;
+  try { server = new URL($("server-url").value.trim()); }
+  catch { throw new Error("Eine gültige HTTPS-Serveradresse eingeben."); }
   if (server.protocol !== "https:" || server.username || server.password || server.search || server.hash) throw new Error("Eine HTTPS-Serveradresse ohne Zugangsdaten, Suchparameter oder Fragment eingeben.");
   return server;
 }
-async function loadStatus() {
+async function loadStatus({ initial = false } = {}) {
   const requestedAt = performance.now();
   clearAccessPreview();
   const current = await gateway.call("status");
@@ -726,7 +1003,7 @@ async function loadStatus() {
   renderStatus(current, requestedAt);
   message(previewInvalidated
     ? "Der gespeicherte Verbindungsstand hat sich geändert. Die alte Einrichtungsvorschau wurde geschlossen; der aktuelle Status wird angezeigt."
-    : "Gespeicherter Verbindungsstatus geladen.");
+    : initial ? "" : "Gespeicherter Verbindungsstatus geladen.");
 }
 
 $("connect").addEventListener("click", () => run(async () => {
@@ -735,8 +1012,9 @@ $("connect").addEventListener("click", () => run(async () => {
   gateway = createSetupGateway({ origin: location.origin, basePath: document.body.dataset.controlUiBasePath || "",
     storage: window.localStorage, onClose: disconnected });
   await gateway.connect(); state.authenticated = true;
-  $("auth-status").textContent = "Als OpenClaw-Administrator verbunden"; $("reload").hidden = false;
-  await loadStatus();
+  $("auth-status").textContent = "Verbunden"; $("reload").hidden = false; $("connect").hidden = true;
+  renderOverview(); renderTalkRuntime();
+  await loadStatus({ initial: true });
 }));
 $("reload").addEventListener("click", () => run(loadStatus));
 $("login-form").addEventListener("submit", event => { event.preventDefault(); return run(async () => {
@@ -751,6 +1029,8 @@ $("login-form").addEventListener("submit", event => { event.preventDefault(); re
   $("login-link").href = login.toString(); $("login-pending").hidden = false;
   $("flow-actions").hidden = false;
   $("preview-section").hidden = true; $("talk-section").hidden = true;
+  $("refresh").hidden = true;
+  renderOverview(); renderTalkRuntime();
   pendingDiagnostics("Warte auf die Bestätigung bei Nextcloud. Danach „Anmeldung prüfen“ wählen, um Benutzer und Ressourcen zu laden.");
   message("Die Nextcloud-Anmeldung ist bereit. Über den Link öffnen und anschließend hier prüfen.");
 }, { login: true }); });
@@ -809,22 +1089,28 @@ $("apply").addEventListener("click", () => run(async () => {
     pendingDiagnostics("Die Speicherung konnte nicht bestätigt werden. Lade zuerst den Status neu; die bisherige Vorschau ist geschlossen.");
     throw new Error("Die Verbindung konnte nicht bestätigt werden. „Status neu laden“ wählen und den gespeicherten Stand prüfen, bevor du eine neue Anmeldung beginnst.");
   }
-  clearFlow(); renderStatus(result, requestedAt); message("Nextcloud-Verbindung gespeichert. Prüfe die Freigaben für den Agenten und die Talk-Einstellung separat.");
+  clearFlow(); renderStatus(result, requestedAt);
+  $("credentials-option").open = false; $("login-name").value = ""; $("server-url").value = result.server_url;
+  $("connection-edit").focus();
+  message("Nextcloud-Verbindung gespeichert. Prüfe die Freigaben für den Agenten und die Talk-Einstellung separat.");
 }));
 $("refresh").addEventListener("click", () => run(async () => {
   clearAccessDraft();
   showFolder = null; window.clearTimeout(folderExpiryTimer); $("folders").replaceChildren();
   pendingDiagnostics("Benutzer und Ressourcen werden erneut auf dem Nextcloud-Server geprüft …");
+  overviewRefreshState = "pending"; renderOverview();
   const requestedAt = performance.now();
   const current = state.current;
   let result;
   try { result = await gateway.call("connection.refresh", { expected_revision: current.revision }); }
   catch (error) {
     renderDiagnostics(current.preview, { current, refreshFailure: {} });
-    access.blocked = true; renderAccess();
+    access.blocked = true; overviewRefreshState = "failed";
+    renderAccess(); renderOverview(); renderTalkRuntime();
     throw error;
   }
   if (result.state === "failed") {
+    overviewRefreshState = "failed"; renderOverview(); renderTalkRuntime();
     clearFlow();
     if (result.source_revision === current.revision && result.account_id === current.account_id && result.revision !== current.revision) {
       await loadStatus();
@@ -833,7 +1119,8 @@ $("refresh").addEventListener("click", () => run(async () => {
       return;
     }
     const matching = result.account_id === current.account_id && result.revision === current.revision;
-    state.current = { ...current, refresh_failure: matching ? result : {} }; renderAccess();
+    state.current = { ...current, refresh_failure: matching ? result : {} };
+    renderAccess(); renderOverview(); renderTalkRuntime();
     renderDiagnostics(current.preview, { current, refreshFailure: matching ? result : {} });
     showLoginFailure(result, { refresh: true });
     message("Die erneute Prüfung ist fehlgeschlagen. Die bisher gespeicherte Verbindung bleibt unverändert; ihr alter Prüfstand belegt keinen aktuellen Zugriff.");
@@ -867,7 +1154,7 @@ async function browse(path) {
   catch (error) {
     // A failed exact probe may have withdrawn persisted evidence.
     access.blocked = true;
-    clearAccessDraft(); renderAccess();
+    clearAccessDraft(); renderAccess(); renderOverview();
     if (state.authenticated) await loadStatus();
     recordFolderMeasurement(path.replace(/^\/+|\/+$/g, ""), null);
     $("folders").replaceChildren(node("p", "Der Zugriff auf diesen Ordner konnte nicht bestätigt werden.", "error"));
@@ -890,7 +1177,7 @@ async function browse(path) {
   }
   const bound = result.account_id === state.current?.account_id && result.revision === state.current?.revision;
   if (result.revision && !bound) {
-    access.blocked = true; clearAccessDraft(); renderAccess();
+    access.blocked = true; clearAccessDraft(); renderAccess(); renderOverview();
     $("folders").replaceChildren(node("p", "Die Verbindung hat sich geändert. Den Status neu laden und den Ordner erneut prüfen.", "error"));
     message(""); return;
   }
@@ -953,8 +1240,10 @@ $("save-talk").addEventListener("click", () => run(async () => {
   renderStatus(result, requestedAt); message(enabled ? "Talk-Auswahl gespeichert und aktiviert. Ob der Chat-Dienst verbunden ist, zeigt der Abschnitt „Chat-Dienst“." : "Talk deaktiviert.");
 }));
 window.addEventListener("focus", () => {
-  showDiagnostics?.(); showFolder?.(); renderTalkRuntime();
+  showDiagnostics?.(); showFolder?.(); renderOverview(); renderTalkRuntime();
   if (access.preview && !isAccessPreviewCurrent()) expireAccessPreview();
   if (access.rows.some(row => expiredRights(row) && ["verified", "partial"].includes(row.server?.state))) renderAccess();
 });
 window.addEventListener("pagehide", () => { $("app-password").value = ""; clearAccessDraft(); gateway?.close(); });
+addOverviewCards();
+renderOverview(); renderTalkRuntime();

@@ -70,6 +70,7 @@ class WebDriver:
             raise ValueError("WebDriver endpoint must be an explicit loopback HTTP port")
         self.base = base.rstrip("/")
         self.session = ""
+        self.bidi_url = ""
         self.opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
     def request(self, method: str, path: str, value: object = None):
@@ -106,6 +107,35 @@ class WebDriver:
     def evaluate(self, script: str):
         return self.call("POST", "/execute/sync", {"script": script, "args": []})
 
+    def set_viewport(self, viewport: dict[str, int] | None):
+        """Use Firefox's BiDi viewport override, independent of native window limits."""
+        endpoint = urllib.parse.urlsplit(self.bidi_url)
+        if endpoint.scheme != "ws" or endpoint.hostname not in {"localhost", "127.0.0.1"}:
+            raise RuntimeError("Expected the isolated browser's loopback BiDi endpoint")
+        command = {"id": 1, "method": "browsingContext.setViewport", "params": {
+            "context": self.call("GET", "/window"), "viewport": viewport,
+        }}
+        # Node is already required by the setup/auth fixtures; its built-in
+        # WebSocket avoids adding a browser-driver or websocket dependency.
+        result = subprocess.run([
+            "node", "--input-type=module", "-e", """
+            const socket = new WebSocket(process.argv[1]);
+            const timeout = setTimeout(() => { socket.close(); process.exit(1); }, 10000);
+            socket.addEventListener('open', () => socket.send(process.argv[2]));
+            socket.addEventListener('message', event => {
+              const reply = JSON.parse(event.data);
+              if (reply.id !== 1) return;
+              clearTimeout(timeout);
+              console.log(JSON.stringify(reply));
+              socket.close();
+              process.exitCode = reply.type === 'success' ? 0 : 1;
+            });
+            socket.addEventListener('error', () => { clearTimeout(timeout); process.exit(1); });
+            """, self.bidi_url, json.dumps(command),
+        ], capture_output=True, text=True, timeout=15, check=False)
+        if result.returncode:
+            raise RuntimeError(f"Firefox viewport override failed: {result.stdout.strip()}")
+
     def evaluate_async(self, script: str, *arguments: object):
         result = self.call(
             "POST",
@@ -121,6 +151,18 @@ class WebDriver:
         if isinstance(result, dict) and result.get("error"):
             raise RuntimeError(result["error"])
         return result
+
+
+def start_browser_session(driver: WebDriver, options: dict[str, object]):
+    if driver.session:
+        driver.call("DELETE", "")
+        driver.session = ""
+    created = driver.request("POST", "/session", {"capabilities": {"alwaysMatch": {
+        "browserName": "firefox", "moz:firefoxOptions": options, "webSocketUrl": True,
+    }}})
+    driver.session = created["sessionId"]
+    driver.bidi_url = created["capabilities"].get("webSocketUrl", "")
+    return created
 
 
 def fixture_handler(assets: Path, current: dict[str, Path] | None, mode: str, launcher: Path):
@@ -629,6 +671,39 @@ def install_signed_fixture(driver: WebDriver, access_checks: bool = False, saved
             ],
           },
         };
+        let overviewExpiresAt = null;
+        const overviewStatus = () => {
+          if (!accessChecks) return current;
+          const measuredAt = overviewExpiresAt === null ? Date.now() : overviewExpiresAt - 86400_000;
+          const checked = new Date(measuredAt).toISOString();
+          const age = Math.max(0, (Date.now() - measuredAt) / 1000);
+          const freshness = {state: age < 86400 ? 'fresh' : 'stale', checked_at: checked,
+            age_seconds: age, max_age_seconds: 86400};
+          const domains = {VEVENT: 'calendars', VTODO: 'task_lists', VCARD: 'addressbooks'};
+          const components = Object.fromEntries(['VEVENT', 'VTODO', 'VCARD', 'FILES'].map(component => {
+            const matching = current.access.rows.filter(item => item.scope.component === component);
+            const selected = matching.filter(item => item.desired_operations.length);
+            const effective = operation => matching.filter(
+              item => item.effective_operations.includes(operation)).length;
+            return [component, {known: matching.length, selected: selected.length,
+              readable: effective('read'),
+              creatable: effective(component === 'FILES' ? 'create_file' : 'create'),
+              updatable: effective('update'), blocked: 0,
+              complete: component === 'FILES'
+                || current.preview.diagnostics[domains[component]]?.checks_complete === true,
+              freshness: {...freshness}}];
+          }));
+          current = {...current, credentials_stored: true,
+            diagnostics_freshness: {...freshness},
+            preview: {...current.preview, checked_at: checked},
+            access: {...current.access, overview: {schema_version: 1,
+              account_id: current.account_id, connection_revision: current.revision, components,
+              file_create_targets: current.access.rows.filter(item =>
+                item.scope.component === 'FILES' && item.effective_operations.includes('create_file'))
+                .map(item => ({scope: item.scope, freshness: {...freshness}})),
+              file_create_targets_truncated: false}}};
+          return current;
+        };
         const sameScope = (a, b) => JSON.stringify(a) === JSON.stringify(b);
         const knownScope = scope => current.access.rows.find(row => sameScope(row.scope, scope));
         const version = () => ({expected_revision: current.revision,
@@ -689,7 +764,7 @@ def install_signed_fixture(driver: WebDriver, access_checks: bool = False, saved
               Math.abs(Date.now() - signed.issued_at) < 60_000, 'Stale or repeated setup proof');
             nonces.add(signed.nonce);
             operations.push(operation); // Never retain parameters or proof containing the app password.
-            if (operation === 'status') this.reply(request, current);
+            if (operation === 'status') this.reply(request, overviewStatus());
             else if (operation === 'login.credentials') {
               require(parameters.server_url === preview.server_url &&
                 parameters.login_name === 'agent-login' && parameters.app_password === secret &&
@@ -704,7 +779,7 @@ def install_signed_fixture(driver: WebDriver, access_checks: bool = False, saved
                 parameters.confirm_account_access === true, 'Confirmation binding mismatch');
               current = {...current, revision: 'applied-revision', preview,
                 last_verified_at: preview.checked_at};
-              this.reply(request, current);
+              this.reply(request, overviewStatus());
             } else if (operation === 'folders.list') {
               require(parameters.path === 'Fixture', 'Wrong folder selection');
               this.reply(request, {account_id: current.account_id, revision: current.revision,
@@ -773,7 +848,7 @@ def install_signed_fixture(driver: WebDriver, access_checks: bool = False, saved
               current = {...current, revision: crypto.randomUUID(), access: {...current.access, rows,
                 binding: {...current.access.binding, policy_revision: crypto.randomUUID()}}};
               if (applyBehavior === 'uncertain') { this.close(); return; }
-              this.reply(request, current);
+              this.reply(request, overviewStatus());
             } else throw Error('Unexpected synthetic setup operation');
           }
           close() { this.readyState = 3; this.dispatchEvent(new Event('close')); }
@@ -804,6 +879,7 @@ def install_signed_fixture(driver: WebDriver, access_checks: bool = False, saved
                 expected_revision: current.revision, preview});
           },
           expireNextAccessPreview: () => { fixtureExpiry = 2200; },
+          expireOverview: () => { overviewExpiresAt = Date.now() + 3000; },
           conflict: () => { current = {...current, revision: crypto.randomUUID()}; },
           uncertain: () => { applyBehavior = 'uncertain'; },
           savedStatus: () => {
@@ -876,16 +952,20 @@ def check_setup_diagnostics(driver: WebDriver):
     assert not driver.evaluate(
         "return document.getElementById('folders').textContent.includes('Lesen: bestätigt')"
     )
-    click("#credentials-option summary")
+    def open_connection():
+        if not driver.evaluate("return document.getElementById('credentials-option').open"):
+            click("#connection-edit")
+
+    open_connection()
     attributes = driver.evaluate("""
         const input = document.getElementById('app-password');
         return {type: input.type, autocomplete: input.autocomplete};
     """)
     assert attributes == {"type": "password", "autocomplete": "off"}
-    fill("#server-url", "https://cloud.example.test/nextcloud")
-    fill("#login-name", "agent-login")
-
     def submit():
+        open_connection()
+        fill("#server-url", "https://cloud.example.test/nextcloud")
+        fill("#login-name", "agent-login")
         fill("#app-password", "synthetic-browser-app-password-only")
         click("#credentials-submit")
         wait("return window.setupAcceptance.summary().pending", "Direct login RPC was not sent")
@@ -939,6 +1019,7 @@ def check_setup_diagnostics(driver: WebDriver):
     wait("return !document.getElementById('actions').disabled && "
          "document.getElementById('apply-panel').hidden", "Cancel did not close preview")
     assert summary()["operations"].count("login.cancel") == 1
+    open_connection()
     fill("#app-password", "synthetic-browser-app-password-only")
     driver.evaluate("window.setupAcceptance.disconnect()")
     assert driver.evaluate("return document.getElementById('actions').disabled")
@@ -950,6 +1031,83 @@ def check_setup_diagnostics(driver: WebDriver):
             "identity_failure_skips_domains": True, "partial_read_probes_rendered": True,
             "ambiguous_refresh_withholds_previous_folder_rights": True,
             "saved_snapshot_labelled": True, "cancel_and_disconnect_clear_password": True}
+
+
+def check_setup_overview(
+    driver: WebDriver, setup_url: str, screenshot: Path | None, mobile_screenshot: Path | None,
+):
+    """Check the actual first viewport and in-page editing with synthetic status."""
+    driver.call("POST", "/window/rect", {"width": 1366, "height": 900})
+    driver.call("POST", "/url", {"url": setup_url})
+    install_signed_fixture(driver, access_checks=True)
+    click_element(driver, "#connect")
+    wait_for(driver, "return !document.getElementById('actions').disabled && "
+             "document.querySelectorAll('#overview-cards [data-overview-domain]').length === 6",
+             "The initial setup screen did not show all overview areas")
+    driver.evaluate("window.scrollTo(0, 0)")
+    if screenshot:
+        screenshot.write_bytes(base64.b64decode(driver.call("GET", "/screenshot")))
+    layout = driver.evaluate("""
+        const cards = Array.from(document.querySelectorAll('#overview-cards [data-overview-domain]'));
+        return {width: innerWidth, height: innerHeight,
+          overflow: document.documentElement.scrollWidth > innerWidth + 1,
+          cards: cards.map(element => ({domain: element.dataset.overviewDomain,
+            top: element.getBoundingClientRect().top, bottom: element.getBoundingClientRect().bottom}))};
+    """)
+    assert sorted(item["domain"] for item in layout["cards"]) == [
+        "account", "addressbooks", "calendars", "files", "talk", "task_lists",
+    ], layout
+    assert not layout["overflow"], layout
+    assert all(0 <= item["top"] < item["bottom"] <= layout["height"]
+               for item in layout["cards"]), f"Overview does not fit the first desktop viewport: {layout}"
+    assert driver.evaluate("""
+        const calendars = document.querySelector('[data-overview-domain="calendars"]');
+        const files = document.querySelector('[data-overview-domain="files"]');
+        return calendars.dataset.state === 'partial' && files.textContent.includes('Projektakten');
+    """), "Partial calendar coverage or the effective file destination was lost"
+    edit = driver.element("#connection-edit")
+    assert driver.call("GET", f"/element/{edit[ELEMENT]}/computedlabel"), "Connection edit lacks a label"
+    driver.call("POST", f"/element/{edit[ELEMENT]}/value", {"text": "\ue007"})
+    assert driver.evaluate("""
+        return ['server-url', 'login-name', 'app-password'].every(id =>
+          document.getElementById(id).getClientRects().length > 0) &&
+          document.getElementById('app-password').value === '';
+    """), "Keyboard activation did not expose the write-only connection inputs"
+
+    # Override the real layout viewport, without changing styles, embedding the
+    # setup page, or copying a browser profile. Record its measured CSS width.
+    driver.set_viewport({"width": 360, "height": 900})
+    driver.call("POST", "/url", {"url": setup_url})
+    install_signed_fixture(driver, access_checks=True)
+    click_element(driver, "#connect")
+    wait_for(driver, "return !document.getElementById('actions').disabled && "
+             "document.querySelectorAll('#overview-cards [data-overview-domain]').length === 6",
+             "Narrow overview did not load")
+    driver.evaluate("window.scrollTo(0, 0)")
+    if mobile_screenshot:
+        mobile_screenshot.write_bytes(base64.b64decode(driver.call("GET", "/screenshot")))
+    mobile = driver.evaluate("""
+        return {width: innerWidth, height: innerHeight, pixel_ratio: devicePixelRatio,
+          overflow: document.documentElement.scrollWidth > innerWidth + 1};
+    """)
+    assert mobile["width"] == 360 and not mobile["overflow"], mobile
+    driver.evaluate("window.setupAcceptance.expireOverview()")
+    click_element(driver, "#reload")
+    wait_for(driver, "return document.querySelector('[data-overview-domain=files]')"
+             ".dataset.state === 'stale'",
+             "Expired file permissions stayed positive on the overview")
+    driver.evaluate("window.setupAcceptance.disconnect()")
+    wait_for(driver, "return document.getElementById('actions').disabled && "
+             "!document.getElementById('connect').disabled",
+             "Disconnected overview retained active administration")
+    final = fixture_summary(driver)
+    assert final["operations"] == ["status", "status"], "Overview performed an unrequested mutation or probe"
+    driver.set_viewport(None)
+    return {"synthetic_operator_only": True, "desktop_viewport": layout,
+            "mobile_viewport": mobile, "keyboard_connection_edit": True,
+            "permission_expiry_visible": True, "disconnect_blocks_actions": True,
+            "read_only_overview": True, "screenshot": str(screenshot) if screenshot else None,
+            "mobile_screenshot": str(mobile_screenshot) if mobile_screenshot else None}
 
 
 def check_access_settings(driver: WebDriver, setup_url: str, screenshot: Path | None):
@@ -1126,6 +1284,8 @@ def main() -> int:
         "--setup-page-fixture", action="store_true", help="Open the setup page with signed synthetic RPC",
     )
     parser.add_argument("--screenshot", type=Path, help="Save the access preview as a PNG")
+    parser.add_argument("--overview-screenshot", type=Path, help="Save the first desktop setup viewport")
+    parser.add_argument("--mobile-screenshot", type=Path, help="Save the narrow setup overview")
     parser.add_argument("--plugin-page", type=Path, help="Optional original/patched renderer file override")
     parser.add_argument(
         "--check-cache-upgrade",
@@ -1157,8 +1317,9 @@ def main() -> int:
         or args.expect != "opened"
     ):
         parser.error("--setup-page-fixture runs without launcher, core and cache checks")
-    if args.screenshot and not args.setup_page_fixture:
-        parser.error("--screenshot requires --setup-page-fixture")
+    screenshots = (args.screenshot, args.overview_screenshot, args.mobile_screenshot)
+    if any(screenshots) and not args.setup_page_fixture:
+        parser.error("Setup screenshots require --setup-page-fixture")
     if args.check_cache_upgrade and (args.plugin_page or args.expect != "opened"):
         parser.error("--check-cache-upgrade requires --expect opened and an unmodified renderer filename")
     if args.check_setup_diagnostics and args.expect != "opened":
@@ -1223,19 +1384,7 @@ def main() -> int:
                 firefox_options: dict[str, object] = {"args": ["-headless"]}
                 if args.firefox:
                     firefox_options["binary"] = str(args.firefox)
-                created = driver.request(
-                    "POST",
-                    "/session",
-                    {
-                        "capabilities": {
-                            "alwaysMatch": {
-                                "browserName": "firefox",
-                                "moz:firefoxOptions": firefox_options,
-                            }
-                        }
-                    },
-                )
-                driver.session = created["sessionId"]
+                created = start_browser_session(driver, firefox_options)
                 origin = f"http://127.0.0.1:{server.server_port}"
                 if args.setup_page_fixture:
                     setup_url = origin + BASE + "/setup"
@@ -1244,6 +1393,9 @@ def main() -> int:
                         "mode": "direct-setup-page-fixture",
                         "browser_version": created["capabilities"].get("browserVersion"),
                         "setup_diagnostics": check_setup_diagnostics(driver),
+                        "overview": check_setup_overview(
+                            driver, setup_url, args.overview_screenshot, args.mobile_screenshot
+                        ),
                         "access_settings": check_access_settings(driver, setup_url, args.screenshot),
                     }
                     print(json.dumps(result, indent=2))
